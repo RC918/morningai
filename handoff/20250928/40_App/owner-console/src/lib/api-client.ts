@@ -1,4 +1,4 @@
-import { getAccessToken, getOrRefreshAccessToken } from './auth.ts';
+import { getAccessToken, getOrRefreshAccessToken, refreshAccessToken, clearTokens, RefreshAccessTokenError } from './auth.ts';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || '';
 
@@ -30,6 +30,10 @@ function getCsrfToken(): string | null {
  * P0-3 Security Fix:
  * - Adds credentials: 'include' to send HttpOnly cookies
  * - Injects X-CSRF-Token header for POST/PUT/PATCH/DELETE requests
+ * 
+ * P1 Enhancement: 401 Retry Mechanism
+ * - On 401 "Token expired" response, attempts to refresh token and retry request once
+ * - If retry fails, clears tokens and redirects to login
  */
 export async function apiClient<T>(
   url: string,
@@ -41,31 +45,89 @@ export async function apiClient<T>(
     finalUrl = '/api' + url;
   }
   
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> || {}),
+  const buildHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string> || {}),
+    };
+    
+    const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+    if (options.method && unsafeMethods.includes(options.method.toUpperCase())) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+    }
+    
+    // Get access token, refreshing if necessary (handles page refresh case)
+    // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
+    const accessToken = await getOrRefreshAccessToken();
+    if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    
+    return headers;
   };
   
-  const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
-  if (options.method && unsafeMethods.includes(options.method.toUpperCase())) {
-    const csrfToken = getCsrfToken();
-    if (csrfToken) {
-      headers['X-CSRF-Token'] = csrfToken;
-    }
-  }
-  
-  // Get access token, refreshing if necessary (handles page refresh case)
-  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
-  const accessToken = await getOrRefreshAccessToken();
-  if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
+  const headers = await buildHeaders();
   
   const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
     ...options,
     credentials: 'include',  // P0-3: Always include credentials for HttpOnly cookies
     headers,
   });
+
+  // Handle 401 Token Expired with retry logic
+  if (res.status === 401) {
+    try {
+      // Attempt to refresh the token
+      await refreshAccessToken();
+      
+      // Rebuild headers with new token
+      const retryHeaders = await buildHeaders();
+      
+      // Retry the request once
+      const retryRes = await fetch(`${API_BASE_URL}${finalUrl}`, {
+        ...options,
+        credentials: 'include',
+        headers: retryHeaders,
+      });
+      
+      if (retryRes.status === 401) {
+        // Retry also failed - clear tokens and redirect to login
+        clearTokens();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        const text = typeof retryRes.text === 'function' ? await retryRes.text().catch(() => '') : '';
+        throw new Error(`HTTP 401 - Authentication failed. Please login again. ${text}`);
+      }
+      
+      if (!retryRes.ok) {
+        const text = typeof retryRes.text === 'function' ? await retryRes.text().catch(() => '') : '';
+        const statusText = retryRes.statusText || '';
+        throw new Error(`HTTP ${retryRes.status} ${statusText} - ${text}`);
+      }
+      
+      const ct = retryRes.headers && typeof retryRes.headers.get === 'function' ? retryRes.headers.get('content-type') || '' : '';
+      const data = ct.includes('application/json') ? await retryRes.json() : (typeof retryRes.text === 'function' ? await retryRes.text() : '');
+      
+      return {
+        data,
+        status: retryRes.status,
+        headers: retryRes.headers,
+      } as T;
+    } catch (error) {
+      // If refresh failed with session_invalid, clear tokens and redirect
+      if (error instanceof RefreshAccessTokenError && error.code === 'session_invalid') {
+        clearTokens();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      }
+      throw error;
+    }
+  }
 
   if (!res.ok) {
     const text = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
@@ -307,32 +369,38 @@ export async function apiClientWithMeta<T>(
     finalUrl = '/api' + url;
   }
   
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((fetchOptions.headers as Record<string, string>) || {}),
-  };
-
   const method = (fetchOptions.method || 'GET').toUpperCase();
   const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
   
-  if (unsafeMethods.includes(method)) {
-    const csrfToken = getCsrfToken();
-    if (csrfToken) {
-      headers['X-CSRF-Token'] = csrfToken;
+  const buildHeaders = async (): Promise<Record<string, string>> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...((fetchOptions.headers as Record<string, string>) || {}),
+    };
+    
+    if (unsafeMethods.includes(method)) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
     }
-  }
-  
-  // Get access token, refreshing if necessary (handles page refresh case)
-  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
-  const accessToken = await getOrRefreshAccessToken();
-  if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
+    
+    // Get access token, refreshing if necessary (handles page refresh case)
+    // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
+    const accessToken = await getOrRefreshAccessToken();
+    if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+    
+    return headers;
+  };
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
+    const headers = await buildHeaders();
+    
     const response = await fetch(API_BASE_URL + finalUrl, {
       ...fetchOptions,
       headers,
@@ -344,6 +412,75 @@ export async function apiClientWithMeta<T>(
 
     if (response.headers.get('X-CSRF-Token')) {
       csrfTokenCache = response.headers.get('X-CSRF-Token');
+    }
+
+    // Handle 401 Token Expired with retry logic
+    if (response.status === 401) {
+      try {
+        // Attempt to refresh the token
+        await refreshAccessToken();
+        
+        // Rebuild headers with new token
+        const retryHeaders = await buildHeaders();
+        
+        // Create new abort controller for retry
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => retryController.abort(), timeout);
+        
+        try {
+          // Retry the request once
+          const retryResponse = await fetch(API_BASE_URL + finalUrl, {
+            ...fetchOptions,
+            headers: retryHeaders,
+            credentials: 'include',
+            signal: retryController.signal,
+          });
+          
+          clearTimeout(retryTimeoutId);
+          
+          if (retryResponse.headers.get('X-CSRF-Token')) {
+            csrfTokenCache = retryResponse.headers.get('X-CSRF-Token');
+          }
+          
+          if (retryResponse.status === 401) {
+            // Retry also failed - clear tokens and redirect to login
+            clearTokens();
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+            }
+            const errorData = await retryResponse.json().catch(() => ({ message: 'Authentication failed' }));
+            throw new ApiError(401, 'Authentication failed. Please login again.', errorData);
+          }
+          
+          if (!retryResponse.ok) {
+            const errorData = await retryResponse.json().catch(() => ({ message: 'Request failed' }));
+            throw new ApiError(
+              retryResponse.status,
+              errorData.message || `HTTP ${retryResponse.status}`,
+              errorData
+            );
+          }
+          
+          const data = await retryResponse.json();
+          return {
+            data,
+            status: retryResponse.status,
+            headers: retryResponse.headers
+          };
+        } catch (retryError) {
+          clearTimeout(retryTimeoutId);
+          throw retryError;
+        }
+      } catch (error) {
+        // If refresh failed with session_invalid, clear tokens and redirect
+        if (error instanceof RefreshAccessTokenError && error.code === 'session_invalid') {
+          clearTokens();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+        }
+        throw error;
+      }
     }
 
     if (!response.ok) {

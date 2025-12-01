@@ -3,29 +3,92 @@
  * 
  * Provides functions to interact with the AI policies API endpoints.
  * Phase 6 PR-2: AI Policy Editor UI
+ * 
+ * P1 Enhancement: 401 Retry Mechanism
+ * - On 401 "Token expired" response, attempts to refresh token and retry request once
+ * - If retry fails, clears tokens and redirects to login
  */
 
-import { getOrRefreshAccessToken } from './auth'
+import { getOrRefreshAccessToken, refreshAccessToken, clearTokens, RefreshAccessTokenError } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+
+/**
+ * Helper function to make authenticated fetch requests with 401 retry logic
+ * @param {string} url - Full URL to fetch
+ * @param {Object} options - Fetch options
+ * @param {string} errorMessage - Error message to throw on failure
+ * @returns {Promise<Response>} Fetch response
+ */
+async function authenticatedFetchWithRetry(url, options, errorMessage) {
+  const buildHeaders = async () => {
+    const token = await getOrRefreshAccessToken()
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    return headers
+  }
+  
+  const headers = await buildHeaders()
+  
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include'
+  })
+  
+  // Handle 401 Token Expired with retry logic
+  if (response.status === 401) {
+    try {
+      // Attempt to refresh the token
+      await refreshAccessToken()
+      
+      // Rebuild headers with new token
+      const retryHeaders = await buildHeaders()
+      
+      // Retry the request once
+      const retryResponse = await fetch(url, {
+        ...options,
+        headers: retryHeaders,
+        credentials: 'include'
+      })
+      
+      if (retryResponse.status === 401) {
+        // Retry also failed - clear tokens and redirect to login
+        clearTokens()
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login'
+        }
+        throw new Error('Authentication failed. Please login again.')
+      }
+      
+      return retryResponse
+    } catch (error) {
+      // If refresh failed with session_invalid, clear tokens and redirect
+      if (error instanceof RefreshAccessTokenError && error.code === 'session_invalid') {
+        clearTokens()
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login'
+        }
+      }
+      throw error
+    }
+  }
+  
+  return response
+}
 
 /**
  * Get policy templates for guided editor
  * @returns {Promise<{templates: Object, count: number}>}
  */
 export async function getPolicyTemplates() {
-  const token = await getOrRefreshAccessToken()
-  
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/ai-policies/templates`, {
-    method: 'GET',
-    headers,
-    credentials: 'include'
-  })
+  const response = await authenticatedFetchWithRetry(
+    `${API_BASE_URL}/api/ai-policies/templates`,
+    { method: 'GET' },
+    'Failed to fetch policy templates'
+  )
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to fetch policy templates' }))
@@ -45,22 +108,15 @@ export async function getPolicyTemplates() {
  * @returns {Promise<{policies: Array, count: number, limit: number, offset: number}>}
  */
 export async function listPolicies({ limit = 50, offset = 0, policy_type, status } = {}) {
-  const token = await getOrRefreshAccessToken()
-  
   const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() })
   if (policy_type) params.append('policy_type', policy_type)
   if (status) params.append('status', status)
   
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/ai-policies?${params}`, {
-    method: 'GET',
-    headers,
-    credentials: 'include'
-  })
+  const response = await authenticatedFetchWithRetry(
+    `${API_BASE_URL}/api/ai-policies?${params}`,
+    { method: 'GET' },
+    'Failed to fetch policies'
+  )
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to fetch policies' }))
@@ -76,18 +132,11 @@ export async function listPolicies({ limit = 50, offset = 0, policy_type, status
  * @returns {Promise<Object>} Policy object
  */
 export async function getPolicy(policyId) {
-  const token = await getOrRefreshAccessToken()
-  
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
-    method: 'GET',
-    headers,
-    credentials: 'include'
-  })
+  const response = await authenticatedFetchWithRetry(
+    `${API_BASE_URL}/api/ai-policies/${policyId}`,
+    { method: 'GET' },
+    'Failed to fetch policy'
+  )
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to fetch policy' }))
@@ -109,19 +158,11 @@ export async function getPolicy(policyId) {
  * @returns {Promise<Object>} Created policy
  */
 export async function createPolicy(policy) {
-  const token = await getOrRefreshAccessToken()
-  
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/ai-policies`, {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-    body: JSON.stringify(policy)
-  })
+  const response = await authenticatedFetchWithRetry(
+    `${API_BASE_URL}/api/ai-policies`,
+    { method: 'POST', body: JSON.stringify(policy) },
+    'Failed to create policy'
+  )
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to create policy' }))
@@ -143,19 +184,11 @@ export async function createPolicy(policy) {
  * @returns {Promise<Object>} Updated policy
  */
 export async function updatePolicy(policyId, updates) {
-  const token = await getOrRefreshAccessToken()
-  
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
-    method: 'PUT',
-    headers,
-    credentials: 'include',
-    body: JSON.stringify(updates)
-  })
+  const response = await authenticatedFetchWithRetry(
+    `${API_BASE_URL}/api/ai-policies/${policyId}`,
+    { method: 'PUT', body: JSON.stringify(updates) },
+    'Failed to update policy'
+  )
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to update policy' }))
@@ -171,18 +204,11 @@ export async function updatePolicy(policyId, updates) {
  * @returns {Promise<{message: string, policy_id: string}>}
  */
 export async function deletePolicy(policyId) {
-  const token = await getOrRefreshAccessToken()
-  
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/ai-policies/${policyId}`, {
-    method: 'DELETE',
-    headers,
-    credentials: 'include'
-  })
+  const response = await authenticatedFetchWithRetry(
+    `${API_BASE_URL}/api/ai-policies/${policyId}`,
+    { method: 'DELETE' },
+    'Failed to delete policy'
+  )
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to delete policy' }))
@@ -199,19 +225,11 @@ export async function deletePolicy(policyId) {
  * @returns {Promise<{allowed: boolean, reason: string, applied_policies: Array}>}
  */
 export async function evaluateRequest(capability, context = {}) {
-  const token = await getOrRefreshAccessToken()
-  
-  const headers = { 'Content-Type': 'application/json' }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  
-  const response = await fetch(`${API_BASE_URL}/api/ai-policies/evaluate`, {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-    body: JSON.stringify({ capability, context })
-  })
+  const response = await authenticatedFetchWithRetry(
+    `${API_BASE_URL}/api/ai-policies/evaluate`,
+    { method: 'POST', body: JSON.stringify({ capability, context }) },
+    'Failed to evaluate request'
+  )
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to evaluate request' }))

@@ -186,17 +186,14 @@ let tokenRefreshPromise: Promise<string | null> | null = null;
  * but the session is still valid (expiresAt in localStorage). In this case, it will
  * automatically call /api/auth/v2/refresh to get a new access token.
  * 
+ * Also handles the case where the token exists but is expired or about to expire,
+ * proactively refreshing to avoid 401 errors.
+ * 
  * Uses single-flight pattern to prevent concurrent refresh requests.
  * 
  * @returns Promise<string | null> - The access token or null if not authenticated
  */
 export async function getOrRefreshAccessToken(): Promise<string | null> {
-  // First, check if we already have a valid token in memory
-  const existingToken = getAccessToken();
-  if (existingToken) {
-    return existingToken;
-  }
-  
   // Check if we have a valid session (expiresAt in localStorage)
   const expiresAt = getStoredTokenExpiry();
   if (!expiresAt) {
@@ -204,13 +201,24 @@ export async function getOrRefreshAccessToken(): Promise<string | null> {
     return null;
   }
   
-  // Check if the session has expired
+  // Check if the session has expired (beyond refresh buffer)
   if (isTokenExpired(expiresAt)) {
     // Session expired, user needs to login again
     return null;
   }
   
-  // We have a valid session but no token in memory - need to refresh
+  // Check if we have a valid token in memory that is NOT about to expire
+  const existingToken = getAccessToken();
+  if (existingToken) {
+    // Token exists - check if it's still valid (not expired or about to expire)
+    // isTokenExpired returns true if token is expired OR within TOKEN_REFRESH_BUFFER_MS of expiry
+    if (!isTokenExpired(expiresAt)) {
+      return existingToken;
+    }
+    // Token exists but is about to expire - fall through to refresh
+  }
+  
+  // We need to refresh: either no token in memory, or token is about to expire
   // Use single-flight pattern to prevent concurrent refresh requests
   if (tokenRefreshPromise) {
     return tokenRefreshPromise;
@@ -230,6 +238,12 @@ export async function getOrRefreshAccessToken(): Promise<string | null> {
           // Transient network error - do NOT clear tokens
           // User stays logged in, but this API call will fail
           console.warn('Network error during token refresh, keeping session:', error.message);
+          // Return existing token if available, even if about to expire
+          // This allows the request to proceed and potentially succeed
+          const fallbackToken = getAccessToken();
+          if (fallbackToken) {
+            return fallbackToken;
+          }
         }
       } else {
         // Unexpected error - log but don't clear tokens to be safe
