@@ -213,8 +213,8 @@ class TestLangGraphDryRun:
             "final_result": {}
         }
         
-        with patch('langgraph_orchestrator.get_repo') as mock_get_repo, \
-             patch('langgraph_orchestrator.get_pr_checks') as mock_get_pr_checks:
+        with patch('tools.github_api.get_repo') as mock_get_repo, \
+             patch('tools.github_api.get_pr_checks') as mock_get_pr_checks:
             
             result = ci_monitor_node(state)
             
@@ -222,8 +222,9 @@ class TestLangGraphDryRun:
             mock_get_repo.assert_not_called()
             mock_get_pr_checks.assert_not_called()
             
-            # Verify ci_state remains dry_run
+            # Verify ci_state remains dry_run and state is returned unchanged
             assert result["ci_state"] == "dry_run"
+            assert result is state
     
     def test_decision_node_approves_dry_run(self):
         """Test decision_node treats dry_run as approved to avoid CI loop"""
