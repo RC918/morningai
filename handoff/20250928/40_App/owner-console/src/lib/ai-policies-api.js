@@ -9,7 +9,7 @@
  * - If retry fails, clears tokens and redirects to login
  */
 
-import { getOrRefreshAccessToken, refreshAccessToken, clearTokens, RefreshAccessTokenError } from './auth'
+import { getOrRefreshAccessToken, refreshAccessToken, clearTokensAndRedirectToLogin, RefreshAccessTokenError } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
@@ -17,10 +17,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
  * Helper function to make authenticated fetch requests with 401 retry logic
  * @param {string} url - Full URL to fetch
  * @param {Object} options - Fetch options
- * @param {string} errorMessage - Error message to throw on failure
  * @returns {Promise<Response>} Fetch response
  */
-async function authenticatedFetchWithRetry(url, options, errorMessage) {
+async function authenticatedFetchWithRetry(url, options) {
   const buildHeaders = async () => {
     const token = await getOrRefreshAccessToken()
     const headers = { 'Content-Type': 'application/json' }
@@ -42,13 +41,13 @@ async function authenticatedFetchWithRetry(url, options, errorMessage) {
   if (response.status === 401) {
     // Read the response body once to check if it's a token-expired error
     const errorData = await response.json().catch(() => ({ error: 'Unauthorized' }))
-    const errorMessage = errorData.error || errorData.message || ''
+    const serverErrorMessage = errorData.error || errorData.message || ''
     
     // Check if this is a token-expired error (not a generic 401 Unauthorized)
     const isTokenExpiredError = 
-      errorMessage.toLowerCase().includes('token expired') ||
-      errorMessage.toLowerCase().includes('token_expired') ||
-      errorMessage.toLowerCase().includes('jwt expired')
+      serverErrorMessage.toLowerCase().includes('token expired') ||
+      serverErrorMessage.toLowerCase().includes('token_expired') ||
+      serverErrorMessage.toLowerCase().includes('jwt expired')
     
     if (!isTokenExpiredError) {
       // Generic 401 - preserve original behavior, return response for caller to handle
@@ -78,10 +77,7 @@ async function authenticatedFetchWithRetry(url, options, errorMessage) {
       
       if (retryResponse.status === 401) {
         // Retry also failed - clear tokens and redirect to login
-        clearTokens()
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login'
-        }
+        clearTokensAndRedirectToLogin()
         throw new Error('Authentication failed. Please login again.')
       }
       
@@ -89,10 +85,7 @@ async function authenticatedFetchWithRetry(url, options, errorMessage) {
     } catch (error) {
       // If refresh failed with session_invalid, clear tokens and redirect
       if (error instanceof RefreshAccessTokenError && error.code === 'session_invalid') {
-        clearTokens()
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login'
-        }
+        clearTokensAndRedirectToLogin()
       }
       throw error
     }
@@ -108,8 +101,7 @@ async function authenticatedFetchWithRetry(url, options, errorMessage) {
 export async function getPolicyTemplates() {
   const response = await authenticatedFetchWithRetry(
     `${API_BASE_URL}/api/ai-policies/templates`,
-    { method: 'GET' },
-    'Failed to fetch policy templates'
+    { method: 'GET' }
   )
 
   if (!response.ok) {
@@ -136,8 +128,7 @@ export async function listPolicies({ limit = 50, offset = 0, policy_type, status
   
   const response = await authenticatedFetchWithRetry(
     `${API_BASE_URL}/api/ai-policies?${params}`,
-    { method: 'GET' },
-    'Failed to fetch policies'
+    { method: 'GET' }
   )
 
   if (!response.ok) {
@@ -156,8 +147,7 @@ export async function listPolicies({ limit = 50, offset = 0, policy_type, status
 export async function getPolicy(policyId) {
   const response = await authenticatedFetchWithRetry(
     `${API_BASE_URL}/api/ai-policies/${policyId}`,
-    { method: 'GET' },
-    'Failed to fetch policy'
+    { method: 'GET' }
   )
 
   if (!response.ok) {
@@ -182,8 +172,7 @@ export async function getPolicy(policyId) {
 export async function createPolicy(policy) {
   const response = await authenticatedFetchWithRetry(
     `${API_BASE_URL}/api/ai-policies`,
-    { method: 'POST', body: JSON.stringify(policy) },
-    'Failed to create policy'
+    { method: 'POST', body: JSON.stringify(policy) }
   )
 
   if (!response.ok) {
@@ -208,8 +197,7 @@ export async function createPolicy(policy) {
 export async function updatePolicy(policyId, updates) {
   const response = await authenticatedFetchWithRetry(
     `${API_BASE_URL}/api/ai-policies/${policyId}`,
-    { method: 'PUT', body: JSON.stringify(updates) },
-    'Failed to update policy'
+    { method: 'PUT', body: JSON.stringify(updates) }
   )
 
   if (!response.ok) {
@@ -228,8 +216,7 @@ export async function updatePolicy(policyId, updates) {
 export async function deletePolicy(policyId) {
   const response = await authenticatedFetchWithRetry(
     `${API_BASE_URL}/api/ai-policies/${policyId}`,
-    { method: 'DELETE' },
-    'Failed to delete policy'
+    { method: 'DELETE' }
   )
 
   if (!response.ok) {
@@ -249,8 +236,7 @@ export async function deletePolicy(policyId) {
 export async function evaluateRequest(capability, context = {}) {
   const response = await authenticatedFetchWithRetry(
     `${API_BASE_URL}/api/ai-policies/evaluate`,
-    { method: 'POST', body: JSON.stringify({ capability, context }) },
-    'Failed to evaluate request'
+    { method: 'POST', body: JSON.stringify({ capability, context }) }
   )
 
   if (!response.ok) {

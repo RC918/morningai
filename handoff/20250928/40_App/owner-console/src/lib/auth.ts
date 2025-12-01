@@ -311,6 +311,17 @@ export function clearTokens(): void {
 }
 
 /**
+ * Clear tokens and redirect to login page
+ * Use this when authentication has failed and user needs to re-login
+ */
+export function clearTokensAndRedirectToLogin(): void {
+  clearTokens();
+  if (typeof window !== 'undefined') {
+    window.location.href = '/login';
+  }
+}
+
+/**
  * Store user information
  */
 export function storeUser(user: User): void {

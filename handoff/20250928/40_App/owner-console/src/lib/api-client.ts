@@ -1,4 +1,4 @@
-import { getAccessToken, getOrRefreshAccessToken, refreshAccessToken, clearTokens, RefreshAccessTokenError } from './auth.ts';
+import { getAccessToken, getOrRefreshAccessToken, refreshAccessToken, clearTokens, clearTokensAndRedirectToLogin, RefreshAccessTokenError } from './auth.ts';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || '';
 
@@ -25,6 +25,41 @@ function getCsrfToken(): string | null {
 }
 
 /**
+ * HTTP methods that require CSRF token
+ */
+const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+/**
+ * Build authentication headers for API requests
+ * Shared helper to avoid duplication between apiClient and apiClientWithMeta
+ */
+async function buildAuthHeaders(
+  method: string,
+  existingHeaders?: HeadersInit
+): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(existingHeaders as Record<string, string> | undefined),
+  };
+
+  if (UNSAFE_METHODS.includes(method.toUpperCase())) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+
+  // Get access token, refreshing if necessary (handles page refresh case)
+  // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
+  const accessToken = await getOrRefreshAccessToken();
+  if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  return headers;
+}
+
+/**
  * API client with automatic credentials and CSRF token injection
  * 
  * P0-3 Security Fix:
@@ -45,31 +80,8 @@ export async function apiClient<T>(
     finalUrl = '/api' + url;
   }
   
-  const buildHeaders = async (): Promise<Record<string, string>> => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
-    };
-    
-    const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
-    if (options.method && unsafeMethods.includes(options.method.toUpperCase())) {
-      const csrfToken = getCsrfToken();
-      if (csrfToken) {
-        headers['X-CSRF-Token'] = csrfToken;
-      }
-    }
-    
-    // Get access token, refreshing if necessary (handles page refresh case)
-    // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
-    const accessToken = await getOrRefreshAccessToken();
-    if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-    
-    return headers;
-  };
-  
-  const headers = await buildHeaders();
+  const method = options.method || 'GET';
+  const headers = await buildAuthHeaders(method, options.headers);
   
   const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
     ...options,
@@ -100,7 +112,7 @@ export async function apiClient<T>(
       await refreshAccessToken();
       
       // Rebuild headers with new token
-      const retryHeaders = await buildHeaders();
+      const retryHeaders = await buildAuthHeaders(method, options.headers);
       
       // Retry the request once
       const retryRes = await fetch(`${API_BASE_URL}${finalUrl}`, {
@@ -111,10 +123,7 @@ export async function apiClient<T>(
       
       if (retryRes.status === 401) {
         // Retry also failed - clear tokens and redirect to login
-        clearTokens();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        clearTokensAndRedirectToLogin();
         const retryText = typeof retryRes.text === 'function' ? await retryRes.text().catch(() => '') : '';
         throw new Error(`HTTP 401 - Authentication failed. Please login again. ${retryText}`);
       }
@@ -136,10 +145,7 @@ export async function apiClient<T>(
     } catch (error) {
       // If refresh failed with session_invalid, clear tokens and redirect
       if (error instanceof RefreshAccessTokenError && error.code === 'session_invalid') {
-        clearTokens();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        clearTokensAndRedirectToLogin();
       }
       throw error;
     }
@@ -386,36 +392,12 @@ export async function apiClientWithMeta<T>(
   }
   
   const method = (fetchOptions.method || 'GET').toUpperCase();
-  const unsafeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
-  
-  const buildHeaders = async (): Promise<Record<string, string>> => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...((fetchOptions.headers as Record<string, string>) || {}),
-    };
-    
-    if (unsafeMethods.includes(method)) {
-      const csrfToken = getCsrfToken();
-      if (csrfToken) {
-        headers['X-CSRF-Token'] = csrfToken;
-      }
-    }
-    
-    // Get access token, refreshing if necessary (handles page refresh case)
-    // Filter out literal "null" and "undefined" strings to prevent "Authorization: Bearer null"
-    const accessToken = await getOrRefreshAccessToken();
-    if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-    
-    return headers;
-  };
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const headers = await buildHeaders();
+    const headers = await buildAuthHeaders(method, fetchOptions.headers);
     
     const response = await fetch(API_BASE_URL + finalUrl, {
       ...fetchOptions,
@@ -453,7 +435,7 @@ export async function apiClientWithMeta<T>(
         await refreshAccessToken();
         
         // Rebuild headers with new token
-        const retryHeaders = await buildHeaders();
+        const retryHeaders = await buildAuthHeaders(method, fetchOptions.headers);
         
         // Create new abort controller for retry
         const retryController = new AbortController();
@@ -476,10 +458,7 @@ export async function apiClientWithMeta<T>(
           
           if (retryResponse.status === 401) {
             // Retry also failed - clear tokens and redirect to login
-            clearTokens();
-            if (typeof window !== 'undefined') {
-              window.location.href = '/login';
-            }
+            clearTokensAndRedirectToLogin();
             const retryErrorData = await retryResponse.json().catch(() => ({ message: 'Authentication failed' }));
             throw new ApiError(401, 'Authentication failed. Please login again.', retryErrorData);
           }
@@ -506,10 +485,7 @@ export async function apiClientWithMeta<T>(
       } catch (error) {
         // If refresh failed with session_invalid, clear tokens and redirect
         if (error instanceof RefreshAccessTokenError && error.code === 'session_invalid') {
-          clearTokens();
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
+          clearTokensAndRedirectToLogin();
         }
         throw error;
       }
