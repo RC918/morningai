@@ -1,56 +1,85 @@
-# Phase 1 Canary Final Validation Test - Creating a Simple Python Function to Add Two Numbers
+# Frequently Asked Questions (FAQ)
 
-The Phase 1 Canary Final Validation Test within the MorningAI platform focuses on verifying the basic functionality and integration of autonomous code generation features. A fundamental task such as creating a simple Python function to add two numbers serves as an effective validation step. This FAQ provides an overview of how to accomplish this task, aiding developers in understanding and utilizing the capabilities of MorningAI.
+What are the best practices for agent governance?
 
-## Comprehensive Explanation
 
-Creating a Python function to add two numbers is a basic but essential programming task, serving as a cornerstone for more complex operations and logic within software development. This task tests the basic setup, syntax understanding, and execution flow in Python, which are crucial for further development on the MorningAI platform.
+MorningAI is a comprehensive multi-tenant SaaS platform for autonomous agent-based code generation and documentation management.
 
-### Code Example
 
-Below is a simple example of how to create a Python function named `add_numbers` that takes two parameters, `number1` and `number2`, and returns their sum.
+- **Autonomous Agent System**: GPT-4 powered agents for automated code generation and PR creation
+- **Multi-tenant Architecture**: Row Level Security (RLS) for complete tenant data isolation
+- **Real-time Task Queue**: Redis Queue with worker heartbeat monitoring for reliable task execution
+- **Vector Memory**: pgvector-based memory storage for context-aware agents
+- **Multi-platform Integration**: Support for Telegram, LINE, Messenger via platform_bindings
 
-```python
-def add_numbers(number1, number2):
-    """Adds two numbers and returns the result."""
-    return number1 + number2
 
-# Example usage
-result = add_numbers(5, 3)
-print(f"The sum is: {result}")
+**Frontend**:
+- React with Vite
+- TailwindCSS for styling
+- Modern ES6+ JavaScript
+
+**Backend**:
+- Python 3.12
+- Flask web framework
+- Gunicorn with 4 workers for production
+- Row Level Security (RLS) for tenant isolation
+
+**Infrastructure**:
+- PostgreSQL (Supabase) for data persistence
+- Redis for task queue and caching
+- Redis Queue (RQ) for async job processing
+- Sentry for error tracking and monitoring
+
+**AI & Orchestration**:
+- OpenAI GPT-4 for content generation
+- LangGraph for agent workflow orchestration
+- pgvector for semantic search and memory
+
+
+Please refer to our documentation:
+- [README](../README.md) - Installation and setup
+- [CONTRIBUTING](../CONTRIBUTING.md) - Contribution guidelines
+- [RLS Implementation Guide](../docs/RLS_IMPLEMENTATION_GUIDE.md) - Database security
+
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐
+│   Frontend  │─────▶│  API Backend │─────▶│   Supabase  │
+│   (React)   │      │   (Flask)    │      │ (PostgreSQL)│
+└─────────────┘      └──────────────┘      └─────────────┘
+                            │
+                            ├───▶ Redis Queue
+                            │         │
+                            │         ▼
+                            │    Orchestrator Worker
+                            │    (LangGraph + GPT-4)
+                            │         │
+                            └─────────┘
 ```
 
-This function can be easily integrated into any part of your project within the MorningAI platform where you need to perform addition operations.
 
-### Related Documentation Links
+**Start Development Server**:
+```bash
+cd handoff/20250928/40_App/api-backend/src
+gunicorn -c ../gunicorn.conf.py main:app
+```
 
-For further information on Python functions and basic syntax, refer to these resources:
-- Python Functions: [https://docs.python.org/3/tutorial/controlflow.html#defining-functions](https://docs.python.org/3/tutorial/controlflow.html#defining-functions)
-- Basic Python Syntax: [https://docs.python.org/3/tutorial/introduction.html](https://docs.python.org/3/tutorial/introduction.html)
+**Run Tests**:
+```bash
+cd handoff/20250928/40_App/api-backend
+pytest tests/ -v
+```
 
-Additionally, for more details on how to integrate custom Python code into your MorningAI projects, consult the following:
-- MorningAI Custom Code Integration: `/docs/custom-code-integration.md`
-
-### Common Troubleshooting Tips
-
-- **Syntax Errors**: Ensure that your Python syntax is correct. Common mistakes include missing colons (`:`) at the end of the `def` line or incorrect indentation.
-- **Type Errors**: If adding non-numeric types, ensure type conversion or validation is performed before calling `add_numbers`.
-- **Integration Issues**: When integrating into MorningAI, ensure that your environment is correctly set up according to the platform's requirements. This includes correct installation of dependencies and adherence to project structure guidelines outlined in `/docs/project-setup.md`.
-
-For more specific issues related to MorningAI's setup or configuration:
-- Ensure that your development environment matches the required specifications detailed in `/docs/environment-setup.md`.
-- Review log files for errors related to function execution or integration points. These can often provide clues for misconfigurations or coding mistakes.
-- For issues related to multi-tenant SaaS functionalities or real-time task orchestration with Redis Queue within MorningAI, consult `/docs/multi-tenant-saas.md` and `/docs/task-orchestration-with-redis-queue.md`.
-
-Should you encounter problems not covered by these tips or need further assistance, please consult the broader documentation available in the RC918/morningai repository or reach out through our support channels.
-
----
-Generated by MorningAI Orchestrator using GPT-4
+**Check RLS Policies**:
+```sql
+SELECT tablename, rowsecurity FROM pg_tables 
+WHERE schemaname = 'public' AND rowsecurity = true;
+```
 
 ---
 
 **Metadata**:
-- Task: Phase 1 Canary Final Validation Test - Create a simple Python function that adds two numbers
-- Trace ID: `dd85a361-a6d1-46c1-aebe-9705423a75f4`
-- Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
+- Task: What are the best practices for agent governance?
+- Trace ID: `9f2c469f-8716-417b-a33f-070fbc0af8c7`
+- Generated by: MorningAI Orchestrator (Fallback Template)
 - Repository: RC918/morningai
