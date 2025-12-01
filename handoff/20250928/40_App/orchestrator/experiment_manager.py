@@ -59,7 +59,7 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         treatment_provider="gemini",
         control_provider="openai",
         target_component="planner",
-        enabled=True
+        enabled=False  # Disabled to allow gemini3_planner_10pct_staging to take effect
     ),
     "gemini_reviewer_staging_only": ExperimentConfig(
         name="gemini_reviewer_staging_only",
@@ -80,7 +80,7 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         treatment_provider="gemini",
         control_provider="openai",
         target_component="planner",
-        enabled=False,  # Disabled by default, enable after Phase 1 validation
+        enabled=True,  # Enabled for Phase 2 validation
         treatment_model="gemini-3-pro-preview"
     ),
     "gemini3_reviewer_5pct_staging": ExperimentConfig(
@@ -265,8 +265,8 @@ class ExperimentManager:
         Get active experiment for a component
 
         Note: Returns the first matching active experiment for the component.
-        If multiple experiments target the same component, iteration order determines
-        which is returned.
+        If multiple experiments target the same component, a warning is logged
+        to alert about potential configuration issues.
 
         Args:
             component: Component name (e.g., "planner", "reviewer")
@@ -275,6 +275,26 @@ class ExperimentManager:
         Returns:
             Dict with experiment_name, variant, provider, model or None if no active experiment
         """
+        # Find all active experiments for this component
+        active_experiments_for_component = [
+            name for name, config in self.experiments.items()
+            if config.target_component == component and self.is_experiment_active(name)
+        ]
+
+        # Warn if multiple active experiments target the same component
+        if len(active_experiments_for_component) > 1:
+            logger.warning(
+                f"[ExperimentManager] Multiple active experiments found for component={component}: "
+                f"{active_experiments_for_component}. Using first one: {active_experiments_for_component[0]}. "
+                f"This may indicate a configuration error - consider disabling conflicting experiments.",
+                extra={
+                    "operation": "get_experiment_for_component",
+                    "component": component,
+                    "active_experiments": active_experiments_for_component,
+                    "selected_experiment": active_experiments_for_component[0]
+                }
+            )
+
         for name, config in self.experiments.items():
             if config.target_component == component and self.is_experiment_active(name):
                 variant = self.get_variant(name, trace_id)

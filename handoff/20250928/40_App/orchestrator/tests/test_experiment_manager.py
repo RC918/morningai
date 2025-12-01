@@ -104,12 +104,13 @@ class TestIsExperimentActive:
     def test_experiment_active_in_staging(self):
         """Test experiment is active in staging"""
         manager = ExperimentManager(environment="staging")
-        assert manager.is_experiment_active("gemini_planner_10pct_staging") is True
+        # gemini3_planner_10pct_staging is enabled, gemini_planner_10pct_staging is disabled
+        assert manager.is_experiment_active("gemini3_planner_10pct_staging") is True
 
     def test_experiment_inactive_in_production(self):
         """Test staging-only experiment is inactive in production"""
         manager = ExperimentManager(environment="production")
-        assert manager.is_experiment_active("gemini_planner_10pct_staging") is False
+        assert manager.is_experiment_active("gemini3_planner_10pct_staging") is False
 
     def test_unknown_experiment_inactive(self):
         """Test unknown experiment returns False"""
@@ -160,7 +161,8 @@ class TestGetVariant:
 
         variants = set()
         for i in range(100):
-            variant = manager.get_variant("gemini_planner_10pct_staging", f"trace-{i}")
+            # Use gemini3_planner_10pct_staging which is enabled
+            variant = manager.get_variant("gemini3_planner_10pct_staging", f"trace-{i}")
             variants.add(variant)
 
         assert len(variants) == 2
@@ -198,9 +200,10 @@ class TestGetVariant:
         manager = ExperimentManager(environment="staging")
         trace_id = "cache-test-trace"
 
-        manager.get_variant("gemini_planner_10pct_staging", trace_id)
+        # Use gemini3_planner_10pct_staging which is enabled
+        manager.get_variant("gemini3_planner_10pct_staging", trace_id)
 
-        cache_key = f"gemini_planner_10pct_staging:{trace_id}"
+        cache_key = f"gemini3_planner_10pct_staging:{trace_id}"
         assert cache_key in manager._assignment_cache
 
 
@@ -244,7 +247,8 @@ class TestGetExperimentForComponent:
         result = manager.get_experiment_for_component("planner", "trace-123")
 
         assert result is not None
-        assert result["experiment_name"] == "gemini_planner_10pct_staging"
+        # gemini3_planner_10pct_staging is enabled, gemini_planner_10pct_staging is disabled
+        assert result["experiment_name"] == "gemini3_planner_10pct_staging"
         assert result["component"] == "planner"
         assert result["variant"] in ["control", "treatment"]
         assert result["provider"] in ["openai", "gemini"]
@@ -320,7 +324,8 @@ class TestListActiveExperiments:
         manager = ExperimentManager(environment="staging")
         active = manager.list_active_experiments()
 
-        assert "gemini_planner_10pct_staging" in active
+        # gemini3_planner_10pct_staging is enabled, gemini_planner_10pct_staging is disabled
+        assert "gemini3_planner_10pct_staging" in active
         assert "gemini_reviewer_staging_only" in active
 
     def test_list_active_experiments_production(self):
@@ -419,7 +424,8 @@ class TestExperimentDistribution:
         total = 1000
 
         for i in range(total):
-            variant = manager.get_variant("gemini_planner_10pct_staging", f"dist-test-{i}")
+            # Use gemini3_planner_10pct_staging which is enabled
+            variant = manager.get_variant("gemini3_planner_10pct_staging", f"dist-test-{i}")
             if variant == "treatment":
                 treatment_count += 1
 
