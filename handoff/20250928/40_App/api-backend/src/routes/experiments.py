@@ -34,6 +34,13 @@ except Exception as e:
     logger.warning(f"Experiment manager module not available: {e}")
     EXPERIMENT_MANAGER_AVAILABLE = False
 
+try:
+    from orchestrator.persistence.planner_events_store import get_metrics_by_provider
+    METRICS_STORE_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Planner events store not available: {e}")
+    METRICS_STORE_AVAILABLE = False
+
 from src.middleware.auth_middleware import jwt_required  # noqa: E402
 
 bp = Blueprint('experiments', __name__, url_prefix='/api/experiments')
@@ -208,8 +215,11 @@ def get_experiment_comparison():
     """
     Get experiment comparison data for dashboard visualization
 
-    This endpoint provides mock data for experiment comparison charts.
-    In production, this would aggregate real metrics from the metrics system.
+    This endpoint aggregates real metrics from planner_events table,
+    comparing control vs treatment provider performance.
+
+    Query parameters:
+    - days: Number of days to look back (default: 7)
 
     Returns:
     - Control vs treatment performance metrics
@@ -223,31 +233,55 @@ def get_experiment_comparison():
         manager = _get_manager()
         active_experiments = manager.list_active_experiments()
 
+        # Get days parameter from query string (default: 7)
+        days = request.args.get('days', 7, type=int)
+
+        # Fetch real metrics from planner_events if available
+        real_metrics = {}
+        metrics_source = "placeholder"
+        if METRICS_STORE_AVAILABLE:
+            try:
+                real_metrics = get_metrics_by_provider(days=days)
+                if real_metrics:
+                    metrics_source = "planner_events"
+                    logger.info(
+                        f"[Experiments API] Loaded real metrics for providers: "
+                        f"{list(real_metrics.keys())}"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to fetch real metrics: {e}")
+
+        # Default placeholder metrics (used when no real data available)
+        default_metrics = {
+            'success_rate': 0.0,
+            'avg_latency_ms': 0,
+            'total_requests': 0,
+            'error_rate': 0.0
+        }
+
         comparison_data = []
         for exp_name in manager.experiments:
             config = manager.experiments[exp_name]
             is_active = manager.is_experiment_active(exp_name)
 
+            # Get control provider metrics
+            control_provider = config.control_provider
+            control_metrics = real_metrics.get(control_provider, default_metrics)
+
+            # Get treatment provider metrics
+            treatment_provider = config.treatment_provider
+            treatment_metrics = real_metrics.get(treatment_provider, default_metrics)
+
             comparison_data.append({
                 'experiment_name': exp_name,
                 'target_component': config.target_component,
-                'treatment_provider': config.treatment_provider,
-                'control_provider': config.control_provider,
+                'treatment_provider': treatment_provider,
+                'control_provider': control_provider,
                 'treatment_percent': config.treatment_percent,
                 'active': is_active,
                 'metrics': {
-                    'control': {
-                        'success_rate': 0.92,
-                        'avg_latency_ms': 1250,
-                        'total_requests': 0,
-                        'error_rate': 0.08
-                    },
-                    'treatment': {
-                        'success_rate': 0.89,
-                        'avg_latency_ms': 980,
-                        'total_requests': 0,
-                        'error_rate': 0.11
-                    }
+                    'control': control_metrics,
+                    'treatment': treatment_metrics
                 }
             })
 
@@ -256,7 +290,9 @@ def get_experiment_comparison():
             'environment': manager.environment,
             'active_experiments': active_experiments,
             'timestamp': datetime.utcnow().isoformat(),
-            'note': 'Metrics are placeholder values. Real metrics will be populated from the metrics system.'
+            'metrics_source': metrics_source,
+            'metrics_period_days': days,
+            'note': 'Metrics aggregated from planner_events table.' if metrics_source == "planner_events" else 'No metrics data available yet. Metrics will populate as experiments run.'
         })
     except Exception as e:
         logger.error(f"Failed to get experiment comparison: {e}")

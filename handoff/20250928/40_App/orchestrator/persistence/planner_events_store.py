@@ -9,7 +9,7 @@ in the database. Used by both the orchestrator (for writing) and monitoring tool
 Phase 1 Monitoring: Replaces ephemeral JSONL files with persistent database storage.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional, Any
 from .db_client import get_client
 
@@ -204,3 +204,178 @@ def get_planner_stats_summary(
         "planner_type_filter": planner_type_filter,
         "limit": limit
     }
+
+
+def get_metrics_by_provider(
+    days: int = 7,
+    planner_type_filter: Optional[str] = "llm"
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Get aggregated metrics grouped by provider for experiment comparison.
+
+    This function uses database-level aggregation via RPC for better performance,
+    with a fallback to Python aggregation if the RPC function is not available.
+
+    Args:
+        days: Number of days to look back (default: 7)
+        planner_type_filter: Filter by planner type (default: "llm")
+
+    Returns:
+        Dictionary with provider as key and metrics as value:
+        {
+            "openai": {
+                "total_requests": 100,
+                "avg_latency_ms": 1250.5,
+                "success_rate": 0.95,
+                "error_rate": 0.05
+            },
+            "gemini": {...}
+        }
+    """
+    # Try database-level aggregation first (more efficient)
+    result = _get_metrics_by_provider_rpc(days, planner_type_filter)
+    if result is not None:
+        return result
+
+    # Fallback to Python aggregation if RPC is not available
+    logger.info("[Planner Events Store] RPC not available, using Python aggregation")
+    return _get_metrics_by_provider_python(days, planner_type_filter)
+
+
+def _get_metrics_by_provider_rpc(
+    days: int,
+    planner_type_filter: Optional[str]
+) -> Optional[Dict[str, Dict[str, Any]]]:
+    """
+    Get metrics using database-level aggregation via RPC.
+
+    Returns None if the RPC function is not available, allowing fallback.
+    """
+    try:
+        client = get_client()
+
+        # Build RPC parameters
+        params = {
+            "p_days": days,
+            "p_planner_type": planner_type_filter
+        }
+
+        response = client.rpc("get_planner_metrics_by_provider", params).execute()
+        rows = response.data or []
+
+        if not rows:
+            logger.info("[Planner Events Store] No metrics from RPC aggregation")
+            return {}
+
+        result: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            provider = row.get("provider")
+            if provider:
+                result[provider] = {
+                    "total_requests": row.get("total_requests", 0),
+                    "avg_latency_ms": round(row.get("avg_latency_ms", 0) or 0, 2),
+                    "success_rate": round(row.get("success_rate", 0) or 0, 4),
+                    "error_rate": round(row.get("error_rate", 0) or 0, 4)
+                }
+
+        logger.info(
+            f"[Planner Events Store] RPC aggregated metrics for {len(result)} providers: "
+            f"{list(result.keys())}"
+        )
+        return result
+
+    except Exception as e:
+        # RPC function might not exist yet, return None to trigger fallback
+        logger.warning(
+            f"[Planner Events Store] RPC aggregation failed (may not exist): {e}"
+        )
+        return None
+
+
+def _get_metrics_by_provider_python(
+    days: int,
+    planner_type_filter: Optional[str]
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Get metrics using Python-level aggregation (fallback method).
+
+    This is less efficient but works without requiring the RPC function.
+    """
+    try:
+        client = get_client()
+
+        # Calculate start time
+        start_time = datetime.now(timezone.utc) - timedelta(days=days)
+        start_str = start_time.isoformat()
+
+        # Query events with provider not null
+        query = client.table("planner_events").select("*")
+
+        if planner_type_filter:
+            query = query.eq("planner_type", planner_type_filter)
+
+        query = query.gte("timestamp", start_str)
+        query = query.not_.is_("provider", "null")
+
+        response = query.execute()
+        events = response.data if response.data else []
+
+        if not events:
+            logger.info("[Planner Events Store] No events found for metrics aggregation")
+            return {}
+
+        # Group by provider and calculate metrics
+        provider_stats: Dict[str, Dict[str, Any]] = {}
+
+        for event in events:
+            provider = event.get("provider")
+            if not provider:
+                continue
+
+            if provider not in provider_stats:
+                provider_stats[provider] = {
+                    "total_requests": 0,
+                    "total_latency_ms": 0.0,
+                    "success_count": 0,
+                    "error_count": 0
+                }
+
+            stats = provider_stats[provider]
+            stats["total_requests"] += 1
+
+            # Add latency
+            latency = event.get("planning_time_ms", 0)
+            stats["total_latency_ms"] += latency
+
+            # Count success/error based on whether plan steps were generated
+            plan_steps = event.get("actual_plan_steps", [])
+            if plan_steps and len(plan_steps) > 0:
+                stats["success_count"] += 1
+            else:
+                stats["error_count"] += 1
+
+        # Calculate final metrics
+        result: Dict[str, Dict[str, Any]] = {}
+        for provider, stats in provider_stats.items():
+            total = stats["total_requests"]
+            if total > 0:
+                result[provider] = {
+                    "total_requests": total,
+                    "avg_latency_ms": round(stats["total_latency_ms"] / total, 2),
+                    "success_rate": round(stats["success_count"] / total, 4),
+                    "error_rate": round(stats["error_count"] / total, 4)
+                }
+
+        logger.info(
+            f"[Planner Events Store] Python aggregated metrics for {len(result)} providers: "
+            f"{list(result.keys())}"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            f"[Planner Events Store] Failed to get metrics by provider: {e}",
+            exc_info=True
+        )
+        return {}

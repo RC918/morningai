@@ -527,3 +527,194 @@ The new `GeminiProvider` maintains backward compatibility:
 - [ ] Load test for latency under concurrent requests
 - [ ] Error handling for API failures
 - [ ] Thought signature handling verification
+
+---
+
+## Appendix D: Troubleshooting
+
+### D.1 OpenAI SDK `proxies` Compatibility Issue
+
+**Symptom**: After deploying, you see errors like:
+```
+TypeError: Client.__init__() got an unexpected keyword argument 'proxies'
+```
+
+**Root Cause**: The `openai` SDK version 1.57.0+ removed support for the `proxies` parameter, which was previously passed through to `httpx`. This is due to `httpx` 0.28.0 removing the deprecated `proxies` argument.
+
+**Solution**: Upgrade `openai` SDK to version `>=1.57.0` which properly handles the httpx 0.28 compatibility:
+
+```bash
+# In requirements.txt
+openai>=1.57.0
+
+# In setup.py
+install_requires=[
+    "openai>=1.57.0",
+    # ... other dependencies
+]
+```
+
+**Important**: After updating dependencies, you must also remove stale `.egg-info` directories that may cache old dependency versions:
+
+```bash
+# Remove stale egg-info
+rm -rf handoff/20250928/40_App/orchestrator/morningai_orchestrator.egg-info/
+
+# Reinstall package
+pip install -e handoff/20250928/40_App/orchestrator/
+```
+
+**Verification**: After deployment, check worker logs for successful LLM calls without `proxies` errors.
+
+### D.2 Stale egg-info Caching Old Dependencies
+
+**Symptom**: Even after updating `requirements.txt` and `setup.py`, the deployed application still uses old dependency versions.
+
+**Root Cause**: Python's `pip install -e .` (editable install) creates a `.egg-info` directory that caches dependency information. If this directory exists from a previous install, pip may not re-read the updated `setup.py`.
+
+**Solution**:
+1. Add `.egg-info/` directories to `.gitignore`
+2. Remove existing `.egg-info` directories before deployment
+3. Use `pip install --no-cache-dir -e .` for fresh installs
+
+**Prevention**: The `.gitignore` should include:
+```
+*.egg-info/
+```
+
+---
+
+## Appendix E: Experiment Operations Guide
+
+### E.1 Changing Treatment Percentage
+
+To adjust the percentage of traffic receiving the treatment (Gemini 3):
+
+1. **Edit `experiment_manager.py`**:
+```python
+# Find the experiment configuration
+"gemini3_planner_10pct_staging": ExperimentConfig(
+    name="gemini3_planner_10pct_staging",
+    treatment_percent=10,  # Change this value (0-100)
+    # ...
+),
+```
+
+2. **Commit and deploy** the change
+3. **Verify** in logs that the new percentage is active
+
+**Recommended rollout schedule**:
+- Start: 10% (initial validation)
+- Week 1: 25% (if metrics look good)
+- Week 2: 50% (broader validation)
+- Week 3+: 100% (full rollout)
+
+### E.2 Pausing an Experiment
+
+To temporarily pause an experiment without removing it:
+
+**Option 1: Set treatment_percent to 0**
+```python
+"gemini3_planner_10pct_staging": ExperimentConfig(
+    treatment_percent=0,  # Effectively pauses the experiment
+    # ...
+),
+```
+
+**Option 2: Disable the experiment**
+```python
+"gemini3_planner_10pct_staging": ExperimentConfig(
+    enabled=False,  # Disables the experiment
+    # ...
+),
+```
+
+**Option 3: Remove from enabled_environments**
+```python
+"gemini3_planner_10pct_staging": ExperimentConfig(
+    enabled_environments=[],  # No environments enabled
+    # ...
+),
+```
+
+### E.3 Emergency Rollback
+
+If Gemini 3 causes issues in production:
+
+1. **Immediate**: Set `treatment_percent=0` or `enabled=False`
+2. **Deploy** the change immediately
+3. **Verify** in logs that all traffic is going to control (OpenAI)
+
+**Rollback checklist**:
+- [ ] Update experiment config
+- [ ] Commit and push
+- [ ] Trigger deployment
+- [ ] Verify in worker logs: no `thinking_level=high` entries
+- [ ] Monitor error rates return to baseline
+
+### E.4 Monitoring Experiment Metrics
+
+**API Endpoint**: `GET /api/experiments/comparison`
+
+Query parameters:
+- `days`: Number of days to look back (default: 7)
+
+**Response includes**:
+```json
+{
+  "comparisons": [
+    {
+      "experiment_name": "gemini3_planner_10pct_staging",
+      "metrics": {
+        "control": {
+          "success_rate": 0.95,
+          "avg_latency_ms": 1250,
+          "total_requests": 100,
+          "error_rate": 0.05
+        },
+        "treatment": {
+          "success_rate": 0.92,
+          "avg_latency_ms": 980,
+          "total_requests": 10,
+          "error_rate": 0.08
+        }
+      }
+    }
+  ],
+  "metrics_source": "planner_events",
+  "metrics_period_days": 7
+}
+```
+
+**Key metrics to monitor**:
+- `success_rate`: Should be >= control
+- `avg_latency_ms`: Gemini 3 with `thinking_level=high` may be slower
+- `error_rate`: Should be < 5%
+- `total_requests`: Verify expected traffic split
+
+### E.5 Database Schema for Metrics
+
+The `planner_events` table stores metrics for experiment analysis:
+
+```sql
+-- Key columns for experiment metrics
+SELECT 
+    provider,           -- 'openai' or 'gemini'
+    COUNT(*) as total_requests,
+    AVG(planning_time_ms) as avg_latency_ms,
+    COUNT(CASE WHEN jsonb_array_length(actual_plan_steps) > 0 THEN 1 END)::float / COUNT(*) as success_rate,
+    COUNT(CASE WHEN actual_plan_steps IS NULL OR jsonb_array_length(actual_plan_steps) = 0 THEN 1 END)::float / COUNT(*) as error_rate
+FROM planner_events
+WHERE provider IS NOT NULL
+  AND timestamp > NOW() - INTERVAL '7 days'
+GROUP BY provider;
+```
+
+**Required migration**: Migration 027 adds the `provider` column:
+```sql
+ALTER TABLE planner_events
+ADD COLUMN IF NOT EXISTS provider VARCHAR(50);
+
+CREATE INDEX IF NOT EXISTS idx_planner_events_provider
+    ON planner_events(provider);
+```
