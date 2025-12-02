@@ -186,8 +186,9 @@ logger.info(
 # Heartbeat configuration - optimized to reduce Redis command volume
 # Interval increased from 30s to 60s to reduce commands by 50%
 # TTL increased from 120s to 180s to maintain 3x safety margin
-HEARTBEAT_INTERVAL = int(os.getenv("WORKER_HEARTBEAT_INTERVAL", "60"))
-HEARTBEAT_TTL = int(os.getenv("WORKER_HEARTBEAT_TTL", "180"))
+# Now uses settings.worker_heartbeat_interval/ttl instead of os.getenv for centralized configuration
+HEARTBEAT_INTERVAL = settings.worker_heartbeat_interval
+HEARTBEAT_TTL = settings.worker_heartbeat_ttl
 
 
 def update_worker_heartbeat():
@@ -197,9 +198,9 @@ def update_worker_heartbeat():
     Updates state to 'shutting_down' when shutdown is initiated.
     Uses HEARTBEAT_ID for stable monitoring identity.
     
-    Configuration (via environment variables):
-    - WORKER_HEARTBEAT_INTERVAL: Heartbeat interval in seconds (default: 60)
-    - WORKER_HEARTBEAT_TTL: Heartbeat key TTL in seconds (default: 180)
+    Configuration (via settings.py):
+    - settings.worker_heartbeat_interval: Heartbeat interval in seconds (default: 60)
+    - settings.worker_heartbeat_ttl: Heartbeat key TTL in seconds (default: 180)
     """
     logger.info(f"Heartbeat thread started (interval={HEARTBEAT_INTERVAL}s, ttl={HEARTBEAT_TTL}s)", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     
@@ -1154,8 +1155,8 @@ if __name__ == "__main__":
             "operation": "startup",
             "heartbeat_id": HEARTBEAT_ID,
             "rq_worker_name": RQ_WORKER_NAME,
-            "ttl": 120,
-            "interval": 30
+            "ttl": HEARTBEAT_TTL,
+            "interval": HEARTBEAT_INTERVAL
         }
     )
     

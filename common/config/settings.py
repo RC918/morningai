@@ -24,7 +24,7 @@ import os
 import sys
 import warnings
 from typing import Optional, Literal
-from pydantic import Field, field_validator, ConfigDict, SecretStr
+from pydantic import Field, field_validator, model_validator, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -699,6 +699,18 @@ class Settings(BaseSettings):
         description="Max jobs before worker restart for memory management (default: 0 = unlimited). Recommended: 10-20 for LangGraph workloads to prevent OOM."
     )
 
+    worker_heartbeat_interval: int = Field(
+        default=60,
+        alias="WORKER_HEARTBEAT_INTERVAL",
+        description="Worker heartbeat interval in seconds. Optimized to reduce Redis command volume."
+    )
+
+    worker_heartbeat_ttl: int = Field(
+        default=180,
+        alias="WORKER_HEARTBEAT_TTL",
+        description="Worker heartbeat key TTL in seconds. Should be at least 3x the interval for safety margin."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",
@@ -1278,6 +1290,18 @@ class Settings(BaseSettings):
                 UserWarning
             )
         return v
+
+    @model_validator(mode="after")
+    def validate_heartbeat_ttl(self) -> "Settings":
+        """Ensure heartbeat TTL is at least 3x the interval for safety margin."""
+        if self.worker_heartbeat_ttl < self.worker_heartbeat_interval * 3:
+            warnings.warn(
+                f"WORKER_HEARTBEAT_TTL ({self.worker_heartbeat_ttl}) should be at least 3x "
+                f"WORKER_HEARTBEAT_INTERVAL ({self.worker_heartbeat_interval}) for safety margin. "
+                f"Recommended: {self.worker_heartbeat_interval * 3}",
+                UserWarning
+            )
+        return self
 
     def log_deprecation_warnings(self):
         """Log warnings for deprecated variable usage"""
