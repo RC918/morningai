@@ -316,6 +316,7 @@ def create_faq_task():
             task_id,
             question,
             repo,
+            "faq",
             job_id=task_id,
             ttl=600,
             result_ttl=86400,
@@ -328,6 +329,7 @@ def create_faq_task():
                 "status": "queued",
                 "question": question,
                 "job_id": job.id,
+                "task_type": "faq",
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
             }

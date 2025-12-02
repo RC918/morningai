@@ -352,7 +352,7 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
 JOB_TIMEOUT = int(os.getenv("RQ_JOB_TIMEOUT", "600"))
 
 @job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
-def run_orchestrator_task(task_id: str, question: str, repo: str):
+def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str = "faq"):
     """
     Execute orchestrator with retry logic (used by API for agent tasks)
     Configured with ttl=600, result_ttl=86400, failure_ttl=3600
@@ -361,10 +361,15 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     - LangGraph mode (USE_LANGGRAPH=true): Full stateful workflow with retry logic
     - Simple mode (default): Direct execution for faster response
     
+    FAQ tasks always use Simple mode to avoid LangGraph 12-node overhead.
+    
     Args:
         task_id: Unique task identifier (also used as trace_id)
         question: FAQ question or topic
         repo: GitHub repository (owner/repo format)
+        task_type: Task type for routing decisions (default: "faq")
+                   - "faq": Always uses Simple mode (skips LangGraph)
+                   - Other types: Subject to canary routing logic
     
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
@@ -383,7 +388,19 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
     use_langgraph = settings.use_langgraph or False
     use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
     
-    if not use_langgraph and use_langgraph_percent > 0:
+    if task_type == "faq":
+        logger.info(
+            f"[Routing] FAQ task detected, forcing simple orchestrator path",
+            extra={
+                "operation": "routing",
+                "task_id": task_id,
+                "task_type": task_type,
+                "original_use_langgraph": use_langgraph,
+                "original_use_langgraph_percent": use_langgraph_percent
+            }
+        )
+        use_langgraph = False
+    elif not use_langgraph and use_langgraph_percent > 0:
         import hashlib
         task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
         task_percent = task_hash % 100
@@ -394,6 +411,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
             extra={
                 "operation": "canary_selection",
                 "task_id": task_id,
+                "task_type": task_type,
                 "task_percent": task_percent,
                 "use_langgraph_percent": use_langgraph_percent,
                 "use_langgraph": use_langgraph
@@ -447,6 +465,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str):
                 "question": question,
                 "trace_id": task_id,
                 "job_id": job_id,
+                "task_type": task_type,
                 "updated_at": datetime.now(timezone.utc).isoformat()
             })
         )

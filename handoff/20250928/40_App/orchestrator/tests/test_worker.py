@@ -462,6 +462,98 @@ class TestCanaryDeployment:
     
 
 
+class TestFAQSimplePath:
+    """Test FAQ tasks always use Simple path (skip LangGraph)"""
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('redis_queue.worker.settings')
+    def test_faq_task_uses_simple_mode_even_with_langgraph_enabled(self, mock_settings, mock_execute, mock_redis):
+        """Test FAQ task uses simple mode even when USE_LANGGRAPH=true"""
+        mock_settings.use_langgraph = True
+        mock_settings.use_langgraph_percent = 100
+        mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
+        
+        task_id = f"faq-task-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "What is FAQ?", "owner/repo", task_type="faq")
+        
+        assert result["pr_url"] == "https://github.com/pr/1"
+        mock_execute.assert_called_once()
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('redis_queue.worker.settings')
+    def test_faq_task_uses_simple_mode_with_100_percent_canary(self, mock_settings, mock_execute, mock_redis):
+        """Test FAQ task uses simple mode even with 100% canary percentage"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 100
+        mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
+        
+        task_id = f"faq-task-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "How does this work?", "owner/repo", task_type="faq")
+        
+        assert result["pr_url"] == "https://github.com/pr/1"
+        mock_execute.assert_called_once()
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('redis_queue.worker.settings')
+    def test_faq_default_task_type_uses_simple_mode(self, mock_settings, mock_execute, mock_redis):
+        """Test default task_type (faq) uses simple mode"""
+        mock_settings.use_langgraph = True
+        mock_settings.use_langgraph_percent = 100
+        mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
+        
+        task_id = f"default-task-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "Test question", "owner/repo")
+        
+        assert result["pr_url"] == "https://github.com/pr/1"
+        mock_execute.assert_called_once()
+    
+    @patch('redis_queue.worker.redis')
+    @patch('langgraph_orchestrator.run_orchestrator')
+    @patch('redis_queue.worker.settings')
+    def test_non_faq_task_respects_canary_routing(self, mock_settings, mock_run_orch, mock_redis):
+        """Test non-FAQ task respects canary routing logic"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 100
+        mock_run_orch.return_value = {
+            "pr_url": "https://github.com/pr/2",
+            "ci_state": "success",
+            "trace_id": "trace-456"
+        }
+        
+        task_id = f"general-task-{uuid.uuid4()}"
+        result = run_orchestrator_task(task_id, "General task", "owner/repo", task_type="general")
+        
+        assert result["pr_url"] == "https://github.com/pr/2"
+        mock_run_orch.assert_called_once()
+    
+    @patch('redis_queue.worker.redis')
+    @patch('graph.execute')
+    @patch('redis_queue.worker.settings')
+    def test_faq_task_stores_task_type_in_redis(self, mock_settings, mock_execute, mock_redis):
+        """Test FAQ task stores task_type in Redis mapping"""
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 0
+        mock_execute.return_value = ("https://github.com/pr/1", "success", "trace-123")
+        
+        task_id = "faq-redis-test"
+        run_orchestrator_task(task_id, "Test", "owner/repo", task_type="faq")
+        
+        hset_calls = [c for c in mock_redis.hset.call_args_list if c[0][0] == f"agent:task:{task_id}"]
+        assert len(hset_calls) >= 1
+        
+        running_call = None
+        for c in hset_calls:
+            if "status" in c[1]["mapping"] and c[1]["mapping"]["status"] == "running":
+                running_call = c
+                break
+        
+        assert running_call is not None
+        assert running_call[1]["mapping"]["task_type"] == "faq"
+
+
 class TestWorkerConfiguration:
     """Test worker configuration and initialization"""
     
