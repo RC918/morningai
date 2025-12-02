@@ -104,17 +104,8 @@ class Settings(BaseSettings):
         """Flask secret key (unwrapped from SecretStr)"""
         return self.flask_secret_key_secret.get_secret_value() if self.flask_secret_key_secret else None
 
-    secret_key_secret: Optional[SecretStr] = Field(
-        None,
-        alias="SECRET_KEY",
-        description="DEPRECATED: Use flask_secret_key instead",
-        repr=False
-    )
-
-    @property
-    def secret_key(self) -> Optional[str]:
-        """Secret key (unwrapped from SecretStr) - DEPRECATED"""
-        return self.secret_key_secret.get_secret_value() if self.secret_key_secret else None
+    # SECRET_KEY removed - deadline 2025-11-30 passed
+    # Use FLASK_SECRET_KEY instead
 
     encryption_master_key_secret: Optional[SecretStr] = Field(
         None,
@@ -128,19 +119,10 @@ class Settings(BaseSettings):
         """Encryption master key (unwrapped from SecretStr)"""
         return self.encryption_master_key_secret.get_secret_value() if self.encryption_master_key_secret else None
 
-    master_key_secret: Optional[SecretStr] = Field(
-        None,
-        alias="MASTER_KEY",
-        description="DEPRECATED: Use encryption_master_key instead",
-        repr=False
-    )
+    # MASTER_KEY removed - deadline 2025-11-30 passed
+    # Use ENCRYPTION_MASTER_KEY instead
 
-    @property
-    def master_key(self) -> Optional[str]:
-        """Master key (unwrapped from SecretStr) - DEPRECATED"""
-        return self.master_key_secret.get_secret_value() if self.master_key_secret else None
-
-    totp_encryption_key_secret: Optional[SecretStr] = Field(
+    totp_encryption_key_secret:Optional[SecretStr] = Field(
         default=None,
         alias="TOTP_ENCRYPTION_KEY",
         description="Fernet encryption key for TOTP secrets",
@@ -1293,9 +1275,9 @@ class Settings(BaseSettings):
 
     def log_deprecation_warnings(self):
         """Log warnings for deprecated variable usage"""
+        # SECRET_KEY and MASTER_KEY removed - deadline 2025-11-30 passed
+        # Only STRIPE_WEBHOOK_SECRET remains as deprecated
         deprecated_vars = [
-            ("secret_key", "flask_secret_key", "SECRET_KEY", "FLASK_SECRET_KEY"),
-            ("master_key", "encryption_master_key", "MASTER_KEY", "ENCRYPTION_MASTER_KEY"),
             ("stripe_webhook_secret", "stripe_webhook_secret_key", "STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_KEY"),
         ]
 
@@ -1306,7 +1288,7 @@ class Settings(BaseSettings):
             if old_value and not new_value:
                 warnings.warn(
                     f"{old_env} is deprecated. Please use {new_env} instead. "
-                    f"Support for {old_env} will be removed after 2025-11-30.",
+                    f"Support for {old_env} will be removed after 2025-12-31.",
                     DeprecationWarning,
                     stacklevel=2
                 )

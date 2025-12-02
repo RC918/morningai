@@ -25,7 +25,8 @@ class KeyManagementService:
     """密鑰管理服務"""
     
     def __init__(self, master_key: Optional[str] = None):
-        self.master_key = master_key or settings.master_key or self._generate_master_key()
+        # Use canonical key (deprecated master_key removed 2025-11-30)
+        self.master_key = master_key or settings.encryption_master_key or self._generate_master_key()
         self.fernet = self._create_fernet_instance()
         self.keys_cache = {}
         
