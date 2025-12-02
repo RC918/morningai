@@ -1,5 +1,9 @@
 name: Gemini 3 Reviewer Gate
 
+# NOTE: This workflow uses hardcoded snapshot path (handoff/20250928/40_App/orchestrator).
+# If the snapshot layout changes, this workflow needs to be updated accordingly.
+# Future improvement: Consider extracting inline Python scripts to scripts/ci/ for reuse.
+
 on:
   pull_request:
     branches: [main]
@@ -7,6 +11,7 @@ on:
       - 'handoff/20250928/40_App/orchestrator/**'
       - 'agents/**'
       - 'common/**'
+      - '.github/workflows/gemini3-reviewer-gate.yml'
 
 jobs:
   gemini3-reviewer-check:
