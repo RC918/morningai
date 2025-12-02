@@ -28,31 +28,31 @@
   --color-error-900: #7f1d1d;
   --color-error-950: #450a0a;
 
-  /* Success colors (green) - for success states, confirmations */
-  --color-success-50: #f0fdf4;
-  --color-success-100: #dcfce7;
-  --color-success-200: #bbf7d0;
-  --color-success-300: #86efac;
-  --color-success-400: #4ade80;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
-  --color-success-700: #15803d;
-  --color-success-800: #166534;
-  --color-success-900: #14532d;
-  --color-success-950: #052e16;
+  /* Success colors (iotask green #6DD230) - for success states, confirmations */
+  --color-success-50: #EEFBE8;
+  --color-success-100: #6DD23026;
+  --color-success-200: #B8E89E;
+  --color-success-300: #93DC6E;
+  --color-success-400: #6DD230;
+  --color-success-500: #6DD230;
+  --color-success-600: #5AB828;
+  --color-success-700: #479E20;
+  --color-success-800: #348418;
+  --color-success-900: #216A10;
+  --color-success-950: #216A10;
 
-  /* Warning colors (yellow/amber) - for warning states, cautions */
-  --color-warning-50: #fffbeb;
-  --color-warning-100: #fef3c7;
-  --color-warning-200: #fde68a;
-  --color-warning-300: #fcd34d;
-  --color-warning-400: #fbbf24;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
-  --color-warning-700: #b45309;
-  --color-warning-800: #92400e;
-  --color-warning-900: #78350f;
-  --color-warning-950: #451a03;
+  /* Warning colors (iotask orange #FFAB2B) - for warning states, cautions */
+  --color-warning-50: #FFF8E6;
+  --color-warning-100: #FFAB2B26;
+  --color-warning-200: #FFD699;
+  --color-warning-300: #FFC266;
+  --color-warning-400: #FFAE33;
+  --color-warning-500: #FFAB2B;
+  --color-warning-600: #E69500;
+  --color-warning-700: #CC8400;
+  --color-warning-800: #B37300;
+  --color-warning-900: #996200;
+  --color-warning-950: #996200;
 
   /* Info colors (blue) - for informational badges, tooltips, hints */
   --color-info-50: #eff6ff;
@@ -67,31 +67,31 @@
   --color-info-900: #1e3a8a;
   --color-info-950: #172554;
 
-  /* Neutral colors (gray) - for neutral elements, disabled states */
-  --color-neutral-50: #f9fafb;
-  --color-neutral-100: #f3f4f6;
-  --color-neutral-200: #e5e7eb;
-  --color-neutral-300: #d1d5db;
-  --color-neutral-400: #9ca3af;
-  --color-neutral-500: #6b7280;
-  --color-neutral-600: #4b5563;
-  --color-neutral-700: #374151;
-  --color-neutral-800: #1f2937;
-  --color-neutral-900: #111827;
-  --color-neutral-950: #030712;
+  /* Neutral colors (iotask grays) - for neutral elements, disabled states */
+  --color-neutral-50: #F8FAFB;
+  --color-neutral-100: #F2F4F6;
+  --color-neutral-200: #E8ECEF;
+  --color-neutral-300: #D1D5DB;
+  --color-neutral-400: #98A9BC;
+  --color-neutral-500: #778CA2;
+  --color-neutral-600: #525252;
+  --color-neutral-700: #404040;
+  --color-neutral-800: #252631;
+  --color-neutral-900: #1A1A2E;
+  --color-neutral-950: #1A1A2E;
 
-  /* Primary colors (blue) - for CTAs, interactive elements */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
-  --color-primary-950: #172554;
+  /* Primary colors (iotask blue #4D7CFE) - for CTAs, interactive elements */
+  --color-primary-50: #EEF2FF;
+  --color-primary-100: #E0E7FF;
+  --color-primary-200: #C7D2FE;
+  --color-primary-300: #A5B4FC;
+  --color-primary-400: #818CF8;
+  --color-primary-500: #4D7CFE;
+  --color-primary-600: #4338CA;
+  --color-primary-700: #3730A3;
+  --color-primary-800: #312E81;
+  --color-primary-900: #1E1B4B;
+  --color-primary-950: #1E1B4B;
 
   /* Accent colors (purple) - for accent elements, highlights */
   --color-accent-50: #faf5ff;
@@ -105,6 +105,30 @@
   --color-accent-800: #6b21a8;
   --color-accent-900: #581c87;
   --color-accent-950: #3b0764;
+  
+  /* iotask accent colors - pink (#FE4D97) */
+  --color-pink-50: #FFF0F6;
+  --color-pink-100: #FE4D9726;
+  --color-pink-200: #FFB3D1;
+  --color-pink-300: #FF85B8;
+  --color-pink-400: #FF5CA0;
+  --color-pink-500: #FE4D97;
+  --color-pink-600: #E63D82;
+  --color-pink-700: #CC2D6D;
+  --color-pink-800: #B31D58;
+  --color-pink-900: #990D43;
+  
+  /* iotask accent colors - cyan (#2CE5F6) */
+  --color-cyan-50: #E6FCFE;
+  --color-cyan-100: #2CE5F626;
+  --color-cyan-200: #99F2F9;
+  --color-cyan-300: #66EBF7;
+  --color-cyan-400: #33E4F5;
+  --color-cyan-500: #2CE5F6;
+  --color-cyan-600: #00C4D4;
+  --color-cyan-700: #00A3B2;
+  --color-cyan-800: #008290;
+  --color-cyan-900: #00616E;
 }
 
 @import "tailwindcss";
