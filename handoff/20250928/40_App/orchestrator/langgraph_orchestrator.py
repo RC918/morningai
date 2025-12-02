@@ -101,8 +101,19 @@ def get_checkpointer():
 
             ttl_seconds = settings.redis_checkpointer_ttl
 
-            # RedisSaver accepts url parameter and optional ttl
-            checkpointer = RedisSaver.from_conn_string(redis_url)
+            # Build TTL configuration dict for RedisSaver
+            # RedisSaver expects TTL in minutes, so convert from seconds
+            ttl_config = None
+            if ttl_seconds and ttl_seconds > 0:
+                ttl_minutes = ttl_seconds / 60
+                ttl_config = {
+                    "default_ttl": ttl_minutes,
+                    "refresh_on_read": True
+                }
+
+            # Create RedisSaver with TTL configuration
+            checkpointer = RedisSaver(redis_url=redis_url, ttl=ttl_config)
+            checkpointer.setup()
 
             logger.info(
                 "Using Redis checkpointer for LangGraph state persistence",
@@ -110,6 +121,7 @@ def get_checkpointer():
                     "operation": "get_checkpointer",
                     "checkpointer_type": "redis",
                     "ttl_seconds": ttl_seconds,
+                    "ttl_minutes": ttl_config.get("default_ttl") if ttl_config else None,
                     "redis_url_masked": redis_url[:20] + "..." if len(redis_url) > 20 else redis_url
                 }
             )
