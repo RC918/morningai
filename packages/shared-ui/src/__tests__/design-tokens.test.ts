@@ -16,10 +16,10 @@ describe('Design Tokens', () => {
   describe('getToken', () => {
     it('should retrieve primary color tokens', () => {
       const primary500 = getToken('color.primary.500')
-      expect(primary500).toBe('#0ea5e9')
+      expect(primary500).toBe('#4D7CFE')
       
       const primary600 = getToken('color.primary.600')
-      expect(primary600).toBe('#0284c7')
+      expect(primary600).toBe('#4338CA')
     })
 
     it('should retrieve accent color tokens', () => {
@@ -27,18 +27,18 @@ describe('Design Tokens', () => {
       expect(purple500).toBe('#8b5cf6')
       
       const orange500 = getToken('color.accent.orange.500')
-      expect(orange500).toBe('#f59e0b')
+      expect(orange500).toBe('#FFAB2B')
     })
 
     it('should retrieve semantic color tokens', () => {
       const success500 = getToken('color.semantic.success.500')
-      expect(success500).toBe('#10b981')
+      expect(success500).toBe('#6DD230')
       
       const error500 = getToken('color.semantic.error.500')
       expect(error500).toBe('#ef4444')
       
       const warning500 = getToken('color.semantic.warning.500')
-      expect(warning500).toBe('#f59e0b')
+      expect(warning500).toBe('#FFAB2B')
       
       const info500 = getToken('color.semantic.info.500')
       expect(info500).toBe('#0ea5e9')
@@ -105,24 +105,24 @@ describe('Design Tokens', () => {
     it('should generate primary color CSS variables', () => {
       const cssVars = getCSSVariables()
       
-      expect(cssVars['--color-primary-50']).toBe('#eff6ff')
-      expect(cssVars['--color-primary-500']).toBe('#0ea5e9')
-      expect(cssVars['--color-primary-900']).toBe('#0c4a6e')
+      expect(cssVars['--color-primary-50']).toBe('#EEF2FF')
+      expect(cssVars['--color-primary-500']).toBe('#4D7CFE')
+      expect(cssVars['--color-primary-900']).toBe('#1E1B4B')
     })
 
     it('should generate accent color CSS variables', () => {
       const cssVars = getCSSVariables()
       
       expect(cssVars['--color-accent-purple-500']).toBe('#8b5cf6')
-      expect(cssVars['--color-accent-orange-500']).toBe('#f59e0b')
+      expect(cssVars['--color-accent-orange-500']).toBe('#FFAB2B')
     })
 
     it('should generate semantic color CSS variables', () => {
       const cssVars = getCSSVariables()
       
-      expect(cssVars['--color-success-500']).toBe('#10b981')
+      expect(cssVars['--color-success-500']).toBe('#6DD230')
       expect(cssVars['--color-error-500']).toBe('#ef4444')
-      expect(cssVars['--color-warning-500']).toBe('#f59e0b')
+      expect(cssVars['--color-warning-500']).toBe('#FFAB2B')
       expect(cssVars['--color-info-500']).toBe('#0ea5e9')
     })
 
@@ -165,11 +165,12 @@ describe('Design Tokens', () => {
       expect(cssVars1).toEqual(cssVars2)
     })
 
-    it('should generate exactly 148 CSS variables (backward compatibility)', () => {
+    it('should generate exactly 169 CSS variables (backward compatibility)', () => {
       const cssVars = getCSSVariables()
       
       // This assertion ensures we maintain the exact same number of CSS variables
-      expect(Object.keys(cssVars).length).toBe(148)
+      // Updated from 148 to 169 after adding iotask accent colors (pink, cyan)
+      expect(Object.keys(cssVars).length).toBe(169)
     })
   })
 
@@ -185,7 +186,7 @@ describe('Design Tokens', () => {
       expect(target).toBe(document.documentElement)
       
       const primaryColor = document.documentElement.style.getPropertyValue('--color-primary-500')
-      expect(primaryColor).toBe('#0ea5e9')
+      expect(primaryColor).toBe('#4D7CFE')
       
       const spacingMd = document.documentElement.style.getPropertyValue('--spacing-md')
       expect(spacingMd).toBe('16px')
@@ -201,7 +202,7 @@ describe('Design Tokens', () => {
       expect(target).toBe(container)
       
       const primaryColor = container.style.getPropertyValue('--color-primary-500')
-      expect(primaryColor).toBe('#0ea5e9')
+      expect(primaryColor).toBe('#4D7CFE')
     })
 
     it('should apply CSS variables to element reference', () => {
@@ -213,7 +214,7 @@ describe('Design Tokens', () => {
       expect(target).toBe(container)
       
       const primaryColor = container.style.getPropertyValue('--color-primary-500')
-      expect(primaryColor).toBe('#0ea5e9')
+      expect(primaryColor).toBe('#4D7CFE')
     })
 
     it('should fallback to document root if selector not found', () => {
@@ -222,7 +223,7 @@ describe('Design Tokens', () => {
       expect(target).toBe(document.documentElement)
       
       const primaryColor = document.documentElement.style.getPropertyValue('--color-primary-500')
-      expect(primaryColor).toBe('#0ea5e9')
+      expect(primaryColor).toBe('#4D7CFE')
     })
 
     it('should apply all CSS variables from getCSSVariables', () => {
@@ -247,7 +248,7 @@ describe('Design Tokens', () => {
       applyDesignTokens(container)
       
       const primaryColor = container.style.getPropertyValue('--color-primary-500')
-      expect(primaryColor).toBe('#0ea5e9')
+      expect(primaryColor).toBe('#4D7CFE')
     })
   })
 
@@ -269,13 +270,13 @@ describe('Design Tokens', () => {
     })
 
     it('should have correct primary color values', () => {
-      expect(colors.primary['500']).toBe('#0ea5e9')
-      expect(colors.primary['600']).toBe('#0284c7')
+      expect(colors.primary['500']).toBe('#4D7CFE')
+      expect(colors.primary['600']).toBe('#4338CA')
     })
 
     it('should have correct accent color values', () => {
       expect(colors.accent.purple['500']).toBe('#8b5cf6')
-      expect(colors.accent.orange['500']).toBe('#f59e0b')
+      expect(colors.accent.orange['500']).toBe('#FFAB2B')
     })
 
     it('should have correct spacing values', () => {
@@ -290,7 +291,7 @@ describe('Design Tokens', () => {
   describe('Integration Tests', () => {
     it('should work together: getToken -> getCSSVariables -> applyDesignTokens', () => {
       const primary500 = getToken('color.primary.500')
-      expect(primary500).toBe('#0ea5e9')
+      expect(primary500).toBe('#4D7CFE')
       
       const cssVars = getCSSVariables()
       expect(cssVars['--color-primary-500']).toBe(primary500)
