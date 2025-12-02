@@ -699,6 +699,18 @@ class Settings(BaseSettings):
         description="Skip PR creation in orchestrator, return synthetic results. Use in staging to avoid PR bombing."
     )
 
+    use_redis_checkpointer: bool = Field(
+        default=False,
+        alias="USE_REDIS_CHECKPOINTER",
+        description="Use Redis-based checkpointer for LangGraph state persistence instead of in-memory MemorySaver. Enables cross-process state recovery."
+    )
+
+    redis_checkpointer_ttl: int = Field(
+        default=86400,
+        alias="REDIS_CHECKPOINTER_TTL",
+        description="TTL in seconds for Redis checkpointer entries (default: 24 hours). Set to 0 for no expiration."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",

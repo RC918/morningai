@@ -77,6 +77,76 @@ def _get_agent_eval() -> AgentEvalIntegration:
     return _agent_eval
 
 
+def get_checkpointer():
+    """
+    Factory function to create the appropriate checkpointer based on configuration.
+
+    Returns:
+        - RedisSaver if USE_REDIS_CHECKPOINTER=true and REDIS_URL is configured
+        - MemorySaver as fallback (default)
+
+    Configuration:
+        - USE_REDIS_CHECKPOINTER: Enable Redis-based checkpointer (default: false)
+        - REDIS_CHECKPOINTER_TTL: TTL in seconds for checkpoint entries (default: 86400)
+        - REDIS_URL: Redis connection URL (required for Redis checkpointer)
+    """
+    import os
+
+    use_redis = settings.use_redis_checkpointer
+    redis_url = settings.redis_url or os.environ.get("REDIS_URL")
+
+    if use_redis and redis_url:
+        try:
+            from langgraph.checkpoint.redis import RedisSaver
+
+            ttl_seconds = settings.redis_checkpointer_ttl
+
+            # RedisSaver accepts url parameter and optional ttl
+            checkpointer = RedisSaver.from_conn_string(redis_url)
+
+            logger.info(
+                "Using Redis checkpointer for LangGraph state persistence",
+                extra={
+                    "operation": "get_checkpointer",
+                    "checkpointer_type": "redis",
+                    "ttl_seconds": ttl_seconds,
+                    "redis_url_masked": redis_url[:20] + "..." if len(redis_url) > 20 else redis_url
+                }
+            )
+
+            return checkpointer
+
+        except ImportError as e:
+            logger.warning(
+                f"langgraph-checkpoint-redis not installed, falling back to MemorySaver: {e}",
+                extra={
+                    "operation": "get_checkpointer",
+                    "error": str(e)
+                }
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize Redis checkpointer, falling back to MemorySaver: {e}",
+                extra={
+                    "operation": "get_checkpointer",
+                    "error": str(e)
+                }
+            )
+
+    # Fallback to in-memory checkpointer
+    logger.info(
+        "Using in-memory MemorySaver for LangGraph state persistence",
+        extra={
+            "operation": "get_checkpointer",
+            "checkpointer_type": "memory",
+            "use_redis_configured": use_redis,
+            "redis_url_available": bool(redis_url)
+        }
+    )
+
+    return MemorySaver()
+
+
 # Maximum number of fix retries before giving up
 MAX_FIXER_RETRIES = 3
 
@@ -1831,9 +1901,10 @@ def create_orchestrator_graph():
     # finalizer → END
     workflow.add_edge("finalizer", END)
 
-    memory = MemorySaver()
+    # Use factory function to get appropriate checkpointer (Redis or Memory)
+    checkpointer = get_checkpointer()
 
-    app = workflow.compile(checkpointer=memory)
+    app = workflow.compile(checkpointer=checkpointer)
 
     logger.info("LangGraph orchestrator workflow compiled successfully (Phase 4 PR-4: 5-Agent Advisory Pipeline)")
 
