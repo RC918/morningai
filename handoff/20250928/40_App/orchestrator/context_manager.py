@@ -17,6 +17,8 @@ import subprocess
 from pathlib import Path
 from typing import List, Tuple, Optional
 
+from common.config.settings import settings
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ def _init_tiktoken():
         return
     
     try:
-        use_tiktoken = os.getenv('USE_TIKTOKEN_ESTIMATOR', 'false').lower() == 'true'
+        use_tiktoken = settings.use_tiktoken_estimator
         if not use_tiktoken:
             return
         
@@ -94,12 +96,12 @@ def discover_repo_root() -> Optional[str]:
     Returns:
         Absolute path to repository root, or None if not found
     """
-    repo_path = os.getenv('MORNINGAI_REPO_PATH')
+    repo_path = settings.morningai_repo_path
     if repo_path and os.path.exists(repo_path):
         logger.info(f"[ContextManager] Using MORNINGAI_REPO_PATH: {repo_path}")
         return os.path.abspath(repo_path)
     
-    repo_path = os.getenv('REPO_ROOT_PATH')
+    repo_path = settings.repo_root_path
     if repo_path and os.path.exists(repo_path):
         logger.info(f"[ContextManager] Using REPO_ROOT_PATH: {repo_path}")
         return os.path.abspath(repo_path)

@@ -76,7 +76,8 @@ def should_skip_file(filepath: Path) -> bool:
         'handoff/20250928/40_App/api-backend/sitecustomize.py',
     }
     
-    skip_dirs = {'.venv', '.git', 'node_modules', '__pycache__', '.pytest_cache'}
+    # Skip vendored third-party code directories
+    skip_dirs = {'.venv', '.git', 'node_modules', '__pycache__', '.pytest_cache', '60_Design'}
     
     parts = filepath.parts
     if any(skip_dir in parts for skip_dir in skip_dirs):

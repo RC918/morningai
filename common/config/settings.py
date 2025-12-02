@@ -699,6 +699,12 @@ class Settings(BaseSettings):
         description="Max jobs before worker restart for memory management (default: 0 = unlimited). Recommended: 10-20 for LangGraph workloads to prevent OOM."
     )
 
+    rq_job_timeout: int = Field(
+        default=600,
+        alias="RQ_JOB_TIMEOUT",
+        description="Job timeout in seconds (default: 600 = 10 minutes). Jobs exceeding this timeout will be terminated."
+    )
+
     worker_heartbeat_interval: int = Field(
         default=60,
         alias="WORKER_HEARTBEAT_INTERVAL",

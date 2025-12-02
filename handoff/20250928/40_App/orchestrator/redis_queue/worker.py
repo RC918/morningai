@@ -151,8 +151,8 @@ redis_client_rq = Redis.from_url(
 q = Queue(RQ_QUEUE_NAME, connection=redis_client_rq, serializer=JSONSerializer())
 
 HEARTBEAT_ID = (
-    os.getenv('RENDER_INSTANCE_ID') or 
-    os.getenv('HOSTNAME') or 
+    settings.render_instance_id or 
+    settings.hostname or 
     socket.gethostname() or 
     'worker'
 )
@@ -176,8 +176,8 @@ logger.info(
         "worker_id": WORKER_ID,
         "heartbeat_id": HEARTBEAT_ID,
         "rq_worker_name": RQ_WORKER_NAME,
-        "render_instance_id": os.getenv('RENDER_INSTANCE_ID'),
-        "hostname_env": os.getenv('HOSTNAME'),
+        "render_instance_id": settings.render_instance_id,
+        "hostname_env": settings.hostname,
         "hostname_socket": socket.gethostname(),
         "pid": os.getpid()
     }
@@ -351,8 +351,8 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
         return [f"demo-job-{i}" for i in range(len(steps))]
 
 # Job timeout configuration (default: 600 seconds = 10 minutes)
-# Can be overridden via RQ_JOB_TIMEOUT environment variable
-JOB_TIMEOUT = int(os.getenv("RQ_JOB_TIMEOUT", "600"))
+# Now uses settings.rq_job_timeout instead of os.getenv for centralized configuration
+JOB_TIMEOUT = settings.rq_job_timeout
 
 # Max jobs configuration for memory management
 # Worker will exit after processing this many jobs, allowing container orchestrator to restart

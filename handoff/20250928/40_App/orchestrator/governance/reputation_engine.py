@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta
 
+from common.config.settings import settings
+
 
 class ReputationEngine:
     """Manages agent reputation scores and permission levels"""
@@ -13,7 +15,8 @@ class ReputationEngine:
         self.supabase = supabase_client
         
         if policies_path is None:
-            policies_path = os.getenv('POLICIES_PATH')
+            # Check settings first (centralized configuration)
+            policies_path = settings.policies_path if settings.policies_path != "policies" else None
             
             if not policies_path:
                 current_file = Path(__file__).resolve()

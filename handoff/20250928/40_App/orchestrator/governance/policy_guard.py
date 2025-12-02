@@ -18,7 +18,8 @@ class PolicyGuard:
     
     def __init__(self, policies_path: Optional[str] = None):
         if policies_path is None:
-            policies_path = os.getenv('POLICIES_PATH')
+            # Check settings first (centralized configuration)
+            policies_path = settings.policies_path if settings.policies_path != "policies" else None
             if policies_path is None:
                 policies_path = os.path.join(
                     os.path.dirname(__file__),

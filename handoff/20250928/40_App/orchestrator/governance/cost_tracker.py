@@ -50,8 +50,8 @@ class CostTracker:
             self.redis = None
 
         if policies_path is None:
-            # Check environment variable first
-            policies_path = os.getenv('POLICIES_PATH')
+            # Check settings first (centralized configuration)
+            policies_path = settings.policies_path if settings.policies_path != "policies" else None
 
             if not policies_path:
                 # Try multiple candidate paths (same logic as ReputationEngine)
