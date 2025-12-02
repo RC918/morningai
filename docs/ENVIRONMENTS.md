@@ -28,6 +28,9 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
   - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`, `common/config/settings.py`
   - 新增環境變數：`DISABLE_GEMINI3` (boolean) - 緊急回滾開關，啟用時所有 Gemini 3 流量轉至 OpenAI
   - 影響：gemini3_planner_staging 從 10% 提升至 25%，gemini3_reviewer_staging 從 5% 提升至 10%
+- **PR #1803**: Phase 3 Remaining Items - Gemini 3 fallback、參數化測試、CI gate
+  - Path: `.github/workflows/gemini3-reviewer-gate.yml`, `handoff/20250928/40_App/orchestrator/tests/test_llm_planner_adapter.py`, `test_llm_reviewer_adapter.py`
+  - 影響：新增 Gemini 3 reviewer gate CI 工作流程，整合測試模式
 - **PR #1794**: Phase 3.1 Hardening - 新增 REASONING_MODE_ENABLED schema 和單元測試
   - Path: `config/env.schema.yaml`, `common/config/settings.py`
   - 新增環境變數：`REASONING_MODE_ENABLED` (boolean, default: false) - 控制 Gemini 3 的 thinking_level
@@ -37,6 +40,9 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **PR #1792**: Redis Checkpointer - LangGraph 狀態持久化
   - Path: `handoff/20250928/40_App/orchestrator/redis_checkpointer.py`, `graph.py`
   - 影響：新增 Redis 檢查點機制，支援可配置的 TTL
+- **PR #1791**: FAQ Routing - FAQ 任務走 simple path，繞過 LangGraph
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+  - 影響：FAQ 任務使用 simple mode (~95% 流量) 以加快回應速度
 
 *配置與密鑰強化:*
 - **PR #1800**: 將 os.getenv 遷移到 settings.py (Tier 1 生產代碼)
