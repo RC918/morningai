@@ -6,6 +6,8 @@ Environment Variables:
 - REDIS_URL: Redis connection URL (default: redis://localhost:6379/0)
 - RQ_QUEUE_NAME: Queue name to process (default: orchestrator)
 - RQ_JOB_TIMEOUT: Job timeout in seconds (default: 600)
+- RQ_MAX_JOBS: Max jobs before worker restart (default: 0 = unlimited)
+  Recommended: 10-20 for LangGraph workloads to prevent OOM from MemorySaver
 - SENTRY_DSN: Sentry DSN for error tracking (optional)
 - RENDER_INSTANCE_ID / HOSTNAME: Worker identifier
 
@@ -350,6 +352,22 @@ def enqueue(steps, idempotency_key: Optional[str] = None) -> List[str]:
 # Job timeout configuration (default: 600 seconds = 10 minutes)
 # Can be overridden via RQ_JOB_TIMEOUT environment variable
 JOB_TIMEOUT = int(os.getenv("RQ_JOB_TIMEOUT", "600"))
+
+# Max jobs configuration for memory management
+# Worker will exit after processing this many jobs, allowing container orchestrator to restart
+# This helps prevent memory accumulation from LangGraph MemorySaver checkpoints
+# Set to 0 or None to disable (process unlimited jobs)
+# Recommended: 10-20 for LangGraph workloads to prevent OOM
+_raw_max_jobs = os.getenv("RQ_MAX_JOBS", "0")
+try:
+    MAX_JOBS = int(_raw_max_jobs) or None
+except ValueError:
+    import logging
+    logging.getLogger(__name__).warning(
+        f"Invalid value for RQ_MAX_JOBS: '{_raw_max_jobs}'. "
+        "Must be an integer. Defaulting to 0 (unlimited)."
+    )
+    MAX_JOBS = None
 
 @job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
 def run_orchestrator_task(task_id: str, question: str, repo: str):
@@ -1108,7 +1126,8 @@ if __name__ == "__main__":
                 "use_llm_planner": getattr(settings, 'use_llm_planner', False),
                 "canary_metrics_enabled": getattr(settings, 'canary_metrics_enabled', True),
                 "canary_alerting_enabled": getattr(settings, 'canary_alerting_enabled', True),
-                "sentry_dsn_configured": bool(SENTRY_DSN)
+                "sentry_dsn_configured": bool(SENTRY_DSN),
+                "max_jobs": MAX_JOBS
             }
         }
     )
@@ -1147,10 +1166,14 @@ if __name__ == "__main__":
                     "rq_worker_name": RQ_WORKER_NAME,
                     "worker_ttl": 600,
                     "result_ttl": 86400,
-                    "serializer": "JSONSerializer"
+                    "serializer": "JSONSerializer",
+                    "max_jobs": MAX_JOBS
                 }
             )
-            worker.work()
+            # max_jobs: Worker exits after processing this many jobs
+            # This allows container orchestrator (Render) to restart the worker,
+            # clearing accumulated memory from LangGraph MemorySaver checkpoints
+            worker.work(max_jobs=MAX_JOBS)
             break  # Success, exit retry loop
         except ValueError as e:
             if "exists an active worker" in str(e) and attempt < max_retries:
