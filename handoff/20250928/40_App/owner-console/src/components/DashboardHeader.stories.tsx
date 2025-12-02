@@ -72,6 +72,17 @@ export const NoNotifications: Story = {
   },
 };
 
+export const WithAvatar: Story = {
+  args: {
+    user: {
+      name: 'Ryan Chen',
+      role: 'Platform Owner',
+      avatar: '/assets/brand/icon-only/MorningAI_icon_1024.png',
+    },
+    notificationCount: 2,
+  },
+};
+
 export const WithDifferentUser: Story = {
   args: {
     user: {

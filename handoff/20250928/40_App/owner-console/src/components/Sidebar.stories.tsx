@@ -46,13 +46,6 @@ export const Default: Story = {
   },
 };
 
-export const DashboardActive: Story = {
-  args: {
-    user: defaultUser,
-    initialPath: '/dashboard',
-  },
-};
-
 export const GovernanceActive: Story = {
   args: {
     user: defaultUser,
