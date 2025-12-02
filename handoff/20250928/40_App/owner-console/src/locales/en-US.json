@@ -1,6 +1,14 @@
 {
-  "agentEvaluation": {
-    "belowTarget": "Below Target",
+        "aiPolicies": {
+          "subtitle": "Configure AI governance policies and compliance rules",
+          "title": "AI Policies"
+        },
+        "failureExperiment": {
+          "subtitle": "Test system resilience with controlled failure scenarios",
+          "title": "Failure Experiments"
+        },
+        "agentEvaluation": {
+      "belowTarget": "Below Target",
     "history": {
       "ciPassed": "CI Passed",
       "completed": "Completed",
@@ -107,14 +115,26 @@
     "usage": "Usage",
     "view": "View"
   },
-  "dashboard": {
-    "recentActivity": {
-      "agentDeployed": "Agent deployed",
-      "maintenanceScheduled": "System maintenance scheduled",
-      "newTenant": "New tenant registered",
-      "subtitle": "Latest platform events and changes",
-      "title": "Recent Activity"
-    },
+    "dashboard": {
+      "2fa": {
+        "prompt": {
+          "description": "As an owner, we strongly recommend enabling 2FA to protect your account and platform.",
+          "setupButton": "Set Up 2FA",
+          "title": "Two-Factor Authentication Not Enabled"
+        }
+      },
+      "recentActivity": {
+        "agentDeployed": "Agent deployed",
+        "maintenanceScheduled": "System maintenance scheduled",
+        "newTenant": "New tenant registered",
+        "placeholder": {
+          "acme": "Acme Corp joined the platform",
+          "maintenance": "Scheduled for tomorrow at 2:00 AM UTC",
+          "opsAgent": "OpsAgent v2.1 deployed to production"
+        },
+        "subtitle": "Latest platform events and changes",
+        "title": "Recent Activity"
+      },
     "stats": {
       "acrossAllTenants": "Across all tenants",
       "activeAgents": "Active Agents",
@@ -364,16 +384,26 @@
     "usedTotal": "Used/Total",
     "workers": "Workers"
   },
-  "nav": {
-    "dashboard": "Dashboard",
-    "governance": "Agent Governance",
-    "logout": "Logout",
-    "mainNavigation": "Main navigation",
-    "monitoring": "System Monitoring",
-    "settings": "Platform Settings",
-    "tenants": "Tenant Management",
-    "uxMetrics": "UX Metrics"
-  },
+    "header": {
+      "defaultRole": "Platform Owner",
+      "defaultUser": "Owner",
+      "help": "Help",
+      "notifications": "Notifications",
+      "searchPlaceholder": "Search...",
+      "settings": "Settings"
+    },
+        "nav": {
+          "aiPolicies": "AI Policies",
+          "dashboard": "Dashboard",
+          "failureExperiments": "Failure Experiments",
+          "governance": "Agent Governance",
+          "logout": "Logout",
+          "mainNavigation": "Main navigation",
+          "monitoring": "System Monitoring",
+          "settings": "Platform Settings",
+          "tenants": "Tenant Management",
+          "uxMetrics": "UX Metrics"
+        },
   "settings": {
     "2fa": {
       "actions": {

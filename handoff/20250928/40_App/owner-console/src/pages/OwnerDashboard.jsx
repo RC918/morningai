@@ -47,10 +47,10 @@ const OwnerDashboard = () => {
   }, [])
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-large-title font-bold text-neutral-900 dark:text-white">{t('dashboard.title')}</h1>
-        <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('dashboard.subtitle')}</p>
+        <h1 className="text-2xl font-semibold text-neutral-800">{t('dashboard.title')}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
       {!checking2FA && show2FAPrompt && (
@@ -82,149 +82,149 @@ const OwnerDashboard = () => {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Emotional Color: calm (藍) - 正常/穩定 */}
-        <Card className="material-card hover-lift">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* iotask style: Primary blue for main metrics */}
+        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-callout font-medium">{t('dashboard.stats.totalTenants')}</CardTitle>
-            <div className="w-8 h-8 rounded-full bg-calm-10 flex items-center justify-center">
-              <Users className="h-4 w-4 text-calm" />
+            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.totalTenants')}</CardTitle>
+            <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
+              <Users className="h-5 w-5 text-primary-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold text-calm">{stats.totalTenants}</div>
-            <p className="text-footnote text-muted-foreground">
-              <TrendingUp className="inline h-3 w-3 text-growth" /> +2 {t('dashboard.stats.thisMonth')}
+            <div className="text-2xl font-bold text-neutral-800">{stats.totalTenants}</div>
+            <p className="text-xs text-success-500 mt-1 flex items-center">
+              <TrendingUp className="inline h-3 w-3 mr-1" /> +2 {t('dashboard.stats.thisMonth')}
             </p>
           </CardContent>
         </Card>
 
-        {/* Emotional Color: wisdom (紫) - 洞察/智慧 */}
-        <Card className="material-card hover-lift">
+        {/* iotask style: Pink accent for agents */}
+        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-callout font-medium">{t('dashboard.stats.activeAgents')}</CardTitle>
-            <div className="w-8 h-8 rounded-full bg-wisdom-10 flex items-center justify-center">
-              <Shield className="h-4 w-4 text-wisdom" />
+            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.activeAgents')}</CardTitle>
+            <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center">
+              <Shield className="h-5 w-5 text-pink-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold text-wisdom">{stats.activeAgents}</div>
-            <p className="text-footnote text-muted-foreground">
+            <div className="text-2xl font-bold text-neutral-800">{stats.activeAgents}</div>
+            <p className="text-xs text-neutral-500 mt-1">
               {t('dashboard.stats.acrossAllTenants')}
             </p>
           </CardContent>
         </Card>
 
-        {/* Emotional Color: joy (橙) - 警告/注意 (成本需要關注) */}
-        <Card className="material-card hover-lift">
+        {/* iotask style: Orange for cost/warnings */}
+        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-callout font-medium">{t('dashboard.stats.monthlyCost')}</CardTitle>
-            <div className="w-8 h-8 rounded-full bg-joy-10 flex items-center justify-center">
-              <DollarSign className="h-4 w-4 text-joy" />
+            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.monthlyCost')}</CardTitle>
+            <div className="w-10 h-10 rounded-lg bg-warning-100 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-warning-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold text-joy">${stats.totalCost.toFixed(2)}</div>
-            <p className="text-footnote text-muted-foreground">
+            <div className="text-2xl font-bold text-neutral-800">${stats.totalCost.toFixed(2)}</div>
+            <p className="text-xs text-neutral-500 mt-1">
               {t('dashboard.stats.platformWideUsage')}
             </p>
           </CardContent>
         </Card>
 
-        {/* Emotional Color: growth (綠) - 成功/成長 */}
-        <Card className="material-card hover-lift">
+        {/* iotask style: Green for success/health */}
+        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-callout font-medium">{t('dashboard.stats.systemHealth')}</CardTitle>
-            <div className="w-8 h-8 rounded-full bg-growth-10 flex items-center justify-center">
-              <Activity className="h-4 w-4 text-growth" />
+            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.systemHealth')}</CardTitle>
+            <div className="w-10 h-10 rounded-lg bg-success-100 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-success-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-title-2 md:text-title-1 font-bold text-growth">{stats.systemHealth}%</div>
-            <p className="text-footnote text-growth">
+            <div className="text-2xl font-bold text-neutral-800">{stats.systemHealth}%</div>
+            <p className="text-xs text-success-500 mt-1">
               {t('dashboard.stats.allSystemsOperational')}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="material-card hover-lift">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
           <CardHeader>
-            <CardTitle>{t('dashboard.recentActivity.title')}</CardTitle>
-            <CardDescription>{t('dashboard.recentActivity.subtitle')}</CardDescription>
+            <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.recentActivity.title')}</CardTitle>
+            <CardDescription className="text-sm text-neutral-500">{t('dashboard.recentActivity.subtitle')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {/* Emotional Color: growth (綠) - 成功/成長 */}
-              <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-growth rounded-full"></div>
+              {/* iotask style: Green for success */}
+              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                <div className="w-2 h-2 bg-success-500 rounded-full"></div>
                 <div className="flex-1">
-                  <p className="text-callout font-medium">{t('dashboard.recentActivity.newTenant')}</p>
-                  <p className="text-caption-2 text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.acme')}</p>
+                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.newTenant')}</p>
+                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.acme')}</p>
                 </div>
               </div>
-              {/* Emotional Color: calm (藍) - 正常/穩定 */}
-              <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-calm rounded-full"></div>
+              {/* iotask style: Primary blue for normal */}
+              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
                 <div className="flex-1">
-                  <p className="text-callout font-medium">{t('dashboard.recentActivity.agentDeployed')}</p>
-                  <p className="text-caption-2 text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
+                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.agentDeployed')}</p>
+                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
                 </div>
               </div>
-              {/* Emotional Color: joy (橙) - 警告/注意 */}
-              <div className="flex items-center gap-4">
-                <div className="w-2 h-2 bg-joy rounded-full"></div>
+              {/* iotask style: Orange for warnings */}
+              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                <div className="w-2 h-2 bg-warning-500 rounded-full"></div>
                 <div className="flex-1">
-                  <p className="text-callout font-medium">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
-                  <p className="text-caption-2 text-neutral-500 dark:text-neutral-400">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
+                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
+                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="material-card hover-lift">
+        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
           <CardHeader>
-            <CardTitle>{t('dashboard.systemStatus.title')}</CardTitle>
-            <CardDescription>{t('dashboard.systemStatus.subtitle')}</CardDescription>
+            <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.systemStatus.title')}</CardTitle>
+            <CardDescription className="text-sm text-neutral-500">{t('dashboard.systemStatus.subtitle')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {/* Emotional Color: growth (綠) - 成功/健康 */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-growth" />
-                  <span className="text-callout">{t('dashboard.systemStatus.apiBackend')}</span>
+            <div className="space-y-3">
+              {/* iotask style: Green badges for healthy status */}
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Server className="h-4 w-4 text-neutral-400" />
+                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.apiBackend')}</span>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
                   {t('dashboard.systemStatus.healthy')}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-growth" />
-                  <span className="text-callout">{t('dashboard.systemStatus.database')}</span>
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Server className="h-4 w-4 text-neutral-400" />
+                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.database')}</span>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
                   {t('dashboard.systemStatus.healthy')}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-growth" />
-                  <span className="text-callout">{t('dashboard.systemStatus.redisCache')}</span>
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Server className="h-4 w-4 text-neutral-400" />
+                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.redisCache')}</span>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
                   {t('dashboard.systemStatus.healthy')}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Server className="h-4 w-4 text-growth" />
-                  <span className="text-callout">{t('dashboard.systemStatus.workerNodes')}</span>
+              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <Server className="h-4 w-4 text-neutral-400" />
+                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.workerNodes')}</span>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-growth-10 px-2 py-1 text-caption-2 text-growth font-medium">
+                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
                   {t('dashboard.systemStatus.healthy')}
                 </span>
               </div>
