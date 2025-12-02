@@ -3,6 +3,7 @@
 Unit tests for LLM Reviewer Adapter - Phase 6 PR-3
 """
 import json
+import pytest
 from unittest.mock import patch, MagicMock
 from llm_reviewer_adapter import (
     LLMReviewerAdapter,
@@ -553,14 +554,28 @@ class TestReviewerNodeIntegration:
 
 
 class TestReasoningModeEnabled:
-    """Test suite for reasoning_mode_enabled feature (Phase 3)"""
+    """Test suite for reasoning_mode_enabled feature (Phase 3)
+    
+    Uses pytest.mark.parametrize to consolidate duplicate test patterns.
+    """
 
+    @pytest.mark.parametrize(
+        "reasoning_mode_enabled,expected_thinking_level",
+        [
+            (False, "low"),   # Default: reasoning mode disabled -> low thinking
+            (True, "high"),   # Reasoning mode enabled -> high thinking
+        ],
+        ids=["reasoning_disabled_low", "reasoning_enabled_high"]
+    )
     @patch('llm_reviewer_adapter.settings')
     @patch('llm_reviewer_adapter.get_client_for_component')
-    def test_gemini_thinking_level_low_by_default(self, mock_get_client, mock_settings):
-        """Test that Gemini uses thinking_level=low when reasoning_mode_enabled=False (default)"""
+    def test_gemini_thinking_level(
+        self, mock_get_client, mock_settings,
+        reasoning_mode_enabled, expected_thinking_level
+    ):
+        """Test Gemini thinking_level based on reasoning_mode_enabled setting"""
         mock_settings.reviewer_json_mode = True
-        mock_settings.reasoning_mode_enabled = False
+        mock_settings.reasoning_mode_enabled = reasoning_mode_enabled
 
         mock_client = MagicMock()
         mock_client.is_available.return_value = True
@@ -594,48 +609,7 @@ class TestReasoningModeEnabled:
         )
 
         call_args = mock_client.generate.call_args
-        assert call_args.kwargs["thinking_level"] == "low"
-
-    @patch('llm_reviewer_adapter.settings')
-    @patch('llm_reviewer_adapter.get_client_for_component')
-    def test_gemini_thinking_level_high_when_enabled(self, mock_get_client, mock_settings):
-        """Test that Gemini uses thinking_level=high when reasoning_mode_enabled=True"""
-        mock_settings.reviewer_json_mode = True
-        mock_settings.reasoning_mode_enabled = True
-
-        mock_client = MagicMock()
-        mock_client.is_available.return_value = True
-        mock_client.provider_name = "gemini"
-        mock_get_client.return_value = mock_client
-
-        valid_review = {
-            "summary": "Code looks good",
-            "quality_score": 75,
-            "severity": "low",
-            "decision": "approve",
-            "comments": []
-        }
-
-        mock_response = MagicMock()
-        mock_response.content = json.dumps(valid_review)
-        mock_response.provider = "gemini"
-        mock_response.model = "gemini-3-pro-preview"
-        mock_response.usage = {"total_tokens": 100}
-        mock_client.generate.return_value = mock_response
-
-        adapter = LLMReviewerAdapter(trace_id="test-trace")
-        adapter.generate_review(
-            pr_number=123,
-            pr_url="https://github.com/owner/repo/pull/123",
-            ci_state="success",
-            goal="Add new feature",
-            repo="owner/repo",
-            base_quality_score=80,
-            base_severity="none"
-        )
-
-        call_args = mock_client.generate.call_args
-        assert call_args.kwargs["thinking_level"] == "high"
+        assert call_args.kwargs["thinking_level"] == expected_thinking_level
 
     @patch('llm_reviewer_adapter.settings')
     @patch('llm_reviewer_adapter.get_client_for_component')
