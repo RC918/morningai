@@ -135,6 +135,32 @@ class TestIsExperimentActive:
         )
         assert manager.is_experiment_active("disabled_test") is False
 
+    def test_gemini3_experiment_disabled_by_kill_switch(self):
+        """Test DISABLE_GEMINI3 kill switch disables Gemini 3 experiments (Phase 4)"""
+        manager = ExperimentManager(environment="staging")
+
+        # Mock settings with DISABLE_GEMINI3=True
+        mock_settings = MagicMock()
+        mock_settings.disable_gemini3 = True
+
+        with patch.dict("sys.modules", {"common.config.settings": MagicMock(settings=mock_settings)}):
+            # Gemini 3 experiment should be disabled by kill switch
+            assert manager.is_experiment_active("gemini3_planner_10pct_staging") is False
+            assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is False
+
+    def test_gemini3_experiment_active_without_kill_switch(self):
+        """Test Gemini 3 experiments are active when kill switch is off (Phase 4)"""
+        manager = ExperimentManager(environment="staging")
+
+        # Mock settings with DISABLE_GEMINI3=False
+        mock_settings = MagicMock()
+        mock_settings.disable_gemini3 = False
+
+        with patch.dict("sys.modules", {"common.config.settings": MagicMock(settings=mock_settings)}):
+            # Gemini 3 experiments should be active
+            assert manager.is_experiment_active("gemini3_planner_10pct_staging") is True
+            assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is True
+
 
 class TestGetVariant:
     """Tests for get_variant method"""
@@ -416,18 +442,19 @@ class TestGlobalExperimentManager:
 class TestExperimentDistribution:
     """Tests for experiment distribution accuracy"""
 
-    def test_10_percent_distribution(self):
-        """Test 10% treatment distribution is approximately correct"""
+    def test_25_percent_distribution(self):
+        """Test 25% treatment distribution is approximately correct (Phase 4: increased from 10%)"""
         manager = ExperimentManager(environment="staging")
 
         treatment_count = 0
         total = 1000
 
         for i in range(total):
-            # Use gemini3_planner_10pct_staging which is enabled
+            # Use gemini3_planner_10pct_staging which is enabled (now at 25% for Phase 4)
             variant = manager.get_variant("gemini3_planner_10pct_staging", f"dist-test-{i}")
             if variant == "treatment":
                 treatment_count += 1
 
         treatment_rate = treatment_count / total * 100
-        assert 5 <= treatment_rate <= 15
+        # Phase 4: treatment_percent increased from 10% to 25%
+        assert 20 <= treatment_rate <= 30
