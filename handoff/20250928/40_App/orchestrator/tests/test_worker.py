@@ -347,8 +347,11 @@ class TestCanaryDeployment:
         langgraph_count = 0
         simple_count = 0
         
+        # Use deterministic task IDs to avoid flaky CI due to sampling variance.
+        # Canary routing uses md5(task_id) % 100 < use_langgraph_percent.
+        # Precomputed: for these 100 IDs with 5% canary, we expect 4 LangGraph tasks.
         for i in range(100):
-            task_id = f"task-{i:03d}-{uuid.uuid4()}"
+            task_id = f"task-canary-{i:03d}"
             mock_execute.reset_mock()
             mock_run_orch.reset_mock()
             
@@ -362,10 +365,9 @@ class TestCanaryDeployment:
             except:
                 pass
         
-        # For n=100, p=0.05: expected=5, std_dev≈2.18
-        # Using ~3-sigma range (0-12) to avoid flaky failures from binomial variance
-        assert 0 <= langgraph_count <= 12, f"Expected 0-12 LangGraph tasks (5% canary), got {langgraph_count}"
-        assert 88 <= simple_count <= 100, f"Expected 88-100 simple tasks (95% baseline), got {simple_count}"
+        # Deterministic assertion based on fixed task IDs
+        assert langgraph_count == 4, f"Expected 4 LangGraph tasks (5% canary with fixed IDs), got {langgraph_count}"
+        assert simple_count == 96, f"Expected 96 simple tasks (95% baseline with fixed IDs), got {simple_count}"
     
     @patch('redis_queue.worker.redis')
     @patch('graph.execute')
@@ -407,8 +409,11 @@ class TestCanaryDeployment:
         langgraph_count = 0
         simple_count = 0
         
+        # Use deterministic task IDs to avoid flaky CI due to sampling variance.
+        # Canary routing uses md5(task_id) % 100 < use_langgraph_percent.
+        # Precomputed: for these 100 IDs with 50% canary, we expect 51 LangGraph tasks.
         for i in range(100):
-            task_id = f"boundary-task-{i:03d}-{uuid.uuid4()}"
+            task_id = f"boundary-task-{i:03d}"
             mock_execute.reset_mock()
             mock_run_orch.reset_mock()
             
@@ -422,8 +427,9 @@ class TestCanaryDeployment:
             except:
                 pass
         
-        assert 40 <= langgraph_count <= 60, f"Expected 40-60 LangGraph tasks, got {langgraph_count}"
-        assert 40 <= simple_count <= 60, f"Expected 40-60 simple tasks, got {simple_count}"
+        # Deterministic assertion based on fixed task IDs
+        assert langgraph_count == 51, f"Expected 51 LangGraph tasks (50% canary with fixed IDs), got {langgraph_count}"
+        assert simple_count == 49, f"Expected 49 simple tasks (50% baseline with fixed IDs), got {simple_count}"
     
     @patch('redis_queue.worker.redis')
     @patch('graph.execute')
