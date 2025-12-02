@@ -140,9 +140,10 @@ class Phase7System:
                 
         if PHASE6_AVAILABLE and self.config.get('integration', {}).get('phase6_security'):
             try:
+                # Use canonical keys (deprecated keys removed 2025-11-30)
                 security_config = {
-                    'master_key': settings.master_key or 'default-master-key',
-                    'secret_key': settings.secret_key or 'default-secret-key',
+                    'master_key': settings.encryption_master_key or 'default-master-key',
+                    'secret_key': settings.flask_secret_key or 'default-secret-key',
                     'audit_log_file': 'phase7_security_audit.log'
                 }
                 self.security_manager = SecurityManager(security_config)

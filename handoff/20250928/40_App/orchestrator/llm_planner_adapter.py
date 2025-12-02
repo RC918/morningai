@@ -307,15 +307,18 @@ Generate a 3-7 step plan to accomplish this goal. Return ONLY the JSON array."""
                 "timeout": 25
             }
 
-            # Add thinking_level for Gemini 3 models (complex planning benefits from deep reasoning)
+            # Add thinking_level for Gemini 3 models based on reasoning_mode_enabled setting
             if self.llm_client.provider_name == "gemini":
-                generate_kwargs["thinking_level"] = "high"
+                reasoning_mode_enabled = getattr(settings, 'reasoning_mode_enabled', False)
+                thinking_level = "high" if reasoning_mode_enabled else "low"
+                generate_kwargs["thinking_level"] = thinking_level
                 logger.info(
-                    "[LLM Planner] Using thinking_level=high for Gemini provider",
+                    f"[LLM Planner] Using thinking_level={thinking_level} for Gemini provider",
                     extra={
                         "operation": "llm_planner",
                         "trace_id": trace_id,
-                        "thinking_level": "high"
+                        "thinking_level": thinking_level,
+                        "reasoning_mode_enabled": reasoning_mode_enabled
                     }
                 )
 

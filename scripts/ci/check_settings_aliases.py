@@ -99,8 +99,8 @@ def get_exclusions() -> Set[str]:
         'VITE_FEATURE_OWNER_CONSOLE_API',
         'VITE_E2E',
         
-        'SECRET_KEY',  # Use FLASK_SECRET_KEY
-        'MASTER_KEY',  # Use ENCRYPTION_MASTER_KEY
+        # SECRET_KEY and MASTER_KEY removed - deadline 2025-11-30 passed
+        # CI will now fail if these deprecated keys are reintroduced
         'STRIPE_WEBHOOK_SECRET',  # Use STRIPE_WEBHOOK_SECRET_KEY
         'Mailtrap_API_TOKEN',  # Use MAILTRAP_API_TOKEN
     }

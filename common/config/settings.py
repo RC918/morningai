@@ -24,7 +24,7 @@ import os
 import sys
 import warnings
 from typing import Optional, Literal
-from pydantic import Field, field_validator, ConfigDict, SecretStr
+from pydantic import Field, field_validator, model_validator, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -104,17 +104,8 @@ class Settings(BaseSettings):
         """Flask secret key (unwrapped from SecretStr)"""
         return self.flask_secret_key_secret.get_secret_value() if self.flask_secret_key_secret else None
 
-    secret_key_secret: Optional[SecretStr] = Field(
-        None,
-        alias="SECRET_KEY",
-        description="DEPRECATED: Use flask_secret_key instead",
-        repr=False
-    )
-
-    @property
-    def secret_key(self) -> Optional[str]:
-        """Secret key (unwrapped from SecretStr) - DEPRECATED"""
-        return self.secret_key_secret.get_secret_value() if self.secret_key_secret else None
+    # SECRET_KEY removed - deadline 2025-11-30 passed
+    # Use FLASK_SECRET_KEY instead
 
     encryption_master_key_secret: Optional[SecretStr] = Field(
         None,
@@ -128,17 +119,8 @@ class Settings(BaseSettings):
         """Encryption master key (unwrapped from SecretStr)"""
         return self.encryption_master_key_secret.get_secret_value() if self.encryption_master_key_secret else None
 
-    master_key_secret: Optional[SecretStr] = Field(
-        None,
-        alias="MASTER_KEY",
-        description="DEPRECATED: Use encryption_master_key instead",
-        repr=False
-    )
-
-    @property
-    def master_key(self) -> Optional[str]:
-        """Master key (unwrapped from SecretStr) - DEPRECATED"""
-        return self.master_key_secret.get_secret_value() if self.master_key_secret else None
+    # MASTER_KEY removed - deadline 2025-11-30 passed
+    # Use ENCRYPTION_MASTER_KEY instead
 
     totp_encryption_key_secret: Optional[SecretStr] = Field(
         default=None,
@@ -711,6 +693,24 @@ class Settings(BaseSettings):
         description="TTL in seconds for Redis checkpointer entries (default: 24 hours). Set to 0 for no expiration."
     )
 
+    rq_max_jobs: int = Field(
+        default=0,
+        alias="RQ_MAX_JOBS",
+        description="Max jobs before worker restart for memory management (default: 0 = unlimited). Recommended: 10-20 for LangGraph workloads to prevent OOM."
+    )
+
+    worker_heartbeat_interval: int = Field(
+        default=60,
+        alias="WORKER_HEARTBEAT_INTERVAL",
+        description="Worker heartbeat interval in seconds. Optimized to reduce Redis command volume."
+    )
+
+    worker_heartbeat_ttl: int = Field(
+        default=180,
+        alias="WORKER_HEARTBEAT_TTL",
+        description="Worker heartbeat key TTL in seconds. Should be at least 3x the interval for safety margin."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",
@@ -947,6 +947,13 @@ class Settings(BaseSettings):
         default=False,
         alias="USE_LLM_REVIEWER",
         description="Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)"
+    )
+
+    # Phase 3: Reasoning mode for Gemini 3 deep thinking
+    reasoning_mode_enabled: bool = Field(
+        default=False,
+        alias="REASONING_MODE_ENABLED",
+        description="Enable reasoning mode (thinking_level=high) for Gemini 3 models in planner and reviewer. When disabled, uses thinking_level=low for faster responses."
     )
 
     security_enforcement_mode: Literal["advisory", "block_critical", "block_high", "block_all"] = Field(
@@ -1284,11 +1291,23 @@ class Settings(BaseSettings):
             )
         return v
 
+    @model_validator(mode="after")
+    def validate_heartbeat_ttl(self) -> "Settings":
+        """Ensure heartbeat TTL is at least 3x the interval for safety margin."""
+        if self.worker_heartbeat_ttl < self.worker_heartbeat_interval * 3:
+            warnings.warn(
+                f"WORKER_HEARTBEAT_TTL ({self.worker_heartbeat_ttl}) should be at least 3x "
+                f"WORKER_HEARTBEAT_INTERVAL ({self.worker_heartbeat_interval}) for safety margin. "
+                f"Recommended: {self.worker_heartbeat_interval * 3}",
+                UserWarning
+            )
+        return self
+
     def log_deprecation_warnings(self):
         """Log warnings for deprecated variable usage"""
+        # SECRET_KEY and MASTER_KEY removed - deadline 2025-11-30 passed
+        # Only STRIPE_WEBHOOK_SECRET remains as deprecated
         deprecated_vars = [
-            ("secret_key", "flask_secret_key", "SECRET_KEY", "FLASK_SECRET_KEY"),
-            ("master_key", "encryption_master_key", "MASTER_KEY", "ENCRYPTION_MASTER_KEY"),
             ("stripe_webhook_secret", "stripe_webhook_secret_key", "STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_KEY"),
         ]
 
@@ -1299,7 +1318,7 @@ class Settings(BaseSettings):
             if old_value and not new_value:
                 warnings.warn(
                     f"{old_env} is deprecated. Please use {new_env} instead. "
-                    f"Support for {old_env} will be removed after 2025-11-30.",
+                    f"Support for {old_env} will be removed after 2025-12-31.",
                     DeprecationWarning,
                     stacklevel=2
                 )

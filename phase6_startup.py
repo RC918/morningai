@@ -81,9 +81,10 @@ class Phase6SystemManager:
             
             from security_manager import SecurityManager
             
+            # Use canonical keys (deprecated keys removed 2025-11-30)
             security_config = {
-                'master_key': settings.master_key or 'default-master-key',
-                'secret_key': settings.secret_key or 'default-secret-key',
+                'master_key': settings.encryption_master_key or 'default-master-key',
+                'secret_key': settings.flask_secret_key or 'default-secret-key',
                 'audit_log_file': 'security_audit.log'
             }
             

@@ -85,13 +85,13 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
     ),
     "gemini3_reviewer_5pct_staging": ExperimentConfig(
         name="gemini3_reviewer_5pct_staging",
-        description="Test Gemini 3 Pro as reviewer LLM on 5% of staging traffic with thinking_level=high",
+        description="Test Gemini 3 Pro as reviewer LLM on 5% of staging traffic with thinking_level controlled by REASONING_MODE_ENABLED",
         treatment_percent=5,
         enabled_environments=["staging"],
         treatment_provider="gemini",
         control_provider="openai",
         target_component="reviewer",
-        enabled=False,  # Disabled by default, enable after Phase 1 validation
+        enabled=True,  # Enabled for Phase 3 validation
         treatment_model="gemini-3-pro-preview"
     ),
 }
