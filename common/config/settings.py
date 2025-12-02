@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     # MASTER_KEY removed - deadline 2025-11-30 passed
     # Use ENCRYPTION_MASTER_KEY instead
 
-    totp_encryption_key_secret:Optional[SecretStr] = Field(
+    totp_encryption_key_secret: Optional[SecretStr] = Field(
         default=None,
         alias="TOTP_ENCRYPTION_KEY",
         description="Fernet encryption key for TOTP secrets",

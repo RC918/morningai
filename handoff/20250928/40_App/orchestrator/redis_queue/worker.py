@@ -359,7 +359,8 @@ JOB_TIMEOUT = int(os.getenv("RQ_JOB_TIMEOUT", "600"))
 # Set to 0 or None to disable (process unlimited jobs)
 # Recommended: 10-20 for LangGraph workloads to prevent OOM
 # Now uses settings.rq_max_jobs instead of os.getenv for centralized configuration
-MAX_JOBS = settings.rq_max_jobs or None
+# Explicitly check for 0 to convert to None (unlimited), as 0 is a valid integer but means "no limit"
+MAX_JOBS = settings.rq_max_jobs if settings.rq_max_jobs != 0 else None
 
 @job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
 def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str = "faq"):
