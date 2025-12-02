@@ -135,6 +135,32 @@ class TestIsExperimentActive:
         )
         assert manager.is_experiment_active("disabled_test") is False
 
+    def test_gemini3_experiment_disabled_by_kill_switch(self):
+        """Test DISABLE_GEMINI3 kill switch disables Gemini 3 experiments (Phase 4)"""
+        manager = ExperimentManager(environment="staging")
+
+        # Mock settings with DISABLE_GEMINI3=True
+        mock_settings = MagicMock()
+        mock_settings.disable_gemini3 = True
+
+        with patch.dict("sys.modules", {"common.config.settings": MagicMock(settings=mock_settings)}):
+            # Gemini 3 experiment should be disabled by kill switch
+            assert manager.is_experiment_active("gemini3_planner_10pct_staging") is False
+            assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is False
+
+    def test_gemini3_experiment_active_without_kill_switch(self):
+        """Test Gemini 3 experiments are active when kill switch is off (Phase 4)"""
+        manager = ExperimentManager(environment="staging")
+
+        # Mock settings with DISABLE_GEMINI3=False
+        mock_settings = MagicMock()
+        mock_settings.disable_gemini3 = False
+
+        with patch.dict("sys.modules", {"common.config.settings": MagicMock(settings=mock_settings)}):
+            # Gemini 3 experiments should be active
+            assert manager.is_experiment_active("gemini3_planner_10pct_staging") is True
+            assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is True
+
 
 class TestGetVariant:
     """Tests for get_variant method"""

@@ -197,7 +197,15 @@ class ExperimentManager:
                     )
                     return False
             except ImportError:
-                pass  # Settings not available, continue with normal check
+                # Settings not available - kill switch cannot be checked
+                logger.warning(
+                    "[ExperimentManager] Cannot check DISABLE_GEMINI3 kill switch: settings module not available",
+                    extra={
+                        "operation": "experiment_kill_switch_unavailable",
+                        "experiment_name": experiment_name,
+                        "kill_switch": "DISABLE_GEMINI3"
+                    }
+                )
 
         if not config.enabled:
             logger.debug(f"[ExperimentManager] Experiment {experiment_name} is disabled")
