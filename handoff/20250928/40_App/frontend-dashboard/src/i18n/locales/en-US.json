@@ -667,14 +667,54 @@
     },
     "logout": "Logout"
   },
-  "widgets": {
-    "cpuUsage": "CPU Usage",
-    "cpuDescription": "Monitor CPU utilization",
-    "memoryUsage": "Memory Usage",
-    "memoryDescription": "Track memory consumption",
-    "responseTime": "Response Time",
-    "responseTimeDescription": "Monitor system response time"
-  },
+    "widgets": {
+      "activeStrategies": {
+        "running": "{{count}} strategies running",
+        "title": "Active Strategies"
+      },
+      "circuitBreakers": {
+        "allNormal": "All circuit breakers are operating normally",
+        "halfOpen": "Half-Open",
+        "normal": "Normal",
+        "open": "Open",
+        "title": "Circuit Breakers",
+        "unknown": "Unknown"
+      },
+      "costToday": {
+        "saved": "Saved ${{amount}} today",
+        "title": "Cost Today"
+      },
+      "cpuDescription": "Monitor CPU utilization",
+      "cpuUsage": {
+        "needsAttention": "Needs attention",
+        "normalRange": "Normal range",
+        "title": "CPU Usage"
+      },
+      "errorRate": {
+        "systemStable": "System stable",
+        "title": "Error Rate"
+      },
+      "memoryDescription": "Track memory consumption",
+      "memoryUsage": {
+        "comparedYesterday": "{{percent}}% compared to yesterday",
+        "title": "Memory Usage"
+      },
+      "pendingApprovals": {
+        "title": "Pending Approvals",
+        "waiting": "{{count}} approvals waiting"
+      },
+      "performanceTrend": {
+        "cpuLabel": "CPU",
+        "description": "System performance metrics for the past 6 hours",
+        "memoryLabel": "Memory",
+        "title": "Performance Trend"
+      },
+      "responseTime": {
+        "comparedYesterday": "{{percent}}% faster than yesterday",
+        "title": "Response Time"
+      },
+      "responseTimeDescription": "Monitor system response time"
+    },
   "checkoutCancel": {
     "title": "Payment Cancelled",
     "reasons": {

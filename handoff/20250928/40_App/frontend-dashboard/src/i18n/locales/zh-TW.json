@@ -667,14 +667,54 @@
     },
     "logout": "登出"
   },
-  "widgets": {
-    "cpuUsage": "CPU 使用率",
-    "cpuDescription": "監控 CPU 使用情況",
-    "memoryUsage": "記憶體使用率",
-    "memoryDescription": "追蹤記憶體消耗",
-    "responseTime": "響應時間",
-    "responseTimeDescription": "監控系統響應時間"
-  },
+    "widgets": {
+      "activeStrategies": {
+        "running": "{{count}} 個策略執行中",
+        "title": "活躍策略"
+      },
+      "circuitBreakers": {
+        "allNormal": "所有斷路器運作正常",
+        "halfOpen": "半開啟",
+        "normal": "正常",
+        "open": "開啟",
+        "title": "斷路器",
+        "unknown": "未知"
+      },
+      "costToday": {
+        "saved": "今日節省 ${{amount}}",
+        "title": "今日成本"
+      },
+      "cpuDescription": "監控 CPU 使用情況",
+      "cpuUsage": {
+        "needsAttention": "需要關注",
+        "normalRange": "正常範圍",
+        "title": "CPU 使用率"
+      },
+      "errorRate": {
+        "systemStable": "系統穩定",
+        "title": "錯誤率"
+      },
+      "memoryDescription": "追蹤記憶體消耗",
+      "memoryUsage": {
+        "comparedYesterday": "與昨日相比 {{percent}}%",
+        "title": "記憶體使用率"
+      },
+      "pendingApprovals": {
+        "title": "待審批項目",
+        "waiting": "{{count}} 項待審批"
+      },
+      "performanceTrend": {
+        "cpuLabel": "CPU",
+        "description": "過去 6 小時的系統效能指標",
+        "memoryLabel": "記憶體",
+        "title": "效能趨勢"
+      },
+      "responseTime": {
+        "comparedYesterday": "比昨日快 {{percent}}%",
+        "title": "響應時間"
+      },
+      "responseTimeDescription": "監控系統響應時間"
+    },
   "checkoutCancel": {
     "title": "付款已取消",
     "reasons": {

@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider } from 'next-themes'
 import { AuthProvider, useAuth } from '@/components/AuthProvider'
 import Sidebar from '@/components/Sidebar'
+import DashboardHeader from '@/components/DashboardHeader'
 import LoginPage from '@/components/LoginPage'
 import { applyDesignTokens } from '@morningai/shared-ui'
 import './App.css'
@@ -36,27 +37,31 @@ function AppContent() {
 
   return (
     <Router>
-      <div className="flex h-screen bg-neutral-50">
+      <div className="flex h-screen bg-neutral-100">
         <Sidebar user={user} onLogout={logout} />
         
-        <main id="main-content" className="flex-1 overflow-y-auto" role="main">
-          <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div></div>}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<OwnerDashboard />} />
-                            <Route path="/governance" element={<AgentGovernance />} />
-                            <Route path="/ai-policies" element={<AIPolicies />} />
-                            <Route path="/tenants" element={<TenantManagement />} />
-              <Route path="/monitoring" element={<SystemMonitoring />} />
-              <Route path="/agent-evaluation" element={<AgentEvaluationDashboard />} />
-              <Route path="/failure-experiments" element={<FailureExperimentDashboard />} />
-              <Route path="/ux-metrics" element={<UXMetrics />} />
-              <Route path="/settings" element={<PlatformSettings />} />
-              <Route path="/settings/2fa" element={<Settings2FA />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Suspense>
-        </main>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <DashboardHeader user={user} />
+          
+          <main id="main-content" className="flex-1 overflow-y-auto p-6" role="main">
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div></div>}>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<OwnerDashboard />} />
+                <Route path="/governance" element={<AgentGovernance />} />
+                <Route path="/ai-policies" element={<AIPolicies />} />
+                <Route path="/tenants" element={<TenantManagement />} />
+                <Route path="/monitoring" element={<SystemMonitoring />} />
+                <Route path="/agent-evaluation" element={<AgentEvaluationDashboard />} />
+                <Route path="/failure-experiments" element={<FailureExperimentDashboard />} />
+                <Route path="/ux-metrics" element={<UXMetrics />} />
+                <Route path="/settings" element={<PlatformSettings />} />
+                <Route path="/settings/2fa" element={<Settings2FA />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
       </div>
     </Router>
   )
