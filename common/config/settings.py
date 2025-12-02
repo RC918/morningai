@@ -962,6 +962,13 @@ class Settings(BaseSettings):
         description="Enable reasoning mode (thinking_level=high) for Gemini 3 models in planner and reviewer. When disabled, uses thinking_level=low for faster responses."
     )
 
+    # Phase 4: Gemini 3 kill switch for emergency rollback
+    disable_gemini3: bool = Field(
+        default=False,
+        alias="DISABLE_GEMINI3",
+        description="Emergency kill switch to disable all Gemini 3 experiments. When enabled, all traffic goes to control group (OpenAI). Use for immediate rollback if Gemini 3 causes issues."
+    )
+
     security_enforcement_mode: Literal["advisory", "block_critical", "block_high", "block_all"] = Field(
         default="advisory",
         alias="SECURITY_ENFORCEMENT_MODE",

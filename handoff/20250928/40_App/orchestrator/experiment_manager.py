@@ -71,27 +71,50 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         target_component="reviewer",
         enabled=True
     ),
-    # Gemini 3 specific experiments (Phase 2)
+    # Gemini 3 specific experiments (Phase 2-4)
     "gemini3_planner_10pct_staging": ExperimentConfig(
         name="gemini3_planner_10pct_staging",
-        description="Test Gemini 3 Pro as planner LLM on 10% of staging traffic with thinking_level=high",
-        treatment_percent=10,
+        description="Test Gemini 3 Pro as planner LLM on 25% of staging traffic with thinking_level=high",
+        treatment_percent=25,  # Phase 4: increased from 10% to 25%
         enabled_environments=["staging"],
         treatment_provider="gemini",
         control_provider="openai",
         target_component="planner",
-        enabled=True,  # Enabled for Phase 2 validation
+        enabled=True,  # Enabled for Phase 2-4 validation
         treatment_model="gemini-3-pro-preview"
     ),
     "gemini3_reviewer_5pct_staging": ExperimentConfig(
         name="gemini3_reviewer_5pct_staging",
-        description="Test Gemini 3 Pro as reviewer LLM on 5% of staging traffic with thinking_level controlled by REASONING_MODE_ENABLED",
-        treatment_percent=5,
+        description="Test Gemini 3 Pro as reviewer LLM on 10% of staging traffic with thinking_level controlled by REASONING_MODE_ENABLED",
+        treatment_percent=10,  # Phase 4: increased from 5% to 10%
         enabled_environments=["staging"],
         treatment_provider="gemini",
         control_provider="openai",
         target_component="reviewer",
-        enabled=True,  # Enabled for Phase 3 validation
+        enabled=True,  # Enabled for Phase 3-4 validation
+        treatment_model="gemini-3-pro-preview"
+    ),
+    # Production experiments (Phase 4) - disabled by default, enable after staging validation
+    "gemini3_planner_5pct_production": ExperimentConfig(
+        name="gemini3_planner_5pct_production",
+        description="Gemini 3 Pro as planner LLM on 5% of production traffic",
+        treatment_percent=5,
+        enabled_environments=["production"],
+        treatment_provider="gemini",
+        control_provider="openai",
+        target_component="planner",
+        enabled=False,  # Disabled by default - enable after staging validation
+        treatment_model="gemini-3-pro-preview"
+    ),
+    "gemini3_reviewer_5pct_production": ExperimentConfig(
+        name="gemini3_reviewer_5pct_production",
+        description="Gemini 3 Pro as reviewer LLM on 5% of production traffic",
+        treatment_percent=5,
+        enabled_environments=["production"],
+        treatment_provider="gemini",
+        control_provider="openai",
+        target_component="reviewer",
+        enabled=False,  # Disabled by default - enable after staging validation
         treatment_model="gemini-3-pro-preview"
     ),
 }
@@ -158,6 +181,23 @@ class ExperimentManager:
             return False
 
         config = self.experiments[experiment_name]
+
+        # Phase 4: Check DISABLE_GEMINI3 kill switch for Gemini 3 experiments
+        if "gemini3" in experiment_name:
+            try:
+                from common.config.settings import settings
+                if getattr(settings, "disable_gemini3", False):
+                    logger.warning(
+                        f"[ExperimentManager] Experiment {experiment_name} disabled by DISABLE_GEMINI3 kill switch",
+                        extra={
+                            "operation": "experiment_kill_switch",
+                            "experiment_name": experiment_name,
+                            "kill_switch": "DISABLE_GEMINI3"
+                        }
+                    )
+                    return False
+            except ImportError:
+                pass  # Settings not available, continue with normal check
 
         if not config.enabled:
             logger.debug(f"[ExperimentManager] Experiment {experiment_name} is disabled")

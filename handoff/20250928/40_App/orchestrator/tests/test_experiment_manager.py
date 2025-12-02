@@ -416,18 +416,19 @@ class TestGlobalExperimentManager:
 class TestExperimentDistribution:
     """Tests for experiment distribution accuracy"""
 
-    def test_10_percent_distribution(self):
-        """Test 10% treatment distribution is approximately correct"""
+    def test_25_percent_distribution(self):
+        """Test 25% treatment distribution is approximately correct (Phase 4: increased from 10%)"""
         manager = ExperimentManager(environment="staging")
 
         treatment_count = 0
         total = 1000
 
         for i in range(total):
-            # Use gemini3_planner_10pct_staging which is enabled
+            # Use gemini3_planner_10pct_staging which is enabled (now at 25% for Phase 4)
             variant = manager.get_variant("gemini3_planner_10pct_staging", f"dist-test-{i}")
             if variant == "treatment":
                 treatment_count += 1
 
         treatment_rate = treatment_count / total * 100
-        assert 5 <= treatment_rate <= 15
+        # Phase 4: treatment_percent increased from 10% to 25%
+        assert 20 <= treatment_rate <= 30
