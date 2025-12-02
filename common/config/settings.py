@@ -699,6 +699,18 @@ class Settings(BaseSettings):
         description="Max jobs before worker restart for memory management (default: 0 = unlimited). Recommended: 10-20 for LangGraph workloads to prevent OOM."
     )
 
+    worker_heartbeat_interval: int = Field(
+        default=60,
+        alias="WORKER_HEARTBEAT_INTERVAL",
+        description="Worker heartbeat interval in seconds. Optimized to reduce Redis command volume."
+    )
+
+    worker_heartbeat_ttl: int = Field(
+        default=180,
+        alias="WORKER_HEARTBEAT_TTL",
+        description="Worker heartbeat key TTL in seconds. Should be at least 3x the interval for safety margin."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",

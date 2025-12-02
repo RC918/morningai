@@ -186,8 +186,9 @@ logger.info(
 # Heartbeat configuration - optimized to reduce Redis command volume
 # Interval increased from 30s to 60s to reduce commands by 50%
 # TTL increased from 120s to 180s to maintain 3x safety margin
-HEARTBEAT_INTERVAL = int(os.getenv("WORKER_HEARTBEAT_INTERVAL", "60"))
-HEARTBEAT_TTL = int(os.getenv("WORKER_HEARTBEAT_TTL", "180"))
+# Now uses settings.worker_heartbeat_interval/ttl instead of os.getenv for centralized configuration
+HEARTBEAT_INTERVAL = settings.worker_heartbeat_interval
+HEARTBEAT_TTL = settings.worker_heartbeat_ttl
 
 
 def update_worker_heartbeat():
