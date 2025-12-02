@@ -949,6 +949,13 @@ class Settings(BaseSettings):
         description="Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)"
     )
 
+    # Phase 3: Reasoning mode for Gemini 3 deep thinking
+    reasoning_mode_enabled: bool = Field(
+        default=False,
+        alias="REASONING_MODE_ENABLED",
+        description="Enable reasoning mode (thinking_level=high) for Gemini 3 models in planner and reviewer. When disabled, uses thinking_level=low for faster responses."
+    )
+
     security_enforcement_mode: Literal["advisory", "block_critical", "block_high", "block_all"] = Field(
         default="advisory",
         alias="SECURITY_ENFORCEMENT_MODE",

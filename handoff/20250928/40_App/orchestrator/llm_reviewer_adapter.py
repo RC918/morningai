@@ -291,15 +291,17 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                 "timeout": 20
             }
 
-            # Add thinking_level for Gemini 3 models (code review benefits from deep reasoning)
+            # Add thinking_level for Gemini 3 models based on reasoning_mode_enabled setting
             if self.llm_client.provider_name == "gemini":
-                generate_kwargs["thinking_level"] = "high"
+                thinking_level = "high" if getattr(settings, 'reasoning_mode_enabled', False) else "low"
+                generate_kwargs["thinking_level"] = thinking_level
                 logger.info(
-                    "[LLM Reviewer] Using thinking_level=high for Gemini provider",
+                    f"[LLM Reviewer] Using thinking_level={thinking_level} for Gemini provider",
                     extra={
                         "operation": "llm_reviewer",
                         "trace_id": self.trace_id,
-                        "thinking_level": "high"
+                        "thinking_level": thinking_level,
+                        "reasoning_mode_enabled": getattr(settings, 'reasoning_mode_enabled', False)
                     }
                 )
 
