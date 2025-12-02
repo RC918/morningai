@@ -13,6 +13,15 @@ const meta = {
       control: { type: 'range', min: 0, max: 100, step: 1 },
       description: 'The progress value (0-100)',
     },
+    variant: {
+      control: 'select',
+      options: ['default', 'success', 'warning', 'error', 'pink', 'cyan'],
+      description: 'The color variant (iotask design system)',
+    },
+    showLabel: {
+      control: 'boolean',
+      description: 'Whether to show the percentage label',
+    },
   },
 } satisfies Meta<typeof Progress>
 
@@ -59,6 +68,85 @@ export const Complete: Story = {
     value: 100,
     'aria-label': 'Progress: 100%',
   },
+}
+
+export const WithShowLabel: Story = {
+  args: {
+    value: 65,
+    showLabel: true,
+    'aria-label': 'Progress: 65%',
+  },
+}
+
+export const SuccessVariant: Story = {
+  args: {
+    value: 75,
+    variant: 'success',
+    'aria-label': 'Success progress: 75%',
+  },
+}
+
+export const WarningVariant: Story = {
+  args: {
+    value: 45,
+    variant: 'warning',
+    'aria-label': 'Warning progress: 45%',
+  },
+}
+
+export const ErrorVariant: Story = {
+  args: {
+    value: 30,
+    variant: 'error',
+    'aria-label': 'Error progress: 30%',
+  },
+}
+
+export const PinkVariant: Story = {
+  args: {
+    value: 60,
+    variant: 'pink',
+    'aria-label': 'Pink progress: 60%',
+  },
+}
+
+export const CyanVariant: Story = {
+  args: {
+    value: 80,
+    variant: 'cyan',
+    'aria-label': 'Cyan progress: 80%',
+  },
+}
+
+export const AllColorVariants: Story = {
+  render: () => (
+    <div className="w-full space-y-4">
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Default (Primary Blue)</span>
+        <Progress value={60} aria-label="Default: 60%" />
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Success (Green)</span>
+        <Progress value={60} variant="success" aria-label="Success: 60%" />
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Warning (Orange)</span>
+        <Progress value={60} variant="warning" aria-label="Warning: 60%" />
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Error (Red)</span>
+        <Progress value={60} variant="error" aria-label="Error: 60%" />
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Pink</span>
+        <Progress value={60} variant="pink" aria-label="Pink: 60%" />
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Cyan</span>
+        <Progress value={60} variant="cyan" aria-label="Cyan: 60%" />
+      </div>
+    </div>
+  ),
 }
 
 export const WithLabel: Story = {

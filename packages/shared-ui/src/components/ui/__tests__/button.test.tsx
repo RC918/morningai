@@ -13,37 +13,37 @@ describe('Button', () => {
     it('renders default variant with correct styling', () => {
       const { container } = render(<Button variant="default">Default</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('bg-primary', 'text-primary-foreground')
+      expect(button).toHaveClass('bg-primary-500', 'text-white')
     })
 
     it('renders destructive variant with correct styling', () => {
       const { container } = render(<Button variant="destructive">Delete</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('bg-destructive', 'text-white')
+      expect(button).toHaveClass('bg-error-500', 'text-white')
     })
 
     it('renders outline variant with correct styling', () => {
       const { container } = render(<Button variant="outline">Outline</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('border', 'bg-background')
+      expect(button).toHaveClass('border', 'bg-white')
     })
 
     it('renders secondary variant with correct styling', () => {
       const { container } = render(<Button variant="secondary">Secondary</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('bg-secondary', 'text-secondary-foreground')
+      expect(button).toHaveClass('bg-neutral-100', 'text-neutral-700')
     })
 
     it('renders ghost variant with correct styling', () => {
       const { container } = render(<Button variant="ghost">Ghost</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('hover:bg-accent')
+      expect(button).toHaveClass('hover:bg-neutral-100')
     })
 
     it('renders link variant with correct styling', () => {
       const { container } = render(<Button variant="link">Link</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('text-primary', 'underline-offset-4')
+      expect(button).toHaveClass('text-primary-500', 'underline-offset-4')
     })
   })
 
@@ -51,7 +51,7 @@ describe('Button', () => {
     it('renders default size', () => {
       const { container } = render(<Button size="default">Default</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('h-9', 'px-4', 'py-2')
+      expect(button).toHaveClass('h-10', 'px-4', 'py-2')
     })
 
     it('renders small size', () => {
@@ -63,13 +63,13 @@ describe('Button', () => {
     it('renders large size', () => {
       const { container } = render(<Button size="lg">Large</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('h-10')
+      expect(button).toHaveClass('h-12')
     })
 
     it('renders icon size', () => {
       const { container } = render(<Button size="icon">🔍</Button>)
       const button = container.firstChild as HTMLElement
-      expect(button).toHaveClass('size-9')
+      expect(button).toHaveClass('size-10')
     })
   })
 

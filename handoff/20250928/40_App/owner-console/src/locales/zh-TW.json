@@ -146,17 +146,25 @@
       "totalTenants": "總租戶數"
     },
     "subtitle": "一目了然地監控您的 MorningAI 平台",
-    "systemStatus": {
-      "apiBackend": "API 後端",
-      "database": "資料庫",
-      "healthy": "健康",
-      "redisCache": "Redis 快取",
-      "subtitle": "基礎設施健康狀態與效能",
-      "title": "系統狀態",
-      "workerNodes": "Worker 節點"
+      "systemStatus": {
+        "apiBackend": "API 後端",
+        "database": "資料庫",
+        "healthy": "健康",
+        "redisCache": "Redis 快取",
+        "subtitle": "基礎設施健康狀態與效能",
+        "title": "系統狀態",
+        "workerNodes": "Worker 節點"
+      },
+      "projectProgress": {
+        "title": "專案進度",
+        "subtitle": "追蹤進行中的平台計畫",
+        "agentDeployment": "Agent 部署",
+        "dataIntegration": "資料整合",
+        "securityAudit": "安全稽核",
+        "performanceOptimization": "效能優化"
+      },
+      "title": "平台概覽"
     },
-    "title": "平台概覽"
-  },
   "governance": {
     "agents": {
       "noAgents": "找不到 agents",

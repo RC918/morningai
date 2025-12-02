@@ -12,25 +12,25 @@ describe('Badge', () => {
     it('renders default variant with correct styling', () => {
       const { container } = render(<Badge variant="default">Default</Badge>)
       const badge = container.firstChild as HTMLElement
-      expect(badge).toHaveClass('bg-primary', 'text-primary-foreground', 'border-transparent')
+      expect(badge).toHaveClass('bg-primary-500', 'text-white', 'border-transparent')
     })
 
     it('renders secondary variant with correct styling', () => {
       const { container } = render(<Badge variant="secondary">Secondary</Badge>)
       const badge = container.firstChild as HTMLElement
-      expect(badge).toHaveClass('bg-secondary', 'text-secondary-foreground', 'border-transparent')
+      expect(badge).toHaveClass('bg-neutral-100', 'text-neutral-700', 'border-transparent')
     })
 
     it('renders destructive variant with correct styling', () => {
       const { container } = render(<Badge variant="destructive">Destructive</Badge>)
       const badge = container.firstChild as HTMLElement
-      expect(badge).toHaveClass('bg-destructive', 'text-white', 'border-transparent')
+      expect(badge).toHaveClass('bg-error-500', 'text-white', 'border-transparent')
     })
 
     it('renders outline variant with correct styling', () => {
       const { container } = render(<Badge variant="outline">Outline</Badge>)
       const badge = container.firstChild as HTMLElement
-      expect(badge).toHaveClass('text-foreground')
+      expect(badge).toHaveClass('text-neutral-700', 'bg-white')
       expect(badge).not.toHaveClass('border-transparent')
     })
   })
@@ -109,6 +109,6 @@ describe('Badge', () => {
       </Badge>
     )
     const badge = container.firstChild as HTMLElement
-    expect(badge.className).toContain('[a&]:hover:bg-primary/90')
+    expect(badge.className).toContain('[a&]:hover:bg-primary-600')
   })
 })
