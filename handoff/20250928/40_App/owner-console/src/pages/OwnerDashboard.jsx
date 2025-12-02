@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription, Progress } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/apple/apple-button'
 import { 
   Users, 
@@ -147,6 +147,46 @@ const OwnerDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* iotask style: Project Progress Section */}
+      <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.projectProgress.title')}</CardTitle>
+          <CardDescription className="text-sm text-neutral-500">{t('dashboard.projectProgress.subtitle')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.agentDeployment')}</span>
+                <span className="text-neutral-500">85%</span>
+              </div>
+              <Progress value={85} variant="default" aria-label="Agent Deployment: 85%" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.dataIntegration')}</span>
+                <span className="text-neutral-500">60%</span>
+              </div>
+              <Progress value={60} variant="success" aria-label="Data Integration: 60%" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.securityAudit')}</span>
+                <span className="text-neutral-500">45%</span>
+              </div>
+              <Progress value={45} variant="warning" aria-label="Security Audit: 45%" />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.performanceOptimization')}</span>
+                <span className="text-neutral-500">30%</span>
+              </div>
+              <Progress value={30} variant="pink" aria-label="Performance Optimization: 30%" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
