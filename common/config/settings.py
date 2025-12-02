@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     # MASTER_KEY removed - deadline 2025-11-30 passed
     # Use ENCRYPTION_MASTER_KEY instead
 
-    totp_encryption_key_secret:Optional[SecretStr] = Field(
+    totp_encryption_key_secret: Optional[SecretStr] = Field(
         default=None,
         alias="TOTP_ENCRYPTION_KEY",
         description="Fernet encryption key for TOTP secrets",
@@ -691,6 +691,12 @@ class Settings(BaseSettings):
         default=86400,
         alias="REDIS_CHECKPOINTER_TTL",
         description="TTL in seconds for Redis checkpointer entries (default: 24 hours). Set to 0 for no expiration."
+    )
+
+    rq_max_jobs: int = Field(
+        default=0,
+        alias="RQ_MAX_JOBS",
+        description="Max jobs before worker restart for memory management (default: 0 = unlimited). Recommended: 10-20 for LangGraph workloads to prevent OOM."
     )
 
     policies_path: str = Field(
