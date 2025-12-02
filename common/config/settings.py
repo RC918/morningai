@@ -693,6 +693,12 @@ class Settings(BaseSettings):
         description="TTL in seconds for Redis checkpointer entries (default: 24 hours). Set to 0 for no expiration."
     )
 
+    rq_max_jobs: int = Field(
+        default=0,
+        alias="RQ_MAX_JOBS",
+        description="Max jobs before worker restart for memory management (default: 0 = unlimited). Recommended: 10-20 for LangGraph workloads to prevent OOM."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",
