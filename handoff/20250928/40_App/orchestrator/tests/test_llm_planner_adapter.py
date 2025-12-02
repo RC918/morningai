@@ -473,3 +473,100 @@ Hope this helps!'''
 
         assert result["planner_type"] == "llm"
         assert len(result["plan"]) == 3
+
+
+class TestReasoningModeEnabled:
+    """Test suite for reasoning_mode_enabled feature (Phase 3)"""
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.LLMClient')
+    def test_gemini_thinking_level_low_by_default(self, mock_llm_client_class, mock_settings):
+        """Test that Gemini uses thinking_level=low when reasoning_mode_enabled=False (default)"""
+        mock_settings.planner_json_mode = True
+        mock_settings.reasoning_mode_enabled = False
+
+        mock_client = MagicMock()
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "gemini"
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({"plan": valid_plan})
+        mock_response.provider = "gemini"
+        mock_response.model = "gemini-3-pro-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        call_args = mock_client.generate.call_args
+        assert call_args.kwargs["thinking_level"] == "low"
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.LLMClient')
+    def test_gemini_thinking_level_high_when_enabled(self, mock_llm_client_class, mock_settings):
+        """Test that Gemini uses thinking_level=high when reasoning_mode_enabled=True"""
+        mock_settings.planner_json_mode = True
+        mock_settings.reasoning_mode_enabled = True
+
+        mock_client = MagicMock()
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "gemini"
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({"plan": valid_plan})
+        mock_response.provider = "gemini"
+        mock_response.model = "gemini-3-pro-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        call_args = mock_client.generate.call_args
+        assert call_args.kwargs["thinking_level"] == "high"
+
+    @patch('llm_planner_adapter.settings')
+    @patch('llm_planner_adapter.LLMClient')
+    def test_openai_no_thinking_level(self, mock_llm_client_class, mock_settings):
+        """Test that OpenAI provider does not receive thinking_level parameter"""
+        mock_settings.planner_json_mode = True
+        mock_settings.reasoning_mode_enabled = True
+
+        mock_client = MagicMock()
+        mock_llm_client_class.return_value = mock_client
+        mock_client.is_available.return_value = True
+        mock_client.provider_name = "openai"
+
+        valid_plan = [
+            {"step": "Step 1", "rationale": "Reason 1", "risk": "low"},
+            {"step": "Step 2", "rationale": "Reason 2", "risk": "medium"},
+            {"step": "Step 3", "rationale": "Reason 3", "risk": "high"}
+        ]
+
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({"plan": valid_plan})
+        mock_response.provider = "openai"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.usage = {"total_tokens": 100}
+        mock_client.generate.return_value = mock_response
+
+        adapter = LLMPlannerAdapter()
+        adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
+
+        call_args = mock_client.generate.call_args
+        assert "thinking_level" not in call_args.kwargs
