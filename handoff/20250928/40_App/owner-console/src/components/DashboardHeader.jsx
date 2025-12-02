@@ -63,12 +63,12 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0 }) => {
           </Button>
 
           <div className="flex items-center space-x-3 pl-4 border-l border-neutral-200">
-            <Avatar className="w-8 h-8">
-              <AvatarImage src={user?.avatar} />
-              <AvatarFallback className="bg-primary-500 text-white text-sm">
-                {user?.name?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={user?.avatar} alt={user?.name ? `${user.name}'s avatar` : 'User avatar'} />
+                          <AvatarFallback className="bg-primary-500 text-white text-sm">
+                            {user?.name?.charAt(0) || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
             <div className="hidden md:block">
               <p className="text-sm font-medium text-neutral-700">
                 {user?.name || t('header.defaultUser')}

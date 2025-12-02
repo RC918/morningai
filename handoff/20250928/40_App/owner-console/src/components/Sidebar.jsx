@@ -133,12 +133,12 @@ const Sidebar = ({ user, onLogout }) => {
 
       <div className="p-4 border-b border-neutral-700">
         <div className="flex items-center space-x-3">
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={user?.avatar} />
-            <AvatarFallback className="bg-primary-500 text-white">
-              {user?.name?.charAt(0) || 'O'}
-            </AvatarFallback>
-          </Avatar>
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={user?.avatar} alt={user?.name ? `${user.name}'s avatar` : 'User avatar'} />
+                      <AvatarFallback className="bg-primary-500 text-white">
+                        {user?.name?.charAt(0) || 'O'}
+                      </AvatarFallback>
+                    </Avatar>
           
           {!collapsed && (
             <div className="flex-1 min-w-0">
