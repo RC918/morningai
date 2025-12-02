@@ -198,9 +198,9 @@ def update_worker_heartbeat():
     Updates state to 'shutting_down' when shutdown is initiated.
     Uses HEARTBEAT_ID for stable monitoring identity.
     
-    Configuration (via environment variables):
-    - WORKER_HEARTBEAT_INTERVAL: Heartbeat interval in seconds (default: 60)
-    - WORKER_HEARTBEAT_TTL: Heartbeat key TTL in seconds (default: 180)
+    Configuration (via settings.py):
+    - settings.worker_heartbeat_interval: Heartbeat interval in seconds (default: 60)
+    - settings.worker_heartbeat_ttl: Heartbeat key TTL in seconds (default: 180)
     """
     logger.info(f"Heartbeat thread started (interval={HEARTBEAT_INTERVAL}s, ttl={HEARTBEAT_TTL}s)", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME})
     
@@ -1155,8 +1155,8 @@ if __name__ == "__main__":
             "operation": "startup",
             "heartbeat_id": HEARTBEAT_ID,
             "rq_worker_name": RQ_WORKER_NAME,
-            "ttl": 120,
-            "interval": 30
+            "ttl": HEARTBEAT_TTL,
+            "interval": HEARTBEAT_INTERVAL
         }
     )
     
