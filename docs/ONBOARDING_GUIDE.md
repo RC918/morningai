@@ -50,6 +50,70 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 - **Transformation**: Q4 2025 - Q2 2026 (MVP to World-Class)
 - **Latest Roadmap**: [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
+**Recent Improvements (Dec 2 - Dec 3, 2025)**:
+
+*Experimentation & Reasoning Mode:*
+- **PR #1804**: Phase 4 Production Rollout - Increase experiment percentages and add kill switch
+  - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`, `common/config/settings.py`, `config/env.schema.yaml`
+  - Impact: Raises gemini3_planner_staging from 10% to 25%, gemini3_reviewer_staging from 5% to 10%; adds `DISABLE_GEMINI3` kill switch for emergency rollback
+  - Merged: 2025-12-03
+- **PR #1803**: Phase 3 Remaining Items - Gemini 3 fallback, parametrize tests, CI gate
+  - Path: `.github/workflows/gemini3-reviewer-gate.yml`, `handoff/20250928/40_App/orchestrator/tests/test_llm_planner_adapter.py`, `test_llm_reviewer_adapter.py`
+  - Impact: Adds Gemini 3 reviewer gate CI workflow and consolidates test patterns
+  - Merged: 2025-12-03
+- **PR #1794**: Phase 3.1 Hardening - Add REASONING_MODE_ENABLED schema and unit tests
+  - Path: `config/env.schema.yaml`, `common/config/settings.py`
+  - Impact: Adds `REASONING_MODE_ENABLED` env var for controlling Gemini 3 thinking_level
+  - Merged: 2025-12-02
+- **PR #1793**: Phase 3 - Reasoning mode toggle and Gemini 3 reviewer experiment
+  - Path: `handoff/20250928/40_App/orchestrator/llm/adapters/llm_reviewer_adapter.py`
+  - Impact: Enables reasoning mode toggle and gemini3_reviewer_5pct_staging experiment
+  - Merged: 2025-12-02
+- **PR #1792**: Redis Checkpointer - LangGraph state persistence
+  - Path: `handoff/20250928/40_App/orchestrator/redis_checkpointer.py`, `graph.py`
+  - Impact: Adds Redis-based checkpointer for LangGraph state persistence with configurable TTL
+  - Merged: 2025-12-02
+- **PR #1791**: FAQ Routing - Route FAQ tasks via simple path, bypass LangGraph
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+  - Impact: FAQ tasks now use simple mode (~95% traffic) for faster response
+  - Merged: 2025-12-02
+
+*Configuration & Secrets Hardening:*
+- **PR #1800**: Migrate os.getenv to settings.py for Tier 1 production code
+  - Path: `handoff/20250928/40_App/orchestrator/`, `common/config/settings.py`
+  - Impact: Centralizes environment variable access through Pydantic settings
+  - Merged: 2025-12-03
+- **PR #1798**: Migrate WORKER_HEARTBEAT_INTERVAL and WORKER_HEARTBEAT_TTL to settings.py
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+  - Impact: Adds `WORKER_HEARTBEAT_INTERVAL` (60s) and `WORKER_HEARTBEAT_TTL` (180s) env vars
+  - Merged: 2025-12-02
+- **PR #1797**: Migrate RQ_MAX_JOBS to settings.py and add secrets hardening
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+  - Impact: Adds `RQ_MAX_JOBS` env var for worker memory management; hardens `FLASK_SECRET_KEY` and `ENCRYPTION_MASTER_KEY`
+  - Merged: 2025-12-02
+- **PR #1795**: Remove deprecated SECRET_KEY and MASTER_KEY
+  - Path: `config/env.schema.yaml`
+  - Impact: Removes legacy `SECRET_KEY` and `MASTER_KEY` in favor of `FLASK_SECRET_KEY` and `ENCRYPTION_MASTER_KEY`
+  - Merged: 2025-12-02
+- **PR #1790**: Add RQ_MAX_JOBS env var for worker memory management
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
+  - Impact: Worker restarts after processing N jobs to prevent OOM from LangGraph checkpoints
+  - Merged: 2025-12-02
+
+*UI/UX & Design System:*
+- **PR #1802**: Storybook Stories for DashboardHeader and Sidebar
+  - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.stories.tsx`, `Sidebar.stories.tsx`
+  - Impact: Adds 21 Storybook stories for visual documentation of layout components
+  - Merged: 2025-12-03
+- **PR #1801**: Phase 3-4 Completion - iotask Component Styling and Progress Bars
+  - Path: `packages/shared-ui/src/components/ui/button.tsx`, `badge.tsx`, `card.tsx`, `input.tsx`, `progress.tsx`
+  - Impact: Updates Button, Badge, Card, Input, Progress components with iotask design system
+  - Merged: 2025-12-03
+- **PR #1796**: iotask Design System Upgrade - Phase 1-4
+  - Path: `packages/shared-ui/src/tokens.json`, `handoff/20250928/40_App/owner-console/src/components/`
+  - Impact: Updates design tokens to iotask color palette; adds DashboardHeader component; dark theme Sidebar
+  - Merged: 2025-12-02
+
 **Recent Improvements (Nov 29 - Dec 1, 2025)**:
 - **PR #1788**: Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
   - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
