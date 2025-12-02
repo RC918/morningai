@@ -293,7 +293,8 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
 
             # Add thinking_level for Gemini 3 models based on reasoning_mode_enabled setting
             if self.llm_client.provider_name == "gemini":
-                thinking_level = "high" if getattr(settings, 'reasoning_mode_enabled', False) else "low"
+                reasoning_mode_enabled = getattr(settings, 'reasoning_mode_enabled', False)
+                thinking_level = "high" if reasoning_mode_enabled else "low"
                 generate_kwargs["thinking_level"] = thinking_level
                 logger.info(
                     f"[LLM Reviewer] Using thinking_level={thinking_level} for Gemini provider",
@@ -301,7 +302,7 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                         "operation": "llm_reviewer",
                         "trace_id": self.trace_id,
                         "thinking_level": thinking_level,
-                        "reasoning_mode_enabled": getattr(settings, 'reasoning_mode_enabled', False)
+                        "reasoning_mode_enabled": reasoning_mode_enabled
                     }
                 )
 
