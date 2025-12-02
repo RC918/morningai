@@ -12,8 +12,8 @@ const meta = {
   argTypes: {
     variant: {
       control: 'select',
-      options: ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'],
-      description: 'The visual style variant',
+      options: ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link', 'success', 'warning'],
+      description: 'The visual style variant (iotask design system)',
     },
     size: {
       control: 'select',
@@ -72,6 +72,20 @@ export const Link: Story = {
   args: {
     variant: 'link',
     children: 'Link',
+  },
+}
+
+export const Success: Story = {
+  args: {
+    variant: 'success',
+    children: 'Success',
+  },
+}
+
+export const Warning: Story = {
+  args: {
+    variant: 'warning',
+    children: 'Warning',
   },
 }
 
@@ -177,6 +191,18 @@ export const AllVariants: Story = {
         <Button variant="link">Button</Button>
         <Button variant="link" size="sm">Small</Button>
         <Button variant="link" size="lg">Large</Button>
+      </div>
+      <div className="flex gap-2 items-center">
+        <span className="w-24 text-sm font-medium">Success:</span>
+        <Button variant="success">Button</Button>
+        <Button variant="success" size="sm">Small</Button>
+        <Button variant="success" size="lg">Large</Button>
+      </div>
+      <div className="flex gap-2 items-center">
+        <span className="w-24 text-sm font-medium">Warning:</span>
+        <Button variant="warning">Button</Button>
+        <Button variant="warning" size="sm">Small</Button>
+        <Button variant="warning" size="lg">Large</Button>
       </div>
     </div>
   ),

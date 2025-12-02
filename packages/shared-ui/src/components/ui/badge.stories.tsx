@@ -11,8 +11,8 @@ const meta = {
   argTypes: {
     variant: {
       control: 'select',
-      options: ['default', 'secondary', 'destructive', 'outline'],
-      description: 'The visual style variant',
+      options: ['default', 'secondary', 'destructive', 'outline', 'success', 'warning', 'pink', 'cyan'],
+      description: 'The visual style variant (iotask design system)',
     },
   },
 } satisfies Meta<typeof Badge>
@@ -47,13 +47,45 @@ export const Outline: Story = {
   },
 }
 
+export const Success: Story = {
+  args: {
+    variant: 'success',
+    children: 'Success',
+  },
+}
+
+export const Warning: Story = {
+  args: {
+    variant: 'warning',
+    children: 'Warning',
+  },
+}
+
+export const Pink: Story = {
+  args: {
+    variant: 'pink',
+    children: 'Pink',
+  },
+}
+
+export const Cyan: Story = {
+  args: {
+    variant: 'cyan',
+    children: 'Cyan',
+  },
+}
+
 export const AllVariants: Story = {
   render: () => (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Badge>Default</Badge>
       <Badge variant="secondary">Secondary</Badge>
       <Badge variant="destructive">Destructive</Badge>
       <Badge variant="outline">Outline</Badge>
+      <Badge variant="success">Success</Badge>
+      <Badge variant="warning">Warning</Badge>
+      <Badge variant="pink">Pink</Badge>
+      <Badge variant="cyan">Cyan</Badge>
     </div>
   ),
 }

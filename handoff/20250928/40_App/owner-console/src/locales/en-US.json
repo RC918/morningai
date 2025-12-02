@@ -146,17 +146,25 @@
       "totalTenants": "Total Tenants"
     },
     "subtitle": "Monitor your MorningAI platform at a glance",
-    "systemStatus": {
-      "apiBackend": "API Backend",
-      "database": "Database",
-      "healthy": "Healthy",
-      "redisCache": "Redis Cache",
-      "subtitle": "Infrastructure health and performance",
-      "title": "System Status",
-      "workerNodes": "Worker Nodes"
+      "systemStatus": {
+        "apiBackend": "API Backend",
+        "database": "Database",
+        "healthy": "Healthy",
+        "redisCache": "Redis Cache",
+        "subtitle": "Infrastructure health and performance",
+        "title": "System Status",
+        "workerNodes": "Worker Nodes"
+      },
+      "projectProgress": {
+        "title": "Project Progress",
+        "subtitle": "Track ongoing platform initiatives",
+        "agentDeployment": "Agent Deployment",
+        "dataIntegration": "Data Integration",
+        "securityAudit": "Security Audit",
+        "performanceOptimization": "Performance Optimization"
+      },
+      "title": "Platform Overview"
     },
-    "title": "Platform Overview"
-  },
   "governance": {
     "agents": {
       "noAgents": "No agents found",
