@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Search, Bell, Settings, HelpCircle } from 'lucide-react'
 import { Button, Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
 
-const DashboardHeader = ({ user, title, subtitle }) => {
+const DashboardHeader = ({ user, title, subtitle, notificationCount = 0 }) => {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
+  const hasNotifications = notificationCount > 0
 
   return (
     <header className="bg-white border-b border-neutral-200 px-6 py-4">
@@ -40,15 +41,17 @@ const DashboardHeader = ({ user, title, subtitle }) => {
             <HelpCircle className="w-5 h-5" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg relative"
-            aria-label={t('header.notifications')}
-          >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
-          </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg relative"
+                      aria-label={t('header.notifications')}
+                    >
+                      <Bell className="w-5 h-5" />
+                      {hasNotifications && (
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
+                      )}
+                    </Button>
 
           <Button
             variant="ghost"

@@ -18,6 +18,14 @@ import { Button, Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-u
 import { DarkModeToggle } from './DarkModeToggle'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
+/**
+ * Sidebar component for owner-console with dark theme.
+ * 
+ * Design Decision: The owner-console uses a dark sidebar theme (bg-neutral-800)
+ * while frontend-dashboard uses a light sidebar theme. This intentional difference
+ * helps users visually distinguish between the admin/owner interface and the
+ * tenant-facing dashboard, reinforcing the different permission levels and contexts.
+ */
 const Sidebar = ({ user, onLogout }) => {
   const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)

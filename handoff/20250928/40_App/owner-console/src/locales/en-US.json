@@ -1,6 +1,10 @@
 {
-  "agentEvaluation": {
-    "belowTarget": "Below Target",
+    "aiPolicies": {
+      "subtitle": "Configure AI governance policies and compliance rules",
+      "title": "AI Policies"
+    },
+    "agentEvaluation": {
+      "belowTarget": "Below Target",
     "history": {
       "ciPassed": "CI Passed",
       "completed": "Completed",
@@ -364,16 +368,25 @@
     "usedTotal": "Used/Total",
     "workers": "Workers"
   },
-  "nav": {
-    "dashboard": "Dashboard",
-    "governance": "Agent Governance",
-    "logout": "Logout",
-    "mainNavigation": "Main navigation",
-    "monitoring": "System Monitoring",
-    "settings": "Platform Settings",
-    "tenants": "Tenant Management",
-    "uxMetrics": "UX Metrics"
-  },
+    "header": {
+      "defaultRole": "Platform Owner",
+      "defaultUser": "Owner",
+      "help": "Help",
+      "notifications": "Notifications",
+      "searchPlaceholder": "Search...",
+      "settings": "Settings"
+    },
+    "nav": {
+      "aiPolicies": "AI Policies",
+      "dashboard": "Dashboard",
+      "governance": "Agent Governance",
+      "logout": "Logout",
+      "mainNavigation": "Main navigation",
+      "monitoring": "System Monitoring",
+      "settings": "Platform Settings",
+      "tenants": "Tenant Management",
+      "uxMetrics": "UX Metrics"
+    },
   "settings": {
     "2fa": {
       "actions": {
