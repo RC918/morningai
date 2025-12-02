@@ -158,17 +158,11 @@ if app_settings.is_production and not app_settings.testing:
 # 2. Import main.py (triggers Flask app initialization with test env vars)
 # 3. Run test assertions
 # See docs/config/app_settings.md for more details on settings lifecycle and testing.
+# SECRET_KEY fallback removed - deadline 2025-11-30 passed
+# Use FLASK_SECRET_KEY instead
 flask_secret = get_settings().flask_secret_key
 if not flask_secret:
-    legacy_secret = get_settings().secret_key
-    if legacy_secret:
-        logger.warning(
-            "DEPRECATION: SECRET_KEY is deprecated. Please use FLASK_SECRET_KEY instead. "
-            "SECRET_KEY support will be removed after 2025-11-30 (30-day grace period)."
-        )
-        flask_secret = legacy_secret
-    else:
-        flask_secret = "asdf#FGSgvasgf$5$WGT"
+    flask_secret = "asdf#FGSgvasgf$5$WGT"
 app.config["SECRET_KEY"] = flask_secret
 
 def _as_bool(val):
@@ -265,17 +259,11 @@ cors_config = {
 CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
+    # MASTER_KEY fallback removed - deadline 2025-11-30 passed
+    # Use ENCRYPTION_MASTER_KEY instead
     encryption_master_key = app_settings.encryption_master_key
     if not encryption_master_key:
-        legacy_master_key = app_settings.master_key
-        if legacy_master_key:
-            logger.warning(
-                "DEPRECATION: MASTER_KEY is deprecated. Please use ENCRYPTION_MASTER_KEY instead. "
-                "MASTER_KEY support will be removed after 2025-11-30 (30-day grace period)."
-            )
-            encryption_master_key = legacy_master_key
-        else:
-            encryption_master_key = "default-master-key"
+        encryption_master_key = "default-master-key"
 
     security_config = {
         "master_key": encryption_master_key,
