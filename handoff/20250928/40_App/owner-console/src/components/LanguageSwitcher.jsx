@@ -37,7 +37,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
         </DropdownMenuTrigger>
         <DropdownMenuContent 
           align="end" 
-          className="w-48 !bg-white dark:!bg-gray-800 border border-gray-200 dark:border-gray-700"
+          className="w-48 !bg-white dark:!bg-neutral-800 border border-neutral-200 dark:border-neutral-700"
           style={{ backgroundColor: 'white' }}
         >
           <AnimatePresence>
