@@ -238,6 +238,8 @@ class ProjectEngineerAgent:
 
     def _validate_task_semantic_rules(
         self,
+        repo: str,
+        task_type: str,
         action: str,
         file_paths: Optional[List[str]] = None,
         command: Optional[str] = None,
@@ -246,13 +248,18 @@ class ProjectEngineerAgent:
         """
         Validate task using comprehensive semantic rules (Phase 1 Security Foundation)
 
-        This method calls the full validate_task() from semantic_rules.py to check:
+        This method uses get_validator() to get the full validator instance and calls
+        its validate_task method to check:
+        - Repository validation
+        - Task type validation
         - Action whitelist validation
         - Sensitive file blocking
         - High-risk command detection
         - HITL approval requirements
 
         Args:
+            repo: Repository name for validation
+            task_type: Task type for validation
             action: Action being performed (e.g., "write_file", "run_command")
             file_paths: List of file paths involved in the action
             command: Command being executed (if applicable)
@@ -260,25 +267,55 @@ class ProjectEngineerAgent:
 
         Returns:
             Tuple of (is_valid, error_message, requires_approval)
-            - is_valid: True if task passes all validations
+            - is_valid: True if task passes all validations (or only has approval-required violations)
             - error_message: Description of validation failure (empty if valid)
             - requires_approval: True if task requires HITL approval
         """
         try:
-            from .semantic_rules import validate_task
-            result = validate_task(
-                action=action,
+            from .semantic_rules import get_validator
+            validator = get_validator()
+
+            is_ok, violations = validator.validate_task(
+                repo=repo,
+                task_type=task_type,
                 file_paths=file_paths,
+                action=action,
                 command=command,
-                trace_id=trace_id
             )
-            return result.is_valid, result.error_message, result.requires_approval
+
+            if is_ok:
+                return True, "", False
+
+            # Process violations to determine error message and approval requirements
+            error_messages = [v.message for v in violations]
+            error_message = "; ".join(error_messages)
+
+            # Check if any violation requires approval (HITL)
+            requires_approval = any(
+                getattr(v, 'requires_approval', False) for v in violations
+            )
+
+            # A task is "valid to proceed" if it only has violations that require approval
+            # It's invalid if there are any hard-blocking violations
+            has_hard_blocking = any(
+                not getattr(v, 'requires_approval', False) for v in violations
+            )
+            is_valid_to_proceed = not has_hard_blocking
+
+            if trace_id:
+                logger.info(
+                    f"[ProjectEngineerAgent] Semantic validation for {trace_id}: "
+                    f"valid={is_valid_to_proceed}, requires_approval={requires_approval}, "
+                    f"violations={len(violations)}"
+                )
+
+            return is_valid_to_proceed, error_message, requires_approval
         except ImportError as e:
             logger.warning(f"[ProjectEngineerAgent] semantic_rules not available: {e}")
             # Fallback: allow action but log warning
             return True, "", False
         except Exception as e:
-            logger.error(f"[ProjectEngineerAgent] Semantic rules validation failed: {e}")
+            logger.error(f"[ProjectEngineerAgent] Semantic rules validation failed: {e}", exc_info=True)
             # Fail closed: reject task on validation error
             return False, f"Semantic rules validation error: {str(e)}", False
 
@@ -365,7 +402,8 @@ class ProjectEngineerAgent:
                 result = await self._process_step(
                     step_text=step_text,
                     step_index=i,
-                    trace_id=trace_id
+                    trace_id=trace_id,
+                    repo=repo
                 )
                 results.append(result)
 
@@ -389,7 +427,13 @@ class ProjectEngineerAgent:
 
         return results
 
-    async def _process_step(self, step_text: str, step_index: int, trace_id: str) -> TaskResult:
+    async def _process_step(
+        self,
+        step_text: str,
+        step_index: int,
+        trace_id: str,
+        repo: str = "RC918/morningai"
+    ) -> TaskResult:
         """
         Process a single step from the plan
 
@@ -397,6 +441,7 @@ class ProjectEngineerAgent:
             step_text: Step description
             step_index: Index of step in plan
             trace_id: Trace ID for logging
+            repo: Repository name for semantic rules validation
 
         Returns:
             TaskResult for this step
@@ -436,9 +481,10 @@ class ProjectEngineerAgent:
 
             # Phase 1 Security Foundation: Comprehensive semantic rules validation
             # Maps task_type to action for semantic rules validation
+            # Keys match TaskClassifier TaskType enum values
             action_mapping = {
-                "documentation": "write_file",
-                "test_writing": "write_file",
+                "documentation_update": "write_file",
+                "test_generation": "write_file",
                 "code_review": "review_code",
                 "bug_fix": "write_file",
                 "refactoring": "write_file",
@@ -448,6 +494,8 @@ class ProjectEngineerAgent:
             action = action_mapping.get(task_type, "analyze_code")
 
             semantic_valid, semantic_error, requires_approval = self._validate_task_semantic_rules(
+                repo=repo,
+                task_type=task_type,
                 action=action,
                 file_paths=None,  # File paths determined during execution
                 command=None,

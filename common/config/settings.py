@@ -1063,7 +1063,7 @@ class Settings(BaseSettings):
     )
 
     project_engineer_blocked_files: str = Field(
-        default=".env,.env.local,.env.production,credentials.json,secrets.yaml,secrets.yml,private_key,id_rsa,id_ed25519,.pem,.key,fly.toml,render.yaml,vercel.json",
+        default=".env,.env.local,.env.production,.env.staging,.env.development,credentials.json,secrets.yaml,secrets.yml,private_key,id_rsa,id_ed25519,.pem,.key,.p12,.pfx,fly.toml,render.yaml,vercel.json,docker-compose.prod,.npmrc,.pypirc",
         alias="PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS",
         description="Comma-separated list of sensitive file patterns to block (Phase 1 Security Foundation)"
     )
