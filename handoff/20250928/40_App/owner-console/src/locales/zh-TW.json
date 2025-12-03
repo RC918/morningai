@@ -161,21 +161,22 @@
         "title": "系統狀態",
         "workerNodes": "Worker 節點"
       },
-            "projectProgress": {
-              "title": "專案進度",
-              "subtitle": "追蹤進行中的平台計畫",
-              "agentDeployment": "Agent 部署",
-              "dataIntegration": "資料整合",
-              "securityAudit": "安全稽核",
-              "performanceOptimization": "效能優化",
-              "hints": {
-                "agentDeployment": "核心工作流程已與 Orchestrator 整合",
-                "dataIntegration": "RLS 第三階段完成，報表進行中",
-                "securityAudit": "2FA/TOTP 已上線，RLS 測試進行中",
-                "performanceOptimization": "LangGraph 金絲雀版本，Redis Checkpointer 調校中"
-              }
-            },
-      "title": "平台概覽"
+                  "projectProgress": {
+                    "title": "專案進度",
+                    "subtitle": "追蹤進行中的平台計畫",
+                    "agentDeployment": "Agent 部署",
+                    "dataIntegration": "資料整合",
+                    "securityAudit": "安全稽核",
+                    "performanceOptimization": "效能優化",
+                    "hints": {
+                      "agentDeployment": "核心工作流程已與 Orchestrator 整合",
+                      "dataIntegration": "RLS 第三階段完成，報表進行中",
+                      "securityAudit": "2FA/TOTP 已上線，RLS 測試進行中",
+                      "performanceOptimization": "LangGraph 金絲雀版本，Redis Checkpointer 調校中"
+                    }
+                  },
+            "seeAll": "查看全部",
+            "title": "平台概覽"
     },
   "governance": {
     "agents": {

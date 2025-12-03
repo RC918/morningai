@@ -161,21 +161,22 @@
         "title": "System Status",
         "workerNodes": "Worker Nodes"
       },
-            "projectProgress": {
-              "title": "Project Progress",
-              "subtitle": "Track ongoing platform initiatives",
-              "agentDeployment": "Agent Deployment",
-              "dataIntegration": "Data Integration",
-              "securityAudit": "Security Audit",
-              "performanceOptimization": "Performance Optimization",
-              "hints": {
-                "agentDeployment": "Core workflow integrated with Orchestrator",
-                "dataIntegration": "RLS Phase 3 complete, reports in progress",
-                "securityAudit": "2FA/TOTP live, RLS testing ongoing",
-                "performanceOptimization": "LangGraph canary, Redis Checkpointer tuning"
-              }
-            },
-      "title": "Platform Overview"
+                  "projectProgress": {
+                    "title": "Project Progress",
+                    "subtitle": "Track ongoing platform initiatives",
+                    "agentDeployment": "Agent Deployment",
+                    "dataIntegration": "Data Integration",
+                    "securityAudit": "Security Audit",
+                    "performanceOptimization": "Performance Optimization",
+                    "hints": {
+                      "agentDeployment": "Core workflow integrated with Orchestrator",
+                      "dataIntegration": "RLS Phase 3 complete, reports in progress",
+                      "securityAudit": "2FA/TOTP live, RLS testing ongoing",
+                      "performanceOptimization": "LangGraph canary, Redis Checkpointer tuning"
+                    }
+                  },
+            "seeAll": "See all",
+            "title": "Platform Overview"
     },
   "governance": {
     "agents": {

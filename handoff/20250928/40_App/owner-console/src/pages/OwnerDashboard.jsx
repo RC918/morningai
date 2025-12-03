@@ -139,28 +139,49 @@ const OwnerDashboard = () => {
         />
       </div>
 
-      {/* Main Content - Using SectionCard with nested components */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <SectionCard
-          title={t('dashboard.projectProgress.title')}
-          subtitle={t('dashboard.projectProgress.subtitle')}
-        >
-          <ProgressTrack items={progressItems} />
-        </SectionCard>
+      {/* iotask style: Two-column layout - Wide center (2/3) + Narrow right rail (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left/Center Column - Main Content (spans 2 columns on large screens) */}
+        <div className="lg:col-span-2 space-y-6">
+          <SectionCard
+            title={t('dashboard.projectProgress.title')}
+            subtitle={t('dashboard.projectProgress.subtitle')}
+            action={
+              <Link to="/monitoring" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                {t('dashboard.seeAll', 'See all')} &rarr;
+              </Link>
+            }
+          >
+            <ProgressTrack items={progressItems} />
+          </SectionCard>
 
-        <SectionCard
-          title={t('dashboard.recentActivity.title')}
-          subtitle={t('dashboard.recentActivity.subtitle')}
-        >
-          <TimelineList items={activityItems} />
-        </SectionCard>
+          <SectionCard
+            title={t('dashboard.systemStatus.title')}
+            subtitle={t('dashboard.systemStatus.subtitle')}
+            action={
+              <Link to="/monitoring" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                {t('dashboard.seeAll', 'See all')} &rarr;
+              </Link>
+            }
+          >
+            <SystemStatusList items={statusItems} />
+          </SectionCard>
+        </div>
 
-        <SectionCard
-          title={t('dashboard.systemStatus.title')}
-          subtitle={t('dashboard.systemStatus.subtitle')}
-        >
-          <SystemStatusList items={statusItems} />
-        </SectionCard>
+        {/* Right Column - Activity Rail (spans 1 column) */}
+        <div className="space-y-6">
+          <SectionCard
+            title={t('dashboard.recentActivity.title')}
+            subtitle={t('dashboard.recentActivity.subtitle')}
+            action={
+              <Link to="/governance" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                {t('dashboard.seeAll', 'See all')} &rarr;
+              </Link>
+            }
+          >
+            <TimelineList items={activityItems} />
+          </SectionCard>
+        </div>
       </div>
     </div>
   )
