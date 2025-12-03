@@ -12,7 +12,6 @@ Features:
 - Agent-level timeout (Phase 3 PR-4)
 - Semantic task rules: repo/directory/task type restrictions (Phase 3 PR-4)
 """
-import asyncio
 import logging
 import uuid
 from typing import List, Optional
@@ -237,6 +236,52 @@ class ProjectEngineerAgent:
             logger.warning(f"[ProjectEngineerAgent] Failed to read timeout from settings: {e}")
             return 300  # Default 5 minutes
 
+    def _validate_task_semantic_rules(
+        self,
+        action: str,
+        file_paths: Optional[List[str]] = None,
+        command: Optional[str] = None,
+        trace_id: Optional[str] = None
+    ) -> tuple[bool, str, bool]:
+        """
+        Validate task using comprehensive semantic rules (Phase 1 Security Foundation)
+
+        This method calls the full validate_task() from semantic_rules.py to check:
+        - Action whitelist validation
+        - Sensitive file blocking
+        - High-risk command detection
+        - HITL approval requirements
+
+        Args:
+            action: Action being performed (e.g., "write_file", "run_command")
+            file_paths: List of file paths involved in the action
+            command: Command being executed (if applicable)
+            trace_id: Trace ID for logging and metrics
+
+        Returns:
+            Tuple of (is_valid, error_message, requires_approval)
+            - is_valid: True if task passes all validations
+            - error_message: Description of validation failure (empty if valid)
+            - requires_approval: True if task requires HITL approval
+        """
+        try:
+            from .semantic_rules import validate_task
+            result = validate_task(
+                action=action,
+                file_paths=file_paths,
+                command=command,
+                trace_id=trace_id
+            )
+            return result.is_valid, result.error_message, result.requires_approval
+        except ImportError as e:
+            logger.warning(f"[ProjectEngineerAgent] semantic_rules not available: {e}")
+            # Fallback: allow action but log warning
+            return True, "", False
+        except Exception as e:
+            logger.error(f"[ProjectEngineerAgent] Semantic rules validation failed: {e}")
+            # Fail closed: reject task on validation error
+            return False, f"Semantic rules validation error: {str(e)}", False
+
     async def run_task(self, description: str, repo: str = "RC918/morningai") -> List[TaskResult]:
         """
         Execute a task based on natural language description
@@ -389,6 +434,55 @@ class ProjectEngineerAgent:
                     f"[ProjectEngineerAgent] Task type validation failed: {task_type_error}"
                 )
 
+            # Phase 1 Security Foundation: Comprehensive semantic rules validation
+            # Maps task_type to action for semantic rules validation
+            action_mapping = {
+                "documentation": "write_file",
+                "test_writing": "write_file",
+                "code_review": "review_code",
+                "bug_fix": "write_file",
+                "refactoring": "write_file",
+                "feature_implementation": "write_file",
+                "unknown": "analyze_code",
+            }
+            action = action_mapping.get(task_type, "analyze_code")
+
+            semantic_valid, semantic_error, requires_approval = self._validate_task_semantic_rules(
+                action=action,
+                file_paths=None,  # File paths determined during execution
+                command=None,
+                trace_id=trace_id
+            )
+
+            if not semantic_valid:
+                logger.warning(
+                    f"[ProjectEngineerAgent] Semantic rules validation failed for step {step_index}: "
+                    f"{semantic_error}"
+                )
+                return TaskResult(
+                    task_id=task_id,
+                    task_type=task_type,
+                    status="blocked",
+                    is_safe=False,
+                    details=f"Semantic rules validation failed: {semantic_error}",
+                    error=semantic_error
+                )
+
+            if requires_approval:
+                logger.info(
+                    f"[ProjectEngineerAgent] Step {step_index} requires HITL approval"
+                )
+                return TaskResult(
+                    task_id=task_id,
+                    task_type=task_type,
+                    status="pending_approval",
+                    is_safe=True,
+                    details=(
+                        f"Task requires Human-in-the-Loop approval. "
+                        f"Action '{action}' flagged for manual review."
+                    )
+                )
+
             # Step 5: Execute code generation if enabled and safe
             if self.enable_code_generation and is_safe:
                 logger.info(f"[ProjectEngineerAgent] Executing code generation for step {step_index}")
@@ -532,7 +626,7 @@ class ProjectEngineerAgent:
         """
         return {
             "agent_type": "ProjectEngineerAgent",
-            "version": "1.1.0-phase4-pr1",
+            "version": "1.2.0-phase1-security",
             "planner_available": self.planner is not None,
             "classifier_available": self.classifier is not None,
             "workflow_available": self.workflow is not None,
@@ -542,9 +636,12 @@ class ProjectEngineerAgent:
                 "task_classification": self.classifier is not None,
                 "safe_task_gating": True,
                 "code_generation": self.enable_code_generation,
-                "semantic_rules_v2": True,
+                "semantic_rules_v3": True,
                 "directory_validation": True,
                 "task_type_validation": True,
+                "action_whitelist": True,
+                "sensitive_file_blocking": True,
+                "hitl_approval": True,
             }
         }
 

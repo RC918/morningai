@@ -42,10 +42,20 @@ HIGH_RISK_ACTIONS: frozenset = frozenset({
 })
 
 # Sensitive file patterns that should never be modified by agents
+# Phase 1 Security Foundation - Issue #1829 Evaluation:
+# - ".env" patterns: Kept conservative. While "environment.ts" won't match (substring check),
+#   we intentionally block .env files including .env.example for security.
+# - "private_key": May have false positives (e.g., generate_private_key.py) but security > convenience.
+#   Operators can override via PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS if needed.
+# - "*.config" REMOVED: Too broad, caused false positives on jest.config, webpack.config, etc.
+# - Deployment configs (fly.toml, render.yaml, vercel.json): Intentionally blocked to prevent
+#   accidental deployment changes.
 SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
     ".env",
     ".env.local",
     ".env.production",
+    ".env.staging",
+    ".env.development",
     "credentials.json",
     "secrets.yaml",
     "secrets.yml",
@@ -54,10 +64,14 @@ SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
     "id_ed25519",
     ".pem",
     ".key",
-    "*.config",  # Generic config files
+    ".p12",  # PKCS#12 certificate files
+    ".pfx",  # Windows certificate files
     "fly.toml",  # Deployment config
     "render.yaml",  # Deployment config
     "vercel.json",  # Deployment config
+    "docker-compose.prod",  # Production Docker config
+    ".npmrc",  # NPM auth tokens
+    ".pypirc",  # PyPI auth tokens
 })
 
 # Default allowed actions for agents (conservative whitelist)

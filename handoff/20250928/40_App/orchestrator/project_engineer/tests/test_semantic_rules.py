@@ -238,6 +238,10 @@ class TestFullTaskValidation:
         validator.allowed_repos = ["RC918/morningai"]
         validator.allowed_directories = ["docs/"]
         validator.allowed_task_types = []
+        # Phase 1 Security Foundation attributes
+        validator.allowed_actions = []
+        validator.blocked_file_patterns = []
+        validator.require_hitl_for_high_risk = False
         
         with patch('project_engineer.safe_tasks.is_safe_task', return_value=True):
             is_valid, violations = validator.validate_task(
@@ -255,6 +259,10 @@ class TestFullTaskValidation:
         validator.allowed_repos = ["RC918/morningai"]
         validator.allowed_directories = ["docs/"]
         validator.allowed_task_types = ["documentation_update"]
+        # Phase 1 Security Foundation attributes
+        validator.allowed_actions = []
+        validator.blocked_file_patterns = []
+        validator.require_hitl_for_high_risk = False
         
         is_valid, violations = validator.validate_task(
             repo="other/repo",

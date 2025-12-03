@@ -1055,6 +1055,25 @@ class Settings(BaseSettings):
         description="Comma-separated list of allowed task types for code generation (empty = all safe task types allowed)"
     )
 
+    # Phase 1 Security Foundation: Action whitelist, sensitive file blocking, HITL
+    project_engineer_allowed_actions: str = Field(
+        default="read_file,write_file,create_file,list_directory,search_code,run_tests,run_lint,create_pr,add_comment,update_documentation",
+        alias="PROJECT_ENGINEER_ALLOWED_ACTIONS",
+        description="Comma-separated list of allowed actions for ProjectEngineerAgent (Phase 1 Security Foundation)"
+    )
+
+    project_engineer_blocked_files: str = Field(
+        default=".env,.env.local,.env.production,credentials.json,secrets.yaml,secrets.yml,private_key,id_rsa,id_ed25519,.pem,.key,fly.toml,render.yaml,vercel.json",
+        alias="PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS",
+        description="Comma-separated list of sensitive file patterns to block (Phase 1 Security Foundation)"
+    )
+
+    project_engineer_require_hitl_high_risk: bool = Field(
+        default=True,
+        alias="PROJECT_ENGINEER_REQUIRE_HITL_FOR_HIGH_RISK",
+        description="Require Human-in-the-Loop approval for high-risk operations (Phase 1 Security Foundation)"
+    )
+
     allow_governance_mock: bool = Field(
         default=False,
         alias="ALLOW_GOVERNANCE_MOCK",
