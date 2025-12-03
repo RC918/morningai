@@ -23,11 +23,24 @@ const statCardMeta = {
     },
     trend: {
       control: "text",
-      description: "Optional trend indicator (e.g., +2 this month)",
+      description: "Optional trend indicator (deprecated, use deltaLabel)",
     },
     badge: {
       control: "text",
       description: "Optional badge text",
+    },
+    deltaLabel: {
+      control: "text",
+      description: "Delta/change label (e.g., +5.10%, -2 this month)",
+    },
+    deltaPositive: {
+      control: "boolean",
+      description: "Whether the delta is positive (green) or negative (red)",
+    },
+    variant: {
+      control: "select",
+      options: ["default", "blue", "green", "yellow", "red", "purple"],
+      description: "Color variant for the icon background",
     },
   },
 } satisfies Meta<typeof StatCard>;
@@ -65,6 +78,59 @@ export const StatCardWithTrendAndBadge: StatCardStory = {
     trend: "+15%",
     badge: "New",
   },
+};
+
+export const StatCardWithIcon: StatCardStory = {
+  args: {
+    label: "Tasks Overview",
+    value: "345",
+    deltaLabel: "+5.10%",
+    deltaPositive: true,
+    variant: "blue",
+    icon: <span className="text-lg">📊</span>,
+  },
+};
+
+export const StatCardWithNegativeDelta: StatCardStory = {
+  args: {
+    label: "Error Rate",
+    value: "2.3%",
+    deltaLabel: "+0.5% from last week",
+    deltaPositive: false,
+    variant: "red",
+    icon: <span className="text-lg">⚠️</span>,
+  },
+};
+
+export const StatCardVariants: StoryObj = {
+  render: () => (
+    <div className="grid gap-4 md:grid-cols-3 w-[700px]">
+      <StatCard
+        label="Revenue"
+        value="$12,345"
+        deltaLabel="+12%"
+        deltaPositive={true}
+        variant="green"
+        icon={<span className="text-lg">💰</span>}
+      />
+      <StatCard
+        label="Users"
+        value="1,234"
+        deltaLabel="+5.10%"
+        deltaPositive={true}
+        variant="blue"
+        icon={<span className="text-lg">👥</span>}
+      />
+      <StatCard
+        label="Errors"
+        value="23"
+        deltaLabel="+3%"
+        deltaPositive={false}
+        variant="yellow"
+        icon={<span className="text-lg">⚡</span>}
+      />
+    </div>
+  ),
 };
 
 export const StatCardGrid: StoryObj = {
