@@ -10,7 +10,7 @@ const variantStyles: Record<StatCardVariant, string> = {
   green: "bg-[var(--success-50)] text-[var(--success-600)]",
   yellow: "bg-[var(--warning-50)] text-[var(--warning-600)]",
   red: "bg-[var(--error-50)] text-[var(--error-600)]",
-  purple: "bg-[var(--purple-50)] text-[var(--purple-600)]",
+  purple: "bg-[var(--color-accent-50)] text-[var(--color-accent-600)]",
 };
 
 interface StatCardProps {
