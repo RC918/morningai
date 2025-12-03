@@ -1025,6 +1025,51 @@ class Settings(BaseSettings):
         description="Enable querying past failures for learning context in Planner (Phase 2 Observer Node)"
     )
 
+    # Phase 2 PR-1813: Agent Evaluation Integration
+    enable_agent_eval: bool = Field(
+        default=True,
+        alias="ENABLE_AGENT_EVAL",
+        description="Enable agent evaluation metrics collection and capability regression detection (Phase 2 #1813)"
+    )
+
+    agent_eval_success_rate_threshold: float = Field(
+        default=70.0,
+        ge=0.0,
+        le=100.0,
+        alias="AGENT_EVAL_SUCCESS_RATE_THRESHOLD",
+        description="Minimum success rate threshold for capability regression detection (0-100, default 70%)"
+    )
+
+    agent_eval_ci_pass_rate_threshold: float = Field(
+        default=80.0,
+        ge=0.0,
+        le=100.0,
+        alias="AGENT_EVAL_CI_PASS_RATE_THRESHOLD",
+        description="Minimum CI pass rate threshold for capability regression detection (0-100, default 80%)"
+    )
+
+    agent_eval_fixer_success_threshold: float = Field(
+        default=50.0,
+        ge=0.0,
+        le=100.0,
+        alias="AGENT_EVAL_FIXER_SUCCESS_THRESHOLD",
+        description="Minimum fixer success rate threshold for self-healing detection (0-100, default 50%)"
+    )
+
+    agent_eval_baseline_sample_size: int = Field(
+        default=50,
+        ge=10,
+        le=1000,
+        alias="AGENT_EVAL_BASELINE_SAMPLE_SIZE",
+        description="Number of recent metrics to use for baseline comparison (10-1000, default 50)"
+    )
+
+    agent_eval_regression_alert_enabled: bool = Field(
+        default=True,
+        alias="AGENT_EVAL_REGRESSION_ALERT_ENABLED",
+        description="Enable alerts when capability regression is detected"
+    )
+
     project_engineer_fixer_percent: int = Field(
         default=0,
         ge=0,
