@@ -1292,7 +1292,7 @@ class TestPhase3GraphStructure:
             "Decision node not found in orchestrator graph"
 
     def test_graph_has_expected_nodes(self):
-        """Test that PR-2 graph has 13 nodes (5-Agent Advisory Pipeline + policy_enforcement + core nodes)"""
+        """Test that graph has 14 nodes (5-Agent Advisory Pipeline + policy_enforcement + evaluation + core nodes)"""
         app = create_orchestrator_graph()
         graph_dict = app.get_graph().to_json()
         nodes = graph_dict.get("nodes", [])
@@ -1314,6 +1314,7 @@ class TestPhase3GraphStructure:
             "decision",
             "fixer",
             "finalizer",
+            "evaluation",  # Phase 2 PR-1813: Agent Evaluation Node
         }
 
         assert actual_node_ids == expected_nodes, f"Expected {expected_nodes}, got {actual_node_ids}"
