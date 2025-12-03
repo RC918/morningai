@@ -105,6 +105,35 @@ def _get_supabase_client():
         return None
 
 
+def _parse_json_fields(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Parse JSON string fields in database rows.
+
+    This helper function handles the conversion of JSON string fields
+    (error_context, fix_metadata) to Python dictionaries.
+
+    Args:
+        rows: List of database row dictionaries
+
+    Returns:
+        List of rows with parsed JSON fields
+    """
+    for row in rows:
+        if row.get("error_context"):
+            try:
+                if isinstance(row["error_context"], str):
+                    row["error_context"] = json.loads(row["error_context"])
+            except (json.JSONDecodeError, TypeError):
+                row["error_context"] = None
+        if row.get("fix_metadata"):
+            try:
+                if isinstance(row["fix_metadata"], str):
+                    row["fix_metadata"] = json.loads(row["fix_metadata"])
+            except (json.JSONDecodeError, TypeError):
+                row["fix_metadata"] = None
+    return rows
+
+
 def _embed(text: str) -> Optional[List[float]]:
     """Generate embedding vector for text using OpenAI."""
     try:
@@ -371,21 +400,8 @@ def get_error_fix_pairs_by_type(
             "error_type", error_type
         ).order("confidence_score", desc=True).limit(limit).execute()
 
-        pairs = []
-        for row in result.data or []:
-            if row.get("error_context"):
-                try:
-                    row["error_context"] = json.loads(row["error_context"])
-                except (json.JSONDecodeError, TypeError):
-                    row["error_context"] = None
-            if row.get("fix_metadata"):
-                try:
-                    row["fix_metadata"] = json.loads(row["fix_metadata"])
-                except (json.JSONDecodeError, TypeError):
-                    row["fix_metadata"] = None
-            pairs.append(ErrorFixPair.from_dict(row))
-
-        return pairs
+        rows = _parse_json_fields(result.data or [])
+        return [ErrorFixPair.from_dict(row) for row in rows]
 
     except Exception as e:
         logger.warning(f"[ErrorFixPairs] Failed to get pairs by type: {e}")
@@ -412,30 +428,125 @@ def get_recent_error_fix_pairs(limit: int = 20) -> List[ErrorFixPair]:
             "created_at", desc=True
         ).limit(limit).execute()
 
-        pairs = []
-        for row in result.data or []:
-            if row.get("error_context"):
-                try:
-                    row["error_context"] = json.loads(row["error_context"])
-                except (json.JSONDecodeError, TypeError):
-                    row["error_context"] = None
-            if row.get("fix_metadata"):
-                try:
-                    row["fix_metadata"] = json.loads(row["fix_metadata"])
-                except (json.JSONDecodeError, TypeError):
-                    row["fix_metadata"] = None
-            pairs.append(ErrorFixPair.from_dict(row))
-
-        return pairs
+        rows = _parse_json_fields(result.data or [])
+        return [ErrorFixPair.from_dict(row) for row in rows]
 
     except Exception as e:
         logger.warning(f"[ErrorFixPairs] Failed to get recent pairs: {e}")
         return []
 
 
+def get_pair_by_trace_id(trace_id: str) -> Optional[ErrorFixPair]:
+    """
+    Get an error-fix pair by its trace ID.
+
+    Args:
+        trace_id: The trace ID to search for
+
+    Returns:
+        ErrorFixPair if found, None otherwise
+    """
+    try:
+        client = _get_supabase_client()
+        if client is None:
+            logger.debug("[ErrorFixPairs] Supabase client not available")
+            return None
+
+        result = client.table(ERROR_FIX_PAIRS_TABLE).select("*").eq(
+            "trace_id", trace_id
+        ).limit(1).execute()
+
+        if result.data and len(result.data) > 0:
+            row = result.data[0]
+            if row.get("error_context"):
+                try:
+                    if isinstance(row["error_context"], str):
+                        row["error_context"] = json.loads(row["error_context"])
+                except (json.JSONDecodeError, TypeError):
+                    row["error_context"] = None
+            if row.get("fix_metadata"):
+                try:
+                    if isinstance(row["fix_metadata"], str):
+                        row["fix_metadata"] = json.loads(row["fix_metadata"])
+                except (json.JSONDecodeError, TypeError):
+                    row["fix_metadata"] = None
+            return ErrorFixPair.from_dict(row)
+
+        return None
+
+    except Exception as e:
+        logger.warning(f"[ErrorFixPairs] Failed to get pair by trace_id: {e}")
+        return None
+
+
+def update_error_fix_pair(
+    pair_id: int,
+    fix_text: str,
+    fix_type: Optional[str] = None,
+    fix_metadata: Optional[Dict[str, Any]] = None,
+    generate_embedding: bool = True
+) -> bool:
+    """
+    Update an existing error-fix pair with a new fix.
+
+    This is the public API for updating error-fix pairs. Use this instead
+    of directly accessing private functions like _embed.
+
+    Args:
+        pair_id: ID of the error-fix pair to update
+        fix_text: The new fix text
+        fix_type: Optional fix type (e.g., "resolved", "attempted")
+        fix_metadata: Optional metadata about the fix
+        generate_embedding: Whether to generate embedding for fix_text
+
+    Returns:
+        True if updated successfully, False otherwise
+    """
+    try:
+        client = _get_supabase_client()
+        if client is None:
+            logger.debug("[ErrorFixPairs] Supabase client not available")
+            return False
+
+        update_data: Dict[str, Any] = {"fix_text": fix_text}
+
+        if generate_embedding:
+            fix_embedding = _embed(fix_text)
+            if fix_embedding:
+                update_data["fix_embedding"] = fix_embedding
+
+        if fix_type:
+            update_data["fix_type"] = fix_type
+
+        if fix_metadata:
+            update_data["fix_metadata"] = json.dumps(fix_metadata)
+
+        client.table(ERROR_FIX_PAIRS_TABLE).update(update_data).eq(
+            "id", pair_id
+        ).execute()
+
+        logger.info("[ErrorFixPairs] Updated error-fix pair", extra={
+            "operation": "update_error_fix_pair",
+            "pair_id": pair_id,
+            "fix_type": fix_type
+        })
+        return True
+
+    except Exception as e:
+        logger.warning(f"[ErrorFixPairs] Failed to update pair: {e}", extra={
+            "operation": "update_error_fix_pair",
+            "pair_id": pair_id,
+            "error": str(e)
+        })
+        return False
+
+
 def get_error_fix_pairs_stats() -> Dict[str, Any]:
     """
     Get statistics about error-fix pairs storage.
+
+    Uses DB-level aggregation via get_error_fix_pairs_stats() SQL function
+    for better performance with large datasets.
 
     Returns:
         Dictionary with error-fix pairs statistics
@@ -445,31 +556,29 @@ def get_error_fix_pairs_stats() -> Dict[str, Any]:
         if client is None:
             return {"enabled": False, "error": "Supabase client not available"}
 
-        result = client.table(ERROR_FIX_PAIRS_TABLE).select(
-            "id", count="exact"
-        ).execute()
-        total_count = result.count if hasattr(result, "count") else len(result.data or [])
+        # Use DB-level aggregation for better performance (#1834)
+        result = client.rpc("get_error_fix_pairs_stats", {}).execute()
 
-        result_with_emb = client.table(ERROR_FIX_PAIRS_TABLE).select(
-            "id", count="exact"
-        ).not_.is_("error_embedding", "null").execute()
-        with_embedding_count = (
-            result_with_emb.count
-            if hasattr(result_with_emb, "count")
-            else len(result_with_emb.data or [])
-        )
-
-        error_types: Dict[str, int] = {}
-        recent = get_recent_error_fix_pairs(limit=100)
-        for pair in recent:
-            error_type = pair.error_type or "unknown"
-            error_types[error_type] = error_types.get(error_type, 0) + 1
+        if result.data and len(result.data) > 0:
+            stats = result.data[0]
+            return {
+                "enabled": True,
+                "total_pairs": stats.get("total_pairs", 0),
+                "with_embeddings": stats.get("with_embeddings", 0),
+                "total_success": stats.get("total_success", 0),
+                "total_failure": stats.get("total_failure", 0),
+                "avg_confidence": stats.get("avg_confidence", 0.5),
+                "error_type_distribution": stats.get("error_type_distribution", {})
+            }
 
         return {
             "enabled": True,
-            "total_pairs": total_count,
-            "with_embeddings": with_embedding_count,
-            "error_type_distribution": error_types
+            "total_pairs": 0,
+            "with_embeddings": 0,
+            "total_success": 0,
+            "total_failure": 0,
+            "avg_confidence": 0.5,
+            "error_type_distribution": {}
         }
 
     except Exception as e:
