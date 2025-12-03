@@ -85,7 +85,7 @@ def save_text(key: str, text: str) -> bool:
         if client is None:
             logger.debug("[Memory] Supabase client not available")
             return False
-        vec = embed(text) or []
+        vec = embed(text)
         client.table(TABLE).insert({
             "key": key,
             "text": text,
