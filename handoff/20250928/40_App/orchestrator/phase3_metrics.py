@@ -168,15 +168,18 @@ class Phase3Metrics:
         self,
         task_id: str,
         rule_type: str,
-        details: str
+        details: str,
+        requires_approval: bool = False
     ) -> None:
         """
-        Record a semantic rule violation
+        Record a semantic rule violation (Phase 1 Security Foundation enhanced)
 
         Args:
             task_id: Task identifier
-            rule_type: Type of rule violated (repo_whitelist, directory_whitelist, task_type_whitelist)
+            rule_type: Type of rule violated (repo_whitelist, directory_whitelist, task_type_whitelist,
+                       action, sensitive_file, high_risk, path_traversal)
             details: Details about the violation
+            requires_approval: Whether this violation requires Human-in-the-Loop approval
         """
         if not self.enabled:
             return
@@ -184,17 +187,72 @@ class Phase3Metrics:
         try:
             self.incr_counter(f"pe.rule_violation.{rule_type}")
 
+            # Phase 1 Security Foundation: Track security-specific violations
+            if rule_type in ("high_risk", "sensitive_file", "action"):
+                self.incr_counter("pe.security.violations_total")
+
+            if rule_type == "high_risk":
+                self.incr_counter("pe.security.high_risk_blocked")
+
+            if rule_type == "sensitive_file":
+                self.incr_counter("pe.security.sensitive_file_blocked")
+
+            if requires_approval:
+                self.incr_counter("pe.security.hitl_required")
+
             logger.warning(
                 "[Phase3Metrics] Semantic rule violation",
                 extra={
                     "operation": "phase3_metrics",
                     "task_id": task_id,
                     "rule_type": rule_type,
-                    "details": details
+                    "details": details,
+                    "requires_approval": requires_approval
                 }
             )
         except Exception as e:
             logger.warning(f"Failed to record semantic rule violation: {e}")
+
+    def record_security_event(
+        self,
+        task_id: str,
+        event_type: str,
+        details: str,
+        blocked: bool = True
+    ) -> None:
+        """
+        Record a security event (Phase 1 Security Foundation)
+
+        Args:
+            task_id: Task identifier
+            event_type: Type of security event (high_risk_action, sensitive_file_access,
+                        path_traversal, unauthorized_action, hitl_approval_required)
+            details: Details about the event
+            blocked: Whether the action was blocked
+        """
+        if not self.enabled:
+            return
+
+        try:
+            self.incr_counter(f"pe.security.event.{event_type}")
+
+            if blocked:
+                self.incr_counter("pe.security.events_blocked")
+            else:
+                self.incr_counter("pe.security.events_allowed")
+
+            logger.info(
+                "[Phase3Metrics] Security event",
+                extra={
+                    "operation": "phase3_metrics",
+                    "task_id": task_id,
+                    "event_type": event_type,
+                    "details": details,
+                    "blocked": blocked
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record security event: {e}")
 
     def record_timeout(self, task_id: str, timeout_seconds: int, elapsed_ms: float) -> None:
         """
@@ -347,11 +405,24 @@ class Phase3Metrics:
             mode_analysis = self.get_window_counts("pe.mode.analysis_only", window_minutes)
             mode_execution = self.get_window_counts("pe.mode.execution", window_minutes)
 
-            # Rule violation counts
+            # Rule violation counts (Phase 3)
             rule_repo = self.get_window_counts("pe.rule_violation.repo_whitelist", window_minutes)
             rule_directory = self.get_window_counts("pe.rule_violation.directory_whitelist", window_minutes)
             rule_task_type = self.get_window_counts("pe.rule_violation.task_type_whitelist", window_minutes)
             total_violations = rule_repo + rule_directory + rule_task_type
+
+            # Phase 1 Security Foundation: Security-specific metrics
+            rule_action = self.get_window_counts("pe.rule_violation.action", window_minutes)
+            rule_sensitive_file = self.get_window_counts("pe.rule_violation.sensitive_file", window_minutes)
+            rule_high_risk = self.get_window_counts("pe.rule_violation.high_risk", window_minutes)
+            rule_path_traversal = self.get_window_counts("pe.rule_violation.path_traversal", window_minutes)
+
+            security_violations_total = self.get_window_counts("pe.security.violations_total", window_minutes)
+            security_high_risk_blocked = self.get_window_counts("pe.security.high_risk_blocked", window_minutes)
+            security_sensitive_file_blocked = self.get_window_counts("pe.security.sensitive_file_blocked", window_minutes)
+            security_hitl_required = self.get_window_counts("pe.security.hitl_required", window_minutes)
+            security_events_blocked = self.get_window_counts("pe.security.events_blocked", window_minutes)
+            security_events_allowed = self.get_window_counts("pe.security.events_allowed", window_minutes)
 
             # Calculate rates
             success_rate = (task_success / total_tasks * 100) if total_tasks > 0 else 0
@@ -390,7 +461,21 @@ class Phase3Metrics:
                 "rule_violations": {
                     "repo_whitelist": rule_repo,
                     "directory_whitelist": rule_directory,
-                    "task_type_whitelist": rule_task_type
+                    "task_type_whitelist": rule_task_type,
+                    # Phase 1 Security Foundation: New rule types
+                    "action": rule_action,
+                    "sensitive_file": rule_sensitive_file,
+                    "high_risk": rule_high_risk,
+                    "path_traversal": rule_path_traversal
+                },
+                # Phase 1 Security Foundation: Security metrics
+                "security": {
+                    "violations_total": security_violations_total,
+                    "high_risk_blocked": security_high_risk_blocked,
+                    "sensitive_file_blocked": security_sensitive_file_blocked,
+                    "hitl_required": security_hitl_required,
+                    "events_blocked": security_events_blocked,
+                    "events_allowed": security_events_allowed
                 }
             }
         except Exception as e:
