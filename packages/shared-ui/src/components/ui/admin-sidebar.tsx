@@ -10,7 +10,7 @@ export interface AdminNavItem {
   active?: boolean;
 }
 
-export interface AdminSidebarUser {
+export interface AdminUser {
   name: string;
   role: string;
   avatar?: string;
@@ -18,7 +18,7 @@ export interface AdminSidebarUser {
 
 export interface AdminSidebarProps {
   navItems: AdminNavItem[];
-  user: AdminSidebarUser;
+  user: AdminUser;
   logo?: React.ReactNode;
   appName?: string;
   appSubtitle?: string;
@@ -101,11 +101,15 @@ function AdminSidebar({
           {user.avatar ? (
             <img
               src={user.avatar}
-              alt={user.name}
+              alt=""
+              aria-hidden="true"
               className="h-8 w-8 rounded-full object-cover"
             />
           ) : (
-            <div className="h-8 w-8 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-xs font-medium text-neutral-600 dark:text-neutral-300">
+            <div
+              aria-hidden="true"
+              className="h-8 w-8 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-xs font-medium text-neutral-600 dark:text-neutral-300"
+            >
               {user.name.charAt(0).toUpperCase()}
             </div>
           )}

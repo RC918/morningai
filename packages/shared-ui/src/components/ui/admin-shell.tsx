@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { cn } from "../../utils";
-import { AdminSidebar, type AdminNavItem, type AdminSidebarUser } from "./admin-sidebar";
+import { AdminSidebar, type AdminNavItem, type AdminUser } from "./admin-sidebar";
 import { AdminTopbar } from "./admin-topbar";
 
 export interface AdminShellProps {
   navItems: AdminNavItem[];
-  user: AdminSidebarUser;
+  user: AdminUser;
   logo?: React.ReactNode;
   appName?: string;
   appSubtitle?: string;
@@ -83,4 +83,4 @@ function AdminShell({
 AdminShell.displayName = "AdminShell";
 
 export { AdminShell };
-export type { AdminNavItem, AdminSidebarUser };
+export type { AdminNavItem, AdminUser };

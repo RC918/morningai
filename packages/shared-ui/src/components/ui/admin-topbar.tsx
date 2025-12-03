@@ -2,15 +2,10 @@
 
 import * as React from "react";
 import { cn } from "../../utils";
-
-export interface AdminTopbarUser {
-  name: string;
-  role: string;
-  avatar?: string;
-}
+import type { AdminUser } from "./admin-sidebar";
 
 export interface AdminTopbarProps {
-  user: AdminTopbarUser;
+  user: AdminUser;
   title?: string;
   searchPlaceholder?: string;
   onSearch?: (query: string) => void;
@@ -48,6 +43,7 @@ function AdminTopbar({
         <input
           type="text"
           placeholder={searchPlaceholder}
+          aria-label={searchPlaceholder}
           value={searchQuery}
           onChange={handleSearchChange}
           className="h-9 w-64 px-3 rounded-full border border-neutral-200 bg-neutral-50 text-xs focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
@@ -60,7 +56,11 @@ function AdminTopbar({
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : (
-          <div className="h-8 w-8 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-xs font-medium text-neutral-600 dark:text-neutral-300">
+          <div
+            aria-label={user.name}
+            role="img"
+            className="h-8 w-8 rounded-full bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center text-xs font-medium text-neutral-600 dark:text-neutral-300"
+          >
             {user.name.charAt(0).toUpperCase()}
           </div>
         )}
