@@ -135,7 +135,7 @@ function CalendarCard({
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1" role="grid" aria-label="Calendar days">
+        <div className="grid grid-cols-7 gap-1">
           {days.map((day, index) =>
             day === null ? (
               <div key={index} className="h-8 w-8" aria-hidden="true" />
