@@ -133,8 +133,14 @@
             "opsAgent": "OpsAgent v2.1 已部署至正式環境"
           },
           "subtitle": "最新的平台事件與變更",
+          "time": {
+            "5min": "5 分鐘前",
+            "30min": "30 分鐘前",
+            "1hour": "1 小時前"
+          },
           "title": "最近活動"
         },
+        "seeAll": "查看全部",
     "stats": {
       "acrossAllTenants": "跨所有租戶",
       "activeAgents": "活躍 Agents",

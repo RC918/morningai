@@ -148,129 +148,150 @@ const OwnerDashboard = () => {
         </Card>
       </div>
 
-      {/* iotask style: Project Progress Section */}
-      <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.projectProgress.title')}</CardTitle>
-          <CardDescription className="text-sm text-neutral-500">{t('dashboard.projectProgress.subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.agentDeployment')}</span>
-                <span className="text-neutral-500">85%</span>
+      {/* iotask style: Two-column layout - Wide center (2/3) + Narrow right rail (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left/Center Column - Main Content (spans 2 columns on large screens) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Project Progress Section */}
+          <Card className="bg-white rounded-xl shadow-sm border border-neutral-200">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.projectProgress.title')}</CardTitle>
+                <CardDescription className="text-sm text-neutral-500">{t('dashboard.projectProgress.subtitle')}</CardDescription>
               </div>
-              <Progress value={85} variant="default" aria-label="Agent Deployment: 85%" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.dataIntegration')}</span>
-                <span className="text-neutral-500">60%</span>
+              <Link to="/monitoring" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                {t('dashboard.seeAll', 'See all')} &rarr;
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.agentDeployment')}</span>
+                    <span className="text-neutral-500">85%</span>
+                  </div>
+                  <Progress value={85} variant="default" aria-label="Agent Deployment: 85%" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.dataIntegration')}</span>
+                    <span className="text-neutral-500">60%</span>
+                  </div>
+                  <Progress value={60} variant="success" aria-label="Data Integration: 60%" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.securityAudit')}</span>
+                    <span className="text-neutral-500">45%</span>
+                  </div>
+                  <Progress value={45} variant="warning" aria-label="Security Audit: 45%" />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.performanceOptimization')}</span>
+                    <span className="text-neutral-500">30%</span>
+                  </div>
+                  <Progress value={30} variant="pink" aria-label="Performance Optimization: 30%" />
+                </div>
               </div>
-              <Progress value={60} variant="success" aria-label="Data Integration: 60%" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.securityAudit')}</span>
-                <span className="text-neutral-500">45%</span>
-              </div>
-              <Progress value={45} variant="warning" aria-label="Security Audit: 45%" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.performanceOptimization')}</span>
-                <span className="text-neutral-500">30%</span>
-              </div>
-              <Progress value={30} variant="pink" aria-label="Performance Optimization: 30%" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.recentActivity.title')}</CardTitle>
-            <CardDescription className="text-sm text-neutral-500">{t('dashboard.recentActivity.subtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* iotask style: Green for success */}
-              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="w-2 h-2 bg-success-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.newTenant')}</p>
-                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.acme')}</p>
+          {/* System Status Section */}
+          <Card className="bg-white rounded-xl shadow-sm border border-neutral-200">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.systemStatus.title')}</CardTitle>
+                <CardDescription className="text-sm text-neutral-500">{t('dashboard.systemStatus.subtitle')}</CardDescription>
+              </div>
+              <Link to="/monitoring" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                {t('dashboard.seeAll', 'See all')} &rarr;
+              </Link>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* iotask style: Green badges for healthy status */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Server className="h-4 w-4 text-neutral-400" />
+                    <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.apiBackend')}</span>
+                  </div>
+                  <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
+                    {t('dashboard.systemStatus.healthy')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Server className="h-4 w-4 text-neutral-400" />
+                    <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.database')}</span>
+                  </div>
+                  <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
+                    {t('dashboard.systemStatus.healthy')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Server className="h-4 w-4 text-neutral-400" />
+                    <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.redisCache')}</span>
+                  </div>
+                  <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
+                    {t('dashboard.systemStatus.healthy')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-neutral-50 hover:bg-neutral-100 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <Server className="h-4 w-4 text-neutral-400" />
+                    <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.workerNodes')}</span>
+                  </div>
+                  <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
+                    {t('dashboard.systemStatus.healthy')}
+                  </span>
                 </div>
               </div>
-              {/* iotask style: Primary blue for normal */}
-              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.agentDeployed')}</p>
-                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
-                </div>
-              </div>
-              {/* iotask style: Orange for warnings */}
-              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="w-2 h-2 bg-warning-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
-                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.systemStatus.title')}</CardTitle>
-            <CardDescription className="text-sm text-neutral-500">{t('dashboard.systemStatus.subtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {/* iotask style: Green badges for healthy status */}
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.apiBackend')}</span>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
+        {/* Right Column - Activity Rail (spans 1 column) */}
+        <div className="space-y-6">
+          <Card className="bg-white rounded-xl shadow-sm border border-neutral-200">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.recentActivity.title')}</CardTitle>
+                <CardDescription className="text-sm text-neutral-500">{t('dashboard.recentActivity.subtitle')}</CardDescription>
               </div>
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.database')}</span>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* iotask style: Activity items with colored indicators and timestamps */}
+                <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                  <div className="w-2 h-2 mt-2 bg-success-500 rounded-full flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.newTenant')}</p>
+                    <p className="text-xs text-neutral-500 truncate">{t('dashboard.recentActivity.placeholder.acme')}</p>
+                    <p className="text-xs text-neutral-400 mt-1">{t('dashboard.recentActivity.time.5min', '5 min ago')}</p>
+                  </div>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.redisCache')}</span>
+                <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                  <div className="w-2 h-2 mt-2 bg-primary-500 rounded-full flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.agentDeployed')}</p>
+                    <p className="text-xs text-neutral-500 truncate">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
+                    <p className="text-xs text-neutral-400 mt-1">{t('dashboard.recentActivity.time.30min', '30 min ago')}</p>
+                  </div>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.workerNodes')}</span>
+                <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
+                  <div className="w-2 h-2 mt-2 bg-warning-500 rounded-full flex-shrink-0"></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
+                    <p className="text-xs text-neutral-500 truncate">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
+                    <p className="text-xs text-neutral-400 mt-1">{t('dashboard.recentActivity.time.1hour', '1 hour ago')}</p>
+                  </div>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
