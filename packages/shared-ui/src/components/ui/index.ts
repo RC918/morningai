@@ -1,4 +1,7 @@
 export * from './accordion'
+export * from './admin-shell'
+export * from './admin-sidebar'
+export * from './admin-topbar'
 export * from './alert-dialog'
 export * from './alert'
 export * from './apple-button'
