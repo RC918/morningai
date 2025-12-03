@@ -489,6 +489,9 @@ class ProjectEngineerAgent:
                 "bug_fix": "write_file",
                 "refactoring": "write_file",
                 "feature_implementation": "write_file",
+                "backend_utils_bug_fix": "write_file",  # Backend utility bug fixes
+                "frontend_ui_tokens": "write_file",  # Frontend UI token updates
+                "simple_api_endpoint": "write_file",  # Simple API endpoint creation
                 "unknown": "analyze_code",
             }
             action = action_mapping.get(task_type, "analyze_code")

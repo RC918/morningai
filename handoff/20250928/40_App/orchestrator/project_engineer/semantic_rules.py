@@ -74,6 +74,10 @@ SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
     ".pypirc",  # PyPI auth tokens
 })
 
+# Comma-separated string version of SENSITIVE_FILE_PATTERNS for settings.py default value
+# This ensures settings.py and semantic_rules.py stay in sync
+SENSITIVE_FILE_PATTERNS_CSV: str = ",".join(sorted(SENSITIVE_FILE_PATTERNS))
+
 # Default allowed actions for agents (conservative whitelist)
 DEFAULT_ALLOWED_ACTIONS: frozenset = frozenset({
     "read_file",
