@@ -10,7 +10,7 @@ const variantStyles: Record<StatCardVariant, string> = {
   green: "bg-[var(--success-50)] text-[var(--success-600)]",
   yellow: "bg-[var(--warning-50)] text-[var(--warning-600)]",
   red: "bg-[var(--error-50)] text-[var(--error-600)]",
-  purple: "bg-[var(--purple-50,#f3e8ff)] text-[var(--purple-600,#9333ea)]",
+  purple: "bg-[var(--purple-50)] text-[var(--purple-600)]",
 };
 
 interface StatCardProps {
@@ -24,7 +24,7 @@ interface StatCardProps {
   icon?: React.ReactNode;
   /** Delta/change label (e.g., "+5.10%", "-2 this month") */
   deltaLabel?: string;
-  /** Whether the delta is positive (green) or negative (red). Defaults to true. */
+  /** Whether the delta represents a positive/good change (green) or a negative/bad change (red). Defaults to true. */
   deltaPositive?: boolean;
   /** Color variant for the icon background */
   variant?: StatCardVariant;

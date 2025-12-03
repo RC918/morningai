@@ -124,8 +124,8 @@ export const StatCardVariants: StoryObj = {
       <StatCard
         label="Errors"
         value="23"
-        deltaLabel="-8%"
-        deltaPositive={true}
+        deltaLabel="+3%"
+        deltaPositive={false}
         variant="yellow"
         icon={<span className="text-lg">⚡</span>}
       />
