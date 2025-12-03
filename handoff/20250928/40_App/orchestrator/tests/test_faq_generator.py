@@ -1,5 +1,7 @@
 """
-Tests for FAQ generator using GPT-4
+Tests for FAQ generator using LLMClient abstraction
+
+Updated for #1812 to use get_client_for_component() instead of direct OpenAI calls.
 """
 import pytest
 import os
@@ -9,7 +11,6 @@ from unittest.mock import Mock, patch, MagicMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from llm.faq_generator import (
-    _get_openai_client,
     generate_faq_content,
     generate_fallback_faq,
     get_cached_or_generate,
@@ -18,142 +19,132 @@ from llm.faq_generator import (
 )
 
 
-class TestGetOpenAIClient:
-    """Test _get_openai_client function"""
-    
-    @patch('llm.faq_generator.OpenAI')
-    @patch.dict(os.environ, {'OPENAI_API_KEY': 'test-api-key'})
-    def test_get_client_with_api_key(self, mock_openai):
-        """Test getting OpenAI client with API key"""
-        mock_client = Mock()
-        mock_openai.return_value = mock_client
-        
-        client = _get_openai_client()
-        
-        assert client == mock_client
-        mock_openai.assert_called_once_with(api_key='test-api-key')
-    
-    @patch.dict(os.environ, {}, clear=True)
-    def test_get_client_without_api_key_raises_error(self):
-        """Test that missing API key raises ValueError"""
-        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
-            _get_openai_client()
-
-
 class TestGenerateFaqContent:
-    """Test generate_faq_content function"""
-    
-    @patch('llm.faq_generator._get_openai_client')
+    """Test generate_faq_content function using LLMClient abstraction"""
+
+    @patch('llm.faq_generator.get_client_for_component')
     def test_generate_faq_success(self, mock_get_client):
-        """Test successful FAQ generation with GPT-4"""
+        """Test successful FAQ generation with LLMClient"""
         mock_client = Mock()
         mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = "# Test FAQ\n\nThis is a test FAQ content."
-        mock_response.usage.total_tokens = 150
-        
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = "# Test FAQ\n\nThis is a test FAQ content."
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.provider = "openai"
+        mock_response.usage = {"total_tokens": 150}
+
+        mock_client.generate.return_value = mock_response
+        mock_client.provider_name = "openai"
+        mock_client.model = "gpt-4-turbo-preview"
         mock_get_client.return_value = mock_client
-        
+
         result = generate_faq_content(
             question="How to setup MorningAI?",
             trace_id="test-trace-123",
             repo="owner/repo"
         )
-        
+
         assert "# Test FAQ" in result
         assert "test-trace-123" in result
         assert "owner/repo" in result
         assert "Metadata" in result
-        
-        mock_client.chat.completions.create.assert_called_once()
-        call_args = mock_client.chat.completions.create.call_args
-        
-        assert call_args[1]['model'] == 'gpt-4-turbo-preview'
-        assert len(call_args[1]['messages']) == 2
-        assert call_args[1]['messages'][0]['role'] == 'system'
-        assert call_args[1]['messages'][1]['role'] == 'user'
-        assert 'How to setup MorningAI?' in call_args[1]['messages'][1]['content']
-    
-    @patch('llm.faq_generator._get_openai_client')
+
+        mock_client.generate.assert_called_once()
+        call_args = mock_client.generate.call_args
+        assert "How to setup MorningAI?" in call_args[1]['prompt']
+        assert call_args[1]['system_prompt'] == SYSTEM_PROMPT
+
+    @patch('llm.faq_generator.get_client_for_component')
     def test_generate_faq_with_custom_model(self, mock_get_client):
-        """Test FAQ generation with custom model"""
+        """Test FAQ generation with custom model passed to get_client_for_component"""
         mock_client = Mock()
         mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = "FAQ content"
-        mock_response.usage.total_tokens = 100
-        
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = "FAQ content"
+        mock_response.model = "gpt-4"
+        mock_response.provider = "openai"
+        mock_response.usage = {"total_tokens": 100}
+
+        mock_client.generate.return_value = mock_response
+        mock_client.provider_name = "openai"
+        mock_client.model = "gpt-4"
         mock_get_client.return_value = mock_client
-        
+
         generate_faq_content(
             question="Test",
             trace_id="trace-456",
             model="gpt-4"
         )
-        
-        call_args = mock_client.chat.completions.create.call_args
-        assert call_args[1]['model'] == 'gpt-4'
-    
+
+        call_args = mock_get_client.call_args
+        assert call_args[1]['component'] == "faq_generator"
+        assert call_args[1]['trace_id'] == "trace-456"
+        assert call_args[1]['model'] == "gpt-4"
+
     @patch('llm.faq_generator.generate_fallback_faq')
-    @patch('llm.faq_generator._get_openai_client')
+    @patch('llm.faq_generator.get_client_for_component')
     def test_generate_faq_falls_back_on_error(self, mock_get_client, mock_fallback):
-        """Test FAQ generation falls back to template on OpenAI error"""
+        """Test FAQ generation falls back to template on LLM error"""
         mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = Exception("API Error")
+        mock_client.generate.side_effect = Exception("API Error")
+        mock_client.provider_name = "openai"
+        mock_client.model = "gpt-4-turbo-preview"
         mock_get_client.return_value = mock_client
-        
+
         mock_fallback.return_value = "# Fallback FAQ\n\nTemplate content"
-        
+
         result = generate_faq_content(
             question="Test question",
             trace_id="trace-789",
             repo="owner/repo"
         )
-        
+
         assert result == "# Fallback FAQ\n\nTemplate content"
         mock_fallback.assert_called_once_with("Test question", "trace-789", "owner/repo")
-    
-    @patch('llm.faq_generator._get_openai_client')
+
+    @patch('llm.faq_generator.get_client_for_component')
     def test_generate_faq_includes_metadata(self, mock_get_client):
         """Test that generated FAQ includes metadata section"""
         mock_client = Mock()
         mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = "Content"
-        mock_response.usage.total_tokens = 50
-        
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = "Content"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.provider = "openai"
+        mock_response.usage = {"total_tokens": 50}
+
+        mock_client.generate.return_value = mock_response
+        mock_client.provider_name = "openai"
+        mock_client.model = "gpt-4-turbo-preview"
         mock_get_client.return_value = mock_client
-        
+
         result = generate_faq_content(
             question="Test",
             trace_id="trace-meta",
             repo="test/repo"
         )
-        
+
         assert "Metadata" in result
         assert "Task: Test" in result
         assert "Trace ID: `trace-meta`" in result
         assert "Repository: test/repo" in result
-    
-    @patch('llm.faq_generator._get_openai_client')
+
+    @patch('llm.faq_generator.get_client_for_component')
     def test_generate_faq_uses_correct_parameters(self, mock_get_client):
-        """Test that GPT-4 is called with correct parameters"""
+        """Test that LLMClient.generate is called with correct parameters"""
         mock_client = Mock()
         mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = "Content"
-        mock_response.usage.total_tokens = 50
-        
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.content = "Content"
+        mock_response.model = "gpt-4-turbo-preview"
+        mock_response.provider = "openai"
+        mock_response.usage = {"total_tokens": 50}
+
+        mock_client.generate.return_value = mock_response
+        mock_client.provider_name = "openai"
+        mock_client.model = "gpt-4-turbo-preview"
         mock_get_client.return_value = mock_client
-        
+
         generate_faq_content("Test", "trace-123")
-        
-        call_args = mock_client.chat.completions.create.call_args
-        
+
+        call_args = mock_client.generate.call_args
+
         assert call_args[1]['temperature'] == 0.7
         assert call_args[1]['max_tokens'] == 2000
         assert call_args[1]['top_p'] == 0.9
