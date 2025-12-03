@@ -131,6 +131,46 @@
   --color-cyan-900: #00616E;
 }
 
+/* iotask Semantic Design Tokens */
+:root {
+  /* Surface colors */
+  --surface: #ffffff;
+  --surface-muted: #F8FAFB;
+  
+  /* Border colors */
+  --border: #E8ECEF;
+  
+  /* Text colors */
+  --text-primary: #252631;
+  --text-secondary: #778CA2;
+  
+  /* Brand colors (primary blue) */
+  --brand-50: #EEF2FF;
+  --brand-100: #E0E7FF;
+  --brand-500: #4D7CFE;
+  --brand-700: #3730A3;
+  
+  /* Success colors */
+  --success-50: #EEFBE8;
+  --success-600: #5AB828;
+  
+  /* Shadow */
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+}
+
+/* Dark mode semantic tokens */
+.dark {
+  --surface: #252631;
+  --surface-muted: #1A1A2E;
+  --border: #404040;
+  --text-primary: #F8FAFB;
+  --text-secondary: #98A9BC;
+  --brand-50: rgba(77, 124, 254, 0.1);
+  --brand-700: #A5B4FC;
+  --success-50: rgba(109, 210, 48, 0.1);
+  --success-600: #93DC6E;
+}
+
 @import "tailwindcss";
 @import "./materials.css";
 @import "./accessibility.css";
