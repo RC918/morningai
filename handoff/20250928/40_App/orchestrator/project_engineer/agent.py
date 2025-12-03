@@ -12,7 +12,6 @@ Features:
 - Agent-level timeout (Phase 3 PR-4)
 - Semantic task rules: repo/directory/task type restrictions (Phase 3 PR-4)
 """
-import asyncio
 import logging
 import uuid
 from typing import List, Optional
@@ -237,6 +236,89 @@ class ProjectEngineerAgent:
             logger.warning(f"[ProjectEngineerAgent] Failed to read timeout from settings: {e}")
             return 300  # Default 5 minutes
 
+    def _validate_task_semantic_rules(
+        self,
+        repo: str,
+        task_type: str,
+        action: str,
+        file_paths: Optional[List[str]] = None,
+        command: Optional[str] = None,
+        trace_id: Optional[str] = None
+    ) -> tuple[bool, str, bool]:
+        """
+        Validate task using comprehensive semantic rules (Phase 1 Security Foundation)
+
+        This method uses get_validator() to get the full validator instance and calls
+        its validate_task method to check:
+        - Repository validation
+        - Task type validation
+        - Action whitelist validation
+        - Sensitive file blocking
+        - High-risk command detection
+        - HITL approval requirements
+
+        Args:
+            repo: Repository name for validation
+            task_type: Task type for validation
+            action: Action being performed (e.g., "write_file", "run_command")
+            file_paths: List of file paths involved in the action
+            command: Command being executed (if applicable)
+            trace_id: Trace ID for logging and metrics
+
+        Returns:
+            Tuple of (is_valid, error_message, requires_approval)
+            - is_valid: True if task passes all validations (or only has approval-required violations)
+            - error_message: Description of validation failure (empty if valid)
+            - requires_approval: True if task requires HITL approval
+        """
+        try:
+            from .semantic_rules import get_validator
+            validator = get_validator()
+
+            is_ok, violations = validator.validate_task(
+                repo=repo,
+                task_type=task_type,
+                file_paths=file_paths,
+                action=action,
+                command=command,
+            )
+
+            if is_ok:
+                return True, "", False
+
+            # Process violations to determine error message and approval requirements
+            error_messages = [v.message for v in violations]
+            error_message = "; ".join(error_messages)
+
+            # Check if any violation requires approval (HITL)
+            requires_approval = any(
+                getattr(v, 'requires_approval', False) for v in violations
+            )
+
+            # A task is "valid to proceed" if it only has violations that require approval
+            # It's invalid if there are any hard-blocking violations
+            has_hard_blocking = any(
+                not getattr(v, 'requires_approval', False) for v in violations
+            )
+            is_valid_to_proceed = not has_hard_blocking
+
+            if trace_id:
+                logger.info(
+                    f"[ProjectEngineerAgent] Semantic validation for {trace_id}: "
+                    f"valid={is_valid_to_proceed}, requires_approval={requires_approval}, "
+                    f"violations={len(violations)}"
+                )
+
+            return is_valid_to_proceed, error_message, requires_approval
+        except ImportError as e:
+            logger.warning(f"[ProjectEngineerAgent] semantic_rules not available: {e}")
+            # Fallback: allow action but log warning
+            return True, "", False
+        except Exception as e:
+            logger.error(f"[ProjectEngineerAgent] Semantic rules validation failed: {e}", exc_info=True)
+            # Fail closed: reject task on validation error
+            return False, f"Semantic rules validation error: {str(e)}", False
+
     async def run_task(self, description: str, repo: str = "RC918/morningai") -> List[TaskResult]:
         """
         Execute a task based on natural language description
@@ -320,7 +402,8 @@ class ProjectEngineerAgent:
                 result = await self._process_step(
                     step_text=step_text,
                     step_index=i,
-                    trace_id=trace_id
+                    trace_id=trace_id,
+                    repo=repo
                 )
                 results.append(result)
 
@@ -344,7 +427,13 @@ class ProjectEngineerAgent:
 
         return results
 
-    async def _process_step(self, step_text: str, step_index: int, trace_id: str) -> TaskResult:
+    async def _process_step(
+        self,
+        step_text: str,
+        step_index: int,
+        trace_id: str,
+        repo: str = "RC918/morningai"
+    ) -> TaskResult:
         """
         Process a single step from the plan
 
@@ -352,6 +441,7 @@ class ProjectEngineerAgent:
             step_text: Step description
             step_index: Index of step in plan
             trace_id: Trace ID for logging
+            repo: Repository name for semantic rules validation
 
         Returns:
             TaskResult for this step
@@ -387,6 +477,61 @@ class ProjectEngineerAgent:
             if not is_safe and task_type_error:
                 logger.warning(
                     f"[ProjectEngineerAgent] Task type validation failed: {task_type_error}"
+                )
+
+            # Phase 1 Security Foundation: Comprehensive semantic rules validation
+            # Maps task_type to action for semantic rules validation
+            # Keys match TaskClassifier TaskType enum values
+            action_mapping = {
+                "documentation_update": "write_file",
+                "test_generation": "write_file",
+                "code_review": "review_code",
+                "bug_fix": "write_file",
+                "refactoring": "write_file",
+                "feature_implementation": "write_file",
+                "backend_utils_bug_fix": "write_file",  # Backend utility bug fixes
+                "frontend_ui_tokens": "write_file",  # Frontend UI token updates
+                "simple_api_endpoint": "write_file",  # Simple API endpoint creation
+                "unknown": "analyze_code",
+            }
+            action = action_mapping.get(task_type, "analyze_code")
+
+            semantic_valid, semantic_error, requires_approval = self._validate_task_semantic_rules(
+                repo=repo,
+                task_type=task_type,
+                action=action,
+                file_paths=None,  # File paths determined during execution
+                command=None,
+                trace_id=trace_id
+            )
+
+            if not semantic_valid:
+                logger.warning(
+                    f"[ProjectEngineerAgent] Semantic rules validation failed for step {step_index}: "
+                    f"{semantic_error}"
+                )
+                return TaskResult(
+                    task_id=task_id,
+                    task_type=task_type,
+                    status="blocked",
+                    is_safe=False,
+                    details=f"Semantic rules validation failed: {semantic_error}",
+                    error=semantic_error
+                )
+
+            if requires_approval:
+                logger.info(
+                    f"[ProjectEngineerAgent] Step {step_index} requires HITL approval"
+                )
+                return TaskResult(
+                    task_id=task_id,
+                    task_type=task_type,
+                    status="pending_approval",
+                    is_safe=True,
+                    details=(
+                        f"Task requires Human-in-the-Loop approval. "
+                        f"Action '{action}' flagged for manual review."
+                    )
                 )
 
             # Step 5: Execute code generation if enabled and safe
@@ -532,7 +677,7 @@ class ProjectEngineerAgent:
         """
         return {
             "agent_type": "ProjectEngineerAgent",
-            "version": "1.1.0-phase4-pr1",
+            "version": "1.2.0-phase1-security",
             "planner_available": self.planner is not None,
             "classifier_available": self.classifier is not None,
             "workflow_available": self.workflow is not None,
@@ -542,9 +687,12 @@ class ProjectEngineerAgent:
                 "task_classification": self.classifier is not None,
                 "safe_task_gating": True,
                 "code_generation": self.enable_code_generation,
-                "semantic_rules_v2": True,
+                "semantic_rules_v3": True,
                 "directory_validation": True,
                 "task_type_validation": True,
+                "action_whitelist": True,
+                "sensitive_file_blocking": True,
+                "hitl_approval": True,
             }
         }
 
