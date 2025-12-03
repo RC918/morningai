@@ -59,6 +59,7 @@ function TaskRow({
         type="button"
         role="checkbox"
         aria-checked={status === "completed"}
+        aria-label={status === "completed" ? `Mark "${title}" as incomplete` : `Mark "${title}" as complete`}
         onClick={handleCheckboxChange}
         className={cn(
           "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
