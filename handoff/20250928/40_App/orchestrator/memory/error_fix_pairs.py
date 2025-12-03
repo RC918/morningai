@@ -470,6 +470,9 @@ def get_error_fix_pairs_stats() -> Dict[str, Any]:
             "enabled": True,
             "total_pairs": 0,
             "with_embeddings": 0,
+            "total_success": 0,
+            "total_failure": 0,
+            "avg_confidence": 0.5,
             "error_type_distribution": {}
         }
 
