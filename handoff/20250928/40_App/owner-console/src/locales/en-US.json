@@ -123,28 +123,34 @@
           "title": "Two-Factor Authentication Not Enabled"
         }
       },
-      "recentActivity": {
-        "agentDeployed": "Agent deployed",
-        "maintenanceScheduled": "System maintenance scheduled",
-        "newTenant": "New tenant registered",
-        "placeholder": {
-          "acme": "Acme Corp joined the platform",
-          "maintenance": "Scheduled for tomorrow at 2:00 AM UTC",
-          "opsAgent": "OpsAgent v2.1 deployed to production"
+            "recentActivity": {
+              "agentDeployed": "Agent deployed",
+              "maintenanceScheduled": "System maintenance scheduled",
+              "newTenant": "New tenant registered",
+              "placeholder": {
+                "acme": "Acme Corp joined the platform",
+                "maintenance": "Scheduled for tomorrow at 2:00 AM UTC",
+                "opsAgent": "OpsAgent v2.1 deployed to production"
+              },
+              "subtitle": "Latest platform events and changes",
+              "time": {
+                "5min": "5 min ago",
+                "30min": "30 min ago",
+                "1hour": "1 hour ago"
+              },
+              "title": "Recent Activity"
+            },
+        "stats": {
+          "acrossAllTenants": "Across all tenants",
+          "activeAgents": "Active Agents",
+          "allSystemsOperational": "All systems operational",
+          "crossTenant": "Cross-tenant",
+          "monthlyCost": "Monthly Cost",
+          "platformWideUsage": "Platform-wide usage",
+          "systemHealth": "System Health",
+          "thisMonth": "this month",
+          "totalTenants": "Total Tenants"
         },
-        "subtitle": "Latest platform events and changes",
-        "title": "Recent Activity"
-      },
-    "stats": {
-      "acrossAllTenants": "Across all tenants",
-      "activeAgents": "Active Agents",
-      "allSystemsOperational": "All systems operational",
-      "monthlyCost": "Monthly Cost",
-      "platformWideUsage": "Platform-wide usage",
-      "systemHealth": "System Health",
-      "thisMonth": "this month",
-      "totalTenants": "Total Tenants"
-    },
     "subtitle": "Monitor your MorningAI platform at a glance",
       "systemStatus": {
         "apiBackend": "API Backend",
@@ -155,14 +161,20 @@
         "title": "System Status",
         "workerNodes": "Worker Nodes"
       },
-      "projectProgress": {
-        "title": "Project Progress",
-        "subtitle": "Track ongoing platform initiatives",
-        "agentDeployment": "Agent Deployment",
-        "dataIntegration": "Data Integration",
-        "securityAudit": "Security Audit",
-        "performanceOptimization": "Performance Optimization"
-      },
+            "projectProgress": {
+              "title": "Project Progress",
+              "subtitle": "Track ongoing platform initiatives",
+              "agentDeployment": "Agent Deployment",
+              "dataIntegration": "Data Integration",
+              "securityAudit": "Security Audit",
+              "performanceOptimization": "Performance Optimization",
+              "hints": {
+                "agentDeployment": "Core workflow integrated with Orchestrator",
+                "dataIntegration": "RLS Phase 3 complete, reports in progress",
+                "securityAudit": "2FA/TOTP live, RLS testing ongoing",
+                "performanceOptimization": "LangGraph canary, Redis Checkpointer tuning"
+              }
+            },
       "title": "Platform Overview"
     },
   "governance": {

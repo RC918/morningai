@@ -123,28 +123,34 @@
         "title": "尚未啟用雙重驗證 (2FA)"
       }
     },
-        "recentActivity": {
-          "agentDeployed": "Agent 已部署",
-          "maintenanceScheduled": "系統維護已排程",
-          "newTenant": "新租戶註冊",
-          "placeholder": {
-            "acme": "Acme Corp 加入平台",
-            "maintenance": "排程於明天凌晨 2:00 UTC",
-            "opsAgent": "OpsAgent v2.1 已部署至正式環境"
-          },
-          "subtitle": "最新的平台事件與變更",
-          "title": "最近活動"
+                "recentActivity": {
+                  "agentDeployed": "Agent 已部署",
+                  "maintenanceScheduled": "系統維護已排程",
+                  "newTenant": "新租戶註冊",
+                  "placeholder": {
+                    "acme": "Acme Corp 加入平台",
+                    "maintenance": "排程於明天凌晨 2:00 UTC",
+                    "opsAgent": "OpsAgent v2.1 已部署至正式環境"
+                  },
+                  "subtitle": "最新的平台事件與變更",
+                  "time": {
+                    "5min": "5 分鐘前",
+                    "30min": "30 分鐘前",
+                    "1hour": "1 小時前"
+                  },
+                  "title": "最近活動"
+                },
+        "stats": {
+          "acrossAllTenants": "跨所有租戶",
+          "activeAgents": "活躍 Agents",
+          "allSystemsOperational": "所有系統正常運作",
+          "crossTenant": "跨租戶",
+          "monthlyCost": "每月成本",
+          "platformWideUsage": "平台全域使用量",
+          "systemHealth": "系統健康度",
+          "thisMonth": "本月",
+          "totalTenants": "總租戶數"
         },
-    "stats": {
-      "acrossAllTenants": "跨所有租戶",
-      "activeAgents": "活躍 Agents",
-      "allSystemsOperational": "所有系統正常運作",
-      "monthlyCost": "每月成本",
-      "platformWideUsage": "平台全域使用量",
-      "systemHealth": "系統健康度",
-      "thisMonth": "本月",
-      "totalTenants": "總租戶數"
-    },
     "subtitle": "一目了然地監控您的 MorningAI 平台",
       "systemStatus": {
         "apiBackend": "API 後端",
@@ -155,14 +161,20 @@
         "title": "系統狀態",
         "workerNodes": "Worker 節點"
       },
-      "projectProgress": {
-        "title": "專案進度",
-        "subtitle": "追蹤進行中的平台計畫",
-        "agentDeployment": "Agent 部署",
-        "dataIntegration": "資料整合",
-        "securityAudit": "安全稽核",
-        "performanceOptimization": "效能優化"
-      },
+            "projectProgress": {
+              "title": "專案進度",
+              "subtitle": "追蹤進行中的平台計畫",
+              "agentDeployment": "Agent 部署",
+              "dataIntegration": "資料整合",
+              "securityAudit": "安全稽核",
+              "performanceOptimization": "效能優化",
+              "hints": {
+                "agentDeployment": "核心工作流程已與 Orchestrator 整合",
+                "dataIntegration": "RLS 第三階段完成，報表進行中",
+                "securityAudit": "2FA/TOTP 已上線，RLS 測試進行中",
+                "performanceOptimization": "LangGraph 金絲雀版本，Redis Checkpointer 調校中"
+              }
+            },
       "title": "平台概覽"
     },
   "governance": {
