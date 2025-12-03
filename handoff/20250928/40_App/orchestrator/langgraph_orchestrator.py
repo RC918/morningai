@@ -233,6 +233,11 @@ class AgentState(TypedDict):
     Policy Enforcement Fields (PR-2 Policy Enforcement):
         policy_blocked: Boolean indicating if task was blocked by policy enforcement
         policy_block_reason: Human-readable reason for blocking (empty if not blocked)
+
+    Phase 2 New Fields (PR-1813 Agent Evaluation):
+        evaluation_result: Result from evaluation node (capability regression detection)
+        evaluation_health_status: Health status (healthy, degraded, critical)
+        evaluation_has_regression: Boolean indicating if capability regression detected
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -272,6 +277,9 @@ class AgentState(TypedDict):
     reputation_level: str
     policy_blocked: bool
     policy_block_reason: str
+    evaluation_result: dict
+    evaluation_health_status: str
+    evaluation_has_regression: bool
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -1842,6 +1850,112 @@ def finalizer_node(state: AgentState) -> AgentState:
     return state
 
 
+def evaluation_node(state: AgentState) -> AgentState:
+    """
+    Evaluation node: Detects capability regression (Phase 2 PR-1813)
+
+    This is the "IQ test" for the agent - detecting catastrophic forgetting
+    where the agent's performance degrades over time during self-modification.
+
+    The node:
+    1. Collects metrics from the completed workflow
+    2. Compares against baseline thresholds
+    3. Detects capability regression
+    4. Generates evaluation report
+    5. Triggers alerts if regression is detected
+
+    This node runs after finalizer to evaluate the overall workflow performance.
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+    agent_eval = _get_agent_eval()
+
+    trace_id = state["trace_id"]
+    final_result = state.get("final_result", {})
+
+    metrics.record_node_start("evaluation", trace_id)
+
+    if not settings.enable_agent_eval:
+        logger.info("[Evaluation] Agent evaluation disabled", extra={
+            "operation": "evaluation",
+            "trace_id": trace_id
+        })
+        state["evaluation_result"] = {"enabled": False}
+        state["evaluation_health_status"] = "unknown"
+        state["evaluation_has_regression"] = False
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("evaluation", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    logger.info("[Evaluation] Running capability regression detection", extra={
+        "operation": "evaluation",
+        "trace_id": trace_id,
+        "final_status": final_result.get("status")
+    })
+
+    try:
+        regression_result = agent_eval.detect_capability_regression(
+            success_rate_threshold=settings.agent_eval_success_rate_threshold,
+            ci_pass_rate_threshold=settings.agent_eval_ci_pass_rate_threshold,
+            fixer_success_threshold=settings.agent_eval_fixer_success_threshold,
+            sample_size=settings.agent_eval_baseline_sample_size
+        )
+
+        has_regression = regression_result.get("has_regression", False)
+        has_critical = regression_result.get("has_critical_regression", False)
+
+        if has_regression:
+            health_status = "critical" if has_critical else "degraded"
+        else:
+            health_status = "healthy"
+
+        state["evaluation_result"] = regression_result
+        state["evaluation_health_status"] = health_status
+        state["evaluation_has_regression"] = has_regression
+
+        if has_regression and settings.agent_eval_regression_alert_enabled:
+            logger.warning(
+                "[Evaluation] Capability regression detected - alerting",
+                extra={
+                    "operation": "evaluation_alert",
+                    "trace_id": trace_id,
+                    "health_status": health_status,
+                    "regressions": regression_result.get("regressions", []),
+                    "recommendations": regression_result.get("recommendations", [])
+                }
+            )
+
+        logger.info("[Evaluation] Capability regression detection completed", extra={
+            "operation": "evaluation",
+            "trace_id": trace_id,
+            "health_status": health_status,
+            "has_regression": has_regression,
+            "success_rate": regression_result.get("metrics", {}).get("success_rate"),
+            "ci_pass_rate": regression_result.get("metrics", {}).get("ci_pass_rate")
+        })
+
+    except Exception as e:
+        logger.error("[Evaluation] Failed to run capability regression detection: %s", e, extra={
+            "operation": "evaluation",
+            "trace_id": trace_id,
+            "error": str(e)
+        })
+        state["evaluation_result"] = {"error": str(e)}
+        state["evaluation_health_status"] = "unknown"
+        state["evaluation_has_regression"] = False
+
+    state["messages"] = state.get("messages", []) + [
+        AIMessage(content=f"Evaluation completed. Health status: {state['evaluation_health_status']}")
+    ]
+
+    # Calculate latency once and use for both metrics systems (Gemini #13)
+    latency_ms = (time.time() - start_time) * 1000
+    agent_eval.record_node_latency(trace_id, "evaluation", latency_ms)
+    metrics.record_node_complete("evaluation", trace_id, success=True, latency_ms=latency_ms)
+    return state
+
+
 def should_continue_execution(state: AgentState) -> str:
     """
     Determines if execution should continue to next step or move to CI monitoring
@@ -1900,8 +2014,8 @@ def create_orchestrator_graph():
     """
     Creates the LangGraph StateGraph for orchestration
 
-    PR-2 Policy Enforcement Update:
-        planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → policy_enforcement → (executor | finalizer) → ci_monitor → reviewer → decision → (fixer if needed) → finalizer
+    Phase 2 PR-1813 Update (Agent Evaluation):
+        planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → policy_enforcement → (executor | finalizer) → ci_monitor → reviewer → decision → (fixer if needed) → finalizer → evaluation → END
 
     5-Agent Advisory Pipeline Nodes:
         1. security_advisor: Security analysis (Phase 4 PR-2)
@@ -1913,6 +2027,12 @@ def create_orchestrator_graph():
     Policy Enforcement Node (PR-2):
         - policy_enforcement: Evaluates advisory results and enforces SECURITY_ENFORCEMENT_MODE
         - Routes to executor if allowed, finalizer if blocked
+
+    Agent Evaluation Node (Phase 2 PR-1813):
+        - evaluation: Detects capability regression ("IQ test" for catastrophic forgetting)
+        - Runs after finalizer to evaluate overall workflow performance
+        - Compares metrics against baseline thresholds
+        - Triggers alerts if regression is detected
 
     Other Nodes:
         - planner: Task decomposition using LLM Planner
@@ -1945,6 +2065,8 @@ def create_orchestrator_graph():
     workflow.add_node("decision", decision_node)
     workflow.add_node("fixer", fixer_node)
     workflow.add_node("finalizer", finalizer_node)
+    # Phase 2 PR-1813: Agent Evaluation node
+    workflow.add_node("evaluation", evaluation_node)
 
     # Set entry point
     workflow.set_entry_point("planner")
@@ -2010,8 +2132,11 @@ def create_orchestrator_graph():
     # fixer → executor (retry loop)
     workflow.add_edge("fixer", "executor")
 
-    # finalizer → END
-    workflow.add_edge("finalizer", END)
+    # finalizer → evaluation (Phase 2 PR-1813: Agent Evaluation)
+    workflow.add_edge("finalizer", "evaluation")
+
+    # evaluation → END (Phase 2 PR-1813)
+    workflow.add_edge("evaluation", END)
 
     # Use factory function to get appropriate checkpointer (Redis or Memory)
     checkpointer = get_checkpointer()
@@ -2090,7 +2215,10 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "reputation_score": 100,
         "reputation_level": "trusted",
         "policy_blocked": False,
-        "policy_block_reason": ""
+        "policy_block_reason": "",
+        "evaluation_result": {},
+        "evaluation_health_status": "unknown",
+        "evaluation_has_regression": False
     }
 
     config = {"configurable": {"thread_id": trace_id}}
