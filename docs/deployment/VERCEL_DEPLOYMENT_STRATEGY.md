@@ -387,9 +387,26 @@ All deployments send errors and performance data to Sentry:
 
 ---
 
-**Last Updated**: 2025-11-26
+**Last Updated**: 2025-12-03
 **Owner**: CTO + DevOps Team
 **Status**: Active
+
+**近期重要更新** (2025-12-02 至 2025-12-03):
+
+*注意：以下環境變數為後端/Worker 專用，不應加入 Vercel 前端專案：*
+- `DISABLE_GEMINI3` (boolean) - Gemini 3 實驗緊急開關 (PR #1804)
+- `REASONING_MODE_ENABLED` (boolean) - Gemini 3 推理模式 (PR #1794)
+- `RQ_MAX_JOBS` (integer) - Worker 記憶體管理 (PR #1790, #1797)
+- `WORKER_HEARTBEAT_INTERVAL` (integer) - Worker 心跳間隔 (PR #1798)
+- `WORKER_HEARTBEAT_TTL` (integer) - 心跳 key 過期時間 (PR #1798)
+
+*前端相關更新：*
+- **PR #1802**: DashboardHeader 和 Sidebar Storybook stories
+- **PR #1801**: iotask 元件樣式更新 (Button, Badge, Card, Input, Progress)
+- **PR #1796**: iotask 設計系統升級 - 設計令牌更新
+
+*CI/CD 更新：*
+- **PR #1803**: 新增 `.github/workflows/gemini3-reviewer-gate.yml` CI 工作流程
 
 **近兩日重要更新** (2025-11-25 至 2025-11-26):
 - **PR #1548**: Frontend Dashboard 代碼分割優化 - 20% bundle 減少 + Lighthouse CI color-contrast 修復

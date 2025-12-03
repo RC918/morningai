@@ -13,6 +13,46 @@
 **Recent Activity**: 280+ commits on main (2025-11-12 至 2025-12-01，快照值截至 2025-12-01)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
 
+**Recent PRs (Dec 2 - Dec 3, 2025)**:
+
+*Experimentation & Reasoning Mode:*
+- **PR #1804** (Merged): Phase 4 Production Rollout - Increase experiment percentages and add kill switch
+  - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`, `common/config/settings.py`
+  - New env var: `DISABLE_GEMINI3` (boolean) - Emergency kill switch
+- **PR #1803** (Merged): Phase 3 Remaining Items - Gemini 3 fallback, parametrize tests, CI gate
+  - Path: `.github/workflows/gemini3-reviewer-gate.yml` (new workflow)
+- **PR #1794** (Merged): Phase 3.1 Hardening - Add REASONING_MODE_ENABLED schema and unit tests
+  - Path: `config/env.schema.yaml`, `common/config/settings.py`
+  - New env var: `REASONING_MODE_ENABLED` (boolean)
+- **PR #1793** (Merged): Phase 3 - Reasoning mode toggle and Gemini 3 reviewer experiment
+  - Path: `handoff/20250928/40_App/orchestrator/llm/adapters/llm_reviewer_adapter.py`
+- **PR #1792** (Merged): Redis Checkpointer - LangGraph state persistence
+  - Path: `handoff/20250928/40_App/orchestrator/redis_checkpointer.py` (new file), `graph.py`
+- **PR #1791** (Merged): FAQ Routing - Route FAQ tasks via simple path, bypass LangGraph
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+
+*Configuration & Secrets Hardening:*
+- **PR #1800** (Merged): Migrate os.getenv to settings.py for Tier 1 production code
+  - Path: `handoff/20250928/40_App/orchestrator/`, `common/config/settings.py`
+- **PR #1798** (Merged): Migrate WORKER_HEARTBEAT_INTERVAL and WORKER_HEARTBEAT_TTL to settings.py
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+  - New env vars: `WORKER_HEARTBEAT_INTERVAL` (60s), `WORKER_HEARTBEAT_TTL` (180s)
+- **PR #1797** (Merged): Migrate RQ_MAX_JOBS to settings.py and add secrets hardening
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+- **PR #1795** (Merged): Remove deprecated SECRET_KEY and MASTER_KEY
+  - Path: `config/env.schema.yaml`
+- **PR #1790** (Merged): Add RQ_MAX_JOBS env var for worker memory management
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
+  - New env var: `RQ_MAX_JOBS` (integer, default 0)
+
+*UI/UX & Design System:*
+- **PR #1802** (Merged): Storybook Stories for DashboardHeader and Sidebar
+  - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.stories.tsx`, `Sidebar.stories.tsx`
+- **PR #1801** (Merged): Phase 3-4 Completion - iotask Component Styling and Progress Bars
+  - Path: `packages/shared-ui/src/components/ui/button.tsx`, `badge.tsx`, `card.tsx`, `input.tsx`, `progress.tsx`
+- **PR #1796** (Merged): iotask Design System Upgrade - Phase 1-4
+  - Path: `packages/shared-ui/src/tokens.json`, `handoff/20250928/40_App/owner-console/src/components/`
+
 **Recent PRs (Nov 29 - Dec 1, 2025)**:
 - **PR #1788** (Merged): Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
   - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`

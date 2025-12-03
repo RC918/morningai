@@ -21,6 +21,55 @@
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
 
+**近期重要更新** (2025-12-02 至 2025-12-03):
+
+*實驗與推理模式:*
+- **PR #1804**: Phase 4 Production Rollout - 提高實驗百分比並新增緊急開關
+  - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`, `common/config/settings.py`
+  - 新增環境變數：`DISABLE_GEMINI3` (boolean) - 緊急回滾開關，啟用時所有 Gemini 3 流量轉至 OpenAI
+  - 影響：gemini3_planner_staging 從 10% 提升至 25%，gemini3_reviewer_staging 從 5% 提升至 10%
+- **PR #1803**: Phase 3 Remaining Items - Gemini 3 fallback、參數化測試、CI gate
+  - Path: `.github/workflows/gemini3-reviewer-gate.yml`, `handoff/20250928/40_App/orchestrator/tests/test_llm_planner_adapter.py`, `test_llm_reviewer_adapter.py`
+  - 影響：新增 Gemini 3 reviewer gate CI 工作流程，整合測試模式
+- **PR #1794**: Phase 3.1 Hardening - 新增 REASONING_MODE_ENABLED schema 和單元測試
+  - Path: `config/env.schema.yaml`, `common/config/settings.py`
+  - 新增環境變數：`REASONING_MODE_ENABLED` (boolean, default: false) - 控制 Gemini 3 的 thinking_level
+- **PR #1793**: Phase 3 - 推理模式切換和 Gemini 3 reviewer 實驗
+  - Path: `handoff/20250928/40_App/orchestrator/llm/adapters/llm_reviewer_adapter.py`
+  - 影響：啟用 gemini3_reviewer_5pct_staging 實驗
+- **PR #1792**: Redis Checkpointer - LangGraph 狀態持久化
+  - Path: `handoff/20250928/40_App/orchestrator/redis_checkpointer.py`, `graph.py`
+  - 影響：新增 Redis 檢查點機制，支援可配置的 TTL
+- **PR #1791**: FAQ Routing - FAQ 任務走 simple path，繞過 LangGraph
+  - Path: `handoff/20250928/40_App/orchestrator/graph.py`
+  - 影響：FAQ 任務使用 simple mode (~95% 流量) 以加快回應速度
+
+*配置與密鑰強化:*
+- **PR #1800**: 將 os.getenv 遷移到 settings.py (Tier 1 生產代碼)
+  - Path: `handoff/20250928/40_App/orchestrator/`, `common/config/settings.py`
+  - 影響：透過 Pydantic settings 集中管理環境變數存取
+- **PR #1798**: 將 WORKER_HEARTBEAT_INTERVAL 和 WORKER_HEARTBEAT_TTL 遷移到 settings.py
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+  - 新增環境變數：`WORKER_HEARTBEAT_INTERVAL` (integer, default: 60) - Worker 心跳間隔秒數
+  - 新增環境變數：`WORKER_HEARTBEAT_TTL` (integer, default: 180) - 心跳 key 過期時間
+- **PR #1797**: 將 RQ_MAX_JOBS 遷移到 settings.py 並強化密鑰安全
+  - Path: `common/config/settings.py`, `config/env.schema.yaml`
+  - 影響：強化 `FLASK_SECRET_KEY` 和 `ENCRYPTION_MASTER_KEY` 為生產環境必需
+- **PR #1795**: 移除已棄用的 SECRET_KEY 和 MASTER_KEY
+  - Path: `config/env.schema.yaml`
+  - 影響：改用 `FLASK_SECRET_KEY` 和 `ENCRYPTION_MASTER_KEY`
+- **PR #1790**: 新增 RQ_MAX_JOBS 環境變數用於 Worker 記憶體管理
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
+  - 新增環境變數：`RQ_MAX_JOBS` (integer, default: 0) - Worker 處理 N 個任務後重啟以防止 OOM
+
+*UI/UX 與設計系統:*
+- **PR #1802**: 為 DashboardHeader 和 Sidebar 新增 Storybook stories
+  - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.stories.tsx`, `Sidebar.stories.tsx`
+- **PR #1801**: Phase 3-4 完成 - iotask 元件樣式和進度條
+  - Path: `packages/shared-ui/src/components/ui/button.tsx`, `badge.tsx`, `card.tsx`, `input.tsx`, `progress.tsx`
+- **PR #1796**: iotask 設計系統升級 - Phase 1-4
+  - Path: `packages/shared-ui/src/tokens.json`, `handoff/20250928/40_App/owner-console/src/components/`
+
 **近期重要更新** (2025-11-29 至 2025-12-01):
 - **PR #1788**: Failure Memory Integration - 失敗知識庫整合到 failure recorder (Phase 5 PR-1)
   - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
