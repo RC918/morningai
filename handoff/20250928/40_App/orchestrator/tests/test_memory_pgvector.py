@@ -181,18 +181,18 @@ class TestSaveText:
     @patch('orchestrator.memory.pgvector_store.get_client')
     @patch('orchestrator.memory.pgvector_store.settings')
     def test_save_text_with_embedding_failure(self, mock_settings, mock_get_client, mock_embed, mock_supabase_client):
-        """Test save_text handles embedding failure gracefully"""
+        """Test save_text handles embedding failure gracefully by storing NULL"""
         mock_settings.memory_table = "memory"
         mock_get_client.return_value = mock_supabase_client
         mock_embed.return_value = None  # Embedding failed
 
-        save_text("test-key", "Test text")
+        result = save_text("test-key", "Test text")
 
-        # Should still attempt to save with empty embedding
+        assert result is True
         table_mock = mock_supabase_client.table.return_value
         table_mock.insert.assert_called_once()
         insert_data = table_mock.insert.call_args[0][0]
-        assert insert_data["embedding"] == []
+        assert insert_data["embedding"] is None
 
     @patch('orchestrator.memory.pgvector_store.embed')
     @patch('orchestrator.memory.pgvector_store.get_client')
