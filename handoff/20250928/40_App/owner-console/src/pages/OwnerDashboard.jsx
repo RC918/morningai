@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Alert, AlertDescription, Progress } from '@morningai/shared-ui'
-import { AppleButton } from '@/components/apple/apple-button'
 import { 
-  Users, 
-  Shield,
-  Activity,
-  DollarSign,
-  TrendingUp,
-  Server,
-  X
-} from 'lucide-react'
+  Alert, 
+  AlertDescription,
+  StatCard,
+  SectionCard,
+  TimelineList,
+  SystemStatusList,
+  ProgressTrack
+} from '@morningai/shared-ui'
+import { AppleButton } from '@/components/apple/apple-button'
+import { Shield, X } from 'lucide-react'
 import { getStoredUser } from '@/lib/auth'
 import { getTwoFAStatus } from '@/lib/2fa-api'
 
 const OwnerDashboard = () => {
   const { t } = useTranslation()
-  const [stats, setStats] = useState({
+  const [stats] = useState({
     totalTenants: 12,
     activeAgents: 45,
     totalCost: 1234.56,
@@ -45,6 +45,57 @@ const OwnerDashboard = () => {
 
     check2FAStatus()
   }, [])
+
+  const progressItems = [
+    { 
+      label: t('dashboard.projectProgress.agentDeployment'), 
+      value: 85, 
+      hint: t('dashboard.projectProgress.hints.agentDeployment')
+    },
+    { 
+      label: t('dashboard.projectProgress.dataIntegration'), 
+      value: 60, 
+      hint: t('dashboard.projectProgress.hints.dataIntegration')
+    },
+    { 
+      label: t('dashboard.projectProgress.securityAudit'), 
+      value: 45, 
+      hint: t('dashboard.projectProgress.hints.securityAudit')
+    },
+    { 
+      label: t('dashboard.projectProgress.performanceOptimization'), 
+      value: 30, 
+      hint: t('dashboard.projectProgress.hints.performanceOptimization')
+    },
+  ]
+
+  const activityItems = [
+    { 
+      id: '1', 
+      title: t('dashboard.recentActivity.newTenant'), 
+      desc: t('dashboard.recentActivity.placeholder.acme'), 
+      time: t('dashboard.recentActivity.time.5min')
+    },
+    { 
+      id: '2', 
+      title: t('dashboard.recentActivity.agentDeployed'), 
+      desc: t('dashboard.recentActivity.placeholder.opsAgent'), 
+      time: t('dashboard.recentActivity.time.30min')
+    },
+    { 
+      id: '3', 
+      title: t('dashboard.recentActivity.maintenanceScheduled'), 
+      desc: t('dashboard.recentActivity.placeholder.maintenance'), 
+      time: t('dashboard.recentActivity.time.1hour')
+    },
+  ]
+
+  const statusItems = [
+    { service: t('dashboard.systemStatus.apiBackend'), status: 'Healthy', latency: '220ms' },
+    { service: t('dashboard.systemStatus.database'), status: 'Healthy', latency: '18ms' },
+    { service: t('dashboard.systemStatus.redisCache'), status: 'Healthy', latency: '4ms' },
+    { service: t('dashboard.systemStatus.workerNodes'), status: 'Healthy', latency: '12ms' },
+  ]
 
   return (
     <div className="space-y-6">
@@ -82,195 +133,50 @@ const OwnerDashboard = () => {
         </Alert>
       )}
 
+      {/* KPI Row - Using StatCard components */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* iotask style: Primary blue for main metrics */}
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.totalTenants')}</CardTitle>
-            <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-neutral-800">{stats.totalTenants}</div>
-            <p className="text-xs text-success-500 mt-1 flex items-center">
-              <TrendingUp className="inline h-3 w-3 mr-1" /> +2 {t('dashboard.stats.thisMonth')}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* iotask style: Pink accent for agents */}
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.activeAgents')}</CardTitle>
-            <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center">
-              <Shield className="h-5 w-5 text-pink-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-neutral-800">{stats.activeAgents}</div>
-            <p className="text-xs text-neutral-500 mt-1">
-              {t('dashboard.stats.acrossAllTenants')}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* iotask style: Orange for cost/warnings */}
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.monthlyCost')}</CardTitle>
-            <div className="w-10 h-10 rounded-lg bg-warning-100 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-warning-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-neutral-800">${stats.totalCost.toFixed(2)}</div>
-            <p className="text-xs text-neutral-500 mt-1">
-              {t('dashboard.stats.platformWideUsage')}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* iotask style: Green for success/health */}
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-neutral-500">{t('dashboard.stats.systemHealth')}</CardTitle>
-            <div className="w-10 h-10 rounded-lg bg-success-100 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-success-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-neutral-800">{stats.systemHealth}%</div>
-            <p className="text-xs text-success-500 mt-1">
-              {t('dashboard.stats.allSystemsOperational')}
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard 
+          label={t('dashboard.stats.totalTenants')} 
+          value={String(stats.totalTenants)} 
+          trend={`+2 ${t('dashboard.stats.thisMonth')}`}
+        />
+        <StatCard 
+          label={t('dashboard.stats.activeAgents')} 
+          value={String(stats.activeAgents)} 
+          badge={t('dashboard.stats.crossTenant')}
+        />
+        <StatCard 
+          label={t('dashboard.stats.monthlyCost')} 
+          value={`$${stats.totalCost.toFixed(2)}`}
+        />
+        <StatCard 
+          label={t('dashboard.stats.systemHealth')} 
+          value={`${stats.systemHealth}%`}
+        />
       </div>
 
-      {/* iotask style: Project Progress Section */}
-      <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.projectProgress.title')}</CardTitle>
-          <CardDescription className="text-sm text-neutral-500">{t('dashboard.projectProgress.subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.agentDeployment')}</span>
-                <span className="text-neutral-500">85%</span>
-              </div>
-              <Progress value={85} variant="default" aria-label="Agent Deployment: 85%" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.dataIntegration')}</span>
-                <span className="text-neutral-500">60%</span>
-              </div>
-              <Progress value={60} variant="success" aria-label="Data Integration: 60%" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.securityAudit')}</span>
-                <span className="text-neutral-500">45%</span>
-              </div>
-              <Progress value={45} variant="warning" aria-label="Security Audit: 45%" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-neutral-700">{t('dashboard.projectProgress.performanceOptimization')}</span>
-                <span className="text-neutral-500">30%</span>
-              </div>
-              <Progress value={30} variant="pink" aria-label="Performance Optimization: 30%" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Main Content - Using SectionCard with nested components */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <SectionCard
+          title={t('dashboard.projectProgress.title')}
+          subtitle={t('dashboard.projectProgress.subtitle')}
+        >
+          <ProgressTrack items={progressItems} />
+        </SectionCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.recentActivity.title')}</CardTitle>
-            <CardDescription className="text-sm text-neutral-500">{t('dashboard.recentActivity.subtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* iotask style: Green for success */}
-              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="w-2 h-2 bg-success-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.newTenant')}</p>
-                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.acme')}</p>
-                </div>
-              </div>
-              {/* iotask style: Primary blue for normal */}
-              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.agentDeployed')}</p>
-                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.opsAgent')}</p>
-                </div>
-              </div>
-              {/* iotask style: Orange for warnings */}
-              <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="w-2 h-2 bg-warning-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-700">{t('dashboard.recentActivity.maintenanceScheduled')}</p>
-                  <p className="text-xs text-neutral-500">{t('dashboard.recentActivity.placeholder.maintenance')}</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <SectionCard
+          title={t('dashboard.recentActivity.title')}
+          subtitle={t('dashboard.recentActivity.subtitle')}
+        >
+          <TimelineList items={activityItems} />
+        </SectionCard>
 
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-neutral-800">{t('dashboard.systemStatus.title')}</CardTitle>
-            <CardDescription className="text-sm text-neutral-500">{t('dashboard.systemStatus.subtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {/* iotask style: Green badges for healthy status */}
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.apiBackend')}</span>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.database')}</span>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.redisCache')}</span>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <Server className="h-4 w-4 text-neutral-400" />
-                  <span className="text-sm text-neutral-700">{t('dashboard.systemStatus.workerNodes')}</span>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs text-success-600 font-medium">
-                  {t('dashboard.systemStatus.healthy')}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <SectionCard
+          title={t('dashboard.systemStatus.title')}
+          subtitle={t('dashboard.systemStatus.subtitle')}
+        >
+          <SystemStatusList items={statusItems} />
+        </SectionCard>
       </div>
     </div>
   )
