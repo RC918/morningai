@@ -399,7 +399,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
     
     use_langgraph = settings.use_langgraph or False
     use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
-    use_langgraph_for_faq = getattr(settings, 'use_langgraph_for_faq', False)
+    use_langgraph_for_faq = getattr(settings, 'use_langgraph_for_faq', False) is True
     
     if task_type == "faq" and not use_langgraph_for_faq:
         logger.info(
