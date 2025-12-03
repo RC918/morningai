@@ -633,6 +633,280 @@ class AgentEvalIntegration:
 
         return "\n".join(lines)
 
+    def detect_capability_regression(
+        self,
+        success_rate_threshold: float = 70.0,
+        ci_pass_rate_threshold: float = 80.0,
+        fixer_success_threshold: float = 50.0,
+        sample_size: int = 50
+    ) -> Dict[str, Any]:
+        """
+        Detect capability regression by comparing recent metrics against thresholds.
+
+        This is the "IQ test" for the agent - detecting catastrophic forgetting
+        where the agent's performance degrades over time.
+
+        Args:
+            success_rate_threshold: Minimum acceptable success rate (0-100)
+            ci_pass_rate_threshold: Minimum acceptable CI pass rate (0-100)
+            fixer_success_threshold: Minimum acceptable fixer success rate (0-100)
+            sample_size: Number of recent metrics to analyze
+
+        Returns:
+            Dictionary with regression detection results:
+            - has_regression: bool indicating if regression detected
+            - regressions: list of specific regressions found
+            - metrics: current metric values
+            - thresholds: threshold values used
+            - recommendations: suggested actions
+        """
+        if not self.enabled:
+            return {
+                "has_regression": False,
+                "enabled": False,
+                "message": "Agent evaluation disabled"
+            }
+
+        try:
+            metrics_list = self.list_metrics(limit=sample_size)
+
+            if len(metrics_list) < 10:
+                return {
+                    "has_regression": False,
+                    "enabled": True,
+                    "message": "Insufficient data for regression detection",
+                    "sample_count": len(metrics_list),
+                    "required_minimum": 10
+                }
+
+            total = len(metrics_list)
+            success_count = sum(1 for m in metrics_list if m.status == "success")
+            pr_created_count = sum(1 for m in metrics_list if m.pr_created)
+            ci_passed_count = sum(1 for m in metrics_list if m.ci_passed)
+            fixer_success_count = sum(1 for m in metrics_list if m.fixer_success)
+            tasks_with_fixer = sum(1 for m in metrics_list if m.fixer_iterations > 0)
+
+            success_rate = (success_count / total) * 100 if total > 0 else 0
+            ci_pass_rate = (ci_passed_count / pr_created_count) * 100 if pr_created_count > 0 else 100
+            fixer_success_rate = (fixer_success_count / tasks_with_fixer) * 100 if tasks_with_fixer > 0 else 100
+
+            regressions = []
+            recommendations = []
+
+            if success_rate < success_rate_threshold:
+                regressions.append({
+                    "type": "success_rate",
+                    "current": success_rate,
+                    "threshold": success_rate_threshold,
+                    "severity": "critical" if success_rate < success_rate_threshold * 0.5 else "warning"
+                })
+                recommendations.append(
+                    "Review recent failures for common patterns. "
+                    "Check if there are new task types causing issues."
+                )
+
+            if ci_pass_rate < ci_pass_rate_threshold:
+                regressions.append({
+                    "type": "ci_pass_rate",
+                    "current": ci_pass_rate,
+                    "threshold": ci_pass_rate_threshold,
+                    "severity": "critical" if ci_pass_rate < ci_pass_rate_threshold * 0.5 else "warning"
+                })
+                recommendations.append(
+                    "Review CI failures for common issues. "
+                    "Check if code generation quality has degraded."
+                )
+
+            if fixer_success_rate < fixer_success_threshold:
+                regressions.append({
+                    "type": "fixer_success_rate",
+                    "current": fixer_success_rate,
+                    "threshold": fixer_success_threshold,
+                    "severity": "warning"
+                })
+                recommendations.append(
+                    "Review fixer node effectiveness. "
+                    "Consider updating error-fix pairs in knowledge base."
+                )
+
+            has_regression = len(regressions) > 0
+            has_critical = any(r["severity"] == "critical" for r in regressions)
+
+            result = {
+                "has_regression": has_regression,
+                "has_critical_regression": has_critical,
+                "enabled": True,
+                "sample_count": total,
+                "regressions": regressions,
+                "metrics": {
+                    "success_rate": round(success_rate, 2),
+                    "ci_pass_rate": round(ci_pass_rate, 2),
+                    "fixer_success_rate": round(fixer_success_rate, 2),
+                    "pr_creation_rate": round((pr_created_count / total) * 100, 2) if total > 0 else 0
+                },
+                "thresholds": {
+                    "success_rate": success_rate_threshold,
+                    "ci_pass_rate": ci_pass_rate_threshold,
+                    "fixer_success_rate": fixer_success_threshold
+                },
+                "recommendations": recommendations,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+            if has_regression:
+                logger.warning(
+                    "[AgentEval] Capability regression detected",
+                    extra={
+                        "operation": "detect_regression",
+                        "regressions": len(regressions),
+                        "has_critical": has_critical,
+                        "success_rate": success_rate,
+                        "ci_pass_rate": ci_pass_rate
+                    }
+                )
+            else:
+                logger.info(
+                    "[AgentEval] No capability regression detected",
+                    extra={
+                        "operation": "detect_regression",
+                        "success_rate": success_rate,
+                        "ci_pass_rate": ci_pass_rate
+                    }
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                "[AgentEval] Failed to detect capability regression: %s",
+                e
+            )
+            return {
+                "has_regression": False,
+                "enabled": True,
+                "error": str(e)
+            }
+
+    def generate_evaluation_report(self, sample_size: int = 100) -> Dict[str, Any]:
+        """
+        Generate a comprehensive evaluation report.
+
+        Args:
+            sample_size: Number of recent metrics to include
+
+        Returns:
+            Dictionary with evaluation report data
+        """
+        if not self.enabled:
+            return {
+                "enabled": False,
+                "message": "Agent evaluation disabled"
+            }
+
+        try:
+            summary = self.get_metrics_summary()
+            regression = self.detect_capability_regression(sample_size=sample_size)
+            metrics_list = self.list_metrics(limit=sample_size)
+
+            task_type_breakdown: Dict[str, Dict[str, int]] = {}
+            for m in metrics_list:
+                task_type = m.metadata.get("task_type", "unknown")
+                if task_type not in task_type_breakdown:
+                    task_type_breakdown[task_type] = {
+                        "total": 0,
+                        "success": 0,
+                        "pr_created": 0,
+                        "ci_passed": 0
+                    }
+                task_type_breakdown[task_type]["total"] += 1
+                if m.status == "success":
+                    task_type_breakdown[task_type]["success"] += 1
+                if m.pr_created:
+                    task_type_breakdown[task_type]["pr_created"] += 1
+                if m.ci_passed:
+                    task_type_breakdown[task_type]["ci_passed"] += 1
+
+            avg_latencies: Dict[str, List[float]] = {}
+            for m in metrics_list:
+                for node, latency in m.node_latencies.items():
+                    if node not in avg_latencies:
+                        avg_latencies[node] = []
+                    avg_latencies[node].append(latency)
+
+            node_performance = {
+                node: {
+                    "avg_latency_ms": round(sum(latencies) / len(latencies), 2),
+                    "max_latency_ms": round(max(latencies), 2),
+                    "min_latency_ms": round(min(latencies), 2),
+                    "sample_count": len(latencies)
+                }
+                for node, latencies in avg_latencies.items()
+                if latencies
+            }
+
+            report = {
+                "report_type": "agent_evaluation",
+                "generated_at": datetime.utcnow().isoformat(),
+                "sample_size": len(metrics_list),
+                "summary": summary,
+                "regression_analysis": regression,
+                "task_type_breakdown": task_type_breakdown,
+                "node_performance": node_performance,
+                "health_status": "healthy" if not regression.get("has_regression") else (
+                    "critical" if regression.get("has_critical_regression") else "degraded"
+                )
+            }
+
+            logger.info(
+                "[AgentEval] Generated evaluation report",
+                extra={
+                    "operation": "generate_report",
+                    "sample_size": len(metrics_list),
+                    "health_status": report["health_status"]
+                }
+            )
+
+            return report
+
+        except Exception as e:
+            logger.error(
+                "[AgentEval] Failed to generate evaluation report: %s",
+                e
+            )
+            return {
+                "enabled": True,
+                "error": str(e)
+            }
+
+
+@dataclass
+class EvaluationResult:
+    """
+    Result of an evaluation node execution.
+
+    Attributes:
+        has_regression: Whether capability regression was detected
+        health_status: Overall health status (healthy, degraded, critical)
+        success_rate: Current success rate percentage
+        ci_pass_rate: Current CI pass rate percentage
+        fixer_success_rate: Current fixer success rate percentage
+        regressions: List of detected regressions
+        recommendations: List of recommended actions
+        timestamp: Evaluation timestamp
+    """
+    has_regression: bool
+    health_status: str
+    success_rate: float
+    ci_pass_rate: float
+    fixer_success_rate: float
+    regressions: List[Dict[str, Any]] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return asdict(self)
+
 
 _agent_eval: Optional[AgentEvalIntegration] = None
 

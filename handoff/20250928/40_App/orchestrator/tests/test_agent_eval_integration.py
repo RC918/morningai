@@ -424,3 +424,265 @@ class TestInitAgentEvalFromEnv:
                 assert integration.enabled is True
 
         agent_eval_integration._agent_eval = None
+
+
+class TestCapabilityRegressionDetection:
+    """Tests for capability regression detection (Phase 2 PR-1813)"""
+
+    def test_detect_regression_disabled(self):
+        """Test regression detection when disabled"""
+        from agent_eval_integration import AgentEvalIntegration
+
+        integration = AgentEvalIntegration(redis_client=None, enabled=False)
+        result = integration.detect_capability_regression()
+
+        assert result["has_regression"] is False
+        assert result["enabled"] is False
+
+    def test_detect_regression_insufficient_data(self):
+        """Test regression detection with insufficient data"""
+        from agent_eval_integration import AgentEvalIntegration
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = []
+
+            result = integration.detect_capability_regression()
+
+            assert result["has_regression"] is False
+            assert result["enabled"] is True
+            assert "Insufficient data" in result.get("message", "")
+
+    def test_detect_regression_no_regression(self):
+        """Test regression detection with healthy metrics"""
+        from agent_eval_integration import AgentEvalIntegration, EvalMetrics
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        healthy_metrics = [
+            EvalMetrics(
+                trace_id=f"trace-{i}",
+                goal="Test goal",
+                status="success",
+                pr_created=True,
+                ci_passed=True,
+                fixer_iterations=1 if i % 3 == 0 else 0,
+                fixer_success=True if i % 3 == 0 else False
+            )
+            for i in range(20)
+        ]
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = healthy_metrics
+
+            result = integration.detect_capability_regression(
+                success_rate_threshold=70.0,
+                ci_pass_rate_threshold=80.0,
+                fixer_success_threshold=50.0
+            )
+
+            assert result["has_regression"] is False
+            assert result["enabled"] is True
+            assert result["metrics"]["success_rate"] == 100.0
+            assert result["metrics"]["ci_pass_rate"] == 100.0
+
+    def test_detect_regression_with_regression(self):
+        """Test regression detection with degraded metrics"""
+        from agent_eval_integration import AgentEvalIntegration, EvalMetrics
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        degraded_metrics = [
+            EvalMetrics(
+                trace_id=f"trace-{i}",
+                goal="Test goal",
+                status="success" if i < 5 else "error",
+                pr_created=i < 10,
+                ci_passed=i < 3,
+                fixer_iterations=1,
+                fixer_success=i < 2
+            )
+            for i in range(20)
+        ]
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = degraded_metrics
+
+            result = integration.detect_capability_regression(
+                success_rate_threshold=70.0,
+                ci_pass_rate_threshold=80.0,
+                fixer_success_threshold=50.0
+            )
+
+            assert result["has_regression"] is True
+            assert result["enabled"] is True
+            assert len(result["regressions"]) > 0
+            assert len(result["recommendations"]) > 0
+
+    def test_detect_regression_critical_severity(self):
+        """Test regression detection with critical severity"""
+        from agent_eval_integration import AgentEvalIntegration, EvalMetrics
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        critical_metrics = [
+            EvalMetrics(
+                trace_id=f"trace-{i}",
+                goal="Test goal",
+                status="error",
+                pr_created=False,
+                ci_passed=False,
+                fixer_iterations=0,
+                fixer_success=False
+            )
+            for i in range(20)
+        ]
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = critical_metrics
+
+            result = integration.detect_capability_regression(
+                success_rate_threshold=70.0,
+                ci_pass_rate_threshold=80.0
+            )
+
+            assert result["has_regression"] is True
+            assert result["has_critical_regression"] is True
+            assert any(r["severity"] == "critical" for r in result["regressions"])
+
+
+class TestEvaluationReport:
+    """Tests for evaluation report generation (Phase 2 PR-1813)"""
+
+    def test_generate_report_disabled(self):
+        """Test report generation when disabled"""
+        from agent_eval_integration import AgentEvalIntegration
+
+        integration = AgentEvalIntegration(redis_client=None, enabled=False)
+        result = integration.generate_evaluation_report()
+
+        assert result["enabled"] is False
+
+    def test_generate_report_success(self):
+        """Test successful report generation"""
+        from agent_eval_integration import AgentEvalIntegration, EvalMetrics
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        test_metrics = [
+            EvalMetrics(
+                trace_id=f"trace-{i}",
+                goal="Test goal",
+                status="success",
+                pr_created=True,
+                ci_passed=True,
+                node_latencies={"planner": 100.0, "executor": 200.0},
+                metadata={"task_type": "bug_fix"}
+            )
+            for i in range(15)
+        ]
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = test_metrics
+            with patch.object(integration, 'get_metrics_summary') as mock_summary:
+                mock_summary.return_value = {"total": 15, "success": 15}
+                with patch.object(integration, 'detect_capability_regression') as mock_detect:
+                    mock_detect.return_value = {
+                        "has_regression": False,
+                        "has_critical_regression": False
+                    }
+
+                    result = integration.generate_evaluation_report(sample_size=15)
+
+                    assert result["report_type"] == "agent_evaluation"
+                    assert result["sample_size"] == 15
+                    assert result["health_status"] == "healthy"
+                    assert "task_type_breakdown" in result
+                    assert "node_performance" in result
+
+    def test_generate_report_degraded_status(self):
+        """Test report generation with degraded health status"""
+        from agent_eval_integration import AgentEvalIntegration, EvalMetrics
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        test_metrics = [
+            EvalMetrics(
+                trace_id=f"trace-{i}",
+                goal="Test goal",
+                status="error" if i > 10 else "success",
+                pr_created=i < 10,
+                ci_passed=i < 5,
+                node_latencies={"planner": 100.0},
+                metadata={"task_type": "feature"}
+            )
+            for i in range(15)
+        ]
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = test_metrics
+            with patch.object(integration, 'get_metrics_summary') as mock_summary:
+                mock_summary.return_value = {"total": 15, "success": 10}
+                with patch.object(integration, 'detect_capability_regression') as mock_detect:
+                    mock_detect.return_value = {
+                        "has_regression": True,
+                        "has_critical_regression": False
+                    }
+
+                    result = integration.generate_evaluation_report(sample_size=15)
+
+                    assert result["health_status"] == "degraded"
+
+
+class TestEvaluationResult:
+    """Tests for EvaluationResult dataclass (Phase 2 PR-1813)"""
+
+    def test_evaluation_result_creation(self):
+        """Test creating EvaluationResult with default values"""
+        from agent_eval_integration import EvaluationResult
+
+        result = EvaluationResult(
+            has_regression=False,
+            health_status="healthy",
+            success_rate=95.0,
+            ci_pass_rate=90.0,
+            fixer_success_rate=80.0
+        )
+
+        assert result.has_regression is False
+        assert result.health_status == "healthy"
+        assert result.success_rate == 95.0
+        assert result.ci_pass_rate == 90.0
+        assert result.fixer_success_rate == 80.0
+        assert result.regressions == []
+        assert result.recommendations == []
+
+    def test_evaluation_result_to_dict(self):
+        """Test EvaluationResult.to_dict() method"""
+        from agent_eval_integration import EvaluationResult
+
+        result = EvaluationResult(
+            has_regression=True,
+            health_status="degraded",
+            success_rate=60.0,
+            ci_pass_rate=70.0,
+            fixer_success_rate=40.0,
+            regressions=[{"type": "success_rate", "severity": "warning"}],
+            recommendations=["Review recent failures"]
+        )
+
+        result_dict = result.to_dict()
+
+        assert isinstance(result_dict, dict)
+        assert result_dict["has_regression"] is True
+        assert result_dict["health_status"] == "degraded"
+        assert result_dict["success_rate"] == 60.0
+        assert len(result_dict["regressions"]) == 1
+        assert len(result_dict["recommendations"]) == 1
