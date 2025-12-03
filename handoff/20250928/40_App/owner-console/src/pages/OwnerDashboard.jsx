@@ -47,26 +47,10 @@ const OwnerDashboard = () => {
   }, [])
 
   const progressItems = [
-    { 
-      label: t('dashboard.projectProgress.agentDeployment'), 
-      value: 85, 
-      hint: t('dashboard.projectProgress.hints.agentDeployment')
-    },
-    { 
-      label: t('dashboard.projectProgress.dataIntegration'), 
-      value: 60, 
-      hint: t('dashboard.projectProgress.hints.dataIntegration')
-    },
-    { 
-      label: t('dashboard.projectProgress.securityAudit'), 
-      value: 45, 
-      hint: t('dashboard.projectProgress.hints.securityAudit')
-    },
-    { 
-      label: t('dashboard.projectProgress.performanceOptimization'), 
-      value: 30, 
-      hint: t('dashboard.projectProgress.hints.performanceOptimization')
-    },
+    { label: t('dashboard.projectProgress.agentDeployment'), value: 85 },
+    { label: t('dashboard.projectProgress.dataIntegration'), value: 60 },
+    { label: t('dashboard.projectProgress.securityAudit'), value: 45 },
+    { label: t('dashboard.projectProgress.performanceOptimization'), value: 30 },
   ]
 
   const activityItems = [
@@ -100,8 +84,8 @@ const OwnerDashboard = () => {
   return (
     <div className="space-y-8">
       <div className="flex flex-col">
-        <h1 className="text-xl font-semibold text-neutral-800 dark:text-neutral-100">{t('dashboard.title')}</h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('dashboard.subtitle')}</p>
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">{t('dashboard.title')}</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
       {!checking2FA && show2FAPrompt && (

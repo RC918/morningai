@@ -20,7 +20,7 @@ function SectionCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-card)]",
+        "rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card",
         className
       )}
     >
