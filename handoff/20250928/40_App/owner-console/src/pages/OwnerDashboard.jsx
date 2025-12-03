@@ -173,6 +173,11 @@ const OwnerDashboard = () => {
           <SectionCard
             title={t('dashboard.recentActivity.title')}
             subtitle={t('dashboard.recentActivity.subtitle')}
+            action={
+              <Link to="/governance" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                {t('dashboard.seeAll', 'See all')} &rarr;
+              </Link>
+            }
           >
             <TimelineList items={activityItems} />
           </SectionCard>
