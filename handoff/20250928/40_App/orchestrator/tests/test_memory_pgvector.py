@@ -10,7 +10,12 @@ from orchestrator.memory.pgvector_store import (
     get_client,
     embed,
     save_text,
-    recall_top
+    recall_top,
+    recall_recent,
+    search_similar,
+    search_by_key_prefix,
+    delete_by_key,
+    get_memory_stats,
 )
 
 
@@ -280,6 +285,153 @@ class TestRecallTop:
 
         table_mock = mock_supabase_client.table.return_value
         table_mock.limit.assert_called_once_with(10)
+
+
+class TestSearchSimilar:
+    """Test search_similar function (Phase 2 vector search)"""
+
+    @patch('orchestrator.memory.pgvector_store.embed')
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_search_similar_success(self, mock_get_client, mock_embed, mock_supabase_client):
+        """Test search_similar uses vector similarity search"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+
+        rpc_mock = Mock()
+        rpc_mock.execute = Mock(return_value=Mock(data=[
+            {"id": 1, "key": "test1", "text": "Similar memory", "similarity": 0.95}
+        ]))
+        mock_supabase_client.rpc = Mock(return_value=rpc_mock)
+
+        memories = search_similar("test query", limit=5, threshold=0.7)
+
+        assert len(memories) == 1
+        assert memories[0]["similarity"] == 0.95
+        mock_supabase_client.rpc.assert_called_once()
+
+    @patch('orchestrator.memory.pgvector_store.embed')
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_search_similar_fallback_on_no_embedding(self, mock_get_client, mock_embed, mock_supabase_client):
+        """Test search_similar falls back to recent when embedding fails"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_embed.return_value = None
+
+        memories = search_similar("test query")
+
+        assert len(memories) == 2
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_search_similar_no_client(self, mock_get_client):
+        """Test search_similar handles missing client"""
+        mock_get_client.return_value = None
+
+        memories = search_similar("test query")
+
+        assert memories == []
+
+
+class TestRecallRecent:
+    """Test recall_recent function"""
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_recall_recent_success(self, mock_get_client, mock_supabase_client):
+        """Test recall_recent retrieves recent memories"""
+        mock_get_client.return_value = mock_supabase_client
+
+        memories = recall_recent(limit=5)
+
+        assert len(memories) == 2
+        mock_supabase_client.table.assert_called_once()
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_recall_recent_no_client(self, mock_get_client):
+        """Test recall_recent handles missing client"""
+        mock_get_client.return_value = None
+
+        memories = recall_recent()
+
+        assert memories == []
+
+
+class TestSearchByKeyPrefix:
+    """Test search_by_key_prefix function"""
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_search_by_key_prefix_success(self, mock_get_client, mock_supabase_client):
+        """Test search_by_key_prefix filters by prefix"""
+        mock_get_client.return_value = mock_supabase_client
+
+        table_mock = mock_supabase_client.table.return_value
+        table_mock.like = Mock(return_value=table_mock)
+
+        memories = search_by_key_prefix("test", limit=10)
+
+        assert len(memories) == 2
+        table_mock.like.assert_called_once_with("key", "test%")
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_search_by_key_prefix_no_client(self, mock_get_client):
+        """Test search_by_key_prefix handles missing client"""
+        mock_get_client.return_value = None
+
+        memories = search_by_key_prefix("test")
+
+        assert memories == []
+
+
+class TestDeleteByKey:
+    """Test delete_by_key function"""
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_delete_by_key_success(self, mock_get_client, mock_supabase_client):
+        """Test delete_by_key deletes memory entry"""
+        mock_get_client.return_value = mock_supabase_client
+
+        table_mock = mock_supabase_client.table.return_value
+        table_mock.delete = Mock(return_value=table_mock)
+        table_mock.eq = Mock(return_value=table_mock)
+
+        result = delete_by_key("test-key")
+
+        assert result is True
+        table_mock.delete.assert_called_once()
+        table_mock.eq.assert_called_once_with("key", "test-key")
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_delete_by_key_no_client(self, mock_get_client):
+        """Test delete_by_key handles missing client"""
+        mock_get_client.return_value = None
+
+        result = delete_by_key("test-key")
+
+        assert result is False
+
+
+class TestGetMemoryStats:
+    """Test get_memory_stats function"""
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_get_memory_stats_success(self, mock_get_client, mock_supabase_client):
+        """Test get_memory_stats returns statistics"""
+        mock_get_client.return_value = mock_supabase_client
+
+        table_mock = mock_supabase_client.table.return_value
+        table_mock.not_ = Mock(return_value=table_mock)
+        table_mock.is_ = Mock(return_value=table_mock)
+
+        stats = get_memory_stats()
+
+        assert stats["enabled"] is True
+        assert "total_records" in stats
+
+    @patch('orchestrator.memory.pgvector_store.get_client')
+    def test_get_memory_stats_no_client(self, mock_get_client):
+        """Test get_memory_stats handles missing client"""
+        mock_get_client.return_value = None
+
+        stats = get_memory_stats()
+
+        assert stats["enabled"] is False
 
 
 if __name__ == "__main__":
