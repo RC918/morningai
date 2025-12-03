@@ -144,11 +144,15 @@ Keep it professional, technically accurate, and well-formatted in Markdown.
         return faq_content
 
     except Exception as e:
-        logger.error(f"Failed to generate FAQ: {e}", extra={
-            "operation": "generate_faq",
-            "trace_id": trace_id,
-            "error": str(e)
-        })
+        logger.error(
+            "Failed to generate FAQ: %s",
+            e,
+            extra={
+                "operation": "generate_faq",
+                "trace_id": trace_id,
+                "error": str(e)
+            }
+        )
 
         logger.warning("Falling back to template-based FAQ generation", extra={
             "operation": "generate_faq",
