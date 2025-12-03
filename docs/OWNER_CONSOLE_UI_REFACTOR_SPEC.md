@@ -209,12 +209,16 @@ export function AdminTopbar({ user }) {
           placeholder="Search tenants, events, agents..."
           className="h-9 w-64 px-3 rounded-full border border-[var(--border)] bg-[var(--surface-muted)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--brand-100)]"
         />
-        <div className="h-8 w-8 rounded-full bg-slate-200"></div>
+        <div className="h-8 w-8 rounded-full bg-[var(--surface-muted)]"></div>
       </div>
     </header>
   );
 }
 ```
+
+> **Note**: Use `bg-[var(--surface-muted)]` instead of `bg-slate-200` to maintain token consistency.
+
+> **Note**: AdminSidebar uses `next/link` - for Owner Console (which uses react-router-dom), replace with `import { Link } from 'react-router-dom'`.
 
 ### Definition of Done
 
@@ -258,7 +262,7 @@ export function StatCard({ label, value, trend, badge }: StatCardProps) {
       <div className="flex items-center justify-between">
         <span className="text-xs text-[var(--text-secondary)] font-medium">{label}</span>
         {badge && (
-          <span className="px-2 py-0.5 text-[10px] rounded-full bg-[var(--brand-50)] text-[var(--brand-700)]">
+          <span className="px-2 py-0.5 text-[11px] rounded-full bg-[var(--brand-50)] text-[var(--brand-700)]">
             {badge}
           </span>
         )}
@@ -302,6 +306,7 @@ export function SectionCard({ title, subtitle, action, children }: SectionCardPr
 #### TimelineList.tsx
 ```tsx
 type TimelineItem = {
+  id: string;  // Add unique id for proper React key
   title: string;
   desc: string;
   time: string;
@@ -310,8 +315,8 @@ type TimelineItem = {
 export function TimelineList({ items }: { items: TimelineItem[] }) {
   return (
     <ul className="space-y-4 text-sm">
-      {items.map((item, i) => (
-        <li key={i} className="flex justify-between">
+      {items.map((item) => (
+        <li key={item.id} className="flex justify-between">
           <div>
             <div className="font-medium">{item.title}</div>
             <div className="text-xs text-[var(--text-secondary)]">{item.desc}</div>
@@ -327,7 +332,7 @@ export function TimelineList({ items }: { items: TimelineItem[] }) {
 #### SystemStatusList.tsx
 ```tsx
 type StatusItem = {
-  service: string;
+  service: string;  // Used as unique key (assuming service names are unique)
   status: string;
   latency: string;
 };
@@ -335,16 +340,16 @@ type StatusItem = {
 export function SystemStatusList({ items }: { items: StatusItem[] }) {
   return (
     <div className="space-y-3">
-      {items.map((item, i) => (
+      {items.map((item) => (
         <div
-          key={i}
+          key={item.service}
           className="flex items-center justify-between px-3 py-2 rounded-lg bg-[var(--surface-muted)]"
         >
           <div>
             <div className="text-xs font-medium">{item.service}</div>
-            <div className="text-[10px] text-[var(--text-secondary)]">{item.latency}</div>
+            <div className="text-[11px] text-[var(--text-secondary)]">{item.latency}</div>
           </div>
-          <span className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-[var(--success-50)] text-[var(--success-600)]">
+          <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-[var(--success-50)] text-[var(--success-600)]">
             {item.status}
           </span>
         </div>
@@ -354,10 +359,12 @@ export function SystemStatusList({ items }: { items: StatusItem[] }) {
 }
 ```
 
+> **Note**: Use `item.service` as key (assuming unique). Use `text-[11px]` (Caption) instead of `text-[10px]`.
+
 #### ProgressTrack.tsx
 ```tsx
 type ProgressItem = {
-  label: string;
+  label: string;  // Used as unique key (assuming labels are unique)
   value: number; // 0-100
   hint?: string;
 };
@@ -365,8 +372,8 @@ type ProgressItem = {
 export function ProgressTrack({ items }: { items: ProgressItem[] }) {
   return (
     <div className="space-y-4">
-      {items.map((item, idx) => (
-        <div key={idx} className="space-y-1">
+      {items.map((item) => (
+        <div key={item.label} className="space-y-1">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-xs font-medium text-[var(--text-primary)]">
