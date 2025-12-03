@@ -1,0 +1,402 @@
+"""
+Tests for Error-Fix Pairs Store
+
+Phase 2: Brain Layer - pgvector similarity search for error-fix pairs
+"""
+import pytest
+from unittest.mock import Mock, patch
+
+from orchestrator.memory.error_fix_pairs import (
+    ErrorFixPair,
+    save_error_fix_pair,
+    find_similar_errors,
+    get_fix_for_error,
+    update_pair_feedback,
+    get_error_fix_pairs_by_type,
+    get_recent_error_fix_pairs,
+    get_error_fix_pairs_stats,
+    _embed,
+)
+
+
+@pytest.fixture
+def mock_supabase_client():
+    """Mock Supabase client"""
+    client = Mock()
+
+    table_mock = Mock()
+    table_mock.insert = Mock(return_value=Mock(execute=Mock(return_value=Mock(data=[{"id": 1}]))))
+    table_mock.select = Mock(return_value=table_mock)
+    table_mock.eq = Mock(return_value=table_mock)
+    table_mock.order = Mock(return_value=table_mock)
+    table_mock.limit = Mock(return_value=table_mock)
+    table_mock.not_ = Mock(return_value=table_mock)
+    table_mock.is_ = Mock(return_value=table_mock)
+    table_mock.execute = Mock(return_value=Mock(data=[
+        {
+            "id": 1,
+            "error_text": "TypeError: cannot read property",
+            "fix_text": "Add null check before accessing property",
+            "error_type": "type_error",
+            "fix_type": "code_change",
+            "confidence_score": 0.8,
+            "success_count": 4,
+            "failure_count": 1,
+            "similarity": 0.92
+        }
+    ], count=1))
+
+    client.table = Mock(return_value=table_mock)
+
+    rpc_mock = Mock()
+    rpc_mock.execute = Mock(return_value=Mock(data=[
+        {
+            "id": 1,
+            "error_text": "TypeError: cannot read property",
+            "fix_text": "Add null check before accessing property",
+            "error_type": "type_error",
+            "fix_type": "code_change",
+            "confidence_score": 0.8,
+            "success_count": 4,
+            "failure_count": 1,
+            "similarity": 0.92
+        }
+    ]))
+    client.rpc = Mock(return_value=rpc_mock)
+
+    return client
+
+
+@pytest.fixture
+def mock_openai_client():
+    """Mock OpenAI client"""
+    client = Mock()
+
+    mock_embedding = Mock()
+    mock_embedding.embedding = [0.1, 0.2, 0.3] * 512
+
+    mock_response = Mock()
+    mock_response.data = [mock_embedding]
+
+    client.embeddings.create = Mock(return_value=mock_response)
+
+    return client
+
+
+class TestErrorFixPairDataclass:
+    """Test ErrorFixPair dataclass"""
+
+    def test_create_error_fix_pair(self):
+        """Test creating an ErrorFixPair"""
+        pair = ErrorFixPair(
+            error_text="Test error",
+            fix_text="Test fix",
+            error_type="test_error",
+            fix_type="code_change"
+        )
+
+        assert pair.error_text == "Test error"
+        assert pair.fix_text == "Test fix"
+        assert pair.error_type == "test_error"
+        assert pair.fix_type == "code_change"
+        assert pair.confidence_score == 0.5
+        assert pair.success_count == 0
+        assert pair.failure_count == 0
+
+    def test_to_dict(self):
+        """Test converting ErrorFixPair to dictionary"""
+        pair = ErrorFixPair(
+            error_text="Test error",
+            fix_text="Test fix",
+            error_type="test_error"
+        )
+
+        data = pair.to_dict()
+
+        assert data["error_text"] == "Test error"
+        assert data["fix_text"] == "Test fix"
+        assert data["error_type"] == "test_error"
+        assert "id" not in data
+
+    def test_from_dict(self):
+        """Test creating ErrorFixPair from dictionary"""
+        data = {
+            "id": 1,
+            "error_text": "Test error",
+            "fix_text": "Test fix",
+            "error_type": "test_error",
+            "confidence_score": 0.9,
+            "similarity": 0.85
+        }
+
+        pair = ErrorFixPair.from_dict(data)
+
+        assert pair.id == 1
+        assert pair.error_text == "Test error"
+        assert pair.fix_text == "Test fix"
+        assert pair.confidence_score == 0.9
+        assert pair.similarity == 0.85
+
+
+class TestSaveErrorFixPair:
+    """Test save_error_fix_pair function"""
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_save_error_fix_pair_success(self, mock_get_client, mock_embed, mock_supabase_client):
+        """Test saving an error-fix pair successfully"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+
+        pair_id = save_error_fix_pair(
+            error_text="TypeError: cannot read property",
+            fix_text="Add null check",
+            error_type="type_error",
+            trace_id="trace-123"
+        )
+
+        assert pair_id == 1
+        mock_supabase_client.table.assert_called_once_with("error_fix_pairs")
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_save_error_fix_pair_no_client(self, mock_get_client):
+        """Test save_error_fix_pair handles missing client"""
+        mock_get_client.return_value = None
+
+        pair_id = save_error_fix_pair(
+            error_text="Test error",
+            fix_text="Test fix"
+        )
+
+        assert pair_id is None
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_save_error_fix_pair_handles_exception(self, mock_get_client, mock_embed, mock_supabase_client):
+        """Test save_error_fix_pair handles exceptions"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_embed.return_value = [0.1, 0.2, 0.3]
+        mock_supabase_client.table.return_value.insert.side_effect = Exception("Insert failed")
+
+        pair_id = save_error_fix_pair(
+            error_text="Test error",
+            fix_text="Test fix"
+        )
+
+        assert pair_id is None
+
+
+class TestFindSimilarErrors:
+    """Test find_similar_errors function"""
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_find_similar_errors_success(self, mock_get_client, mock_embed, mock_supabase_client):
+        """Test finding similar errors successfully"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+
+        pairs = find_similar_errors("TypeError: cannot read property")
+
+        assert len(pairs) == 1
+        assert pairs[0].error_text == "TypeError: cannot read property"
+        assert pairs[0].similarity == 0.92
+        mock_supabase_client.rpc.assert_called_once()
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_find_similar_errors_no_client(self, mock_get_client):
+        """Test find_similar_errors handles missing client"""
+        mock_get_client.return_value = None
+
+        pairs = find_similar_errors("Test error")
+
+        assert pairs == []
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_find_similar_errors_no_embedding(self, mock_get_client, mock_embed, mock_supabase_client):
+        """Test find_similar_errors handles embedding failure"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_embed.return_value = None
+
+        pairs = find_similar_errors("Test error")
+
+        assert pairs == []
+
+
+class TestGetFixForError:
+    """Test get_fix_for_error function"""
+
+    @patch('orchestrator.memory.error_fix_pairs.find_similar_errors')
+    def test_get_fix_for_error_success(self, mock_find_similar):
+        """Test getting fix for error successfully"""
+        mock_find_similar.return_value = [
+            ErrorFixPair(
+                id=1,
+                error_text="TypeError",
+                fix_text="Add null check",
+                confidence_score=0.8,
+                similarity=0.92
+            )
+        ]
+
+        fix = get_fix_for_error("TypeError: cannot read property")
+
+        assert fix is not None
+        assert fix.fix_text == "Add null check"
+        assert fix.confidence_score == 0.8
+
+    @patch('orchestrator.memory.error_fix_pairs.find_similar_errors')
+    def test_get_fix_for_error_low_confidence(self, mock_find_similar):
+        """Test get_fix_for_error filters by confidence"""
+        mock_find_similar.return_value = [
+            ErrorFixPair(
+                id=1,
+                error_text="TypeError",
+                fix_text="Add null check",
+                confidence_score=0.3,
+                similarity=0.92
+            )
+        ]
+
+        fix = get_fix_for_error("TypeError", min_confidence=0.5)
+
+        assert fix is None
+
+    @patch('orchestrator.memory.error_fix_pairs.find_similar_errors')
+    def test_get_fix_for_error_no_matches(self, mock_find_similar):
+        """Test get_fix_for_error handles no matches"""
+        mock_find_similar.return_value = []
+
+        fix = get_fix_for_error("Unknown error")
+
+        assert fix is None
+
+
+class TestUpdatePairFeedback:
+    """Test update_pair_feedback function"""
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_update_pair_feedback_success(self, mock_get_client, mock_supabase_client):
+        """Test updating pair feedback successfully"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_supabase_client.rpc.return_value.execute.return_value = Mock(data=0.85)
+
+        new_confidence = update_pair_feedback(pair_id=1, was_successful=True)
+
+        assert new_confidence == 0.85
+        mock_supabase_client.rpc.assert_called_once_with(
+            "update_error_fix_pair_stats",
+            {"pair_id": 1, "was_successful": True}
+        )
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_update_pair_feedback_no_client(self, mock_get_client):
+        """Test update_pair_feedback handles missing client"""
+        mock_get_client.return_value = None
+
+        result = update_pair_feedback(pair_id=1, was_successful=True)
+
+        assert result is None
+
+
+class TestGetErrorFixPairsByType:
+    """Test get_error_fix_pairs_by_type function"""
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pairs_by_type_success(self, mock_get_client, mock_supabase_client):
+        """Test getting pairs by type successfully"""
+        mock_get_client.return_value = mock_supabase_client
+
+        pairs = get_error_fix_pairs_by_type("type_error")
+
+        assert len(pairs) == 1
+        assert pairs[0].error_type == "type_error"
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pairs_by_type_no_client(self, mock_get_client):
+        """Test get_error_fix_pairs_by_type handles missing client"""
+        mock_get_client.return_value = None
+
+        pairs = get_error_fix_pairs_by_type("type_error")
+
+        assert pairs == []
+
+
+class TestGetRecentErrorFixPairs:
+    """Test get_recent_error_fix_pairs function"""
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_recent_pairs_success(self, mock_get_client, mock_supabase_client):
+        """Test getting recent pairs successfully"""
+        mock_get_client.return_value = mock_supabase_client
+
+        pairs = get_recent_error_fix_pairs(limit=10)
+
+        assert len(pairs) == 1
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_recent_pairs_no_client(self, mock_get_client):
+        """Test get_recent_error_fix_pairs handles missing client"""
+        mock_get_client.return_value = None
+
+        pairs = get_recent_error_fix_pairs()
+
+        assert pairs == []
+
+
+class TestGetErrorFixPairsStats:
+    """Test get_error_fix_pairs_stats function"""
+
+    @patch('orchestrator.memory.error_fix_pairs.get_recent_error_fix_pairs')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_stats_success(self, mock_get_client, mock_get_recent, mock_supabase_client):
+        """Test getting stats successfully"""
+        mock_get_client.return_value = mock_supabase_client
+        mock_get_recent.return_value = [
+            ErrorFixPair(error_text="e1", fix_text="f1", error_type="type_error"),
+            ErrorFixPair(error_text="e2", fix_text="f2", error_type="type_error"),
+        ]
+
+        stats = get_error_fix_pairs_stats()
+
+        assert stats["enabled"] is True
+        assert "total_pairs" in stats
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_stats_no_client(self, mock_get_client):
+        """Test get_error_fix_pairs_stats handles missing client"""
+        mock_get_client.return_value = None
+
+        stats = get_error_fix_pairs_stats()
+
+        assert stats["enabled"] is False
+
+
+class TestEmbed:
+    """Test _embed function"""
+
+    @patch('orchestrator.memory.error_fix_pairs.OpenAI')
+    @patch('orchestrator.memory.error_fix_pairs.settings')
+    def test_embed_success(self, mock_settings, mock_openai_class, mock_openai_client):
+        """Test embedding generation success"""
+        mock_settings.openai_api_key = "test-key"
+        mock_openai_class.return_value = mock_openai_client
+
+        embedding = _embed("Test text")
+
+        assert embedding is not None
+        assert len(embedding) == 1536
+
+    @patch('orchestrator.memory.error_fix_pairs.settings')
+    def test_embed_no_api_key(self, mock_settings):
+        """Test _embed handles missing API key"""
+        mock_settings.openai_api_key = None
+
+        embedding = _embed("Test text")
+
+        assert embedding is None
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
