@@ -165,10 +165,25 @@ const sampleStatusItems = [
   { service: "Worker Queue", status: "Healthy", latency: "12ms" },
 ];
 
+const mixedStatusItems = [
+  { service: "API Backend", status: "Healthy", latency: "220ms" },
+  { service: "Database", status: "Degraded", latency: "850ms" },
+  { service: "Redis", status: "Operational", latency: "4ms" },
+  { service: "Worker Queue", status: "Down", latency: "N/A" },
+];
+
 export const SystemStatusListDefault: StoryObj<typeof SystemStatusList> = {
   render: () => (
     <div className="w-[400px]">
       <SystemStatusList items={sampleStatusItems} />
+    </div>
+  ),
+};
+
+export const SystemStatusListMixedStatus: StoryObj<typeof SystemStatusList> = {
+  render: () => (
+    <div className="w-[400px]">
+      <SystemStatusList items={mixedStatusItems} />
     </div>
   ),
 };

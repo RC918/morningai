@@ -2,9 +2,24 @@ import * as React from "react";
 
 import { cn } from "../../utils";
 
+type StatusType = "Healthy" | "Operational" | "Degraded" | "Down" | string;
+
+const statusStyles: Record<string, string> = {
+  Healthy: "bg-success-50 text-success-600 dark:bg-success-900/30 dark:text-success-400",
+  Operational: "bg-success-50 text-success-600 dark:bg-success-900/30 dark:text-success-400",
+  Degraded: "bg-warning-50 text-warning-600 dark:bg-warning-900/30 dark:text-warning-400",
+  Down: "bg-danger-50 text-danger-600 dark:bg-danger-900/30 dark:text-danger-400",
+};
+
+const defaultStatusStyle = "bg-neutral-50 text-neutral-600 dark:bg-neutral-700/30 dark:text-neutral-400";
+
+function getStatusStyle(status: StatusType): string {
+  return statusStyles[status] || defaultStatusStyle;
+}
+
 interface StatusItem {
   service: string;
-  status: string;
+  status: StatusType;
   latency: string;
 }
 
@@ -29,7 +44,7 @@ function SystemStatusList({ items, className }: SystemStatusListProps) {
               {item.latency}
             </div>
           </div>
-          <span className="rounded-full bg-success-50 px-2 py-0.5 text-[11px] font-medium text-success-600 dark:bg-success-900/30 dark:text-success-400">
+          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", getStatusStyle(item.status))}>
             {item.status}
           </span>
         </div>

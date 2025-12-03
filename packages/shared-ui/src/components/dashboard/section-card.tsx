@@ -35,7 +35,7 @@ function SectionCard({
             </p>
           )}
         </div>
-        {action && <div className="text-xs">{action}</div>}
+        {action && <div>{action}</div>}
       </div>
       <div className="px-5 py-4">{children}</div>
     </div>
