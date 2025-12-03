@@ -20,14 +20,14 @@ function TimelineList({ items, className }: TimelineListProps) {
       {items.map((item) => (
         <li key={item.id} className="flex justify-between">
           <div>
-            <div className="font-medium text-neutral-900 dark:text-neutral-100">
+            <div className="font-medium text-[var(--text-primary)]">
               {item.title}
             </div>
-            <div className="text-xs text-neutral-500 dark:text-neutral-400">
+            <div className="text-xs text-[var(--text-secondary)]">
               {item.desc}
             </div>
           </div>
-          <span className="text-xs text-neutral-500 dark:text-neutral-400">
+          <span className="text-xs text-[var(--text-secondary)]">
             {item.time}
           </span>
         </li>

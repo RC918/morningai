@@ -40,23 +40,6 @@ def mock_supabase_client():
     return client
 
 
-@pytest.fixture
-def mock_openai_client():
-    """Mock OpenAI client"""
-    client = Mock()
-
-    # Mock embeddings response
-    mock_embedding = Mock()
-    mock_embedding.embedding = [0.1, 0.2, 0.3] * 512  # 1536 dimensions
-
-    mock_response = Mock()
-    mock_response.data = [mock_embedding]
-
-    client.embeddings.create = Mock(return_value=mock_response)
-
-    return client
-
-
 class TestGetClient:
     """Test get_client function"""
 
@@ -98,43 +81,43 @@ class TestGetClient:
 
 
 class TestEmbed:
-    """Test embed function"""
+    """Test embed function using EmbeddingClient abstraction"""
 
-    @patch('orchestrator.memory.pgvector_store.OpenAI')
-    @patch('orchestrator.memory.pgvector_store.settings')
-    def test_embed_with_api_key(self, mock_settings, mock_openai_class, mock_openai_client):
-        """Test embed generates embedding when API key available"""
-        mock_settings.openai_api_key = "test-api-key"
-        mock_openai_class.return_value = mock_openai_client
+    @patch('orchestrator.memory.pgvector_store.get_embedding_client')
+    def test_embed_with_api_key(self, mock_get_embedding_client):
+        """Test embed delegates to EmbeddingClient"""
+        mock_client = Mock()
+        mock_client.embed.return_value = [0.1, 0.2, 0.3] * 512  # 1536 dimensions
+        mock_get_embedding_client.return_value = mock_client
 
         embedding = embed("Test text for embedding")
 
         assert embedding is not None
         assert len(embedding) == 1536
-        mock_openai_client.embeddings.create.assert_called_once_with(
-            model="text-embedding-3-small",
-            input="Test text for embedding"
-        )
+        mock_client.embed.assert_called_once_with("Test text for embedding")
 
-    @patch('orchestrator.memory.pgvector_store.settings')
-    def test_embed_without_api_key(self, mock_settings):
-        """Test embed returns None when API key missing"""
-        mock_settings.openai_api_key = None
-
-        embedding = embed("Test text")
-
-        assert embedding is None
-
-    @patch('orchestrator.memory.pgvector_store.OpenAI')
-    @patch('orchestrator.memory.pgvector_store.settings')
-    def test_embed_handles_exception(self, mock_settings, mock_openai_class):
-        """Test embed handles OpenAI API failure"""
-        mock_settings.openai_api_key = "test-api-key"
-        mock_openai_class.side_effect = Exception("API Error")
+    @patch('orchestrator.memory.pgvector_store.get_embedding_client')
+    def test_embed_without_api_key(self, mock_get_embedding_client):
+        """Test embed returns None when EmbeddingClient is unavailable"""
+        mock_client = Mock()
+        mock_client.embed.return_value = None
+        mock_get_embedding_client.return_value = mock_client
 
         embedding = embed("Test text")
 
         assert embedding is None
+
+    @patch('orchestrator.memory.pgvector_store.get_embedding_client')
+    def test_embed_handles_exception(self, mock_get_embedding_client):
+        """Test embed propagates None when EmbeddingClient fails"""
+        mock_client = Mock()
+        mock_client.embed.return_value = None  # EmbeddingClient handles exceptions internally
+        mock_get_embedding_client.return_value = mock_client
+
+        embedding = embed("Test text")
+
+        assert embedding is None
+        mock_client.embed.assert_called_once_with("Test text")
 
 
 class TestSaveText:
