@@ -161,6 +161,11 @@ def display_dashboard(window_minutes=15):
     rule_repo = violations.get('repo_whitelist', 0)
     rule_directory = violations.get('directory_whitelist', 0)
     rule_task_type = violations.get('task_type_whitelist', 0)
+    # Phase 1 Security Foundation: New rule types
+    rule_action = violations.get('action', 0)
+    rule_sensitive_file = violations.get('sensitive_file', 0)
+    rule_high_risk = violations.get('high_risk', 0)
+    rule_path_traversal = violations.get('path_traversal', 0)
     total_violations = counts.get('rule_violations', 0)
 
     if total_violations == 0:
@@ -173,7 +178,37 @@ def display_dashboard(window_minutes=15):
     print("  Repo Whitelist:      %5d" % rule_repo)
     print("  Directory Whitelist: %5d" % rule_directory)
     print("  Task Type Whitelist: %5d" % rule_task_type)
+    print("  Action Whitelist:    %5d" % rule_action)
+    print("  Sensitive File:      %5d" % rule_sensitive_file)
+    print("  High Risk:           %5d" % rule_high_risk)
+    print("  Path Traversal:      %5d" % rule_path_traversal)
     print("  Total Violations:    %5d [%s]" % (total_violations, violation_status))
+    print()
+
+    # Phase 1 Security Foundation: Security Events
+    security = summary.get('security', {})
+    print("Phase 1 Security Foundation")
+    print("-" * 40)
+    security_violations = security.get('violations_total', 0)
+    high_risk_blocked = security.get('high_risk_blocked', 0)
+    sensitive_file_blocked = security.get('sensitive_file_blocked', 0)
+    hitl_required = security.get('hitl_required', 0)
+    events_blocked = security.get('events_blocked', 0)
+    events_allowed = security.get('events_allowed', 0)
+
+    if security_violations == 0 and high_risk_blocked == 0:
+        security_status = "PASS"
+    elif security_violations < 3:
+        security_status = "WARN"
+    else:
+        security_status = "FAIL"
+
+    print("  Security Violations: %5d [%s]" % (security_violations, security_status))
+    print("  High Risk Blocked:   %5d" % high_risk_blocked)
+    print("  Sensitive Files:     %5d" % sensitive_file_blocked)
+    print("  HITL Required:       %5d" % hitl_required)
+    print("  Events Blocked:      %5d" % events_blocked)
+    print("  Events Allowed:      %5d" % events_allowed)
     print()
 
     # SLO Status Summary
