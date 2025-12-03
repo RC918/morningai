@@ -1935,8 +1935,6 @@ def evaluation_node(state: AgentState) -> AgentState:
             "ci_pass_rate": regression_result.get("metrics", {}).get("ci_pass_rate")
         })
 
-        agent_eval.record_node_latency(trace_id, "evaluation", (time.time() - start_time) * 1000)
-
     except Exception as e:
         logger.error("[Evaluation] Failed to run capability regression detection: %s", e, extra={
             "operation": "evaluation",
@@ -1951,7 +1949,9 @@ def evaluation_node(state: AgentState) -> AgentState:
         AIMessage(content=f"Evaluation completed. Health status: {state['evaluation_health_status']}")
     ]
 
+    # Calculate latency once and use for both metrics systems (Gemini #13)
     latency_ms = (time.time() - start_time) * 1000
+    agent_eval.record_node_latency(trace_id, "evaluation", latency_ms)
     metrics.record_node_complete("evaluation", trace_id, success=True, latency_ms=latency_ms)
     return state
 

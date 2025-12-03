@@ -554,6 +554,8 @@ class TestCapabilityRegressionDetection:
             assert result["has_regression"] is True
             assert result["has_critical_regression"] is True
             assert any(r["severity"] == "critical" for r in result["regressions"])
+            # When no PRs created, ci_pass_rate should be 0.0 (not 100) - Gemini #11
+            assert result["metrics"]["ci_pass_rate"] == 0.0
 
 
 class TestEvaluationReport:

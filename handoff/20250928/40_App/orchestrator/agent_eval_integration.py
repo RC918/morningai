@@ -638,7 +638,8 @@ class AgentEvalIntegration:
         success_rate_threshold: float = 70.0,
         ci_pass_rate_threshold: float = 80.0,
         fixer_success_threshold: float = 50.0,
-        sample_size: int = 50
+        sample_size: int = 50,
+        metrics_list: Optional[List["EvalMetrics"]] = None
     ) -> Dict[str, Any]:
         """
         Detect capability regression by comparing recent metrics against thresholds.
@@ -651,6 +652,7 @@ class AgentEvalIntegration:
             ci_pass_rate_threshold: Minimum acceptable CI pass rate (0-100)
             fixer_success_threshold: Minimum acceptable fixer success rate (0-100)
             sample_size: Number of recent metrics to analyze
+            metrics_list: Optional pre-fetched metrics list to avoid redundant calls
 
         Returns:
             Dictionary with regression detection results:
@@ -668,7 +670,9 @@ class AgentEvalIntegration:
             }
 
         try:
-            metrics_list = self.list_metrics(limit=sample_size)
+            # Use provided metrics_list or fetch if not provided (Gemini #12)
+            if metrics_list is None:
+                metrics_list = self.list_metrics(limit=sample_size)
 
             if len(metrics_list) < 10:
                 return {
@@ -687,7 +691,9 @@ class AgentEvalIntegration:
             tasks_with_fixer = sum(1 for m in metrics_list if m.fixer_iterations > 0)
 
             success_rate = (success_count / total) * 100 if total > 0 else 0
-            ci_pass_rate = (ci_passed_count / pr_created_count) * 100 if pr_created_count > 0 else 100
+            # When no PRs created, ci_pass_rate should be 0.0 (not 100) to avoid
+            # masking regression when agent stops creating PRs (Gemini #11)
+            ci_pass_rate = (ci_passed_count / pr_created_count) * 100 if pr_created_count > 0 else 0.0
             fixer_success_rate = (fixer_success_count / tasks_with_fixer) * 100 if tasks_with_fixer > 0 else 100
 
             regressions = []
@@ -804,9 +810,16 @@ class AgentEvalIntegration:
             }
 
         try:
-            summary = self.get_metrics_summary()
-            regression = self.detect_capability_regression(sample_size=sample_size)
+            # Fetch metrics once and reuse to avoid redundant calls (Gemini #12)
             metrics_list = self.list_metrics(limit=sample_size)
+            regression = self.detect_capability_regression(
+                sample_size=sample_size,
+                metrics_list=metrics_list
+            )
+            # Note: get_metrics_summary() still calls list_metrics() internally,
+            # but it uses limit=100 which may differ from sample_size.
+            # For now, we keep it separate to maintain backward compatibility.
+            summary = self.get_metrics_summary()
 
             task_type_breakdown: Dict[str, Dict[str, int]] = {}
             for m in metrics_list:
