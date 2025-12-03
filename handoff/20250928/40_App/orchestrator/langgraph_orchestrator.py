@@ -286,9 +286,15 @@ def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None
         task_type: Optional task type for filtering
 
     Returns:
-        Formatted context string, empty if no relevant past failures
+        Formatted context string, empty if no relevant past failures or if disabled
     """
     try:
+        from common.config.settings import settings
+
+        if not settings.enable_failure_learning_context:
+            logger.debug("[Planner] Failure learning context disabled via feature flag")
+            return ""
+
         from observer_node import get_learning_context
 
         context = get_learning_context(goal, task_type=task_type, limit=3)

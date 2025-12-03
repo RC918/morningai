@@ -20,6 +20,14 @@ from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
 
+# Named constants for magic numbers (#1839)
+# Maximum number of fixer retries before triggering observer
+MAX_FIXER_RETRIES = 3
+# Default similarity threshold for querying past failures
+DEFAULT_SIMILARITY_THRESHOLD = 0.6
+# Default limit for past failure queries
+DEFAULT_QUERY_LIMIT = 3
+
 
 def _generate_failure_summary(state: Dict[str, Any]) -> str:
     """
@@ -128,7 +136,7 @@ def _categorize_error(state: Dict[str, Any]) -> str:
         return "ci_failure"
     elif merge_decision == "request_changes":
         return "review_rejection"
-    elif retry_count >= 3:
+    elif retry_count >= MAX_FIXER_RETRIES:
         return "max_retries_exceeded"
     elif "syntax" in error or "parse" in error:
         return "syntax_error"
@@ -236,8 +244,8 @@ def observe_failure(
 
 def query_past_failures(
     error_text: str,
-    limit: int = 3,
-    threshold: float = 0.7,
+    limit: int = DEFAULT_QUERY_LIMIT,
+    threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
     error_type_filter: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
@@ -292,7 +300,7 @@ def query_past_failures(
 def get_learning_context(
     goal: str,
     task_type: Optional[str] = None,
-    limit: int = 3
+    limit: int = DEFAULT_QUERY_LIMIT
 ) -> str:
     """
     Get learning context from past failures for the Planner.
@@ -312,7 +320,7 @@ def get_learning_context(
         past_failures = query_past_failures(
             error_text=goal,
             limit=limit,
-            threshold=0.6
+            threshold=DEFAULT_SIMILARITY_THRESHOLD
         )
 
         if not past_failures:
@@ -360,50 +368,45 @@ def update_fix_for_failure(
     """
     try:
         from memory.error_fix_pairs import (
-            update_pair_feedback,
-            _get_supabase_client,
-            ERROR_FIX_PAIRS_TABLE,
-            _embed
+            get_pair_by_trace_id,
+            update_error_fix_pair,
+            update_pair_feedback
         )
 
-        client = _get_supabase_client()
-        if client is None:
-            logger.debug("[Observer] Supabase client not available")
-            return False
-
-        result = client.table(ERROR_FIX_PAIRS_TABLE).select("id").eq(
-            "trace_id", trace_id
-        ).limit(1).execute()
-
-        if not result.data:
+        pair = get_pair_by_trace_id(trace_id)
+        if pair is None or pair.id is None:
             logger.warning(f"[Observer] No error-fix pair found for trace_id: {trace_id}")
             return False
 
-        pair_id = result.data[0]["id"]
-
-        fix_embedding = _embed(fix_text)
-
-        update_data = {
-            "fix_text": fix_text,
-            "fix_embedding": fix_embedding,
-            "fix_type": "resolved" if was_successful else "attempted",
-            "fix_metadata": {
-                "status": "resolved" if was_successful else "attempted",
-                "updated_at": time.time()
-            }
+        fix_type = "resolved" if was_successful else "attempted"
+        fix_metadata = {
+            "status": fix_type,
+            "updated_at": time.time()
         }
 
-        client.table(ERROR_FIX_PAIRS_TABLE).update(update_data).eq(
-            "id", pair_id
-        ).execute()
+        success = update_error_fix_pair(
+            pair_id=pair.id,
+            fix_text=fix_text,
+            fix_type=fix_type,
+            fix_metadata=fix_metadata,
+            generate_embedding=True
+        )
+
+        if not success:
+            logger.warning("[Observer] Failed to update error-fix pair", extra={
+                "operation": "update_fix_for_failure",
+                "trace_id": trace_id,
+                "pair_id": pair.id
+            })
+            return False
 
         if was_successful:
-            update_pair_feedback(pair_id, was_successful=True)
+            update_pair_feedback(pair.id, was_successful=True)
 
         logger.info("[Observer] Updated fix for failure", extra={
             "operation": "update_fix_for_failure",
             "trace_id": trace_id,
-            "pair_id": pair_id,
+            "pair_id": pair.id,
             "was_successful": was_successful
         })
 

@@ -1019,6 +1019,12 @@ class Settings(BaseSettings):
         description="Enable ProjectEngineerAgent auto-fix mode in fixer_node (Phase 2 Step C Fixer Node)"
     )
 
+    enable_failure_learning_context: bool = Field(
+        default=True,
+        alias="ENABLE_FAILURE_LEARNING_CONTEXT",
+        description="Enable querying past failures for learning context in Planner (Phase 2 Observer Node)"
+    )
+
     project_engineer_fixer_percent: int = Field(
         default=0,
         ge=0,

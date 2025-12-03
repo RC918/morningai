@@ -433,6 +433,111 @@ def get_recent_error_fix_pairs(limit: int = 20) -> List[ErrorFixPair]:
         return []
 
 
+def get_pair_by_trace_id(trace_id: str) -> Optional[ErrorFixPair]:
+    """
+    Get an error-fix pair by its trace ID.
+
+    Args:
+        trace_id: The trace ID to search for
+
+    Returns:
+        ErrorFixPair if found, None otherwise
+    """
+    try:
+        client = _get_supabase_client()
+        if client is None:
+            logger.debug("[ErrorFixPairs] Supabase client not available")
+            return None
+
+        result = client.table(ERROR_FIX_PAIRS_TABLE).select("*").eq(
+            "trace_id", trace_id
+        ).limit(1).execute()
+
+        if result.data and len(result.data) > 0:
+            row = result.data[0]
+            if row.get("error_context"):
+                try:
+                    if isinstance(row["error_context"], str):
+                        row["error_context"] = json.loads(row["error_context"])
+                except (json.JSONDecodeError, TypeError):
+                    row["error_context"] = None
+            if row.get("fix_metadata"):
+                try:
+                    if isinstance(row["fix_metadata"], str):
+                        row["fix_metadata"] = json.loads(row["fix_metadata"])
+                except (json.JSONDecodeError, TypeError):
+                    row["fix_metadata"] = None
+            return ErrorFixPair.from_dict(row)
+
+        return None
+
+    except Exception as e:
+        logger.warning(f"[ErrorFixPairs] Failed to get pair by trace_id: {e}")
+        return None
+
+
+def update_error_fix_pair(
+    pair_id: int,
+    fix_text: str,
+    fix_type: Optional[str] = None,
+    fix_metadata: Optional[Dict[str, Any]] = None,
+    generate_embedding: bool = True
+) -> bool:
+    """
+    Update an existing error-fix pair with a new fix.
+
+    This is the public API for updating error-fix pairs. Use this instead
+    of directly accessing private functions like _embed.
+
+    Args:
+        pair_id: ID of the error-fix pair to update
+        fix_text: The new fix text
+        fix_type: Optional fix type (e.g., "resolved", "attempted")
+        fix_metadata: Optional metadata about the fix
+        generate_embedding: Whether to generate embedding for fix_text
+
+    Returns:
+        True if updated successfully, False otherwise
+    """
+    try:
+        client = _get_supabase_client()
+        if client is None:
+            logger.debug("[ErrorFixPairs] Supabase client not available")
+            return False
+
+        update_data: Dict[str, Any] = {"fix_text": fix_text}
+
+        if generate_embedding:
+            fix_embedding = _embed(fix_text)
+            if fix_embedding:
+                update_data["fix_embedding"] = fix_embedding
+
+        if fix_type:
+            update_data["fix_type"] = fix_type
+
+        if fix_metadata:
+            update_data["fix_metadata"] = json.dumps(fix_metadata)
+
+        client.table(ERROR_FIX_PAIRS_TABLE).update(update_data).eq(
+            "id", pair_id
+        ).execute()
+
+        logger.info("[ErrorFixPairs] Updated error-fix pair", extra={
+            "operation": "update_error_fix_pair",
+            "pair_id": pair_id,
+            "fix_type": fix_type
+        })
+        return True
+
+    except Exception as e:
+        logger.warning(f"[ErrorFixPairs] Failed to update pair: {e}", extra={
+            "operation": "update_error_fix_pair",
+            "pair_id": pair_id,
+            "error": str(e)
+        })
+        return False
+
+
 def get_error_fix_pairs_stats() -> Dict[str, Any]:
     """
     Get statistics about error-fix pairs storage.
