@@ -135,25 +135,28 @@ function CalendarCard({
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((day, index) => (
-            <button
-              key={index}
-              type="button"
-              disabled={day === null}
-              onClick={() => day && handleDateClick(day)}
-              className={cn(
-                "h-8 w-8 rounded-full text-xs transition-colors",
-                day === null && "invisible",
-                day !== null && "hover:bg-[var(--neutral-100)]",
-                isToday(day || 0) && !isSelected(day || 0) && "bg-[var(--primary-50)] text-[var(--primary-600)]",
-                isSelected(day || 0) && "bg-[var(--primary-500)] text-white",
-                !isToday(day || 0) && !isSelected(day || 0) && "text-[var(--text-primary)]"
-              )}
-            >
-              {day}
-            </button>
-          ))}
+        <div className="grid grid-cols-7 gap-1" role="grid" aria-label="Calendar days">
+          {days.map((day, index) =>
+            day === null ? (
+              <div key={index} className="h-8 w-8" aria-hidden="true" />
+            ) : (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleDateClick(day)}
+                aria-label={`${MONTHS[currentMonth.getMonth()]} ${day}, ${currentMonth.getFullYear()}${isToday(day) ? " (today)" : ""}${isSelected(day) ? " (selected)" : ""}`}
+                aria-pressed={isSelected(day)}
+                className={cn(
+                  "h-8 w-8 rounded-full text-xs transition-colors hover:bg-[var(--neutral-100)]",
+                  isToday(day) && !isSelected(day) && "bg-[var(--primary-50)] text-[var(--primary-600)]",
+                  isSelected(day) && "bg-[var(--primary-500)] text-white",
+                  !isToday(day) && !isSelected(day) && "text-[var(--text-primary)]"
+                )}
+              >
+                {day}
+              </button>
+            )
+          )}
         </div>
 
         {events.length > 0 && (
