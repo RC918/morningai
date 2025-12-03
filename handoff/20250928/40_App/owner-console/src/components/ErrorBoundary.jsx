@@ -66,19 +66,19 @@ class ErrorBoundary extends React.Component {
               <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
-              <CardTitle className="text-2xl font-bold text-gray-900">
+              <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-white">
                 {t('errorBoundary.title')}
               </CardTitle>
-              <CardDescription className="text-lg text-gray-600 mt-2">
+              <CardDescription className="text-lg text-neutral-600 dark:text-neutral-400 mt-2">
                 {t('errorBoundary.description')}
               </CardDescription>
             </CardHeader>
             
             <CardContent className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">{t('errorBoundary.errorDetailsTitle')}</h3>
-                <p className="text-sm text-gray-600 mb-2">
-                  {t('errorBoundary.errorIdLabel')} <code className="bg-gray-200 px-2 py-1 rounded text-xs">{this.state.errorId}</code>
+              <div className="bg-neutral-50 dark:bg-neutral-800 p-4 rounded-lg">
+                <h3 className="font-semibold text-neutral-900 dark:text-white mb-2">{t('errorBoundary.errorDetailsTitle')}</h3>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                  {t('errorBoundary.errorIdLabel')} <code className="bg-neutral-200 dark:bg-neutral-700 px-2 py-1 rounded text-xs">{this.state.errorId}</code>
                 </p>
                 {this.state.error && (
                   <p className="text-sm text-red-600 font-mono bg-red-50 p-2 rounded">
@@ -107,7 +107,7 @@ class ErrorBoundary extends React.Component {
                 </Button>
               </div>
 
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-center text-sm text-neutral-600 dark:text-neutral-400">
                 {t('errorBoundary.supportMessage')}
               </div>
             </CardContent>
