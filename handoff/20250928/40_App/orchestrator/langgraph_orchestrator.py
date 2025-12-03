@@ -274,11 +274,47 @@ class AgentState(TypedDict):
     policy_block_reason: str
 
 
+def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
+    """
+    Phase 2 PR-1811: Query past failures for learning context
+
+    This function queries pgvector for similar past failures and formats
+    them as context for the Planner.
+
+    Args:
+        goal: The current task goal
+        task_type: Optional task type for filtering
+
+    Returns:
+        Formatted context string, empty if no relevant past failures
+    """
+    try:
+        from observer_node import get_learning_context
+
+        context = get_learning_context(goal, task_type=task_type, limit=3)
+
+        if context:
+            logger.debug("[Planner] Found learning context from past failures", extra={
+                "operation": "get_learning_context",
+                "context_length": len(context)
+            })
+
+        return context
+
+    except ImportError:
+        logger.debug("[Planner] observer_node module not available for learning context")
+        return ""
+    except Exception as e:
+        logger.debug(f"[Planner] Failed to get learning context: {e}")
+        return ""
+
+
 def planner_node(state: AgentState) -> AgentState:
     """
     Planning node: Analyzes the goal and creates a plan
 
     Phase 1: Integrates LLM-powered dynamic planning when USE_LLM_PLANNER=true
+    Phase 2 PR-1811: Queries past failures for learning context before planning
     """
     from common.config.settings import settings
 
@@ -291,11 +327,22 @@ def planner_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("planner", trace_id)
 
+    # Phase 2 PR-1811: Query past failures for learning context
+    learning_context = _get_learning_context_for_planner(goal)
+    if learning_context:
+        state["learning_context"] = learning_context
+        logger.info("[Planner] Using learning context from past failures", extra={
+            "operation": "planner",
+            "trace_id": trace_id,
+            "has_learning_context": True
+        })
+
     logger.info("[Planner] Analyzing goal", extra={
         "operation": "planner",
         "trace_id": trace_id,
         "goal": goal[:50],
-        "use_llm_planner": settings.use_llm_planner
+        "use_llm_planner": settings.use_llm_planner,
+        "has_learning_context": bool(learning_context)
     })
 
     if settings.use_llm_planner:
@@ -1660,12 +1707,53 @@ def should_fix_or_finalize(state: AgentState) -> str:
     return outcome
 
 
+def _observe_failure_for_learning(state: AgentState) -> None:
+    """
+    Phase 2 PR-1811: Observer Node helper function
+
+    Records workflow failures to pgvector for future learning.
+    This enables the Planner to query past failures and learn from mistakes.
+
+    Args:
+        state: AgentState dictionary from orchestrator
+    """
+    try:
+        from observer_node import observe_failure
+
+        trace_id = state.get("trace_id", "unknown")
+
+        result = observe_failure(dict(state), save_to_pgvector=True)
+
+        if result.get("saved_to_pgvector"):
+            logger.info("[Observer] Failure recorded for learning", extra={
+                "operation": "observe_failure_for_learning",
+                "trace_id": trace_id,
+                "pair_id": result.get("pair_id"),
+                "error_type": result.get("error_type")
+            })
+        else:
+            logger.debug("[Observer] Failure not saved to pgvector", extra={
+                "operation": "observe_failure_for_learning",
+                "trace_id": trace_id
+            })
+
+    except ImportError as e:
+        logger.debug(f"[Observer] observer_node module not available: {e}")
+    except Exception as e:
+        # Never break the main flow - just log the error
+        logger.warning(f"[Observer] Failed to record failure for learning: {e}", extra={
+            "operation": "observe_failure_for_learning",
+            "error": str(e)
+        })
+
+
 def finalizer_node(state: AgentState) -> AgentState:
     """
     Finalizer node: Prepares final result
 
     Phase 5 PR-1: Records failures when status=error or fixer exhausted retries
     PR-2: Handles policy-blocked tasks with status="blocked"
+    Phase 2 PR-1811: Integrates Observer Node for failure learning
     """
     start_time = time.time()
     metrics = _get_metrics()
@@ -1719,6 +1807,9 @@ def finalizer_node(state: AgentState) -> AgentState:
             error_message=policy_block_reason
         )
 
+        # Phase 2 PR-1811: Observer Node - record failure to pgvector for learning
+        _observe_failure_for_learning(state)
+
     elif final_status == "error":
         error_type = "workflow_error"
         if retry_count >= MAX_FIXER_RETRIES:
@@ -1731,6 +1822,9 @@ def finalizer_node(state: AgentState) -> AgentState:
             error_type=error_type,
             error_message=error
         )
+
+        # Phase 2 PR-1811: Observer Node - record failure to pgvector for learning
+        _observe_failure_for_learning(state)
 
     state["final_result"] = final_result
     state["messages"] = state.get("messages", []) + [
