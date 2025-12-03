@@ -15,7 +15,7 @@ interface ProgressTrackProps {
 
 function ProgressTrack({ items, className }: ProgressTrackProps) {
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-5", className)}>
       {items.map((item) => (
         <div key={item.label} className="space-y-1">
           <div className="flex items-center justify-between">
@@ -29,7 +29,7 @@ function ProgressTrack({ items, className }: ProgressTrackProps) {
                 </span>
               )}
             </div>
-            <span className="text-xs font-medium text-neutral-500 dark:text-neutral-400">
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
               {item.value}%
             </span>
           </div>

@@ -98,10 +98,10 @@ const OwnerDashboard = () => {
   ]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-neutral-800">{t('dashboard.title')}</h1>
-        <p className="text-sm text-neutral-500 mt-1">{t('dashboard.subtitle')}</p>
+    <div className="space-y-8">
+      <div className="flex flex-col">
+        <h1 className="text-xl font-semibold text-neutral-800 dark:text-neutral-100">{t('dashboard.title')}</h1>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
       {!checking2FA && show2FAPrompt && (
@@ -134,7 +134,7 @@ const OwnerDashboard = () => {
       )}
 
       {/* KPI Row - Using StatCard components */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard 
           label={t('dashboard.stats.totalTenants')} 
           value={String(stats.totalTenants)} 
@@ -156,7 +156,7 @@ const OwnerDashboard = () => {
       </div>
 
       {/* Main Content - Using SectionCard with nested components */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <SectionCard
           title={t('dashboard.projectProgress.title')}
           subtitle={t('dashboard.projectProgress.subtitle')}
