@@ -6,7 +6,7 @@ Provides vector similarity search for agent memory storage.
 Features:
 - True vector similarity search using cosine distance
 - HNSW index support for fast queries
-- Embedding generation using OpenAI text-embedding-3-small
+- Embedding generation using EmbeddingClient abstraction (#1812)
 - Fallback to recent items when embeddings unavailable
 
 Dependencies:
@@ -18,8 +18,8 @@ import logging
 from typing import List, Dict, Any, Optional
 
 from supabase import create_client
-from openai import OpenAI
 from common.config.settings import settings
+from llm.embedding_client import get_embedding_client
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,10 @@ def get_client():
 
 def embed(text: str) -> Optional[List[float]]:
     """
-    Generate embedding vector for text using OpenAI.
+    Generate embedding vector for text using EmbeddingClient.
+
+    Uses the EmbeddingClient abstraction layer (#1812) for
+    provider-agnostic embedding generation.
 
     Args:
         text: Text to embed
@@ -53,20 +56,8 @@ def embed(text: str) -> Optional[List[float]]:
     Returns:
         List of floats (1536 dimensions) or None if failed
     """
-    try:
-        api_key = settings.openai_api_key
-        if not api_key:
-            logger.debug("[Memory] OpenAI API key not available")
-            return None
-        cl = OpenAI(api_key=api_key)
-        emb = cl.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
-        ).data[0].embedding
-        return emb
-    except Exception as e:
-        logger.warning(f"[Memory] Failed to get embedding: {e}")
-        return None
+    embedding_client = get_embedding_client()
+    return embedding_client.embed(text)
 
 
 def save_text(key: str, text: str) -> bool:
