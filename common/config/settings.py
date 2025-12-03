@@ -943,6 +943,19 @@ class Settings(BaseSettings):
         description="Percentage of tasks to use LangGraph mode (0-100)"
     )
 
+    @field_validator('use_langgraph_percent', mode='before')
+    @classmethod
+    def normalize_langgraph_percent(cls, v):
+        if v is None:
+            return 0
+        if isinstance(v, str):
+            v = v.strip().rstrip('%')
+            try:
+                v = int(float(v))
+            except ValueError:
+                return 0
+        return max(0, min(100, int(v)))
+
     use_langgraph_for_faq: bool = Field(
         default=False,
         alias="USE_LANGGRAPH_FOR_FAQ",

@@ -70,22 +70,23 @@ def display_dashboard(window_minutes=15):
     print(f"  LangGraph Mode: {decisions_langgraph:>5}")
     if total_decisions > 0:
         langgraph_pct = (decisions_langgraph / total_decisions) * 100
-        # Dynamic target based on ADR-005 rollout phases
-        if langgraph_pct < 10:
-            target_str = "~5%"
-            status = "✅" if 4 <= langgraph_pct <= 6 else "⚠️"
-        elif langgraph_pct < 20:
-            target_str = "~15%"
-            status = "✅" if 13 <= langgraph_pct <= 17 else "⚠️"
-        elif langgraph_pct < 40:
-            target_str = "~25%"
-            status = "✅" if 23 <= langgraph_pct <= 27 else "⚠️"
-        elif langgraph_pct < 75:
-            target_str = "~50%"
-            status = "✅" if 48 <= langgraph_pct <= 52 else "⚠️"
-        else:
-            target_str = "100%"
-            status = "✅" if langgraph_pct >= 98 else "⚠️"
+
+        phases = [
+            (10, '~5%', (4, 6)),
+            (20, '~15%', (13, 17)),
+            (40, '~25%', (23, 27)),
+            (75, '~50%', (48, 52)),
+        ]
+
+        target_str = "100%"
+        status = "✅" if langgraph_pct >= 98 else "⚠️"
+
+        for limit, target, (min_ok, max_ok) in phases:
+            if langgraph_pct < limit:
+                target_str = target
+                status = "✅" if min_ok <= langgraph_pct <= max_ok else "⚠️"
+                break
+
         print(f"  LangGraph %:    {langgraph_pct:>5.1f}% (target: {target_str}) {status}")
     else:
         print(f"  LangGraph %:    N/A (no decisions yet)")
