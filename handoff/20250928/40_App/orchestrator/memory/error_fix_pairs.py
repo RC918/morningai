@@ -457,20 +457,8 @@ def get_pair_by_trace_id(trace_id: str) -> Optional[ErrorFixPair]:
         ).limit(1).execute()
 
         if result.data and len(result.data) > 0:
-            row = result.data[0]
-            if row.get("error_context"):
-                try:
-                    if isinstance(row["error_context"], str):
-                        row["error_context"] = json.loads(row["error_context"])
-                except (json.JSONDecodeError, TypeError):
-                    row["error_context"] = None
-            if row.get("fix_metadata"):
-                try:
-                    if isinstance(row["fix_metadata"], str):
-                        row["fix_metadata"] = json.loads(row["fix_metadata"])
-                except (json.JSONDecodeError, TypeError):
-                    row["fix_metadata"] = None
-            return ErrorFixPair.from_dict(row)
+            rows = _parse_json_fields(result.data[:1])
+            return ErrorFixPair.from_dict(rows[0])
 
         return None
 

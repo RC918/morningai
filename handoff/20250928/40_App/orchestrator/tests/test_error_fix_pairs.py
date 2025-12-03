@@ -14,6 +14,7 @@ from orchestrator.memory.error_fix_pairs import (
     update_pair_feedback,
     get_error_fix_pairs_by_type,
     get_recent_error_fix_pairs,
+    get_pair_by_trace_id,
     get_error_fix_pairs_stats,
     _embed,
 )
@@ -343,6 +344,138 @@ class TestGetRecentErrorFixPairs:
         pairs = get_recent_error_fix_pairs()
 
         assert pairs == []
+
+
+class TestGetPairByTraceId:
+    """Test get_pair_by_trace_id function"""
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pair_by_trace_id_success(self, mock_get_client):
+        """Test getting pair by trace_id successfully"""
+        mock_client = Mock()
+        mock_table = Mock()
+        mock_table.select.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.limit.return_value = mock_table
+        mock_table.execute.return_value = Mock(data=[{
+            "id": 1,
+            "trace_id": "trace-123",
+            "error_text": "TypeError: cannot read property",
+            "fix_text": "Add null check",
+            "error_type": "type_error",
+            "fix_type": "code_change",
+            "confidence_score": 0.8,
+            "success_count": 4,
+            "failure_count": 1,
+            "error_context": None,
+            "fix_metadata": None
+        }])
+        mock_client.table.return_value = mock_table
+        mock_get_client.return_value = mock_client
+
+        pair = get_pair_by_trace_id("trace-123")
+
+        assert pair is not None
+        assert pair.id == 1
+        assert pair.error_text == "TypeError: cannot read property"
+        assert pair.fix_text == "Add null check"
+        mock_table.eq.assert_called_once_with("trace_id", "trace-123")
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pair_by_trace_id_with_json_string_fields(self, mock_get_client):
+        """Test get_pair_by_trace_id parses JSON string fields correctly"""
+        mock_client = Mock()
+        mock_table = Mock()
+        mock_table.select.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.limit.return_value = mock_table
+        mock_table.execute.return_value = Mock(data=[{
+            "id": 2,
+            "trace_id": "trace-456",
+            "error_text": "ImportError",
+            "fix_text": "Install package",
+            "error_type": "import_error",
+            "fix_type": "dependency",
+            "confidence_score": 0.9,
+            "success_count": 10,
+            "failure_count": 0,
+            "error_context": '{"file": "main.py", "line": 42}',
+            "fix_metadata": '{"package": "requests", "version": "2.28.0"}'
+        }])
+        mock_client.table.return_value = mock_table
+        mock_get_client.return_value = mock_client
+
+        pair = get_pair_by_trace_id("trace-456")
+
+        assert pair is not None
+        assert pair.error_context == {"file": "main.py", "line": 42}
+        assert pair.fix_metadata == {"package": "requests", "version": "2.28.0"}
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pair_by_trace_id_not_found(self, mock_get_client):
+        """Test get_pair_by_trace_id returns None when not found"""
+        mock_client = Mock()
+        mock_table = Mock()
+        mock_table.select.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.limit.return_value = mock_table
+        mock_table.execute.return_value = Mock(data=[])
+        mock_client.table.return_value = mock_table
+        mock_get_client.return_value = mock_client
+
+        pair = get_pair_by_trace_id("nonexistent-trace")
+
+        assert pair is None
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pair_by_trace_id_no_client(self, mock_get_client):
+        """Test get_pair_by_trace_id handles missing client"""
+        mock_get_client.return_value = None
+
+        pair = get_pair_by_trace_id("trace-123")
+
+        assert pair is None
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pair_by_trace_id_handles_exception(self, mock_get_client):
+        """Test get_pair_by_trace_id handles exceptions gracefully"""
+        mock_client = Mock()
+        mock_client.table.side_effect = Exception("Database error")
+        mock_get_client.return_value = mock_client
+
+        pair = get_pair_by_trace_id("trace-123")
+
+        assert pair is None
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_get_pair_by_trace_id_invalid_json_fields(self, mock_get_client):
+        """Test get_pair_by_trace_id handles invalid JSON in fields"""
+        mock_client = Mock()
+        mock_table = Mock()
+        mock_table.select.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.limit.return_value = mock_table
+        mock_table.execute.return_value = Mock(data=[{
+            "id": 3,
+            "trace_id": "trace-789",
+            "error_text": "SyntaxError",
+            "fix_text": "Fix syntax",
+            "error_type": "syntax_error",
+            "fix_type": "code_change",
+            "confidence_score": 0.7,
+            "success_count": 2,
+            "failure_count": 1,
+            "error_context": "invalid json {",
+            "fix_metadata": "also invalid {"
+        }])
+        mock_client.table.return_value = mock_table
+        mock_get_client.return_value = mock_client
+
+        pair = get_pair_by_trace_id("trace-789")
+
+        assert pair is not None
+        assert pair.error_context is None
+        assert pair.fix_metadata is None
 
 
 class TestGetErrorFixPairsStats:
