@@ -131,11 +131,18 @@ Before re-enabling canary:
 3. ✅ Monitoring dashboard shows healthy metrics
 4. ✅ Team consensus to proceed
 
-**Re-enable gradually:**
-1. Start with `USE_LANGGRAPH_PERCENT=1` (1%)
-2. Monitor for 24 hours
-3. If stable, increase to 5%
-4. Continue gradual rollout
+**Re-enable gradually (see ADR-005 for full rollout plan):**
+1. Start with `USE_LANGGRAPH_PERCENT=5` (5%) - baseline metrics
+2. Monitor for 1 week, verify success rate > 95%, p95 < 30s
+3. Increase to `USE_LANGGRAPH_PERCENT=15` (15%) - staging validation
+4. Monitor for 1 week, verify no SLO breaches
+5. Increase to `USE_LANGGRAPH_PERCENT=25` (25%) - expanded canary
+6. Monitor for 1 week, verify stable performance
+7. Increase to `USE_LANGGRAPH_PERCENT=50` (50%) - majority traffic
+8. Monitor for 1 week, verify stable performance
+9. Full rollout: `USE_LANGGRAPH_PERCENT=100` (100%)
+
+**Note:** FAQ tasks bypass LangGraph by default (USE_LANGGRAPH_FOR_FAQ=false) to preserve low latency.
 
 ## Monitoring and Alerts
 

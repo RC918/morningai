@@ -943,6 +943,12 @@ class Settings(BaseSettings):
         description="Percentage of tasks to use LangGraph mode (0-100)"
     )
 
+    use_langgraph_for_faq: bool = Field(
+        default=False,
+        alias="USE_LANGGRAPH_FOR_FAQ",
+        description="Enable LangGraph mode for FAQ tasks (default false to preserve low latency)"
+    )
+
     use_llm_planner: bool = Field(
         default=False,
         alias="USE_LLM_PLANNER",

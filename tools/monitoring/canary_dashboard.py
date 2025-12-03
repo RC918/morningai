@@ -63,13 +63,30 @@ def display_dashboard(window_minutes=15):
     
     # Routing Decisions
     print("📊 Routing Decisions")
-    print(f"  Simple Mode:    {counts.get('decisions_simple', 0):>5}")
-    print(f"  LangGraph Mode: {counts.get('decisions_langgraph', 0):>5}")
+    decisions_simple = counts.get('decisions_simple', 0)
+    decisions_langgraph = counts.get('decisions_langgraph', 0)
     total_decisions = counts.get('total_decisions', 0)
+    print(f"  Simple Mode:    {decisions_simple:>5}")
+    print(f"  LangGraph Mode: {decisions_langgraph:>5}")
     if total_decisions > 0:
-        langgraph_pct = (counts.get('decisions_langgraph', 0) / total_decisions) * 100
-        status = "✅" if 4 <= langgraph_pct <= 6 else "⚠️"
-        print(f"  LangGraph %:    {langgraph_pct:>5.1f}% (target: ~5%) {status}")
+        langgraph_pct = (decisions_langgraph / total_decisions) * 100
+        # Dynamic target based on ADR-005 rollout phases
+        if langgraph_pct < 10:
+            target_str = "~5%"
+            status = "✅" if 4 <= langgraph_pct <= 6 else "⚠️"
+        elif langgraph_pct < 20:
+            target_str = "~15%"
+            status = "✅" if 13 <= langgraph_pct <= 17 else "⚠️"
+        elif langgraph_pct < 40:
+            target_str = "~25%"
+            status = "✅" if 23 <= langgraph_pct <= 27 else "⚠️"
+        elif langgraph_pct < 75:
+            target_str = "~50%"
+            status = "✅" if 48 <= langgraph_pct <= 52 else "⚠️"
+        else:
+            target_str = "100%"
+            status = "✅" if langgraph_pct >= 98 else "⚠️"
+        print(f"  LangGraph %:    {langgraph_pct:>5.1f}% (target: {target_str}) {status}")
     else:
         print(f"  LangGraph %:    N/A (no decisions yet)")
     print()
