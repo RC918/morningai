@@ -161,8 +161,10 @@ class OpsAgentWorker:
                     continue
                 
                 if task.assigned_to != "ops":
-                    logger.warning(f"Task {task.task_id} not assigned to ops (assigned to {task.assigned_to})")
-                    await self.queue.enqueue_task(task)
+                    logger.warning(
+                        f"Task {task.task_id} not assigned to ops (assigned to {task.assigned_to}), "
+                        "skipping to avoid infinite loop"
+                    )
                     continue
                 
                 logger.info(f"📥 Processing task {task.task_id} (type: {task.type.value}, priority: {task.priority.value})")
