@@ -133,7 +133,22 @@ class RedisQueue:
         
         Returns:
             bool: True if successful
+        
+        Note:
+            Issue #1910: Tasks without assigned_to will be logged as warnings.
+            The actual validation and failure handling happens at the agent worker level
+            (see ops_agent/worker.py) to prevent infinite loops while maintaining
+            backward compatibility with existing queue consumers.
         """
+        # Issue #1910: Log warning for tasks without assigned_to
+        # The strict validation happens at the agent worker level to prevent infinite loops
+        # while maintaining backward compatibility with existing queue consumers (e.g., tests)
+        if not task.assigned_to:
+            logger.warning(
+                f"Task {task.task_id} enqueued without assigned_to. "
+                "This may cause routing issues. Consider setting assigned_to before enqueueing."
+            )
+        
         try:
             task_data = json.dumps(task.to_dict())
             priority_score = self._get_priority_score(task.priority.value if isinstance(task.priority, TaskPriority) else task.priority)

@@ -161,9 +161,28 @@ class OpsAgentWorker:
                     continue
                 
                 if task.assigned_to != "ops":
+                    # Issue #1909: Update task status to avoid silent loss
+                    # Instead of just skipping, mark the task as failed with a clear error
+                    error_msg = (
+                        f"Task routing error: assigned_to='{task.assigned_to}', expected 'ops'. "
+                        "Task may have been misrouted or created without proper assignment."
+                    )
                     logger.warning(
                         f"Task {task.task_id} not assigned to ops (assigned to {task.assigned_to}), "
-                        "skipping to avoid infinite loop"
+                        "marking as failed to avoid silent loss"
+                    )
+                    task.mark_failed(error_msg)
+                    await self.queue.update_task(task)
+                    await self.queue.publish_event(
+                        event_type="task.failed",
+                        source_agent="ops",
+                        task_id=task.task_id,
+                        payload={
+                            "task_type": task.type.value if hasattr(task.type, 'value') else str(task.type),
+                            "error": error_msg,
+                            "reason": "misrouted_task"
+                        },
+                        trace_id=task.trace_id
                     )
                     continue
                 
