@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger, StatCard, SectionCard } from '@morningai/shared-ui'
 import { 
   Shield, 
   TrendingUp,
@@ -143,14 +143,11 @@ const AgentGovernance = () => {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
-            <Shield className="w-8 h-8 text-primary-600" />
-            {t('governance.title')}
-          </h1>
-          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('governance.subtitle')}</p>
+        <div className="flex flex-col">
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">{t('governance.title')}</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">{t('governance.subtitle')}</p>
         </div>
         <AppleButton onClick={loadGovernanceData} variant="outline" haptic="light" disabled={loading}>
           <Activity className="w-4 h-4 mr-2" />
@@ -167,54 +164,31 @@ const AgentGovernance = () => {
       )}
 
       {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.totalAgents')}</p>
-                <Shield className="w-5 h-5 text-calm" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
-                {statistics.reputation?.total_agents || 0}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.avgReputation')}</p>
-                <TrendingUp className="w-5 h-5 text-growth" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
-                {statistics.reputation?.average_score?.toFixed(0) || 100}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.dailyCost')}</p>
-                <DollarSign className="w-5 h-5 text-joy" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
-                ${statistics.costs?.daily?.usage?.usd?.toFixed(2) || '0.00'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.stats.violations')}</p>
-                <AlertTriangle className="w-5 h-5 text-energy" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
-                {violations.length}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          <StatCard
+            label={t('governance.stats.totalAgents')}
+            value={String(statistics.reputation?.total_agents || 0)}
+            icon={<Shield className="w-5 h-5" />}
+            variant="default"
+          />
+          <StatCard
+            label={t('governance.stats.avgReputation')}
+            value={String(statistics.reputation?.average_score?.toFixed(0) || 100)}
+            icon={<TrendingUp className="w-5 h-5" />}
+            variant="success"
+          />
+          <StatCard
+            label={t('governance.stats.dailyCost')}
+            value={`$${statistics.costs?.daily?.usage?.usd?.toFixed(2) || '0.00'}`}
+            icon={<DollarSign className="w-5 h-5" />}
+            variant="warning"
+          />
+          <StatCard
+            label={t('governance.stats.violations')}
+            value={String(violations.length)}
+            icon={<AlertTriangle className="w-5 h-5" />}
+            variant={violations.length > 0 ? 'danger' : 'success'}
+          />
         </div>
       )}
 
@@ -227,127 +201,118 @@ const AgentGovernance = () => {
         </TabsList>
 
         <TabsContent value="agents" className="space-y-4">
-          <Card className="material-card hover-lift">
-            <CardHeader>
-              <CardTitle>{t('governance.agents.title')}</CardTitle>
-              <CardDescription>{t('governance.agents.subtitle')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {agents.length === 0 ? (
-                  <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">{t('governance.agents.noAgents')}</p>
-                ) : (
-                  agents.map((agent, index) => (
-                    <button
-                      key={agent.id} 
-                      className="w-full text-left flex items-center justify-between p-4 material-card cursor-pointer transition-opacity hover:opacity-80"
-                      onClick={() => setSelectedAgent(agent)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="text-title-2 font-bold text-neutral-400">#{index + 1}</div>
-                        <div>
-                          <p className="font-semibold text-neutral-900 dark:text-white">{agent.name}</p>
-                          <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('common.idShort', { id: agent.id?.substring(0, 8) + '...' })}</p>
-                        </div>
+          <SectionCard
+            title={t('governance.agents.title')}
+            subtitle={t('governance.agents.subtitle')}
+          >
+            <div className="space-y-3">
+              {agents.length === 0 ? (
+                <p className="text-center text-[var(--text-secondary)] py-8">{t('governance.agents.noAgents')}</p>
+              ) : (
+                agents.map((agent, index) => (
+                  <button
+                    key={agent.id} 
+                    className="w-full text-left flex items-center justify-between p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-opacity hover:opacity-80"
+                    onClick={() => setSelectedAgent(agent)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-lg font-bold text-[var(--text-secondary)]">#{index + 1}</div>
+                      <div>
+                        <p className="font-semibold text-[var(--text-primary)]">{agent.name}</p>
+                        <p className="text-sm text-[var(--text-secondary)]">{t('common.idShort', { id: agent.id?.substring(0, 8) + '...' })}</p>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-title-2 font-bold text-neutral-900 dark:text-white">{agent.reputation_score || 0}</p>
-                          <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('governance.agents.reputation')}</p>
-                        </div>
-                        <Badge className={getStatusColor(agent.status)}>
-                          {agent.status?.toUpperCase()}
-                        </Badge>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-[var(--text-primary)]">{agent.reputation_score || 0}</p>
+                        <p className="text-sm text-[var(--text-secondary)]">{t('governance.agents.reputation')}</p>
                       </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                      <Badge className={getStatusColor(agent.status)}>
+                        {agent.status?.toUpperCase()}
+                      </Badge>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="events" className="space-y-4">
-          <Card className="material-card hover-lift">
-            <CardHeader>
-              <CardTitle>{t('governance.events.title')}</CardTitle>
-              <CardDescription>{t('governance.events.subtitle')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {events.length === 0 ? (
-                  <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">{t('governance.events.noEvents')}</p>
-                ) : (
-                  events.map((event) => (
-                    <div key={event.event_id} className="flex items-start gap-3 p-3 material-card">
-                      {getEventTypeIcon(event.event_type)}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-neutral-900 dark:text-white">{event.event_type}</p>
-                          <span className="text-caption-2 text-neutral-500 dark:text-neutral-400">{formatTimestamp(event.created_at)}</span>
-                        </div>
-                        {event.reason && (
-                          <p className="text-callout text-neutral-600 dark:text-neutral-400 mt-1">{event.reason}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline" className="text-caption-2">
-                            {t('governance.events.delta')}: {event.delta > 0 ? '+' : ''}{event.delta}
+          <SectionCard
+            title={t('governance.events.title')}
+            subtitle={t('governance.events.subtitle')}
+          >
+            <div className="space-y-2">
+              {events.length === 0 ? (
+                <p className="text-center text-[var(--text-secondary)] py-8">{t('governance.events.noEvents')}</p>
+              ) : (
+                events.map((event) => (
+                  <div key={event.event_id} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+                    {getEventTypeIcon(event.event_type)}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-[var(--text-primary)]">{event.event_type}</p>
+                        <span className="text-xs text-[var(--text-secondary)]">{formatTimestamp(event.created_at)}</span>
+                      </div>
+                      {event.reason && (
+                        <p className="text-sm text-[var(--text-secondary)] mt-1">{event.reason}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-xs">
+                          {t('governance.events.delta')}: {event.delta > 0 ? '+' : ''}{event.delta}
+                        </Badge>
+                        {event.trace_id && (
+                          <Badge variant="outline" className="text-xs">
+                            {t('governance.events.trace')}: {event.trace_id.substring(0, 8)}
                           </Badge>
-                          {event.trace_id && (
-                            <Badge variant="outline" className="text-caption-2">
-                              {t('governance.events.trace')}: {event.trace_id.substring(0, 8)}
-                            </Badge>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                ))
+              )}
+            </div>
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="violations" className="space-y-4">
-          <Card className="material-card hover-lift">
-            <CardHeader>
-              <CardTitle>{t('governance.violations.title')}</CardTitle>
-              <CardDescription>{t('governance.violations.subtitle')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {violations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 space-y-3">
-                    <CheckCircle className="w-12 h-12 text-success-600" />
-                    <p className="text-neutral-500 dark:text-neutral-400">{t('governance.violations.noViolations')}</p>
-                  </div>
-                ) : (
-                  violations.map((violation) => (
-                    <div key={violation.violation_id} className="flex items-start gap-3 p-3 rounded-xl border border-error-200 bg-error-50/80 dark:bg-error-900/20">
-                      <AlertTriangle className="w-5 h-5 text-error-600 mt-0.5" />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-error-900">{violation.violation_type}</p>
-                          <span className="text-caption-2 text-error-600">{formatTimestamp(violation.detected_at)}</span>
-                        </div>
-                        <p className="text-callout text-error-700 mt-1">{violation.description}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="destructive" className="text-caption-2">
-                            {t('governance.violations.severity')}: {violation.severity}
+          <SectionCard
+            title={t('governance.violations.title')}
+            subtitle={t('governance.violations.subtitle')}
+          >
+            <div className="space-y-2">
+              {violations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                  <CheckCircle className="w-12 h-12 text-success-600" />
+                  <p className="text-[var(--text-secondary)]">{t('governance.violations.noViolations')}</p>
+                </div>
+              ) : (
+                violations.map((violation) => (
+                  <div key={violation.violation_id} className="flex items-start gap-3 p-3 rounded-lg border border-error-200 bg-error-50/80 dark:bg-error-900/20">
+                    <AlertTriangle className="w-5 h-5 text-error-600 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-error-900">{violation.violation_type}</p>
+                        <span className="text-xs text-error-600">{formatTimestamp(violation.detected_at)}</span>
+                      </div>
+                      <p className="text-sm text-error-700 mt-1">{violation.description}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="destructive" className="text-xs">
+                          {t('governance.violations.severity')}: {violation.severity}
+                        </Badge>
+                        {violation.resolved && (
+                          <Badge variant="outline" className="text-xs bg-success-100 text-success-800">
+                            {t('governance.violations.resolved')}
                           </Badge>
-                          {violation.resolved && (
-                            <Badge variant="outline" className="text-caption-2 bg-success-100 text-success-800">
-                              {t('governance.violations.resolved')}
-                            </Badge>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                ))
+              )}
+            </div>
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="executionLogs" className="space-y-4">
