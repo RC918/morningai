@@ -348,6 +348,60 @@ class TestRefactorAgent:
             assert result.errors_fixed == 0  # dry run doesn't fix
             assert result.metadata["dry_run"] is True
 
+    def test_get_progress_report(self):
+        """Test get_progress_report returns correct metrics"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        with patch.object(agent, 'collect_ts_errors') as mock_collect:
+            mock_collect.return_value = [
+                TSError(
+                    file_path="frontend-dashboard/src/App.tsx",
+                    line=10,
+                    column=1,
+                    error_code="TS2531",
+                    message="Object is possibly 'null'"
+                ),
+                TSError(
+                    file_path="frontend-dashboard/src/utils.ts",
+                    line=20,
+                    column=1,
+                    error_code="TS2531",
+                    message="Object is possibly 'null'"
+                ),
+                TSError(
+                    file_path="owner-console/src/index.tsx",
+                    line=5,
+                    column=1,
+                    error_code="TS7006",
+                    message="Parameter 'x' implicitly has an 'any' type"
+                ),
+            ]
+
+            report = agent.get_progress_report()
+
+            assert report["total_errors"] == 3
+            assert report["target_errors"] == 0
+            assert report["progress_percent"] == 0.0
+            assert report["errors_by_code"]["TS2531"] == 2
+            assert report["errors_by_code"]["TS7006"] == 1
+            assert report["errors_by_project"]["frontend-dashboard"] == 2
+            assert report["errors_by_project"]["owner-console"] == 1
+            assert len(report["top_error_codes"]) <= 5
+
+    def test_get_progress_report_no_errors(self):
+        """Test get_progress_report with no errors returns 100% progress"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        with patch.object(agent, 'collect_ts_errors') as mock_collect:
+            mock_collect.return_value = []
+
+            report = agent.get_progress_report()
+
+            assert report["total_errors"] == 0
+            assert report["progress_percent"] == 100.0
+            assert report["errors_by_code"] == {}
+            assert report["errors_by_project"] == {}
+
 
 class TestGetRefactorAgent:
     """Tests for get_refactor_agent singleton"""

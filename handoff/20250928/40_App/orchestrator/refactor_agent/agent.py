@@ -12,6 +12,7 @@ Design Principles:
 - Observable: Logs all actions and maintains progress metrics
 """
 import logging
+import re
 import subprocess
 import time
 import uuid
@@ -231,6 +232,8 @@ class RefactorAgent:
 
             except subprocess.TimeoutExpired:
                 logger.error("[RefactorAgent] tsc timeout for %s", proj)
+            except FileNotFoundError:
+                logger.error("[RefactorAgent] npx/tsc not found for %s", proj)
             except Exception as e:
                 logger.error("[RefactorAgent] Error collecting TS errors: %s", e)
 
@@ -239,8 +242,6 @@ class RefactorAgent:
 
     def _parse_tsc_error(self, line: str, project: str) -> Optional[TSError]:
         """Parse a single tsc error line"""
-        import re
-
         # Pattern: file(line,col): error TSxxxx: message
         pattern = r"^(.+?)\((\d+),(\d+)\):\s*(error|warning)\s+(TS\d+):\s*(.+)$"
         match = re.match(pattern, line.strip())
@@ -443,10 +444,11 @@ class RefactorAgent:
         for error in errors:
             by_code[error.error_code] = by_code.get(error.error_code, 0) + 1
 
-        # Group by project
+        # Group by project (file_path format: "project/path/to/file.ts")
         by_project: Dict[str, int] = {}
         for error in errors:
-            project = error.file_path.split("/")[0] if "/" in error.file_path else "unknown"
+            parts = error.file_path.split("/")
+            project = parts[0] if len(parts) > 1 else "unknown"
             by_project[project] = by_project.get(project, 0) + 1
 
         # Estimate completion
