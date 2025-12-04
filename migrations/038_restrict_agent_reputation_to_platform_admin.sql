@@ -106,7 +106,7 @@ BEGIN
     IF policy_count = 0 THEN
         RAISE NOTICE '✅ Old user_authenticated policies removed';
     ELSE
-        RAISE WARNING '⚠️  Old user_authenticated policies still exist: %', policy_count;
+        RAISE EXCEPTION '❌ Old user_authenticated policies still exist: %. Migration cannot proceed with stale policies.', policy_count;
     END IF;
 
     RAISE NOTICE '
