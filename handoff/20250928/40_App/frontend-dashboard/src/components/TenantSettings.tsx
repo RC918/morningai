@@ -153,7 +153,7 @@ const TenantSettings = (): React.ReactElement => {
           <h2 className="text-xl font-semibold mb-4">{t('tenant.members.title')}</h2>
           
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200" aria-label={t('tenant.members.title')}>
+            <table className="min-w-full divide-y divide-neutral-200" aria-label={t('tenant.members.title')}>
               <caption className="sr-only">{t('tenant.members.tableCaption')}</caption>
               <thead className="bg-neutral-50">
                 <tr>
@@ -174,7 +174,7 @@ const TenantSettings = (): React.ReactElement => {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-neutral-200">
                 {members.map((member) => (
                   <tr key={member.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
