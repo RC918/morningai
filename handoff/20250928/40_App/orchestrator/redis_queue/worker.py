@@ -399,16 +399,18 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
     
     use_langgraph = settings.use_langgraph or False
     use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
+    use_langgraph_for_faq = getattr(settings, 'use_langgraph_for_faq', False) is True
     
-    if task_type == "faq":
+    if task_type == "faq" and not use_langgraph_for_faq:
         logger.info(
-            f"[Routing] FAQ task detected, forcing simple orchestrator path",
+            "[Routing] FAQ task detected, forcing simple orchestrator path (USE_LANGGRAPH_FOR_FAQ=false)",
             extra={
                 "operation": "routing",
                 "task_id": task_id,
                 "task_type": task_type,
                 "original_use_langgraph": use_langgraph,
-                "original_use_langgraph_percent": use_langgraph_percent
+                "original_use_langgraph_percent": use_langgraph_percent,
+                "use_langgraph_for_faq": use_langgraph_for_faq
             }
         )
         use_langgraph = False

@@ -63,13 +63,31 @@ def display_dashboard(window_minutes=15):
     
     # Routing Decisions
     print("📊 Routing Decisions")
-    print(f"  Simple Mode:    {counts.get('decisions_simple', 0):>5}")
-    print(f"  LangGraph Mode: {counts.get('decisions_langgraph', 0):>5}")
+    decisions_simple = counts.get('decisions_simple', 0)
+    decisions_langgraph = counts.get('decisions_langgraph', 0)
     total_decisions = counts.get('total_decisions', 0)
+    print(f"  Simple Mode:    {decisions_simple:>5}")
+    print(f"  LangGraph Mode: {decisions_langgraph:>5}")
     if total_decisions > 0:
-        langgraph_pct = (counts.get('decisions_langgraph', 0) / total_decisions) * 100
-        status = "✅" if 4 <= langgraph_pct <= 6 else "⚠️"
-        print(f"  LangGraph %:    {langgraph_pct:>5.1f}% (target: ~5%) {status}")
+        langgraph_pct = (decisions_langgraph / total_decisions) * 100
+
+        phases = [
+            (10, '~5%', (4, 6)),
+            (20, '~15%', (13, 17)),
+            (40, '~25%', (23, 27)),
+            (75, '~50%', (48, 52)),
+        ]
+
+        target_str = "100%"
+        status = "✅" if langgraph_pct >= 98 else "⚠️"
+
+        for limit, target, (min_ok, max_ok) in phases:
+            if langgraph_pct < limit:
+                target_str = target
+                status = "✅" if min_ok <= langgraph_pct <= max_ok else "⚠️"
+                break
+
+        print(f"  LangGraph %:    {langgraph_pct:>5.1f}% (target: {target_str}) {status}")
     else:
         print(f"  LangGraph %:    N/A (no decisions yet)")
     print()
