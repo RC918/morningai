@@ -304,18 +304,44 @@ class TestReputationAdvisorNode:
 class TestAdvisoryPipelineEdges:
     """Tests for 5-Agent Advisory Pipeline edge connections"""
 
-    def test_planner_connects_to_security_advisor(self):
-        """Test that planner connects to security_advisor"""
+    def test_planner_connects_to_pm_advisor(self):
+        """Test that planner connects to pm_advisor (Phase 3 PR-3 #1815)"""
         app = create_orchestrator_graph()
         graph_dict = app.get_graph().to_json()
         edges = graph_dict.get("edges", [])
 
-        planner_to_security = any(
+        planner_to_pm = any(
             "planner" in str(e.get("source", "")) and
+            "pm_advisor" in str(e.get("target", ""))
+            for e in edges
+        )
+        assert planner_to_pm, "planner should connect to pm_advisor"
+
+    def test_pm_advisor_connects_to_ops_advisor(self):
+        """Test that pm_advisor connects to ops_advisor (Phase 3 PR-3 #1815)"""
+        app = create_orchestrator_graph()
+        graph_dict = app.get_graph().to_json()
+        edges = graph_dict.get("edges", [])
+
+        pm_to_ops = any(
+            "pm_advisor" in str(e.get("source", "")) and
+            "ops_advisor" in str(e.get("target", ""))
+            for e in edges
+        )
+        assert pm_to_ops, "pm_advisor should connect to ops_advisor"
+
+    def test_ops_advisor_connects_to_security_advisor(self):
+        """Test that ops_advisor connects to security_advisor (Phase 3 PR-3 #1815)"""
+        app = create_orchestrator_graph()
+        graph_dict = app.get_graph().to_json()
+        edges = graph_dict.get("edges", [])
+
+        ops_to_security = any(
+            "ops_advisor" in str(e.get("source", "")) and
             "security_advisor" in str(e.get("target", ""))
             for e in edges
         )
-        assert planner_to_security, "planner should connect to security_advisor"
+        assert ops_to_security, "ops_advisor should connect to security_advisor"
 
     def test_security_advisor_connects_to_governance_advisor(self):
         """Test that security_advisor connects to governance_advisor"""
