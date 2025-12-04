@@ -413,18 +413,41 @@
       "searchPlaceholder": "Search...",
       "settings": "Settings"
     },
-        "nav": {
-          "aiPolicies": "AI Policies",
-          "dashboard": "Dashboard",
-          "failureExperiments": "Failure Experiments",
-          "governance": "Agent Governance",
-          "logout": "Logout",
-          "mainNavigation": "Main navigation",
-          "monitoring": "System Monitoring",
-          "settings": "Platform Settings",
-          "tenants": "Tenant Management",
-          "uxMetrics": "UX Metrics"
-        },
+                "nav": {
+                  "aiPolicies": "AI Policies",
+                  "approvalQueue": "Approval Queue",
+                  "dashboard": "Dashboard",
+                  "failureExperiments": "Failure Experiments",
+                  "governance": "Agent Governance",
+                  "logout": "Logout",
+                  "mainNavigation": "Main navigation",
+                  "monitoring": "System Monitoring",
+                  "settings": "Platform Settings",
+                  "tenants": "Tenant Management",
+                  "uxMetrics": "UX Metrics"
+                },
+          "approvalQueue": {
+            "title": "Approval Queue",
+            "subtitle": "Review high-risk actions requiring human approval",
+            "stats": {
+              "pending": "Pending",
+              "critical": "Critical",
+              "high": "High Risk",
+              "medium": "Medium/Low"
+            },
+            "tabs": {
+              "pending": "Pending Approvals",
+              "details": "Request Details"
+            },
+            "pending": {
+              "title": "Pending Action Requests",
+              "subtitle": "Actions awaiting your approval before execution",
+              "noRequests": "No pending approval requests"
+            },
+            "details": {
+              "selectRequest": "Select a request from the pending list to view details"
+            }
+          },
   "settings": {
     "2fa": {
       "actions": {

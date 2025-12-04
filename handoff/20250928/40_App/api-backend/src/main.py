@@ -306,6 +306,13 @@ app.register_blueprint(failures_bp)
 app.register_blueprint(experiments_bp)
 app.register_blueprint(ai_policies_bp)
 
+try:
+    from src.routes.action_requests import bp as action_requests_bp
+    app.register_blueprint(action_requests_bp)
+    logger.info("HITL action requests routes enabled")
+except ImportError as e:
+    logger.warning("HITL action requests routes not available: %s", e)
+
 from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
 
 app.add_url_rule(
