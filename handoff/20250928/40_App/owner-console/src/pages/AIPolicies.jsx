@@ -233,8 +233,7 @@ const AIPolicies = () => {
     <div className="space-y-8" aria-busy={loading} data-testid="ai-policies">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)] flex items-center gap-3">
-            <Shield className="w-8 h-8 text-primary-600" />
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
             {t('aiPolicies.title')}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
