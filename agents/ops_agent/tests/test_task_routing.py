@@ -6,12 +6,15 @@ Tests for Issue #1909 (misrouted task -> FAILED + event) and Issue #1910 (enqueu
 Note: Python path is configured via pytest.ini pythonpath setting.
 No manual sys.path manipulation needed.
 """
+# Standard library imports
 import logging
-
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 
+# Third-party imports
+import pytest
+import pytest_asyncio
+
+# Local imports
 from common.config.settings import settings
 from orchestrator.schemas.task_schema import UnifiedTask, TaskType, TaskPriority, TaskStatus
 from orchestrator.task_queue.redis_queue import RedisQueue, create_redis_queue
