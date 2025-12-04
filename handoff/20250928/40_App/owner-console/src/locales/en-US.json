@@ -578,17 +578,18 @@
       "defaultRole": "Platform Owner"
     }
   },
-  "tenants": {
-    "active": "active",
-    "activeTenants": "Active Tenants",
-    "addTenant": "Add Tenant",
-    "agents": "agents",
-    "allTenants": "All registered tenant organizations",
-    "subtitle": "Manage tenant accounts and permissions",
-    "suspended": "suspended",
-    "title": "Tenant Management",
-    "users": "users"
-  },
+    "tenants": {
+      "active": "active",
+      "activeTenants": "Active Tenants",
+      "addTenant": "Add Tenant",
+      "agents": "agents",
+      "allTenants": "All registered tenant organizations",
+      "noTenants": "No tenants found",
+      "subtitle": "Manage tenant accounts and permissions",
+      "suspended": "suspended",
+      "title": "Tenant Management",
+      "users": "users"
+    },
   "uxMetrics": {
     "a11yCritical": "A11y Critical",
     "a11yTests": "A11y Tests",

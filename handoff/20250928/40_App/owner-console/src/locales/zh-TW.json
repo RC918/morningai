@@ -552,17 +552,18 @@
       "defaultRole": "平台擁有者"
     }
   },
-  "tenants": {
-    "active": "活躍",
-    "activeTenants": "活躍租戶",
-    "addTenant": "新增租戶",
-    "agents": "個 agents",
-    "allTenants": "所有已註冊的租戶組織",
-    "subtitle": "管理租戶帳戶與權限",
-    "suspended": "已暫停",
-    "title": "租戶管理",
-    "users": "位使用者"
-  },
+    "tenants": {
+      "active": "活躍",
+      "activeTenants": "活躍租戶",
+      "addTenant": "新增租戶",
+      "agents": "個 agents",
+      "allTenants": "所有已註冊的租戶組織",
+      "noTenants": "找不到租戶",
+      "subtitle": "管理租戶帳戶與權限",
+      "suspended": "已暫停",
+      "title": "租戶管理",
+      "users": "位使用者"
+    },
   "uxMetrics": {
     "a11yCritical": "A11y 嚴重",
     "a11yTests": "A11y 測試",
