@@ -79,6 +79,9 @@ export default [
       // Design system enforcement: prevent hardcoded Tailwind colors
       // Use semantic tokens instead (error, success, warning, info, neutral, primary, accent)
       'custom/no-hardcoded-colors': 'warn',
+      // Design system enforcement: prevent non-standard spacing utilities
+      // Use standardized spacing values (0, 1, 2, 4, 5, 6, 8)
+      'custom/no-non-standard-spacing': 'warn',
     },
   },
   {
