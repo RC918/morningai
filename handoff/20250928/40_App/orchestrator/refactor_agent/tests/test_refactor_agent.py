@@ -1507,6 +1507,35 @@ class TestPRAutomation:
             mock_run.assert_not_called()
 
     @patch('subprocess.run')
+    def test_commit_fixes_git_add_failure_aborts(self, mock_run):
+        """Test commit fixes aborts when git add fails"""
+        mock_run.return_value = MagicMock(
+            returncode=1, stdout="", stderr="git add failed"
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            task = RefactorTask(
+                task_id="task1",
+                error=TSError(
+                    file_path="src/test.ts",
+                    line=10,
+                    column=5,
+                    error_code="TS2531",
+                    message="Error"
+                ),
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW,
+                status="completed"
+            )
+
+            result = agent._commit_fixes([task], "test commit")
+
+            assert result is False
+            assert mock_run.call_count == 1
+
+    @patch('subprocess.run')
     def test_push_branch_success(self, mock_run):
         """Test push branch success"""
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
