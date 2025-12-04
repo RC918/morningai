@@ -4,6 +4,7 @@ import { AdminShell } from './admin-shell'
 import { AdminSidebar } from './admin-sidebar'
 import { AdminTopbar } from './admin-topbar'
 import { ActivityListPanel } from '../iotask/activity-list-panel'
+import { ActivityListItem } from '../iotask/activity-list-item'
 
 const defaultNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home, active: true },
@@ -141,41 +142,6 @@ export const AgentsActive: Story = {
   },
 }
 
-const sampleActivities = [
-  {
-    id: "1",
-    type: "task" as const,
-    title: "New agent deployed",
-    description: "Customer Support Bot v2.1 is now live",
-    timestamp: "2 hours ago",
-    user: { name: "System", avatar: undefined },
-  },
-  {
-    id: "2",
-    type: "comment" as const,
-    title: "Feedback received",
-    description: "User reported positive experience with AI assistant",
-    timestamp: "4 hours ago",
-    user: { name: "John Doe", avatar: undefined },
-  },
-  {
-    id: "3",
-    type: "update" as const,
-    title: "Configuration updated",
-    description: "Response timeout increased to 30s",
-    timestamp: "Yesterday",
-    user: { name: "Jane Smith", avatar: undefined },
-  },
-  {
-    id: "4",
-    type: "milestone" as const,
-    title: "10,000 conversations",
-    description: "Platform reached 10K total conversations",
-    timestamp: "2 days ago",
-    user: { name: "System", avatar: undefined },
-  },
-]
-
 export const ThreeColumnLayout: Story = {
   args: {
     navItems: defaultNavItems,
@@ -203,9 +169,44 @@ export const ThreeColumnLayout: Story = {
     rightPanel: (
       <ActivityListPanel
         title="Recent Activity"
-        activities={sampleActivities}
-        seeAllHref="/governance"
-      />
+        action={
+          <a href="/governance" className="text-primary-600 hover:underline">
+            See all
+          </a>
+        }
+      >
+        <ActivityListItem
+          id="1"
+          type="task"
+          title="New agent deployed"
+          description="Customer Support Bot v2.1 is now live"
+          timestamp="2 hours ago"
+          user={{ name: "System" }}
+        />
+        <ActivityListItem
+          id="2"
+          type="comment"
+          title="Feedback received"
+          description="User reported positive experience with AI assistant"
+          timestamp="4 hours ago"
+          user={{ name: "John Doe" }}
+        />
+        <ActivityListItem
+          id="3"
+          type="update"
+          title="Configuration updated"
+          description="Response timeout increased to 30s"
+          timestamp="Yesterday"
+          user={{ name: "Jane Smith" }}
+        />
+        <ActivityListItem
+          id="4"
+          type="milestone"
+          title="10,000 conversations"
+          description="Platform reached 10K total conversations"
+          timestamp="2 days ago"
+        />
+      </ActivityListPanel>
     ),
   },
 }
