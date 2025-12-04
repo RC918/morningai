@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS action_requests (
     status TEXT NOT NULL DEFAULT 'pending',
     requested_by TEXT,
     approved_by TEXT,
+    rejected_by TEXT,
     rejection_reason TEXT,
     
     -- Timeout handling
@@ -87,17 +88,33 @@ CREATE POLICY "service_role_action_requests_all" ON public.action_requests
     USING (true)
     WITH CHECK (true);
 
--- Authenticated users (owners) can read and update (approve/reject)
-CREATE POLICY "authenticated_action_requests_read" ON public.action_requests
+-- Platform admins can read action requests
+CREATE POLICY "platform_admin_action_requests_read" ON public.action_requests
     FOR SELECT
     TO authenticated
-    USING (true);
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE id = auth.uid() AND is_platform_admin = TRUE
+        )
+    );
 
-CREATE POLICY "authenticated_action_requests_update" ON public.action_requests
+-- Platform admins can update action requests (approve/reject)
+CREATE POLICY "platform_admin_action_requests_update" ON public.action_requests
     FOR UPDATE
     TO authenticated
-    USING (true)
-    WITH CHECK (true);
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE id = auth.uid() AND is_platform_admin = TRUE
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE id = auth.uid() AND is_platform_admin = TRUE
+        )
+    );
 
 -- ============================================================================
 -- SQL Functions for Action Request Operations
@@ -212,7 +229,7 @@ BEGIN
     UPDATE action_requests
     SET 
         status = 'rejected',
-        approved_by = p_rejected_by,
+        rejected_by = p_rejected_by,
         rejection_reason = p_reason,
         resolved_at = NOW(),
         updated_at = NOW()
@@ -306,6 +323,39 @@ BEGIN
 END;
 $$;
 
+-- ----------------------------------------------------------------------------
+-- Function: get_action_request_statistics
+-- Uses SQL aggregation for efficient statistics calculation
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION get_action_request_statistics()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    result jsonb;
+BEGIN
+    SELECT jsonb_build_object(
+        'pending_count', COUNT(*),
+        'critical_count', COUNT(*) FILTER (WHERE risk_level = 'critical'),
+        'high_count', COUNT(*) FILTER (WHERE risk_level = 'high'),
+        'medium_count', COUNT(*) FILTER (WHERE risk_level = 'medium'),
+        'low_count', COUNT(*) FILTER (WHERE risk_level = 'low')
+    ) INTO result
+    FROM action_requests
+    WHERE status = 'pending';
+    
+    RETURN COALESCE(result, jsonb_build_object(
+        'pending_count', 0,
+        'critical_count', 0,
+        'high_count', 0,
+        'medium_count', 0,
+        'low_count', 0
+    ));
+END;
+$$;
+
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION create_action_request(text, text, text, text, text, jsonb, text, text, jsonb, interval) TO service_role;
 GRANT EXECUTE ON FUNCTION approve_action_request(text, text) TO service_role;
@@ -315,6 +365,8 @@ GRANT EXECUTE ON FUNCTION reject_action_request(text, text, text) TO authenticat
 GRANT EXECUTE ON FUNCTION get_pending_action_requests(int, text) TO service_role;
 GRANT EXECUTE ON FUNCTION get_pending_action_requests(int, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION process_timed_out_requests() TO service_role;
+GRANT EXECUTE ON FUNCTION get_action_request_statistics() TO service_role;
+GRANT EXECUTE ON FUNCTION get_action_request_statistics() TO authenticated;
 
 -- ============================================================================
 -- Trigger for updated_at
@@ -371,6 +423,9 @@ COMMENT ON FUNCTION get_pending_action_requests IS
 COMMENT ON FUNCTION process_timed_out_requests IS 
     'Process and auto-reject timed out requests';
 
+COMMENT ON FUNCTION get_action_request_statistics IS 
+    'Get statistics about pending action requests using SQL aggregation';
+
 -- ============================================================================
 -- Verification
 -- ============================================================================
@@ -410,7 +465,8 @@ BEGIN
         'approve_action_request', 
         'reject_action_request',
         'get_pending_action_requests',
-        'process_timed_out_requests'
+        'process_timed_out_requests',
+        'get_action_request_statistics'
     );
     
     IF rls_enabled AND policy_count >= 3 THEN
@@ -429,8 +485,9 @@ BEGIN
 ║  Migration 035: COMPLETE                                   ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Table: public.action_requests                             ║
+║  Columns: rejected_by added for proper rejection tracking  ║
 ║  Indexes: 9 (7 B-tree, 2 GIN)                             ║
-║  RLS Policies: 3 (service_role, authenticated read/update) ║
+║  RLS Policies: 3 (service_role, platform_admin read/update)║
 ╠════════════════════════════════════════════════════════════╣
 ║  SQL Functions:                                            ║
 ║  - create_action_request(...)                              ║
@@ -441,7 +498,8 @@ BEGIN
 ╠════════════════════════════════════════════════════════════╣
 ║  Security Model:                                           ║
 ║  - Service role: Full access (ALL operations)              ║
-║  - Authenticated: Read + Update (approve/reject)           ║
+║  - Platform admin: Read + Update (approve/reject)          ║
+║  - Other authenticated: No access (blocked by RLS)         ║
 ║  - Anonymous/Public: No access (blocked by RLS)            ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Next Steps:                                               ║

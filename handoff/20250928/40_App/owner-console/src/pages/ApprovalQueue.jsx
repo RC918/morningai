@@ -340,25 +340,11 @@ const ApprovalQueue = () => {
                             haptic="light"
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleApprove(request.request_id)
-                            }}
-                            disabled={actionLoading}
-                          >
-                            <CheckCircle className="w-4 h-4 mr-1 text-growth" />
-                            {t('common.approve', 'Approve')}
-                          </AppleButton>
-                          <AppleButton
-                            variant="outline"
-                            size="sm"
-                            haptic="light"
-                            onClick={(e) => {
-                              e.stopPropagation()
                               setSelectedRequest(request)
                             }}
                             disabled={actionLoading}
                           >
-                            <XCircle className="w-4 h-4 mr-1 text-energy" />
-                            {t('common.reject', 'Reject')}
+                            {t('approvalQueue.viewDetails', 'View Details')}
                           </AppleButton>
                         </div>
                       </div>

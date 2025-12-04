@@ -27,26 +27,38 @@ from .action_requests import (
 logger = logging.getLogger(__name__)
 
 # Import semantic rules if available
+# Note: PYTHONPATH should include orchestrator path, so direct import should work
+# Fallback path setup only if direct import fails
 try:
-    import sys
-    import os
-
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
-    semantic_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
-    if semantic_path not in sys.path:
-        sys.path.insert(0, semantic_path)
-
     from project_engineer.semantic_rules import (
         SemanticRulesValidator,
         HIGH_RISK_ACTIONS,
         SENSITIVE_FILE_PATTERNS,
     )
     SEMANTIC_RULES_AVAILABLE = True
-except ImportError as e:
-    logger.warning("Semantic rules not available: %s", e)
-    SEMANTIC_RULES_AVAILABLE = False
-    HIGH_RISK_ACTIONS = frozenset()
-    SENSITIVE_FILE_PATTERNS = frozenset()
+except ImportError:
+    # Fallback: try with explicit path setup
+    # From hitl/ -> orchestrator -> 40_App -> 20250928 -> handoff -> repo_root (5 levels)
+    try:
+        import sys
+        import os
+
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
+        orchestrator_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
+        if orchestrator_path not in sys.path:
+            sys.path.insert(0, orchestrator_path)
+
+        from project_engineer.semantic_rules import (
+            SemanticRulesValidator,
+            HIGH_RISK_ACTIONS,
+            SENSITIVE_FILE_PATTERNS,
+        )
+        SEMANTIC_RULES_AVAILABLE = True
+    except ImportError as e:
+        logger.warning("Semantic rules not available: %s", e)
+        SEMANTIC_RULES_AVAILABLE = False
+        HIGH_RISK_ACTIONS = frozenset()
+        SENSITIVE_FILE_PATTERNS = frozenset()
 
 
 class HITLInterceptor:
@@ -64,8 +76,8 @@ class HITLInterceptor:
         )
 
         if requires_approval:
-            # Wait for approval or handle async
-            status = interceptor.wait_for_approval(request.request_id)
+            # Poll for approval status (callers should implement polling/async handling)
+            status = interceptor.get_approval_status(request.request_id)
             if status != ActionRequestStatus.APPROVED:
                 raise PermissionError("Action not approved")
     """

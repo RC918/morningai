@@ -429,6 +429,7 @@
           "approvalQueue": {
             "title": "Approval Queue",
             "subtitle": "Review high-risk actions requiring human approval",
+            "viewDetails": "View Details",
             "stats": {
               "pending": "Pending",
               "critical": "Critical",

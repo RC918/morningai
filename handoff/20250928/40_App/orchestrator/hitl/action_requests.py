@@ -258,8 +258,10 @@ def create_action_request(
             logger.error("[ActionRequests] Failed to create request: %s", e)
             return None
     else:
-        logger.warning("[ActionRequests] Database not available, request not persisted")
-        return request
+        # Return None when DB unavailable to indicate HITL is not functional
+        # This is a fail-open design: callers should treat None as "HITL unavailable"
+        logger.warning("[ActionRequests] Database not available, HITL request not persisted")
+        return None
 
 
 def approve_action_request(request_id: str, approved_by: str) -> bool:
@@ -437,3 +439,49 @@ def process_timed_out_requests() -> int:
     except Exception as e:
         logger.error("[ActionRequests] Failed to process timed out requests: %s", e)
         return 0
+
+
+def get_action_request_statistics() -> Dict[str, Any]:
+    """
+    Get statistics about action requests using SQL aggregation.
+
+    Returns:
+        Dictionary with pending_count and by_risk_level breakdown
+    """
+    supabase = _get_supabase()
+    if not supabase:
+        logger.error("[ActionRequests] Database not available")
+        return {
+            'pending_count': 0,
+            'by_risk_level': {
+                'critical': 0,
+                'high': 0,
+                'medium': 0,
+                'low': 0
+            }
+        }
+
+    try:
+        response = supabase.rpc("get_action_request_statistics").execute()
+        data = response.data if response.data else {}
+
+        return {
+            'pending_count': data.get('pending_count', 0),
+            'by_risk_level': {
+                'critical': data.get('critical_count', 0),
+                'high': data.get('high_count', 0),
+                'medium': data.get('medium_count', 0),
+                'low': data.get('low_count', 0)
+            }
+        }
+    except Exception as e:
+        logger.error("[ActionRequests] Failed to get statistics: %s", e)
+        return {
+            'pending_count': 0,
+            'by_risk_level': {
+                'critical': 0,
+                'high': 0,
+                'medium': 0,
+                'low': 0
+            }
+        }

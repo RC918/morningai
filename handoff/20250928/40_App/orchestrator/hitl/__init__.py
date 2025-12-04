@@ -9,6 +9,7 @@ from .action_requests import (
     get_pending_requests,
     get_request_status,
     process_timed_out_requests,
+    get_action_request_statistics,
 )
 from .hitl_interceptor import (
     HITLInterceptor,
@@ -25,6 +26,7 @@ __all__ = [
     "get_pending_requests",
     "get_request_status",
     "process_timed_out_requests",
+    "get_action_request_statistics",
     "HITLInterceptor",
     "create_interceptor",
 ]

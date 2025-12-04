@@ -10,6 +10,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from functools import wraps
 from flask import Blueprint, jsonify, request
 
 from src.middleware.auth_middleware import jwt_required, admin_required
@@ -17,7 +18,8 @@ from src.middleware.auth_middleware import jwt_required, admin_required
 logger = logging.getLogger(__name__)
 
 # Setup paths for HITL module import
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../..'))
+# From routes/ -> src -> api-backend -> 40_App -> 20250928 -> handoff -> repo_root (6 levels)
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -32,6 +34,7 @@ try:
         get_pending_requests,
         get_request_status,
         process_timed_out_requests,
+        get_action_request_statistics,
         RiskLevel,
     )
     HITL_AVAILABLE = True
@@ -42,7 +45,21 @@ except ImportError as e:
 bp = Blueprint('action_requests', __name__, url_prefix='/api/action-requests')
 
 
+def require_hitl_available(fn):
+    """Decorator to check if HITL system is available before executing endpoint."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not HITL_AVAILABLE:
+            return jsonify({
+                'error': 'HITL system not available',
+                'hitl_available': False,
+            }), 503
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 @bp.route('', methods=['GET'])
+@require_hitl_available
 @jwt_required
 @admin_required
 def list_pending_requests():
@@ -57,9 +74,6 @@ def list_pending_requests():
 
     Requires: Owner role
     """
-    if not HITL_AVAILABLE:
-        return jsonify({'error': 'HITL system not available'}), 503
-
     try:
         limit = min(int(request.args.get('limit', 50)), 200)
         risk_level_str = request.args.get('risk_level')
@@ -91,6 +105,7 @@ def list_pending_requests():
 
 
 @bp.route('/<request_id>', methods=['GET'])
+@require_hitl_available
 @jwt_required
 @admin_required
 def get_request_details(request_id):
@@ -102,9 +117,6 @@ def get_request_details(request_id):
 
     Requires: Owner role
     """
-    if not HITL_AVAILABLE:
-        return jsonify({'error': 'HITL system not available'}), 503
-
     try:
         request_data = get_request_status(request_id)
 
@@ -118,6 +130,7 @@ def get_request_details(request_id):
 
 
 @bp.route('/<request_id>/approve', methods=['POST'])
+@require_hitl_available
 @jwt_required
 @admin_required
 def approve_request(request_id):
@@ -128,9 +141,6 @@ def approve_request(request_id):
 
     Requires: Owner role
     """
-    if not HITL_AVAILABLE:
-        return jsonify({'error': 'HITL system not available'}), 503
-
     try:
         user_id = request.jwt_payload.get('sub', 'unknown')
         user_email = request.jwt_payload.get('email', user_id)
@@ -157,6 +167,7 @@ def approve_request(request_id):
 
 
 @bp.route('/<request_id>/reject', methods=['POST'])
+@require_hitl_available
 @jwt_required
 @admin_required
 def reject_request(request_id):
@@ -170,9 +181,6 @@ def reject_request(request_id):
 
     Requires: Owner role
     """
-    if not HITL_AVAILABLE:
-        return jsonify({'error': 'HITL system not available'}), 503
-
     try:
         user_id = request.jwt_payload.get('sub', 'unknown')
         user_email = request.jwt_payload.get('email', user_id)
@@ -203,6 +211,7 @@ def reject_request(request_id):
 
 
 @bp.route('/process-timeouts', methods=['POST'])
+@require_hitl_available
 @jwt_required
 @admin_required
 def process_timeouts():
@@ -216,9 +225,6 @@ def process_timeouts():
 
     Requires: Owner role
     """
-    if not HITL_AVAILABLE:
-        return jsonify({'error': 'HITL system not available'}), 503
-
     try:
         count = process_timed_out_requests()
 
@@ -233,6 +239,7 @@ def process_timeouts():
 
 
 @bp.route('/statistics', methods=['GET'])
+@require_hitl_available
 @jwt_required
 @admin_required
 def get_statistics():
@@ -245,27 +252,17 @@ def get_statistics():
 
     Requires: Owner role
     """
-    if not HITL_AVAILABLE:
-        return jsonify({'error': 'HITL system not available'}), 503
-
     try:
-        pending = get_pending_requests(limit=1000)
-
-        by_risk_level = {
-            'critical': 0,
-            'high': 0,
-            'medium': 0,
-            'low': 0
-        }
-
-        for req in pending:
-            risk = req.get('risk_level', 'low')
-            if risk in by_risk_level:
-                by_risk_level[risk] += 1
+        stats = get_action_request_statistics()
 
         return jsonify({
-            'pending_count': len(pending),
-            'by_risk_level': by_risk_level,
+            'pending_count': stats.get('pending_count', 0),
+            'by_risk_level': stats.get('by_risk_level', {
+                'critical': 0,
+                'high': 0,
+                'medium': 0,
+                'low': 0
+            }),
             'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
