@@ -1152,3 +1152,99 @@ class TestFileModification:
             deleted_count = agent.cleanup_backups()
 
             assert deleted_count == 0
+
+    def test_apply_fixes_batch_same_file(self):
+        """Test apply_fixes_batch handles same-file line offset correctly"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text(
+                "line1\n"
+                "line2\n"
+                "line3\n"
+                "line4\n"
+                "line5\n"
+            )
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            task1 = RefactorTask(
+                task_id="task1",
+                error=TSError(
+                    file_path="test.ts",
+                    line=2,
+                    column=1,
+                    error_code="TS2322",
+                    message="Error on line 2"
+                ),
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            task2 = RefactorTask(
+                task_id="task2",
+                error=TSError(
+                    file_path="test.ts",
+                    line=4,
+                    column=1,
+                    error_code="TS2322",
+                    message="Error on line 4"
+                ),
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            fix1 = "fixed2a\nfixed2b"
+            fix2 = "fixed4"
+
+            results = agent.apply_fixes_batch(
+                [task1, task2],
+                [fix1, fix2],
+                create_backups=True
+            )
+
+            assert results['success_count'] == 2
+            assert results['failure_count'] == 0
+
+            content = test_file.read_text()
+            lines = content.strip().split("\n")
+
+            assert "fixed2a" in lines[1]
+            assert "fixed2b" in lines[2]
+            assert "fixed4" in lines[4]
+
+    def test_get_diff_preview_multiline(self):
+        """Test get_diff_preview shows all lines of multi-line fix"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text(
+                "line1\n"
+                "line2\n"
+                "line3\n"
+                "line4\n"
+                "line5\n"
+            )
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            task = RefactorTask(
+                task_id="task1",
+                error=TSError(
+                    file_path="test.ts",
+                    line=3,
+                    column=1,
+                    error_code="TS2322",
+                    message="Error"
+                ),
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            fix = "fixedA\nfixedB\nfixedC"
+
+            diff = agent.get_diff_preview(task, fix)
+
+            assert diff is not None
+            assert "-line3" in diff
+            assert "+fixedA" in diff
+            assert "+fixedB" in diff
+            assert "+fixedC" in diff

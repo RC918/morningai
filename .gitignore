@@ -75,3 +75,6 @@ packages/shared-ui/coverage/
 
 # Design system artifacts
 .github/artifacts/design-system-violations.json
+
+# Refactor agent backups
+.refactor_backups/

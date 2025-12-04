@@ -752,15 +752,22 @@ class RefactorAgent:
             context_start = max(0, line_idx - 3)
             context_end = min(len(original_lines), line_idx + 4)
 
+            fix_lines = fix.split("\n")
+            fix_line_count = len(fix_lines)
+
+            old_line_count = context_end - context_start
+            new_line_count = old_line_count - 1 + fix_line_count
+
             diff_lines = []
             diff_lines.append(f"--- {task.error.file_path}")
             diff_lines.append(f"+++ {task.error.file_path}")
-            diff_lines.append(f"@@ -{context_start + 1},{context_end - context_start} +{context_start + 1},{context_end - context_start} @@")
+            diff_lines.append(f"@@ -{context_start + 1},{old_line_count} +{context_start + 1},{new_line_count} @@")
 
             for i in range(context_start, context_end):
                 if i == line_idx:
                     diff_lines.append(f"-{original_lines[i].rstrip()}")
-                    diff_lines.append(f"+{fix.split(chr(10))[0] if chr(10) in fix else fix}")
+                    for fix_line in fix_lines:
+                        diff_lines.append(f"+{fix_line}")
                 else:
                     diff_lines.append(f" {original_lines[i].rstrip()}")
 
@@ -849,6 +856,9 @@ class RefactorAgent:
         """
         Apply multiple fixes in a batch with rollback support.
 
+        Handles same-file line offset: when multiple fixes target the same file,
+        line numbers are adjusted based on previously applied multi-line fixes.
+
         Args:
             tasks: List of RefactorTasks to fix
             fixes: List of fix codes corresponding to tasks
@@ -875,23 +885,56 @@ class RefactorAgent:
         }
 
         applied_backups: Dict[str, Path] = {}
+        line_offsets: Dict[str, int] = {}
 
-        for task, fix in zip(tasks, fixes):
+        task_fix_pairs = list(zip(tasks, fixes))
+        task_fix_pairs.sort(key=lambda x: (x[0].error.file_path, x[0].error.line))
+
+        for task, fix in task_fix_pairs:
             if fix is None:
                 results['failure_count'] += 1
                 results['failed'].append(task.error.file_path)
                 continue
 
-            success, backup_path = self.apply_fix(task, fix, create_backup=create_backups)
+            file_path = task.error.file_path
+            offset = line_offsets.get(file_path, 0)
+
+            adjusted_line = task.error.line + offset
+
+            adjusted_task = RefactorTask(
+                task_id=task.task_id,
+                error=TSError(
+                    file_path=task.error.file_path,
+                    line=adjusted_line,
+                    column=task.error.column,
+                    error_code=task.error.error_code,
+                    message=task.error.message
+                ),
+                fix_strategy=task.fix_strategy,
+                estimated_risk=task.estimated_risk,
+                status=task.status,
+                fix_applied=task.fix_applied,
+                error_message=task.error_message
+            )
+
+            should_backup = create_backups and file_path not in applied_backups
+            success, backup_path = self.apply_fix(
+                adjusted_task, fix, create_backup=should_backup
+            )
 
             if success:
                 results['success_count'] += 1
-                results['applied'].append(task.error.file_path)
+                results['applied'].append(file_path)
                 if backup_path:
-                    applied_backups[task.error.file_path] = backup_path
+                    applied_backups[file_path] = backup_path
+
+                fix_lines = fix.split("\n")
+                line_change = len(fix_lines) - 1
+                if line_change != 0:
+                    line_offsets[file_path] = offset + line_change
             else:
                 results['failure_count'] += 1
-                results['failed'].append(task.error.file_path)
+                results['failed'].append(file_path)
 
         results['backups'] = applied_backups
 
