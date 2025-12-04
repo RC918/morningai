@@ -705,6 +705,24 @@ class Settings(BaseSettings):
         description="Job timeout in seconds (default: 600 = 10 minutes). Jobs exceeding this timeout will be terminated."
     )
 
+    rq_task_ttl: int = Field(
+        default=600,
+        alias="RQ_TASK_TTL",
+        description="Task enqueue TTL in seconds (default: 600 = 10 minutes). Tasks not started within this time are discarded."
+    )
+
+    rq_result_ttl: int = Field(
+        default=86400,
+        alias="RQ_RESULT_TTL",
+        description="Result retention TTL in seconds (default: 86400 = 24 hours). Successful job results are kept for this duration."
+    )
+
+    rq_failure_ttl: int = Field(
+        default=3600,
+        alias="RQ_FAILURE_TTL",
+        description="Failure retention TTL in seconds (default: 3600 = 1 hour). Failed job records are kept for this duration."
+    )
+
     worker_heartbeat_interval: int = Field(
         default=60,
         alias="WORKER_HEARTBEAT_INTERVAL",
@@ -1404,6 +1422,23 @@ class Settings(BaseSettings):
                 f"WORKER_HEARTBEAT_TTL ({self.worker_heartbeat_ttl}) should be at least 3x "
                 f"WORKER_HEARTBEAT_INTERVAL ({self.worker_heartbeat_interval}) for safety margin. "
                 f"Recommended: {self.worker_heartbeat_interval * 3}",
+                UserWarning
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_job_timeout_hierarchy(self) -> "Settings":
+        """Ensure RQ job timeout is greater than agent-level task timeout.
+
+        The job timeout must be greater than the agent-level timeout to allow
+        for graceful cleanup and error handling. This validation warns if the
+        hierarchy is violated (Phase 3 P4 #1817).
+        """
+        if self.rq_job_timeout <= self.project_engineer_task_timeout_seconds:
+            warnings.warn(
+                f"RQ_JOB_TIMEOUT ({self.rq_job_timeout}s) should be greater than "
+                f"PROJECT_ENGINEER_TASK_TIMEOUT_SECONDS ({self.project_engineer_task_timeout_seconds}s) "
+                f"to allow for graceful cleanup. Recommended: {self.project_engineer_task_timeout_seconds + 60}s",
                 UserWarning
             )
         return self
