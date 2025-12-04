@@ -83,31 +83,87 @@ All user-visible strings must use the translation function.
 
 ## Page Structure Standard
 
-All pages should follow this structure:
+All pages should use the `PageScaffold` component to enforce consistent structure:
 
 ```tsx
-<AdminShell>
-  <PageHeader>
-    <Title>{t("page.title")}</Title>
-    <Actions>...</Actions>
-  </PageHeader>
-  
-  <KPIRow>
+<PageScaffold
+  title={t("page.title")}
+  subtitle={t("page.subtitle")}
+  titleIcon={<Shield className="w-6 h-6" />}
+  actions={
+    <Button onClick={handleRefresh}>
+      <Activity className="w-4 h-4 mr-2" />
+      {t("common.refresh")}
+    </Button>
+  }
+  banner={error && (
+    <AppleErrorBanner
+      title={t("common.error")}
+      message={error}
+      onRetry={handleRetry}
+    />
+  )}
+  kpis={
+    <>
+      <StatCard label={t("stats.total")} value="100" icon={<Users />} />
+      <StatCard label={t("stats.active")} value="85" icon={<Activity />} variant="green" />
+    </>
+  }
+>
+  <SectionCard title={t("section.title")}>
+    ...content...
+  </SectionCard>
+</PageScaffold>
+```
+
+### PageScaffold Props
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `title` | `ReactNode` | Yes | Page title (rendered as h1) |
+| `subtitle` | `ReactNode` | No | Subtitle below the title |
+| `titleIcon` | `ReactNode` | No | Icon displayed before the title |
+| `actions` | `ReactNode` | No | Action buttons aligned to the right |
+| `banner` | `ReactNode` | No | Banner/alert content below header |
+| `kpis` | `ReactNode` | No | KPI row content (StatCard components) |
+| `className` | `string` | No | Custom class for root container |
+| `headerClassName` | `string` | No | Custom class for header section |
+| `kpiClassName` | `string` | No | Custom class for KPI section |
+| `bodyClassName` | `string` | No | Custom class for content section |
+
+### Migration Example
+
+**Before (manual structure):**
+```tsx
+<div className="space-y-8">
+  <div className="flex items-center justify-between">
+    <h1>{t("governance.title")}</h1>
+    <Button>Refresh</Button>
+  </div>
+  {error && <ErrorBanner error={error} />}
+  <div className="grid grid-cols-4 gap-5">
     <StatCard ... />
-    <StatCard ... />
-  </KPIRow>
-  
-  <ContentSection>
-    <SectionCard title={t("section.title")}>
-      ...content...
-    </SectionCard>
-  </ContentSection>
-</AdminShell>
+  </div>
+  <Tabs>...</Tabs>
+</div>
+```
+
+**After (using PageScaffold):**
+```tsx
+<PageScaffold
+  title={t("governance.title")}
+  actions={<Button>Refresh</Button>}
+  banner={error && <ErrorBanner error={error} />}
+  kpis={<><StatCard ... /></>}
+>
+  <Tabs>...</Tabs>
+</PageScaffold>
 ```
 
 ## Available Components
 
 ### Layout Components
+- `PageScaffold` - Standardized page layout with header, banner, KPIs, and content slots
 - `AdminShell` - Main application shell with sidebar and topbar
 - `AdminSidebar` - Navigation sidebar
 - `AdminTopbar` - Top navigation bar
