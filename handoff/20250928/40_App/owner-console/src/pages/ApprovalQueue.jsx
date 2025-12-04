@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Tabs, TabsContent, TabsList, TabsTrigger } from '@morningai/shared-ui'
+import { Badge, Tabs, TabsContent, TabsList, TabsTrigger, Skeleton } from '@morningai/shared-ui'
 import { 
   Shield, 
   AlertTriangle,
@@ -180,21 +180,45 @@ const ApprovalQueue = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-7 w-48 mb-2" aria-hidden="true" />
+            <Skeleton className="h-5 w-96" aria-hidden="true" />
+          </div>
+          <Skeleton className="h-10 w-28" aria-hidden="true" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+              <Skeleton className="h-4 w-20 mb-2" aria-hidden="true" />
+              <Skeleton className="h-8 w-16" aria-hidden="true" />
+            </div>
+          ))}
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
+          <div className="px-5 py-4 border-b border-[var(--border)]">
+            <Skeleton className="h-6 w-48 mb-2" aria-hidden="true" />
+            <Skeleton className="h-4 w-64" aria-hidden="true" />
+          </div>
+          <div className="p-5 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-20 w-full" aria-hidden="true" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="space-y-8" aria-busy={loading} data-testid="approval-queue">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
-            <Shield className="w-8 h-8 text-primary-600" />
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
             {t('approvalQueue.title', 'Approval Queue')}
           </h1>
-          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             {t('approvalQueue.subtitle', 'Review and approve high-risk actions requiring human authorization')}
           </p>
         </div>
@@ -214,61 +238,53 @@ const ApprovalQueue = () => {
 
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">
-                  {t('approvalQueue.stats.pending', 'Pending')}
-                </p>
-                <Clock className="w-5 h-5 text-joy" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
-                {statistics.pending_count || 0}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {t('approvalQueue.stats.pending', 'Pending')}
               </p>
-            </CardContent>
-          </Card>
+              <Clock className="w-5 h-5 text-joy" />
+            </div>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">
+              {statistics.pending_count || 0}
+            </p>
+          </div>
 
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">
-                  {t('approvalQueue.stats.critical', 'Critical')}
-                </p>
-                <AlertTriangle className="w-5 h-5 text-energy" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-energy">
-                {statistics.by_risk_level?.critical || 0}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {t('approvalQueue.stats.critical', 'Critical')}
               </p>
-            </CardContent>
-          </Card>
+              <AlertTriangle className="w-5 h-5 text-energy" />
+            </div>
+            <p className="text-2xl font-bold text-energy">
+              {statistics.by_risk_level?.critical || 0}
+            </p>
+          </div>
 
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">
-                  {t('approvalQueue.stats.high', 'High Risk')}
-                </p>
-                <FileWarning className="w-5 h-5 text-joy" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-joy">
-                {statistics.by_risk_level?.high || 0}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {t('approvalQueue.stats.high', 'High Risk')}
               </p>
-            </CardContent>
-          </Card>
+              <FileWarning className="w-5 h-5 text-joy" />
+            </div>
+            <p className="text-2xl font-bold text-joy">
+              {statistics.by_risk_level?.high || 0}
+            </p>
+          </div>
 
-          <Card className="material-card hover-lift">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-callout text-neutral-600 dark:text-neutral-400">
-                  {t('approvalQueue.stats.medium', 'Medium/Low')}
-                </p>
-                <Shield className="w-5 h-5 text-calm" />
-              </div>
-              <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white">
-                {(statistics.by_risk_level?.medium || 0) + (statistics.by_risk_level?.low || 0)}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {t('approvalQueue.stats.medium', 'Medium/Low')}
               </p>
-            </CardContent>
-          </Card>
+              <Shield className="w-5 h-5 text-calm" />
+            </div>
+            <p className="text-2xl font-bold text-[var(--text-primary)]">
+              {(statistics.by_risk_level?.medium || 0) + (statistics.by_risk_level?.low || 0)}
+            </p>
+          </div>
         </div>
       )}
 
@@ -286,14 +302,16 @@ const ApprovalQueue = () => {
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
-          <Card className="material-card hover-lift">
-            <CardHeader>
-              <CardTitle>{t('approvalQueue.pending.title', 'Pending Action Requests')}</CardTitle>
-              <CardDescription>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="pending-requests">
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                {t('approvalQueue.pending.title', 'Pending Action Requests')}
+              </h2>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
                 {t('approvalQueue.pending.subtitle', 'Actions awaiting your approval before execution')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </p>
+            </div>
+            <div className="p-5">
               <div className="space-y-3">
                 {pendingRequests.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 space-y-3">
@@ -306,27 +324,27 @@ const ApprovalQueue = () => {
                   pendingRequests.map((request) => (
                     <button
                       key={request.request_id}
-                      className="w-full text-left p-4 material-card cursor-pointer transition-opacity hover:opacity-80"
+                      className="w-full text-left p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-opacity hover:opacity-80"
                       onClick={() => setSelectedRequest(request)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4">
                           {getRiskLevelIcon(request.risk_level)}
                           <div>
-                            <p className="font-semibold text-neutral-900 dark:text-white">
+                            <p className="font-semibold text-[var(--text-primary)]">
                               {request.action_type}
                             </p>
-                            <p className="text-callout text-neutral-600 dark:text-neutral-400 mt-1">
+                            <p className="text-sm text-[var(--text-secondary)] mt-1">
                               {request.action_description}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
                               <Badge className={getRiskLevelColor(request.risk_level)}>
                                 {request.risk_level?.toUpperCase()}
                               </Badge>
-                              <Badge variant="outline" className="text-caption-2">
+                              <Badge variant="outline" className="text-xs">
                                 {t('approvalQueue.details.agent', 'Agent')}: {request.agent_id}
                               </Badge>
-                              <Badge variant="outline" className="text-caption-2 flex items-center gap-1">
+                              <Badge variant="outline" className="text-xs flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
                                 {getTimeRemaining(request.timeout_at)}
                               </Badge>
@@ -352,49 +370,49 @@ const ApprovalQueue = () => {
                   ))
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="details" className="space-y-4">
           {selectedRequest ? (
-            <Card className="material-card hover-lift">
-              <CardHeader>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="request-details">
+              <div className="px-5 py-4 border-b border-[var(--border)]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
                       {getActionTypeIcon(selectedRequest.action_type)}
                       {selectedRequest.action_type}
-                    </CardTitle>
-                    <CardDescription>{selectedRequest.request_id}</CardDescription>
+                    </h2>
+                    <p className="text-sm text-[var(--text-secondary)] mt-1">{selectedRequest.request_id}</p>
                   </div>
                   <Badge className={getRiskLevelColor(selectedRequest.risk_level)}>
                     {selectedRequest.risk_level?.toUpperCase()} RISK
                   </Badge>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              </div>
+              <div className="p-5 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.agent', 'Agent')}</p>
-                    <p className="font-medium text-neutral-900 dark:text-white">{selectedRequest.agent_id}</p>
+                    <p className="text-sm text-[var(--text-secondary)]">{t('approvalQueue.details.agent', 'Agent')}</p>
+                    <p className="font-medium text-[var(--text-primary)]">{selectedRequest.agent_id}</p>
                   </div>
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.created', 'Created')}</p>
-                    <p className="font-medium text-neutral-900 dark:text-white">
+                    <p className="text-sm text-[var(--text-secondary)]">{t('approvalQueue.details.created', 'Created')}</p>
+                    <p className="font-medium text-[var(--text-primary)]">
                       {formatTimestamp(selectedRequest.created_at)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.timeout', 'Timeout')}</p>
-                    <p className="font-medium text-neutral-900 dark:text-white">
+                    <p className="text-sm text-[var(--text-secondary)]">{t('approvalQueue.details.timeout', 'Timeout')}</p>
+                    <p className="font-medium text-[var(--text-primary)]">
                       {getTimeRemaining(selectedRequest.timeout_at)}
                     </p>
                   </div>
                   {selectedRequest.trace_id && (
                     <div>
-                      <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.traceId', 'Trace ID')}</p>
-                      <p className="font-medium text-neutral-900 dark:text-white font-mono text-sm">
+                      <p className="text-sm text-[var(--text-secondary)]">{t('approvalQueue.details.traceId', 'Trace ID')}</p>
+                      <p className="font-medium text-[var(--text-primary)] font-mono text-sm">
                         {selectedRequest.trace_id}
                       </p>
                     </div>
@@ -402,15 +420,15 @@ const ApprovalQueue = () => {
                 </div>
 
                 <div>
-                  <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.description', 'Description')}</p>
-                  <p className="text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-800 p-4 rounded-lg">
+                  <p className="text-sm text-[var(--text-secondary)] mb-2">{t('approvalQueue.details.description', 'Description')}</p>
+                  <p className="text-[var(--text-primary)] bg-neutral-50 dark:bg-neutral-800 p-4 rounded-lg">
                     {selectedRequest.action_description}
                   </p>
                 </div>
 
                 {selectedRequest.risk_reason && (
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.riskReason', 'Risk Reason')}</p>
+                    <p className="text-sm text-[var(--text-secondary)] mb-2">{t('approvalQueue.details.riskReason', 'Risk Reason')}</p>
                     <div className="flex items-start gap-2 bg-joy-10 p-4 rounded-lg">
                       <AlertTriangle className="w-5 h-5 text-joy mt-0.5" />
                       <p className="text-joy-dark">{selectedRequest.risk_reason}</p>
@@ -420,7 +438,7 @@ const ApprovalQueue = () => {
 
                 {selectedRequest.affected_resources && selectedRequest.affected_resources.length > 0 && (
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.affectedResources', 'Affected Resources')}</p>
+                    <p className="text-sm text-[var(--text-secondary)] mb-2">{t('approvalQueue.details.affectedResources', 'Affected Resources')}</p>
                     <div className="space-y-1">
                       {selectedRequest.affected_resources.map((resource, idx) => (
                         <Badge key={idx} variant="outline" className="mr-2">
@@ -433,7 +451,7 @@ const ApprovalQueue = () => {
 
                 {selectedRequest.action_payload && (
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.actionPayload', 'Action Payload')}</p>
+                    <p className="text-sm text-[var(--text-secondary)] mb-2">{t('approvalQueue.details.actionPayload', 'Action Payload')}</p>
                     <pre className="bg-neutral-50 dark:bg-neutral-800 p-4 rounded-lg overflow-x-auto text-sm">
                       {JSON.stringify(selectedRequest.action_payload, null, 2)}
                     </pre>
@@ -441,7 +459,7 @@ const ApprovalQueue = () => {
                 )}
 
                 <div className="border-t pt-4">
-                  <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">
+                  <p className="text-sm text-[var(--text-secondary)] mb-2">
                     {t('approvalQueue.details.rejectionReason', 'Rejection Reason (optional)')}
                   </p>
                   <textarea
@@ -484,19 +502,19 @@ const ApprovalQueue = () => {
                     {t('common.approve', 'Approve')}
                   </AppleButton>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
-            <Card className="material-card hover-lift">
-              <CardContent className="py-12">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="empty-state">
+              <div className="py-12">
                 <div className="flex flex-col items-center justify-center space-y-3">
-                  <Shield className="w-12 h-12 text-neutral-400" />
-                  <p className="text-neutral-500 dark:text-neutral-400">
+                  <Shield className="w-12 h-12 text-[var(--text-secondary)]" />
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {t('approvalQueue.details.selectRequest', 'Select a request from the pending list to view details')}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </TabsContent>
       </Tabs>
