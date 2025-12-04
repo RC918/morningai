@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from '@morningai/shared-ui'
-import { Users, Plus, Settings, Activity } from 'lucide-react'
+import { Badge, Button, SectionCard } from '@morningai/shared-ui'
+import { Plus, Settings, Activity } from 'lucide-react'
 import { getTenantInfo, getTenantMembers } from '@/lib/generated/tenant/tenant'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
@@ -61,50 +61,45 @@ const TenantManagement = () => {
     )
   }
 
-  return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
-            <Users className="w-8 h-8 text-accent-600" />
-            {t('tenants.title')}
-          </h1>
-          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('tenants.subtitle')}</p>
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <h1 className="text-xl font-semibold text-[var(--text-primary)]">{t('tenants.title')}</h1>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">{t('tenants.subtitle')}</p>
+          </div>
+          <AppleButton variant="primary" haptic="medium">
+            <Plus className="w-4 h-4 mr-2" />
+            {t('tenants.addTenant')}
+          </AppleButton>
         </div>
-        <AppleButton variant="primary" haptic="medium">
-          <Plus className="w-4 h-4 mr-2" />
-          {t('tenants.addTenant')}
-        </AppleButton>
-      </div>
 
-      {error && (
-        <AppleErrorBanner
-          title={t('common.error')}
-          message={error}
-          onRetry={loadTenants}
-        />
-      )}
+        {error && (
+          <AppleErrorBanner
+            title={t('common.error')}
+            message={error}
+            onRetry={loadTenants}
+          />
+        )}
 
-      <Card className="material-card hover-lift">
-        <CardHeader>
-          <CardTitle>{t('tenants.activeTenants')}</CardTitle>
-          <CardDescription>{t('tenants.allTenants')}</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <SectionCard
+          title={t('tenants.activeTenants')}
+          subtitle={t('tenants.allTenants')}
+        >
           <div className="space-y-4">
             {tenants.length === 0 ? (
-              <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">{t('tenants.noTenants')}</p>
+              <p className="text-center text-[var(--text-secondary)] py-8">{t('tenants.noTenants')}</p>
             ) : (
               tenants.map((tenant) => (
-                <div key={tenant.id} className="material-card flex items-center justify-between p-4">
+                <div key={tenant.id} className="flex items-center justify-between p-4 rounded-lg border border-[var(--border)]">
                   <div>
-                    <p className="text-callout font-semibold text-neutral-900 dark:text-white">{tenant.name}</p>
-                    <p className="text-footnote text-neutral-600 dark:text-neutral-400">{t('common.idShort', { id: tenant.id })}</p>
+                    <p className="font-semibold text-[var(--text-primary)]">{tenant.name}</p>
+                    <p className="text-sm text-[var(--text-secondary)]">{t('common.idShort', { id: tenant.id })}</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-footnote text-neutral-600 dark:text-neutral-400">{tenant.agents || 0} {t('tenants.agents')}</p>
-                      <p className="text-footnote text-neutral-600 dark:text-neutral-400">{tenant.users || 0} {t('tenants.users')}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{tenant.agents || 0} {t('tenants.agents')}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{tenant.users || 0} {t('tenants.users')}</p>
                     </div>
                     <Badge variant={tenant.status === 'active' ? 'default' : 'destructive'}>
                       {t(`tenants.${tenant.status}`)}
@@ -117,10 +112,9 @@ const TenantManagement = () => {
               ))
             )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+        </SectionCard>
+      </div>
+    )
 }
 
 export default TenantManagement

@@ -585,6 +585,7 @@
     "addTenant": "Add Tenant",
     "agents": "agents",
     "allTenants": "All registered tenant organizations",
+    "noTenants": "No tenants found",
     "subtitle": "Manage tenant accounts and permissions",
     "suspended": "suspended",
     "title": "Tenant Management",
