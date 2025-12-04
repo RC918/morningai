@@ -133,7 +133,20 @@ class RedisQueue:
         
         Returns:
             bool: True if successful
+        
+        Raises:
+            ValueError: If task.assigned_to is not set (Issue #1910)
         """
+        # Issue #1910: Validate assigned_to is set to prevent infinite loop root cause
+        # Tasks without proper assignment can cause routing issues and infinite loops
+        if not task.assigned_to:
+            error_msg = (
+                f"Task {task.task_id} cannot be enqueued: assigned_to is required. "
+                "Set assigned_to to a valid agent (e.g., 'ops', 'dev', 'faq') before enqueueing."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
         try:
             task_data = json.dumps(task.to_dict())
             priority_score = self._get_priority_score(task.priority.value if isinstance(task.priority, TaskPriority) else task.priority)
