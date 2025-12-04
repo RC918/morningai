@@ -6,6 +6,7 @@ import {
   Settings, 
   Shield,
   ShieldCheck,
+  ShieldAlert,
   Users,
   Activity,
   BarChart3,
@@ -37,18 +38,24 @@ const Sidebar = ({ user, onLogout }) => {
       labelKey: 'nav.dashboard',
       descriptionKey: 'dashboard.subtitle'
     },
-        {
-          path: '/governance',
-          icon: Shield,
-          labelKey: 'nav.governance',
-          descriptionKey: 'governance.subtitle'
-        },
-        {
-          path: '/ai-policies',
-          icon: ShieldCheck,
-          labelKey: 'nav.aiPolicies',
-          descriptionKey: 'aiPolicies.subtitle'
-        },
+                {
+                  path: '/governance',
+                  icon: Shield,
+                  labelKey: 'nav.governance',
+                  descriptionKey: 'governance.subtitle'
+                },
+                {
+                  path: '/approval-queue',
+                  icon: ShieldAlert,
+                  labelKey: 'nav.approvalQueue',
+                  descriptionKey: 'approvalQueue.subtitle'
+                },
+                {
+                  path: '/ai-policies',
+                  icon: ShieldCheck,
+                  labelKey: 'nav.aiPolicies',
+                  descriptionKey: 'aiPolicies.subtitle'
+                },
         {
           path: '/tenants',
       icon: Users,
