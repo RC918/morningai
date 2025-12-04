@@ -238,6 +238,16 @@ class AgentState(TypedDict):
         evaluation_result: Result from evaluation node (capability regression detection)
         evaluation_health_status: Health status (healthy, degraded, critical)
         evaluation_has_regression: Boolean indicating if capability regression detected
+
+    Phase 3 New Fields (PR-3 PM Agent + Ops Agent #1815):
+        pm_advisory: PMAdvisory result from PMAgent goal decomposition
+        pm_sub_tasks: List of decomposed sub-tasks
+        pm_confidence_score: Confidence score for the plan (0.0 to 1.0)
+        pm_risk: PM planning risk level (high, medium, low, info)
+        ops_advisory: OpsAdvisory result from OpsAgent health check
+        ops_health_status: System health status (healthy, degraded, unhealthy, unknown)
+        ops_risk: Operations risk level (critical, high, medium, low, info)
+        ops_recommended_actions: List of recommended operational actions
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -280,6 +290,15 @@ class AgentState(TypedDict):
     evaluation_result: dict
     evaluation_health_status: str
     evaluation_has_regression: bool
+    # Phase 3 PR-3 PM Agent + Ops Agent (#1815)
+    pm_advisory: dict
+    pm_sub_tasks: list
+    pm_confidence_score: float
+    pm_risk: str
+    ops_advisory: dict
+    ops_health_status: str
+    ops_risk: str
+    ops_recommended_actions: list
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -925,6 +944,193 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
     metrics.record_node_complete("reputation_advisor", trace_id, success=success, latency_ms=latency_ms)
     if success:
         metrics.record_transition("reputation_advisor", "policy_enforcement", trace_id)
+    return state
+
+
+def pm_advisor_node(state: AgentState) -> AgentState:
+    """
+    PM Advisor node: Task decomposition and planning analysis
+
+    Phase 3 PR-3 (#1815) PM Agent Integration:
+    - Decomposes high-level goals into actionable sub-tasks
+    - Provides confidence scores for generated plans
+    - Identifies planning risks and dependencies
+    - Generates implementation recommendations
+
+    This is an advisory node that enhances the planner with structured
+    task decomposition. It runs after the planner to provide additional
+    planning insights.
+
+    Returns:
+        Updated state with pm_advisory, pm_sub_tasks, pm_confidence_score, pm_risk
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+    goal = state.get("goal", "")
+    repo = state.get("repo", "RC918/morningai")
+
+    metrics.record_node_start("pm_advisor", trace_id)
+
+    logger.info("[PMAdvisor] Starting goal decomposition", extra={
+        "operation": "pm_advisor_node",
+        "trace_id": trace_id,
+        "goal": goal[:50]
+    })
+
+    state["pm_advisory"] = {}
+    state["pm_sub_tasks"] = []
+    state["pm_confidence_score"] = 0.0
+    state["pm_risk"] = "info"
+
+    success = False
+
+    try:
+        from pm_agent import get_pm_agent
+
+        pm_agent = get_pm_agent()
+        advisory = pm_agent.decompose_goal(goal, repo)
+
+        state["pm_advisory"] = advisory.to_dict()
+        state["pm_sub_tasks"] = [
+            {
+                "task_id": t.task_id,
+                "title": t.title,
+                "description": t.description,
+                "estimated_effort": t.estimated_effort,
+                "task_type": t.task_type,
+                "priority": t.priority,
+            }
+            for t in advisory.sub_tasks
+        ]
+        state["pm_confidence_score"] = advisory.confidence_score
+        state["pm_risk"] = advisory.overall_risk.value
+
+        logger.info("[PMAdvisor] Goal decomposition complete", extra={
+            "operation": "pm_advisor_node",
+            "trace_id": trace_id,
+            "sub_task_count": len(advisory.sub_tasks),
+            "confidence_score": advisory.confidence_score,
+            "risk": advisory.overall_risk.value
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"PM Advisory: {len(advisory.sub_tasks)} sub-tasks, confidence={advisory.confidence_score:.2f}, risk={advisory.overall_risk.value}")
+        ]
+
+        success = True
+
+    except ImportError as e:
+        logger.warning("[PMAdvisor] PM Agent not available: %s", e)
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content="PM Advisory: PM Agent not available, skipping decomposition")
+        ]
+        success = True
+
+    except Exception as e:
+        logger.error("[PMAdvisor] Goal decomposition failed: %s", e, extra={
+            "operation": "pm_advisor_node",
+            "trace_id": trace_id,
+            "error": str(e)
+        })
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"PM Advisory failed: {str(e)}")
+        ]
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("pm_advisor", trace_id, success=success, latency_ms=latency_ms)
+    return state
+
+
+def ops_advisor_node(state: AgentState) -> AgentState:
+    """
+    Ops Advisor node: System health monitoring and operational recommendations
+
+    Phase 3 PR-3 (#1815) Ops Agent Integration:
+    - Monitors system health metrics
+    - Analyzes structured logs for issues
+    - Recommends operational actions (restart, rollback, scaling)
+    - Integrates with HITL for high-risk operation approval
+
+    This is an advisory node that provides operational insights.
+    It can be triggered on-demand or as part of the workflow.
+
+    Returns:
+        Updated state with ops_advisory, ops_health_status, ops_risk, ops_recommended_actions
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+
+    metrics.record_node_start("ops_advisor", trace_id)
+
+    logger.info("[OpsAdvisor] Starting health check", extra={
+        "operation": "ops_advisor_node",
+        "trace_id": trace_id
+    })
+
+    state["ops_advisory"] = {}
+    state["ops_health_status"] = "unknown"
+    state["ops_risk"] = "info"
+    state["ops_recommended_actions"] = []
+
+    success = False
+
+    try:
+        from ops_agent import get_ops_agent
+
+        ops_agent = get_ops_agent()
+        advisory = ops_agent.check_system_health()
+
+        state["ops_advisory"] = advisory.to_dict()
+        state["ops_health_status"] = advisory.health_status.value
+        state["ops_risk"] = advisory.overall_risk.value
+        state["ops_recommended_actions"] = [
+            {
+                "action_type": a.action_type.value,
+                "target": a.target,
+                "reason": a.reason,
+                "urgency": a.urgency.value,
+                "requires_approval": a.requires_approval,
+            }
+            for a in advisory.recommended_actions
+        ]
+
+        logger.info("[OpsAdvisor] Health check complete", extra={
+            "operation": "ops_advisor_node",
+            "trace_id": trace_id,
+            "health_status": advisory.health_status.value,
+            "risk": advisory.overall_risk.value,
+            "actions_count": len(advisory.recommended_actions)
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Ops Advisory: health={advisory.health_status.value}, risk={advisory.overall_risk.value}, {len(advisory.recommended_actions)} recommended actions")
+        ]
+
+        success = True
+
+    except ImportError as e:
+        logger.warning("[OpsAdvisor] Ops Agent not available: %s", e)
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content="Ops Advisory: Ops Agent not available, skipping health check")
+        ]
+        success = True
+
+    except Exception as e:
+        logger.error("[OpsAdvisor] Health check failed: %s", e, extra={
+            "operation": "ops_advisor_node",
+            "trace_id": trace_id,
+            "error": str(e)
+        })
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Ops Advisory failed: {str(e)}")
+        ]
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("ops_advisor", trace_id, success=success, latency_ms=latency_ms)
     return state
 
 
@@ -2034,6 +2240,10 @@ def create_orchestrator_graph():
         - Compares metrics against baseline thresholds
         - Triggers alerts if regression is detected
 
+    Phase 3 PR-3 (#1815) PM Agent + Ops Agent Nodes:
+        - pm_advisor: Task decomposition and planning analysis
+        - ops_advisor: System health monitoring and operational recommendations
+
     Other Nodes:
         - planner: Task decomposition using LLM Planner
         - executor: Code generation execution
@@ -2050,6 +2260,9 @@ def create_orchestrator_graph():
 
     # Add all nodes
     workflow.add_node("planner", planner_node)
+    # Phase 3 PR-3 (#1815): PM Agent + Ops Agent nodes
+    workflow.add_node("pm_advisor", pm_advisor_node)
+    workflow.add_node("ops_advisor", ops_advisor_node)
     # 5-Agent Advisory Pipeline nodes
     workflow.add_node("security_advisor", security_advisor_node)
     workflow.add_node("governance_advisor", governance_advisor_node)
@@ -2071,9 +2284,17 @@ def create_orchestrator_graph():
     # Set entry point
     workflow.set_entry_point("planner")
 
+    # Phase 3 PR-3 (#1815): PM Agent + Ops Agent edges
+    # planner → pm_advisor (task decomposition after planning)
+    workflow.add_edge("planner", "pm_advisor")
+
+    # pm_advisor → ops_advisor (health check before security analysis)
+    workflow.add_edge("pm_advisor", "ops_advisor")
+
+    # ops_advisor → security_advisor (continue to security analysis)
+    workflow.add_edge("ops_advisor", "security_advisor")
+
     # 5-Agent Advisory Pipeline edges (Phase 4 PR-4)
-    # planner → security_advisor (Phase 4 PR-2)
-    workflow.add_edge("planner", "security_advisor")
 
     # security_advisor → governance_advisor (Phase 4 PR-3)
     workflow.add_edge("security_advisor", "governance_advisor")
@@ -2218,7 +2439,16 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "policy_block_reason": "",
         "evaluation_result": {},
         "evaluation_health_status": "unknown",
-        "evaluation_has_regression": False
+        "evaluation_has_regression": False,
+        # Phase 3 PR-3 (#1815): PM Agent + Ops Agent initial state
+        "pm_advisory": {},
+        "pm_sub_tasks": [],
+        "pm_confidence_score": 0.0,
+        "pm_risk": "info",
+        "ops_advisory": {},
+        "ops_health_status": "unknown",
+        "ops_risk": "info",
+        "ops_recommended_actions": []
     }
 
     config = {"configurable": {"thread_id": trace_id}}
