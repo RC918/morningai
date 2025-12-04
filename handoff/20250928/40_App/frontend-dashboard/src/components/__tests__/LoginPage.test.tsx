@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import LoginPage from '../LoginPage'
 
@@ -20,7 +21,7 @@ vi.mock('@/components/ui/apple-button', () => ({
 vi.mock('@/components/ui/apple-input', () => ({
   AppleInput: ({ label, ...props }: { label?: string; [key: string]: any }) => (
     <div>
-      {label && <label>{label}</label>}
+      {label && <label htmlFor={props.id}>{label}</label>}
       <input {...props} />
     </div>
   )
@@ -44,79 +45,123 @@ vi.mock('framer-motion', () => ({
 }))
 
 const renderLoginPage = () => {
-  return render(
+  const user = userEvent.setup()
+  const result = render(
     <BrowserRouter>
       <LoginPage onLogin={vi.fn()} />
     </BrowserRouter>
   )
+  return { ...result, user }
 }
 
 describe('LoginPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   describe('Rendering', () => {
     it('should render without crashing', () => {
       const { container } = renderLoginPage()
-      expect(container).toBeTruthy()
+      // Submit button exists (text may be i18n key in test environment)
+      const submitButton = container.querySelector('button[type="submit"]')
+      expect(submitButton).toBeInTheDocument()
     })
 
     it('should render email input field', () => {
-      const { container } = renderLoginPage()
-      const emailInput = container.querySelector('input[name="email"]')
-      expect(emailInput).toBeTruthy()
+      renderLoginPage()
+      // Use getByRole for email input (type="email" gives it textbox role)
+      const emailInput = screen.getByRole('textbox')
+      expect(emailInput).toBeInTheDocument()
+      expect(emailInput).toHaveAttribute('name', 'email')
+      expect(emailInput).toHaveAttribute('type', 'email')
     })
 
     it('should render password input field', () => {
       const { container } = renderLoginPage()
-      const passwordInput = container.querySelector('input[name="password"]')
-      expect(passwordInput).toBeTruthy()
+      // Password inputs don't have a role, query by attribute
+      const passwordInput = container.querySelector('input[type="password"]')
+      expect(passwordInput).toBeInTheDocument()
+      expect(passwordInput).toHaveAttribute('name', 'password')
     })
 
     it('should render submit button', () => {
       const { container } = renderLoginPage()
       const submitButton = container.querySelector('button[type="submit"]')
-      expect(submitButton).toBeTruthy()
+      expect(submitButton).toBeInTheDocument()
     })
 
     it('should render SSO buttons', () => {
-      const { container } = renderLoginPage()
-      const buttons = container.querySelectorAll('button[type="button"]')
-      // Should have Google, Apple, and GitHub SSO buttons
-      expect(buttons.length).toBeGreaterThanOrEqual(3)
+      renderLoginPage()
+      // Query SSO buttons by aria-label (these have proper aria-labels)
+      const googleButton = screen.getByRole('button', { name: /google/i })
+      const appleButton = screen.getByRole('button', { name: /apple/i })
+      const githubButton = screen.getByRole('button', { name: /github/i })
+      
+      expect(googleButton).toBeInTheDocument()
+      expect(appleButton).toBeInTheDocument()
+      expect(githubButton).toBeInTheDocument()
     })
 
     it('should render forgot password link', () => {
       const { container } = renderLoginPage()
+      // Link href is reliable even when text is i18n key
       const forgotPasswordLink = container.querySelector('a[href="/forgot-password"]')
-      expect(forgotPasswordLink).toBeTruthy()
+      expect(forgotPasswordLink).toBeInTheDocument()
     })
   })
 
   describe('Form Interaction', () => {
     it('should update email field on change', async () => {
-      const { container } = renderLoginPage()
-      const emailInput = container.querySelector('input[name="email"]') as HTMLInputElement
+      const { user } = renderLoginPage()
+      const emailInput = screen.getByRole('textbox')
       
-      expect(emailInput).not.toBeNull()
-      emailInput.value = 'test@example.com'
-      emailInput.dispatchEvent(new Event('change', { bubbles: true }))
-      expect(emailInput.value).toBe('test@example.com')
+      await user.clear(emailInput)
+      await user.type(emailInput, 'test@example.com')
+      
+      expect(emailInput).toHaveValue('test@example.com')
     })
 
     it('should update password field on change', async () => {
-      const { container } = renderLoginPage()
-      const passwordInput = container.querySelector('input[name="password"]') as HTMLInputElement
-      
+      const { user, container } = renderLoginPage()
+      const passwordInput = container.querySelector('input[type="password"]') as HTMLInputElement
       expect(passwordInput).not.toBeNull()
-      passwordInput.value = 'testpassword'
-      passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
-      expect(passwordInput.value).toBe('testpassword')
+      
+      await user.clear(passwordInput)
+      await user.type(passwordInput, 'testpassword')
+      
+      expect(passwordInput).toHaveValue('testpassword')
     })
   })
 
   describe('Accessibility', () => {
     it('should have accessible SSO button labels', () => {
+      renderLoginPage()
+      
+      // All SSO buttons should have aria-labels
+      const googleButton = screen.getByRole('button', { name: /google/i })
+      const appleButton = screen.getByRole('button', { name: /apple/i })
+      const githubButton = screen.getByRole('button', { name: /github/i })
+      
+      expect(googleButton).toHaveAccessibleName()
+      expect(appleButton).toHaveAccessibleName()
+      expect(githubButton).toHaveAccessibleName()
+    })
+
+    it('should have proper form structure', () => {
       const { container } = renderLoginPage()
-      const ssoButtons = container.querySelectorAll('button[aria-label]')
-      expect(ssoButtons.length).toBeGreaterThanOrEqual(3)
+      
+      // Form should exist
+      const form = container.querySelector('form')
+      expect(form).toBeInTheDocument()
+      
+      // Email input should exist with proper attributes
+      const emailInput = screen.getByRole('textbox')
+      expect(emailInput).toHaveAttribute('required')
+      
+      // Password input should exist with proper attributes
+      const passwordInput = container.querySelector('input[type="password"]')
+      expect(passwordInput).toBeInTheDocument()
+      expect(passwordInput).toHaveAttribute('required')
     })
   })
 })
