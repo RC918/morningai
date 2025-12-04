@@ -19,8 +19,10 @@ services:
         value: production
       - key: ENVIRONMENT
         value: production
-      - key: SECRET_KEY
-        generateValue: true
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: ENCRYPTION_MASTER_KEY
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -97,6 +99,8 @@ services:
         value: false
       - key: ENABLE_MOCK_USERS
         value: false
+      - key: RQ_MAX_JOBS
+        value: "15"
 
   - type: web
     name: braintrust-processor
