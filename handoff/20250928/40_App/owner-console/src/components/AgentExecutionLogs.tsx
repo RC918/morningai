@@ -37,7 +37,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon
 } from 'lucide-react'
-import { apiClient, apiClientWithMeta } from '@/lib/api-client'
+import { apiClient, apiClientWithMeta, handleApiError } from '@/lib/api-client'
 import { toast } from 'sonner'
 import { buildTraceUrl } from '@/lib/trace'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
@@ -267,8 +267,11 @@ const AgentExecutionLogs = () => {
         }))
       }
     } catch (err) {
-      console.error('Failed to load execution logs:', err)
-      setError((err as Error).message || 'Failed to load execution logs')
+      const message = handleApiError(err, {
+        defaultMessage: 'Failed to load execution logs',
+        logContext: 'loadExecutionLogs'
+      })
+      setError(message)
     } finally {
       setLoading(false)
     }

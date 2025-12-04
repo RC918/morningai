@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
-import { apiClientWithMeta, ApiError } from '@/lib/api-client'
+import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
 
 const ApprovalQueue = () => {
   const { t } = useTranslation()
@@ -50,15 +50,12 @@ const ApprovalQueue = () => {
         setStatistics(statsResult.data || null)
       }
     } catch (err) {
-      console.error('Failed to load approval data:', err)
-      
-      if (err instanceof ApiError && err.status === 503) {
-        setError('HITL system not available')
-      } else if (err instanceof Error) {
-        setError(err.message || 'Failed to load approval data')
-      } else {
-        setError('Failed to load approval data')
-      }
+      const message = handleApiError(err, {
+        defaultMessage: 'Failed to load approval data',
+        statusMessages: { 503: 'HITL system not available' },
+        logContext: 'loadApprovalData'
+      })
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -75,15 +72,11 @@ const ApprovalQueue = () => {
       await loadApprovalData()
       setSelectedRequest(null)
     } catch (err) {
-      console.error('Failed to approve request:', err)
-      
-      if (err instanceof ApiError && err.data && err.data.message) {
-        setError(err.data.message)
-      } else if (err instanceof Error) {
-        setError(err.message || 'Failed to approve request')
-      } else {
-        setError('Failed to approve request')
-      }
+      const message = handleApiError(err, {
+        defaultMessage: 'Failed to approve request',
+        logContext: 'handleApprove'
+      })
+      setError(message)
     } finally {
       setActionLoading(false)
     }
@@ -102,15 +95,11 @@ const ApprovalQueue = () => {
       setSelectedRequest(null)
       setRejectionReason('')
     } catch (err) {
-      console.error('Failed to reject request:', err)
-      
-      if (err instanceof ApiError && err.data && err.data.message) {
-        setError(err.data.message)
-      } else if (err instanceof Error) {
-        setError(err.message || 'Failed to reject request')
-      } else {
-        setError('Failed to reject request')
-      }
+      const message = handleApiError(err, {
+        defaultMessage: 'Failed to reject request',
+        logContext: 'handleReject'
+      })
+      setError(message)
     } finally {
       setActionLoading(false)
     }
