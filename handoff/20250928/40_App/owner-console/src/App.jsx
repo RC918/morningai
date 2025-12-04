@@ -10,6 +10,7 @@ import './App.css'
 
 const OwnerDashboard = lazy(() => import('@/pages/OwnerDashboard'))
 const AgentGovernance = lazy(() => import('@/pages/AgentGovernance'))
+const ApprovalQueue = lazy(() => import('@/pages/ApprovalQueue'))
 const TenantManagement = lazy(() => import('@/pages/TenantManagement'))
 const SystemMonitoring = lazy(() => import('@/pages/SystemMonitoring'))
 const AgentEvaluationDashboard = lazy(() => import('@/pages/AgentEvaluationDashboard'))
@@ -46,10 +47,11 @@ function AppContent() {
           <main id="main-content" className="flex-1 overflow-y-auto p-6" role="main">
             <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div></div>}>
               <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<OwnerDashboard />} />
-                <Route path="/governance" element={<AgentGovernance />} />
-                <Route path="/ai-policies" element={<AIPolicies />} />
+                                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                                <Route path="/dashboard" element={<OwnerDashboard />} />
+                                <Route path="/governance" element={<AgentGovernance />} />
+                                <Route path="/approval-queue" element={<ApprovalQueue />} />
+                                <Route path="/ai-policies" element={<AIPolicies />} />
                 <Route path="/tenants" element={<TenantManagement />} />
                 <Route path="/monitoring" element={<SystemMonitoring />} />
                 <Route path="/agent-evaluation" element={<AgentEvaluationDashboard />} />

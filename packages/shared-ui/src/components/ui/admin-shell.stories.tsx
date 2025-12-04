@@ -3,6 +3,8 @@ import { Home, Users, Bot, Activity, Shield, Settings } from 'lucide-react'
 import { AdminShell } from './admin-shell'
 import { AdminSidebar } from './admin-sidebar'
 import { AdminTopbar } from './admin-topbar'
+import { ActivityListPanel } from '../iotask/activity-list-panel'
+import { ActivityListItem } from '../iotask/activity-list-item'
 
 const defaultNavItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home, active: true },
@@ -136,6 +138,76 @@ export const AgentsActive: Story = {
         <h1 className="text-2xl font-semibold">Agents</h1>
         <p className="text-neutral-500 mt-2">Manage your AI agents here.</p>
       </div>
+    ),
+  },
+}
+
+export const ThreeColumnLayout: Story = {
+  args: {
+    navItems: defaultNavItems,
+    user: defaultUser,
+    topbarTitle: "Dashboard",
+    rightPanelAriaLabel: "Recent activity",
+    children: (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="text-xs text-neutral-500">Total Tenants</div>
+            <div className="mt-2 text-2xl font-semibold">12</div>
+          </div>
+          <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="text-xs text-neutral-500">Active Agents</div>
+            <div className="mt-2 text-2xl font-semibold">45</div>
+          </div>
+          <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="text-xs text-neutral-500">System Health</div>
+            <div className="mt-2 text-2xl font-semibold">98.5%</div>
+          </div>
+        </div>
+      </div>
+    ),
+    rightPanel: (
+      <ActivityListPanel
+        title="Recent Activity"
+        action={
+          <a href="/governance" className="text-primary-600 hover:underline">
+            See all
+          </a>
+        }
+      >
+        <ActivityListItem
+          id="1"
+          type="task"
+          title="New agent deployed"
+          description="Customer Support Bot v2.1 is now live"
+          timestamp="2 hours ago"
+          user={{ name: "System" }}
+        />
+        <ActivityListItem
+          id="2"
+          type="comment"
+          title="Feedback received"
+          description="User reported positive experience with AI assistant"
+          timestamp="4 hours ago"
+          user={{ name: "John Doe" }}
+        />
+        <ActivityListItem
+          id="3"
+          type="update"
+          title="Configuration updated"
+          description="Response timeout increased to 30s"
+          timestamp="Yesterday"
+          user={{ name: "Jane Smith" }}
+        />
+        <ActivityListItem
+          id="4"
+          type="milestone"
+          title="10,000 conversations"
+          description="Platform reached 10K total conversations"
+          timestamp="2 days ago"
+        />
+      </ActivityListPanel>
     ),
   },
 }
