@@ -1274,12 +1274,34 @@ class TestPRAutomation:
             assert "Automated TS strict mode fixes" in title
 
     def test_generate_pr_title_single_error(self):
-        """Test PR title generation with single error"""
+        """Test PR title generation with single error uses singular form"""
         with tempfile.TemporaryDirectory() as tmpdir:
             agent = RefactorAgent(repo_path=tmpdir)
             title = agent._generate_pr_title(1)
 
-            assert "1 errors" in title
+            assert "1 error)" in title
+            assert "1 errors" not in title
+
+    def test_generate_branch_name_with_timestamp(self):
+        """Test branch name generation with custom timestamp"""
+        from datetime import datetime
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            ts = datetime(2025, 12, 4, 10, 30, 45)
+            branch_name = agent._generate_branch_name(timestamp=ts)
+
+            assert branch_name == "refactor/ts-fixes-20251204-103045"
+
+    def test_generate_pr_title_with_timestamp(self):
+        """Test PR title generation with custom timestamp"""
+        from datetime import datetime
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            ts = datetime(2025, 12, 4, 10, 30, 45)
+            title = agent._generate_pr_title(3, timestamp=ts)
+
+            assert "2025-12-04" in title
+            assert "3 errors" in title
 
     def test_generate_changelog_empty_tasks(self):
         """Test changelog generation with no completed tasks"""
