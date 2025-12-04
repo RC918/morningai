@@ -17,6 +17,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import * as Sentry from '@sentry/react'
+import { SectionCard, Skeleton } from '@morningai/shared-ui'
 import { validateMetricsData, sanitizeMetricsData, safeGet, isValidMetricValue } from '../utils/metricsValidation'
 
 /**
@@ -125,15 +126,42 @@ export default function UXMetrics() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-600"></div>
+      <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
+        {/* Header Skeleton */}
+        <div>
+          <Skeleton className="h-7 w-48 mb-2" aria-hidden="true" />
+          <Skeleton className="h-5 w-96" aria-hidden="true" />
+          <Skeleton className="h-4 w-64 mt-1" aria-hidden="true" />
+        </div>
+
+        {/* Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
+              <Skeleton className="h-4 w-24 mb-2" aria-hidden="true" />
+              <Skeleton className="h-8 w-20" aria-hidden="true" />
+            </div>
+          ))}
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
+          <div className="px-6 py-4 border-b border-[var(--border)]">
+            <Skeleton className="h-6 w-32" aria-hidden="true" />
+          </div>
+          <div className="p-6 space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" aria-hidden="true" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="space-y-8">
         <div className="bg-error-50 border border-error-200 rounded-lg p-4">
           <h3 className="text-error-800 font-semibold">{t('uxMetrics.errorLoading')}</h3>
           <p className="text-error-600 mt-2">{error}</p>
@@ -150,7 +178,7 @@ export default function UXMetrics() {
 
   if (!metrics) {
     return (
-      <div className="p-8">
+      <div className="space-y-8">
         <div className="bg-warning-50 border border-warning-200 rounded-lg p-4">
           <p className="text-warning-800">{t('uxMetrics.noData')}</p>
         </div>
@@ -159,55 +187,55 @@ export default function UXMetrics() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-large-title font-bold text-neutral-900 dark:text-white">{t('uxMetrics.title')}</h1>
-        <p className="text-body text-neutral-600 dark:text-neutral-400 mt-2">
+    <div className="space-y-8" data-testid="ux-metrics">
+      <div>
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">{t('uxMetrics.title')}</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           {t('uxMetrics.subtitle')}
         </p>
-        <p className="text-footnote text-neutral-500 dark:text-neutral-400 mt-1">
+        <p className="text-xs text-[var(--text-secondary)] mt-1">
           {t('uxMetrics.lastUpdated', { date: new Date(metrics.generated_at).toLocaleString() })}
         </p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="material-card p-6">
-          <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.totalPRs')}</h3>
-          <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white mt-2">{metrics.total_prs}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
+          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.totalPRs')}</h3>
+          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{metrics.total_prs}</p>
         </div>
 
         {metrics.summary.lighthouse && (
           <>
-            <div className="material-card p-6">
-              <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.avgFCP')}</h3>
-              <p className={`text-title-2 md:text-title-1 font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.fcp_avg, metrics.thresholds.lighthouse.fcp)}`}>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
+              <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.avgFCP')}</h3>
+              <p className={`text-2xl font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.fcp_avg, metrics.thresholds.lighthouse.fcp)}`}>
                 {formatValue(metrics.summary.lighthouse.fcp_avg, 'ms')}
               </p>
-              <p className="text-footnote text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}</p>
             </div>
 
-            <div className="material-card p-6">
-              <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.avgLCP')}</h3>
-              <p className={`text-title-2 md:text-title-1 font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.lcp_avg, metrics.thresholds.lighthouse.lcp)}`}>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
+              <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.avgLCP')}</h3>
+              <p className={`text-2xl font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.lcp_avg, metrics.thresholds.lighthouse.lcp)}`}>
                 {formatValue(metrics.summary.lighthouse.lcp_avg, 'ms')}
               </p>
-              <p className="text-footnote text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}</p>
             </div>
           </>
         )}
 
-        <div className="material-card p-6">
-          <h3 className="text-callout font-medium text-neutral-500 dark:text-neutral-400 uppercase">{t('uxMetrics.i18nCoverage')}</h3>
-          <p className="text-title-2 md:text-title-1 font-bold text-neutral-900 dark:text-white mt-2">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
+          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.i18nCoverage')}</h3>
+          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">
             {metrics.summary.apps['frontend-dashboard'].i18n_available}/{metrics.total_prs}
           </p>
-          <p className="text-footnote text-neutral-500 dark:text-neutral-400 mt-1">{t('uxMetrics.prsWithData')}</p>
+          <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.prsWithData')}</p>
         </div>
       </div>
 
       {/* Thresholds Reference */}
-      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-8">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
         <h3 className="text-sm font-semibold text-primary-900 mb-2">{t('uxMetrics.qualityThresholds')}</h3>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
           <div>
@@ -234,10 +262,7 @@ export default function UXMetrics() {
       </div>
 
       {/* PR History Table */}
-      <div className="material-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-neutral-200">
-          <h2 className="text-title-2 font-semibold text-neutral-900 dark:text-white">{t('uxMetrics.recentPRs')}</h2>
-        </div>
+      <SectionCard title={t('uxMetrics.recentPRs')} data-testid="pr-history-table" className="overflow-hidden">
         
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-neutral-200">
@@ -347,19 +372,20 @@ export default function UXMetrics() {
             </tbody>
           </table>
         </div>
-      </div>
+      </SectionCard>
 
       {/* App-Specific Metrics with Pass Rates */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {['frontend-dashboard', 'owner-console'].map((app) => (
-          <div key={app} className="material-card p-6">
-            <h3 className="text-title-3 font-semibold text-neutral-900 dark:text-white mb-4">
-              {app === 'frontend-dashboard' ? t('uxMetrics.frontendDashboard') : t('uxMetrics.ownerConsole')}
-            </h3>
+          <SectionCard 
+            key={app} 
+            title={app === 'frontend-dashboard' ? t('uxMetrics.frontendDashboard') : t('uxMetrics.ownerConsole')}
+            data-testid={`app-metrics-${app}`}
+          >
             
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-callout text-neutral-600 dark:text-neutral-400">{t('uxMetrics.i18nCoverage')}</span>
+                <span className="text-sm text-[var(--text-secondary)]">{t('uxMetrics.i18nCoverage')}</span>
                 <div className="flex items-center gap-2">
                   {metrics.summary?.apps?.[app]?.i18n?.avg_coverage !== null && metrics.summary?.apps?.[app]?.i18n?.avg_coverage !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].i18n.avg_coverage, metrics.thresholds.i18n.target, 'gte')}`}>
@@ -377,7 +403,7 @@ export default function UXMetrics() {
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('uxMetrics.a11yTests')}</span>
+                <span className="text-sm text-[var(--text-secondary)]">{t('uxMetrics.a11yTests')}</span>
                 <div className="flex items-center gap-2">
                   {metrics.summary?.apps?.[app]?.a11y?.avg_critical !== null && metrics.summary?.apps?.[app]?.a11y?.avg_critical !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].a11y.avg_critical, metrics.thresholds.a11y.critical)}`}>
@@ -395,7 +421,7 @@ export default function UXMetrics() {
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('uxMetrics.motionTests')}</span>
+                <span className="text-sm text-[var(--text-secondary)]">{t('uxMetrics.motionTests')}</span>
                 <div className="flex items-center gap-2">
                   {metrics.summary?.apps?.[app]?.motion?.avg_p95 !== null && metrics.summary?.apps?.[app]?.motion?.avg_p95 !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].motion.avg_p95, metrics.thresholds.motion.p95)}`}>
@@ -408,7 +434,7 @@ export default function UXMetrics() {
                 </div>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-neutral-600 dark:text-neutral-400">{t('uxMetrics.vrtTests')}</span>
+                <span className="text-sm text-[var(--text-secondary)]">{t('uxMetrics.vrtTests')}</span>
                 <div className="flex items-center gap-2">
                   {metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== null && metrics.summary?.apps?.[app]?.vrt?.avg_mismatch !== undefined && (
                     <span className={`text-sm font-medium ${getStatusColor(metrics.summary.apps[app].vrt.avg_mismatch, metrics.thresholds.vrt.mismatch)}`}>
@@ -421,17 +447,16 @@ export default function UXMetrics() {
                 </div>
               </div>
             </div>
-          </div>
+          </SectionCard>
         ))}
       </div>
 
       {/* Trend Charts */}
       {metrics.summary.trends && (
-        <div className="mt-8 space-y-8">
+        <div className="space-y-8">
           {/* i18n Coverage Trend */}
           {metrics.summary.trends['frontend-dashboard']?.i18n && (
-            <div className="material-card p-6">
-              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.i18nTrend')}</h3>
+            <SectionCard title={t('uxMetrics.i18nTrend')} data-testid="i18n-trend-chart">
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={metrics.summary.trends['frontend-dashboard'].i18n.filter(d => d.value !== null)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -442,13 +467,12 @@ export default function UXMetrics() {
                   <Line type="monotone" dataKey="value" stroke="#8b5cf6" name="Frontend Dashboard" strokeWidth={2} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </SectionCard>
           )}
 
           {/* Lighthouse Performance Trend */}
           {metrics.summary.trends.lighthouse && (
-            <div className="material-card p-6">
-              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.lighthouseTrend')}</h3>
+            <SectionCard title={t('uxMetrics.lighthouseTrend')} data-testid="lighthouse-trend-chart">
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={metrics.summary.trends.lighthouse.filter(d => d.fcp !== null || d.lcp !== null)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -460,13 +484,12 @@ export default function UXMetrics() {
                   <Line type="monotone" dataKey="lcp" stroke="#f59e0b" name="LCP" strokeWidth={2} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </SectionCard>
           )}
 
           {/* Bundle Size Trend */}
           {metrics.summary.trends.bundleSize && (
-            <div className="material-card p-6">
-              <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t('uxMetrics.bundleSizeTrend')}</h3>
+            <SectionCard title={t('uxMetrics.bundleSizeTrend')} data-testid="bundle-size-trend-chart">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={metrics.summary.trends.bundleSize.filter(d => d.change_kb !== null)}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -480,24 +503,24 @@ export default function UXMetrics() {
               {metrics.summary.bundleSize && (
                 <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-neutral-600 dark:text-neutral-400">{t('uxMetrics.avgBundleSize')}:</span>
+                    <span className="text-[var(--text-secondary)]">{t('uxMetrics.avgBundleSize')}:</span>
                     <span className="ml-2 font-medium">{formatValue(metrics.summary.bundleSize.avg_size_kb, ' KB')}</span>
                   </div>
                   <div>
-                    <span className="text-neutral-600 dark:text-neutral-400">{t('uxMetrics.avgChange')}:</span>
+                    <span className="text-[var(--text-secondary)]">{t('uxMetrics.avgChange')}:</span>
                     <span className={`ml-2 font-medium ${metrics.summary.bundleSize.avg_change_kb > 0 ? 'text-error-600' : 'text-success-600'}`}>
                       {metrics.summary.bundleSize.avg_change_kb > 0 ? '+' : ''}{formatValue(metrics.summary.bundleSize.avg_change_kb, ' KB')}
                     </span>
                   </div>
                   <div>
-                    <span className="text-neutral-600 dark:text-neutral-400">{t('uxMetrics.totalChange')}:</span>
+                    <span className="text-[var(--text-secondary)]">{t('uxMetrics.totalChange')}:</span>
                     <span className={`ml-2 font-medium ${metrics.summary.bundleSize.total_change_kb > 0 ? 'text-error-600' : 'text-success-600'}`}>
                       {metrics.summary.bundleSize.total_change_kb > 0 ? '+' : ''}{formatValue(metrics.summary.bundleSize.total_change_kb, ' KB')}
                     </span>
                   </div>
                 </div>
               )}
-            </div>
+            </SectionCard>
           )}
         </div>
       )}
