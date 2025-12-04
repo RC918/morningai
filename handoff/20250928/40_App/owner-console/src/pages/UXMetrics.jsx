@@ -146,10 +146,10 @@ export default function UXMetrics() {
 
         {/* Table Skeleton */}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <div className="px-6 py-4 border-b border-[var(--border)]">
+          <div className="px-5 py-4 border-b border-[var(--border)]">
             <Skeleton className="h-6 w-32" aria-hidden="true" />
           </div>
-          <div className="p-6 space-y-4">
+          <div className="p-5 space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
               <Skeleton key={i} className="h-12 w-full" aria-hidden="true" />
             ))}
@@ -264,7 +264,7 @@ export default function UXMetrics() {
       {/* PR History Table */}
       <SectionCard title={t('uxMetrics.recentPRs')} data-testid="pr-history-table" className="overflow-hidden">
         
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-5">
           <table className="min-w-full divide-y divide-neutral-200">
             <thead className="bg-neutral-50">
               <tr>
