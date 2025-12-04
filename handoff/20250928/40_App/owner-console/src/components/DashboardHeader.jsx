@@ -63,7 +63,7 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0 }) => {
             <Settings className="w-5 h-5" />
           </Button>
 
-          <LanguageSwitcher variant="compact" className="text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100" />
+          <LanguageSwitcher variant="compact" className="border-none bg-transparent shadow-none text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100" />
 
           <div className="flex items-center space-x-3 pl-4 border-l border-neutral-200">
                         <Avatar className="w-8 h-8">
