@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger, StatCard, SectionCard } from '@morningai/shared-ui'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger, StatCard, SectionCard, PageScaffold } from '@morningai/shared-ui'
 import { 
   Shield, 
   TrendingUp,
@@ -143,28 +143,25 @@ const AgentGovernance = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">{t('governance.title')}</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">{t('governance.subtitle')}</p>
-        </div>
+    <PageScaffold
+      title={t('governance.title')}
+      subtitle={t('governance.subtitle')}
+      titleIcon={<Shield className="w-6 h-6" />}
+      actions={
         <AppleButton onClick={loadGovernanceData} variant="outline" haptic="light" disabled={loading}>
           <Activity className="w-4 h-4 mr-2" />
           {t('governance.refresh')}
         </AppleButton>
-      </div>
-
-      {error && (
+      }
+      banner={error && (
         <AppleErrorBanner
           title={t('common.error')}
           message={error}
           onRetry={loadGovernanceData}
         />
       )}
-
-      {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      kpis={statistics && (
+        <>
           <StatCard
             label={t('governance.stats.totalAgents')}
             value={String(statistics.reputation?.total_agents || 0)}
@@ -189,9 +186,9 @@ const AgentGovernance = () => {
             icon={<AlertTriangle className="w-5 h-5" />}
             variant={violations.length > 0 ? 'red' : 'green'}
           />
-        </div>
+        </>
       )}
-
+    >
       <Tabs defaultValue="agents" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agents">{t('governance.tabs.agents')}</TabsTrigger>
@@ -319,7 +316,7 @@ const AgentGovernance = () => {
           <AgentExecutionLogs />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageScaffold>
   )
 }
 
