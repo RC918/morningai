@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Search, Bell, Settings, HelpCircle } from 'lucide-react'
 import { Button, Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
+import { LanguageSwitcher } from './LanguageSwitcher'
 
 const DashboardHeader = ({ user, title, subtitle, notificationCount = 0 }) => {
   const { t } = useTranslation()
@@ -61,6 +62,8 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0 }) => {
           >
             <Settings className="w-5 h-5" />
           </Button>
+
+          <LanguageSwitcher variant="compact" className="border-none bg-transparent shadow-none text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100" />
 
           <div className="flex items-center space-x-3 pl-4 border-l border-neutral-200">
                         <Avatar className="w-8 h-8">
