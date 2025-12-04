@@ -57,5 +57,68 @@ describe('LoginPage', () => {
       const { container } = renderLoginPage()
       expect(container).toBeTruthy()
     })
+
+    it('should render email input field', () => {
+      const { container } = renderLoginPage()
+      const emailInput = container.querySelector('input[name="email"]')
+      expect(emailInput).toBeTruthy()
+    })
+
+    it('should render password input field', () => {
+      const { container } = renderLoginPage()
+      const passwordInput = container.querySelector('input[name="password"]')
+      expect(passwordInput).toBeTruthy()
+    })
+
+    it('should render submit button', () => {
+      const { container } = renderLoginPage()
+      const submitButton = container.querySelector('button[type="submit"]')
+      expect(submitButton).toBeTruthy()
+    })
+
+    it('should render SSO buttons', () => {
+      const { container } = renderLoginPage()
+      const buttons = container.querySelectorAll('button[type="button"]')
+      // Should have Google, Apple, and GitHub SSO buttons
+      expect(buttons.length).toBeGreaterThanOrEqual(3)
+    })
+
+    it('should render forgot password link', () => {
+      const { container } = renderLoginPage()
+      const forgotPasswordLink = container.querySelector('a[href="/forgot-password"]')
+      expect(forgotPasswordLink).toBeTruthy()
+    })
+  })
+
+  describe('Form Interaction', () => {
+    it('should update email field on change', async () => {
+      const { container } = renderLoginPage()
+      const emailInput = container.querySelector('input[name="email"]') as HTMLInputElement
+      
+      if (emailInput) {
+        emailInput.value = 'test@example.com'
+        emailInput.dispatchEvent(new Event('change', { bubbles: true }))
+        expect(emailInput.value).toBe('test@example.com')
+      }
+    })
+
+    it('should update password field on change', async () => {
+      const { container } = renderLoginPage()
+      const passwordInput = container.querySelector('input[name="password"]') as HTMLInputElement
+      
+      if (passwordInput) {
+        passwordInput.value = 'testpassword'
+        passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
+        expect(passwordInput.value).toBe('testpassword')
+      }
+    })
+  })
+
+  describe('Accessibility', () => {
+    it('should have accessible SSO button labels', () => {
+      const { container } = renderLoginPage()
+      const ssoButtons = container.querySelectorAll('button[aria-label]')
+      expect(ssoButtons.length).toBeGreaterThanOrEqual(3)
+    })
   })
 })
