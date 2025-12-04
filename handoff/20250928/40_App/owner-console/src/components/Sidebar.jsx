@@ -169,7 +169,7 @@ const Sidebar = ({ user, onLogout }) => {
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`relative flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  className={`relative flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     active
                       ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
                       : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white'
@@ -187,7 +187,7 @@ const Sidebar = ({ user, onLogout }) => {
                       <div className="flex items-center justify-between">
                         <span>{t(item.labelKey)}</span>
                       </div>
-                      <p className={`text-xs mt-0.5 ${active ? 'text-primary-500 dark:text-primary-300' : 'text-neutral-500'}`}>
+                      <p className={`text-xs mt-1 ${active ? 'text-primary-500 dark:text-primary-300' : 'text-neutral-500'}`}>
                         {t(item.descriptionKey)}
                       </p>
                     </div>

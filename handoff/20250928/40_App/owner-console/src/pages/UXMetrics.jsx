@@ -264,7 +264,7 @@ export default function UXMetrics() {
       {/* PR History Table */}
       <SectionCard title={t('uxMetrics.recentPRs')} data-testid="pr-history-table" className="overflow-hidden">
         
-        <div className="overflow-x-auto -mx-5">
+        <div className="overflow-x-auto -mx-4">
           <table className="min-w-full divide-y divide-neutral-200">
             <thead className="bg-neutral-50">
               <tr>

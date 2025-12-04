@@ -68,7 +68,7 @@ export function RegenerateBackupCodesModal({ open, onClose, onSuccess }) {
         {!newCodes ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
               <p className="text-xs text-yellow-800 dark:text-yellow-200">
                 <strong>{t('settings.2fa.backupCodes.regenerateWarning')}</strong> {t('settings.2fa.backupCodes.regenerateWarningMessage')}
               </p>
