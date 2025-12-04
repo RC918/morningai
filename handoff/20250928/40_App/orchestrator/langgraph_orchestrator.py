@@ -15,9 +15,10 @@ Multi-Agent Flow:
   planner → executor → reviewer → decision → (fixer if needed) → finalizer
 """
 
+import functools
 import logging
 import time
-from typing import TypedDict, Annotated, Sequence, Optional
+from typing import TypedDict, Annotated, Sequence, Optional, Callable
 from datetime import datetime
 import operator
 
@@ -75,6 +76,49 @@ def _get_agent_eval() -> AgentEvalIntegration:
     if _agent_eval is None:
         _agent_eval = init_agent_eval_from_env()
     return _agent_eval
+
+
+def node_metrics(node_name: str) -> Callable:
+    """
+    Decorator to extract common node boilerplate for metrics recording.
+
+    Phase 3 Follow-up (#1858): Reduces duplication in advisor nodes by
+    automatically handling:
+    - start_time tracking
+    - metrics.record_node_start()
+    - latency_ms calculation
+    - metrics.record_node_complete()
+
+    Usage:
+        @node_metrics("pm_advisor")
+        def pm_advisor_node(state: AgentState) -> AgentState:
+            # Node logic here - set success[0] = True on success
+            return state
+
+    The decorated function receives an additional 'success' parameter
+    (a mutable list [False]) that should be set to [True] on success.
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(state: "AgentState") -> "AgentState":
+            start_time = time.time()
+            metrics = _get_metrics()
+            trace_id = state.get("trace_id", "unknown")
+
+            metrics.record_node_start(node_name, trace_id)
+
+            success = [False]
+            try:
+                result = func(state, success)
+            finally:
+                latency_ms = (time.time() - start_time) * 1000
+                metrics.record_node_complete(
+                    node_name, trace_id, success=success[0], latency_ms=latency_ms
+                )
+
+            return result
+        return wrapper
+    return decorator
 
 
 def get_checkpointer():

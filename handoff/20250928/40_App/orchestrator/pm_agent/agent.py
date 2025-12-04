@@ -12,6 +12,7 @@ Design Principles:
 - Integration: Works with existing LLMPlannerAdapter and orchestrator components
 """
 import logging
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -41,6 +42,19 @@ class SubTask:
     task_type: str = "unknown"
     priority: int = 0
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "task_id": self.task_id,
+            "title": self.title,
+            "description": self.description,
+            "estimated_effort": self.estimated_effort,
+            "dependencies": self.dependencies,
+            "affected_files": self.affected_files,
+            "task_type": self.task_type,
+            "priority": self.priority,
+        }
+
 
 @dataclass
 class PMFinding:
@@ -51,6 +65,17 @@ class PMFinding:
     description: str
     recommendation: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "category": self.category,
+            "risk_level": self.risk_level.value,
+            "title": self.title,
+            "description": self.description,
+            "recommendation": self.recommendation,
+            "metadata": self.metadata,
+        }
 
 
 @dataclass
@@ -64,6 +89,19 @@ class ImplementationPlan:
     affected_files: List[str] = field(default_factory=list)
     dependencies: List[str] = field(default_factory=list)
     risks: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "plan_id": self.plan_id,
+            "goal": self.goal,
+            "sub_tasks": [t.to_dict() for t in self.sub_tasks],
+            "total_effort": self.total_effort,
+            "estimated_duration": self.estimated_duration,
+            "affected_files": self.affected_files,
+            "dependencies": self.dependencies,
+            "risks": self.risks,
+        }
 
 
 @dataclass
@@ -87,39 +125,9 @@ class PMAdvisory:
             "overall_risk": self.overall_risk.value,
             "confidence_score": self.confidence_score,
             "goal": self.goal,
-            "sub_tasks": [
-                {
-                    "task_id": t.task_id,
-                    "title": t.title,
-                    "description": t.description,
-                    "estimated_effort": t.estimated_effort,
-                    "dependencies": t.dependencies,
-                    "affected_files": t.affected_files,
-                    "task_type": t.task_type,
-                    "priority": t.priority,
-                }
-                for t in self.sub_tasks
-            ],
-            "implementation_plan": {
-                "plan_id": self.implementation_plan.plan_id,
-                "goal": self.implementation_plan.goal,
-                "total_effort": self.implementation_plan.total_effort,
-                "estimated_duration": self.implementation_plan.estimated_duration,
-                "affected_files": self.implementation_plan.affected_files,
-                "dependencies": self.implementation_plan.dependencies,
-                "risks": self.implementation_plan.risks,
-            } if self.implementation_plan else None,
-            "findings": [
-                {
-                    "category": f.category,
-                    "risk_level": f.risk_level.value,
-                    "title": f.title,
-                    "description": f.description,
-                    "recommendation": f.recommendation,
-                    "metadata": f.metadata,
-                }
-                for f in self.findings
-            ],
+            "sub_tasks": [t.to_dict() for t in self.sub_tasks],
+            "implementation_plan": self.implementation_plan.to_dict() if self.implementation_plan else None,
+            "findings": [f.to_dict() for f in self.findings],
             "summary": self.summary,
             "recommendations": self.recommendations,
             "metadata": self.metadata,
@@ -464,12 +472,10 @@ class PMAgent:
         """Rule-based fallback for goal decomposition"""
         sub_tasks = []
 
-        # Split by common delimiters
-        parts = []
-        for delimiter in ["\n", "，", ",", "；", ";", "、"]:
-            if delimiter in goal:
-                parts = [p.strip() for p in goal.split(delimiter) if p.strip()]
-                break
+        # Split by common delimiters using regex for more flexible parsing
+        # Supports: newline, Chinese/English comma, Chinese/English semicolon, Chinese enumeration mark
+        delimiter_pattern = r'[\n，,；;、]+'
+        parts = [p.strip() for p in re.split(delimiter_pattern, goal) if p.strip()]
 
         if not parts:
             parts = [goal]
