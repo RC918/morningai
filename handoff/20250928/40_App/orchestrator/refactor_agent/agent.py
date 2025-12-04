@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Refactor Agent - Phase 4 (#1818)
+Refactor Agent - Phase 4 (#1818, #1888)
 
 Automated TypeScript strict mode error fixing agent.
 Runs nightly to fix TS errors and submit PRs automatically.
@@ -10,6 +10,7 @@ Design Principles:
 - Incremental: Fixes a configurable number of errors per run (default: 10)
 - Safe: Creates PRs for human review, never pushes directly to main
 - Observable: Logs all actions and maintains progress metrics
+- LLM-Powered: Uses LLM to generate actual code fixes (#1888)
 """
 import logging
 import re
@@ -22,6 +23,216 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+TS_FIX_PROMPT_TEMPLATES: Dict[str, str] = {
+    "null_check": """Fix the TypeScript error where an object is possibly 'null'.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix that adds proper null checking. Options include:
+1. Optional chaining (?.)
+2. Nullish coalescing (??)
+3. Type guard (if statement)
+4. Non-null assertion (!) - only if you're certain the value is never null
+
+Return ONLY the fixed code snippet that should replace the problematic line(s).
+Do not include explanations, just the code.""",
+
+    "undefined_check": """Fix the TypeScript error where an object is possibly 'undefined'.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix that adds proper undefined checking. Options include:
+1. Optional chaining (?.)
+2. Default value assignment
+3. Type guard (if statement)
+4. Non-null assertion (!) - only if you're certain the value is defined
+
+Return ONLY the fixed code snippet that should replace the problematic line(s).
+Do not include explanations, just the code.""",
+
+    "implicit_any": """Fix the TypeScript error where a parameter implicitly has an 'any' type.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix that adds an explicit type annotation. Infer the most appropriate type from:
+1. How the parameter is used in the function body
+2. The function name and context
+3. Common TypeScript patterns
+
+Return ONLY the fixed code snippet with the type annotation added.
+Do not include explanations, just the code.""",
+
+    "type_mismatch": """Fix the TypeScript type mismatch error.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix for the type mismatch. Options include:
+1. Type assertion (as Type)
+2. Type conversion function
+3. Fixing the source value to match expected type
+4. Updating the type definition
+
+Return ONLY the fixed code snippet that resolves the type mismatch.
+Do not include explanations, just the code.""",
+
+    "property_missing": """Fix the TypeScript error where a property does not exist on a type.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix for the missing property. Options include:
+1. Type assertion to a more specific type
+2. Optional chaining if the property might not exist
+3. Type guard to narrow the type
+4. Using 'in' operator to check property existence
+
+Return ONLY the fixed code snippet that resolves the missing property error.
+Do not include explanations, just the code.""",
+
+    "argument_type": """Fix the TypeScript error where an argument type is incompatible.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix for the argument type mismatch. Options include:
+1. Type assertion (as Type)
+2. Converting the value to the expected type
+3. Using a type guard before the function call
+
+Return ONLY the fixed code snippet that resolves the argument type error.
+Do not include explanations, just the code.""",
+
+    "unknown_type": """Fix the TypeScript error where an object is of type 'unknown'.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix for the unknown type. Options include:
+1. Type assertion (as Type) if you know the actual type
+2. Type guard (typeof, instanceof, or custom type guard)
+3. Using 'as unknown as Type' for complex conversions
+
+Return ONLY the fixed code snippet that properly handles the unknown type.
+Do not include explanations, just the code.""",
+
+    "binding_any": """Fix the TypeScript error where a binding element implicitly has an 'any' type.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix that adds explicit type annotation to the destructured binding.
+This typically involves adding a type annotation to the destructuring pattern.
+
+Return ONLY the fixed code snippet with the type annotation added.
+Do not include explanations, just the code.""",
+
+    "argument_count": """Fix the TypeScript error about incorrect number of arguments.
+
+Error: {error_message}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Generate a fix for the argument count mismatch. Options include:
+1. Adding missing required arguments
+2. Removing extra arguments
+3. Making parameters optional in the function signature
+
+Return ONLY the fixed code snippet that resolves the argument count error.
+Do not include explanations, just the code.""",
+
+    "generic": """Fix the following TypeScript error.
+
+Error: {error_message}
+Error Code: {error_code}
+File: {file_path}
+Line {line}, Column {column}
+
+Code context:
+```typescript
+{code_context}
+```
+
+Analyze the error and generate an appropriate fix.
+Consider TypeScript best practices and type safety.
+
+Return ONLY the fixed code snippet.
+Do not include explanations, just the code.""",
+}
+
+STRATEGY_TO_TEMPLATE: Dict[str, str] = {
+    "null_check": "null_check",
+    "undefined_check": "undefined_check",
+    "implicit_any": "implicit_any",
+    "type_mismatch": "type_mismatch",
+    "property_missing": "property_missing",
+    "argument_type": "argument_type",
+    "unknown_type": "unknown_type",
+    "unknown_type_use": "unknown_type",
+    "binding_any": "binding_any",
+    "argument_count": "argument_count",
+    "possibly_null": "null_check",
+    "possibly_undefined": "undefined_check",
+}
+
+MIN_LLM_FIX_LENGTH = 5
 
 
 class RefactorRisk(Enum):
@@ -287,12 +498,149 @@ class RefactorAgent:
             estimated_risk=risk
         )
 
+    def _get_llm_client(self):
+        """Get or create LLM client for fix generation"""
+        if not hasattr(self, '_llm_client'):
+            try:
+                from llm import LLMClient
+                self._llm_client = LLMClient(provider="auto")
+                logger.info("[RefactorAgent] LLM client initialized")
+            except (ImportError, ValueError) as e:
+                logger.warning("[RefactorAgent] LLM client not available: %s", e)
+                self._llm_client = None
+        return self._llm_client
+
+    def _get_code_context(
+        self,
+        file_path: str,
+        line: int,
+        context_lines: int = 5
+    ) -> str:
+        """
+        Get code context around the error line.
+
+        Args:
+            file_path: Path to the file (relative to repo root)
+            line: Line number of the error
+            context_lines: Number of lines before and after to include
+
+        Returns:
+            Code context as a string
+        """
+        full_path = self.repo_path / file_path
+        if not full_path.exists():
+            return f"// File not found: {file_path}"
+
+        try:
+            with open(full_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            start = max(0, line - context_lines - 1)
+            end = min(len(lines), line + context_lines)
+
+            context_lines_list = []
+            for i in range(start, end):
+                line_num = i + 1
+                marker = ">>> " if line_num == line else "    "
+                context_lines_list.append(f"{marker}{line_num}: {lines[i].rstrip()}")
+
+            return "\n".join(context_lines_list)
+        except Exception as e:
+            logger.warning("[RefactorAgent] Failed to read file %s: %s", file_path, e)
+            return f"// Error reading file: {e}"
+
+    def _build_fix_prompt(self, task: RefactorTask) -> str:
+        """
+        Build the prompt for LLM fix generation.
+
+        Args:
+            task: RefactorTask containing error details
+
+        Returns:
+            Formatted prompt string
+        """
+        error = task.error
+        strategy = task.fix_strategy
+
+        template_key = STRATEGY_TO_TEMPLATE.get(strategy, "generic")
+        template = TS_FIX_PROMPT_TEMPLATES.get(template_key, TS_FIX_PROMPT_TEMPLATES["generic"])
+
+        code_context = self._get_code_context(error.file_path, error.line)
+
+        return template.format(
+            error_message=error.message,
+            error_code=error.error_code,
+            file_path=error.file_path,
+            line=error.line,
+            column=error.column,
+            code_context=code_context
+        )
+
+    def _generate_fix_with_llm(
+        self,
+        task: RefactorTask,
+        max_retries: int = 2
+    ) -> Optional[str]:
+        """
+        Generate a fix using LLM with retry mechanism.
+
+        Args:
+            task: RefactorTask to fix
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            Generated fix code or None if unable to fix
+        """
+        llm_client = self._get_llm_client()
+        if llm_client is None:
+            return None
+
+        prompt = self._build_fix_prompt(task)
+        system_prompt = (
+            "You are an expert TypeScript developer specializing in fixing strict mode errors. "
+            "Generate minimal, targeted fixes that resolve the specific error while maintaining "
+            "code quality and type safety. Return ONLY the fixed code, no explanations."
+        )
+
+        for attempt in range(max_retries + 1):
+            try:
+                response = llm_client.generate(
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    temperature=0.2,
+                    max_tokens=500
+                )
+
+                fix = response.content.strip()
+
+                if fix.startswith("```"):
+                    lines = fix.split("\n")
+                    if len(lines) > 2:
+                        fix = "\n".join(lines[1:-1])
+
+                if fix and len(fix) > MIN_LLM_FIX_LENGTH:
+                    logger.info(
+                        "[RefactorAgent] Generated fix for %s:%d (attempt %d)",
+                        task.error.file_path, task.error.line, attempt + 1
+                    )
+                    return fix
+
+            except Exception as e:
+                logger.warning(
+                    "[RefactorAgent] LLM fix generation failed (attempt %d/%d): %s",
+                    attempt + 1, max_retries + 1, e
+                )
+                if attempt < max_retries:
+                    time.sleep(2 ** attempt)
+
+        return None
+
     def generate_fix(self, task: RefactorTask) -> Optional[str]:
         """
-        Generate a fix for the given task.
+        Generate a fix for the given task using LLM.
 
-        This is a placeholder for LLM-powered fix generation.
-        In production, this would use the LLM to generate appropriate fixes.
+        This method uses the LLM to generate actual code fixes for TypeScript errors.
+        Falls back to placeholder comments if LLM is not available.
 
         Args:
             task: RefactorTask to fix
@@ -300,23 +648,28 @@ class RefactorAgent:
         Returns:
             Generated fix code or None if unable to fix
         """
+        llm_fix = self._generate_fix_with_llm(task)
+        if llm_fix:
+            return llm_fix
+
         error = task.error
         strategy = task.fix_strategy
 
-        # Simple fix patterns for common errors
-        if strategy == "null_check":
-            return f"// Add null check at line {error.line}"
-        elif strategy == "undefined_check":
-            return f"// Add undefined check at line {error.line}"
-        elif strategy == "implicit_any":
-            return f"// Add explicit type annotation at line {error.line}"
-        elif strategy == "possibly_null":
-            return f"// Add optional chaining or null check at line {error.line}"
-        elif strategy == "possibly_undefined":
-            return f"// Add optional chaining or undefined check at line {error.line}"
+        fallback_messages = {
+            "null_check": f"// Add null check at line {error.line}",
+            "undefined_check": f"// Add undefined check at line {error.line}",
+            "implicit_any": f"// Add explicit type annotation at line {error.line}",
+            "possibly_null": f"// Add optional chaining or null check at line {error.line}",
+            "possibly_undefined": f"// Add optional chaining or undefined check at line {error.line}",
+            "type_mismatch": f"// Fix type mismatch at line {error.line}",
+            "property_missing": f"// Fix missing property at line {error.line}",
+            "argument_type": f"// Fix argument type at line {error.line}",
+            "unknown_type": f"// Handle unknown type at line {error.line}",
+            "binding_any": f"// Add type annotation to binding at line {error.line}",
+            "argument_count": f"// Fix argument count at line {error.line}",
+        }
 
-        # For complex fixes, return None to indicate manual review needed
-        return None
+        return fallback_messages.get(strategy)
 
     def run_refactor(
         self,

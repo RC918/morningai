@@ -111,7 +111,7 @@ export function TrustedDevices({ className }) {
       <CardContent>
         {error && (
           <div className="mb-4 flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <p>{error}</p>
           </div>
         )}
@@ -143,11 +143,11 @@ export function TrustedDevices({ className }) {
                       <h4 className="text-sm font-medium text-foreground">
                         {device.device_name}
                       </h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {t('settings.2fa.trustedDevices.lastUsed')}: {formatDate(device.last_used_at)}
                       </p>
                       <p className={cn(
-                        'text-xs mt-0.5',
+                        'text-xs mt-1',
                         isExpiringSoon(device.expires_at)
                           ? 'text-yellow-600 dark:text-yellow-500'
                           : 'text-muted-foreground'

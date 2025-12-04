@@ -112,7 +112,7 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
   if (step === 'complete') {
     return (
       <Card>
-        <CardContent className="pt-6 flex flex-col items-center space-y-4 py-12">
+        <CardContent className="pt-6 flex flex-col items-center space-y-4 py-8">
           <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
             <CheckCircle2 className="w-8 h-8 text-white" />
           </div>

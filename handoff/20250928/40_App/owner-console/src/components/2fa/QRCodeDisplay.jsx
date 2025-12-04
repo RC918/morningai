@@ -33,7 +33,7 @@ export function QRCodeDisplay({ qrCode, secret }) {
       </Card>
       <div className="text-xs text-muted-foreground space-y-1">
         <p className="font-medium">{t('settings.2fa.setup.recommendedApps')}</p>
-        <ul className="list-disc list-inside space-y-0.5 ml-2">
+        <ul className="list-disc list-inside space-y-1 ml-2">
           <li>{t('settings.2fa.setup.apps.google')}</li>
           <li>{t('settings.2fa.setup.apps.microsoft')}</li>
           <li>{t('settings.2fa.setup.apps.authy')}</li>

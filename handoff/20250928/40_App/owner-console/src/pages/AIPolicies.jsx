@@ -356,7 +356,7 @@ const AIPolicies = () => {
             />
           ) : (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="policy-editor-empty">
-              <div className="py-16 px-5">
+              <div className="py-8 px-5">
                 <div className="text-center">
                   <Shield className="w-16 h-16 text-[var(--text-secondary)] mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-[var(--text-secondary)] mb-2">
