@@ -15,7 +15,7 @@ import {
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
 
-const API_BASE = import.meta.env.VITE_API_URL || ''
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
 const ApprovalQueue = () => {
   const { t } = useTranslation()
