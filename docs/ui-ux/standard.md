@@ -57,13 +57,37 @@ Never use hardcoded Tailwind colors. Always use semantic tokens.
 
 ### 3. Use Standardized Spacing
 
-Use consistent spacing values from the design system.
+Use consistent spacing values from the design system. Non-standard spacing values are flagged by the `no-non-standard-spacing` ESLint rule.
 
-**Recommended spacing:**
-- Section spacing: `space-y-8`
+**Allowed spacing scale:** `0, 1, 2, 3, 4, 5, 6, 8`
+
+**Recommended usage:**
+- Section spacing: `space-y-8` (between major sections)
+- Internal section spacing: `space-y-4` (within sections)
 - Card padding: `p-5` or `p-6`
-- Gap in flex/grid: `gap-4`, `gap-6`, `gap-8`
+- Gap in flex/grid: `gap-2`, `gap-4`, `gap-6`, `gap-8`
 - Margins: `mt-4`, `mt-8`, `mb-4`, `mb-8`
+
+**Prohibited:**
+```tsx
+// Bad - non-standard spacing values
+<div className="p-3 mt-7 gap-10 space-y-12">
+```
+
+**Required:**
+```tsx
+// Good - standard spacing values
+<div className="p-4 mt-8 gap-8 space-y-8">
+```
+
+**Full allowed spacing utilities:**
+
+| Category | Allowed Values |
+|----------|----------------|
+| Padding | `p-{0,1,2,4,5,6,8}`, `px-{0,1,2,3,4,5,6,8}`, `py-{0,1,2,3,4,5,6,8}`, `pt/pb/pl/pr-{0,1,2,4,5,6,8}` |
+| Margin | `m-{0,1,2,4,5,6,8,auto}`, `mx/my-{0,1,2,4,5,6,8,auto}`, `mt/mb/ml/mr-{0,1,2,4,5,6,8,auto}` |
+| Gap | `gap-{0,1,2,3,4,5,6,8}`, `gap-x/gap-y-{0,1,2,3,4,5,6,8}` |
+| Space | `space-x/space-y-{0,1,2,3,4,5,6,8}` |
 
 ### 4. Internationalization (i18n)
 
@@ -269,6 +293,7 @@ The following CI checks enforce these standards:
 |-------|----------|----------|
 | Shared-UI imports | `enforce-shared-ui.yml` | Yes (Stage 3) |
 | Hardcoded colors | ESLint `no-hardcoded-colors` | Yes |
+| Non-standard spacing | ESLint `no-non-standard-spacing` | No (warn mode) |
 | i18n strings | `i18n-check-required.yml` | Yes |
 | Design system audit | `design-system-audit.yml` | No (relaxed mode) |
 
