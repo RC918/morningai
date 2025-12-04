@@ -25,7 +25,7 @@ export interface SectionTemplateProps {
   className?: string;
   /** Custom class name for the header section (plain variant only) */
   headerClassName?: string;
-  /** Custom class name for the body/content section */
+  /** Custom class name for the body/content section. Note: for the 'card' variant, this class is applied to the entire SectionCard component, not just the content area. */
   bodyClassName?: string;
 }
 
@@ -73,6 +73,9 @@ function SectionTemplate({
   // Card variant: delegate to SectionCard component
   if (variant === "card") {
     // Map description to subtitle (only if it's a string, as SectionCard expects string)
+    if (process.env.NODE_ENV !== 'production' && description && typeof description !== 'string') {
+      console.warn('SectionTemplate: The "description" prop must be a string when using the "card" variant. The provided ReactNode will not be rendered.');
+    }
     const subtitle = typeof description === "string" ? description : undefined;
     
     return (

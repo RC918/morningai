@@ -200,7 +200,7 @@ Use `SectionTemplate` to create consistent content sections within pages. It wor
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
 | `title` | `string` | Yes | Section title (rendered as h2 for plain variant) |
-| `description` | `ReactNode` | No | Description below the title |
+| `description` | `ReactNode` | No | Description below the title (must be a string for `card` variant) |
 | `actions` | `ReactNode` | No | Action buttons aligned to the right |
 | `variant` | `"plain" \| "card"` | No | Section variant (default: "plain") |
 | `className` | `string` | No | Custom class for section container |
