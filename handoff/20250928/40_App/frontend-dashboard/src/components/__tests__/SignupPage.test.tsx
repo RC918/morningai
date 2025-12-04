@@ -106,44 +106,40 @@ describe('SignupPage', () => {
       const { container } = renderSignupPage()
       const fullNameInput = container.querySelector('input[name="fullName"]') as HTMLInputElement
       
-      if (fullNameInput) {
-        fullNameInput.value = 'John Doe'
-        fullNameInput.dispatchEvent(new Event('change', { bubbles: true }))
-        expect(fullNameInput.value).toBe('John Doe')
-      }
+      expect(fullNameInput).not.toBeNull()
+      fullNameInput.value = 'John Doe'
+      fullNameInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(fullNameInput.value).toBe('John Doe')
     })
 
     it('should update email field on change', async () => {
       const { container } = renderSignupPage()
       const emailInput = container.querySelector('input[name="email"]') as HTMLInputElement
       
-      if (emailInput) {
-        emailInput.value = 'test@example.com'
-        emailInput.dispatchEvent(new Event('change', { bubbles: true }))
-        expect(emailInput.value).toBe('test@example.com')
-      }
+      expect(emailInput).not.toBeNull()
+      emailInput.value = 'test@example.com'
+      emailInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(emailInput.value).toBe('test@example.com')
     })
 
     it('should update password field on change', async () => {
       const { container } = renderSignupPage()
       const passwordInput = container.querySelector('input[name="password"]') as HTMLInputElement
       
-      if (passwordInput) {
-        passwordInput.value = 'testpassword123'
-        passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
-        expect(passwordInput.value).toBe('testpassword123')
-      }
+      expect(passwordInput).not.toBeNull()
+      passwordInput.value = 'testpassword123'
+      passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(passwordInput.value).toBe('testpassword123')
     })
 
     it('should update confirm password field on change', async () => {
       const { container } = renderSignupPage()
       const confirmPasswordInput = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement
       
-      if (confirmPasswordInput) {
-        confirmPasswordInput.value = 'testpassword123'
-        confirmPasswordInput.dispatchEvent(new Event('change', { bubbles: true }))
-        expect(confirmPasswordInput.value).toBe('testpassword123')
-      }
+      expect(confirmPasswordInput).not.toBeNull()
+      confirmPasswordInput.value = 'testpassword123'
+      confirmPasswordInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(confirmPasswordInput.value).toBe('testpassword123')
     })
   })
 

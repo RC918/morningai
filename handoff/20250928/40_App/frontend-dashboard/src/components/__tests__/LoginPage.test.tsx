@@ -95,22 +95,20 @@ describe('LoginPage', () => {
       const { container } = renderLoginPage()
       const emailInput = container.querySelector('input[name="email"]') as HTMLInputElement
       
-      if (emailInput) {
-        emailInput.value = 'test@example.com'
-        emailInput.dispatchEvent(new Event('change', { bubbles: true }))
-        expect(emailInput.value).toBe('test@example.com')
-      }
+      expect(emailInput).not.toBeNull()
+      emailInput.value = 'test@example.com'
+      emailInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(emailInput.value).toBe('test@example.com')
     })
 
     it('should update password field on change', async () => {
       const { container } = renderLoginPage()
       const passwordInput = container.querySelector('input[name="password"]') as HTMLInputElement
       
-      if (passwordInput) {
-        passwordInput.value = 'testpassword'
-        passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
-        expect(passwordInput.value).toBe('testpassword')
-      }
+      expect(passwordInput).not.toBeNull()
+      passwordInput.value = 'testpassword'
+      passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(passwordInput.value).toBe('testpassword')
     })
   })
 
