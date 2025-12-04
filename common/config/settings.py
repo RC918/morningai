@@ -840,9 +840,9 @@ class Settings(BaseSettings):
     )
 
     refactor_agent_auto_pr: bool = Field(
-        default=True,
+        default=False,
         alias="REFACTOR_AGENT_AUTO_PR",
-        description="Automatically create PRs for refactor fixes"
+        description="Automatically create PRs for refactor fixes (disabled by default, enable after staging validation)"
     )
 
     hitl_approval_enabled: bool = Field(

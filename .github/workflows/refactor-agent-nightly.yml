@@ -24,6 +24,9 @@ jobs:
   refactor:
     name: Run Refactor Agent
     runs-on: ubuntu-latest
+    # Only run if REFACTOR_AGENT_ENABLED is explicitly set to true
+    # This prevents accidental PR creation before staging validation
+    if: ${{ vars.REFACTOR_AGENT_ENABLED == 'true' }}
     permissions:
       contents: write
       pull-requests: write
