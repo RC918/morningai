@@ -170,15 +170,17 @@ class PMAgent:
             self.enabled = getattr(settings, 'pm_agent_enabled', True)
             self.use_llm = getattr(settings, 'pm_agent_use_llm', True)
             self.max_sub_tasks = getattr(settings, 'pm_agent_max_sub_tasks', 10)
+            self.default_repo = getattr(settings, 'github_repo', 'RC918/morningai')
             logger.info(
-                "[PMAgent] Settings loaded: enabled=%s, use_llm=%s",
-                self.enabled, self.use_llm
+                "[PMAgent] Settings loaded: enabled=%s, use_llm=%s, repo=%s",
+                self.enabled, self.use_llm, self.default_repo
             )
         except (ImportError, AttributeError) as e:
             logger.warning("[PMAgent] Failed to load settings: %s, using defaults", e)
             self.enabled = True
             self.use_llm = True
             self.max_sub_tasks = 10
+            self.default_repo = "RC918/morningai"
 
     def _init_llm_integration(self):
         """Initialize LLM integration for intelligent decomposition"""
@@ -194,7 +196,7 @@ class PMAgent:
     def decompose_goal(
         self,
         goal: str,
-        repo: str = "RC918/morningai",
+        repo: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None
     ) -> PMAdvisory:
         """
@@ -217,6 +219,7 @@ class PMAgent:
                 summary="PM Agent disabled"
             )
 
+        repo = repo or self.default_repo
         start_time = time.time()
         trace_id = str(uuid.uuid4())
 
@@ -299,7 +302,7 @@ class PMAgent:
     def plan_implementation(
         self,
         goal: str,
-        repo: str = "RC918/morningai",
+        repo: Optional[str] = None,
         sub_tasks: Optional[List[SubTask]] = None
     ) -> PMAdvisory:
         """
@@ -307,7 +310,7 @@ class PMAgent:
 
         Args:
             goal: High-level goal description
-            repo: Repository name
+            repo: Repository name (defaults to settings.github_repo)
             sub_tasks: Optional pre-decomposed sub-tasks
 
         Returns:
@@ -322,6 +325,7 @@ class PMAgent:
                 summary="PM Agent disabled"
             )
 
+        repo = repo or self.default_repo
         start_time = time.time()
         trace_id = str(uuid.uuid4())
 
