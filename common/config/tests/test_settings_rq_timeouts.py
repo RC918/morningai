@@ -103,7 +103,6 @@ class TestTimeoutHierarchyValidation:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             reload_settings()
-            get_settings()
 
             timeout_warnings = [
                 warning for warning in w

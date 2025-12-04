@@ -59,6 +59,17 @@ class LogEntry:
     trace_id: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "timestamp": self.timestamp,
+            "level": self.level,
+            "message": self.message,
+            "source": self.source,
+            "trace_id": self.trace_id,
+            "metadata": self.metadata,
+        }
+
 
 @dataclass
 class HealthMetric:
@@ -70,6 +81,18 @@ class HealthMetric:
     threshold_warning: Optional[float] = None
     threshold_critical: Optional[float] = None
     metadata: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "name": self.name,
+            "value": self.value,
+            "unit": self.unit,
+            "status": self.status.value,
+            "threshold_warning": self.threshold_warning,
+            "threshold_critical": self.threshold_critical,
+            "metadata": self.metadata,
+        }
 
 
 @dataclass
@@ -84,6 +107,19 @@ class OpsFinding:
     recommended_action: ActionType = ActionType.NO_ACTION
     metadata: Optional[Dict[str, Any]] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "category": self.category,
+            "risk_level": self.risk_level.value,
+            "title": self.title,
+            "description": self.description,
+            "source": self.source,
+            "recommendation": self.recommendation,
+            "recommended_action": self.recommended_action.value,
+            "metadata": self.metadata,
+        }
+
 
 @dataclass
 class ActionRecommendation:
@@ -96,6 +132,19 @@ class ActionRecommendation:
     estimated_downtime: str = "unknown"
     rollback_available: bool = True
     metadata: Optional[Dict[str, Any]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "action_type": self.action_type.value,
+            "target": self.target,
+            "reason": self.reason,
+            "urgency": self.urgency.value,
+            "requires_approval": self.requires_approval,
+            "estimated_downtime": self.estimated_downtime,
+            "rollback_available": self.rollback_available,
+            "metadata": self.metadata,
+        }
 
 
 @dataclass
@@ -115,45 +164,10 @@ class OpsAdvisory:
         return {
             "health_status": self.health_status.value,
             "overall_risk": self.overall_risk.value,
-            "findings": [
-                {
-                    "category": f.category,
-                    "risk_level": f.risk_level.value,
-                    "title": f.title,
-                    "description": f.description,
-                    "source": f.source,
-                    "recommendation": f.recommendation,
-                    "recommended_action": f.recommended_action.value,
-                    "metadata": f.metadata,
-                }
-                for f in self.findings
-            ],
-            "health_metrics": [
-                {
-                    "name": m.name,
-                    "value": m.value,
-                    "unit": m.unit,
-                    "status": m.status.value,
-                    "threshold_warning": m.threshold_warning,
-                    "threshold_critical": m.threshold_critical,
-                    "metadata": m.metadata,
-                }
-                for m in self.health_metrics
-            ],
+            "findings": [f.to_dict() for f in self.findings],
+            "health_metrics": [m.to_dict() for m in self.health_metrics],
             "log_summary": self.log_summary,
-            "recommended_actions": [
-                {
-                    "action_type": a.action_type.value,
-                    "target": a.target,
-                    "reason": a.reason,
-                    "urgency": a.urgency.value,
-                    "requires_approval": a.requires_approval,
-                    "estimated_downtime": a.estimated_downtime,
-                    "rollback_available": a.rollback_available,
-                    "metadata": a.metadata,
-                }
-                for a in self.recommended_actions
-            ],
+            "recommended_actions": [a.to_dict() for a in self.recommended_actions],
             "summary": self.summary,
             "metadata": self.metadata,
         }
