@@ -53,9 +53,13 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('../../lib/api-client', () => ({
-  apiClientWithMeta: vi.fn(),
-}));
+vi.mock('../../lib/api-client', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/api-client')>('../../lib/api-client');
+  return {
+    ...actual,
+    apiClientWithMeta: vi.fn(),
+  };
+});
 
 import { apiClientWithMeta } from '../../lib/api-client';
 
