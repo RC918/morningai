@@ -45,12 +45,12 @@ describe('ThemeContext', () => {
 
   describe('ThemeProvider', () => {
     it('should render children', () => {
-      const { getByText } = render(
+      const { container } = render(
         <ThemeProvider>
-          <div>Test Child</div>
+          <div data-testid="test-child" />
         </ThemeProvider>
       )
-      expect(getByText('Test Child')).toBeTruthy()
+      expect(container.querySelector('[data-testid="test-child"]')).toBeTruthy()
     })
 
     it('should use default theme when no localStorage value', () => {
@@ -209,7 +209,7 @@ describe('ThemeContext', () => {
     it('should add light class to document when theme is light', () => {
       render(
         <ThemeProvider defaultTheme="light">
-          <div>Test</div>
+          <div data-testid="test-element" />
         </ThemeProvider>
       )
 
@@ -220,7 +220,7 @@ describe('ThemeContext', () => {
     it('should add dark class to document when theme is dark', () => {
       render(
         <ThemeProvider defaultTheme="dark">
-          <div>Test</div>
+          <div data-testid="test-element" />
         </ThemeProvider>
       )
 
@@ -265,7 +265,7 @@ describe('ThemeContext', () => {
 
       render(
         <ThemeProvider defaultTheme="system">
-          <div>Test</div>
+          <div data-testid="test-element" />
         </ThemeProvider>
       )
 
@@ -291,7 +291,7 @@ describe('ThemeContext', () => {
 
       render(
         <ThemeProvider defaultTheme="system">
-          <div>Test</div>
+          <div data-testid="test-element" />
         </ThemeProvider>
       )
 
