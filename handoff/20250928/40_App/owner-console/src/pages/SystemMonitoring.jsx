@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Skeleton } from '@morningai/shared-ui'
-import { Activity, Server, Database, Zap, Cpu, HardDrive, RefreshCw } from 'lucide-react'
+import { Badge, SectionCard, Skeleton } from '@morningai/shared-ui'
+import { Database, Cpu, HardDrive, RefreshCw } from 'lucide-react'
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
@@ -97,57 +97,45 @@ const SystemMonitoring = () => {
 
   if (showSkeleton) {
     return (
-      <div className="p-8 space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
+      <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
         {/* Header Skeleton */}
         <div className="flex items-center justify-between">
-          <div>
-            <Skeleton className="h-9 w-64 mb-2" aria-hidden="true" />
-            <Skeleton className="h-5 w-96" aria-hidden="true" />
+          <div className="flex flex-col">
+            <Skeleton className="h-7 w-48 mb-2" aria-hidden="true" />
+            <Skeleton className="h-5 w-72" aria-hidden="true" />
           </div>
           <Skeleton className="h-10 w-24" aria-hidden="true" />
         </div>
 
         {/* System Health Card Skeleton */}
-        <Card className="material-card hover-lift">
-          <CardHeader>
-            <Skeleton className="h-6 w-48" aria-hidden="true" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <Skeleton className="h-6 w-32" aria-hidden="true" />
-              <Skeleton className="h-6 w-24" aria-hidden="true" />
-            </div>
-            <div className="space-y-2">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex justify-between">
-                  <Skeleton className="h-4 w-24" aria-hidden="true" />
-                  <Skeleton className="h-4 w-20" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+          <Skeleton className="h-5 w-32 mb-4" aria-hidden="true" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex justify-between">
+                <Skeleton className="h-4 w-24" aria-hidden="true" />
+                <Skeleton className="h-4 w-20" aria-hidden="true" />
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Metrics Cards Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="material-card hover-lift">
-              <CardHeader>
-                <Skeleton className="h-6 w-32" aria-hidden="true" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Skeleton className="h-4 w-16" aria-hidden="true" />
-                    <Skeleton className="h-4 w-12" aria-hidden="true" />
-                  </div>
-                  <div className="flex justify-between">
-                    <Skeleton className="h-4 w-20" aria-hidden="true" />
-                    <Skeleton className="h-4 w-24" aria-hidden="true" />
-                  </div>
+            <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+              <Skeleton className="h-5 w-24 mb-4" aria-hidden="true" />
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-16" aria-hidden="true" />
+                  <Skeleton className="h-4 w-12" aria-hidden="true" />
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex justify-between">
+                  <Skeleton className="h-4 w-20" aria-hidden="true" />
+                  <Skeleton className="h-4 w-24" aria-hidden="true" />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -155,14 +143,11 @@ const SystemMonitoring = () => {
   }
 
   return (
-    <div className="p-8 space-y-6" aria-busy={loading} data-testid="system-monitoring">
+    <div className="space-y-8" aria-busy={loading} data-testid="system-monitoring">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
-            <Activity className="w-8 h-8 text-growth" />
-            {t('monitoring.title')}
-          </h1>
-          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">{t('monitoring.subtitle')}</p>
+        <div className="flex flex-col">
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">{t('monitoring.title')}</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">{t('monitoring.subtitle')}</p>
         </div>
         <AppleButton onClick={loadSystemData} variant="outline" haptic="light" disabled={loading} data-testid="refresh-metrics">
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -179,10 +164,10 @@ const SystemMonitoring = () => {
       )}
 
       {!error && !loading && isEmptyValue(health) && (
-        <Card className="material-card hover-lift">
-          <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
-            <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
-            <p id="empty-health-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noHealthData')}</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
+          <div className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
+            <Database className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" aria-hidden="true" />
+            <p id="empty-health-title" className="text-[var(--text-secondary)]">{t('monitoring.noHealthData')}</p>
             <AppleButton 
               onClick={loadSystemData} 
               variant="outline" 
@@ -192,48 +177,45 @@ const SystemMonitoring = () => {
             >
               {t('common.refresh')}
             </AppleButton>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {health && (
-        <Card className="material-card hover-lift" data-testid="system-health">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              {t('monitoring.systemHealth')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-title-3 font-medium">{t('monitoring.overallStatus')}</span>
+        <SectionCard
+          title={t('monitoring.systemHealth')}
+          data-testid="system-health"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-[var(--text-primary)]">{t('monitoring.overallStatus')}</span>
               <Badge className={getStatusColor(health.status)}>
                 {health.status?.toUpperCase()}
               </Badge>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-callout text-neutral-600 dark:text-neutral-400">{t('monitoring.uptime')}</span>
-                <span className="text-callout font-semibold">{formatUptime(health.uptime_hours)}</span>
+                <span className="text-sm text-[var(--text-secondary)]">{t('monitoring.uptime')}</span>
+                <span className="text-sm font-semibold text-[var(--text-primary)]">{formatUptime(health.uptime_hours)}</span>
               </div>
               {health.services && Object.entries(health.services).map(([service, status]) => (
                 <div key={service} className="flex justify-between">
-                  <span className="text-callout text-neutral-600 dark:text-neutral-400 capitalize">{service}</span>
+                  <span className="text-sm text-[var(--text-secondary)] capitalize">{service}</span>
                   <Badge className={getStatusColor(status)} variant="outline">
                     {status}
                   </Badge>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </SectionCard>
       )}
 
       {!error && !loading && isEmptyValue(metrics) && (
-        <Card className="material-card hover-lift">
-          <CardContent className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
-            <Database className="w-12 h-12 text-neutral-400 mx-auto mb-4" aria-hidden="true" />
-            <p id="empty-metrics-title" className="text-neutral-600 dark:text-neutral-400">{t('monitoring.noMetricsData')}</p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
+          <div className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
+            <Database className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" aria-hidden="true" />
+            <p id="empty-metrics-title" className="text-[var(--text-secondary)]">{t('monitoring.noMetricsData')}</p>
             <AppleButton 
               onClick={loadSystemData} 
               variant="outline" 
@@ -243,153 +225,129 @@ const SystemMonitoring = () => {
             >
               {t('common.refresh')}
             </AppleButton>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="material-card hover-lift" data-testid="cpu-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Cpu className="w-5 h-5" />
-                {t('monitoring.cpuUsage')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-callout">{t('common.usage')}</span>
-                    <span className="text-callout font-semibold">{metrics.cpu?.usage_percent}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-callout">{t('monitoring.cores')}</span>
-                    <span className="text-callout font-semibold">{metrics.cpu?.count}</span>
-                  </div>
+          <SectionCard title={t('monitoring.cpuUsage')} data-testid="cpu-card">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--text-secondary)]">{t('common.usage')}</span>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">{metrics.cpu?.usage_percent}%</span>
                 </div>
-                {metrics.cpu?.usage_percent != null && (
-                  <div className="space-y-1">
-                    <div className="h-16" aria-label={t('monitoring.cpuTrend')} data-testid="cpu-trend">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={generateTrendData(metrics.cpu.usage_percent)}>
-                          <Line 
-                            type="monotone" 
-                            dataKey="value" 
-                            stroke="rgb(var(--color-calm))" 
-                            strokeWidth={2}
-                            dot={false}
-                            isAnimationActive={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    {USE_MOCK && (
-                      <Badge variant="outline" className="text-xs" data-testid="mock-badge">
-                        {t('monitoring.mockDataLabel')}
-                      </Badge>
-                    )}
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--text-secondary)]">{t('monitoring.cores')}</span>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">{metrics.cpu?.count}</span>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+              {metrics.cpu?.usage_percent != null && (
+                <div className="space-y-1">
+                  <div className="h-16" aria-label={t('monitoring.cpuTrend')} data-testid="cpu-trend">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={generateTrendData(metrics.cpu.usage_percent)}>
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="rgb(var(--color-calm))" 
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {USE_MOCK && (
+                    <Badge variant="outline" className="text-xs" data-testid="mock-badge">
+                      {t('monitoring.mockDataLabel')}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </SectionCard>
 
-          <Card className="material-card hover-lift" data-testid="memory-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="w-5 h-5" />
-                {t('monitoring.memory')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-callout">{t('common.usage')}</span>
-                    <span className="text-callout font-semibold">{metrics.memory?.usage_percent}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-callout">{t('monitoring.usedTotal')}</span>
-                    <span className="text-callout font-semibold">
-                      {t('monitoring.gbFormat', { used: metrics.memory?.used_gb, total: metrics.memory?.total_gb })}
-                    </span>
-                  </div>
+          <SectionCard title={t('monitoring.memory')} data-testid="memory-card">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--text-secondary)]">{t('common.usage')}</span>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">{metrics.memory?.usage_percent}%</span>
                 </div>
-                {metrics.memory?.usage_percent != null && (
-                  <div className="space-y-1">
-                    <div className="h-16" aria-label={t('monitoring.memoryTrend')} data-testid="memory-trend">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={generateTrendData(metrics.memory.usage_percent)}>
-                          <Line 
-                            type="monotone" 
-                            dataKey="value" 
-                            stroke="rgb(var(--color-growth))" 
-                            strokeWidth={2}
-                            dot={false}
-                            isAnimationActive={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    {USE_MOCK && (
-                      <Badge variant="outline" className="text-xs" data-testid="mock-badge">
-                        {t('monitoring.mockDataLabel')}
-                      </Badge>
-                    )}
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--text-secondary)]">{t('monitoring.usedTotal')}</span>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {t('monitoring.gbFormat', { used: metrics.memory?.used_gb, total: metrics.memory?.total_gb })}
+                  </span>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+              {metrics.memory?.usage_percent != null && (
+                <div className="space-y-1">
+                  <div className="h-16" aria-label={t('monitoring.memoryTrend')} data-testid="memory-trend">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={generateTrendData(metrics.memory.usage_percent)}>
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="rgb(var(--color-growth))" 
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {USE_MOCK && (
+                    <Badge variant="outline" className="text-xs" data-testid="mock-badge">
+                      {t('monitoring.mockDataLabel')}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </SectionCard>
 
-          <Card className="material-card hover-lift" data-testid="disk-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HardDrive className="w-5 h-5" />
-                {t('monitoring.disk')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-callout">{t('common.usage')}</span>
-                    <span className="text-callout font-semibold">{metrics.disk?.usage_percent}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-callout">{t('monitoring.usedTotal')}</span>
-                    <span className="text-callout font-semibold">
-                      {t('monitoring.gbFormat', { used: metrics.disk?.used_gb, total: metrics.disk?.total_gb })}
-                    </span>
-                  </div>
+          <SectionCard title={t('monitoring.disk')} data-testid="disk-card">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--text-secondary)]">{t('common.usage')}</span>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">{metrics.disk?.usage_percent}%</span>
                 </div>
-                {metrics.disk?.usage_percent != null && (
-                  <div className="space-y-1">
-                    <div className="h-16" aria-label={t('monitoring.diskTrend')} data-testid="disk-trend">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={generateTrendData(metrics.disk.usage_percent)}>
-                          <Line 
-                            type="monotone" 
-                            dataKey="value" 
-                            stroke="rgb(var(--color-joy))" 
-                            strokeWidth={2}
-                            dot={false}
-                            isAnimationActive={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    {USE_MOCK && (
-                      <Badge variant="outline" className="text-xs" data-testid="mock-badge">
-                        {t('monitoring.mockDataLabel')}
-                      </Badge>
-                    )}
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-[var(--text-secondary)]">{t('monitoring.usedTotal')}</span>
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">
+                    {t('monitoring.gbFormat', { used: metrics.disk?.used_gb, total: metrics.disk?.total_gb })}
+                  </span>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+              {metrics.disk?.usage_percent != null && (
+                <div className="space-y-1">
+                  <div className="h-16" aria-label={t('monitoring.diskTrend')} data-testid="disk-trend">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={generateTrendData(metrics.disk.usage_percent)}>
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="rgb(var(--color-joy))" 
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {USE_MOCK && (
+                    <Badge variant="outline" className="text-xs" data-testid="mock-badge">
+                      {t('monitoring.mockDataLabel')}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </SectionCard>
         </div>
       )}
     </div>
