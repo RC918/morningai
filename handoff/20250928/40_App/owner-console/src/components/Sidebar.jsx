@@ -15,9 +15,8 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
-import { Button, Avatar, AvatarFallback, AvatarImage } from '@morningai/shared-ui'
+import { Button } from '@morningai/shared-ui'
 import { DarkModeToggle } from './DarkModeToggle'
-import { LanguageSwitcher } from './LanguageSwitcher'
 
 /**
  * Sidebar component for owner-console with iotask-style light theme.
@@ -137,28 +136,6 @@ const Sidebar = ({ user, onLogout }) => {
         </div>
       </div>
 
-      <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
-        <div className="flex items-center space-x-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={user?.avatar} alt={user?.name ? `${user.name}'s avatar` : 'User avatar'} />
-                      <AvatarFallback className="bg-primary-500 text-white">
-                        {user?.name?.charAt(0) || 'O'}
-                      </AvatarFallback>
-                    </Avatar>
-          
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-neutral-900 dark:text-white truncate">
-                {user?.name || t('sidebar.user.defaultName')}
-              </p>
-              <p className="text-xs text-primary-600 dark:text-primary-400 truncate font-semibold">
-                {user?.role || t('sidebar.user.defaultRole')}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
       <nav className="flex-1 p-4 overflow-y-auto" aria-label={t('nav.mainNavigation')}>
         <ul className="space-y-1">
           {menuItems.map((item) => {
@@ -202,9 +179,6 @@ const Sidebar = ({ user, onLogout }) => {
       <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2 mt-auto">
         <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
           <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
-        </div>
-        <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
-          <LanguageSwitcher variant={collapsed ? 'compact' : 'default'} />
         </div>
         <Button
           variant="ghost"
