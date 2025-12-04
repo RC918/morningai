@@ -20,7 +20,7 @@ import {
   Server,
   Users
 } from 'lucide-react';
-import { apiClientWithMeta } from '../lib/api-client';
+import { apiClientWithMeta, handleApiError } from '../lib/api-client';
 
 interface MetricValue {
   current: number;
@@ -312,7 +312,13 @@ export const MetricsDashboard: React.FC = () => {
           throw new Error(`API returned status ${result.status}`);
         }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data';
+        const errorMessage = handleApiError(err, {
+          defaultMessage: 'Failed to fetch dashboard data',
+          statusMessages: {
+            404: 'Metrics Dashboard API endpoint not found. Please ensure the backend /phase7/monitoring/dashboard endpoint is implemented.'
+          },
+          logContext: 'fetchDashboardData'
+        });
         setError(errorMessage);
         setLoading(false);
         setDashboardData(null);

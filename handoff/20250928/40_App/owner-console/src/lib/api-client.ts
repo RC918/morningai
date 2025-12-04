@@ -521,4 +521,109 @@ export async function apiClientWithMeta<T>(
   }
 }
 
+/**
+ * Options for handleApiError utility
+ */
+export interface HandleApiErrorOptions {
+  /** Default error message if no specific message can be extracted */
+  defaultMessage?: string;
+  /** Map of HTTP status codes to custom error messages */
+  statusMessages?: Record<number, string>;
+  /** Whether to log the error to console (default: true) */
+  logError?: boolean;
+  /** Context string for console logging (e.g., 'Failed to load data') */
+  logContext?: string;
+}
+
+/**
+ * Unified error handler for API errors
+ * 
+ * Extracts user-friendly error messages from various error types:
+ * - ApiError: Checks status code, data.message, and falls back to error message
+ * - TimeoutError: Returns timeout-specific message
+ * - Generic Error: Returns error.message
+ * - Unknown: Returns default message
+ * 
+ * @param error - The caught error from an API call
+ * @param options - Configuration options for error handling
+ * @returns User-friendly error message string
+ * 
+ * @example
+ * ```typescript
+ * // Basic usage
+ * try {
+ *   await apiClientWithMeta('/api/data', { method: 'GET' });
+ * } catch (err) {
+ *   const message = handleApiError(err, { defaultMessage: 'Failed to load data' });
+ *   setError(message);
+ * }
+ * 
+ * // With status-specific messages
+ * try {
+ *   await apiClientWithMeta('/api/action-requests', { method: 'GET' });
+ * } catch (err) {
+ *   const message = handleApiError(err, {
+ *     defaultMessage: 'Failed to load approval data',
+ *     statusMessages: {
+ *       503: 'HITL system not available',
+ *       404: 'Resource not found'
+ *     },
+ *     logContext: 'loadApprovalData'
+ *   });
+ *   setError(message);
+ * }
+ * ```
+ */
+export function handleApiError(
+  error: unknown,
+  options: HandleApiErrorOptions = {}
+): string {
+  const {
+    defaultMessage = 'An unexpected error occurred',
+    statusMessages = {},
+    logError = true,
+    logContext
+  } = options;
+
+  // Log error if enabled
+  if (logError) {
+    const contextPrefix = logContext ? `[${logContext}] ` : '';
+    console.error(`${contextPrefix}API Error:`, error);
+  }
+
+  // Handle ApiError with status-specific messages
+  if (error instanceof ApiError) {
+    // Check for status-specific custom message first
+    if (statusMessages[error.status]) {
+      return statusMessages[error.status];
+    }
+
+    // Try to extract message from error.data
+    const errorData = error.data as Record<string, unknown> | undefined;
+    if (errorData && typeof errorData.message === 'string') {
+      return errorData.message;
+    }
+
+    // Fall back to ApiError message
+    if (error.message) {
+      return error.message;
+    }
+
+    return defaultMessage;
+  }
+
+  // Handle TimeoutError
+  if (error instanceof TimeoutError) {
+    return 'Request timed out. Please try again.';
+  }
+
+  // Handle generic Error
+  if (error instanceof Error) {
+    return error.message || defaultMessage;
+  }
+
+  // Unknown error type
+  return defaultMessage;
+}
+
 export default apiClient;
