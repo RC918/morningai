@@ -298,7 +298,7 @@ const AgentGovernance = () => {
               ) : (
                 violations.map((violation) => (
                   <div key={violation.violation_id} className="flex items-start gap-3 p-3 rounded-lg border border-error-200 bg-error-50/80 dark:bg-error-900/20">
-                    <AlertTriangle className="w-5 h-5 text-error-600 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-error-600" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <p className="font-medium text-error-900">{violation.violation_type}</p>

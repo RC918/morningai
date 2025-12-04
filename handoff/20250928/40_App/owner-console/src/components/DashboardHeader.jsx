@@ -16,7 +16,7 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0 }) => {
             {title || t('dashboard.title')}
           </h1>
           {subtitle && (
-            <p className="text-sm text-neutral-500 mt-0.5">{subtitle}</p>
+            <p className="text-sm text-neutral-500 mt-1">{subtitle}</p>
           )}
         </div>
 
@@ -28,7 +28,7 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0 }) => {
               placeholder={t('header.searchPlaceholder', 'Search...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 w-64 bg-neutral-100 border-0 rounded-lg text-sm text-neutral-700 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors"
+              className="pl-8 pr-4 py-2 w-64 bg-neutral-100 border-0 rounded-lg text-sm text-neutral-700 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors"
             />
           </div>
 

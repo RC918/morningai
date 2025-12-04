@@ -240,7 +240,7 @@ const LoginPage = ({ onLogin, onRefreshUser, redirectPath = '/' }) => {
           <Card className="!py-6 border-neutral-200 dark:border-neutral-800">
             <CardHeader className="pt-1 pb-3">
               <CardTitle className="leading-tight">{t('auth.login.title')}</CardTitle>
-              <CardDescription className="mt-1.5">
+              <CardDescription className="mt-1">
                 {t('auth.login.description')}
               </CardDescription>
             </CardHeader>

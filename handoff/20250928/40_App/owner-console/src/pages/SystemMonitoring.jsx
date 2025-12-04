@@ -165,7 +165,7 @@ const SystemMonitoring = () => {
 
       {!error && !loading && isEmptyValue(health) && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <div className="py-12 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
+          <div className="py-8 text-center" role="region" aria-labelledby="empty-health-title" aria-describedby="empty-health-desc">
             <Database className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" aria-hidden="true" />
             <p id="empty-health-title" className="text-[var(--text-secondary)]">{t('monitoring.noHealthData')}</p>
             <AppleButton 
@@ -213,7 +213,7 @@ const SystemMonitoring = () => {
 
       {!error && !loading && isEmptyValue(metrics) && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <div className="py-12 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
+          <div className="py-8 text-center" role="region" aria-labelledby="empty-metrics-title" aria-describedby="empty-metrics-desc">
             <Database className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" aria-hidden="true" />
             <p id="empty-metrics-title" className="text-[var(--text-secondary)]">{t('monitoring.noMetricsData')}</p>
             <AppleButton 
