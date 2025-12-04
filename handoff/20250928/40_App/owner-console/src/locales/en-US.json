@@ -1,8 +1,12 @@
 {
-        "aiPolicies": {
-          "subtitle": "Configure AI governance policies and compliance rules",
-          "title": "AI Policies"
-        },
+                "aiPolicies": {
+                  "list": {
+                    "policyCount": "{{count}} policy",
+                    "policyCount_plural": "{{count}} policies"
+                  },
+                  "subtitle": "Configure AI governance policies and compliance rules",
+                  "title": "AI Policies"
+                },
         "failureExperiment": {
           "subtitle": "Test system resilience with controlled failure scenarios",
           "title": "Failure Experiments"
