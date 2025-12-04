@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "../../utils";
 
-interface SectionCardProps {
+interface SectionCardProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
@@ -16,6 +16,7 @@ function SectionCard({
   action,
   children,
   className,
+  ...props
 }: SectionCardProps) {
   return (
     <div
@@ -23,6 +24,7 @@ function SectionCard({
         "rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card",
         className
       )}
+      {...props}
     >
       <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
         <div>
