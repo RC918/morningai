@@ -1,6 +1,7 @@
 """
-Tests for Refactor Agent - Phase 4 (#1818)
+Tests for Refactor Agent - Phase 4 (#1818, #1888)
 """
+import tempfile
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
@@ -11,6 +12,9 @@ from refactor_agent.agent import (
     RefactorRisk,
     TSError,
     TS_FIX_STRATEGIES,
+    TS_FIX_PROMPT_TEMPLATES,
+    STRATEGY_TO_TEMPLATE,
+    MIN_LLM_FIX_LENGTH,
     get_refactor_agent,
     run_nightly_refactor,
 )
@@ -452,3 +456,345 @@ class TestRefactorRisk:
         assert RefactorRisk.MEDIUM.value == "medium"
         assert RefactorRisk.LOW.value == "low"
         assert RefactorRisk.INFO.value == "info"
+
+
+class TestPromptTemplates:
+    """Tests for LLM prompt templates (#1888)"""
+
+    def test_min_llm_fix_length_constant(self):
+        """Test MIN_LLM_FIX_LENGTH constant is defined"""
+        assert MIN_LLM_FIX_LENGTH == 5
+
+    def test_all_strategies_have_templates(self):
+        """Test that all fix strategies have corresponding templates"""
+        for strategy in STRATEGY_TO_TEMPLATE:
+            template_key = STRATEGY_TO_TEMPLATE[strategy]
+            assert template_key in TS_FIX_PROMPT_TEMPLATES
+
+    def test_null_check_template_has_placeholders(self):
+        """Test null_check template has required placeholders"""
+        template = TS_FIX_PROMPT_TEMPLATES["null_check"]
+        assert "{error_message}" in template
+        assert "{file_path}" in template
+        assert "{line}" in template
+        assert "{column}" in template
+        assert "{code_context}" in template
+
+    def test_generic_template_has_error_code(self):
+        """Test generic template includes error_code placeholder"""
+        template = TS_FIX_PROMPT_TEMPLATES["generic"]
+        assert "{error_code}" in template
+
+    def test_template_count(self):
+        """Test we have at least 10 prompt templates"""
+        assert len(TS_FIX_PROMPT_TEMPLATES) >= 10
+
+
+class TestLLMIntegration:
+    """Tests for LLM integration in RefactorAgent (#1888)"""
+
+    def test_get_llm_client_not_available(self):
+        """Test _get_llm_client returns None when LLM import fails"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        if hasattr(agent, '_llm_client'):
+            delattr(agent, '_llm_client')
+
+        with patch.dict('sys.modules', {'llm': None}):
+            with patch('builtins.__import__', side_effect=ImportError("No module named 'llm'")):
+                client = agent._get_llm_client()
+                assert client is None
+                assert agent._llm_client is None
+
+    def test_get_llm_client_available(self):
+        """Test _get_llm_client returns client when LLMClient is available"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        if hasattr(agent, '_llm_client'):
+            delattr(agent, '_llm_client')
+
+        mock_llm_client_class = MagicMock()
+        mock_client_instance = MagicMock()
+        mock_llm_client_class.return_value = mock_client_instance
+
+        mock_llm_module = MagicMock()
+        mock_llm_module.LLMClient = mock_llm_client_class
+
+        with patch.dict('sys.modules', {'llm': mock_llm_module}):
+            client = agent._get_llm_client()
+            assert client is mock_client_instance
+            assert agent._llm_client is mock_client_instance
+
+    def test_get_llm_client_caches_result(self):
+        """Test _get_llm_client caches the client instance"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        mock_client = MagicMock()
+        agent._llm_client = mock_client
+
+        client = agent._get_llm_client()
+        assert client is mock_client
+
+    def test_get_code_context_file_not_found(self):
+        """Test _get_code_context handles missing files"""
+        agent = RefactorAgent(repo_path="/tmp/nonexistent")
+
+        context = agent._get_code_context("missing/file.ts", 10)
+
+        assert "File not found" in context
+
+    def test_get_code_context_success(self):
+        """Test _get_code_context returns correct context"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text(
+                "line 1\nline 2\nline 3\nline 4\nline 5\n"
+                "line 6\nline 7\nline 8\nline 9\nline 10\n"
+            )
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            context = agent._get_code_context("test.ts", 5, context_lines=2)
+
+            assert "line 5" in context
+            assert ">>>" in context
+
+    def test_build_fix_prompt_uses_correct_template(self):
+        """Test _build_fix_prompt selects correct template"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        error = TSError(
+            file_path="src/test.ts",
+            line=10,
+            column=5,
+            error_code="TS2531",
+            message="Object is possibly 'null'"
+        )
+
+        task = RefactorTask(
+            task_id="test-001",
+            error=error,
+            fix_strategy="null_check",
+            estimated_risk=RefactorRisk.LOW
+        )
+
+        with patch.object(agent, '_get_code_context', return_value="// mock context"):
+            prompt = agent._build_fix_prompt(task)
+
+        assert "null" in prompt.lower()
+        assert "src/test.ts" in prompt
+        assert "10" in prompt
+
+    def test_generate_fix_with_llm_success(self):
+        """Test _generate_fix_with_llm returns fix on success"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        error = TSError(
+            file_path="src/test.ts",
+            line=10,
+            column=5,
+            error_code="TS2531",
+            message="Object is possibly 'null'"
+        )
+
+        task = RefactorTask(
+            task_id="test-001",
+            error=error,
+            fix_strategy="null_check",
+            estimated_risk=RefactorRisk.LOW
+        )
+
+        mock_response = MagicMock()
+        mock_response.content = "const value = obj?.property ?? defaultValue;"
+
+        mock_client = MagicMock()
+        mock_client.generate.return_value = mock_response
+
+        with patch.object(agent, '_get_llm_client', return_value=mock_client):
+            with patch.object(agent, '_get_code_context', return_value="// context"):
+                fix = agent._generate_fix_with_llm(task)
+
+        assert fix is not None
+        assert "obj?.property" in fix
+
+    def test_generate_fix_with_llm_strips_code_blocks(self):
+        """Test _generate_fix_with_llm strips markdown code blocks"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        error = TSError(
+            file_path="src/test.ts",
+            line=10,
+            column=5,
+            error_code="TS2531",
+            message="Object is possibly 'null'"
+        )
+
+        task = RefactorTask(
+            task_id="test-001",
+            error=error,
+            fix_strategy="null_check",
+            estimated_risk=RefactorRisk.LOW
+        )
+
+        mock_response = MagicMock()
+        mock_response.content = "```typescript\nconst x = value ?? 0;\n```"
+
+        mock_client = MagicMock()
+        mock_client.generate.return_value = mock_response
+
+        with patch.object(agent, '_get_llm_client', return_value=mock_client):
+            with patch.object(agent, '_get_code_context', return_value="// context"):
+                fix = agent._generate_fix_with_llm(task)
+
+        assert fix is not None
+        assert "```" not in fix
+        assert "const x = value ?? 0;" in fix
+
+    def test_generate_fix_with_llm_retries_on_failure(self):
+        """Test _generate_fix_with_llm retries on API failure"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        error = TSError(
+            file_path="src/test.ts",
+            line=10,
+            column=5,
+            error_code="TS2531",
+            message="Object is possibly 'null'"
+        )
+
+        task = RefactorTask(
+            task_id="test-001",
+            error=error,
+            fix_strategy="null_check",
+            estimated_risk=RefactorRisk.LOW
+        )
+
+        mock_response = MagicMock()
+        mock_response.content = "const fixed = value!;"
+
+        mock_client = MagicMock()
+        mock_client.generate.side_effect = [
+            Exception("API error"),
+            mock_response
+        ]
+
+        with patch.object(agent, '_get_llm_client', return_value=mock_client):
+            with patch.object(agent, '_get_code_context', return_value="// context"):
+                with patch('time.sleep'):
+                    fix = agent._generate_fix_with_llm(task, max_retries=2)
+
+        assert fix is not None
+        assert mock_client.generate.call_count == 2
+
+    def test_generate_fix_with_llm_returns_none_after_max_retries(self):
+        """Test _generate_fix_with_llm returns None after max retries"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        error = TSError(
+            file_path="src/test.ts",
+            line=10,
+            column=5,
+            error_code="TS2531",
+            message="Object is possibly 'null'"
+        )
+
+        task = RefactorTask(
+            task_id="test-001",
+            error=error,
+            fix_strategy="null_check",
+            estimated_risk=RefactorRisk.LOW
+        )
+
+        mock_client = MagicMock()
+        mock_client.generate.side_effect = Exception("API error")
+
+        with patch.object(agent, '_get_llm_client', return_value=mock_client):
+            with patch.object(agent, '_get_code_context', return_value="// context"):
+                with patch('time.sleep'):
+                    fix = agent._generate_fix_with_llm(task, max_retries=1)
+
+        assert fix is None
+        assert mock_client.generate.call_count == 2
+
+    def test_generate_fix_falls_back_to_placeholder(self):
+        """Test generate_fix falls back to placeholder when LLM unavailable"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        error = TSError(
+            file_path="src/test.ts",
+            line=15,
+            column=1,
+            error_code="TS2531",
+            message="Object is possibly 'null'"
+        )
+
+        task = RefactorTask(
+            task_id="test-001",
+            error=error,
+            fix_strategy="null_check",
+            estimated_risk=RefactorRisk.LOW
+        )
+
+        with patch.object(agent, '_generate_fix_with_llm', return_value=None):
+            fix = agent.generate_fix(task)
+
+        assert fix is not None
+        assert "null check" in fix.lower()
+        assert "15" in fix
+
+    def test_generate_fix_uses_llm_when_available(self):
+        """Test generate_fix uses LLM fix when available"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        error = TSError(
+            file_path="src/test.ts",
+            line=10,
+            column=5,
+            error_code="TS2531",
+            message="Object is possibly 'null'"
+        )
+
+        task = RefactorTask(
+            task_id="test-001",
+            error=error,
+            fix_strategy="null_check",
+            estimated_risk=RefactorRisk.LOW
+        )
+
+        llm_fix = "const safeValue = value ?? defaultValue;"
+
+        with patch.object(agent, '_generate_fix_with_llm', return_value=llm_fix):
+            fix = agent.generate_fix(task)
+
+        assert fix == llm_fix
+
+    def test_all_fallback_strategies_have_messages(self):
+        """Test all common strategies have fallback messages"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        strategies = [
+            "null_check", "undefined_check", "implicit_any",
+            "possibly_null", "possibly_undefined", "type_mismatch",
+            "property_missing", "argument_type", "unknown_type",
+            "binding_any", "argument_count"
+        ]
+
+        for strategy in strategies:
+            error = TSError(
+                file_path="src/test.ts",
+                line=10,
+                column=1,
+                error_code="TS0000",
+                message="Test error"
+            )
+
+            task = RefactorTask(
+                task_id="test",
+                error=error,
+                fix_strategy=strategy,
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            with patch.object(agent, '_generate_fix_with_llm', return_value=None):
+                fix = agent.generate_fix(task)
+
+            assert fix is not None, f"No fallback for strategy: {strategy}"
