@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Refactor Agent - Phase 4 (#1818, #1888)
+Refactor Agent - Phase 4 (#1818, #1888, #1889)
 
 Automated TypeScript strict mode error fixing agent.
 Runs nightly to fix TS errors and submit PRs automatically.
@@ -11,16 +11,18 @@ Design Principles:
 - Safe: Creates PRs for human review, never pushes directly to main
 - Observable: Logs all actions and maintains progress metrics
 - LLM-Powered: Uses LLM to generate actual code fixes (#1888)
+- File Modification: Applies fixes to files with backup and rollback (#1889)
 """
 import logging
 import re
+import shutil
 import subprocess
 import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -670,6 +672,290 @@ class RefactorAgent:
         }
 
         return fallback_messages.get(strategy)
+
+    def _create_backup(self, file_path: Path) -> Optional[Path]:
+        """
+        Create a backup of a file before modification.
+
+        Args:
+            file_path: Path to the file to backup
+
+        Returns:
+            Path to the backup file, or None if backup failed
+        """
+        if not file_path.exists():
+            logger.warning("[RefactorAgent] Cannot backup non-existent file: %s", file_path)
+            return None
+
+        backup_dir = self.repo_path / ".refactor_backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = int(time.time() * 1000)
+        relative_path = file_path.relative_to(self.repo_path)
+        safe_name = str(relative_path).replace("/", "_").replace("\\", "_")
+        backup_path = backup_dir / f"{safe_name}.{timestamp}.bak"
+
+        try:
+            shutil.copy2(file_path, backup_path)
+            logger.info("[RefactorAgent] Created backup: %s", backup_path)
+            return backup_path
+        except Exception as e:
+            logger.error("[RefactorAgent] Failed to create backup for %s: %s", file_path, e)
+            return None
+
+    def _restore_from_backup(self, original_path: Path, backup_path: Path) -> bool:
+        """
+        Restore a file from its backup.
+
+        Args:
+            original_path: Path to restore to
+            backup_path: Path to the backup file
+
+        Returns:
+            True if restore succeeded, False otherwise
+        """
+        if not backup_path.exists():
+            logger.error("[RefactorAgent] Backup file not found: %s", backup_path)
+            return False
+
+        try:
+            shutil.copy2(backup_path, original_path)
+            logger.info("[RefactorAgent] Restored file from backup: %s", original_path)
+            return True
+        except Exception as e:
+            logger.error("[RefactorAgent] Failed to restore from backup: %s", e)
+            return False
+
+    def get_diff_preview(self, task: RefactorTask, fix: str) -> Optional[str]:
+        """
+        Generate a diff preview showing the proposed change.
+
+        Args:
+            task: RefactorTask containing error details
+            fix: The fix code to apply
+
+        Returns:
+            Diff string showing before/after, or None if unable to generate
+        """
+        file_path = self.repo_path / task.error.file_path
+        if not file_path.exists():
+            return None
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                original_lines = f.readlines()
+
+            line_idx = task.error.line - 1
+            if line_idx < 0 or line_idx >= len(original_lines):
+                return None
+
+            context_start = max(0, line_idx - 3)
+            context_end = min(len(original_lines), line_idx + 4)
+
+            diff_lines = []
+            diff_lines.append(f"--- {task.error.file_path}")
+            diff_lines.append(f"+++ {task.error.file_path}")
+            diff_lines.append(f"@@ -{context_start + 1},{context_end - context_start} +{context_start + 1},{context_end - context_start} @@")
+
+            for i in range(context_start, context_end):
+                if i == line_idx:
+                    diff_lines.append(f"-{original_lines[i].rstrip()}")
+                    diff_lines.append(f"+{fix.split(chr(10))[0] if chr(10) in fix else fix}")
+                else:
+                    diff_lines.append(f" {original_lines[i].rstrip()}")
+
+            return "\n".join(diff_lines)
+        except Exception as e:
+            logger.warning("[RefactorAgent] Failed to generate diff preview: %s", e)
+            return None
+
+    def apply_fix(
+        self,
+        task: RefactorTask,
+        fix: str,
+        create_backup: bool = True
+    ) -> Tuple[bool, Optional[Path]]:
+        """
+        Apply a fix to the target file.
+
+        Args:
+            task: RefactorTask containing error details
+            fix: The fix code to apply
+            create_backup: Whether to create a backup before modifying
+
+        Returns:
+            Tuple of (success, backup_path)
+        """
+        file_path = self.repo_path / task.error.file_path
+        if not file_path.exists():
+            logger.error("[RefactorAgent] File not found: %s", file_path)
+            return (False, None)
+
+        backup_path = None
+        if create_backup:
+            backup_path = self._create_backup(file_path)
+            if backup_path is None:
+                logger.error("[RefactorAgent] Failed to create backup, aborting fix")
+                return (False, None)
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            line_idx = task.error.line - 1
+            if line_idx < 0 or line_idx >= len(lines):
+                logger.error(
+                    "[RefactorAgent] Line %d out of range for file %s (total lines: %d)",
+                    task.error.line, file_path, len(lines)
+                )
+                return (False, backup_path)
+
+            original_line = lines[line_idx]
+            indent = len(original_line) - len(original_line.lstrip())
+            indent_str = original_line[:indent]
+
+            fix_lines = fix.split("\n")
+            indented_fix = "\n".join(
+                indent_str + line if line.strip() else line
+                for line in fix_lines
+            )
+
+            if not indented_fix.endswith("\n"):
+                indented_fix += "\n"
+
+            lines[line_idx] = indented_fix
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+
+            logger.info(
+                "[RefactorAgent] Applied fix to %s:%d",
+                task.error.file_path, task.error.line
+            )
+            return (True, backup_path)
+
+        except Exception as e:
+            logger.error("[RefactorAgent] Failed to apply fix: %s", e)
+            if backup_path:
+                self._restore_from_backup(file_path, backup_path)
+            return (False, backup_path)
+
+    def apply_fixes_batch(
+        self,
+        tasks: List[RefactorTask],
+        fixes: List[str],
+        create_backups: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Apply multiple fixes in a batch with rollback support.
+
+        Args:
+            tasks: List of RefactorTasks to fix
+            fixes: List of fix codes corresponding to tasks
+            create_backups: Whether to create backups before modifying
+
+        Returns:
+            Dictionary with results: {
+                'success_count': int,
+                'failure_count': int,
+                'applied': List[str],  # file paths successfully modified
+                'failed': List[str],   # file paths that failed
+                'backups': Dict[str, Path]  # file_path -> backup_path mapping
+            }
+        """
+        if len(tasks) != len(fixes):
+            raise ValueError("tasks and fixes must have the same length")
+
+        results = {
+            'success_count': 0,
+            'failure_count': 0,
+            'applied': [],
+            'failed': [],
+            'backups': {}
+        }
+
+        applied_backups: Dict[str, Path] = {}
+
+        for task, fix in zip(tasks, fixes):
+            if fix is None:
+                results['failure_count'] += 1
+                results['failed'].append(task.error.file_path)
+                continue
+
+            success, backup_path = self.apply_fix(task, fix, create_backup=create_backups)
+
+            if success:
+                results['success_count'] += 1
+                results['applied'].append(task.error.file_path)
+                if backup_path:
+                    applied_backups[task.error.file_path] = backup_path
+            else:
+                results['failure_count'] += 1
+                results['failed'].append(task.error.file_path)
+
+        results['backups'] = applied_backups
+
+        logger.info(
+            "[RefactorAgent] Batch apply complete: %d success, %d failed",
+            results['success_count'], results['failure_count']
+        )
+
+        return results
+
+    def rollback_batch(self, backups: Dict[str, Path]) -> Dict[str, bool]:
+        """
+        Rollback multiple files from their backups.
+
+        Args:
+            backups: Dictionary mapping file paths to backup paths
+
+        Returns:
+            Dictionary mapping file paths to rollback success status
+        """
+        results = {}
+
+        for file_path_str, backup_path in backups.items():
+            file_path = self.repo_path / file_path_str
+            success = self._restore_from_backup(file_path, backup_path)
+            results[file_path_str] = success
+
+        success_count = sum(1 for v in results.values() if v)
+        logger.info(
+            "[RefactorAgent] Rollback complete: %d/%d files restored",
+            success_count, len(results)
+        )
+
+        return results
+
+    def cleanup_backups(self, max_age_hours: int = 24) -> int:
+        """
+        Clean up old backup files.
+
+        Args:
+            max_age_hours: Maximum age of backups to keep (default: 24 hours)
+
+        Returns:
+            Number of backup files deleted
+        """
+        backup_dir = self.repo_path / ".refactor_backups"
+        if not backup_dir.exists():
+            return 0
+
+        deleted_count = 0
+        cutoff_time = time.time() - (max_age_hours * 3600)
+
+        for backup_file in backup_dir.glob("*.bak"):
+            try:
+                if backup_file.stat().st_mtime < cutoff_time:
+                    backup_file.unlink()
+                    deleted_count += 1
+            except Exception as e:
+                logger.warning("[RefactorAgent] Failed to delete backup %s: %s", backup_file, e)
+
+        if deleted_count > 0:
+            logger.info("[RefactorAgent] Cleaned up %d old backup files", deleted_count)
+
+        return deleted_count
 
     def run_refactor(
         self,

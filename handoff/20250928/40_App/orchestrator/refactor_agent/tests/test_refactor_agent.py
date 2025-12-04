@@ -1,7 +1,8 @@
 """
-Tests for Refactor Agent - Phase 4 (#1818, #1888)
+Tests for Refactor Agent - Phase 4 (#1818, #1888, #1889)
 """
 import tempfile
+import time
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
@@ -798,3 +799,356 @@ class TestLLMIntegration:
                 fix = agent.generate_fix(task)
 
             assert fix is not None, f"No fallback for strategy: {strategy}"
+
+
+class TestFileModification:
+    """Tests for file modification functionality (#1889)"""
+
+    def test_create_backup_success(self):
+        """Test _create_backup creates backup file"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text("const x = 1;")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            backup_path = agent._create_backup(test_file)
+
+            assert backup_path is not None
+            assert backup_path.exists()
+            assert backup_path.read_text() == "const x = 1;"
+
+    def test_create_backup_nonexistent_file(self):
+        """Test _create_backup returns None for non-existent file"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            backup_path = agent._create_backup(Path(tmpdir) / "nonexistent.ts")
+
+            assert backup_path is None
+
+    def test_restore_from_backup_success(self):
+        """Test _restore_from_backup restores file content"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_file = Path(tmpdir) / "test.ts"
+            backup_file = Path(tmpdir) / "test.ts.bak"
+
+            original_file.write_text("modified content")
+            backup_file.write_text("original content")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            success = agent._restore_from_backup(original_file, backup_file)
+
+            assert success is True
+            assert original_file.read_text() == "original content"
+
+    def test_restore_from_backup_missing_backup(self):
+        """Test _restore_from_backup returns False for missing backup"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_file = Path(tmpdir) / "test.ts"
+            original_file.write_text("content")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            success = agent._restore_from_backup(
+                original_file,
+                Path(tmpdir) / "nonexistent.bak"
+            )
+
+            assert success is False
+
+    def test_get_diff_preview(self):
+        """Test get_diff_preview generates diff output"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "src" / "test.ts"
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.write_text("line 1\nline 2\nline 3\nline 4\nline 5\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            error = TSError(
+                file_path="src/test.ts",
+                line=3,
+                column=1,
+                error_code="TS2531",
+                message="Object is possibly 'null'"
+            )
+
+            task = RefactorTask(
+                task_id="test-001",
+                error=error,
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            diff = agent.get_diff_preview(task, "const x = value ?? 0;")
+
+            assert diff is not None
+            assert "---" in diff
+            assert "+++" in diff
+            assert "-line 3" in diff
+            assert "+const x = value ?? 0;" in diff
+
+    def test_get_diff_preview_file_not_found(self):
+        """Test get_diff_preview returns None for missing file"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            error = TSError(
+                file_path="nonexistent.ts",
+                line=1,
+                column=1,
+                error_code="TS2531",
+                message="Error"
+            )
+
+            task = RefactorTask(
+                task_id="test",
+                error=error,
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            diff = agent.get_diff_preview(task, "fix")
+
+            assert diff is None
+
+    def test_apply_fix_success(self):
+        """Test apply_fix modifies file correctly"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "src" / "test.ts"
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.write_text("line 1\n    const x = null;\nline 3\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            error = TSError(
+                file_path="src/test.ts",
+                line=2,
+                column=1,
+                error_code="TS2531",
+                message="Object is possibly 'null'"
+            )
+
+            task = RefactorTask(
+                task_id="test-001",
+                error=error,
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            success, backup_path = agent.apply_fix(task, "const x = value ?? 0;")
+
+            assert success is True
+            assert backup_path is not None
+            assert backup_path.exists()
+
+            content = test_file.read_text()
+            assert "const x = value ?? 0;" in content
+
+    def test_apply_fix_preserves_indentation(self):
+        """Test apply_fix preserves original indentation"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text("function test() {\n    const x = null;\n}\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            error = TSError(
+                file_path="test.ts",
+                line=2,
+                column=5,
+                error_code="TS2531",
+                message="Error"
+            )
+
+            task = RefactorTask(
+                task_id="test",
+                error=error,
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            success, _ = agent.apply_fix(task, "const x = value ?? 0;")
+
+            assert success is True
+            content = test_file.read_text()
+            assert "    const x = value ?? 0;" in content
+
+    def test_apply_fix_file_not_found(self):
+        """Test apply_fix returns False for missing file"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            error = TSError(
+                file_path="nonexistent.ts",
+                line=1,
+                column=1,
+                error_code="TS2531",
+                message="Error"
+            )
+
+            task = RefactorTask(
+                task_id="test",
+                error=error,
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            success, backup_path = agent.apply_fix(task, "fix")
+
+            assert success is False
+            assert backup_path is None
+
+    def test_apply_fix_without_backup(self):
+        """Test apply_fix works without creating backup"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text("const x = null;\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            error = TSError(
+                file_path="test.ts",
+                line=1,
+                column=1,
+                error_code="TS2531",
+                message="Error"
+            )
+
+            task = RefactorTask(
+                task_id="test",
+                error=error,
+                fix_strategy="null_check",
+                estimated_risk=RefactorRisk.LOW
+            )
+
+            success, backup_path = agent.apply_fix(task, "const x = 0;", create_backup=False)
+
+            assert success is True
+            assert backup_path is None
+
+    def test_apply_fixes_batch(self):
+        """Test apply_fixes_batch applies multiple fixes"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file1 = Path(tmpdir) / "file1.ts"
+            file2 = Path(tmpdir) / "file2.ts"
+            file1.write_text("const a = null;\n")
+            file2.write_text("const b = null;\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            tasks = [
+                RefactorTask(
+                    task_id="task1",
+                    error=TSError(
+                        file_path="file1.ts", line=1, column=1,
+                        error_code="TS2531", message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW
+                ),
+                RefactorTask(
+                    task_id="task2",
+                    error=TSError(
+                        file_path="file2.ts", line=1, column=1,
+                        error_code="TS2531", message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW
+                ),
+            ]
+
+            fixes = ["const a = 0;", "const b = 0;"]
+
+            results = agent.apply_fixes_batch(tasks, fixes)
+
+            assert results['success_count'] == 2
+            assert results['failure_count'] == 0
+            assert len(results['applied']) == 2
+            assert len(results['backups']) == 2
+
+    def test_apply_fixes_batch_with_none_fix(self):
+        """Test apply_fixes_batch handles None fixes"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file1 = Path(tmpdir) / "file1.ts"
+            file1.write_text("const a = null;\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            tasks = [
+                RefactorTask(
+                    task_id="task1",
+                    error=TSError(
+                        file_path="file1.ts", line=1, column=1,
+                        error_code="TS2531", message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW
+                ),
+            ]
+
+            fixes = [None]
+
+            results = agent.apply_fixes_batch(tasks, fixes)
+
+            assert results['success_count'] == 0
+            assert results['failure_count'] == 1
+            assert "file1.ts" in results['failed']
+
+    def test_rollback_batch(self):
+        """Test rollback_batch restores multiple files"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            file1 = Path(tmpdir) / "file1.ts"
+            file2 = Path(tmpdir) / "file2.ts"
+            backup1 = Path(tmpdir) / ".refactor_backups" / "file1.bak"
+            backup2 = Path(tmpdir) / ".refactor_backups" / "file2.bak"
+
+            backup1.parent.mkdir(parents=True, exist_ok=True)
+
+            file1.write_text("modified1")
+            file2.write_text("modified2")
+            backup1.write_text("original1")
+            backup2.write_text("original2")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            backups = {
+                "file1.ts": backup1,
+                "file2.ts": backup2,
+            }
+
+            results = agent.rollback_batch(backups)
+
+            assert results["file1.ts"] is True
+            assert results["file2.ts"] is True
+            assert file1.read_text() == "original1"
+            assert file2.read_text() == "original2"
+
+    def test_cleanup_backups(self):
+        """Test cleanup_backups removes old backup files"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            backup_dir = Path(tmpdir) / ".refactor_backups"
+            backup_dir.mkdir(parents=True, exist_ok=True)
+
+            old_backup = backup_dir / "old.bak"
+            new_backup = backup_dir / "new.bak"
+
+            old_backup.write_text("old")
+            new_backup.write_text("new")
+
+            import os
+            old_time = time.time() - (48 * 3600)
+            os.utime(old_backup, (old_time, old_time))
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            deleted_count = agent.cleanup_backups(max_age_hours=24)
+
+            assert deleted_count == 1
+            assert not old_backup.exists()
+            assert new_backup.exists()
+
+    def test_cleanup_backups_no_backup_dir(self):
+        """Test cleanup_backups returns 0 when no backup dir exists"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            deleted_count = agent.cleanup_backups()
+
+            assert deleted_count == 0
