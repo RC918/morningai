@@ -1,3 +1,25 @@
+# =============================================================================
+# Render IaC Configuration for MorningAI
+# =============================================================================
+# IMPORTANT: The following secrets must be manually configured in Render Dashboard
+# before deployment (sync: false means they are not auto-generated):
+#
+# Required secrets (min 32 characters):
+#   - FLASK_SECRET_KEY: Flask session secret key
+#   - ENCRYPTION_MASTER_KEY: Master key for data encryption
+#   - JWT_SECRET_KEY: JWT token signing key (auto-generated if not set)
+#
+# External service credentials:
+#   - DATABASE_URL: PostgreSQL connection string
+#   - REDIS_URL: Redis connection string
+#   - SENTRY_DSN: Sentry error tracking DSN
+#   - GITHUB_TOKEN / AGENT_GITHUB_TOKEN: GitHub API tokens
+#   - OPENAI_API_KEY: OpenAI API key
+#   - SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY: Supabase credentials
+#
+# Configure these in Render Dashboard > Environment Groups or per-service Environment
+# =============================================================================
+
 services:
   - type: web
     name: morningai-backend-v2
