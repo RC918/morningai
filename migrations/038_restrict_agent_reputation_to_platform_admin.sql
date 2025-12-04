@@ -11,16 +11,30 @@
 --
 -- This migration updates the RLS policies to restrict access to users with
 -- is_platform_admin = TRUE in user_profiles.
+--
+-- Note: Different environments may have different policy naming conventions:
+-- - Some have: user_authenticated_agent_reputation_read (from Migration 015)
+-- - Some have: agent_reputation_select_policy (legacy naming)
+-- This migration handles both cases.
 -- ============================================================================
 
 BEGIN;
 
 -- ============================================================================
--- Drop existing authenticated-only policies
+-- Drop existing authenticated-only policies (all known naming conventions)
 -- ============================================================================
 
+-- Migration 015 naming convention
 DROP POLICY IF EXISTS "user_authenticated_agent_reputation_read" ON public.agent_reputation;
 DROP POLICY IF EXISTS "user_authenticated_reputation_events_read" ON public.reputation_events;
+
+-- Legacy naming convention (found in staging/production environments)
+DROP POLICY IF EXISTS "agent_reputation_select_policy" ON public.agent_reputation;
+DROP POLICY IF EXISTS "reputation_events_select_policy" ON public.reputation_events;
+
+-- Other possible legacy naming patterns
+DROP POLICY IF EXISTS "authenticated_agent_reputation_read" ON public.agent_reputation;
+DROP POLICY IF EXISTS "authenticated_reputation_events_read" ON public.reputation_events;
 
 -- ============================================================================
 -- Create platform_admin-only policies for agent_reputation
@@ -96,17 +110,19 @@ BEGIN
         RAISE EXCEPTION '❌ reputation_events: platform_admin policy not created';
     END IF;
 
-    -- Verify old policies are removed
+    -- Verify no other SELECT policies exist (would conflict with platform_admin policy via OR)
+    -- This checks for ANY SELECT policy that is not our new platform_admin policy
     SELECT COUNT(*) INTO policy_count
     FROM pg_policies
     WHERE schemaname = 'public' 
       AND tablename IN ('agent_reputation', 'reputation_events')
-      AND policyname LIKE 'user_authenticated%';
+      AND cmd = 'SELECT'
+      AND policyname NOT IN ('platform_admin_agent_reputation_read', 'platform_admin_reputation_events_read');
     
     IF policy_count = 0 THEN
-        RAISE NOTICE '✅ Old user_authenticated policies removed';
+        RAISE NOTICE '✅ No conflicting SELECT policies remain';
     ELSE
-        RAISE EXCEPTION '❌ Old user_authenticated policies still exist: %. Migration cannot proceed with stale policies.', policy_count;
+        RAISE EXCEPTION '❌ Conflicting SELECT policies still exist: %. These would combine with OR logic and bypass platform_admin restriction. Migration cannot proceed.', policy_count;
     END IF;
 
     RAISE NOTICE '
