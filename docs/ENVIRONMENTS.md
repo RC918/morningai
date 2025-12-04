@@ -1,7 +1,7 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-12-01  
-**Document Version**: 2.5  
+**Last Updated**: 2025-12-05  
+**Document Version**: 2.6  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
@@ -20,6 +20,73 @@
 ## Overview
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
+
+**近期重要更新** (2025-12-03 至 2025-12-05):
+
+*Refactor Agent & TS Strict Mode Automation:*
+- **PR #1886**: Phase 4 - Refactor Agent for TS Strict Mode Automation
+  - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/`, `config/env.schema.yaml`, `.env.example`
+  - 新增環境變數：`REFACTOR_AGENT_ENABLED` (boolean, default: true) - 啟用/停用 Refactor Agent
+  - 新增環境變數：`REFACTOR_AGENT_ERRORS_PER_RUN` (integer, default: 10) - 每次執行修復的錯誤數量
+  - 新增環境變數：`REFACTOR_AGENT_AUTO_PR` (boolean, default: true) - 自動建立 PR
+  - 影響：引入自動化 TS strict mode 修復代理
+- **PR #1897**: LLM Integration for Refactor Agent Code Fix Generation
+  - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
+  - 影響：新增 LLM 驅動的程式碼修復生成
+- **PR #1903**: File Modification Implementation for Refactor Agent
+  - 影響：啟用實際檔案修改功能
+- **PR #1908**: PR Automation for Refactor Agent
+  - 影響：自動建立修復 PR
+- **PR #1913**: Nightly Cron Job Setup + Grammar/Optimization Improvements
+  - Path: `.github/workflows/refactor-agent-nightly.yml`
+  - 影響：新增每日定時執行的 cron job
+
+*Task Queue Reliability (Ops Agent):*
+- **PR #1907**: Fix infinite loop for unassigned tasks
+  - Path: `agents/ops_agent/worker.py`
+  - 影響：修復 `assigned_to` 缺失時的無限循環問題
+- **PR #1912**: Implement task status update and assigned_to validation
+  - Path: `agents/ops_agent/worker.py`, `orchestrator/task_queue/redis_queue.py`
+  - 影響：錯誤路由的任務標記為 FAILED 並發布 `task.failed` 事件；enqueue 時缺少 `assigned_to` 會記錄警告
+- **PR #1914**: Add automated tests for task routing (#1909, #1910)
+  - Path: `agents/ops_agent/tests/test_task_routing.py`
+  - 影響：新增 8 個任務路由測試（4 個錯誤路由 + 3 個 enqueue 警告 + 1 個整合測試）
+- **PR #1934**: Use pytest pythonpath instead of sys.path.insert
+  - 影響：使用 pytest.ini pythonpath 配置取代手動路徑設定
+
+*Owner Console Page Standardization (Phase 1 Complete):*
+- **PR #1863, #1867, #1879, #1883, #1885, #1894, #1900**: 標準化所有 Owner Console 頁面佈局
+  - 影響：統一使用 PageScaffold/SectionTemplate 元件
+- **PR #1906**: Move language switcher to navbar
+  - 影響：改善導航 UX
+
+*Shared UI Components:*
+- **PR #1884**: Implement PageScaffold component
+- **PR #1887**: Implement SectionTemplate component
+- **PR #1853**: Add iotask foundation components (Phase 1)
+- **PR #1856**: Phase 2 - AdminShell three-column layout support
+
+*Security & Memory (Phase 1-2):*
+- **PR #1826**: Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3
+- **PR #1830, #1831, #1836**: Phase 1-2 Follow-up Issues and Observer Node
+
+*Orchestrator Enhancements:*
+- **PR #1852**: Phase 3 P2 - LangGraph Mode Full Switchover
+- **PR #1854**: Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
+- **PR #1857**: Phase 3 P3 - PM Agent + Ops Agent
+- **PR #1862**: Phase 3 P4 - Background Queue Principles Enhancement
+- **PR #1866**: Phase 3 Follow-up Issues
+
+*ESLint Spacing Rules:*
+- **PR #1892**: Add ESLint rule for standardized spacing utilities
+  - Path: `handoff/20250928/40_App/owner-console/eslint-rules/no-non-standard-spacing.js`
+- **PR #1901**: Cleanup 29 spacing violations
+- **PR #1904**: Upgrade spacing ESLint rule to error mode (Phase 3)
+
+*Migrations & Infrastructure:*
+- **PR #1871, #1895**: Unified Migration Management and DRY refactoring
+- **PR #1881**: Update secrets config to use new key names
+- **PR #1882**: Upgrade vulnerable packages and expand CI scanning coverage
 
 **近期重要更新** (2025-12-02 至 2025-12-03):
 
