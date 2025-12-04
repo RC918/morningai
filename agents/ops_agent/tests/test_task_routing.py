@@ -2,17 +2,19 @@
 """
 Task Routing Tests for Ops Agent Worker
 Tests for Issue #1909 (misrouted task -> FAILED + event) and Issue #1910 (enqueue without assigned_to -> warning log)
+
+Note: Python path is configured via pytest.ini pythonpath setting.
+No manual sys.path manipulation needed.
 """
-import os
-import sys
+# Standard library imports
+import logging
+from unittest.mock import AsyncMock, MagicMock
+
+# Third-party imports
 import pytest
 import pytest_asyncio
-import logging
-from unittest.mock import AsyncMock, MagicMock, patch
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-sys.path.insert(0, project_root)
-
+# Local imports
 from common.config.settings import settings
 from orchestrator.schemas.task_schema import UnifiedTask, TaskType, TaskPriority, TaskStatus
 from orchestrator.task_queue.redis_queue import RedisQueue, create_redis_queue
