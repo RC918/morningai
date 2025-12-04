@@ -190,43 +190,39 @@ const AIPolicies = () => {
 
   if (loading && policies.length === 0) {
     return (
-      <div className="p-8 space-y-6" role="status" aria-live="polite" aria-busy="true">
+      <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
         <div className="flex items-center justify-between">
           <div>
-            <Skeleton className="h-9 w-64 mb-2" />
-            <Skeleton className="h-5 w-96" />
+            <Skeleton className="h-7 w-64 mb-2" aria-hidden="true" />
+            <Skeleton className="h-5 w-96" aria-hidden="true" />
           </div>
-          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-32" aria-hidden="true" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
-            <Card className="material-card">
-              <CardHeader>
-                <Skeleton className="h-6 w-32" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
+              <div className="px-5 py-4 border-b border-[var(--border)]">
+                <Skeleton className="h-6 w-32" aria-hidden="true" />
+              </div>
+              <div className="p-5 space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-16 w-full" aria-hidden="true" />
+                ))}
+              </div>
+            </div>
           </div>
           <div className="lg:col-span-2">
-            <Card className="material-card">
-              <CardHeader>
-                <Skeleton className="h-6 w-48" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
+              <div className="px-5 py-4 border-b border-[var(--border)]">
+                <Skeleton className="h-6 w-48" aria-hidden="true" />
+              </div>
+              <div className="p-5 space-y-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" aria-hidden="true" />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -234,14 +230,13 @@ const AIPolicies = () => {
   }
 
   return (
-    <div className="p-8 space-y-6" aria-busy={loading}>
+    <div className="space-y-8" aria-busy={loading} data-testid="ai-policies">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-large-title font-bold text-neutral-900 dark:text-white flex items-center gap-3">
-            <Shield className="w-8 h-8 text-primary-600" />
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
             {t('aiPolicies.title')}
           </h1>
-          <p className="text-body text-neutral-600 dark:text-neutral-400 mt-1">
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             {t('aiPolicies.subtitle')}
           </p>
         </div>
@@ -272,21 +267,21 @@ const AIPolicies = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <Card className="material-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="policy-list">
+            <div className="px-5 py-4 border-b border-[var(--border)]">
+              <h2 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
                 <FileJson className="w-5 h-5" />
                 {t('aiPolicies.list.title')}
-              </CardTitle>
-              <CardDescription>
-                {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              </h2>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
+                {t('aiPolicies.list.policyCount', { count: policies.length })}
+              </p>
+            </div>
+            <div className="p-5">
               {policies.length === 0 ? (
                 <div className="py-8 text-center">
-                  <Shield className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
-                  <p className="text-neutral-600 dark:text-neutral-400">
+                  <Shield className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {t('aiPolicies.list.empty')}
                   </p>
                 </div>
@@ -311,7 +306,7 @@ const AIPolicies = () => {
                         className={`p-3 rounded-lg border cursor-pointer transition-all ${
                           isSelected
                             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                            : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
+                            : 'border-[var(--border)] hover:border-neutral-300 dark:hover:border-neutral-600'
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -320,10 +315,10 @@ const AIPolicies = () => {
                               <Icon className="w-4 h-4" />
                             </div>
                             <div>
-                              <p className="font-medium text-callout truncate max-w-[150px]">
+                              <p className="font-medium text-sm truncate max-w-[150px]">
                                 {policy.name}
                               </p>
-                              <p className="text-caption-2 text-neutral-500">
+                              <p className="text-xs text-[var(--text-secondary)]">
                                 {t(`aiPolicies.types.${policy.policy_type}.title`, policy.policy_type)}
                               </p>
                             </div>
@@ -332,7 +327,7 @@ const AIPolicies = () => {
                             <Badge className={STATUS_COLORS[policy.status] || STATUS_COLORS.draft}>
                               {t(`aiPolicies.status.${policy.status}`, policy.status)}
                             </Badge>
-                            <ChevronRight className="w-4 h-4 text-neutral-400" />
+                            <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
                           </div>
                         </div>
                       </div>
@@ -340,8 +335,8 @@ const AIPolicies = () => {
                   })}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <div className="lg:col-span-2">
@@ -360,14 +355,14 @@ const AIPolicies = () => {
               }}
             />
           ) : (
-            <Card className="material-card">
-              <CardContent className="py-16">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="policy-editor-empty">
+              <div className="py-16 px-5">
                 <div className="text-center">
-                  <Shield className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-                  <h3 className="text-headline font-medium text-neutral-600 dark:text-neutral-400 mb-2">
+                  <Shield className="w-16 h-16 text-[var(--text-secondary)] mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-[var(--text-secondary)] mb-2">
                     {t('aiPolicies.editor.selectType')}
                   </h3>
-                  <p className="text-body text-neutral-500 mb-6">
+                  <p className="text-sm text-[var(--text-secondary)] mb-6">
                     {t('aiPolicies.subtitle')}
                   </p>
                   <AppleButton onClick={handleCreateNew} haptic="medium">
@@ -375,8 +370,8 @@ const AIPolicies = () => {
                     {t('aiPolicies.newPolicy')}
                   </AppleButton>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -501,7 +496,7 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
     if (typeof value === 'boolean') {
       return (
         <div key={key} className="flex items-center justify-between py-2">
-          <Label htmlFor={key} className="text-callout">{fieldLabel}</Label>
+          <Label htmlFor={key} className="text-sm">{fieldLabel}</Label>
           <Switch
             id={key}
             checked={rules[key] ?? value}
@@ -514,7 +509,7 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
     if (typeof value === 'number') {
       return (
         <div key={key} className="space-y-2">
-          <Label htmlFor={key} className="text-callout">{fieldLabel}</Label>
+          <Label htmlFor={key} className="text-sm">{fieldLabel}</Label>
           <Input
             id={key}
             type="number"
@@ -528,7 +523,7 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
     if (Array.isArray(value)) {
       return (
         <div key={key} className="space-y-2">
-          <Label htmlFor={key} className="text-callout">{fieldLabel}</Label>
+          <Label htmlFor={key} className="text-sm">{fieldLabel}</Label>
           <Textarea
             id={key}
             value={(rules[key] || value).join('\n')}
@@ -536,7 +531,7 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
             placeholder={t('aiPolicies.editor.rulesHelp')}
             rows={3}
           />
-          <p className="text-caption-2 text-neutral-500">{t('aiPolicies.editor.oneItemPerLine')}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{t('aiPolicies.editor.oneItemPerLine')}</p>
         </div>
       )
     }
@@ -544,7 +539,7 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
     if (typeof value === 'string') {
       return (
         <div key={key} className="space-y-2">
-          <Label htmlFor={key} className="text-callout">{fieldLabel}</Label>
+          <Label htmlFor={key} className="text-sm">{fieldLabel}</Label>
           <Input
             id={key}
             value={rules[key] ?? value}
@@ -560,9 +555,9 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
   const templateRules = policyType && templates[policyType] ? templates[policyType].rules : {}
 
   return (
-    <Card className="material-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="policy-editor">
+      <div className="px-5 py-4 border-b border-[var(--border)]">
+        <h2 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
           {isCreating ? (
             <>
               <Plus className="w-5 h-5" />
@@ -574,9 +569,9 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
               {t('aiPolicies.editor.titleEdit')}
             </>
           )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
+        </h2>
+      </div>
+      <div className="p-5 space-y-6">
         {(error || validationError) && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -650,17 +645,17 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
                         : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${POLICY_TYPE_COLORS[type] || 'bg-neutral-100'}`}>
-                      <Icon className="w-3 h-3" />
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${POLICY_TYPE_COLORS[type] || 'bg-neutral-100'}`}>
+                        <Icon className="w-3 h-3" />
+                      </div>
+                      <span className="font-medium text-xs">
+                        {t(`aiPolicies.types.${type}.title`, template.name)}
+                      </span>
                     </div>
-                    <span className="font-medium text-caption-1">
-                      {t(`aiPolicies.types.${type}.title`, template.name)}
-                    </span>
-                  </div>
-                  <p className="text-caption-2 text-neutral-500 line-clamp-2">
-                    {t(`aiPolicies.types.${type}.description`, template.description)}
-                  </p>
+                    <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
+                      {t(`aiPolicies.types.${type}.description`, template.description)}
+                    </p>
                 </div>
               )
             })}
@@ -672,7 +667,7 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
             <div className="flex items-center justify-between">
               <Label>{t('aiPolicies.editor.rulesLabel')}</Label>
               <div className="flex items-center gap-2">
-                <span className="text-caption-2 text-neutral-500">
+                <span className="text-xs text-[var(--text-secondary)]">
                   {t('aiPolicies.editor.jsonEditor')}
                 </span>
                 <Switch
@@ -691,9 +686,9 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
                   rows={12}
                 />
                 {jsonError && (
-                  <p className="text-caption-1 text-error">{jsonError}</p>
+                  <p className="text-xs text-error">{jsonError}</p>
                 )}
-                <p className="text-caption-2 text-neutral-500">
+                <p className="text-xs text-[var(--text-secondary)]">
                   {t('aiPolicies.editor.jsonEditorHelp')}
                 </p>
               </div>
@@ -729,8 +724,8 @@ const PolicyEditor = ({ templates, policy, isCreating, saving, error, onSave, on
             </AppleButton>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
