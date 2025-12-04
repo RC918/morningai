@@ -14,6 +14,7 @@ from refactor_agent.agent import (
     TS_FIX_STRATEGIES,
     TS_FIX_PROMPT_TEMPLATES,
     STRATEGY_TO_TEMPLATE,
+    MIN_LLM_FIX_LENGTH,
     get_refactor_agent,
     run_nightly_refactor,
 )
@@ -460,6 +461,10 @@ class TestRefactorRisk:
 class TestPromptTemplates:
     """Tests for LLM prompt templates (#1888)"""
 
+    def test_min_llm_fix_length_constant(self):
+        """Test MIN_LLM_FIX_LENGTH constant is defined"""
+        assert MIN_LLM_FIX_LENGTH == 5
+
     def test_all_strategies_have_templates(self):
         """Test that all fix strategies have corresponding templates"""
         for strategy in STRATEGY_TO_TEMPLATE:
@@ -489,26 +494,46 @@ class TestLLMIntegration:
     """Tests for LLM integration in RefactorAgent (#1888)"""
 
     def test_get_llm_client_not_available(self):
-        """Test _get_llm_client returns None when LLM not available"""
+        """Test _get_llm_client returns None when LLM import fails"""
         agent = RefactorAgent(repo_path="/tmp/test")
 
-        with patch.dict('sys.modules', {'llm': None}):
-            if hasattr(agent, '_llm_client'):
-                delattr(agent, '_llm_client')
+        if hasattr(agent, '_llm_client'):
+            delattr(agent, '_llm_client')
 
-            with patch('refactor_agent.agent.RefactorAgent._get_llm_client') as mock:
-                mock.return_value = None
-                client = mock()
+        with patch.dict('sys.modules', {'llm': None}):
+            with patch('builtins.__import__', side_effect=ImportError("No module named 'llm'")):
+                client = agent._get_llm_client()
                 assert client is None
+                assert agent._llm_client is None
 
     def test_get_llm_client_available(self):
-        """Test _get_llm_client returns client when available"""
+        """Test _get_llm_client returns client when LLMClient is available"""
+        agent = RefactorAgent(repo_path="/tmp/test")
+
+        if hasattr(agent, '_llm_client'):
+            delattr(agent, '_llm_client')
+
+        mock_llm_client_class = MagicMock()
+        mock_client_instance = MagicMock()
+        mock_llm_client_class.return_value = mock_client_instance
+
+        mock_llm_module = MagicMock()
+        mock_llm_module.LLMClient = mock_llm_client_class
+
+        with patch.dict('sys.modules', {'llm': mock_llm_module}):
+            client = agent._get_llm_client()
+            assert client is mock_client_instance
+            assert agent._llm_client is mock_client_instance
+
+    def test_get_llm_client_caches_result(self):
+        """Test _get_llm_client caches the client instance"""
         agent = RefactorAgent(repo_path="/tmp/test")
 
         mock_client = MagicMock()
-        with patch.object(agent, '_get_llm_client', return_value=mock_client):
-            client = agent._get_llm_client()
-            assert client is mock_client
+        agent._llm_client = mock_client
+
+        client = agent._get_llm_client()
+        assert client is mock_client
 
     def test_get_code_context_file_not_found(self):
         """Test _get_code_context handles missing files"""

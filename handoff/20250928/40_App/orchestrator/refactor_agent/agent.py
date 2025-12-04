@@ -232,6 +232,8 @@ STRATEGY_TO_TEMPLATE: Dict[str, str] = {
     "possibly_undefined": "undefined_check",
 }
 
+MIN_LLM_FIX_LENGTH = 5
+
 
 class RefactorRisk(Enum):
     """Refactor risk levels"""
@@ -616,7 +618,7 @@ class RefactorAgent:
                     if len(lines) > 2:
                         fix = "\n".join(lines[1:-1])
 
-                if fix and len(fix) > 5:
+                if fix and len(fix) > MIN_LLM_FIX_LENGTH:
                     logger.info(
                         "[RefactorAgent] Generated fix for %s:%d (attempt %d)",
                         task.error.file_path, task.error.line, attempt + 1
@@ -629,7 +631,7 @@ class RefactorAgent:
                     attempt + 1, max_retries + 1, e
                 )
                 if attempt < max_retries:
-                    time.sleep(1 * (attempt + 1))
+                    time.sleep(2 ** attempt)
 
         return None
 
