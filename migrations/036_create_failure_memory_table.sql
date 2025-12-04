@@ -1,5 +1,5 @@
 -- ============================================================================
--- Migration 024: Create Failure Memory Table for Failure Record Storage
+-- Migration 036: Create Failure Memory Table for Failure Record Storage
 -- ============================================================================
 -- 
 -- Purpose: Create the 'failure_memory' table for storing failure records
@@ -72,7 +72,7 @@ DECLARE
 BEGIN
     RAISE NOTICE '
 ╔════════════════════════════════════════════════════════════╗
-║  Migration 024: Failure Memory Table - Verification        ║
+║  Migration 036: Failure Memory Table - Verification        ║
 ╚════════════════════════════════════════════════════════════╝
 ';
 
@@ -94,7 +94,7 @@ BEGIN
     
     RAISE NOTICE '
 ╔════════════════════════════════════════════════════════════╗
-║  Migration 024: COMPLETE                                   ║
+║  Migration 036: COMPLETE                                   ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Table: public.failure_memory                              ║
 ║  Indexes: 3 (key, created_at, metadata GIN)                ║
