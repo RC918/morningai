@@ -419,6 +419,7 @@
     },
         "nav": {
           "aiPolicies": "AI 政策",
+          "approvalQueue": "審核佇列",
           "dashboard": "儀表板",
           "failureExperiments": "故障實驗",
           "governance": "Agent 治理",
