@@ -175,8 +175,9 @@
                       "performanceOptimization": "LangGraph 金絲雀版本，Redis Checkpointer 調校中"
                     }
                   },
-            "seeAll": "查看全部",
-            "title": "儀表板"
+                        "seeAll": "查看全部",
+                        "title": "平台概覽",
+                        "pageTitle": "儀表板"
     },
   "governance": {
     "agents": {

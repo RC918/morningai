@@ -175,8 +175,9 @@
                       "performanceOptimization": "LangGraph canary, Redis Checkpointer tuning"
                     }
                   },
-            "seeAll": "See all",
-            "title": "Platform Overview"
+                        "seeAll": "See all",
+                        "title": "Platform Overview",
+                        "pageTitle": "Dashboard"
     },
   "governance": {
     "agents": {
