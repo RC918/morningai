@@ -419,6 +419,7 @@
     },
         "nav": {
           "aiPolicies": "AI 政策",
+          "approvalQueue": "審核佇列",
           "dashboard": "儀表板",
           "failureExperiments": "故障實驗",
           "governance": "Agent 治理",
@@ -428,6 +429,38 @@
           "settings": "平台設定",
           "tenants": "租戶管理",
           "uxMetrics": "UX 指標"
+        },
+        "approvalQueue": {
+          "title": "審核佇列",
+          "subtitle": "審核需要人工授權的高風險操作",
+          "viewDetails": "查看詳情",
+          "stats": {
+            "pending": "待審核",
+            "critical": "嚴重",
+            "high": "高風險",
+            "medium": "中/低風險"
+          },
+          "tabs": {
+            "pending": "待審核項目",
+            "details": "請求詳情"
+          },
+          "pending": {
+            "title": "待審核操作請求",
+            "subtitle": "等待您核准後才會執行的操作",
+            "noRequests": "沒有待審核的請求"
+          },
+          "details": {
+            "selectRequest": "從待審核清單中選擇一個請求以查看詳情",
+            "agent": "Agent",
+            "created": "建立時間",
+            "timeout": "逾時",
+            "traceId": "追蹤 ID",
+            "description": "描述",
+            "riskReason": "風險原因",
+            "affectedResources": "受影響的資源",
+            "actionPayload": "操作內容",
+            "rejectionReason": "拒絕原因（選填）"
+          }
         },
   "settings": {
     "2fa": {
