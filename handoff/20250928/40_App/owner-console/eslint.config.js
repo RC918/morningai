@@ -80,8 +80,9 @@ export default [
       // Use semantic tokens instead (error, success, warning, info, neutral, primary, accent)
       'custom/no-hardcoded-colors': 'warn',
       // Design system enforcement: prevent non-standard spacing utilities
-      // Use standardized spacing values (0, 1, 2, 4, 5, 6, 8)
-      'custom/no-non-standard-spacing': 'warn',
+      // Use standardized spacing values (0, 1, 2, 3, 4, 5, 6, 8)
+      // Phase 3: Upgraded to error mode after Phase 2.5 cleanup (PR #1901)
+      'custom/no-non-standard-spacing': 'error',
     },
   },
   {
