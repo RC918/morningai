@@ -445,7 +445,16 @@
               "noRequests": "No pending approval requests"
             },
             "details": {
-              "selectRequest": "Select a request from the pending list to view details"
+              "selectRequest": "Select a request from the pending list to view details",
+              "agent": "Agent",
+              "created": "Created",
+              "timeout": "Timeout",
+              "traceId": "Trace ID",
+              "description": "Description",
+              "riskReason": "Risk Reason",
+              "affectedResources": "Affected Resources",
+              "actionPayload": "Action Payload",
+              "rejectionReason": "Rejection Reason (optional)"
             }
           },
   "settings": {

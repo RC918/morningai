@@ -324,7 +324,7 @@ const ApprovalQueue = () => {
                                 {request.risk_level?.toUpperCase()}
                               </Badge>
                               <Badge variant="outline" className="text-caption-2">
-                                Agent: {request.agent_id}
+                                {t('approvalQueue.details.agent', 'Agent')}: {request.agent_id}
                               </Badge>
                               <Badge variant="outline" className="text-caption-2 flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
@@ -390,24 +390,24 @@ const ApprovalQueue = () => {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400">Agent</p>
+                    <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.agent', 'Agent')}</p>
                     <p className="font-medium text-neutral-900 dark:text-white">{selectedRequest.agent_id}</p>
                   </div>
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400">Created</p>
+                    <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.created', 'Created')}</p>
                     <p className="font-medium text-neutral-900 dark:text-white">
                       {formatTimestamp(selectedRequest.created_at)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400">Timeout</p>
+                    <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.timeout', 'Timeout')}</p>
                     <p className="font-medium text-neutral-900 dark:text-white">
                       {getTimeRemaining(selectedRequest.timeout_at)}
                     </p>
                   </div>
                   {selectedRequest.trace_id && (
                     <div>
-                      <p className="text-callout text-neutral-600 dark:text-neutral-400">Trace ID</p>
+                      <p className="text-callout text-neutral-600 dark:text-neutral-400">{t('approvalQueue.details.traceId', 'Trace ID')}</p>
                       <p className="font-medium text-neutral-900 dark:text-white font-mono text-sm">
                         {selectedRequest.trace_id}
                       </p>
@@ -416,7 +416,7 @@ const ApprovalQueue = () => {
                 </div>
 
                 <div>
-                  <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">Description</p>
+                  <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.description', 'Description')}</p>
                   <p className="text-neutral-900 dark:text-white bg-neutral-50 dark:bg-neutral-800 p-4 rounded-lg">
                     {selectedRequest.action_description}
                   </p>
@@ -424,7 +424,7 @@ const ApprovalQueue = () => {
 
                 {selectedRequest.risk_reason && (
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">Risk Reason</p>
+                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.riskReason', 'Risk Reason')}</p>
                     <div className="flex items-start gap-2 bg-joy-10 p-4 rounded-lg">
                       <AlertTriangle className="w-5 h-5 text-joy mt-0.5" />
                       <p className="text-joy-dark">{selectedRequest.risk_reason}</p>
@@ -434,7 +434,7 @@ const ApprovalQueue = () => {
 
                 {selectedRequest.affected_resources && selectedRequest.affected_resources.length > 0 && (
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">Affected Resources</p>
+                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.affectedResources', 'Affected Resources')}</p>
                     <div className="space-y-1">
                       {selectedRequest.affected_resources.map((resource, idx) => (
                         <Badge key={idx} variant="outline" className="mr-2">
@@ -447,7 +447,7 @@ const ApprovalQueue = () => {
 
                 {selectedRequest.action_payload && (
                   <div>
-                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">Action Payload</p>
+                    <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">{t('approvalQueue.details.actionPayload', 'Action Payload')}</p>
                     <pre className="bg-neutral-50 dark:bg-neutral-800 p-4 rounded-lg overflow-x-auto text-sm">
                       {JSON.stringify(selectedRequest.action_payload, null, 2)}
                     </pre>
@@ -456,7 +456,7 @@ const ApprovalQueue = () => {
 
                 <div className="border-t pt-4">
                   <p className="text-callout text-neutral-600 dark:text-neutral-400 mb-2">
-                    Rejection Reason (optional)
+                    {t('approvalQueue.details.rejectionReason', 'Rejection Reason (optional)')}
                   </p>
                   <textarea
                     className="w-full p-3 border rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
