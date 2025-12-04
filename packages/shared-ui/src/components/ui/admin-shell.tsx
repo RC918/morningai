@@ -25,6 +25,10 @@ export interface AdminShellProps {
     children: React.ReactNode;
   }) => React.ReactNode;
   topbarChildren?: React.ReactNode;
+  /** Right panel content (e.g., activity feed, notifications) for three-column layout */
+  rightPanel?: React.ReactNode;
+  /** Custom class name for the right panel container */
+  rightPanelClassName?: string;
 }
 
 function AdminShell({
@@ -43,6 +47,8 @@ function AdminShell({
   children,
   renderLink,
   topbarChildren,
+  rightPanel,
+  rightPanelClassName,
 }: AdminShellProps) {
   return (
     <div
@@ -71,9 +77,21 @@ function AdminShell({
           >
             {topbarChildren}
           </AdminTopbar>
-          <main className={cn("flex-1 overflow-auto p-6", mainClassName)}>
-            {children}
-          </main>
+          <div className="flex-1 flex overflow-hidden">
+            <main className={cn("flex-1 overflow-auto p-6", mainClassName)}>
+              {children}
+            </main>
+            {rightPanel && (
+              <aside
+                className={cn(
+                  "w-80 border-l border-neutral-200 bg-white overflow-auto dark:border-neutral-700 dark:bg-neutral-900",
+                  rightPanelClassName
+                )}
+              >
+                {rightPanel}
+              </aside>
+            )}
+          </div>
         </div>
       </div>
     </div>
