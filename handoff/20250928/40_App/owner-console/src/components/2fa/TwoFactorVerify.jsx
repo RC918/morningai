@@ -130,7 +130,7 @@ export function TwoFactorVerify({
         <div className="space-y-4 py-4">
           {error && (
             <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <p>{error}</p>
             </div>
           )}

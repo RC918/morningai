@@ -160,7 +160,7 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }) {
 
           {error && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
@@ -220,7 +220,7 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }) {
             <div className="space-y-4">
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                   <div className="text-sm space-y-1">
                     <p className="font-semibold text-amber-900 dark:text-amber-100">
                       {t('auth.2fa.enroll.backupCodesWarning', 'Save these backup codes!')}

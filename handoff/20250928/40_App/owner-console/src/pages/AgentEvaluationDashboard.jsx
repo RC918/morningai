@@ -287,7 +287,7 @@ const AgentEvaluationDashboard = () => {
         </CardHeader>
         <CardContent>
           {evaluations.length === 0 ? (
-            <div className="py-12 text-center">
+            <div className="py-8 text-center">
               <Activity className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
               <p className="text-neutral-600 dark:text-neutral-400">
                 {t('agentEvaluation.history.noResults', 'No evaluation results available yet')}

@@ -319,7 +319,7 @@ const FailureExperimentDashboard = () => {
                 })}
               </div>
             ) : (
-              <div className="py-12 text-center">
+              <div className="py-8 text-center">
                 <PieChart className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
                 <p className="text-neutral-600 dark:text-neutral-400">
                   {t('failureExperiment.charts.noFailureData', 'No failure data available')}
@@ -361,7 +361,7 @@ const FailureExperimentDashboard = () => {
                 })}
               </div>
             ) : (
-              <div className="py-12 text-center">
+              <div className="py-8 text-center">
                 <BarChart3 className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
                 <p className="text-neutral-600 dark:text-neutral-400">
                   {t('failureExperiment.charts.noFixerData', 'No fixer metrics available')}
@@ -447,7 +447,7 @@ const FailureExperimentDashboard = () => {
               ))}
             </div>
           ) : (
-            <div className="py-12 text-center">
+            <div className="py-8 text-center">
               <Beaker className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
               <p className="text-neutral-600 dark:text-neutral-400">
                 {t('failureExperiment.charts.noExperimentData', 'No experiment data available')}
@@ -504,7 +504,7 @@ const FailureExperimentDashboard = () => {
               ))}
             </div>
           ) : (
-            <div className="py-12 text-center">
+            <div className="py-8 text-center">
               <CheckCircle2 className="w-12 h-12 text-growth mx-auto mb-4" />
               <p className="text-neutral-600 dark:text-neutral-400">
                 {t('failureExperiment.charts.noRecentFailures', 'No recent failures')}

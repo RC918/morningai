@@ -430,7 +430,7 @@ const ApprovalQueue = () => {
                   <div>
                     <p className="text-sm text-[var(--text-secondary)] mb-2">{t('approvalQueue.details.riskReason', 'Risk Reason')}</p>
                     <div className="flex items-start gap-2 bg-joy-10 p-4 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 text-joy mt-0.5" />
+                      <AlertTriangle className="w-5 h-5 text-joy" />
                       <p className="text-joy-dark">{selectedRequest.risk_reason}</p>
                     </div>
                   </div>
@@ -506,7 +506,7 @@ const ApprovalQueue = () => {
             </div>
           ) : (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="empty-state">
-              <div className="py-12">
+              <div className="py-8">
                 <div className="flex flex-col items-center justify-center space-y-3">
                   <Shield className="w-12 h-12 text-[var(--text-secondary)]" />
                   <p className="text-sm text-[var(--text-secondary)]">
