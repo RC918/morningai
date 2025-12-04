@@ -38,7 +38,7 @@ MorningAI is an intelligent agent orchestration platform that automates software
 
 Building the world's most advanced autonomous AI agent orchestration platform that seamlessly integrates development, operations, and business intelligence with human-in-the-loop governance.
 
-### Current Status (Updated: 2025-12-01)
+### Current Status (Updated: 2025-12-05)
 
 - **Phase**: Phase 8 (v8.0.0) - MVP Foundation Complete
 - **Test Coverage**: 
@@ -49,6 +49,163 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 - **Uptime**: 90% (Target: 99.9% by Q2 2026)
 - **Transformation**: Q4 2025 - Q2 2026 (MVP to World-Class)
 - **Latest Roadmap**: [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
+
+**Recent Improvements (Dec 3 - Dec 5, 2025)**:
+
+*Refactor Agent & TS Strict Mode Automation:*
+- **PR #1886**: Phase 4 - Refactor Agent for TS Strict Mode Automation
+  - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/`, `config/env.schema.yaml`, `.env.example`
+  - Impact: Introduces Refactor Agent with automated TS strict-mode fixes; adds `REFACTOR_AGENT_ENABLED`, `REFACTOR_AGENT_ERRORS_PER_RUN`, `REFACTOR_AGENT_AUTO_PR` env vars
+  - Merged: 2025-12-04
+- **PR #1897**: LLM Integration for Refactor Agent Code Fix Generation
+  - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
+  - Impact: Adds LLM-powered code fix generation for TS strict mode violations
+  - Merged: 2025-12-04
+- **PR #1903**: File Modification Implementation for Refactor Agent
+  - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
+  - Impact: Enables actual file modifications for automated fixes
+  - Merged: 2025-12-04
+- **PR #1908**: PR Automation for Refactor Agent
+  - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
+  - Impact: Automatically creates PRs for refactor fixes
+  - Merged: 2025-12-05
+- **PR #1913**: Nightly Cron Job Setup + Grammar/Optimization Improvements
+  - Path: `.github/workflows/refactor-agent-nightly.yml`
+  - Impact: Adds nightly cron job for automated TS strict mode fixes
+  - Merged: 2025-12-05
+
+*Task Queue Reliability (Ops Agent):*
+- **PR #1907**: Fix infinite loop for unassigned tasks
+  - Path: `agents/ops_agent/worker.py`
+  - Impact: Prevents busy-loop when `assigned_to` is missing; tasks without assignment are now skipped with warning
+  - Merged: 2025-12-05
+- **PR #1912**: Implement task status update and assigned_to validation
+  - Path: `agents/ops_agent/worker.py`, `orchestrator/task_queue/redis_queue.py`
+  - Impact: Misrouted tasks marked FAILED with `task.failed` event; enqueue without `assigned_to` logs warning
+  - Merged: 2025-12-05
+- **PR #1914**: Add automated tests for task routing (#1909, #1910)
+  - Path: `agents/ops_agent/tests/test_task_routing.py`
+  - Impact: 8 new tests for task routing behavior (4 misrouted + 3 enqueue warning + 1 integration)
+  - Merged: 2025-12-05
+- **PR #1934**: Use pytest pythonpath instead of sys.path.insert
+  - Path: `agents/ops_agent/tests/test_task_routing.py`
+  - Impact: Cleaner test setup using pytest.ini pythonpath configuration
+  - Merged: 2025-12-05
+
+*Owner Console Page Standardization (Phase 1 Complete):*
+- **PR #1863**: Standardize AgentGovernance page layout & fix Dashboard title i18n
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/AgentGovernance.jsx`
+  - Impact: Unified layout with PageScaffold/SectionTemplate
+  - Merged: 2025-12-04
+- **PR #1867**: Standardize TenantManagement page layout
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/TenantManagement.jsx`
+  - Merged: 2025-12-04
+- **PR #1879**: Standardize SystemMonitoring page layout
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/SystemMonitoring.jsx`
+  - Merged: 2025-12-04
+- **PR #1883**: Standardize UXMetrics page layout
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/UXMetrics.jsx`
+  - Merged: 2025-12-04
+- **PR #1885**: Standardize AIPolicies page layout
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/AIPolicies.jsx`
+  - Merged: 2025-12-04
+- **PR #1894**: Standardize ApprovalQueue page layout
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/ApprovalQueue.jsx`
+  - Merged: 2025-12-04
+- **PR #1900**: Standardize FailureExperimentDashboard and PlatformSettings pages
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/FailureExperimentDashboard.jsx`, `PlatformSettings.jsx`
+  - Merged: 2025-12-04
+- **PR #1906**: Move language switcher to navbar and remove duplicate user info
+  - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`, `DashboardHeader.jsx`
+  - Impact: Improved navigation UX with language switcher in navbar
+  - Merged: 2025-12-04
+
+*Shared UI Components:*
+- **PR #1884**: Implement PageScaffold component
+  - Path: `packages/shared-ui/src/components/`
+  - Impact: Canonical layout primitive for Owner Console pages
+  - Merged: 2025-12-04
+- **PR #1887**: Implement SectionTemplate component
+  - Path: `packages/shared-ui/src/components/`
+  - Impact: Standardized section layout for dashboard cards
+  - Merged: 2025-12-04
+- **PR #1853**: Add iotask foundation components (Phase 1)
+  - Path: `packages/shared-ui/src/components/`
+  - Merged: 2025-12-04
+- **PR #1856**: Phase 2 - AdminShell three-column layout support
+  - Path: `packages/shared-ui/src/components/`
+  - Merged: 2025-12-04
+
+*Security & Memory (Phase 1-2):*
+- **PR #1826**: Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3, Monitoring & E2E Tests
+  - Path: `handoff/20250928/40_App/api-backend/`, `migrations/`
+  - Impact: Enhanced RLS enforcement and security monitoring
+  - Merged: 2025-12-03
+- **PR #1830**: Phase 1 Follow-up Issues - Settings, validate_task(), False Positive Evaluation
+  - Path: `common/config/settings.py`, `handoff/20250928/40_App/orchestrator/`
+  - Merged: 2025-12-03
+- **PR #1831**: Phase 2 P0 - pgvector Similarity Search and Error-Fix Pairs
+  - Path: `handoff/20250928/40_App/orchestrator/persistence/`
+  - Impact: Vector similarity search for failure knowledge base
+  - Merged: 2025-12-03
+- **PR #1836**: Phase 2 P1 - Observer Node for Failure Knowledge Base
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Observes and records failures for knowledge base
+  - Merged: 2025-12-03
+
+*Orchestrator Enhancements:*
+- **PR #1852**: Phase 3 P2 - LangGraph Mode Full Switchover
+  - Path: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`, `graph.py`
+  - Impact: Full LangGraph mode support with canary routing
+  - Merged: 2025-12-04
+- **PR #1854**: Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: HITL approval for high-risk operations
+  - Merged: 2025-12-04
+- **PR #1857**: Phase 3 P3 - PM Agent + Ops Agent
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: PM Agent and Ops Agent integration
+  - Merged: 2025-12-04
+- **PR #1862**: Phase 3 P4 - Background Queue Principles Enhancement
+  - Path: `handoff/20250928/40_App/orchestrator/`, `docs/BACKGROUND_QUEUE_PRINCIPLES.md`
+  - Impact: Enhanced queue principles documentation
+  - Merged: 2025-12-04
+- **PR #1866**: Phase 3 Follow-up Issues (#1858, #1859, #1860, #1861, #1864, #1865)
+  - Path: `handoff/20250928/40_App/orchestrator/`, `config/env.schema.yaml`
+  - Impact: Multiple orchestrator improvements and fixes
+  - Merged: 2025-12-04
+
+*ESLint Spacing Rules:*
+- **PR #1892**: Add ESLint rule for standardized spacing utilities
+  - Path: `handoff/20250928/40_App/owner-console/eslint-rules/no-non-standard-spacing.js`
+  - Impact: Custom ESLint rule to enforce design system spacing tokens
+  - Merged: 2025-12-04
+- **PR #1901**: Cleanup 29 spacing violations to match design system scale
+  - Path: `handoff/20250928/40_App/owner-console/src/`
+  - Impact: Fixed 29 spacing violations across Owner Console
+  - Merged: 2025-12-04
+- **PR #1904**: Upgrade spacing ESLint rule to error mode (Phase 3)
+  - Path: `handoff/20250928/40_App/owner-console/eslint.config.js`
+  - Impact: Spacing violations now block builds
+  - Merged: 2025-12-04
+
+*Migrations & Infrastructure:*
+- **PR #1871**: Phase 4 - Unified Migration Management
+  - Path: `scripts/run_migrations.sh`
+  - Impact: DRY refactoring for migration runner
+  - Merged: 2025-12-04
+- **PR #1895**: DRY refactoring for run_migrations.sh
+  - Path: `scripts/run_migrations.sh`
+  - Impact: Cleaner migration script with better error handling
+  - Merged: 2025-12-04
+- **PR #1881**: Update secrets config to use new key names (FLASK_SECRET_KEY, ENCRYPTION_MASTER_KEY)
+  - Path: `config/env.schema.yaml`
+  - Impact: Standardized secret key naming
+  - Merged: 2025-12-04
+- **PR #1882**: Upgrade vulnerable packages and expand CI scanning coverage
+  - Path: `agents/*/requirements.txt`, `.github/workflows/secret-scanning.yml`
+  - Impact: Security vulnerability fixes and expanded CI scanning
+  - Merged: 2025-12-04
 
 **Recent Improvements (Dec 2 - Dec 3, 2025)**:
 

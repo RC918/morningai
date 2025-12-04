@@ -1,6 +1,6 @@
 # Monitoring Dashboard Troubleshooting Guide
 
-**Last Updated**: 2025-12-01  
+**Last Updated**: 2025-12-05  
 **Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)
 
 ---
@@ -406,6 +406,47 @@ For additional support:
 - **Email**: ryan2939z@gmail.com
 
 ---
+
+## Recent Updates (Dec 3 - Dec 5, 2025)
+
+### Task Queue Reliability Improvements
+
+#### PR #1907: Fix Infinite Loop for Unassigned Tasks
+- **Path**: `agents/ops_agent/worker.py`
+- **Issue**: Worker entered infinite loop when `assigned_to` was missing from task
+- **Fix**: Added validation to skip tasks without `assigned_to` field
+- **Impact**: Prevents worker from getting stuck on malformed tasks
+
+#### PR #1912: Task Status Update and Validation
+- **Path**: `agents/ops_agent/worker.py`, `orchestrator/task_queue/redis_queue.py`
+- **Changes**:
+  - Misrouted tasks now marked as `FAILED` with `task.failed` event
+  - Warning logged when `assigned_to` missing during enqueue
+- **Impact**: Better observability for task routing issues
+
+#### PR #1914: Automated Tests for Task Routing
+- **Path**: `agents/ops_agent/tests/test_task_routing.py`
+- **Tests Added**: 8 new tests
+  - 4 misrouted task handling tests
+  - 3 enqueue warning tests
+  - 1 integration test
+- **Impact**: Regression prevention for task routing logic
+
+#### PR #1934: Pytest Configuration Improvement
+- **Path**: `agents/ops_agent/pytest.ini`
+- **Change**: Use `pythonpath` config instead of `sys.path.insert`
+- **Impact**: Cleaner test configuration
+
+### Refactor Agent (New Feature)
+
+#### PR #1886, #1897, #1903, #1908, #1913: Refactor Agent for TS Strict Mode
+- **Path**: `handoff/20250928/40_App/orchestrator/refactor_agent/`
+- **New Env Vars**:
+  - `REFACTOR_AGENT_ENABLED` (boolean, default: true)
+  - `REFACTOR_AGENT_ERRORS_PER_RUN` (integer, default: 10)
+  - `REFACTOR_AGENT_AUTO_PR` (boolean, default: true)
+- **Workflow**: `.github/workflows/refactor-agent-nightly.yml`
+- **Impact**: Automated TypeScript strict mode violation fixes
 
 ## Recent Updates (Nov 29 - Dec 1, 2025)
 

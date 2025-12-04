@@ -6,12 +6,74 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 1.9.0  
-**Last Updated**: 2025-12-01  
-**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory)  
+**Document Version**: 2.0.0  
+**Last Updated**: 2025-12-05  
+**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory) + Phase 4 (Refactor Agent)  
 **Test Coverage**: 59.89% (Owner Console), 70%+ (Orchestrator), 74%+ (Backend)  
-**Recent Activity**: 280+ commits on main (2025-11-12 至 2025-12-01，快照值截至 2025-12-01)  
+**Recent Activity**: 340+ commits on main (2025-11-12 至 2025-12-05，快照值截至 2025-12-05)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
+
+**Recent PRs (Dec 3 - Dec 5, 2025)**:
+
+*Refactor Agent & TS Strict Mode Automation:*
+- **PR #1886** (Merged): Phase 4 - Refactor Agent for TS Strict Mode Automation
+  - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/` (new directory)
+  - New env vars: `REFACTOR_AGENT_ENABLED`, `REFACTOR_AGENT_ERRORS_PER_RUN`, `REFACTOR_AGENT_AUTO_PR`
+- **PR #1897** (Merged): LLM Integration for Refactor Agent Code Fix Generation
+- **PR #1903** (Merged): File Modification Implementation for Refactor Agent
+- **PR #1908** (Merged): PR Automation for Refactor Agent
+- **PR #1913** (Merged): Nightly Cron Job Setup + Grammar/Optimization Improvements
+  - Path: `.github/workflows/refactor-agent-nightly.yml` (new workflow)
+
+*Task Queue Reliability (Ops Agent):*
+- **PR #1907** (Merged): Fix infinite loop for unassigned tasks
+  - Path: `agents/ops_agent/worker.py`
+- **PR #1912** (Merged): Implement task status update and assigned_to validation
+  - Path: `agents/ops_agent/worker.py`, `orchestrator/task_queue/redis_queue.py`
+- **PR #1914** (Merged): Add automated tests for task routing (#1909, #1910)
+  - Path: `agents/ops_agent/tests/test_task_routing.py` (new file)
+- **PR #1934** (Merged): Use pytest pythonpath instead of sys.path.insert
+
+*Owner Console Page Standardization (Phase 1 Complete):*
+- **PR #1863** (Merged): Standardize AgentGovernance page layout
+- **PR #1867** (Merged): Standardize TenantManagement page layout
+- **PR #1879** (Merged): Standardize SystemMonitoring page layout
+- **PR #1883** (Merged): Standardize UXMetrics page layout
+- **PR #1885** (Merged): Standardize AIPolicies page layout
+- **PR #1894** (Merged): Standardize ApprovalQueue page layout
+- **PR #1900** (Merged): Standardize FailureExperimentDashboard and PlatformSettings pages
+- **PR #1906** (Merged): Move language switcher to navbar
+
+*Shared UI Components:*
+- **PR #1884** (Merged): Implement PageScaffold component
+- **PR #1887** (Merged): Implement SectionTemplate component
+- **PR #1853** (Merged): Add iotask foundation components (Phase 1)
+- **PR #1856** (Merged): Phase 2 - AdminShell three-column layout support
+
+*Security & Memory (Phase 1-2):*
+- **PR #1826** (Merged): Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3
+- **PR #1830** (Merged): Phase 1 Follow-up Issues
+- **PR #1831** (Merged): Phase 2 P0 - pgvector Similarity Search and Error-Fix Pairs
+- **PR #1836** (Merged): Phase 2 P1 - Observer Node for Failure Knowledge Base
+
+*Orchestrator Enhancements:*
+- **PR #1852** (Merged): Phase 3 P2 - LangGraph Mode Full Switchover
+- **PR #1854** (Merged): Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
+- **PR #1857** (Merged): Phase 3 P3 - PM Agent + Ops Agent
+- **PR #1862** (Merged): Phase 3 P4 - Background Queue Principles Enhancement
+- **PR #1866** (Merged): Phase 3 Follow-up Issues
+
+*ESLint Spacing Rules:*
+- **PR #1892** (Merged): Add ESLint rule for standardized spacing utilities
+  - Path: `handoff/20250928/40_App/owner-console/eslint-rules/no-non-standard-spacing.js` (new file)
+- **PR #1901** (Merged): Cleanup 29 spacing violations
+- **PR #1904** (Merged): Upgrade spacing ESLint rule to error mode (Phase 3)
+
+*Migrations & Infrastructure:*
+- **PR #1871** (Merged): Phase 4 - Unified Migration Management
+- **PR #1895** (Merged): DRY refactoring for run_migrations.sh
+- **PR #1881** (Merged): Update secrets config to use new key names
+- **PR #1882** (Merged): Upgrade vulnerable packages and expand CI scanning coverage
 
 **Recent PRs (Dec 2 - Dec 3, 2025)**:
 
