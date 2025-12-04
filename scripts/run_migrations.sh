@@ -49,6 +49,14 @@ MIG_DIR="$REPO_ROOT/migrations"
 DEV_AGENT_MIG_DIR="$REPO_ROOT/agents/dev_agent/migrations"
 FAQ_AGENT_MIG_DIR="$REPO_ROOT/agents/faq_agent/migrations"
 
+# Migration directory configuration (directory:label pairs)
+# Used by for_each_migration_dir() helper for DRY iteration
+declare -a MIGRATION_DIR_CONFIG=(
+    "$MIG_DIR:main migrations"
+    "$DEV_AGENT_MIG_DIR:dev_agent migrations"
+    "$FAQ_AGENT_MIG_DIR:faq_agent migrations"
+)
+
 # Default options
 DRY_RUN=false
 FROM_MIGRATION=""
@@ -160,6 +168,36 @@ get_migration_number() {
     basename "$1" | grep -oE '^[0-9]+' || echo "000"
 }
 
+# Helper: Iterate over migration directories and execute a callback
+# Usage: for_each_migration_dir callback_function [include_agents]
+# The callback receives: directory, label, is_main (true/false)
+# If include_agents is "false", only main migrations are processed
+for_each_migration_dir() {
+    local callback="$1"
+    local include_agents="${2:-true}"
+    local is_first=true
+    
+    for config in "${MIGRATION_DIR_CONFIG[@]}"; do
+        local dir="${config%%:*}"
+        local label="${config##*:}"
+        local is_main="false"
+        
+        # Check if this is the main migrations directory
+        if [[ "$dir" == "$MIG_DIR" ]]; then
+            is_main="true"
+        fi
+        
+        # Skip agent directories if not included
+        if [[ "$is_main" == "false" ]] && [[ "$include_agents" == "false" ]]; then
+            continue
+        fi
+        
+        # Execute callback with directory info
+        "$callback" "$dir" "$label" "$is_main" "$is_first"
+        is_first=false
+    done
+}
+
 # Verify no duplicate migration numbers in a directory
 verify_no_duplicates() {
     local dir="$1"
@@ -195,33 +233,35 @@ verify_no_duplicates() {
     return 0
 }
 
-# Verify all migration directories
+# Callback for verify_all_migrations: verify a single directory
+# Sets VERIFY_HAS_ERRORS=true if duplicates found
+_verify_dir_callback() {
+    local dir="$1"
+    local label="$2"
+    local is_main="$3"
+    local is_first="$4"
+    
+    # Capitalize first letter of label for display
+    local display_label
+    display_label=$(echo "$label" | sed 's/\b\(.\)/\u\1/g')
+    
+    if ! verify_no_duplicates "$dir" "$label"; then
+        VERIFY_HAS_ERRORS=true
+    else
+        log_success "$display_label: No duplicates"
+    fi
+}
+
+# Verify all migration directories (DRY refactored)
 verify_all_migrations() {
     log_info "Verifying migration directories for duplicate numbers..."
     echo ""
     
-    local has_errors=false
-    
-    if ! verify_no_duplicates "$MIG_DIR" "main migrations"; then
-        has_errors=true
-    else
-        log_success "Main migrations: No duplicates"
-    fi
-    
-    if ! verify_no_duplicates "$DEV_AGENT_MIG_DIR" "dev_agent migrations"; then
-        has_errors=true
-    else
-        log_success "Dev Agent migrations: No duplicates"
-    fi
-    
-    if ! verify_no_duplicates "$FAQ_AGENT_MIG_DIR" "faq_agent migrations"; then
-        has_errors=true
-    else
-        log_success "FAQ Agent migrations: No duplicates"
-    fi
+    VERIFY_HAS_ERRORS=false
+    for_each_migration_dir _verify_dir_callback "true"
     
     echo ""
-    if [[ "$has_errors" == "true" ]]; then
+    if [[ "$VERIFY_HAS_ERRORS" == "true" ]]; then
         log_error "Duplicate migration numbers detected. Please fix before running migrations."
         return 1
     else
@@ -230,13 +270,28 @@ verify_all_migrations() {
     fi
 }
 
-# List all migrations
-list_migrations() {
+# Helper: List migrations in a single directory
+# Usage: _list_dir_migrations directory label
+_list_dir_migrations() {
+    local dir="$1"
+    local label="$2"
+    
+    # Capitalize first letter of label for display
+    local display_label
+    display_label=$(echo "$label" | sed 's/\b\(.\)/\u\1/g')
+    
     echo ""
-    echo "Main Migrations in $MIG_DIR:"
+    echo "$display_label in $dir:"
     echo "=================================="
-
+    
     local count=0
+    local get_func="get_migrations"
+    
+    # Use get_agent_migrations for non-main directories
+    if [[ "$dir" != "$MIG_DIR" ]]; then
+        get_func="get_agent_migrations"
+    fi
+    
     while IFS= read -r migration; do
         if [[ -n "$migration" ]]; then
             local num
@@ -246,52 +301,30 @@ list_migrations() {
             echo "  $num: $name"
             ((count++)) || true
         fi
-    done < <(get_migrations)
-
-    echo ""
-    echo "Total: $count main migrations"
+    done < <(if [[ "$get_func" == "get_migrations" ]]; then get_migrations; else get_agent_migrations "$dir"; fi)
     
-    # List agent migrations if --agents or --all is specified
+    echo ""
+    echo "Total: $count $label"
+}
+
+# Callback for list_migrations: list a single directory
+_list_dir_callback() {
+    local dir="$1"
+    local label="$2"
+    local is_main="$3"
+    local is_first="$4"
+    
+    _list_dir_migrations "$dir" "$label"
+}
+
+# List all migrations (DRY refactored)
+list_migrations() {
+    local include_agents="false"
     if [[ "$INCLUDE_AGENTS" == "true" ]] || [[ "$RUN_ALL" == "true" ]]; then
-        echo ""
-        echo "Dev Agent Migrations in $DEV_AGENT_MIG_DIR:"
-        echo "=================================="
-        
-        local agent_count=0
-        while IFS= read -r migration; do
-            if [[ -n "$migration" ]]; then
-                local num
-                num=$(get_migration_number "$migration")
-                local name
-                name=$(basename "$migration")
-                echo "  $num: $name"
-                ((agent_count++)) || true
-            fi
-        done < <(get_agent_migrations "$DEV_AGENT_MIG_DIR")
-        
-        echo ""
-        echo "Total: $agent_count dev_agent migrations"
-        
-        echo ""
-        echo "FAQ Agent Migrations in $FAQ_AGENT_MIG_DIR:"
-        echo "=================================="
-        
-        local faq_count=0
-        while IFS= read -r migration; do
-            if [[ -n "$migration" ]]; then
-                local num
-                num=$(get_migration_number "$migration")
-                local name
-                name=$(basename "$migration")
-                echo "  $num: $name"
-                ((faq_count++)) || true
-            fi
-        done < <(get_agent_migrations "$FAQ_AGENT_MIG_DIR")
-        
-        echo ""
-        echo "Total: $faq_count faq_agent migrations"
+        include_agents="true"
     fi
     
+    for_each_migration_dir _list_dir_callback "$include_agents"
     echo ""
 }
 
