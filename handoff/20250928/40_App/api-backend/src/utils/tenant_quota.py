@@ -226,7 +226,14 @@ class TenantQuotaManager:
             "code_generations_hour": quota.max_code_generations_per_hour,
         }
 
-        quota_limit = limit_map.get(resource_type, 1000)
+        if resource_type not in limit_map:
+            logger.warning(
+                "Unknown resource type for quota check: %s, using api_minute default",
+                resource_type
+            )
+            quota_limit = quota.api_requests_per_minute
+        else:
+            quota_limit = limit_map[resource_type]
         key = f"tenant_quota:{tenant_id}:{resource_type}"
 
         # Get current usage
@@ -401,11 +408,13 @@ def _extract_tenant_id() -> Optional[str]:
     return None
 
 
-def tenant_rate_limit(resource_type: str = "api_minute"):
+def tenant_rate_limit(resource_type: str = "api_minute", require_tenant: bool = True):
     """Decorator for tenant-level rate limiting
 
     Args:
         resource_type: Type of resource to rate limit
+        require_tenant: If True, reject requests without tenant context (default: True)
+                       If False, allow requests without tenant context (use with caution)
 
     Usage:
         @tenant_rate_limit("api_minute")
@@ -418,8 +427,21 @@ def tenant_rate_limit(resource_type: str = "api_minute"):
             tenant_id = _extract_tenant_id()
 
             if not tenant_id:
-                # No tenant context, fall back to IP-based limiting
-                return f(*args, **kwargs)
+                if require_tenant:
+                    logger.warning(
+                        "Rate limit bypass attempt: no tenant context for %s",
+                        resource_type
+                    )
+                    response = jsonify({
+                        "error": {
+                            "code": "tenant_context_required",
+                            "message": "Tenant context is required for this endpoint"
+                        }
+                    })
+                    response.status_code = 403
+                    return response
+                else:
+                    return f(*args, **kwargs)
 
             manager = get_quota_manager()
             result = manager.check_quota(tenant_id, resource_type)

@@ -554,11 +554,28 @@ class TestExtractTenantId:
 class TestTenantRateLimitDecorator:
     """Tests for tenant_rate_limit decorator"""
 
-    def test_decorator_no_tenant_context(self):
-        """Test decorator passes through when no tenant context"""
+    def test_decorator_no_tenant_context_required(self):
+        """Test decorator returns 403 when no tenant context and require_tenant=True"""
+        from src.utils.tenant_quota import tenant_rate_limit
+        from flask import Flask
+
+        app = Flask(__name__)
+
+        @tenant_rate_limit("api_minute", require_tenant=True)
+        def test_func():
+            return "success"
+
+        with app.app_context(), app.test_request_context():
+            with patch('src.utils.tenant_quota._extract_tenant_id') as mock_extract:
+                mock_extract.return_value = None
+                result = test_func()
+                assert result.status_code == 403
+
+    def test_decorator_no_tenant_context_not_required(self):
+        """Test decorator passes through when no tenant context and require_tenant=False"""
         from src.utils.tenant_quota import tenant_rate_limit
 
-        @tenant_rate_limit("api_minute")
+        @tenant_rate_limit("api_minute", require_tenant=False)
         def test_func():
             return "success"
 

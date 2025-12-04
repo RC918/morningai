@@ -336,7 +336,17 @@ BEGIN
         v_usage := 0;
     END IF;
     IF v_limit IS NULL THEN
-        v_limit := 1000;  -- Default limit
+        -- Use resource-type-specific defaults (matching free tier)
+        CASE p_resource_type
+            WHEN 'api_minute' THEN v_limit := 60;
+            WHEN 'api_hour' THEN v_limit := 1000;
+            WHEN 'api_day' THEN v_limit := 10000;
+            WHEN 'tasks_day' THEN v_limit := 100;
+            WHEN 'concurrent_tasks' THEN v_limit := 5;
+            WHEN 'llm_tokens_day' THEN v_limit := 100000;
+            WHEN 'prs_day' THEN v_limit := 10;
+            ELSE v_limit := 60;  -- Conservative default
+        END CASE;
     END IF;
     
     RETURN QUERY SELECT 
