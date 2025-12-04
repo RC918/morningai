@@ -96,7 +96,7 @@ function PageScaffold({
       </header>
 
       {/* Banner Section (errors, warnings, info) */}
-      {banner && <div className="page-scaffold-banner">{banner}</div>}
+      {banner && <div>{banner}</div>}
 
       {/* KPI Row Section */}
       {kpis && (
@@ -112,7 +112,7 @@ function PageScaffold({
       )}
 
       {/* Main Content Section */}
-      <div className={cn("space-y-6", bodyClassName)}>
+      <div className={cn("space-y-8", bodyClassName)}>
         {children}
       </div>
     </div>
