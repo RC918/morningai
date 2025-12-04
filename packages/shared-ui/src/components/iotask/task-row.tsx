@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "../../utils";
+import { cn, getInitials } from "../../utils";
 
 type TaskStatus = "pending" | "in_progress" | "completed";
 type TaskPriority = "low" | "medium" | "high";
@@ -75,6 +75,7 @@ function TaskRow({
             viewBox="0 0 24 24"
             stroke="currentColor"
             strokeWidth={3}
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -125,12 +126,7 @@ function TaskRow({
             className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-100)] text-[10px] font-medium text-[var(--primary-700)]"
             title={assignee}
           >
-            {assignee
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)}
+            {getInitials(assignee)}
           </div>
         )}
       </div>
