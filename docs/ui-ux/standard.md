@@ -293,7 +293,7 @@ The following CI checks enforce these standards:
 |-------|----------|----------|
 | Shared-UI imports | `enforce-shared-ui.yml` | Yes (Stage 3) |
 | Hardcoded colors | ESLint `no-hardcoded-colors` | Yes |
-| Non-standard spacing | ESLint `no-non-standard-spacing` | No (warn mode) |
+| Non-standard spacing | ESLint `no-non-standard-spacing` | Yes (error mode) |
 | i18n strings | `i18n-check-required.yml` | Yes |
 | Design system audit | `design-system-audit.yml` | No (relaxed mode) |
 
