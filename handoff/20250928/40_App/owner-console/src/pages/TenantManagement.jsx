@@ -91,7 +91,7 @@ const TenantManagement = () => {
               <p className="text-center text-[var(--text-secondary)] py-8">{t('tenants.noTenants')}</p>
             ) : (
               tenants.map((tenant) => (
-                <div key={tenant.id} className="flex items-center justify-between p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+                <div key={tenant.id} className="flex items-center justify-between p-4 rounded-lg border border-[var(--border)]">
                   <div>
                     <p className="font-semibold text-[var(--text-primary)]">{tenant.name}</p>
                     <p className="text-sm text-[var(--text-secondary)]">{t('common.idShort', { id: tenant.id })}</p>
