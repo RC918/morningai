@@ -51,11 +51,13 @@ HIGH_RISK_ACTIONS: frozenset = frozenset({
 # - Deployment configs (fly.toml, render.yaml, vercel.json): Intentionally blocked to prevent
 #   accidental deployment changes.
 SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
+    # Environment files
     ".env",
     ".env.local",
     ".env.production",
     ".env.staging",
     ".env.development",
+    # Credentials and secrets
     "credentials.json",
     "secrets.yaml",
     "secrets.yml",
@@ -66,12 +68,27 @@ SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
     ".key",
     ".p12",  # PKCS#12 certificate files
     ".pfx",  # Windows certificate files
-    "fly.toml",  # Deployment config
-    "render.yaml",  # Deployment config
-    "vercel.json",  # Deployment config
-    "docker-compose.prod",  # Production Docker config
+    # Package manager auth tokens
     ".npmrc",  # NPM auth tokens
     ".pypirc",  # PyPI auth tokens
+    # Deployment configs
+    "fly.toml",  # Fly.io deployment config
+    "render.yaml",  # Render deployment config
+    "vercel.json",  # Vercel deployment config
+    "docker-compose.prod",  # Production Docker config
+    "docker-compose.yml",  # Docker Compose config (may contain secrets)
+    "docker-compose.yaml",  # Docker Compose config (may contain secrets)
+    "railway.json",  # Railway deployment config
+    "netlify.toml",  # Netlify deployment config
+    "heroku.yml",  # Heroku deployment config
+    "app.yaml",  # Google Cloud App Engine config
+    # Infrastructure as Code
+    "terraform.tfvars",  # Terraform variables (often contains secrets)
+    # Kubernetes configs
+    "kubeconfig",  # Kubernetes config
+    # Cloud provider credentials
+    ".aws/credentials",  # AWS credentials file
+    "application_default_credentials.json",  # Google Cloud credentials
 })
 
 # Comma-separated string version of SENSITIVE_FILE_PATTERNS for settings.py default value
