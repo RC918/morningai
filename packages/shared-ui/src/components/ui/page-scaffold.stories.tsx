@@ -218,7 +218,7 @@ export const FullExample: Story = {
       </>
     ),
     children: (
-      <div className="space-y-6">
+      <>
         <SectionCard title="Active Agents" subtitle="Currently running agents">
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-lg border border-[var(--border)] bg-[var(--surface)]">
@@ -248,7 +248,7 @@ export const FullExample: Story = {
             </div>
           </div>
         </SectionCard>
-      </div>
+      </>
     ),
   },
 }
