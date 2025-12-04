@@ -14,8 +14,7 @@ import {
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+import { apiClientWithMeta, ApiError } from '@/lib/api-client'
 
 const ApprovalQueue = () => {
   const { t } = useTranslation()
@@ -31,38 +30,35 @@ const ApprovalQueue = () => {
     loadApprovalData()
   }, [])
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('access_token')
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : ''
-    }
-  }
-
   const loadApprovalData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      const [requestsResponse, statsResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/action-requests`, { headers: getAuthHeaders() }),
-        fetch(`${API_BASE}/api/action-requests/statistics`, { headers: getAuthHeaders() })
+      const [requestsResult, statsResult] = await Promise.all([
+        apiClientWithMeta('/api/action-requests', { method: 'GET' }),
+        apiClientWithMeta('/api/action-requests/statistics', { method: 'GET' }).catch(err => {
+          console.error('Failed to load approval stats:', err)
+          return null
+        })
       ])
 
-      if (requestsResponse.ok) {
-        const data = await requestsResponse.json()
-        setPendingRequests(data.requests || [])
-      } else if (requestsResponse.status === 503) {
-        setError('HITL system not available')
-      }
+      const requestsData = (requestsResult && requestsResult.data) || {}
+      setPendingRequests(requestsData.requests || [])
 
-      if (statsResponse.ok) {
-        const data = await statsResponse.json()
-        setStatistics(data)
+      if (statsResult) {
+        setStatistics(statsResult.data || null)
       }
-    } catch (error) {
-      console.error('Failed to load approval data:', error)
-      setError(error.message || 'Failed to load approval data')
+    } catch (err) {
+      console.error('Failed to load approval data:', err)
+      
+      if (err instanceof ApiError && err.status === 503) {
+        setError('HITL system not available')
+      } else if (err instanceof Error) {
+        setError(err.message || 'Failed to load approval data')
+      } else {
+        setError('Failed to load approval data')
+      }
     } finally {
       setLoading(false)
     }
@@ -71,20 +67,23 @@ const ApprovalQueue = () => {
   const handleApprove = async (requestId) => {
     try {
       setActionLoading(true)
-      const response = await fetch(`${API_BASE}/api/action-requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: getAuthHeaders()
+      
+      await apiClientWithMeta(`/api/action-requests/${requestId}/approve`, {
+        method: 'POST'
       })
 
-      if (response.ok) {
-        await loadApprovalData()
-        setSelectedRequest(null)
+      await loadApprovalData()
+      setSelectedRequest(null)
+    } catch (err) {
+      console.error('Failed to approve request:', err)
+      
+      if (err instanceof ApiError && err.data && err.data.message) {
+        setError(err.data.message)
+      } else if (err instanceof Error) {
+        setError(err.message || 'Failed to approve request')
       } else {
-        const data = await response.json()
-        setError(data.message || 'Failed to approve request')
+        setError('Failed to approve request')
       }
-    } catch (error) {
-      setError(error.message || 'Failed to approve request')
     } finally {
       setActionLoading(false)
     }
@@ -93,22 +92,25 @@ const ApprovalQueue = () => {
   const handleReject = async (requestId) => {
     try {
       setActionLoading(true)
-      const response = await fetch(`${API_BASE}/api/action-requests/${requestId}/reject`, {
+      
+      await apiClientWithMeta(`/api/action-requests/${requestId}/reject`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ reason: rejectionReason })
       })
 
-      if (response.ok) {
-        await loadApprovalData()
-        setSelectedRequest(null)
-        setRejectionReason('')
+      await loadApprovalData()
+      setSelectedRequest(null)
+      setRejectionReason('')
+    } catch (err) {
+      console.error('Failed to reject request:', err)
+      
+      if (err instanceof ApiError && err.data && err.data.message) {
+        setError(err.data.message)
+      } else if (err instanceof Error) {
+        setError(err.message || 'Failed to reject request')
       } else {
-        const data = await response.json()
-        setError(data.message || 'Failed to reject request')
+        setError('Failed to reject request')
       }
-    } catch (error) {
-      setError(error.message || 'Failed to reject request')
     } finally {
       setActionLoading(false)
     }
