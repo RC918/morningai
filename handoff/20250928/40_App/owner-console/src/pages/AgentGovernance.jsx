@@ -143,25 +143,35 @@ const AgentGovernance = () => {
   }
 
   return (
-    <PageScaffold
-      title={t('governance.title')}
-      subtitle={t('governance.subtitle')}
-      titleIcon={<Shield className="w-6 h-6" />}
-      actions={
+    <div className="space-y-8" data-testid="agent-governance">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+            {t('governance.title')}
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            {t('governance.subtitle')}
+          </p>
+        </div>
         <AppleButton onClick={loadGovernanceData} variant="outline" haptic="light" disabled={loading}>
           <Activity className="w-4 h-4 mr-2" />
           {t('governance.refresh')}
         </AppleButton>
-      }
-      banner={error && (
+      </div>
+
+      {/* Error Banner */}
+      {error && (
         <AppleErrorBanner
           title={t('common.error')}
           message={error}
           onRetry={loadGovernanceData}
         />
       )}
-      kpis={statistics && (
-        <>
+
+      {/* KPI Stats */}
+      {statistics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label={t('governance.stats.totalAgents')}
             value={String(statistics.reputation?.total_agents || 0)}
@@ -186,9 +196,10 @@ const AgentGovernance = () => {
             icon={<AlertTriangle className="w-5 h-5" />}
             variant={violations.length > 0 ? 'red' : 'green'}
           />
-        </>
+        </div>
       )}
-    >
+
+      {/* Main Content */}
       <Tabs defaultValue="agents" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agents">{t('governance.tabs.agents')}</TabsTrigger>
@@ -316,7 +327,7 @@ const AgentGovernance = () => {
           <AgentExecutionLogs />
         </TabsContent>
       </Tabs>
-    </PageScaffold>
+    </div>
   )
 }
 
