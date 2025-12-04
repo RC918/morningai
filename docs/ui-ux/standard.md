@@ -84,8 +84,8 @@ Use consistent spacing values from the design system. Non-standard spacing value
 
 | Category | Allowed Values |
 |----------|----------------|
-| Padding | `p-{0,1,2,4,5,6,8}`, `px-{0,1,2,3,4,5,6,8}`, `py-{0,1,2,3,4,5,6,8}`, `pt/pb/pl/pr-{0,1,2,4,5,6,8}` |
-| Margin | `m-{0,1,2,4,5,6,8,auto}`, `mx/my-{0,1,2,4,5,6,8,auto}`, `mt/mb/ml/mr-{0,1,2,4,5,6,8,auto}` |
+| Padding | `p-{0,1,2,3,4,5,6,8}`, `px-{0,1,2,3,4,5,6,8}`, `py-{0,1,2,3,4,5,6,8}`, `pt/pb/pl/pr-{0,1,2,3,4,5,6,8}` |
+| Margin | `m-{0,1,2,3,4,5,6,8,auto}`, `mx/my-{0,1,2,3,4,5,6,8,auto}`, `mt/mb/ml/mr-{0,1,2,3,4,5,6,8,auto}` |
 | Gap | `gap-{0,1,2,3,4,5,6,8}`, `gap-x/gap-y-{0,1,2,3,4,5,6,8}` |
 | Space | `space-x/space-y-{0,1,2,3,4,5,6,8}` |
 
