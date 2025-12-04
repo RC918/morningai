@@ -147,6 +147,7 @@ export const ThreeColumnLayout: Story = {
     navItems: defaultNavItems,
     user: defaultUser,
     topbarTitle: "Dashboard",
+    rightPanelAriaLabel: "Recent activity",
     children: (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Dashboard</h1>

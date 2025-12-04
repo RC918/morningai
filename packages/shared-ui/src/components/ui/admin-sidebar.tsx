@@ -57,6 +57,7 @@ function AdminSidebar({
 
   return (
     <aside
+      aria-label="Primary navigation"
       className={cn(
         "w-64 border-r border-neutral-200 bg-white shadow-sm flex flex-col dark:border-neutral-700 dark:bg-neutral-900",
         className

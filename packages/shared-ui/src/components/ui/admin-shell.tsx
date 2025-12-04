@@ -29,6 +29,8 @@ export interface AdminShellProps {
   rightPanel?: React.ReactNode;
   /** Custom class name for the right panel container */
   rightPanelClassName?: string;
+  /** Accessible label for the right panel aside element (required for A11y when rightPanel is used) */
+  rightPanelAriaLabel?: string;
 }
 
 function AdminShell({
@@ -49,6 +51,7 @@ function AdminShell({
   topbarChildren,
   rightPanel,
   rightPanelClassName,
+  rightPanelAriaLabel,
 }: AdminShellProps) {
   return (
     <div
@@ -83,6 +86,7 @@ function AdminShell({
             </main>
             {rightPanel && (
               <aside
+                aria-label={rightPanelAriaLabel}
                 className={cn(
                   "w-80 border-l border-neutral-200 bg-white overflow-auto dark:border-neutral-700 dark:bg-neutral-900",
                   rightPanelClassName
