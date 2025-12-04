@@ -1,15 +1,26 @@
 #!/usr/bin/env bash
 # Unified Migration Runner for MorningAI
 # ======================================
+# Phase 4: Engineering Optimization (#1819)
+#
 # Discovers and runs all SQL migrations in numerical order.
-# Supports dry-run mode, specific migration selection, and filtering.
+# Supports dry-run mode, specific migration selection, filtering,
+# and agent-specific migrations.
 #
 # Usage:
-#   ./scripts/run_migrations.sh                    # Run all migrations
+#   ./scripts/run_migrations.sh                    # Run all main migrations
 #   ./scripts/run_migrations.sh --dry-run          # Show what would be run
 #   ./scripts/run_migrations.sh --from 010         # Run migrations from 010 onwards
 #   ./scripts/run_migrations.sh --only 015         # Run only migration 015
 #   ./scripts/run_migrations.sh --list             # List all available migrations
+#   ./scripts/run_migrations.sh --agents           # Include agent-specific migrations
+#   ./scripts/run_migrations.sh --all              # Run all migrations (main + agents)
+#   ./scripts/run_migrations.sh --verify           # Verify no duplicate migration numbers
+#
+# Migration Directories:
+#   - migrations/                           Main migrations (001-999)
+#   - agents/dev_agent/migrations/          Dev Agent migrations
+#   - agents/faq_agent/migrations/          FAQ Agent migrations
 #
 # Environment:
 #   DATABASE_URL - Required. PostgreSQL connection string.
@@ -18,6 +29,7 @@
 #   0 - All migrations applied successfully
 #   1 - Migration error
 #   2 - Configuration error
+#   3 - Duplicate migration numbers detected
 
 set -euo pipefail
 
@@ -33,12 +45,19 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
 MIG_DIR="$REPO_ROOT/migrations"
 
+# Agent migration directories
+DEV_AGENT_MIG_DIR="$REPO_ROOT/agents/dev_agent/migrations"
+FAQ_AGENT_MIG_DIR="$REPO_ROOT/agents/faq_agent/migrations"
+
 # Default options
 DRY_RUN=false
 FROM_MIGRATION=""
 ONLY_MIGRATION=""
 LIST_ONLY=false
 VERBOSE=false
+INCLUDE_AGENTS=false
+RUN_ALL=false
+VERIFY_ONLY=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -71,6 +90,19 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --agents)
+            INCLUDE_AGENTS=true
+            shift
+            ;;
+        --all)
+            RUN_ALL=true
+            INCLUDE_AGENTS=true
+            shift
+            ;;
+        --verify)
+            VERIFY_ONLY=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -79,6 +111,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --from NUM    Run migrations from NUM onwards (e.g., --from 010)"
             echo "  --only NUM    Run only migration NUM (e.g., --only 015)"
             echo "  --list        List all available migrations"
+            echo "  --agents      Include agent-specific migrations"
+            echo "  --all         Run all migrations (main + agents)"
+            echo "  --verify      Verify no duplicate migration numbers"
             echo "  --verbose,-v  Show detailed output"
             echo "  --help,-h     Show this help message"
             exit 0
@@ -112,15 +147,93 @@ get_migrations() {
     find "$MIG_DIR" -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f | sort
 }
 
+# Get list of agent migration files
+get_agent_migrations() {
+    local dir="$1"
+    if [[ -d "$dir" ]]; then
+        find "$dir" -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f | sort
+    fi
+}
+
 # Extract migration number from filename
 get_migration_number() {
     basename "$1" | grep -oE '^[0-9]+' || echo "000"
 }
 
+# Verify no duplicate migration numbers in a directory
+verify_no_duplicates() {
+    local dir="$1"
+    local label="$2"
+    local has_duplicates=false
+    
+    if [[ ! -d "$dir" ]]; then
+        return 0
+    fi
+    
+    local numbers
+    numbers=$(find "$dir" -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' -type f -exec basename {} \; 2>/dev/null | grep -oE '^[0-9]+' | sort)
+    
+    if [[ -z "$numbers" ]]; then
+        return 0
+    fi
+    
+    local duplicates
+    duplicates=$(echo "$numbers" | uniq -d)
+    
+    if [[ -n "$duplicates" ]]; then
+        log_error "Duplicate migration numbers found in $label:"
+        for num in $duplicates; do
+            echo "  - $num:"
+            find "$dir" -maxdepth 1 -name "${num}_*.sql" -type f -exec basename {} \; | sed 's/^/      /'
+        done
+        has_duplicates=true
+    fi
+    
+    if [[ "$has_duplicates" == "true" ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# Verify all migration directories
+verify_all_migrations() {
+    log_info "Verifying migration directories for duplicate numbers..."
+    echo ""
+    
+    local has_errors=false
+    
+    if ! verify_no_duplicates "$MIG_DIR" "main migrations"; then
+        has_errors=true
+    else
+        log_success "Main migrations: No duplicates"
+    fi
+    
+    if ! verify_no_duplicates "$DEV_AGENT_MIG_DIR" "dev_agent migrations"; then
+        has_errors=true
+    else
+        log_success "Dev Agent migrations: No duplicates"
+    fi
+    
+    if ! verify_no_duplicates "$FAQ_AGENT_MIG_DIR" "faq_agent migrations"; then
+        has_errors=true
+    else
+        log_success "FAQ Agent migrations: No duplicates"
+    fi
+    
+    echo ""
+    if [[ "$has_errors" == "true" ]]; then
+        log_error "Duplicate migration numbers detected. Please fix before running migrations."
+        return 1
+    else
+        log_success "All migration directories verified - no duplicates found"
+        return 0
+    fi
+}
+
 # List all migrations
 list_migrations() {
     echo ""
-    echo "Available Migrations in $MIG_DIR:"
+    echo "Main Migrations in $MIG_DIR:"
     echo "=================================="
 
     local count=0
@@ -136,7 +249,49 @@ list_migrations() {
     done < <(get_migrations)
 
     echo ""
-    echo "Total: $count migrations"
+    echo "Total: $count main migrations"
+    
+    # List agent migrations if --agents or --all is specified
+    if [[ "$INCLUDE_AGENTS" == "true" ]] || [[ "$RUN_ALL" == "true" ]]; then
+        echo ""
+        echo "Dev Agent Migrations in $DEV_AGENT_MIG_DIR:"
+        echo "=================================="
+        
+        local agent_count=0
+        while IFS= read -r migration; do
+            if [[ -n "$migration" ]]; then
+                local num
+                num=$(get_migration_number "$migration")
+                local name
+                name=$(basename "$migration")
+                echo "  $num: $name"
+                ((agent_count++)) || true
+            fi
+        done < <(get_agent_migrations "$DEV_AGENT_MIG_DIR")
+        
+        echo ""
+        echo "Total: $agent_count dev_agent migrations"
+        
+        echo ""
+        echo "FAQ Agent Migrations in $FAQ_AGENT_MIG_DIR:"
+        echo "=================================="
+        
+        local faq_count=0
+        while IFS= read -r migration; do
+            if [[ -n "$migration" ]]; then
+                local num
+                num=$(get_migration_number "$migration")
+                local name
+                name=$(basename "$migration")
+                echo "  $num: $name"
+                ((faq_count++)) || true
+            fi
+        done < <(get_agent_migrations "$FAQ_AGENT_MIG_DIR")
+        
+        echo ""
+        echo "Total: $faq_count faq_agent migrations"
+    fi
+    
     echo ""
 }
 
@@ -199,6 +354,15 @@ run_migration() {
 
 # Main execution
 main() {
+    # Verify mode
+    if [[ "$VERIFY_ONLY" == "true" ]]; then
+        if verify_all_migrations; then
+            exit 0
+        else
+            exit 3
+        fi
+    fi
+
     # List mode
     if [[ "$LIST_ONLY" == "true" ]]; then
         list_migrations
