@@ -28,6 +28,8 @@ export interface AdminSidebarProps {
     className: string;
     children: React.ReactNode;
   }) => React.ReactNode;
+  /** Accessible label for the sidebar (defaults to "Primary navigation") */
+  ariaLabel?: string;
 }
 
 function AdminSidebar({
@@ -38,6 +40,7 @@ function AdminSidebar({
   appSubtitle = "Owner Console",
   className,
   renderLink,
+  ariaLabel = "Primary navigation",
 }: AdminSidebarProps) {
   const defaultRenderLink = ({
     href,
@@ -57,6 +60,7 @@ function AdminSidebar({
 
   return (
     <aside
+      aria-label={ariaLabel}
       className={cn(
         "w-64 border-r border-neutral-200 bg-white shadow-sm flex flex-col dark:border-neutral-700 dark:bg-neutral-900",
         className
