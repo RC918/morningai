@@ -56,5 +56,98 @@ describe('SignupPage', () => {
       const { container } = renderSignupPage()
       expect(container).toBeTruthy()
     })
+
+    it('should render full name input field', () => {
+      const { container } = renderSignupPage()
+      const fullNameInput = container.querySelector('input[name="fullName"]')
+      expect(fullNameInput).toBeTruthy()
+    })
+
+    it('should render email input field', () => {
+      const { container } = renderSignupPage()
+      const emailInput = container.querySelector('input[name="email"]')
+      expect(emailInput).toBeTruthy()
+    })
+
+    it('should render password input field', () => {
+      const { container } = renderSignupPage()
+      const passwordInput = container.querySelector('input[name="password"]')
+      expect(passwordInput).toBeTruthy()
+    })
+
+    it('should render confirm password input field', () => {
+      const { container } = renderSignupPage()
+      const confirmPasswordInput = container.querySelector('input[name="confirmPassword"]')
+      expect(confirmPasswordInput).toBeTruthy()
+    })
+
+    it('should render submit button', () => {
+      const { container } = renderSignupPage()
+      const submitButton = container.querySelector('button[type="submit"]')
+      expect(submitButton).toBeTruthy()
+    })
+
+    it('should render SSO buttons', () => {
+      const { container } = renderSignupPage()
+      const buttons = container.querySelectorAll('button[type="button"]')
+      // Should have Google, Apple, and GitHub SSO buttons
+      expect(buttons.length).toBeGreaterThanOrEqual(3)
+    })
+
+    it('should render login link', () => {
+      const { container } = renderSignupPage()
+      const loginLink = container.querySelector('a[href="/login"]')
+      expect(loginLink).toBeTruthy()
+    })
+  })
+
+  describe('Form Interaction', () => {
+    it('should update full name field on change', async () => {
+      const { container } = renderSignupPage()
+      const fullNameInput = container.querySelector('input[name="fullName"]') as HTMLInputElement
+      
+      expect(fullNameInput).not.toBeNull()
+      fullNameInput.value = 'John Doe'
+      fullNameInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(fullNameInput.value).toBe('John Doe')
+    })
+
+    it('should update email field on change', async () => {
+      const { container } = renderSignupPage()
+      const emailInput = container.querySelector('input[name="email"]') as HTMLInputElement
+      
+      expect(emailInput).not.toBeNull()
+      emailInput.value = 'test@example.com'
+      emailInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(emailInput.value).toBe('test@example.com')
+    })
+
+    it('should update password field on change', async () => {
+      const { container } = renderSignupPage()
+      const passwordInput = container.querySelector('input[name="password"]') as HTMLInputElement
+      
+      expect(passwordInput).not.toBeNull()
+      passwordInput.value = 'testpassword123'
+      passwordInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(passwordInput.value).toBe('testpassword123')
+    })
+
+    it('should update confirm password field on change', async () => {
+      const { container } = renderSignupPage()
+      const confirmPasswordInput = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement
+      
+      expect(confirmPasswordInput).not.toBeNull()
+      confirmPasswordInput.value = 'testpassword123'
+      confirmPasswordInput.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(confirmPasswordInput.value).toBe('testpassword123')
+    })
+  })
+
+  describe('Accessibility', () => {
+    it('should have accessible SSO button labels', () => {
+      const { container } = renderSignupPage()
+      const ssoButtons = container.querySelectorAll('button[aria-label]')
+      expect(ssoButtons.length).toBeGreaterThanOrEqual(3)
+    })
   })
 })

@@ -25,7 +25,13 @@ from semantic_rules import (
     validate_task_type,
     validate_repo,
     validate_task,
+    validate_action,
+    validate_sensitive_file,
+    validate_command,
     get_validator,
+    HIGH_RISK_ACTIONS,
+    SENSITIVE_FILE_PATTERNS,
+    DEFAULT_ALLOWED_ACTIONS,
 )
 
 
@@ -326,6 +332,299 @@ class TestSemanticRuleViolation:
             severity="error"
         )
         assert violation.details is None
+
+
+class TestActionValidation:
+    """Test action validation (Phase 1 Security Foundation)"""
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_allowed_action(self, mock_load):
+        """Should allow actions in default whitelist"""
+        validator = SemanticRulesValidator()
+        validator.allowed_actions = []
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_action("read_file")
+        assert is_valid is True
+        assert violation is None
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_disallowed_action(self, mock_load):
+        """Should reject actions not in whitelist"""
+        validator = SemanticRulesValidator()
+        validator.allowed_actions = []
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_action("execute_arbitrary_code")
+        assert is_valid is False
+        assert violation is not None
+        assert violation.rule_type == "action"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_high_risk_action_requires_approval(self, mock_load):
+        """Should require HITL approval for high-risk actions"""
+        validator = SemanticRulesValidator()
+        validator.allowed_actions = []
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_action("rm -rf /tmp/test")
+        assert is_valid is False
+        assert violation is not None
+        assert violation.rule_type == "high_risk"
+        assert violation.requires_approval is True
+        assert violation.severity == "critical"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_high_risk_action_allowed_when_hitl_disabled(self, mock_load):
+        """Should allow high-risk actions when HITL is disabled"""
+        validator = SemanticRulesValidator()
+        validator.allowed_actions = list(DEFAULT_ALLOWED_ACTIONS) + ["rm -rf"]
+        validator.require_hitl_for_high_risk = False
+        
+        # When HITL is disabled, high-risk check passes but action must be in whitelist
+        is_valid, violation = validator.validate_action("rm -rf")
+        assert is_valid is True
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_explicit_allowed_actions(self, mock_load):
+        """Should allow explicitly configured actions"""
+        validator = SemanticRulesValidator()
+        validator.allowed_actions = ["custom_action", "another_action"]
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_action("custom_action")
+        assert is_valid is True
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_drop_table_high_risk(self, mock_load):
+        """Should detect DROP TABLE as high-risk"""
+        validator = SemanticRulesValidator()
+        validator.allowed_actions = []
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_action("DROP TABLE users")
+        assert is_valid is False
+        assert violation.rule_type == "high_risk"
+
+    def test_high_risk_actions_constant(self):
+        """Should have expected high-risk actions defined"""
+        assert "DROP TABLE" in HIGH_RISK_ACTIONS
+        assert "rm -rf" in HIGH_RISK_ACTIONS
+        assert "sudo rm" in HIGH_RISK_ACTIONS
+        assert "chmod 777" in HIGH_RISK_ACTIONS
+
+    def test_default_allowed_actions_constant(self):
+        """Should have expected default allowed actions"""
+        assert "read_file" in DEFAULT_ALLOWED_ACTIONS
+        assert "write_file" in DEFAULT_ALLOWED_ACTIONS
+        assert "run_tests" in DEFAULT_ALLOWED_ACTIONS
+        assert "create_pr" in DEFAULT_ALLOWED_ACTIONS
+
+
+class TestSensitiveFileValidation:
+    """Test sensitive file validation (Phase 1 Security Foundation)"""
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_normal_file(self, mock_load):
+        """Should allow normal files"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("src/main.py")
+        assert is_valid is True
+        assert violation is None
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_env_file_blocked(self, mock_load):
+        """Should block .env files"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file(".env")
+        assert is_valid is False
+        assert violation is not None
+        assert violation.rule_type == "sensitive_file"
+        assert violation.severity == "critical"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_env_local_blocked(self, mock_load):
+        """Should block .env.local files"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("config/.env.local")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_credentials_json_blocked(self, mock_load):
+        """Should block credentials.json files"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("credentials.json")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_private_key_blocked(self, mock_load):
+        """Should block private key files"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("id_rsa")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_pem_file_blocked(self, mock_load):
+        """Should block .pem files"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("server.pem")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_deployment_config_blocked(self, mock_load):
+        """Should block deployment config files"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("fly.toml")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_empty_path(self, mock_load):
+        """Should allow empty path"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("")
+        assert is_valid is True
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_path_traversal_in_sensitive_file(self, mock_load):
+        """Should detect path traversal in sensitive file validation"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("../../../etc/passwd")
+        assert is_valid is False
+        assert violation.rule_type == "path_traversal"
+
+    def test_sensitive_file_patterns_constant(self):
+        """Should have expected sensitive file patterns defined"""
+        assert ".env" in SENSITIVE_FILE_PATTERNS
+        assert "credentials.json" in SENSITIVE_FILE_PATTERNS
+        assert "private_key" in SENSITIVE_FILE_PATTERNS
+        assert ".pem" in SENSITIVE_FILE_PATTERNS
+        assert "fly.toml" in SENSITIVE_FILE_PATTERNS
+
+
+class TestCommandValidation:
+    """Test command validation (Phase 1 Security Foundation)"""
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_safe_command(self, mock_load):
+        """Should allow safe commands"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_command("ls -la")
+        assert is_valid is True
+        assert violation is None
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_rm_rf_command_blocked(self, mock_load):
+        """Should block rm -rf commands"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_command("rm -rf /tmp/test")
+        assert is_valid is False
+        assert violation is not None
+        assert violation.rule_type == "high_risk"
+        assert violation.requires_approval is True
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_drop_table_command_blocked(self, mock_load):
+        """Should block DROP TABLE commands"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_command("psql -c 'DROP TABLE users'")
+        assert is_valid is False
+        assert violation.rule_type == "high_risk"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_sudo_rm_command_blocked(self, mock_load):
+        """Should block sudo rm commands"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_command("sudo rm -rf /var/log")
+        assert is_valid is False
+        assert violation.rule_type == "high_risk"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_chmod_777_command_blocked(self, mock_load):
+        """Should block chmod 777 commands"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_command("chmod 777 /etc/passwd")
+        assert is_valid is False
+        assert violation.rule_type == "high_risk"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_truncate_command_blocked(self, mock_load):
+        """Should block TRUNCATE commands"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_command("TRUNCATE TABLE logs")
+        assert is_valid is False
+        assert violation.rule_type == "high_risk"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_empty_command(self, mock_load):
+        """Should allow empty command"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = True
+        
+        is_valid, violation = validator.validate_command("")
+        assert is_valid is True
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_high_risk_command_allowed_when_hitl_disabled(self, mock_load):
+        """Should allow high-risk commands when HITL is disabled"""
+        validator = SemanticRulesValidator()
+        validator.require_hitl_for_high_risk = False
+        
+        is_valid, violation = validator.validate_command("rm -rf /tmp/test")
+        assert is_valid is True
+
+
+class TestConvenienceFunctionsPhase1:
+    """Test Phase 1 Security Foundation convenience functions"""
+
+    def test_validate_action_function(self):
+        """Test validate_action convenience function"""
+        is_valid, error = validate_action("read_file")
+        assert is_valid is True
+
+    def test_validate_sensitive_file_function(self):
+        """Test validate_sensitive_file convenience function"""
+        is_valid, error = validate_sensitive_file("src/main.py")
+        assert is_valid is True
+
+    def test_validate_command_function(self):
+        """Test validate_command convenience function"""
+        is_valid, error = validate_command("ls -la")
+        assert is_valid is True
 
 
 if __name__ == '__main__':
