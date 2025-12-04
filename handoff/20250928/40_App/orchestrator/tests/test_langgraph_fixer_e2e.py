@@ -1302,6 +1302,8 @@ class TestPhase3GraphStructure:
 
         expected_nodes = {
             "planner",
+            "pm_advisor",  # Phase 3 PR-3 #1815: PM Agent
+            "ops_advisor",  # Phase 3 PR-3 #1815: Ops Agent
             "security_advisor",
             "governance_advisor",
             "cost_advisor",
