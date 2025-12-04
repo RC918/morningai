@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "../../utils";
+import { cn, getInitials } from "../../utils";
 
 interface AvatarStackItem {
   id: string;
@@ -26,15 +26,6 @@ const overlapStyles = {
   md: "-ml-2.5",
   lg: "-ml-3",
 };
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
 
 function AvatarStack({
   avatars,

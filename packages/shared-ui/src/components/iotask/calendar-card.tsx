@@ -15,6 +15,10 @@ interface CalendarCardProps {
   events?: CalendarEvent[];
   onDateChange?: (date: Date) => void;
   className?: string;
+  /** Custom day names for i18n (e.g., ["日", "一", "二", "三", "四", "五", "六"]) */
+  dayNames?: string[];
+  /** Custom month names for i18n */
+  monthNames?: string[];
 }
 
 const eventColorStyles = {
@@ -37,6 +41,8 @@ function CalendarCard({
   events = [],
   onDateChange,
   className,
+  dayNames = DAYS,
+  monthNames = MONTHS,
 }: CalendarCardProps) {
   const [currentMonth, setCurrentMonth] = React.useState(date);
   const [selectedDate, setSelectedDate] = React.useState(date);
@@ -105,12 +111,12 @@ function CalendarCard({
             className="p-1 rounded hover:bg-[var(--neutral-100)] text-[var(--text-secondary)]"
             aria-label="Previous month"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <span className="text-sm font-medium text-[var(--text-primary)]">
-            {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </span>
           <button
             type="button"
@@ -118,14 +124,14 @@ function CalendarCard({
             className="p-1 rounded hover:bg-[var(--neutral-100)] text-[var(--text-secondary)]"
             aria-label="Next month"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
 
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {DAYS.map((day) => (
+          {dayNames.map((day) => (
             <div
               key={day}
               className="text-center text-xs font-medium text-[var(--text-secondary)] py-1"
@@ -138,13 +144,13 @@ function CalendarCard({
         <div className="grid grid-cols-7 gap-1">
           {days.map((day, index) =>
             day === null ? (
-              <div key={index} className="h-8 w-8" aria-hidden="true" />
+              <div key={`empty-${index}`} className="h-8 w-8" aria-hidden="true" />
             ) : (
               <button
-                key={index}
+                key={`day-${day}`}
                 type="button"
                 onClick={() => handleDateClick(day)}
-                aria-label={`${MONTHS[currentMonth.getMonth()]} ${day}, ${currentMonth.getFullYear()}${isToday(day) ? " (today)" : ""}${isSelected(day) ? " (selected)" : ""}`}
+                aria-label={`${monthNames[currentMonth.getMonth()]} ${day}, ${currentMonth.getFullYear()}${isToday(day) ? " (today)" : ""}${isSelected(day) ? " (selected)" : ""}`}
                 aria-pressed={isSelected(day)}
                 className={cn(
                   "h-8 w-8 rounded-full text-xs transition-colors hover:bg-[var(--neutral-100)]",
