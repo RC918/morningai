@@ -1,0 +1,109 @@
+name: Refactor Agent Nightly Run
+
+on:
+  schedule:
+    # Run at 00:00 UTC daily (low traffic time)
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      max_errors:
+        description: 'Maximum number of errors to fix (default: 10)'
+        required: false
+        default: '10'
+        type: string
+      dry_run:
+        description: 'Dry run mode (no actual changes)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  refactor:
+    name: Run Refactor Agent
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install --no-interaction
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Refactor Agent"
+          git config --global user.email "refactor-agent@morningai.com"
+
+      - name: Run Refactor Agent
+        id: refactor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src
+        run: |
+          MAX_ERRORS="${{ github.event.inputs.max_errors || '10' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+
+          echo "Running Refactor Agent with max_errors=$MAX_ERRORS, dry_run=$DRY_RUN"
+
+          python -c "
+          import json
+          from refactor_agent.agent import run_nightly_refactor
+
+          result = run_nightly_refactor(
+              max_errors=int('$MAX_ERRORS'),
+              dry_run='$DRY_RUN' == 'true'
+          )
+
+          print('=== Refactor Agent Results ===')
+          print(f'Run ID: {result.run_id}')
+          print(f'Total errors found: {result.total_errors_found}')
+          print(f'Errors fixed: {result.errors_fixed}')
+          print(f'Errors failed: {result.errors_failed}')
+          print(f'Summary: {result.summary}')
+
+          # Output for GitHub Actions
+          with open('$GITHUB_OUTPUT', 'a') as f:
+              f.write(f'run_id={result.run_id}\n')
+              f.write(f'total_errors={result.total_errors_found}\n')
+              f.write(f'errors_fixed={result.errors_fixed}\n')
+              f.write(f'errors_failed={result.errors_failed}\n')
+              f.write(f'summary={result.summary}\n')
+          "
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Refactor Agent Nightly Run" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Run ID | ${{ steps.refactor.outputs.run_id }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Errors Found | ${{ steps.refactor.outputs.total_errors }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Errors Fixed | ${{ steps.refactor.outputs.errors_fixed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Errors Failed | ${{ steps.refactor.outputs.errors_failed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.refactor.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Refactor Agent nightly run failed. Check the logs for details."
