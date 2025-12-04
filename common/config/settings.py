@@ -827,6 +827,24 @@ class Settings(BaseSettings):
         description="Enable PM Agent functionality"
     )
 
+    refactor_agent_enabled: bool = Field(
+        default=True,
+        alias="REFACTOR_AGENT_ENABLED",
+        description="Enable Refactor Agent for automated TS strict mode fixes"
+    )
+
+    refactor_agent_errors_per_run: int = Field(
+        default=10,
+        alias="REFACTOR_AGENT_ERRORS_PER_RUN",
+        description="Number of TS errors to fix per nightly run"
+    )
+
+    refactor_agent_auto_pr: bool = Field(
+        default=True,
+        alias="REFACTOR_AGENT_AUTO_PR",
+        description="Automatically create PRs for refactor fixes"
+    )
+
     hitl_approval_enabled: bool = Field(
         default=True,
         alias="HITL_APPROVAL_ENABLED",
