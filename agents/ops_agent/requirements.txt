@@ -1,9 +1,9 @@
-aiohttp==3.9.1
+aiohttp>=3.12.14
 psutil==5.9.6
 pytest==8.4.2
 pytest-asyncio==1.2.0
 redis==5.0.1
-requests==2.31.0
+requests>=2.32.4
 pydantic>=2.10.0
 pydantic-settings>=2.0.0
 PyYAML>=6.0
