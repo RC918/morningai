@@ -1,8 +1,11 @@
 {
-        "aiPolicies": {
-          "subtitle": "配置 AI 治理政策與合規規則",
-          "title": "AI 政策"
-        },
+                "aiPolicies": {
+                  "list": {
+                    "policyCount": "{{count}} 項政策"
+                  },
+                  "subtitle": "配置 AI 治理政策與合規規則",
+                  "title": "AI 政策"
+                },
         "failureExperiment": {
           "subtitle": "使用受控故障場景測試系統韌性",
           "title": "故障實驗"

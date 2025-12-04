@@ -274,7 +274,7 @@ const AIPolicies = () => {
                 {t('aiPolicies.list.title')}
               </h2>
               <p className="text-sm text-[var(--text-secondary)] mt-1">
-                {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
+                {t('aiPolicies.list.policyCount', { count: policies.length })}
               </p>
             </div>
             <div className="p-5">
