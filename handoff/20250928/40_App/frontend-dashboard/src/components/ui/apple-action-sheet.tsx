@@ -199,7 +199,7 @@ const ActionSheet = ({
           )}
 
           {/* Actions List */}
-          <div className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
+          <div className="divide-y divide-neutral-200/50 dark:divide-neutral-700/50">
             {options.actions.map((action, index) => (
               <motion.button
                 key={action.id}
