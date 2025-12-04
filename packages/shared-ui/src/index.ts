@@ -4,6 +4,8 @@ export * from './components/ui'
 
 export * from './components/dashboard'
 
+export * from './components/iotask'
+
 export * from './lib/animations'
 
 export * from './design-tokens'
