@@ -175,19 +175,19 @@ const AgentGovernance = () => {
             label={t('governance.stats.avgReputation')}
             value={String(statistics.reputation?.average_score?.toFixed(0) || 100)}
             icon={<TrendingUp className="w-5 h-5" />}
-            variant="success"
+            variant="green"
           />
           <StatCard
             label={t('governance.stats.dailyCost')}
             value={`$${statistics.costs?.daily?.usage?.usd?.toFixed(2) || '0.00'}`}
             icon={<DollarSign className="w-5 h-5" />}
-            variant="warning"
+            variant="yellow"
           />
           <StatCard
             label={t('governance.stats.violations')}
             value={String(violations.length)}
             icon={<AlertTriangle className="w-5 h-5" />}
-            variant={violations.length > 0 ? 'danger' : 'success'}
+            variant={violations.length > 0 ? 'red' : 'green'}
           />
         </div>
       )}
