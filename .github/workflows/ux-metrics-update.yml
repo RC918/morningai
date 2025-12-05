@@ -192,28 +192,6 @@ jobs:
             
             core.info(`✅ Created check run for ${sha}`);
       
-      - name: Set dependency vulnerability status (metrics-only PRs)
-        if: steps.analyze.outputs.only_metrics == 'true' && steps.analyze.outputs.head_sha != ''
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const sha = '${{ steps.analyze.outputs.head_sha }}';
-            
-            core.info(`Setting dependency vulnerability status for SHA ${sha}`);
-            
-            // Set commit status for Block Merge on Dependency Vulnerabilities
-            await github.rest.repos.createCommitStatus({
-              owner, repo, sha,
-              state: 'success',
-              context: 'Block Merge on Dependency Vulnerabilities',
-              description: 'Metrics-only update; no dependency files changed',
-              target_url: `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`
-            });
-            
-            core.info(`✅ Set dependency vulnerability status for ${sha}`);
-      
       - name: Upload metrics artifact
         uses: actions/upload-artifact@v4
         with:
