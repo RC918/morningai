@@ -514,10 +514,10 @@ class TestTransformSessionForFrontend:
             'max_iterations': 10,
             'decisions': [],
             'actions': [
-                {'success': True},
-                {'success': True},
-                {'success': False},
-                {'success': True}
+                {'success': True, 'timestamp': '2024-01-15T10:00:00Z'},
+                {'success': True, 'timestamp': '2024-01-15T10:01:00Z'},
+                {'success': False, 'timestamp': '2024-01-15T10:02:00Z'},
+                {'success': True, 'timestamp': '2024-01-15T10:03:00Z'}
             ],
             'observations': []
         }
