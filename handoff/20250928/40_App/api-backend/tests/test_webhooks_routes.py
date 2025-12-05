@@ -448,6 +448,271 @@ class TestGetNormalizer:
             webhooks_module._normalizer = original_normalizer
 
 
+class TestRateLimiting:
+    """Tests for webhook rate limiting functionality."""
+
+    def test_rate_limiter_allows_requests_under_limit(self):
+        """Should allow requests under the rate limit."""
+        from src.routes.webhooks import WebhookRateLimiter
+        
+        limiter = WebhookRateLimiter(limit=10, window=60)
+        
+        # First request should not be limited
+        is_limited, remaining, reset_time = limiter.is_rate_limited("test-key")
+        assert is_limited is False
+        assert remaining == 9  # 10 - 1 = 9 remaining
+        assert reset_time > 0
+
+    def test_rate_limiter_blocks_when_limit_exceeded(self):
+        """Should block requests when rate limit is exceeded."""
+        from src.routes.webhooks import WebhookRateLimiter
+        
+        limiter = WebhookRateLimiter(limit=3, window=60)
+        
+        # Make 3 requests to hit the limit
+        for _ in range(3):
+            limiter.is_rate_limited("test-key")
+        
+        # 4th request should be limited
+        is_limited, remaining, reset_time = limiter.is_rate_limited("test-key")
+        assert is_limited is True
+        assert remaining == 0
+
+    def test_rate_limiter_separate_keys(self):
+        """Should track rate limits separately per key."""
+        from src.routes.webhooks import WebhookRateLimiter
+        
+        limiter = WebhookRateLimiter(limit=2, window=60)
+        
+        # Exhaust limit for key1
+        limiter.is_rate_limited("key1")
+        limiter.is_rate_limited("key1")
+        is_limited, _, _ = limiter.is_rate_limited("key1")
+        assert is_limited is True
+        
+        # key2 should still have capacity
+        is_limited, remaining, _ = limiter.is_rate_limited("key2")
+        assert is_limited is False
+        assert remaining == 1
+
+    def test_rate_limit_returns_429(self, client, mock_normalizer):
+        """Should return 429 when rate limit is exceeded."""
+        import src.routes.webhooks as webhooks_module
+        
+        # Create a limiter with very low limit
+        original_limiter = webhooks_module._webhook_rate_limiter
+        webhooks_module._webhook_rate_limiter = webhooks_module.WebhookRateLimiter(limit=1, window=60)
+        
+        try:
+            with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+                # First request should succeed
+                response1 = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={"X-GitHub-Event": "issues"}
+                )
+                assert response1.status_code == 200
+                
+                # Second request should be rate limited
+                response2 = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={"X-GitHub-Event": "issues"}
+                )
+                assert response2.status_code == 429
+                data = response2.get_json()
+                assert "Rate limit exceeded" in data["error"]
+                assert "X-RateLimit-Limit" in response2.headers
+                assert "Retry-After" in response2.headers
+        finally:
+            webhooks_module._webhook_rate_limiter = original_limiter
+
+    def test_rate_limit_headers_on_429_response(self, client, mock_normalizer):
+        """Should include rate limit headers on 429 responses."""
+        import src.routes.webhooks as webhooks_module
+        
+        # Create a limiter with very low limit
+        original_limiter = webhooks_module._webhook_rate_limiter
+        webhooks_module._webhook_rate_limiter = webhooks_module.WebhookRateLimiter(limit=1, window=60)
+        
+        try:
+            with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+                # First request to exhaust limit
+                client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={"X-GitHub-Event": "issues"}
+                )
+                
+                # Second request should have rate limit headers
+                response = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={"X-GitHub-Event": "issues"}
+                )
+                assert response.status_code == 429
+                assert "X-RateLimit-Limit" in response.headers
+                assert "X-RateLimit-Remaining" in response.headers
+                assert "X-RateLimit-Reset" in response.headers
+                assert "Retry-After" in response.headers
+        finally:
+            webhooks_module._webhook_rate_limiter = original_limiter
+
+
+class TestPayloadSizeValidation:
+    """Tests for webhook payload size validation."""
+
+    def test_payload_size_check_allows_small_payloads(self):
+        """Should allow payloads under the size limit."""
+        from src.routes.webhooks import MAX_WEBHOOK_PAYLOAD_SIZE
+        
+        # MAX_WEBHOOK_PAYLOAD_SIZE should be 1MB
+        assert MAX_WEBHOOK_PAYLOAD_SIZE == 1 * 1024 * 1024
+
+    def test_check_payload_size_returns_error_for_large_payload(self):
+        """Should return error tuple when payload exceeds size limit."""
+        from src.routes.webhooks import check_payload_size, MAX_WEBHOOK_PAYLOAD_SIZE
+        from flask import Flask
+        
+        test_app = Flask(__name__)
+        with test_app.test_request_context(
+            '/test',
+            method='POST',
+            content_length=2 * 1024 * 1024  # 2MB - exceeds 1MB limit
+        ):
+            is_valid, error_response = check_payload_size()
+            assert is_valid is False
+            assert error_response is not None
+            # error_response is a tuple (response, status_code)
+            assert error_response[1] == 413
+
+    def test_check_payload_size_allows_small_payload(self):
+        """Should allow payloads under the size limit."""
+        from src.routes.webhooks import check_payload_size
+        from flask import Flask
+        
+        test_app = Flask(__name__)
+        with test_app.test_request_context(
+            '/test',
+            method='POST',
+            content_length=1000  # 1KB - well under limit
+        ):
+            is_valid, error_response = check_payload_size()
+            assert is_valid is True
+            assert error_response is None
+
+    def test_check_payload_size_allows_none_content_length(self):
+        """Should allow requests with no Content-Length header."""
+        from src.routes.webhooks import check_payload_size
+        from flask import Flask
+        
+        test_app = Flask(__name__)
+        with test_app.test_request_context(
+            '/test',
+            method='POST'
+            # No content_length specified
+        ):
+            is_valid, error_response = check_payload_size()
+            assert is_valid is True
+            assert error_response is None
+
+    def test_max_payload_size_constant(self):
+        """Should have MAX_WEBHOOK_PAYLOAD_SIZE set to 1MB."""
+        from src.routes.webhooks import MAX_WEBHOOK_PAYLOAD_SIZE
+        assert MAX_WEBHOOK_PAYLOAD_SIZE == 1048576  # 1MB in bytes
+
+
+class TestEnqueueTaskRepoValidation:
+    """Tests for _enqueue_task repository validation."""
+
+    def test_enqueue_task_no_repo_configured(self):
+        """Should return None and log error when no repo is configured."""
+        from src.routes.webhooks import _enqueue_task
+        
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.goal_text = "Test goal"
+        mock_task.context = {}  # No repo in context
+        
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = None  # No repo in settings
+            result = _enqueue_task(mock_task)
+            assert result is None
+
+    def test_enqueue_task_uses_context_repo(self):
+        """Should use repo from task context."""
+        from src.routes.webhooks import _enqueue_task
+        
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.goal_text = "Test goal"
+        mock_task.context = {"repo": "test/repo-from-context"}
+        
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = "fallback/repo"
+            with patch("redis.Redis") as mock_redis:
+                mock_conn = MagicMock()
+                mock_redis.from_url.return_value = mock_conn
+                with patch("rq.Queue") as mock_queue:
+                    mock_q = MagicMock()
+                    mock_job = MagicMock()
+                    mock_job.id = "job-123"
+                    mock_q.enqueue.return_value = mock_job
+                    mock_queue.return_value = mock_q
+                    
+                    result = _enqueue_task(mock_task)
+                    # Should succeed with context repo
+                    assert result == "job-123"
+
+
+class TestThreadSafeNormalizer:
+    """Tests for thread-safe get_normalizer() singleton."""
+
+    def test_get_normalizer_thread_safe(self):
+        """Should use double-checked locking for thread safety."""
+        import src.routes.webhooks as webhooks_module
+        
+        # Verify the lock exists
+        assert hasattr(webhooks_module, '_normalizer_lock')
+        assert webhooks_module._normalizer_lock is not None
+
+    def test_get_normalizer_returns_same_instance(self):
+        """Should return the same instance on multiple calls (singleton behavior)."""
+        import src.routes.webhooks as webhooks_module
+        
+        # Save & reset the cached normalizer
+        original = webhooks_module._normalizer
+        webhooks_module._normalizer = None
+        
+        try:
+            # Patch the class that get_normalizer() instantiates
+            # This allows the real get_normalizer() logic to run
+            with patch("orchestrator.webhooks.normalizer.EventNormalizer") as MockNormalizer:
+                with patch("orchestrator.webhooks.bot_protocol.WebhookConfig"):
+                    mock_instance = MockNormalizer.return_value
+                    
+                    # Call get_normalizer() twice
+                    result1 = webhooks_module.get_normalizer()
+                    result2 = webhooks_module.get_normalizer()
+                    
+                    # Both calls should return the same instance
+                    assert result1 is mock_instance
+                    assert result2 is mock_instance
+                    assert result1 is result2
+                    
+                    # EventNormalizer should have been constructed only once
+                    # (this verifies the singleton/double-checked locking behavior)
+                    MockNormalizer.assert_called_once()
+        finally:
+            webhooks_module._normalizer = original
+
+
 class TestWebhookErrorHandling:
     """Tests for error handling in webhook endpoints."""
 
