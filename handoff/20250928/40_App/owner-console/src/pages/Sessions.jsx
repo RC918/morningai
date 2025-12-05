@@ -346,6 +346,60 @@ const Sessions = () => {
     failed: sessions.filter(s => s.status === 'failed').length
   }), [sessions])
 
+  const handlePauseSession = useCallback(async (sessionId) => {
+    try {
+      await apiClientWithMeta(`/api/sessions/${sessionId}/pause`, { method: 'POST' })
+      setSessions(prev => prev.map(s => 
+        s.id === sessionId ? { ...s, status: 'paused' } : s
+      ))
+      setSelectedSession(prev => 
+        prev?.id === sessionId ? { ...prev, status: 'paused' } : prev
+      )
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.pauseFailed', 'Failed to pause session'),
+        logContext: 'Sessions.handlePauseSession'
+      })
+      setError(errorMessage)
+    }
+  }, [t])
+
+  const handleResumeSession = useCallback(async (sessionId) => {
+    try {
+      await apiClientWithMeta(`/api/sessions/${sessionId}/resume`, { method: 'POST' })
+      setSessions(prev => prev.map(s => 
+        s.id === sessionId ? { ...s, status: 'running' } : s
+      ))
+      setSelectedSession(prev => 
+        prev?.id === sessionId ? { ...prev, status: 'running' } : prev
+      )
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.resumeFailed', 'Failed to resume session'),
+        logContext: 'Sessions.handleResumeSession'
+      })
+      setError(errorMessage)
+    }
+  }, [t])
+
+  const handleCancelSession = useCallback(async (sessionId) => {
+    try {
+      await apiClientWithMeta(`/api/sessions/${sessionId}/cancel`, { method: 'POST' })
+      setSessions(prev => prev.map(s => 
+        s.id === sessionId ? { ...s, status: 'failed' } : s
+      ))
+      setSelectedSession(prev => 
+        prev?.id === sessionId ? { ...prev, status: 'failed' } : prev
+      )
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.cancelFailed', 'Failed to cancel session'),
+        logContext: 'Sessions.handleCancelSession'
+      })
+      setError(errorMessage)
+    }
+  }, [t])
+
   if (loading) {
     return (
       <div className="space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
@@ -518,19 +572,19 @@ const Sessions = () => {
                 {/* Session Actions */}
                 <div className="flex items-center gap-2 mt-4">
                   {selectedSession.status === 'running' && (
-                    <AppleButton variant="outline" size="sm" haptic="light" disabled>
+                    <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handlePauseSession(selectedSession.id)}>
                       <Pause className="w-4 h-4 mr-1" />
                       {t('sessions.actions.pause', 'Pause')}
                     </AppleButton>
                   )}
                   {selectedSession.status === 'paused' && (
-                    <AppleButton variant="outline" size="sm" haptic="light" disabled>
+                    <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handleResumeSession(selectedSession.id)}>
                       <Play className="w-4 h-4 mr-1" />
                       {t('sessions.actions.resume', 'Resume')}
                     </AppleButton>
                   )}
                   {(selectedSession.status === 'running' || selectedSession.status === 'paused') && (
-                    <AppleButton variant="outline" size="sm" haptic="light" disabled>
+                    <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handleCancelSession(selectedSession.id)}>
                       <StopCircle className="w-4 h-4 mr-1" />
                       {t('sessions.actions.cancel', 'Cancel')}
                     </AppleButton>
