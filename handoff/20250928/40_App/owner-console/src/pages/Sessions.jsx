@@ -290,7 +290,6 @@ const Sessions = () => {
   const handleToggleAutoRefresh = useCallback(() => {
     setAutoRefresh(prev => !prev)
   }, [])
-
   // Memoized filter handler
   const handleFilterChange = useCallback((newFilter) => {
     setFilter(newFilter)
