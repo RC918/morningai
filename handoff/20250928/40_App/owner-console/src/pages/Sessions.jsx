@@ -519,7 +519,7 @@ const Sessions = () => {
                   {selectedSession.requiresApproval && (
                     <div className="mb-4 p-4 rounded-lg bg-wisdom-10 border border-wisdom">
                       <div className="flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-wisdom flex-shrink-0 mt-0.5" />
+                        <AlertTriangle className="w-5 h-5 text-wisdom flex-shrink-0 mt-1" />
                         <div>
                           <p className="font-medium text-wisdom-dark">
                             {t('sessions.approval.title', 'Approval Required')}
@@ -536,7 +536,7 @@ const Sessions = () => {
                   {selectedSession.errorMessage && (
                     <div className="mb-4 p-4 rounded-lg bg-energy-10 border border-energy">
                       <div className="flex items-start gap-3">
-                        <XCircle className="w-5 h-5 text-energy flex-shrink-0 mt-0.5" />
+                        <XCircle className="w-5 h-5 text-energy flex-shrink-0 mt-1" />
                         <div>
                           <p className="font-medium text-energy-dark">
                             {t('sessions.error.title', 'Execution Failed')}
@@ -646,7 +646,7 @@ const Sessions = () => {
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-12 text-center">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
               <ListTodo className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-500">
                 {t('sessions.selectSession', 'Select a session to view details')}
