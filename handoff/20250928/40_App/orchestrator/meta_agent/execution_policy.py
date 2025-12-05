@@ -5,6 +5,7 @@ This module defines execution policies that control the behavior and limits
 of the autonomous executor, including timeouts, task limits, and allowed operations.
 
 Issue: #1821 - Meta Agent 自主任務規劃與執行
+Issue: #1959 - ExecutionPolicy 強制執行與 dry_run 行為實作
 Milestone: M5 - Meta Agent 優化
 """
 
@@ -12,7 +13,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from typing import FrozenSet, Set
+from typing import FrozenSet, List, Set
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,36 @@ ALWAYS_REQUIRE_APPROVAL: FrozenSet[AllowedOperation] = frozenset([
     AllowedOperation.DEPLOY_PRODUCTION,
     AllowedOperation.MERGE_PR,
 ])
+
+
+# Mapping from SubTaskType (string values) to required AllowedOperations
+# This mapping is used to enforce policy checks before executing tasks
+# Note: We use string values to avoid circular imports with task_planner
+SUBTASK_TYPE_TO_OPERATIONS: dict = {
+    "setup_environment": [AllowedOperation.READ_FILE, AllowedOperation.EXECUTE_COMMAND],
+    "analyze_code": [AllowedOperation.READ_FILE],
+    "write_code": [AllowedOperation.READ_FILE, AllowedOperation.WRITE_FILE],
+    "write_test": [AllowedOperation.READ_FILE, AllowedOperation.WRITE_FILE],
+    "run_test": [AllowedOperation.READ_FILE, AllowedOperation.EXECUTE_COMMAND],
+    "code_review": [AllowedOperation.READ_FILE],
+    "documentation": [AllowedOperation.READ_FILE, AllowedOperation.WRITE_FILE],
+    "deployment": [AllowedOperation.DEPLOY_STAGING],
+    "verification": [AllowedOperation.READ_FILE, AllowedOperation.EXECUTE_COMMAND],
+    "cleanup": [AllowedOperation.READ_FILE, AllowedOperation.DELETE_FILE],
+}
+
+
+def get_required_operations(task_type_value: str) -> List[AllowedOperation]:
+    """
+    Get the required operations for a given SubTaskType value.
+
+    Args:
+        task_type_value: The string value of SubTaskType (e.g., "deployment")
+
+    Returns:
+        List of AllowedOperation required for this task type
+    """
+    return SUBTASK_TYPE_TO_OPERATIONS.get(task_type_value, [AllowedOperation.READ_FILE])
 
 
 @dataclass
@@ -95,6 +126,37 @@ class ExecutionPolicy:
     def is_operation_allowed(self, operation: AllowedOperation) -> bool:
         """Check if an operation is allowed by this policy"""
         return operation in self.allowed_operations
+
+    def check_task_type_allowed(
+        self, task_type_value: str
+    ) -> tuple:
+        """
+        Check if all operations required for a task type are allowed.
+
+        Args:
+            task_type_value: The string value of SubTaskType (e.g., "deployment")
+
+        Returns:
+            Tuple of (is_allowed: bool, disallowed_operations: List[AllowedOperation])
+        """
+        required_ops = get_required_operations(task_type_value)
+        disallowed = [op for op in required_ops if not self.is_operation_allowed(op)]
+        return (len(disallowed) == 0, disallowed)
+
+    def get_approval_required_operations(
+        self, task_type_value: str
+    ) -> List[AllowedOperation]:
+        """
+        Get operations that require approval for a task type.
+
+        Args:
+            task_type_value: The string value of SubTaskType
+
+        Returns:
+            List of operations that require approval
+        """
+        required_ops = get_required_operations(task_type_value)
+        return [op for op in required_ops if self.requires_approval(op)]
 
     def requires_approval(self, operation: AllowedOperation) -> bool:
         """Check if an operation requires human approval"""

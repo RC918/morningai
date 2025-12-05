@@ -2,6 +2,7 @@
 Tests for execution_policy module - Safety Limits and Constraints for Meta Agent
 
 Issue: #1958 - Meta Agent: 新模組單元測試
+Issue: #1959 - ExecutionPolicy 強制執行與 dry_run 行為實作
 """
 
 import pytest
@@ -15,6 +16,8 @@ from meta_agent.execution_policy import (
     STRICT_POLICY,
     PERMISSIVE_POLICY,
     DRY_RUN_POLICY,
+    SUBTASK_TYPE_TO_OPERATIONS,
+    get_required_operations,
 )
 
 
@@ -315,3 +318,128 @@ class TestPresetPolicies:
         assert STRICT_POLICY.requires_approval(AllowedOperation.DATABASE_WRITE) is True
         # Permissive doesn't require approval for database writes
         assert PERMISSIVE_POLICY.requires_approval(AllowedOperation.DATABASE_WRITE) is False
+
+
+class TestSubTaskTypeMapping:
+    """Tests for SubTaskType to AllowedOperation mapping (#1959)"""
+
+    def test_subtask_type_to_operations_mapping_exists(self):
+        """Test that SUBTASK_TYPE_TO_OPERATIONS mapping is defined"""
+        assert SUBTASK_TYPE_TO_OPERATIONS is not None
+        assert isinstance(SUBTASK_TYPE_TO_OPERATIONS, dict)
+
+    def test_all_subtask_types_have_mappings(self):
+        """Test that all expected SubTaskType values have mappings"""
+        expected_types = [
+            "setup_environment",
+            "analyze_code",
+            "write_code",
+            "write_test",
+            "run_test",
+            "code_review",
+            "documentation",
+            "deployment",
+            "verification",
+            "cleanup",
+        ]
+        for task_type in expected_types:
+            assert task_type in SUBTASK_TYPE_TO_OPERATIONS
+
+    def test_deployment_requires_deploy_staging(self):
+        """Test that deployment task type requires DEPLOY_STAGING operation"""
+        ops = SUBTASK_TYPE_TO_OPERATIONS["deployment"]
+        assert AllowedOperation.DEPLOY_STAGING in ops
+
+    def test_write_code_requires_write_file(self):
+        """Test that write_code task type requires WRITE_FILE operation"""
+        ops = SUBTASK_TYPE_TO_OPERATIONS["write_code"]
+        assert AllowedOperation.WRITE_FILE in ops
+
+    def test_cleanup_requires_delete_file(self):
+        """Test that cleanup task type requires DELETE_FILE operation"""
+        ops = SUBTASK_TYPE_TO_OPERATIONS["cleanup"]
+        assert AllowedOperation.DELETE_FILE in ops
+
+    def test_get_required_operations_returns_list(self):
+        """Test that get_required_operations returns a list"""
+        ops = get_required_operations("write_code")
+        assert isinstance(ops, list)
+        assert len(ops) > 0
+
+    def test_get_required_operations_unknown_type(self):
+        """Test that get_required_operations returns default for unknown type"""
+        ops = get_required_operations("unknown_type")
+        assert AllowedOperation.READ_FILE in ops
+
+
+class TestPolicyEnforcement:
+    """Tests for ExecutionPolicy enforcement methods (#1959)"""
+
+    def test_check_task_type_allowed_returns_tuple(self):
+        """Test that check_task_type_allowed returns a tuple"""
+        policy = ExecutionPolicy()
+        result = policy.check_task_type_allowed("analyze_code")
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+    def test_check_task_type_allowed_for_safe_task(self):
+        """Test check_task_type_allowed for a safe task type"""
+        policy = ExecutionPolicy()
+        is_allowed, disallowed = policy.check_task_type_allowed("analyze_code")
+        assert is_allowed is True
+        assert len(disallowed) == 0
+
+    def test_check_task_type_allowed_for_deployment(self):
+        """Test check_task_type_allowed for deployment (requires DEPLOY_STAGING)"""
+        policy = ExecutionPolicy()
+        is_allowed, disallowed = policy.check_task_type_allowed("deployment")
+        # Default policy doesn't include DEPLOY_STAGING
+        assert is_allowed is False
+        assert AllowedOperation.DEPLOY_STAGING in disallowed
+
+    def test_check_task_type_allowed_with_permissive_policy(self):
+        """Test check_task_type_allowed with permissive policy"""
+        # Create policy that allows DEPLOY_STAGING
+        policy = ExecutionPolicy(
+            allowed_operations={
+                AllowedOperation.READ_FILE,
+                AllowedOperation.DEPLOY_STAGING,
+            }
+        )
+        is_allowed, disallowed = policy.check_task_type_allowed("deployment")
+        assert is_allowed is True
+        assert len(disallowed) == 0
+
+    def test_check_task_type_allowed_for_cleanup(self):
+        """Test check_task_type_allowed for cleanup (requires DELETE_FILE)"""
+        policy = ExecutionPolicy()
+        is_allowed, disallowed = policy.check_task_type_allowed("cleanup")
+        # Default policy doesn't include DELETE_FILE
+        assert is_allowed is False
+        assert AllowedOperation.DELETE_FILE in disallowed
+
+    def test_get_approval_required_operations_returns_list(self):
+        """Test that get_approval_required_operations returns a list"""
+        policy = ExecutionPolicy()
+        result = policy.get_approval_required_operations("deployment")
+        assert isinstance(result, list)
+
+    def test_get_approval_required_operations_for_deployment(self):
+        """Test get_approval_required_operations for deployment"""
+        policy = ExecutionPolicy(require_approval_for_deployment=True)
+        ops = policy.get_approval_required_operations("deployment")
+        assert AllowedOperation.DEPLOY_STAGING in ops
+
+    def test_get_approval_required_operations_for_safe_task(self):
+        """Test get_approval_required_operations for safe task"""
+        policy = ExecutionPolicy()
+        ops = policy.get_approval_required_operations("analyze_code")
+        # analyze_code only requires READ_FILE which doesn't need approval
+        assert len(ops) == 0
+
+    def test_get_approval_required_operations_for_cleanup(self):
+        """Test get_approval_required_operations for cleanup"""
+        policy = ExecutionPolicy(require_approval_for_file_deletes=True)
+        ops = policy.get_approval_required_operations("cleanup")
+        # cleanup requires DELETE_FILE which is in ALWAYS_REQUIRE_APPROVAL
+        assert AllowedOperation.DELETE_FILE in ops

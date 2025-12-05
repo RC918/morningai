@@ -458,6 +458,47 @@ class AutonomousExecutor:
         if self.on_task_start:
             self.on_task_start(task)
 
+        # Policy enforcement: Check if task type operations are allowed (#1959)
+        task_type_value = task.task_type.value if hasattr(task.task_type, 'value') else str(task.task_type)
+        is_allowed, disallowed_ops = self.policy.check_task_type_allowed(task_type_value)
+
+        if not is_allowed:
+            disallowed_names = [op.value for op in disallowed_ops]
+            error_msg = (
+                f"Policy violation: Task type '{task_type_value}' requires operations "
+                f"{disallowed_names} which are not allowed by current policy"
+            )
+            logger.error("[AutonomousExecutor] %s", error_msg)
+
+            # Log policy violation to audit log
+            if self.audit_logger:
+                self.audit_logger.log_policy_violation(
+                    violation_type="disallowed_operation",
+                    details=error_msg,
+                    task_id=task.task_id,
+                    task_type=task_type_value,
+                    disallowed_operations=disallowed_names,
+                )
+
+            # Mark task as failed due to policy violation
+            task.status = SubTaskStatus.FAILED
+            task.error = error_msg
+            task.completed_at = datetime.now()
+            if self.current_execution:
+                self.current_execution.tasks_failed += 1
+                self.current_execution.errors.append(f"Task {task.task_id}: {error_msg}")
+
+            raise PolicyViolationError(error_msg)
+
+        # Policy enforcement: Check if any operations require approval (#1959)
+        approval_required_ops = self.policy.get_approval_required_operations(task_type_value)
+        if approval_required_ops and not task.requires_approval:
+            # Augment task's requires_approval based on policy
+            task.requires_approval = True
+            logger.info(
+                "[AutonomousExecutor] Task %s requires approval due to policy (operations: %s)",
+                task.task_id, [op.value for op in approval_required_ops])
+
         # Check if approval is required
         if task.requires_approval:
             if self.audit_logger:
@@ -641,6 +682,27 @@ class AutonomousExecutor:
         """Handle code writing tasks"""
         logger.info("[AutonomousExecutor] Writing code for task %s", task.task_id)
 
+        # dry_run mode: Log planned action but don't execute (#1959)
+        if self.policy.dry_run:
+            logger.info(
+                "[AutonomousExecutor] DRY_RUN: Would write code for task %s",
+                task.task_id)
+            if self.audit_logger:
+                self.audit_logger.log_high_risk_operation(
+                    task_id=task.task_id,
+                    operation="write_code",
+                    resource=task.description[:100],
+                    risk_level="medium",
+                    dry_run=True,
+                    planned_action="Write code to implement feature/fix",
+                )
+            return {
+                "code_written": False,
+                "dry_run": True,
+                "planned_action": "Would write code to implement feature/fix",
+                "files_modified": [],
+            }
+
         # Use dev_agent if available
         if self.dev_agent:
             try:
@@ -720,6 +782,27 @@ class AutonomousExecutor:
     async def _handle_deployment(self, task: SubTask) -> Dict[str, Any]:
         """Handle deployment tasks"""
         logger.info("[AutonomousExecutor] Handling deployment for task %s", task.task_id)
+
+        # dry_run mode: Log planned action but don't execute (#1959)
+        if self.policy.dry_run:
+            logger.info(
+                "[AutonomousExecutor] DRY_RUN: Would deploy for task %s",
+                task.task_id)
+            if self.audit_logger:
+                self.audit_logger.log_high_risk_operation(
+                    task_id=task.task_id,
+                    operation="deployment",
+                    resource=task.description[:100],
+                    risk_level="high",
+                    dry_run=True,
+                    planned_action="Deploy to staging environment",
+                )
+            return {
+                "deployment_complete": False,
+                "dry_run": True,
+                "planned_action": "Would deploy to staging environment",
+                "environment": "staging",
+            }
 
         # Use ops_agent if available
         if self.ops_agent:
