@@ -313,6 +313,14 @@ try:
 except ImportError as e:
     logger.warning("HITL action requests routes not available: %s", e)
 
+# Webhook routes for external service integration (GitHub, Jira, Slack)
+try:
+    from src.routes.webhooks import bp as webhooks_bp
+    app.register_blueprint(webhooks_bp)
+    logger.info("Webhook routes enabled")
+except ImportError as e:
+    logger.warning("Webhook routes not available: %s", e)
+
 from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
 
 app.add_url_rule(

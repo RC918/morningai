@@ -1,0 +1,46 @@
+"""
+Webhooks Module - External Tool Integration for Meta Agent
+
+This module provides webhook handlers for integrating external tools
+(GitHub, Jira, Slack) with the Meta Agent autonomous execution system.
+
+Issue: #1822 - 整合開發工具 (Integrate Development Tools)
+Milestone: M5 - Meta Agent 優化
+
+Architecture:
+    External Service → Webhook Route → Handler → Normalizer → Meta Agent
+
+    1. Webhook routes receive events from external services
+    2. Platform-specific handlers validate and parse events
+    3. Event normalizer converts to unified WebhookEvent format
+    4. Meta Agent processes events through GoalParser → TaskPlanner → Executor
+"""
+
+from .bot_protocol import (
+    WebhookHandler,
+    WebhookEvent,
+    WebhookEventType,
+    WebhookSource,
+    WebhookResponse,
+    WebhookConfig,
+)
+from .normalizer import EventNormalizer
+from .handlers.github_handler import GitHubWebhookHandler
+from .handlers.jira_handler import JiraWebhookHandler
+from .handlers.slack_handler import SlackWebhookHandler
+
+__all__ = [
+    # Protocols and Types
+    "WebhookHandler",
+    "WebhookEvent",
+    "WebhookEventType",
+    "WebhookSource",
+    "WebhookResponse",
+    "WebhookConfig",
+    # Normalizer
+    "EventNormalizer",
+    # Handlers
+    "GitHubWebhookHandler",
+    "JiraWebhookHandler",
+    "SlackWebhookHandler",
+]
