@@ -313,6 +313,10 @@ if not use_langgraph and use_langgraph_percent > 0:
 
 ⚠️ **注意**：本文檔描述架構設計和政策。實際環境變數配置可能因運維需求調整。請以 Render Dashboard 的實際配置為準。
 
+**預設值說明**:
+- `USE_LANGGRAPH_PERCENT` 預設值為 **0**（100% Simple mode，LangGraph 停用）
+- 啟用 5% LangGraph 金絲雀需要明確設定 `USE_LANGGRAPH_PERCENT=5`
+
 **Phase 1 參考配置**（實際配置請查看 Render Dashboard）:
 
 | 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER | 位置 |
