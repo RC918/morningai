@@ -139,11 +139,14 @@ PR 0 (docs) --> PR 1 (UI Mock) --> PR 2 (API + Integration) --> PR 3 (Controls +
       "title": "Implement user authentication flow",
       "goal": "Add OAuth2 login with Google and GitHub providers",
       "status": "running",
+      "user": "TaiwanUser_001",
+      "agent_type": "LLM",
       "confidence": 0.87,
       "started_at": "2024-01-15T10:30:00Z",
       "updated_at": "2024-01-15T11:45:00Z",
       "progress": 65,
-      "current_task": "Writing integration tests"
+      "current_task": "Writing integration tests",
+      "requires_approval": false
     }
   ],
   "total": 10,
@@ -160,6 +163,8 @@ PR 0 (docs) --> PR 1 (UI Mock) --> PR 2 (API + Integration) --> PR 3 (Controls +
   "title": "Implement user authentication flow",
   "goal": "Add OAuth2 login with Google and GitHub providers",
   "status": "running",
+  "user": "TaiwanUser_001",
+  "agent_type": "LLM",
   "confidence": 0.87,
   "started_at": "2024-01-15T10:30:00Z",
   "updated_at": "2024-01-15T11:45:00Z",

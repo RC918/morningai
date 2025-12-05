@@ -40,7 +40,7 @@ Sidebar, topbar, and layout are provided by shared-ui.
 
 Sessions UI uses a dual-pane layout:
 
-### Left Pane: Sessions List (fixed width 280px)
+### Left Pane: Sessions List (fixed width w-72 / 288px)
 
 ### Right Pane: Session Detail (adaptive / main view)
 
@@ -101,129 +101,173 @@ import { ListItem, Badge, Tag } from "@morningai/shared-ui";
 
 ## 3. Right Pane - Session Detail Specification
 
-The right side content consists of three main sections:
+The right side content uses a **Tabs-based layout** with two main tabs:
 
-### (1) Session Metadata (Basic Information)
+### Tab 1: Task Plan (default)
 
-### (2) Event Timeline
+### Tab 2: Activity Log
 
-### (3) Debug / Raw Payload (Collapsible)
+### Session Header (Above Tabs)
 
-### (1) Session Metadata Specification
-
-#### Component: `<SectionCard />`
+The header section displays session metadata and action buttons:
 
 #### Fields:
 
 | Name | Format |
 |------|--------|
-| Session ID | monospaced text |
-| Start Time | date + time |
-| User | text |
-| Agent Type | badge |
-| Duration | text |
+| Title | text (session title) |
+| Goal | text (session goal description) |
+| Status | Badge (running/paused/completed/failed) |
+| User | text (triggering user) |
+| Agent Type | badge (LLM/Workflow/Planner) |
 
-#### Example:
+#### Action Buttons (contextual based on status):
 
-```tsx
-<SectionCard title="Session Info">
-  <MetadataRow label="Session ID" value="sess_12398ABCDEF" />
-  <MetadataRow label="Started" value="2025/12/03 09:12:22" />
-  <MetadataRow label="User" value="TaiwanUser_001" />
-  <MetadataRow label="Agent Type" value={<Badge variant="blue" label="LLM" />} />
-</SectionCard>
-```
+- **Running**: Pause, Cancel
+- **Paused**: Resume, Cancel
+- **Requires Approval**: Approve button
 
-### (2) Event Timeline Specification
+### Tab 1: Task Plan Specification
 
 #### Components:
 
-- `<Timeline />`
-- `<TimelineItem />`
-- Or use `<ActivityListItem />` variant if Timeline not available
+- `<Tabs />`, `<TabsList />`, `<TabsTrigger />`, `<TabsContent />`
+- `<Progress />`
+- `<Badge />`
 
-#### Each Event Contains:
+#### Content Sections:
+
+1. **Progress Summary**: Shows completed/total tasks and confidence percentage
+2. **Approval Banner** (conditional): Displays when session requires approval
+3. **Error Banner** (conditional): Displays when session has failed
+4. **Task List**: Sequential list of tasks with status indicators
+
+#### Task Item Fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| index | number | Task sequence number |
+| name | text | Task description |
+| status | icon | running/completed/failed/pending/waiting_approval |
+| type | tag | Ex: research, code, review, deploy |
+
+#### Task Status Colors (from tokens):
+
+| Status | Border/Background |
+|--------|-------------------|
+| running | border-calm, bg-calm-10 |
+| completed | border-growth-20, bg-growth-10 |
+| failed | border-energy, bg-energy-10 |
+| waiting_approval | border-wisdom, bg-wisdom-10 |
+| pending | border-[var(--border)] |
+
+### Tab 2: Activity Log Specification
+
+#### Components:
+
+- Log entries with level-based styling
+
+#### Each Log Entry Contains:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | timestamp | small text | Ex: 09:12:31 |
-| event type | tag | Ex: user_input, model_response, error |
-| payload summary | truncated text | First line highlighted |
-| sequence | left dot | Color based on tokens |
+| level | indicator | info/warning/error/success |
+| message | text | Log message content |
 
-#### Color Rules (from tokens)
+#### Level Color Rules (from tokens):
 
-| Event Type | Color |
-|------------|-------|
-| user_input | var(--brand-600) |
-| model_response | var(--success-600) |
-| tool_call | var(--warning-600) |
-| error | var(--danger-600) |
+| Level | Dot Color | Background |
+|-------|-----------|------------|
+| info | bg-neutral-400 | bg-neutral-50 |
+| warning | bg-wisdom | bg-wisdom-10 |
+| error | bg-energy | bg-energy-10 |
+| success | bg-growth | bg-growth-10 |
 
-#### Timeline Item Style (Precise)
+#### Log Entry Style:
 
 ```
 +-------------------------------------------------------------+
-| *  09:11:32                                                  |
-|    user_input                                                 |
-|    "Hello, I need help booking a flight..."                   |
+| *  "Analyzing repository structure..."                       |
+|    09:11:32                                                   |
 +-------------------------------------------------------------+
 ```
 
-#### Timeline Component Example:
+#### Activity Log Component Example:
 
 ```tsx
-<SectionCard title="Events Timeline">
-  <Timeline>
-    {events.map((evt, index) => (
-      <TimelineItem
+<TabsContent value="logs" className="p-5">
+  <div className="space-y-3">
+    {selectedSession.logs.map((log, index) => (
+      <div
         key={index}
-        time={evt.time}
-        color={evt.color}
-        label={evt.type}
-        content={evt.summary}
-      />
+        className={`flex items-start gap-3 p-3 rounded-lg ${
+          log.level === 'error' ? 'bg-energy-10'
+          : log.level === 'warning' ? 'bg-wisdom-10'
+          : log.level === 'success' ? 'bg-growth-10'
+          : 'bg-neutral-50 dark:bg-neutral-800'
+        }`}
+      >
+        <div className={`w-2 h-2 rounded-full mt-2 ${
+          log.level === 'error' ? 'bg-energy'
+          : log.level === 'warning' ? 'bg-wisdom'
+          : log.level === 'success' ? 'bg-growth'
+          : 'bg-neutral-400'
+        }`} />
+        <div className="flex-1">
+          <p className="text-sm text-[var(--text-primary)]">{log.message}</p>
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
+            {formatTimestamp(log.timestamp)}
+          </p>
+        </div>
+      </div>
     ))}
-  </Timeline>
-</SectionCard>
+  </div>
+</TabsContent>
 ```
 
-### (3) Debug Payload Specification
+### Session Footer
 
-#### Components:
-
-- `<CodeBlock />`
-- `<Collapsible />` or `<Accordion />`
-
-#### UI Specification:
-
-- Default: collapsed
-- Title: `Raw Payload`
-- Use monospace font
-- Copy button (already styled in shared-ui)
+Displays session start time and optional PR link.
 
 ## 4. Sessions Page Organization (Complete Version)
 
 ```tsx
 <AdminShell>
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-  <div className="flex h-full">
-
-    {/* Left Pane */}
-    <aside className="w-72 border-r border-[var(--border)] bg-[var(--surface)]">
-      <SessionsSearchBar />
+    {/* Left Pane - Sessions List (w-72 / 288px equivalent) */}
+    <aside className="lg:col-span-1 space-y-3">
+      <SessionsFilterTabs /> {/* All / Running / Needs Approval */}
       <SessionList />
     </aside>
 
-    {/* Main Pane */}
-    <main className="flex-1 p-6 space-y-6">
-      <SessionMetadata />
-      <SessionTimeline />
-      <SessionDebugPanel />
+    {/* Main Pane - Session Detail */}
+    <main className="lg:col-span-2">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+        {/* Session Header */}
+        <SessionHeader />
+        
+        {/* Tabs: Plan / Logs */}
+        <Tabs defaultValue="plan">
+          <TabsList>
+            <TabsTrigger value="plan">Task Plan</TabsTrigger>
+            <TabsTrigger value="logs">Activity Log</TabsTrigger>
+          </TabsList>
+          <TabsContent value="plan">
+            <TaskPlanView />
+          </TabsContent>
+          <TabsContent value="logs">
+            <ActivityLogView />
+          </TabsContent>
+        </Tabs>
+        
+        {/* Session Footer */}
+        <SessionFooter />
+      </div>
     </main>
 
   </div>
-
 </AdminShell>
 ```
 
