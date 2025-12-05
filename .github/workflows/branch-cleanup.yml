@@ -1,0 +1,151 @@
+name: Branch Cleanup
+
+on:
+  schedule:
+    # Run weekly on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: 'Branch pattern to clean (e.g., orchestrator/*, devin/*)'
+        required: false
+        default: ''
+      days:
+        description: 'Delete branches older than this many days'
+        required: false
+        default: '60'
+      dry_run:
+        description: 'Dry run mode (true/false)'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch all branches
+        run: git fetch --all --prune
+
+      - name: Get branch statistics
+        id: stats
+        run: |
+          total=$(git branch -r | grep -v HEAD | wc -l)
+          orchestrator=$(git branch -r | grep "origin/orchestrator/" | wc -l)
+          devin=$(git branch -r | grep "origin/devin/" | wc -l)
+          echo "total=$total" >> $GITHUB_OUTPUT
+          echo "orchestrator=$orchestrator" >> $GITHUB_OUTPUT
+          echo "devin=$devin" >> $GITHUB_OUTPUT
+          echo "## Branch Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- Total remote branches: $total" >> $GITHUB_STEP_SUMMARY
+          echo "- orchestrator/* branches: $orchestrator" >> $GITHUB_STEP_SUMMARY
+          echo "- devin/* branches: $devin" >> $GITHUB_STEP_SUMMARY
+
+      - name: Identify stale branches
+        id: stale
+        env:
+          PATTERN: ${{ github.event.inputs.pattern || '' }}
+          DAYS: ${{ github.event.inputs.days || '60' }}
+        run: |
+          echo "## Stale Branch Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "Pattern: ${PATTERN:-all}" >> $GITHUB_STEP_SUMMARY
+          echo "Age threshold: $DAYS days" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          cutoff_date=$(date -d "$DAYS days ago" +%Y-%m-%d)
+          echo "Cutoff date: $cutoff_date" >> $GITHUB_STEP_SUMMARY
+          
+          stale_count=0
+          stale_branches=""
+          
+          for branch in $(git branch -r | grep -v HEAD | sed 's/origin\///' | tr -d ' '); do
+            # Skip protected branches
+            if [[ "$branch" == "main" || "$branch" == "master" || "$branch" == "develop" ]]; then
+              continue
+            fi
+            
+            # Apply pattern filter if specified
+            if [[ -n "$PATTERN" ]]; then
+              pattern_regex=$(echo "$PATTERN" | sed 's/\*/.*/')
+              if ! echo "$branch" | grep -qE "^$pattern_regex$"; then
+                continue
+              fi
+            fi
+            
+            # Get last commit date
+            last_commit=$(git log -1 --format=%ci "origin/$branch" 2>/dev/null | cut -d' ' -f1)
+            if [[ -z "$last_commit" ]]; then
+              continue
+            fi
+            
+            # Check if older than cutoff
+            if [[ "$last_commit" < "$cutoff_date" ]]; then
+              stale_count=$((stale_count + 1))
+              stale_branches="$stale_branches$branch\n"
+            fi
+          done
+          
+          echo "stale_count=$stale_count" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Stale branches found: $stale_count**" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ $stale_count -gt 0 ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Stale branches (first 50)</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo -e "$stale_branches" | head -50 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Save stale branches to file for deletion step
+          echo -e "$stale_branches" > /tmp/stale_branches.txt
+
+      - name: Delete stale branches
+        if: github.event.inputs.dry_run != 'true' && steps.stale.outputs.stale_count > 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## Deletion Results" >> $GITHUB_STEP_SUMMARY
+          
+          deleted=0
+          failed=0
+          
+          while IFS= read -r branch; do
+            if [[ -z "$branch" ]]; then
+              continue
+            fi
+            
+            echo "Deleting: $branch"
+            if git push origin --delete "$branch" 2>/dev/null; then
+              deleted=$((deleted + 1))
+            else
+              failed=$((failed + 1))
+              echo "Failed to delete: $branch"
+            fi
+          done < /tmp/stale_branches.txt
+          
+          echo "- Deleted: $deleted branches" >> $GITHUB_STEP_SUMMARY
+          echo "- Failed: $failed branches" >> $GITHUB_STEP_SUMMARY
+
+      - name: Dry run notice
+        if: github.event.inputs.dry_run == 'true' || github.event_name == 'schedule'
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "**This was a dry run. No branches were deleted.**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To delete branches, run this workflow manually with dry_run=false" >> $GITHUB_STEP_SUMMARY

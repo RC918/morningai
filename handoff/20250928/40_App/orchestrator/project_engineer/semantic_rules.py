@@ -42,23 +42,21 @@ HIGH_RISK_ACTIONS: frozenset = frozenset({
 })
 
 # Sensitive file patterns that should never be modified by agents
-# Phase 1 Security Foundation - Issue #1829 Evaluation:
-# - ".env" patterns: Kept conservative. While "environment.ts" won't match (substring check),
-#   we intentionally block .env files including .env.example for security.
-# - "private_key": May have false positives (e.g., generate_private_key.py) but security > convenience.
-#   Operators can override via PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS if needed.
-# - "*.config" REMOVED: Too broad, caused false positives on jest.config, webpack.config, etc.
-# - Deployment configs (fly.toml, render.yaml, vercel.json): Intentionally blocked to prevent
-#   accidental deployment changes.
+# Phase 1 Security Foundation - Minimal Blocklist (PR #1943 revision)
+#
+# This blocklist only includes files that should NEVER be modified by agents:
+# - Private keys and certificates (highest risk of credential exposure)
+# - Explicit secrets files (secrets.yaml, secrets.yml)
+# - Package manager auth tokens (.npmrc, .pypirc)
+#
+# Files NOT blocked (Agent can modify with caution):
+# - .env files: May need modification for configuration
+# - Deployment configs: render.yaml, vercel.json, fly.toml, docker-compose.*, etc.
+# - Cloud credentials: Read-only in practice, but not blocked
+#
+# Operators can extend this list via PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS if needed.
 SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
-    ".env",
-    ".env.local",
-    ".env.production",
-    ".env.staging",
-    ".env.development",
-    "credentials.json",
-    "secrets.yaml",
-    "secrets.yml",
+    # Private keys and certificates (NEVER modify)
     "private_key",
     "id_rsa",
     "id_ed25519",
@@ -66,10 +64,10 @@ SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
     ".key",
     ".p12",  # PKCS#12 certificate files
     ".pfx",  # Windows certificate files
-    "fly.toml",  # Deployment config
-    "render.yaml",  # Deployment config
-    "vercel.json",  # Deployment config
-    "docker-compose.prod",  # Production Docker config
+    # Explicit secrets files (NEVER modify)
+    "secrets.yaml",
+    "secrets.yml",
+    # Package manager auth tokens (NEVER modify)
     ".npmrc",  # NPM auth tokens
     ".pypirc",  # PyPI auth tokens
 })
