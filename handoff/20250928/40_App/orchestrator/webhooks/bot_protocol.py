@@ -209,7 +209,8 @@ class WebhookHandler(Protocol):
         self,
         payload: bytes,
         signature: str,
-        secret: str
+        secret: str,
+        headers: Optional[Dict[str, str]] = None
     ) -> bool:
         """
         Validate the webhook signature.
@@ -218,6 +219,8 @@ class WebhookHandler(Protocol):
             payload: Raw request body
             signature: Signature from request headers
             secret: Webhook secret for validation
+            headers: Optional request headers for handlers that need
+                     additional header values (e.g., Slack needs timestamp)
 
         Returns:
             True if signature is valid, False otherwise
@@ -309,9 +312,19 @@ class BaseWebhookHandler(ABC):
         self,
         payload: bytes,
         signature: str,
-        secret: str
+        secret: str,
+        headers: Optional[Dict[str, str]] = None
     ) -> bool:
-        """Validate the webhook signature"""
+        """
+        Validate the webhook signature.
+
+        Args:
+            payload: Raw request body
+            signature: Signature from request headers
+            secret: Webhook secret for validation
+            headers: Optional request headers for handlers that need
+                     additional header values (e.g., Slack needs timestamp)
+        """
         pass
 
     @abstractmethod
@@ -393,7 +406,7 @@ class BaseWebhookHandler(ABC):
                         errors=["Signature header not found"],
                     )
 
-                if not self.validate_signature(payload, signature, self.config.secret):
+                if not self.validate_signature(payload, signature, self.config.secret, headers):
                     return WebhookResponse(
                         success=False,
                         message="Invalid signature",
@@ -430,10 +443,13 @@ class BaseWebhookHandler(ABC):
                 errors=[str(e)],
             )
 
+    @abstractmethod
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
         """
         Get the signature header for this webhook source.
 
-        Override in subclasses to specify the correct header name.
+        Must be implemented by subclasses to specify the correct header name.
+        This is marked as abstract to enforce implementation in all handlers
+        and prevent silent failures in signature validation.
         """
-        return None
+        pass

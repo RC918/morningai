@@ -75,7 +75,8 @@ class JiraWebhookHandler(BaseWebhookHandler):
         self,
         payload: bytes,
         signature: str,
-        secret: str
+        secret: str,
+        headers: Optional[Dict[str, str]] = None
     ) -> bool:
         """
         Validate Jira webhook signature.
@@ -86,6 +87,7 @@ class JiraWebhookHandler(BaseWebhookHandler):
             payload: Raw request body
             signature: Signature header value
             secret: Webhook secret
+            headers: Optional request headers (not used by Jira handler)
 
         Returns:
             True if signature is valid
@@ -259,6 +261,12 @@ class JiraWebhookHandler(BaseWebhookHandler):
         Extract plain text from Atlassian Document Format (ADF).
 
         ADF is a JSON-based document format used by Jira Cloud.
+        This method supports a comprehensive set of ADF node types including:
+        - paragraph, text, heading
+        - bulletList, orderedList, listItem
+        - codeBlock, blockquote, panel
+        - table, tableRow, tableCell, tableHeader
+        - hardBreak, rule, mention, emoji
 
         Args:
             adf: ADF document
@@ -269,35 +277,178 @@ class JiraWebhookHandler(BaseWebhookHandler):
         if not isinstance(adf, dict):
             return str(adf)
 
-        content = adf.get("content", [])
+        return self._extract_adf_node(adf)
+
+    def _extract_adf_node(self, node: Dict[str, Any], depth: int = 0) -> str:
+        """
+        Recursively extract text from an ADF node.
+
+        Args:
+            node: ADF node
+            depth: Current nesting depth for indentation
+
+        Returns:
+            Extracted text content
+        """
+        if not isinstance(node, dict):
+            return str(node) if node else ""
+
+        node_type = node.get("type", "")
+        content = node.get("content", [])
         text_parts = []
 
-        for block in content:
-            block_type = block.get("type", "")
+        # Handle text node (leaf node)
+        if node_type == "text":
+            return node.get("text", "")
 
-            if block_type == "paragraph":
-                para_content = block.get("content", [])
-                for item in para_content:
-                    if item.get("type") == "text":
-                        text_parts.append(item.get("text", ""))
+        # Handle hard break
+        if node_type == "hardBreak":
+            return "\n"
 
-            elif block_type == "bulletList":
-                items = block.get("content", [])
-                for item in items:
-                    item_content = item.get("content", [])
-                    for para in item_content:
-                        if para.get("type") == "paragraph":
-                            for text_item in para.get("content", []):
-                                if text_item.get("type") == "text":
-                                    text_parts.append(f"- {text_item.get('text', '')}")
+        # Handle horizontal rule
+        if node_type == "rule":
+            return "\n---\n"
 
-            elif block_type == "codeBlock":
-                code_content = block.get("content", [])
-                for item in code_content:
-                    if item.get("type") == "text":
-                        text_parts.append(f"```\n{item.get('text', '')}\n```")
+        # Handle mention
+        if node_type == "mention":
+            attrs = node.get("attrs", {})
+            return f"@{attrs.get('text', attrs.get('id', ''))}"
 
-        return "\n".join(text_parts)
+        # Handle emoji
+        if node_type == "emoji":
+            attrs = node.get("attrs", {})
+            return attrs.get("text", attrs.get("shortName", ""))
+
+        # Handle heading
+        if node_type == "heading":
+            level = node.get("attrs", {}).get("level", 1)
+            heading_text = " ".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+            return f"{'#' * level} {heading_text}\n"
+
+        # Handle paragraph
+        if node_type == "paragraph":
+            para_text = "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+            return para_text + "\n" if para_text else ""
+
+        # Handle bullet list
+        if node_type == "bulletList":
+            for item in content:
+                item_text = self._extract_adf_node(item, depth)
+                if item_text.strip():
+                    text_parts.append(f"{'  ' * depth}- {item_text.strip()}")
+            return "\n".join(text_parts)
+
+        # Handle ordered list
+        if node_type == "orderedList":
+            for i, item in enumerate(content, 1):
+                item_text = self._extract_adf_node(item, depth)
+                if item_text.strip():
+                    text_parts.append(f"{'  ' * depth}{i}. {item_text.strip()}")
+            return "\n".join(text_parts)
+
+        # Handle list item
+        # List items are containers that concatenate their children's text.
+        # Only increase depth for nested lists to handle indentation properly.
+        if node_type == "listItem":
+            parts = []
+            for child in content:
+                child_type = child.get("type") if isinstance(child, dict) else ""
+                # Increase depth only for nested lists so they indent properly
+                child_depth = depth + 1 if child_type in ("bulletList", "orderedList") else depth
+                parts.append(self._extract_adf_node(child, child_depth))
+            # Let children control their own newlines; just concatenate
+            return "".join(parts)
+
+        # Handle code block
+        if node_type == "codeBlock":
+            language = node.get("attrs", {}).get("language", "")
+            code_text = "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+            return f"```{language}\n{code_text}\n```\n"
+
+        # Handle blockquote
+        if node_type == "blockquote":
+            quote_text = "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+            # Prefix each line with >
+            quoted_lines = [f"> {line}" for line in quote_text.split("\n") if line]
+            return "\n".join(quoted_lines) + "\n"
+
+        # Handle panel (info, note, warning, error, success)
+        if node_type == "panel":
+            panel_type = node.get("attrs", {}).get("panelType", "info")
+            panel_text = "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+            return f"[{panel_type.upper()}] {panel_text}"
+
+        # Handle table
+        if node_type == "table":
+            rows = []
+            for row in content:
+                row_text = self._extract_adf_node(row, depth)
+                if row_text:
+                    rows.append(row_text)
+            return "\n".join(rows) + "\n"
+
+        # Handle table row
+        if node_type == "tableRow":
+            cells = []
+            for cell in content:
+                cell_text = self._extract_adf_node(cell, depth)
+                cells.append(cell_text.strip() if cell_text else "")
+            return "| " + " | ".join(cells) + " |"
+
+        # Handle table cell and header
+        if node_type in ("tableCell", "tableHeader"):
+            return "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            ).strip()
+
+        # Handle media (images, files)
+        if node_type == "media":
+            attrs = node.get("attrs", {})
+            return f"[Media: {attrs.get('type', 'file')}]"
+
+        # Handle media single (wrapper for media)
+        if node_type == "mediaSingle":
+            return "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+
+        # Handle inline card (links)
+        if node_type == "inlineCard":
+            attrs = node.get("attrs", {})
+            return attrs.get("url", "[Link]")
+
+        # Handle doc (root node) and other container nodes
+        if node_type in ("doc", "expand", "nestedExpand", "layoutSection", "layoutColumn"):
+            return "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+
+        # Default: recursively process children
+        if content:
+            return "".join(
+                self._extract_adf_node(child, depth)
+                for child in content
+            )
+
+        return ""
 
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
         """Get the Jira signature header"""
