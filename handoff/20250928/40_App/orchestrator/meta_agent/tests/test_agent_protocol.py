@@ -25,7 +25,7 @@ class TestAgentCapability:
 
     def test_all_capabilities_exist(self):
         """Verify all expected capabilities are defined"""
-        expected_capabilities = [
+        expected_capabilities = {
             "CODE_ANALYSIS",
             "CODE_WRITING",
             "CODE_REVIEW",
@@ -36,9 +36,9 @@ class TestAgentCapability:
             "MONITORING",
             "INCIDENT_RESPONSE",
             "DATABASE_OPERATIONS",
-        ]
-        for cap in expected_capabilities:
-            assert hasattr(AgentCapability, cap)
+        }
+        actual_capabilities = {member.name for member in AgentCapability}
+        assert actual_capabilities == expected_capabilities
 
     def test_capability_values(self):
         """Verify capability values are lowercase strings"""

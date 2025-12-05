@@ -148,13 +148,17 @@ class TestExecutionStateManager:
 
         assert executions == []
 
-    def test_list_saved_executions(self, state_manager):
+    def test_list_saved_executions(self, state_manager, temp_storage_dir):
         """Test listing saved executions"""
         state_manager.save_state("exec-001", {"status": "completed"})
-        time.sleep(0.01)  # Ensure different timestamps
         state_manager.save_state("exec-002", {"status": "running"})
-        time.sleep(0.01)
         state_manager.save_state("exec-003", {"status": "failed"})
+
+        # Set different modification times to ensure deterministic ordering
+        base_time = time.time()
+        os.utime(Path(temp_storage_dir) / "exec-001.json", (base_time - 20, base_time - 20))
+        os.utime(Path(temp_storage_dir) / "exec-002.json", (base_time - 10, base_time - 10))
+        os.utime(Path(temp_storage_dir) / "exec-003.json", (base_time, base_time))
 
         executions = state_manager.list_saved_executions()
 

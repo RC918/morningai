@@ -20,7 +20,7 @@ class TestAuditEventType:
 
     def test_all_event_types_exist(self):
         """Verify all expected event types are defined"""
-        expected_types = [
+        expected_types = {
             "EXECUTION_STARTED",
             "EXECUTION_COMPLETED",
             "EXECUTION_FAILED",
@@ -40,9 +40,9 @@ class TestAuditEventType:
             "SAFETY_LIMIT_REACHED",
             "HIGH_RISK_OPERATION",
             "OPERATION_BLOCKED",
-        ]
-        for event_type in expected_types:
-            assert hasattr(AuditEventType, event_type)
+        }
+        actual_types = {member.name for member in AuditEventType}
+        assert actual_types == expected_types
 
     def test_event_type_values(self):
         """Verify event type values are lowercase strings"""
@@ -56,10 +56,11 @@ class TestAuditEvent:
 
     def test_audit_event_creation(self):
         """Test creating an AuditEvent"""
+        fixed_timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.EXECUTION_STARTED,
-            timestamp=datetime.now(),
+            timestamp=fixed_timestamp,
             execution_id="exec-123",
             actor="test_user",
             action="start_execution",
@@ -72,10 +73,11 @@ class TestAuditEvent:
 
     def test_audit_event_optional_fields(self):
         """Test AuditEvent with optional fields"""
+        fixed_timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.TASK_STARTED,
-            timestamp=datetime.now(),
+            timestamp=fixed_timestamp,
             execution_id="exec-123",
             task_id="task-456",
             resource="/path/to/file",
@@ -89,7 +91,7 @@ class TestAuditEvent:
 
     def test_audit_event_to_dict(self):
         """Test converting AuditEvent to dictionary"""
-        timestamp = datetime.now()
+        timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.EXECUTION_STARTED,
@@ -111,10 +113,11 @@ class TestAuditEvent:
 
     def test_audit_event_to_json(self):
         """Test converting AuditEvent to JSON string"""
+        fixed_timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.EXECUTION_STARTED,
-            timestamp=datetime.now(),
+            timestamp=fixed_timestamp,
             execution_id="exec-123",
         )
         json_str = event.to_json()

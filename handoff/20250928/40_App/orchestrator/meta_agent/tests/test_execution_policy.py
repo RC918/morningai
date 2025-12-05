@@ -23,7 +23,7 @@ class TestAllowedOperation:
 
     def test_all_operations_exist(self):
         """Verify all expected operations are defined"""
-        expected_operations = [
+        expected_operations = {
             "READ_FILE",
             "WRITE_FILE",
             "DELETE_FILE",
@@ -37,9 +37,9 @@ class TestAllowedOperation:
             "CREATE_PR",
             "MERGE_PR",
             "SEND_NOTIFICATION",
-        ]
-        for op in expected_operations:
-            assert hasattr(AllowedOperation, op)
+        }
+        actual_operations = {member.name for member in AllowedOperation}
+        assert actual_operations == expected_operations
 
     def test_operation_values(self):
         """Verify operation values are lowercase strings"""
