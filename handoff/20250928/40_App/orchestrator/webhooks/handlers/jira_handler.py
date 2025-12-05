@@ -353,11 +353,17 @@ class JiraWebhookHandler(BaseWebhookHandler):
             return "\n".join(text_parts)
 
         # Handle list item
+        # List items are containers that concatenate their children's text.
+        # Only increase depth for nested lists to handle indentation properly.
         if node_type == "listItem":
-            return " ".join(
-                self._extract_adf_node(child, depth + 1).strip()
-                for child in content
-            )
+            parts = []
+            for child in content:
+                child_type = child.get("type") if isinstance(child, dict) else ""
+                # Increase depth only for nested lists so they indent properly
+                child_depth = depth + 1 if child_type in ("bulletList", "orderedList") else depth
+                parts.append(self._extract_adf_node(child, child_depth))
+            # Let children control their own newlines; just concatenate
+            return "".join(parts)
 
         # Handle code block
         if node_type == "codeBlock":
