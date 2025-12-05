@@ -41,6 +41,14 @@ from .state_persistence import (
     create_checkpoint_from_execution,
 )
 from .task_planner import SubTask, SubTaskStatus, SubTaskType, TaskPlan, TaskPlanner
+from .confidence_scorer import (
+    ConfidenceLevel,
+    ConfidenceScore,
+    ConfidenceScorer,
+    Question,
+    QuestionCategory,
+    ScoredPlan,
+)
 
 __all__ = [
     # Goal Parser
@@ -83,4 +91,11 @@ __all__ = [
     "ExecutionStateManager",
     "ExecutionCheckpoint",
     "create_checkpoint_from_execution",
+    # Confidence Scorer
+    "ConfidenceScorer",
+    "ConfidenceScore",
+    "ConfidenceLevel",
+    "ScoredPlan",
+    "Question",
+    "QuestionCategory",
 ]
