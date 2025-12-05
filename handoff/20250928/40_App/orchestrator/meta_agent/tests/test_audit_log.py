@@ -14,6 +14,9 @@ from meta_agent.audit_log import (
     AuditLogger,
 )
 
+# Fixed timestamp for deterministic tests
+FIXED_TIMESTAMP = datetime(2025, 1, 1, 12, 0, 0)
+
 
 class TestAuditEventType:
     """Tests for AuditEventType enum"""
@@ -56,11 +59,10 @@ class TestAuditEvent:
 
     def test_audit_event_creation(self):
         """Test creating an AuditEvent"""
-        fixed_timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.EXECUTION_STARTED,
-            timestamp=fixed_timestamp,
+            timestamp=FIXED_TIMESTAMP,
             execution_id="exec-123",
             actor="test_user",
             action="start_execution",
@@ -73,11 +75,10 @@ class TestAuditEvent:
 
     def test_audit_event_optional_fields(self):
         """Test AuditEvent with optional fields"""
-        fixed_timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.TASK_STARTED,
-            timestamp=fixed_timestamp,
+            timestamp=FIXED_TIMESTAMP,
             execution_id="exec-123",
             task_id="task-456",
             resource="/path/to/file",
@@ -91,11 +92,10 @@ class TestAuditEvent:
 
     def test_audit_event_to_dict(self):
         """Test converting AuditEvent to dictionary"""
-        timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.EXECUTION_STARTED,
-            timestamp=timestamp,
+            timestamp=FIXED_TIMESTAMP,
             execution_id="exec-123",
             actor="test_user",
             action="start_execution",
@@ -105,7 +105,7 @@ class TestAuditEvent:
 
         assert result["event_id"] == "test-evt-0001"
         assert result["event_type"] == "execution_started"
-        assert result["timestamp"] == timestamp.isoformat()
+        assert result["timestamp"] == FIXED_TIMESTAMP.isoformat()
         assert result["execution_id"] == "exec-123"
         assert result["actor"] == "test_user"
         assert result["action"] == "start_execution"
@@ -113,11 +113,10 @@ class TestAuditEvent:
 
     def test_audit_event_to_json(self):
         """Test converting AuditEvent to JSON string"""
-        fixed_timestamp = datetime(2025, 1, 1, 12, 0, 0)
         event = AuditEvent(
             event_id="test-evt-0001",
             event_type=AuditEventType.EXECUTION_STARTED,
-            timestamp=fixed_timestamp,
+            timestamp=FIXED_TIMESTAMP,
             execution_id="exec-123",
         )
         json_str = event.to_json()
