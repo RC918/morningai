@@ -67,29 +67,33 @@ describe('SignupPage', () => {
     })
 
     it('should render full name input field', () => {
-      const { container } = renderSignupPage()
-      const fullNameInput = container.querySelector('input[name="fullName"]')
+      renderSignupPage()
+      // Use getByLabelText for better accessibility testing
+      const fullNameInput = screen.getByLabelText(/fullName|姓名|name/i)
       expect(fullNameInput).toBeInTheDocument()
       expect(fullNameInput).toHaveAttribute('type', 'text')
     })
 
     it('should render email input field', () => {
-      const { container } = renderSignupPage()
-      const emailInput = container.querySelector('input[name="email"]')
+      renderSignupPage()
+      // Use getByLabelText for better accessibility testing
+      const emailInput = screen.getByLabelText(/email|電子郵件/i)
       expect(emailInput).toBeInTheDocument()
       expect(emailInput).toHaveAttribute('type', 'email')
     })
 
     it('should render password input field', () => {
-      const { container } = renderSignupPage()
-      const passwordInput = container.querySelector('input[name="password"]')
+      renderSignupPage()
+      // Use getByLabelText for better accessibility testing (match password but not confirmPassword)
+      const passwordInput = screen.getByLabelText(/^auth\.signup\.password$|^密碼$/i)
       expect(passwordInput).toBeInTheDocument()
       expect(passwordInput).toHaveAttribute('type', 'password')
     })
 
     it('should render confirm password input field', () => {
-      const { container } = renderSignupPage()
-      const confirmPasswordInput = container.querySelector('input[name="confirmPassword"]')
+      renderSignupPage()
+      // Use getByLabelText for better accessibility testing
+      const confirmPasswordInput = screen.getByLabelText(/confirmPassword|確認密碼/i)
       expect(confirmPasswordInput).toBeInTheDocument()
       expect(confirmPasswordInput).toHaveAttribute('type', 'password')
     })
@@ -122,9 +126,9 @@ describe('SignupPage', () => {
 
   describe('Form Interaction', () => {
     it('should update full name field on change', async () => {
-      const { user, container } = renderSignupPage()
-      const fullNameInput = container.querySelector('input[name="fullName"]') as HTMLInputElement
-      expect(fullNameInput).not.toBeNull()
+      const { user } = renderSignupPage()
+      // Use getByLabelText for better accessibility testing
+      const fullNameInput = screen.getByLabelText(/fullName|姓名|name/i)
       
       await user.clear(fullNameInput)
       await user.type(fullNameInput, 'John Doe')
@@ -133,9 +137,9 @@ describe('SignupPage', () => {
     })
 
     it('should update email field on change', async () => {
-      const { user, container } = renderSignupPage()
-      const emailInput = container.querySelector('input[name="email"]') as HTMLInputElement
-      expect(emailInput).not.toBeNull()
+      const { user } = renderSignupPage()
+      // Use getByLabelText for better accessibility testing
+      const emailInput = screen.getByLabelText(/email|電子郵件/i)
       
       await user.clear(emailInput)
       await user.type(emailInput, 'test@example.com')
@@ -144,9 +148,9 @@ describe('SignupPage', () => {
     })
 
     it('should update password field on change', async () => {
-      const { user, container } = renderSignupPage()
-      const passwordInput = container.querySelector('input[name="password"]') as HTMLInputElement
-      expect(passwordInput).not.toBeNull()
+      const { user } = renderSignupPage()
+      // Use getByLabelText for better accessibility testing
+      const passwordInput = screen.getByLabelText(/^auth\.signup\.password$|^密碼$/i)
       
       await user.clear(passwordInput)
       await user.type(passwordInput, 'testpassword123')
@@ -155,9 +159,9 @@ describe('SignupPage', () => {
     })
 
     it('should update confirm password field on change', async () => {
-      const { user, container } = renderSignupPage()
-      const confirmPasswordInput = container.querySelector('input[name="confirmPassword"]') as HTMLInputElement
-      expect(confirmPasswordInput).not.toBeNull()
+      const { user } = renderSignupPage()
+      // Use getByLabelText for better accessibility testing
+      const confirmPasswordInput = screen.getByLabelText(/confirmPassword|確認密碼/i)
       
       await user.clear(confirmPasswordInput)
       await user.type(confirmPasswordInput, 'testpassword123')
@@ -187,11 +191,11 @@ describe('SignupPage', () => {
       const form = container.querySelector('form')
       expect(form).toBeInTheDocument()
       
-      // All required inputs should exist
-      const fullNameInput = container.querySelector('input[name="fullName"]')
-      const emailInput = container.querySelector('input[name="email"]')
-      const passwordInput = container.querySelector('input[name="password"]')
-      const confirmPasswordInput = container.querySelector('input[name="confirmPassword"]')
+      // All required inputs should be accessible by label
+      const fullNameInput = screen.getByLabelText(/fullName|姓名|name/i)
+      const emailInput = screen.getByLabelText(/email|電子郵件/i)
+      const passwordInput = screen.getByLabelText(/^auth\.signup\.password$|^密碼$/i)
+      const confirmPasswordInput = screen.getByLabelText(/confirmPassword|確認密碼/i)
       
       expect(fullNameInput).toBeInTheDocument()
       expect(emailInput).toBeInTheDocument()
