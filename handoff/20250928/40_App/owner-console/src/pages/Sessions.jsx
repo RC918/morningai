@@ -7,7 +7,9 @@ import {
   TabsList, 
   TabsTrigger, 
   Skeleton,
-  Progress
+  Progress,
+  StatCard,
+  SectionCard
 } from '@morningai/shared-ui'
 import { 
   Play,
@@ -531,152 +533,179 @@ const Sessions = () => {
         />
       )}
 
-      {/* Stats Cards */}
+      {/* Stats Cards - KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {[
-          { key: 'all', label: t('sessions.filter.all', 'All'), icon: Activity },
-          { key: 'running', label: t('sessions.filter.running', 'Running'), icon: Play },
-          { key: 'paused', label: t('sessions.filter.paused', 'Paused'), icon: Pause },
-          { key: 'completed', label: t('sessions.filter.completed', 'Completed'), icon: CheckCircle },
-          { key: 'failed', label: t('sessions.filter.failed', 'Failed'), icon: XCircle }
-        ].map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => handleFilterChange(key)}
-            className={`rounded-xl border p-4 text-left transition-all ${
-              filter === key
-                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">{label}</p>
-              <Icon className={`w-5 h-5 ${filter === key ? 'text-primary-500' : 'text-neutral-400'}`} />
-            </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {sessionCounts[key]}
-            </p>
-          </button>
-        ))}
+        <button 
+          type="button"
+          onClick={() => handleFilterChange('all')}
+          className={`cursor-pointer transition-all rounded-xl text-left ${filter === 'all' ? 'ring-2 ring-primary-500' : ''}`}
+        >
+          <StatCard
+            label={t('sessions.filter.all', 'All')}
+            value={String(sessionCounts.all)}
+            icon={<Activity className="w-5 h-5" />}
+            variant="blue"
+          />
+        </button>
+        <button 
+          type="button"
+          onClick={() => handleFilterChange('running')}
+          className={`cursor-pointer transition-all rounded-xl text-left ${filter === 'running' ? 'ring-2 ring-primary-500' : ''}`}
+        >
+          <StatCard
+            label={t('sessions.filter.running', 'Running')}
+            value={String(sessionCounts.running)}
+            icon={<Play className="w-5 h-5" />}
+            variant="green"
+          />
+        </button>
+        <button 
+          type="button"
+          onClick={() => handleFilterChange('paused')}
+          className={`cursor-pointer transition-all rounded-xl text-left ${filter === 'paused' ? 'ring-2 ring-primary-500' : ''}`}
+        >
+          <StatCard
+            label={t('sessions.filter.paused', 'Paused')}
+            value={String(sessionCounts.paused)}
+            icon={<Pause className="w-5 h-5" />}
+            variant="yellow"
+          />
+        </button>
+        <button 
+          type="button"
+          onClick={() => handleFilterChange('completed')}
+          className={`cursor-pointer transition-all rounded-xl text-left ${filter === 'completed' ? 'ring-2 ring-primary-500' : ''}`}
+        >
+          <StatCard
+            label={t('sessions.filter.completed', 'Completed')}
+            value={String(sessionCounts.completed)}
+            icon={<CheckCircle className="w-5 h-5" />}
+            variant="green"
+          />
+        </button>
+        <button 
+          type="button"
+          onClick={() => handleFilterChange('failed')}
+          className={`cursor-pointer transition-all rounded-xl text-left ${filter === 'failed' ? 'ring-2 ring-primary-500' : ''}`}
+        >
+          <StatCard
+            label={t('sessions.filter.failed', 'Failed')}
+            value={String(sessionCounts.failed)}
+            icon={<XCircle className="w-5 h-5" />}
+            variant="red"
+          />
+        </button>
       </div>
 
       {/* Main Content: Session List + Details */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Session List */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-[var(--text-secondary)] px-1">
-            {t('sessions.list.title', 'Sessions')} ({filteredSessions.length})
-          </h2>
-          
-          {filteredSessions.length === 0 ? (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-              <Activity className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-              <p className="text-neutral-500">
-                {t('sessions.list.noSessions', 'No sessions found')}
-              </p>
-            </div>
-          ) : (
-            filteredSessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => handleSessionSelect(session)}
-                className={`w-full text-left rounded-xl border p-4 transition-all ${
-                  selectedSession?.id === session.id
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                    : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
-                }`}
-              >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                        {session.title}
-                      </p>
-                      <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
-                        {session.goal}
-                      </p>
+        <SectionCard
+          title={t('sessions.list.title', 'Sessions')}
+          subtitle={`${filteredSessions.length} ${t('sessions.list.count', 'sessions')}`}
+        >
+          <div className="space-y-3">
+            {filteredSessions.length === 0 ? (
+              <div className="p-8 text-center">
+                <Activity className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+                <p className="text-neutral-500">
+                  {t('sessions.list.noSessions', 'No sessions found')}
+                </p>
+              </div>
+            ) : (
+              filteredSessions.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => handleSessionSelect(session)}
+                  className={`w-full text-left rounded-xl border p-4 transition-all ${
+                    selectedSession?.id === session.id
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                      : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                          {session.title}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
+                          {session.goal}
+                        </p>
+                      </div>
+                      <ChevronRight className={`w-4 h-4 ml-2 flex-shrink-0 ${
+                        selectedSession?.id === session.id ? 'text-primary-500' : 'text-neutral-400'
+                      }`} />
                     </div>
-                    <ChevronRight className={`w-4 h-4 ml-2 flex-shrink-0 ${
-                      selectedSession?.id === session.id ? 'text-primary-500' : 'text-neutral-400'
-                    }`} />
-                  </div>
-                  
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant={getStatusBadgeVariant(session.status)} className="text-xs">
-                      {getStatusIcon(session.status)}
-                      <span>{t(`sessions.status.${session.status}`, session.status)}</span>
-                    </Badge>
                     
-                    {session.requiresApproval && (
-                      <Badge variant="warning" className="text-xs">
-                        <AlertTriangle />
-                        <span>{t('sessions.needsApproval', 'Needs Approval')}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={getStatusBadgeVariant(session.status)} className="text-xs">
+                        {getStatusIcon(session.status)}
+                        <span>{t(`sessions.status.${session.status}`, session.status)}</span>
                       </Badge>
-                    )}
+                      
+                      {session.requiresApproval && (
+                        <Badge variant="warning" className="text-xs">
+                          <AlertTriangle />
+                          <span>{t('sessions.needsApproval', 'Needs Approval')}</span>
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                      <span>{formatRelativeTime(session.updatedAt)}</span>
+                      <span className={getConfidenceColor(session.confidence)}>
+                        {t('sessions.confidence', 'Confidence')}: {Math.round(session.confidence * 100)}%
+                      </span>
+                    </div>
+                    
+                    <Progress value={session.progress} className="h-1" />
                   </div>
-                  
-                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                    <span>{formatRelativeTime(session.updatedAt)}</span>
-                    <span className={getConfidenceColor(session.confidence)}>
-                      {t('sessions.confidence', 'Confidence')}: {Math.round(session.confidence * 100)}%
-                    </span>
-                  </div>
-                  
-                  <Progress value={session.progress} className="h-1" />
-                </div>
-              </button>
-            ))
-          )}
-        </div>
+                </button>
+              ))
+            )}
+          </div>
+        </SectionCard>
 
         {/* Session Details */}
         <div className="lg:col-span-2">
           {selectedSession ? (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-              {/* Session Header */}
-              <div className="px-5 py-4 border-b border-[var(--border)]">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-                      {selectedSession.title}
-                    </h2>
-                    <p className="text-sm text-[var(--text-secondary)] mt-1">
-                      {selectedSession.goal}
-                    </p>
-                  </div>
-                  <Badge variant={getStatusBadgeVariant(selectedSession.status)} className="text-xs">
-                    {getStatusIcon(selectedSession.status)}
-                    <span>{t(`sessions.status.${selectedSession.status}`, selectedSession.status)}</span>
-                  </Badge>
-                </div>
-                
-                {/* Session Actions */}
-                <div className="flex items-center gap-2 mt-4">
-                  {selectedSession.status === 'running' && (
-                    <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handlePauseSession(selectedSession.id)}>
-                      <Pause className="w-4 h-4 mr-1" />
-                      {t('sessions.actions.pause', 'Pause')}
-                    </AppleButton>
-                  )}
-                  {selectedSession.status === 'paused' && (
-                    <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handleResumeSession(selectedSession.id)}>
-                      <Play className="w-4 h-4 mr-1" />
-                      {t('sessions.actions.resume', 'Resume')}
-                    </AppleButton>
-                  )}
-                  {(selectedSession.status === 'running' || selectedSession.status === 'paused') && (
-                    <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handleCancelSession(selectedSession.id)}>
-                      <StopCircle className="w-4 h-4 mr-1" />
-                      {t('sessions.actions.cancel', 'Cancel')}
-                    </AppleButton>
-                  )}
-                  {selectedSession.requiresApproval && (
-                    <AppleButton variant="default" size="sm" haptic="medium" disabled>
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      {t('sessions.actions.approve', 'Approve')}
-                    </AppleButton>
-                  )}
-                </div>
+            <SectionCard
+              title={selectedSession.title}
+              subtitle={selectedSession.goal}
+              action={
+                <Badge variant={getStatusBadgeVariant(selectedSession.status)} className="text-xs">
+                  {getStatusIcon(selectedSession.status)}
+                  <span>{t(`sessions.status.${selectedSession.status}`, selectedSession.status)}</span>
+                </Badge>
+              }
+            >
+              {/* Session Actions */}
+              <div className="flex items-center gap-2 mb-4">
+                {selectedSession.status === 'running' && (
+                  <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handlePauseSession(selectedSession.id)}>
+                    <Pause className="w-4 h-4 mr-1" />
+                    {t('sessions.actions.pause', 'Pause')}
+                  </AppleButton>
+                )}
+                {selectedSession.status === 'paused' && (
+                  <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handleResumeSession(selectedSession.id)}>
+                    <Play className="w-4 h-4 mr-1" />
+                    {t('sessions.actions.resume', 'Resume')}
+                  </AppleButton>
+                )}
+                {(selectedSession.status === 'running' || selectedSession.status === 'paused') && (
+                  <AppleButton variant="outline" size="sm" haptic="light" onClick={() => handleCancelSession(selectedSession.id)}>
+                    <StopCircle className="w-4 h-4 mr-1" />
+                    {t('sessions.actions.cancel', 'Cancel')}
+                  </AppleButton>
+                )}
+                {selectedSession.requiresApproval && (
+                  <AppleButton variant="default" size="sm" haptic="medium" disabled>
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    {t('sessions.actions.approve', 'Approve')}
+                  </AppleButton>
+                )}
               </div>
 
               {/* Session Content Tabs */}
@@ -825,7 +854,7 @@ const Sessions = () => {
               </Tabs>
 
               {/* Session Footer */}
-              <div className="px-5 py-3 border-t border-[var(--border)] text-xs text-[var(--text-secondary)]">
+              <div className="mt-4 pt-3 border-t border-[var(--border)] text-xs text-[var(--text-secondary)]">
                 <div className="flex items-center justify-between">
                   <span>
                     {t('sessions.startedAt', 'Started')}: {formatTimestamp(selectedSession.startedAt)}
@@ -842,14 +871,16 @@ const Sessions = () => {
                   )}
                 </div>
               </div>
-            </div>
+            </SectionCard>
           ) : (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-              <ListTodo className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-              <p className="text-neutral-500">
-                {t('sessions.selectSession', 'Select a session to view details')}
-              </p>
-            </div>
+            <SectionCard title={t('sessions.details.title', 'Session Details')}>
+              <div className="p-8 text-center">
+                <ListTodo className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+                <p className="text-neutral-500">
+                  {t('sessions.selectSession', 'Select a session to view details')}
+                </p>
+              </div>
+            </SectionCard>
           )}
         </div>
       </div>
