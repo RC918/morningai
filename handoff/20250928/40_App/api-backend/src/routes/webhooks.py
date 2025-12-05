@@ -16,9 +16,146 @@ Endpoints:
 
 import json
 import logging
+import threading
+import time
+from collections import defaultdict
 from datetime import datetime
+from functools import wraps
 from flask import Blueprint, jsonify, request
 from common.config.settings import settings
+
+# Maximum request body size for webhooks (1MB)
+MAX_WEBHOOK_PAYLOAD_SIZE = 1 * 1024 * 1024  # 1MB
+
+# Rate limiting configuration
+WEBHOOK_RATE_LIMIT = 100  # requests per window
+WEBHOOK_RATE_WINDOW = 60  # seconds
+
+
+class WebhookRateLimiter:
+    """
+    Simple in-memory rate limiter for webhook endpoints.
+    
+    Uses sliding window algorithm with thread-safe operations.
+    For production with multiple workers, consider using Redis-based rate limiting.
+    """
+    
+    def __init__(self, limit: int = WEBHOOK_RATE_LIMIT, window: int = WEBHOOK_RATE_WINDOW):
+        self.limit = limit
+        self.window = window
+        self._requests = defaultdict(list)
+        self._lock = threading.Lock()
+    
+    def is_rate_limited(self, key: str) -> tuple:
+        """
+        Check if a key is rate limited.
+        
+        Args:
+            key: Identifier for rate limiting (e.g., IP address, source)
+            
+        Returns:
+            tuple: (is_limited: bool, remaining: int, reset_time: int)
+        """
+        now = time.time()
+        window_start = now - self.window
+        
+        with self._lock:
+            # Clean old requests
+            self._requests[key] = [
+                ts for ts in self._requests[key] if ts > window_start
+            ]
+            
+            current_count = len(self._requests[key])
+            
+            if current_count >= self.limit:
+                # Calculate reset time
+                oldest_in_window = min(self._requests[key]) if self._requests[key] else now
+                reset_time = int(oldest_in_window + self.window)
+                return True, 0, reset_time
+            
+            # Record this request
+            self._requests[key].append(now)
+            remaining = self.limit - current_count - 1
+            reset_time = int(now + self.window)
+            
+            return False, remaining, reset_time
+
+
+# Global rate limiter instance
+_webhook_rate_limiter = WebhookRateLimiter()
+
+
+def rate_limit_webhook(f):
+    """
+    Decorator to apply rate limiting to webhook endpoints.
+    
+    Rate limits by client IP address and webhook source.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Get client IP
+        client_ip = request.headers.get('X-Forwarded-For', '').split(',')[0].strip()
+        if not client_ip:
+            client_ip = request.headers.get('X-Real-IP', request.remote_addr or 'unknown')
+        
+        # Create rate limit key based on IP and endpoint
+        rate_key = f"webhook:{client_ip}:{request.endpoint}"
+        
+        is_limited, remaining, reset_time = _webhook_rate_limiter.is_rate_limited(rate_key)
+        
+        if is_limited:
+            logger.warning(
+                "[Webhooks] Rate limit exceeded for %s on %s",
+                client_ip,
+                request.endpoint
+            )
+            response = jsonify({
+                "error": "Rate limit exceeded",
+                "message": "Too many requests. Please try again later.",
+                "retry_after": reset_time - int(time.time())
+            })
+            response.status_code = 429
+            response.headers['X-RateLimit-Limit'] = str(_webhook_rate_limiter.limit)
+            response.headers['X-RateLimit-Remaining'] = '0'
+            response.headers['X-RateLimit-Reset'] = str(reset_time)
+            response.headers['Retry-After'] = str(reset_time - int(time.time()))
+            return response
+        
+        # Execute the actual function
+        response = f(*args, **kwargs)
+        
+        # Add rate limit headers to successful responses
+        if hasattr(response, 'headers'):
+            response.headers['X-RateLimit-Limit'] = str(_webhook_rate_limiter.limit)
+            response.headers['X-RateLimit-Remaining'] = str(remaining)
+            response.headers['X-RateLimit-Reset'] = str(reset_time)
+        
+        return response
+    
+    return decorated_function
+
+
+def check_payload_size():
+    """
+    Check if the request payload exceeds the maximum allowed size.
+    
+    Returns:
+        tuple: (is_valid: bool, error_response: Response or None)
+    """
+    content_length = request.content_length
+    if content_length and content_length > MAX_WEBHOOK_PAYLOAD_SIZE:
+        logger.warning(
+            "[Webhooks] Payload too large: %d bytes (max: %d)",
+            content_length,
+            MAX_WEBHOOK_PAYLOAD_SIZE
+        )
+        return False, (jsonify({
+            "error": "Payload too large",
+            "message": f"Request body exceeds maximum size of {MAX_WEBHOOK_PAYLOAD_SIZE} bytes",
+            "max_size": MAX_WEBHOOK_PAYLOAD_SIZE
+        }), 413)
+    return True, None
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,44 +166,54 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("webhooks", __name__, url_prefix="/api/webhooks")
 
 # Lazy import to avoid circular dependencies
+# Thread-safe singleton pattern with double-checked locking
 _normalizer = None
+_normalizer_lock = threading.Lock()
 
 
 def get_normalizer():
     """
     Get or create the EventNormalizer instance.
 
-    Uses lazy initialization to avoid import issues at module load time.
+    Uses lazy initialization with double-checked locking pattern
+    to ensure thread-safety and avoid import issues at module load time.
     """
     global _normalizer
-    if _normalizer is None:
-        try:
-            from orchestrator.webhooks.normalizer import EventNormalizer
-            from orchestrator.webhooks.bot_protocol import WebhookConfig
+    # First check without lock (fast path)
+    if _normalizer is not None:
+        return _normalizer
+    
+    # Acquire lock for initialization
+    with _normalizer_lock:
+        # Double-check after acquiring lock
+        if _normalizer is None:
+            try:
+                from orchestrator.webhooks.normalizer import EventNormalizer
+                from orchestrator.webhooks.bot_protocol import WebhookConfig
 
-            # Load configurations from settings
-            github_config = WebhookConfig(
-                secret=getattr(settings, 'github_webhook_secret', None),
-                verify_signature=getattr(settings, 'webhook_verify_signature', True),
-            )
-            jira_config = WebhookConfig(
-                secret=getattr(settings, 'jira_webhook_secret', None),
-                verify_signature=getattr(settings, 'webhook_verify_signature', True),
-            )
-            slack_config = WebhookConfig(
-                secret=getattr(settings, 'slack_signing_secret', None),
-                verify_signature=getattr(settings, 'webhook_verify_signature', True),
-            )
+                # Load configurations from settings
+                github_config = WebhookConfig(
+                    secret=getattr(settings, 'github_webhook_secret', None),
+                    verify_signature=getattr(settings, 'webhook_verify_signature', True),
+                )
+                jira_config = WebhookConfig(
+                    secret=getattr(settings, 'jira_webhook_secret', None),
+                    verify_signature=getattr(settings, 'webhook_verify_signature', True),
+                )
+                slack_config = WebhookConfig(
+                    secret=getattr(settings, 'slack_signing_secret', None),
+                    verify_signature=getattr(settings, 'webhook_verify_signature', True),
+                )
 
-            _normalizer = EventNormalizer(
-                github_config=github_config,
-                jira_config=jira_config,
-                slack_config=slack_config,
-            )
-            logger.info("[Webhooks] EventNormalizer initialized")
-        except ImportError as e:
-            logger.warning("[Webhooks] Failed to import EventNormalizer: %s", e)
-            _normalizer = None
+                _normalizer = EventNormalizer(
+                    github_config=github_config,
+                    jira_config=jira_config,
+                    slack_config=slack_config,
+                )
+                logger.info("[Webhooks] EventNormalizer initialized (thread-safe)")
+            except ImportError as e:
+                logger.warning("[Webhooks] Failed to import EventNormalizer: %s", e)
+                # Don't set _normalizer to None here, leave it as None
 
     return _normalizer
 
@@ -91,6 +238,16 @@ def _enqueue_task(task):
             logger.warning("[Webhooks] Redis URL not configured, skipping task enqueue")
             return None
 
+        # Get repo from task context or settings - fail explicitly if not configured
+        repo = task.context.get("repo") or settings.github_repo
+        if not repo:
+            logger.error(
+                "[Webhooks] Cannot enqueue task %s: no repository configured. "
+                "Set GITHUB_REPO environment variable or ensure webhook payload contains repo info.",
+                task.task_id
+            )
+            return None
+
         redis_client = Redis.from_url(redis_url, decode_responses=False)
         queue_name = settings.rq_queue_name or "orchestrator"
         queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
@@ -103,7 +260,7 @@ def _enqueue_task(task):
             run_orchestrator_task,
             task.task_id,
             task.goal_text,
-            task.context.get("repo", settings.github_repo or "RC918/morningai"),
+            repo,
             "webhook",
             job_id=task.task_id,
             ttl=600,
@@ -111,7 +268,7 @@ def _enqueue_task(task):
             failure_ttl=3600,
         )
 
-        logger.info("[Webhooks] Enqueued task %s as job %s", task.task_id, job.id)
+        logger.info("[Webhooks] Enqueued task %s as job %s for repo %s", task.task_id, job.id, repo)
         return job.id
 
     except Exception as e:
@@ -136,6 +293,7 @@ def webhook_health():
 
 
 @bp.route("/github", methods=["POST"])
+@rate_limit_webhook
 def github_webhook():
     """
     Receive GitHub webhook events.
@@ -149,8 +307,15 @@ def github_webhook():
         200: Event received and processed
         400: Invalid request
         401: Invalid signature
+        413: Payload too large
+        429: Rate limit exceeded
         500: Processing error
     """
+    # Check payload size
+    is_valid, error_response = check_payload_size()
+    if not is_valid:
+        return error_response
+
     try:
         normalizer = get_normalizer()
         if not normalizer:
@@ -217,6 +382,7 @@ def github_webhook():
 
 
 @bp.route("/jira", methods=["POST"])
+@rate_limit_webhook
 def jira_webhook():
     """
     Receive Jira webhook events.
@@ -229,8 +395,15 @@ def jira_webhook():
         200: Event received and processed
         400: Invalid request
         401: Invalid signature
+        413: Payload too large
+        429: Rate limit exceeded
         500: Processing error
     """
+    # Check payload size
+    is_valid, error_response = check_payload_size()
+    if not is_valid:
+        return error_response
+
     try:
         normalizer = get_normalizer()
         if not normalizer:
@@ -297,6 +470,7 @@ def jira_webhook():
 
 
 @bp.route("/slack", methods=["POST"])
+@rate_limit_webhook
 def slack_webhook():
     """
     Receive Slack webhook events.
@@ -316,8 +490,15 @@ def slack_webhook():
         200 + challenge: URL verification response
         400: Invalid request
         401: Invalid signature
+        413: Payload too large
+        429: Rate limit exceeded
         500: Processing error
     """
+    # Check payload size
+    is_valid, error_response = check_payload_size()
+    if not is_valid:
+        return error_response
+
     try:
         normalizer = get_normalizer()
         if not normalizer:
