@@ -9,10 +9,12 @@ Milestone: M5 - Meta Agent 優化
 
 from .github_handler import GitHubWebhookHandler
 from .jira_handler import JiraWebhookHandler
+from .linear_handler import LinearWebhookHandler
 from .slack_handler import SlackWebhookHandler
 
 __all__ = [
     "GitHubWebhookHandler",
     "JiraWebhookHandler",
+    "LinearWebhookHandler",
     "SlackWebhookHandler",
 ]
