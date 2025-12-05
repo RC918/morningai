@@ -49,6 +49,14 @@ from .confidence_scorer import (
     QuestionCategory,
     ScoredPlan,
 )
+from .vm_provisioner import (
+    TaskVM,
+    VMConfig,
+    VMProvider,
+    VMProvisioner,
+    VMStatus,
+    vm_provisioner,
+)
 
 __all__ = [
     # Goal Parser
@@ -98,4 +106,11 @@ __all__ = [
     "ScoredPlan",
     "Question",
     "QuestionCategory",
+    # VM Provisioner
+    "VMProvisioner",
+    "VMProvider",
+    "VMStatus",
+    "VMConfig",
+    "TaskVM",
+    "vm_provisioner",
 ]
