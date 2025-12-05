@@ -265,8 +265,9 @@ def pause_session(session_id):
     Requires: Owner role
     """
     try:
-        user_id = request.jwt_payload.get('sub', 'unknown')
-        user_email = request.jwt_payload.get('email', user_id)
+        current_user = getattr(request, 'current_user', {})
+        user_id = current_user.get('user_id', 'unknown')
+        user_email = current_user.get('username', user_id)
 
         redis_client = get_redis_client()
         key = f"{SESSION_KEY_PREFIX}{session_id}"
@@ -319,8 +320,9 @@ def resume_session(session_id):
     Requires: Owner role
     """
     try:
-        user_id = request.jwt_payload.get('sub', 'unknown')
-        user_email = request.jwt_payload.get('email', user_id)
+        current_user = getattr(request, 'current_user', {})
+        user_id = current_user.get('user_id', 'unknown')
+        user_email = current_user.get('username', user_id)
 
         redis_client = get_redis_client()
         key = f"{SESSION_KEY_PREFIX}{session_id}"
@@ -376,8 +378,9 @@ def cancel_session(session_id):
     Requires: Owner role
     """
     try:
-        user_id = request.jwt_payload.get('sub', 'unknown')
-        user_email = request.jwt_payload.get('email', user_id)
+        current_user = getattr(request, 'current_user', {})
+        user_id = current_user.get('user_id', 'unknown')
+        user_email = current_user.get('username', user_id)
 
         req_data = request.get_json() or {}
         reason = req_data.get('reason')
