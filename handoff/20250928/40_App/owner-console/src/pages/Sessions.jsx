@@ -237,15 +237,30 @@ const Sessions = () => {
   const getStatusIcon = useCallback((status) => {
     switch (status) {
       case 'running':
-        return <Play className="w-4 h-4" />
+        return <Play />
       case 'paused':
-        return <Pause className="w-4 h-4" />
+        return <Pause />
       case 'completed':
-        return <CheckCircle className="w-4 h-4" />
+        return <CheckCircle />
       case 'failed':
-        return <XCircle className="w-4 h-4" />
+        return <XCircle />
       default:
-        return <Clock className="w-4 h-4" />
+        return <Clock />
+    }
+  }, [])
+
+  const getStatusBadgeVariant = useCallback((status) => {
+    switch (status) {
+      case 'running':
+        return 'default'
+      case 'completed':
+        return 'success'
+      case 'failed':
+        return 'destructive'
+      case 'paused':
+        return 'secondary'
+      default:
+        return 'secondary'
     }
   }, [])
 
@@ -430,48 +445,50 @@ const Sessions = () => {
               <button
                 key={session.id}
                 onClick={() => handleSessionSelect(session)}
-                className={`w-full text-left rounded-xl border p-4 transition-all flex flex-col items-stretch ${
+                className={`w-full text-left rounded-xl border p-4 transition-all ${
                   selectedSession?.id === session.id
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                     : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
                 }`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <p className="font-medium text-[var(--text-primary)] truncate">
-                      {session.title}
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
-                      {session.goal}
-                    </p>
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                        {session.title}
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
+                        {session.goal}
+                      </p>
+                    </div>
+                    <ChevronRight className={`w-4 h-4 ml-2 flex-shrink-0 ${
+                      selectedSession?.id === session.id ? 'text-primary-500' : 'text-neutral-400'
+                    }`} />
                   </div>
-                  <ChevronRight className={`w-4 h-4 ml-2 flex-shrink-0 ${
-                    selectedSession?.id === session.id ? 'text-primary-500' : 'text-neutral-400'
-                  }`} />
-                </div>
-                
-                <div className="flex items-center gap-2 mt-3">
-                  <Badge variant="outline" className="text-xs">
-                    {getStatusIcon(session.status)}
-                    <span className="ml-1">{t(`sessions.status.${session.status}`, session.status)}</span>
-                  </Badge>
                   
-                  {session.requiresApproval && (
-                    <Badge variant="outline" className="text-xs">
-                      <AlertTriangle className="w-3 h-3 mr-1" />
-                      {t('sessions.needsApproval', 'Needs Approval')}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={getStatusBadgeVariant(session.status)} className="text-xs">
+                      {getStatusIcon(session.status)}
+                      <span>{t(`sessions.status.${session.status}`, session.status)}</span>
                     </Badge>
-                  )}
+                    
+                    {session.requiresApproval && (
+                      <Badge variant="warning" className="text-xs">
+                        <AlertTriangle />
+                        <span>{t('sessions.needsApproval', 'Needs Approval')}</span>
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                    <span>{formatRelativeTime(session.updatedAt)}</span>
+                    <span className={getConfidenceColor(session.confidence)}>
+                      {t('sessions.confidence', 'Confidence')}: {Math.round(session.confidence * 100)}%
+                    </span>
+                  </div>
+                  
+                  <Progress value={session.progress} className="h-1" />
                 </div>
-                
-                <div className="flex items-center justify-between mt-3 text-xs text-[var(--text-secondary)]">
-                  <span>{formatRelativeTime(session.updatedAt)}</span>
-                  <span className={getConfidenceColor(session.confidence)}>
-                    {t('sessions.confidence', 'Confidence')}: {Math.round(session.confidence * 100)}%
-                  </span>
-                </div>
-                
-                <Progress value={session.progress} className="mt-2 h-1" />
               </button>
             ))
           )}
@@ -492,9 +509,9 @@ const Sessions = () => {
                       {selectedSession.goal}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant={getStatusBadgeVariant(selectedSession.status)} className="text-xs">
                     {getStatusIcon(selectedSession.status)}
-                    <span className="ml-1">{t(`sessions.status.${selectedSession.status}`, selectedSession.status)}</span>
+                    <span>{t(`sessions.status.${selectedSession.status}`, selectedSession.status)}</span>
                   </Badge>
                 </div>
                 
