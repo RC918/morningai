@@ -872,6 +872,18 @@ const Sessions = () => {
                 </div>
               </div>
             </SectionCard>
+          ) : filteredSessions.length === 0 ? (
+            <SectionCard title={t('sessions.details.title', 'Session Details')}>
+              <div className="p-8 text-center">
+                <Activity className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+                <p className="text-neutral-500">
+                  {t('sessions.details.noSessions', 'No sessions available')}
+                </p>
+                <p className="text-sm text-neutral-400 mt-2">
+                  {t('sessions.details.noSessionsHint', 'Sessions will appear here when agents start executing tasks')}
+                </p>
+              </div>
+            </SectionCard>
           ) : (
             <SectionCard title={t('sessions.details.title', 'Session Details')}>
               <div className="p-8 text-center">
