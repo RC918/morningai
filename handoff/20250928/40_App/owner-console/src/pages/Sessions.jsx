@@ -174,6 +174,13 @@ const MOCK_SESSIONS = Object.freeze([
  */
 const POLLING_INTERVAL_MS = 10000
 
+/**
+ * Temporary fallback to MOCK_SESSIONS when API returns empty data.
+ * This allows the UI to demonstrate all data states (Issue #16, PR 1: Sessions UI 骨架).
+ * Will be removed once backend has real session data (PR 2: 後端 API 整合).
+ */
+const USE_MOCK_SESSIONS_FALLBACK = true
+
 const Sessions = () => {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
@@ -192,7 +199,13 @@ const Sessions = () => {
       
       const statusParam = filter !== 'all' ? `?status=${filter}` : ''
       const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { method: 'GET' })
-      const sessionsData = response.data?.sessions || []
+      let sessionsData = response.data?.sessions || []
+      
+      // Fallback to MOCK_SESSIONS when API returns empty data (Issue #16, PR 1: Sessions UI 骨架)
+      if (sessionsData.length === 0 && USE_MOCK_SESSIONS_FALLBACK) {
+        sessionsData = [...MOCK_SESSIONS]
+      }
+      
       setSessions(sessionsData)
       
       setSelectedSession(prev => {
@@ -207,6 +220,12 @@ const Sessions = () => {
         logContext: 'Sessions.loadSessions'
       })
       setError(errorMessage)
+      
+      // Also fallback to MOCK_SESSIONS on error if enabled
+      if (USE_MOCK_SESSIONS_FALLBACK) {
+        setSessions([...MOCK_SESSIONS])
+        setSelectedSession(MOCK_SESSIONS[0])
+      }
     } finally {
       setLoading(false)
     }
@@ -221,7 +240,13 @@ const Sessions = () => {
       setIsRefreshing(true)
       const statusParam = filter !== 'all' ? `?status=${filter}` : ''
       const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { method: 'GET' })
-      const sessionsData = response.data?.sessions || []
+      let sessionsData = response.data?.sessions || []
+      
+      // Fallback to MOCK_SESSIONS when API returns empty data (Issue #16, PR 1: Sessions UI 骨架)
+      if (sessionsData.length === 0 && USE_MOCK_SESSIONS_FALLBACK) {
+        sessionsData = [...MOCK_SESSIONS]
+      }
+      
       setSessions(sessionsData)
       
       setSelectedSession(prev => {
