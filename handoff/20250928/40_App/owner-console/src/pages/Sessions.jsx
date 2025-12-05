@@ -233,15 +233,15 @@ const Sessions = () => {
   const getStatusIcon = useCallback((status) => {
     switch (status) {
       case 'running':
-        return <Play className="w-3 h-3" />
+        return <Play />
       case 'paused':
-        return <Pause className="w-3 h-3" />
+        return <Pause />
       case 'completed':
-        return <CheckCircle className="w-3 h-3" />
+        return <CheckCircle />
       case 'failed':
-        return <XCircle className="w-3 h-3" />
+        return <XCircle />
       default:
-        return <Clock className="w-3 h-3" />
+        return <Clock />
     }
   }, [])
 
@@ -254,6 +254,7 @@ const Sessions = () => {
       case 'failed':
         return 'destructive'
       case 'paused':
+        return 'secondary'
       default:
         return 'secondary'
     }
@@ -469,7 +470,7 @@ const Sessions = () => {
                     
                     {session.requiresApproval && (
                       <Badge variant="warning" className="text-xs">
-                        <AlertTriangle className="w-3 h-3" />
+                        <AlertTriangle />
                         <span>{t('sessions.needsApproval', 'Needs Approval')}</span>
                       </Badge>
                     )}
