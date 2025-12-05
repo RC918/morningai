@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, Button, SectionCard } from '@morningai/shared-ui'
-import { Plus, Settings, Activity } from 'lucide-react'
+import { Badge, Button, SectionCard, StatCard } from '@morningai/shared-ui'
+import { Plus, Settings, Activity, Users, Bot, TrendingUp } from 'lucide-react'
 import { getTenantInfo, getTenantMembers } from '@/lib/generated/tenant/tenant'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
@@ -11,6 +11,11 @@ const TenantManagement = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [tenants, setTenants] = useState([])
+  const [statistics, setStatistics] = useState({
+    totalTenants: 0,
+    activeAgents: 0,
+    totalUsers: 0
+  })
 
   useEffect(() => {
     loadTenants()
@@ -39,6 +44,11 @@ const TenantManagement = () => {
         }
 
         setTenants([enrichedTenant])
+        setStatistics({
+          totalTenants: 1,
+          activeAgents: enrichedTenant.agents,
+          totalUsers: members.length
+        })
       } else {
         throw new Error('Failed to load tenant data')
       }
@@ -81,6 +91,28 @@ const TenantManagement = () => {
             onRetry={loadTenants}
           />
         )}
+
+        {/* KPI Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard
+            label={t('tenants.stats.totalTenants')}
+            value={String(statistics.totalTenants)}
+            icon={<Users className="w-5 h-5" />}
+            variant="blue"
+          />
+          <StatCard
+            label={t('tenants.stats.activeAgents')}
+            value={String(statistics.activeAgents)}
+            icon={<Bot className="w-5 h-5" />}
+            variant="green"
+          />
+          <StatCard
+            label={t('tenants.stats.totalUsers')}
+            value={String(statistics.totalUsers)}
+            icon={<TrendingUp className="w-5 h-5" />}
+            variant="purple"
+          />
+        </div>
 
         <SectionCard
           title={t('tenants.activeTenants')}

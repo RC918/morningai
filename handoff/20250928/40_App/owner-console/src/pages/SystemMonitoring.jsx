@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, SectionCard, Skeleton } from '@morningai/shared-ui'
-import { Database, Cpu, HardDrive, RefreshCw } from 'lucide-react'
+import { Badge, SectionCard, Skeleton, StatCard } from '@morningai/shared-ui'
+import { Database, Cpu, HardDrive, RefreshCw, Activity, Clock } from 'lucide-react'
 import { getAdminSystemHealth, getAdminSystemMetrics } from '@/lib/generated/admin/admin'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
@@ -161,6 +161,36 @@ const SystemMonitoring = () => {
           message={error}
           onRetry={loadSystemData}
         />
+      )}
+
+      {/* KPI Row */}
+      {(health || metrics) && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <StatCard
+            label={t('monitoring.stats.status')}
+            value={health?.status?.toUpperCase() || 'N/A'}
+            icon={<Activity className="w-5 h-5" />}
+            variant={health?.status === 'healthy' ? 'green' : health?.status === 'degraded' ? 'yellow' : 'red'}
+          />
+          <StatCard
+            label={t('monitoring.stats.uptime')}
+            value={health?.uptime_hours ? formatUptime(health.uptime_hours) : 'N/A'}
+            icon={<Clock className="w-5 h-5" />}
+            variant="blue"
+          />
+          <StatCard
+            label={t('monitoring.stats.cpuUsage')}
+            value={metrics?.cpu?.usage_percent != null ? `${metrics.cpu.usage_percent}%` : 'N/A'}
+            icon={<Cpu className="w-5 h-5" />}
+            variant={metrics?.cpu?.usage_percent > 80 ? 'red' : metrics?.cpu?.usage_percent > 60 ? 'yellow' : 'green'}
+          />
+          <StatCard
+            label={t('monitoring.stats.memoryUsage')}
+            value={metrics?.memory?.usage_percent != null ? `${metrics.memory.usage_percent}%` : 'N/A'}
+            icon={<HardDrive className="w-5 h-5" />}
+            variant={metrics?.memory?.usage_percent > 80 ? 'red' : metrics?.memory?.usage_percent > 60 ? 'yellow' : 'green'}
+          />
+        </div>
       )}
 
       {!error && !loading && isEmptyValue(health) && (

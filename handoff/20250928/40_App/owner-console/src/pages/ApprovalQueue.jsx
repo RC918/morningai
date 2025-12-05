@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, Tabs, TabsContent, TabsList, TabsTrigger, Skeleton } from '@morningai/shared-ui'
+import { Badge, Tabs, TabsContent, TabsList, TabsTrigger, Skeleton, StatCard, SectionCard } from '@morningai/shared-ui'
 import { 
   Shield, 
   AlertTriangle,
@@ -229,53 +229,30 @@ const ApprovalQueue = () => {
 
       {statistics && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.pending', 'Pending')}
-              </p>
-              <Clock className="w-5 h-5 text-joy" />
-            </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {statistics.pending_count || 0}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.critical', 'Critical')}
-              </p>
-              <AlertTriangle className="w-5 h-5 text-energy" />
-            </div>
-            <p className="text-2xl font-bold text-energy">
-              {statistics.by_risk_level?.critical || 0}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.high', 'High Risk')}
-              </p>
-              <FileWarning className="w-5 h-5 text-joy" />
-            </div>
-            <p className="text-2xl font-bold text-joy">
-              {statistics.by_risk_level?.high || 0}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.medium', 'Medium/Low')}
-              </p>
-              <Shield className="w-5 h-5 text-calm" />
-            </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {(statistics.by_risk_level?.medium || 0) + (statistics.by_risk_level?.low || 0)}
-            </p>
-          </div>
+          <StatCard
+            label={t('approvalQueue.stats.pending', 'Pending')}
+            value={String(statistics.pending_count || 0)}
+            icon={<Clock className="w-5 h-5" />}
+            variant="yellow"
+          />
+          <StatCard
+            label={t('approvalQueue.stats.critical', 'Critical')}
+            value={String(statistics.by_risk_level?.critical || 0)}
+            icon={<AlertTriangle className="w-5 h-5" />}
+            variant="red"
+          />
+          <StatCard
+            label={t('approvalQueue.stats.high', 'High Risk')}
+            value={String(statistics.by_risk_level?.high || 0)}
+            icon={<FileWarning className="w-5 h-5" />}
+            variant="yellow"
+          />
+          <StatCard
+            label={t('approvalQueue.stats.medium', 'Medium/Low')}
+            value={String((statistics.by_risk_level?.medium || 0) + (statistics.by_risk_level?.low || 0))}
+            icon={<Shield className="w-5 h-5" />}
+            variant="blue"
+          />
         </div>
       )}
 
@@ -293,96 +270,85 @@ const ApprovalQueue = () => {
         </TabsList>
 
         <TabsContent value="pending" className="space-y-4">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="pending-requests">
-            <div className="px-5 py-4 border-b border-[var(--border)]">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                {t('approvalQueue.pending.title', 'Pending Action Requests')}
-              </h2>
-              <p className="text-sm text-[var(--text-secondary)] mt-1">
-                {t('approvalQueue.pending.subtitle', 'Actions awaiting your approval before execution')}
-              </p>
-            </div>
-            <div className="p-5">
-              <div className="space-y-3">
-                {pendingRequests.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 space-y-3">
-                    <CheckCircle className="w-12 h-12 text-growth" />
-                    <p className="text-neutral-500 dark:text-neutral-400">
-                      {t('approvalQueue.pending.noRequests', 'No pending approval requests')}
-                    </p>
-                  </div>
-                ) : (
-                  pendingRequests.map((request) => (
-                    <button
-                      key={request.request_id}
-                      className="w-full text-left p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-opacity hover:opacity-80"
-                      onClick={() => setSelectedRequest(request)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-4">
-                          {getRiskLevelIcon(request.risk_level)}
-                          <div>
-                            <p className="font-semibold text-[var(--text-primary)]">
-                              {request.action_type}
-                            </p>
-                            <p className="text-sm text-[var(--text-secondary)] mt-1">
-                              {request.action_description}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge className={getRiskLevelColor(request.risk_level)}>
-                                {request.risk_level?.toUpperCase()}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {t('approvalQueue.details.agent', 'Agent')}: {request.agent_id}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {getTimeRemaining(request.timeout_at)}
-                              </Badge>
-                            </div>
+          <SectionCard
+            title={t('approvalQueue.pending.title', 'Pending Action Requests')}
+            subtitle={t('approvalQueue.pending.subtitle', 'Actions awaiting your approval before execution')}
+            data-testid="pending-requests"
+          >
+            <div className="space-y-3">
+              {pendingRequests.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                  <CheckCircle className="w-12 h-12 text-growth" />
+                  <p className="text-neutral-500 dark:text-neutral-400">
+                    {t('approvalQueue.pending.noRequests', 'No pending approval requests')}
+                  </p>
+                </div>
+              ) : (
+                pendingRequests.map((request) => (
+                  <button
+                    key={request.request_id}
+                    className="w-full text-left p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-opacity hover:opacity-80"
+                    onClick={() => setSelectedRequest(request)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        {getRiskLevelIcon(request.risk_level)}
+                        <div>
+                          <p className="font-semibold text-[var(--text-primary)]">
+                            {request.action_type}
+                          </p>
+                          <p className="text-sm text-[var(--text-secondary)] mt-1">
+                            {request.action_description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge className={getRiskLevelColor(request.risk_level)}>
+                              {request.risk_level?.toUpperCase()}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {t('approvalQueue.details.agent', 'Agent')}: {request.agent_id}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {getTimeRemaining(request.timeout_at)}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <AppleButton
-                            variant="outline"
-                            size="sm"
-                            haptic="light"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedRequest(request)
-                            }}
-                            disabled={actionLoading}
-                          >
-                            {t('approvalQueue.viewDetails', 'View Details')}
-                          </AppleButton>
-                        </div>
                       </div>
-                    </button>
-                  ))
-                )}
-              </div>
+                      <div className="flex gap-2">
+                        <AppleButton
+                          variant="outline"
+                          size="sm"
+                          haptic="light"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedRequest(request)
+                          }}
+                          disabled={actionLoading}
+                        >
+                          {t('approvalQueue.viewDetails', 'View Details')}
+                        </AppleButton>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
-          </div>
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="details" className="space-y-4">
           {selectedRequest ? (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="request-details">
-              <div className="px-5 py-4 border-b border-[var(--border)]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      {getActionTypeIcon(selectedRequest.action_type)}
-                      {selectedRequest.action_type}
-                    </h2>
-                    <p className="text-sm text-[var(--text-secondary)] mt-1">{selectedRequest.request_id}</p>
-                  </div>
-                  <Badge className={getRiskLevelColor(selectedRequest.risk_level)}>
-                    {selectedRequest.risk_level?.toUpperCase()} RISK
-                  </Badge>
-                </div>
-              </div>
-              <div className="p-5 space-y-6">
+            <SectionCard
+              title={selectedRequest.action_type}
+              subtitle={selectedRequest.request_id}
+              action={
+                <Badge className={getRiskLevelColor(selectedRequest.risk_level)}>
+                  {selectedRequest.risk_level?.toUpperCase()} RISK
+                </Badge>
+              }
+              data-testid="request-details"
+            >
+              <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-[var(--text-secondary)]">{t('approvalQueue.details.agent', 'Agent')}</p>
@@ -494,18 +460,16 @@ const ApprovalQueue = () => {
                   </AppleButton>
                 </div>
               </div>
-            </div>
+            </SectionCard>
           ) : (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="empty-state">
-              <div className="py-8">
-                <div className="flex flex-col items-center justify-center space-y-3">
-                  <Shield className="w-12 h-12 text-[var(--text-secondary)]" />
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    {t('approvalQueue.details.selectRequest', 'Select a request from the pending list to view details')}
-                  </p>
-                </div>
+            <SectionCard
+              title={t('approvalQueue.details.selectRequest', 'Select a request from the pending list to view details')}
+              data-testid="empty-state"
+            >
+              <div className="py-8 text-center">
+                <Shield className="w-12 h-12 text-[var(--text-secondary)] mx-auto" />
               </div>
-            </div>
+            </SectionCard>
           )}
         </TabsContent>
       </Tabs>

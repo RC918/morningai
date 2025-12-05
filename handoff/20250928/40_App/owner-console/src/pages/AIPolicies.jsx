@@ -26,7 +26,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  SectionCard
 } from '@morningai/shared-ui'
 import { 
   Shield,
@@ -267,76 +268,70 @@ const AIPolicies = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="policy-list">
-            <div className="px-5 py-4 border-b border-[var(--border)]">
-              <h2 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                <FileJson className="w-5 h-5" />
-                {t('aiPolicies.list.title')}
-              </h2>
-              <p className="text-sm text-[var(--text-secondary)] mt-1">
-                {t('aiPolicies.list.policyCount', { count: policies.length })}
-              </p>
-            </div>
-            <div className="p-5">
-              {policies.length === 0 ? (
-                <div className="py-8 text-center">
-                  <Shield className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    {t('aiPolicies.list.empty')}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {policies.map((policy) => {
-                    const Icon = POLICY_TYPE_ICONS[policy.policy_type] || Shield
-                    const isSelected = selectedPolicy?.id === policy.id
-                    
-                    return (
-                      <div
-                        key={policy.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleSelectPolicy(policy)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            handleSelectPolicy(policy)
-                          }
-                        }}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                          isSelected
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                            : 'border-[var(--border)] hover:border-neutral-300 dark:hover:border-neutral-600'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${POLICY_TYPE_COLORS[policy.policy_type] || 'bg-neutral-100'}`}>
-                              <Icon className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm truncate max-w-[150px]">
-                                {policy.name}
-                              </p>
-                              <p className="text-xs text-[var(--text-secondary)]">
-                                {t(`aiPolicies.types.${policy.policy_type}.title`, policy.policy_type)}
-                              </p>
-                            </div>
+          <SectionCard
+            title={t('aiPolicies.list.title')}
+            subtitle={t('aiPolicies.list.policyCount', { count: policies.length })}
+            action={<FileJson className="w-5 h-5 text-[var(--text-secondary)]" />}
+            data-testid="policy-list"
+          >
+            {policies.length === 0 ? (
+              <div className="py-8 text-center">
+                <Shield className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {t('aiPolicies.list.empty')}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {policies.map((policy) => {
+                  const Icon = POLICY_TYPE_ICONS[policy.policy_type] || Shield
+                  const isSelected = selectedPolicy?.id === policy.id
+                  
+                  return (
+                    <div
+                      key={policy.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleSelectPolicy(policy)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleSelectPolicy(policy)
+                        }
+                      }}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                          : 'border-[var(--border)] hover:border-neutral-300 dark:hover:border-neutral-600'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${POLICY_TYPE_COLORS[policy.policy_type] || 'bg-neutral-100'}`}>
+                            <Icon className="w-4 h-4" />
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge className={STATUS_COLORS[policy.status] || STATUS_COLORS.draft}>
-                              {t(`aiPolicies.status.${policy.status}`, policy.status)}
-                            </Badge>
-                            <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+                          <div>
+                            <p className="font-medium text-sm truncate max-w-[150px]">
+                              {policy.name}
+                            </p>
+                            <p className="text-xs text-[var(--text-secondary)]">
+                              {t(`aiPolicies.types.${policy.policy_type}.title`, policy.policy_type)}
+                            </p>
                           </div>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={STATUS_COLORS[policy.status] || STATUS_COLORS.draft}>
+                            {t(`aiPolicies.status.${policy.status}`, policy.status)}
+                          </Badge>
+                          <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+                        </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </SectionCard>
         </div>
 
         <div className="lg:col-span-2">
@@ -355,23 +350,19 @@ const AIPolicies = () => {
               }}
             />
           ) : (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="policy-editor-empty">
-              <div className="py-8 px-5">
-                <div className="text-center">
-                  <Shield className="w-16 h-16 text-[var(--text-secondary)] mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-[var(--text-secondary)] mb-2">
-                    {t('aiPolicies.editor.selectType')}
-                  </h3>
-                  <p className="text-sm text-[var(--text-secondary)] mb-6">
-                    {t('aiPolicies.subtitle')}
-                  </p>
-                  <AppleButton onClick={handleCreateNew} haptic="medium">
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('aiPolicies.newPolicy')}
-                  </AppleButton>
-                </div>
+            <SectionCard
+              title={t('aiPolicies.editor.selectType')}
+              subtitle={t('aiPolicies.subtitle')}
+              data-testid="policy-editor-empty"
+            >
+              <div className="py-8 text-center">
+                <Shield className="w-16 h-16 text-[var(--text-secondary)] mx-auto mb-4" />
+                <AppleButton onClick={handleCreateNew} haptic="medium">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('aiPolicies.newPolicy')}
+                </AppleButton>
               </div>
-            </div>
+            </SectionCard>
           )}
         </div>
       </div>

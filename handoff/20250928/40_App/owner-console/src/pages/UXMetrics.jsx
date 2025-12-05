@@ -17,7 +17,8 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import * as Sentry from '@sentry/react'
-import { SectionCard, Skeleton } from '@morningai/shared-ui'
+import { SectionCard, Skeleton, StatCard } from '@morningai/shared-ui'
+import { FileText, Zap, Clock, Globe } from 'lucide-react'
 import { validateMetricsData, sanitizeMetricsData, safeGet, isValidMetricValue } from '../utils/metricsValidation'
 
 /**
@@ -198,40 +199,45 @@ export default function UXMetrics() {
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.totalPRs')}</h3>
-          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{metrics.total_prs}</p>
-        </div>
+      {/* Summary Cards - KPI Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label={t('uxMetrics.totalPRs')}
+          value={String(metrics.total_prs)}
+          icon={<FileText className="w-5 h-5" />}
+          variant="blue"
+        />
 
         {metrics.summary.lighthouse && (
           <>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-              <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.avgFCP')}</h3>
-              <p className={`text-2xl font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.fcp_avg, metrics.thresholds.lighthouse.fcp)}`}>
-                {formatValue(metrics.summary.lighthouse.fcp_avg, 'ms')}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}</p>
-            </div>
+            <StatCard
+              label={t('uxMetrics.avgFCP')}
+              value={formatValue(metrics.summary.lighthouse.fcp_avg, 'ms')}
+              icon={<Zap className="w-5 h-5" />}
+              variant={metrics.summary.lighthouse.fcp_avg <= metrics.thresholds.lighthouse.fcp ? 'green' : 'red'}
+              deltaLabel={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}
+              deltaPositive={metrics.summary.lighthouse.fcp_avg <= metrics.thresholds.lighthouse.fcp}
+            />
 
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-              <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.avgLCP')}</h3>
-              <p className={`text-2xl font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.lcp_avg, metrics.thresholds.lighthouse.lcp)}`}>
-                {formatValue(metrics.summary.lighthouse.lcp_avg, 'ms')}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}</p>
-            </div>
+            <StatCard
+              label={t('uxMetrics.avgLCP')}
+              value={formatValue(metrics.summary.lighthouse.lcp_avg, 'ms')}
+              icon={<Clock className="w-5 h-5" />}
+              variant={metrics.summary.lighthouse.lcp_avg <= metrics.thresholds.lighthouse.lcp ? 'green' : 'red'}
+              deltaLabel={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}
+              deltaPositive={metrics.summary.lighthouse.lcp_avg <= metrics.thresholds.lighthouse.lcp}
+            />
           </>
         )}
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.i18nCoverage')}</h3>
-          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">
-            {metrics.summary.apps['frontend-dashboard'].i18n_available}/{metrics.total_prs}
-          </p>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.prsWithData')}</p>
-        </div>
+        <StatCard
+          label={t('uxMetrics.i18nCoverage')}
+          value={`${metrics.summary.apps['frontend-dashboard'].i18n_available}/${metrics.total_prs}`}
+          icon={<Globe className="w-5 h-5" />}
+          variant="purple"
+          deltaLabel={t('uxMetrics.prsWithData')}
+          deltaPositive={true}
+        />
       </div>
 
       {/* Thresholds Reference */}
