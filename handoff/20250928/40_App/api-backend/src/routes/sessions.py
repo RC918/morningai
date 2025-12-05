@@ -100,7 +100,7 @@ def transform_session_for_frontend(session_data: dict) -> dict:
     logs = []
     for obs in session_data.get('observations', [])[-10:]:  # Last 10 observations
         logs.append({
-            'timestamp': obs.get('timestamp', datetime.utcnow().isoformat()),
+            'timestamp': obs.get('timestamp'),
             'message': obs.get('observation', ''),
             'level': 'info'
         })
@@ -108,7 +108,7 @@ def transform_session_for_frontend(session_data: dict) -> dict:
     for action in session_data.get('actions', [])[-10:]:  # Last 10 actions
         level = 'success' if action.get('success') else 'error'
         logs.append({
-            'timestamp': action.get('timestamp', datetime.utcnow().isoformat()),
+            'timestamp': action.get('timestamp'),
             'message': action.get('result', {}).get('message', f"Action: {action.get('action_type', 'unknown')}"),
             'level': level
         })
@@ -132,8 +132,8 @@ def transform_session_for_frontend(session_data: dict) -> dict:
         'user': session_data.get('user', 'system'),
         'agentType': 'LLM',  # Default agent type
         'confidence': round(confidence, 2),
-        'startedAt': session_data.get('created_at', datetime.utcnow().isoformat()),
-        'updatedAt': session_data.get('updated_at', datetime.utcnow().isoformat()),
+        'startedAt': session_data.get('created_at'),
+        'updatedAt': session_data.get('updated_at'),
         'progress': progress,
         'currentTask': tasks[-1]['name'] if tasks else None,
         'requiresApproval': requires_approval,
@@ -150,9 +150,9 @@ def transform_session_for_frontend(session_data: dict) -> dict:
 
 
 @bp.route('', methods=['GET'])
-@require_redis_available
 @jwt_required
 @admin_required
+@require_redis_available
 def list_sessions():
     """
     List all agent sessions.
@@ -213,15 +213,15 @@ def list_sessions():
             },
             'timestamp': datetime.utcnow().isoformat()
         })
-    except Exception as e:
-        logger.error("Failed to list sessions: %s", e)
-        return jsonify({'error': 'Failed to list sessions', 'message': str(e)}), 500
+    except Exception:
+        logger.exception("Failed to list sessions")
+        return jsonify({'error': 'Failed to list sessions'}), 500
 
 
 @bp.route('/<session_id>', methods=['GET'])
-@require_redis_available
 @jwt_required
 @admin_required
+@require_redis_available
 def get_session_detail(session_id):
     """
     Get details of a specific session.
@@ -244,12 +244,12 @@ def get_session_detail(session_id):
         transformed = transform_session_for_frontend(session_data)
 
         return jsonify(transformed)
-    except json.JSONDecodeError as e:
-        logger.error("Failed to parse session %s: %s", session_id, e)
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse session %s", session_id)
         return jsonify({'error': 'Failed to parse session data'}), 500
-    except Exception as e:
-        logger.error("Failed to get session details: %s", e)
-        return jsonify({'error': 'Failed to get session details', 'message': str(e)}), 500
+    except Exception:
+        logger.exception("Failed to get session details")
+        return jsonify({'error': 'Failed to get session details'}), 500
 
 
 @bp.route('/health', methods=['GET'])
