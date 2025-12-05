@@ -376,8 +376,9 @@ class TaskIntakeService:
         Returns:
             Next IntakeTask or None if no tasks available
         """
-        # Check queues in priority order
-        for priority in ["critical", "high", "medium", "low"]:
+        # Check queues in priority order (sorted by PRIORITY_ORDER values)
+        sorted_priorities = sorted(self.PRIORITY_ORDER.keys(), key=lambda p: self.PRIORITY_ORDER[p])
+        for priority in sorted_priorities:
             queue = self._queues[priority]
             for task in queue:
                 if task.status == IntakeTaskStatus.QUEUED:
@@ -422,6 +423,8 @@ class TaskIntakeService:
 
                 # Process the task
                 asyncio.create_task(self._process_task_async(task))
+                # Yield to event loop so worker task can start and update status
+                await asyncio.sleep(0)
 
             except Exception as e:
                 logger.error(
@@ -489,14 +492,18 @@ class TaskIntakeService:
 
             task.retry_count += 1
             if task.retry_count < task.max_retries:
-                # Retry the task
-                task.status = IntakeTaskStatus.QUEUED
+                # Exponential backoff before retry
+                retry_delay = 2 ** task.retry_count
                 logger.info(
-                    "[TaskIntakeService] Task %s will be retried (%d/%d)",
+                    "[TaskIntakeService] Task %s will be retried in %ds (%d/%d)",
                     task.intake_id,
+                    retry_delay,
                     task.retry_count,
                     task.max_retries,
                 )
+                await asyncio.sleep(retry_delay)
+                # Retry the task
+                task.status = IntakeTaskStatus.QUEUED
             else:
                 # Max retries exceeded
                 task.status = IntakeTaskStatus.FAILED
@@ -510,10 +517,11 @@ class TaskIntakeService:
         finally:
             self._processing_count -= 1
 
-            # Remove from queue
-            priority = task.normalized_task.priority
-            if priority in self._queues and task in self._queues[priority]:
-                self._queues[priority].remove(task)
+            # Only remove from queue if not being retried
+            if task.status != IntakeTaskStatus.QUEUED:
+                priority = task.normalized_task.priority
+                if priority in self._queues and task in self._queues[priority]:
+                    self._queues[priority].remove(task)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics"""

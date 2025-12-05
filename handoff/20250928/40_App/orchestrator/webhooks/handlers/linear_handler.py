@@ -252,12 +252,25 @@ class LinearWebhookHandler(BaseWebhookHandler):
         state_name = state.get("name", "")
         state_type = state.get("type", "")
 
+        # Extract timestamp - prefer Linear's createdAt, fallback to now
+        timestamp = datetime.now(timezone.utc)
+        created_at = data.get("createdAt")
+        if created_at:
+            try:
+                # Linear uses ISO 8601 format
+                timestamp = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                logger.warning(
+                    "[LinearWebhookHandler] Failed to parse createdAt: %s, using current time",
+                    created_at,
+                )
+
         # Create normalized event
         event = WebhookEvent(
             event_id=event_id,
             source=WebhookSource.LINEAR,
             event_type=event_type,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=timestamp,
             raw_payload=payload,
             title=title,
             description=description,
