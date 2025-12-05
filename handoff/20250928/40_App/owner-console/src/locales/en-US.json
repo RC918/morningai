@@ -97,28 +97,33 @@
     "logoutSuccess": "Logout successful",
     "rememberMe": "Remember me"
   },
-  "common": {
-    "cancel": "Cancel",
-    "changeLanguage": "Change language",
-    "delete": "Delete",
-    "edit": "Edit",
-    "error": "Error",
-    "export": "Export",
-    "fail": "✗ Fail",
-    "filter": "Filter",
-    "idShort": "ID: {{id}}",
-    "loading": "Loading...",
-    "ms": "ms",
-    "na": "N/A",
-    "pass": "✓ Pass",
-    "refresh": "Refresh",
-    "retry": "Retry",
-    "save": "Save",
-    "search": "Search",
-    "success": "Success",
-    "usage": "Usage",
-    "view": "View"
-  },
+    "common": {
+      "accessDenied": {
+        "message": "You don't have permission to access this feature. Please contact your administrator if you believe this is an error.",
+        "messageWithRole": "This feature requires {{role}} access. Please contact your administrator if you need access.",
+        "title": "Access Restricted"
+      },
+      "cancel": "Cancel",
+      "changeLanguage": "Change language",
+      "delete": "Delete",
+      "edit": "Edit",
+      "error": "Error",
+      "export": "Export",
+      "fail": "✗ Fail",
+      "filter": "Filter",
+      "idShort": "ID: {{id}}",
+      "loading": "Loading...",
+      "ms": "ms",
+      "na": "N/A",
+      "pass": "✓ Pass",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "save": "Save",
+      "search": "Search",
+      "success": "Success",
+      "usage": "Usage",
+      "view": "View"
+    },
     "dashboard": {
       "2fa": {
         "prompt": {

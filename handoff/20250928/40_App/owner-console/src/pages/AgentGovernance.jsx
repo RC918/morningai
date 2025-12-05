@@ -15,11 +15,13 @@ import { getGovernanceEvents, getGovernanceViolations, getGovernanceStatistics }
 import AgentExecutionLogs from '@/components/AgentExecutionLogs'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
+import { AccessDenied } from '@/components/AccessDenied'
 
 const AgentGovernance = () => {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [accessDenied, setAccessDenied] = useState(false)
   const [agents, setAgents] = useState([])
   const [events, setEvents] = useState([])
   const [violations, setViolations] = useState([])
@@ -34,6 +36,7 @@ const AgentGovernance = () => {
     try {
       setLoading(true)
       setError(null)
+      setAccessDenied(false)
       
       const [agentsResponse, eventsResponse, violationsResponse, statsResponse] = await Promise.all([
         getAdminAgents({ status: 'all', limit: 100 }),
@@ -59,7 +62,16 @@ const AgentGovernance = () => {
       }
     } catch (error) {
       console.error('Failed to load governance data:', error)
-      setError(error.message || 'Failed to load governance data')
+      
+      // Check for 403 Forbidden error (platform_admin access required)
+      // This can happen when RLS policies restrict access to agent_reputation tables
+      const errorMessage = error.message || ''
+      if (errorMessage.includes('403') || errorMessage.toLowerCase().includes('forbidden')) {
+        setAccessDenied(true)
+        return
+      }
+      
+      setError(errorMessage || 'Failed to load governance data')
     } finally {
       setLoading(false)
     }
@@ -138,6 +150,26 @@ const AgentGovernance = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  // Show access denied message for non-platform_admin users
+  if (accessDenied) {
+    return (
+      <div className="space-y-8" data-testid="agent-governance">
+        <div>
+          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+            {t('governance.title')}
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            {t('governance.subtitle')}
+          </p>
+        </div>
+        <AccessDenied 
+          requiredRole="Platform Admin"
+          testId="governance-access-denied"
+        />
       </div>
     )
   }

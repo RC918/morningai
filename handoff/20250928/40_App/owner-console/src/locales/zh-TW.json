@@ -96,28 +96,33 @@
     "logoutSuccess": "登出成功",
     "rememberMe": "記住我"
   },
-  "common": {
-    "cancel": "取消",
-    "changeLanguage": "切換語言",
-    "delete": "刪除",
-    "edit": "編輯",
-    "error": "錯誤",
-    "export": "匯出",
-    "fail": "✗ 失敗",
-    "filter": "篩選",
-    "idShort": "ID：{{id}}",
-    "loading": "載入中...",
-    "ms": "毫秒",
-    "na": "不適用",
-    "pass": "✓ 通過",
-    "refresh": "重新整理",
-    "retry": "重試",
-    "save": "儲存",
-    "search": "搜尋",
-    "success": "成功",
-    "usage": "使用量",
-    "view": "檢視"
-  },
+    "common": {
+      "accessDenied": {
+        "message": "您沒有權限存取此功能。如果您認為這是錯誤，請聯繫您的管理員。",
+        "messageWithRole": "此功能需要{{role}}權限。如果您需要存取權限，請聯繫您的管理員。",
+        "title": "存取受限"
+      },
+      "cancel": "取消",
+      "changeLanguage": "切換語言",
+      "delete": "刪除",
+      "edit": "編輯",
+      "error": "錯誤",
+      "export": "匯出",
+      "fail": "✗ 失敗",
+      "filter": "篩選",
+      "idShort": "ID：{{id}}",
+      "loading": "載入中...",
+      "ms": "毫秒",
+      "na": "不適用",
+      "pass": "✓ 通過",
+      "refresh": "重新整理",
+      "retry": "重試",
+      "save": "儲存",
+      "search": "搜尋",
+      "success": "成功",
+      "usage": "使用量",
+      "view": "檢視"
+    },
   "dashboard": {
     "2fa": {
       "prompt": {
