@@ -109,16 +109,20 @@ def rate_limit_webhook(f):
                 client_ip,
                 request.endpoint
             )
+            # Calculate retry_after once and clamp to non-negative
+            now = int(time.time())
+            retry_after = max(0, reset_time - now)
+            
             response = jsonify({
                 "error": "Rate limit exceeded",
                 "message": "Too many requests. Please try again later.",
-                "retry_after": reset_time - int(time.time())
+                "retry_after": retry_after
             })
             response.status_code = 429
             response.headers['X-RateLimit-Limit'] = str(_webhook_rate_limiter.limit)
             response.headers['X-RateLimit-Remaining'] = '0'
             response.headers['X-RateLimit-Reset'] = str(reset_time)
-            response.headers['Retry-After'] = str(reset_time - int(time.time()))
+            response.headers['Retry-After'] = str(retry_after)
             return response
         
         # Execute the actual function

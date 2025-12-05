@@ -683,23 +683,32 @@ class TestThreadSafeNormalizer:
         assert webhooks_module._normalizer_lock is not None
 
     def test_get_normalizer_returns_same_instance(self):
-        """Should return the same instance on multiple calls."""
+        """Should return the same instance on multiple calls (singleton behavior)."""
         import src.routes.webhooks as webhooks_module
         
-        # Reset the normalizer
+        # Save & reset the cached normalizer
         original = webhooks_module._normalizer
         webhooks_module._normalizer = None
         
         try:
-            # Mock the imports to avoid actual initialization
-            with patch("src.routes.webhooks.get_normalizer") as mock_get:
-                mock_normalizer = MagicMock()
-                mock_get.return_value = mock_normalizer
-                
-                result1 = mock_get()
-                result2 = mock_get()
-                
-                assert result1 is result2
+            # Patch the class that get_normalizer() instantiates
+            # This allows the real get_normalizer() logic to run
+            with patch("orchestrator.webhooks.normalizer.EventNormalizer") as MockNormalizer:
+                with patch("orchestrator.webhooks.bot_protocol.WebhookConfig"):
+                    mock_instance = MockNormalizer.return_value
+                    
+                    # Call get_normalizer() twice
+                    result1 = webhooks_module.get_normalizer()
+                    result2 = webhooks_module.get_normalizer()
+                    
+                    # Both calls should return the same instance
+                    assert result1 is mock_instance
+                    assert result2 is mock_instance
+                    assert result1 is result2
+                    
+                    # EventNormalizer should have been constructed only once
+                    # (this verifies the singleton/double-checked locking behavior)
+                    MockNormalizer.assert_called_once()
         finally:
             webhooks_module._normalizer = original
 
