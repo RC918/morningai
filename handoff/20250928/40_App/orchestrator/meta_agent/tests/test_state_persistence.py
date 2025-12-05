@@ -591,3 +591,246 @@ class TestStateManagerIntegration:
         assert "exec-1" in remaining_ids
         assert "exec-3" in remaining_ids
         assert "exec-4" in remaining_ids
+
+
+class TestCreateCheckpointWithRealTypes:
+    """Tests for create_checkpoint_from_execution using real types instead of MagicMock"""
+
+    def test_create_checkpoint_with_real_task_plan(self):
+        """Test creating checkpoint using real TaskPlan and SubTask objects"""
+        from datetime import datetime
+        from meta_agent.task_planner import TaskPlan, SubTask, SubTaskType, SubTaskStatus
+        from meta_agent.autonomous_executor import ExecutionResult, ExecutionStatus
+
+        subtasks = [
+            SubTask(
+                task_id="task-1",
+                task_type=SubTaskType.WRITE_CODE,
+                description="Implement feature",
+                status=SubTaskStatus.COMPLETED,
+                started_at=datetime(2025, 1, 1, 10, 0, 0),
+                completed_at=datetime(2025, 1, 1, 10, 5, 0),
+                outputs={"files_modified": ["src/main.py"]},
+            ),
+            SubTask(
+                task_id="task-2",
+                task_type=SubTaskType.RUN_TEST,
+                description="Run tests",
+                status=SubTaskStatus.PENDING,
+            ),
+        ]
+
+        dummy_goal = MagicMock()
+        plan = TaskPlan(
+            plan_id="plan-real-123",
+            goal=dummy_goal,
+            subtasks=subtasks,
+            total_estimated_minutes=15,
+            current_task_index=1,
+        )
+
+        execution_result = ExecutionResult(
+            execution_id="exec-real-123",
+            plan_id="plan-real-123",
+            status=ExecutionStatus.RUNNING,
+            started_at=datetime(2025, 1, 1, 10, 0, 0),
+            tasks_completed=1,
+            tasks_failed=0,
+            tasks_skipped=0,
+            errors=[],
+        )
+
+        checkpoint = create_checkpoint_from_execution(execution_result, plan)
+
+        assert checkpoint.execution_id == "exec-real-123"
+        assert checkpoint.plan_id == "plan-real-123"
+        assert checkpoint.status == "running"
+        assert checkpoint.current_task_index == 1
+        assert len(checkpoint.tasks_state) == 2
+
+        assert checkpoint.tasks_state[0]["task_id"] == "task-1"
+        assert checkpoint.tasks_state[0]["status"] == "completed"
+        assert checkpoint.tasks_state[0]["started_at"] == "2025-01-01T10:00:00"
+        assert checkpoint.tasks_state[0]["completed_at"] == "2025-01-01T10:05:00"
+        assert checkpoint.tasks_state[0]["outputs"] == {"files_modified": ["src/main.py"]}
+
+        assert checkpoint.tasks_state[1]["task_id"] == "task-2"
+        assert checkpoint.tasks_state[1]["status"] == "pending"
+        assert checkpoint.tasks_state[1]["started_at"] is None
+
+        assert checkpoint.execution_metadata["tasks_completed"] == 1
+        assert checkpoint.execution_metadata["tasks_failed"] == 0
+
+    def test_create_checkpoint_with_real_failed_execution(self):
+        """Test creating checkpoint with real types when execution has failed"""
+        from datetime import datetime
+        from meta_agent.task_planner import TaskPlan, SubTask, SubTaskType, SubTaskStatus
+        from meta_agent.autonomous_executor import ExecutionResult, ExecutionStatus
+
+        subtasks = [
+            SubTask(
+                task_id="task-1",
+                task_type=SubTaskType.ANALYZE_CODE,
+                description="Analyze code",
+                status=SubTaskStatus.COMPLETED,
+                started_at=datetime(2025, 1, 1, 10, 0, 0),
+                completed_at=datetime(2025, 1, 1, 10, 3, 0),
+            ),
+            SubTask(
+                task_id="task-2",
+                task_type=SubTaskType.WRITE_CODE,
+                description="Write code",
+                status=SubTaskStatus.FAILED,
+                started_at=datetime(2025, 1, 1, 10, 3, 0),
+                completed_at=datetime(2025, 1, 1, 10, 4, 0),
+                error="Syntax error in generated code",
+            ),
+        ]
+
+        dummy_goal = MagicMock()
+        plan = TaskPlan(
+            plan_id="plan-fail-123",
+            goal=dummy_goal,
+            subtasks=subtasks,
+            total_estimated_minutes=10,
+            current_task_index=2,
+        )
+
+        execution_result = ExecutionResult(
+            execution_id="exec-fail-123",
+            plan_id="plan-fail-123",
+            status=ExecutionStatus.FAILED,
+            started_at=datetime(2025, 1, 1, 10, 0, 0),
+            tasks_completed=1,
+            tasks_failed=1,
+            tasks_skipped=0,
+            errors=["Task task-2 failed: Syntax error in generated code"],
+        )
+
+        checkpoint = create_checkpoint_from_execution(execution_result, plan)
+
+        assert checkpoint.status == "failed"
+        assert checkpoint.tasks_state[1]["status"] == "failed"
+        assert checkpoint.tasks_state[1]["error"] == "Syntax error in generated code"
+        assert checkpoint.execution_metadata["tasks_failed"] == 1
+        assert len(checkpoint.execution_metadata["errors"]) == 1
+
+
+class TestListSavedExecutionsDeterministic:
+    """Tests for list_saved_executions with deterministic timestamps (no time.sleep)"""
+
+    @pytest.fixture
+    def temp_storage_dir(self):
+        """Create a temporary directory for state storage"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield tmpdir
+
+    def test_list_saved_executions_sorted_by_saved_at(self, temp_storage_dir):
+        """Test that list_saved_executions sorts by saved_at using manual JSON files"""
+        exec1_data = {
+            "execution_id": "exec-001",
+            "saved_at": "2025-01-01T10:00:00",
+            "version": "1.0",
+            "state": {"status": "completed"},
+        }
+        exec2_data = {
+            "execution_id": "exec-002",
+            "saved_at": "2025-01-02T10:00:00",
+            "version": "1.0",
+            "state": {"status": "running"},
+        }
+        exec3_data = {
+            "execution_id": "exec-003",
+            "saved_at": "2025-01-03T10:00:00",
+            "version": "1.0",
+            "state": {"status": "failed"},
+        }
+
+        for data in [exec1_data, exec2_data, exec3_data]:
+            path = Path(temp_storage_dir) / f"{data['execution_id']}.json"
+            with open(path, "w") as f:
+                json.dump(data, f)
+
+        manager = ExecutionStateManager(storage_dir=temp_storage_dir)
+        executions = manager.list_saved_executions()
+
+        assert len(executions) == 3
+        assert executions[0]["execution_id"] == "exec-003"
+        assert executions[1]["execution_id"] == "exec-002"
+        assert executions[2]["execution_id"] == "exec-001"
+
+    def test_list_saved_executions_handles_same_timestamp(self, temp_storage_dir):
+        """Test list_saved_executions when multiple files have same timestamp"""
+        same_time = "2025-01-01T12:00:00"
+        for i in range(3):
+            data = {
+                "execution_id": f"exec-{i:03d}",
+                "saved_at": same_time,
+                "version": "1.0",
+                "state": {"status": "completed"},
+            }
+            path = Path(temp_storage_dir) / f"exec-{i:03d}.json"
+            with open(path, "w") as f:
+                json.dump(data, f)
+
+        manager = ExecutionStateManager(storage_dir=temp_storage_dir)
+        executions = manager.list_saved_executions()
+
+        assert len(executions) == 3
+        execution_ids = {e["execution_id"] for e in executions}
+        assert execution_ids == {"exec-000", "exec-001", "exec-002"}
+
+
+class TestDefaultStorageDirectory:
+    """Tests for default storage directory behavior (~/.meta_agent/state)"""
+
+    def test_default_path_uses_home_directory(self, monkeypatch, tmp_path):
+        """Test that default storage_dir uses expanduser for home directory"""
+        fake_home_state = str(tmp_path / ".meta_agent" / "state")
+
+        def mock_expanduser(path):
+            if path == "~/.meta_agent/state":
+                return fake_home_state
+            return path
+
+        monkeypatch.setattr("meta_agent.state_persistence.os.path.expanduser", mock_expanduser)
+
+        manager = ExecutionStateManager()
+
+        assert manager.storage_dir == Path(fake_home_state)
+        assert manager.storage_dir.exists()
+
+    def test_explicit_storage_dir_overrides_default(self, tmp_path):
+        """Test that explicit storage_dir parameter overrides default"""
+        custom_dir = tmp_path / "custom_state"
+
+        manager = ExecutionStateManager(storage_dir=str(custom_dir))
+
+        assert manager.storage_dir == custom_dir
+        assert manager.storage_dir.exists()
+
+    def test_explicit_storage_dir_with_nested_path(self, tmp_path):
+        """Test that explicit storage_dir creates nested directories"""
+        nested_dir = tmp_path / "deeply" / "nested" / "state" / "dir"
+
+        manager = ExecutionStateManager(storage_dir=str(nested_dir))
+
+        assert manager.storage_dir == nested_dir
+        assert manager.storage_dir.exists()
+
+    def test_storage_dir_isolation_between_instances(self, tmp_path):
+        """Test that different instances with different dirs are isolated"""
+        dir1 = tmp_path / "state1"
+        dir2 = tmp_path / "state2"
+
+        manager1 = ExecutionStateManager(storage_dir=str(dir1))
+        manager2 = ExecutionStateManager(storage_dir=str(dir2))
+
+        manager1.save_state("exec-1", {"from": "manager1"})
+        manager2.save_state("exec-2", {"from": "manager2"})
+
+        assert manager1.load_state("exec-1") == {"from": "manager1"}
+        assert manager1.load_state("exec-2") is None
+
+        assert manager2.load_state("exec-2") == {"from": "manager2"}
+        assert manager2.load_state("exec-1") is None
