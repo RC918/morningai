@@ -252,6 +252,178 @@ def get_session_detail(session_id):
         return jsonify({'error': 'Failed to get session details'}), 500
 
 
+@bp.route('/<session_id>/pause', methods=['POST'])
+@jwt_required
+@admin_required
+@require_redis_available
+def pause_session(session_id):
+    """
+    Pause a running session.
+
+    The agent will stop processing after completing the current action.
+
+    Requires: Owner role
+    """
+    try:
+        user_id = request.jwt_payload.get('sub', 'unknown')
+        user_email = request.jwt_payload.get('email', user_id)
+
+        redis_client = get_redis_client()
+        key = f"{SESSION_KEY_PREFIX}{session_id}"
+        data = redis_client.get(key)
+
+        if not data:
+            return jsonify({'error': 'Session not found'}), 404
+
+        session_data = json.loads(data)
+        current_status = session_data.get('status', 'active')
+
+        if current_status != 'active':
+            return jsonify({
+                'error': 'Cannot pause session',
+                'message': f'Session is {current_status}, only active sessions can be paused'
+            }), 400
+
+        session_data['status'] = 'paused'
+        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['paused_by'] = user_email
+
+        redis_client.setex(key, 86400, json.dumps(session_data))
+
+        logger.info("Session %s paused by %s", session_id, user_email)
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'status': 'paused',
+            'paused_by': user_email,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse session %s", session_id)
+        return jsonify({'error': 'Failed to parse session data'}), 500
+    except Exception:
+        logger.exception("Failed to pause session")
+        return jsonify({'error': 'Failed to pause session'}), 500
+
+
+@bp.route('/<session_id>/resume', methods=['POST'])
+@jwt_required
+@admin_required
+@require_redis_available
+def resume_session(session_id):
+    """
+    Resume a paused session.
+
+    The agent will continue processing from where it left off.
+
+    Requires: Owner role
+    """
+    try:
+        user_id = request.jwt_payload.get('sub', 'unknown')
+        user_email = request.jwt_payload.get('email', user_id)
+
+        redis_client = get_redis_client()
+        key = f"{SESSION_KEY_PREFIX}{session_id}"
+        data = redis_client.get(key)
+
+        if not data:
+            return jsonify({'error': 'Session not found'}), 404
+
+        session_data = json.loads(data)
+        current_status = session_data.get('status', 'active')
+
+        if current_status not in ['paused', 'escalated']:
+            return jsonify({
+                'error': 'Cannot resume session',
+                'message': f'Session is {current_status}, only paused/escalated sessions can be resumed'
+            }), 400
+
+        session_data['status'] = 'active'
+        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['resumed_by'] = user_email
+
+        redis_client.setex(key, 86400, json.dumps(session_data))
+
+        logger.info("Session %s resumed by %s", session_id, user_email)
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'status': 'active',
+            'resumed_by': user_email,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse session %s", session_id)
+        return jsonify({'error': 'Failed to parse session data'}), 500
+    except Exception:
+        logger.exception("Failed to resume session")
+        return jsonify({'error': 'Failed to resume session'}), 500
+
+
+@bp.route('/<session_id>/cancel', methods=['POST'])
+@jwt_required
+@admin_required
+@require_redis_available
+def cancel_session(session_id):
+    """
+    Cancel a session.
+
+    The session will be marked as failed and the agent will stop processing.
+
+    Request body (optional):
+    - reason: Cancellation reason
+
+    Requires: Owner role
+    """
+    try:
+        user_id = request.jwt_payload.get('sub', 'unknown')
+        user_email = request.jwt_payload.get('email', user_id)
+
+        req_data = request.get_json() or {}
+        reason = req_data.get('reason')
+
+        redis_client = get_redis_client()
+        key = f"{SESSION_KEY_PREFIX}{session_id}"
+        data = redis_client.get(key)
+
+        if not data:
+            return jsonify({'error': 'Session not found'}), 404
+
+        session_data = json.loads(data)
+        current_status = session_data.get('status', 'active')
+
+        if current_status in ['completed', 'failed']:
+            return jsonify({
+                'error': 'Cannot cancel session',
+                'message': f'Session is already {current_status}'
+            }), 400
+
+        session_data['status'] = 'failed'
+        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['cancelled_by'] = user_email
+        if reason:
+            session_data['context'] = session_data.get('context', {})
+            session_data['context']['cancellation_reason'] = reason
+
+        redis_client.setex(key, 86400, json.dumps(session_data))
+
+        logger.info("Session %s cancelled by %s: %s", session_id, user_email, reason or "No reason")
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'status': 'failed',
+            'cancelled_by': user_email,
+            'reason': reason,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse session %s", session_id)
+        return jsonify({'error': 'Failed to parse session data'}), 500
+    except Exception:
+        logger.exception("Failed to cancel session")
+        return jsonify({'error': 'Failed to cancel session'}), 500
+
+
 @bp.route('/health', methods=['GET'])
 def health_check():
     """Health check for Sessions API"""
