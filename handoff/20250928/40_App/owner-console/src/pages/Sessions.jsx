@@ -426,7 +426,7 @@ const Sessions = () => {
               <button
                 key={session.id}
                 onClick={() => handleSessionSelect(session)}
-                className={`w-full text-left rounded-xl border p-4 transition-all ${
+                className={`w-full text-left rounded-xl border p-4 transition-all flex flex-col items-stretch ${
                   selectedSession?.id === session.id
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                     : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
