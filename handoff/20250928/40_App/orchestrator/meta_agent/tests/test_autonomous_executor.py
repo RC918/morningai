@@ -2,12 +2,19 @@
 Tests for AutonomousExecutor - End-to-End Task Execution
 
 Issue: #1821 - Meta Agent 自主任務規劃與執行
+Issue: #1959 - ExecutionPolicy 強制執行與 dry_run 行為實作
 """
 
 import pytest
 from ..goal_parser import GoalParser
-from ..task_planner import TaskPlanner, SubTask, SubTaskType
-from ..autonomous_executor import AutonomousExecutor, ExecutionResult, ExecutionStatus
+from ..task_planner import TaskPlanner, SubTask, SubTaskType, SubTaskStatus
+from ..autonomous_executor import (
+    AutonomousExecutor,
+    ExecutionResult,
+    ExecutionStatus,
+    PolicyViolationError,
+)
+from ..execution_policy import ExecutionPolicy, AllowedOperation, DRY_RUN_POLICY
 
 
 class TestAutonomousExecutor:
@@ -418,3 +425,277 @@ class TestExecutorIntegration:
 
         loaded = state_manager.load_state(result.execution_id)
         assert loaded is None
+
+
+class TestPolicyEnforcementInExecutor:
+    """Tests for ExecutionPolicy enforcement in AutonomousExecutor (#1959)"""
+
+    @pytest.fixture
+    def setup_executor_state(self):
+        """Helper to initialize executor state for direct _execute_task calls"""
+        from datetime import datetime
+        from ..audit_log import AuditLogger
+
+        def _setup(executor):
+            executor.audit_logger = AuditLogger(
+                execution_id="test-exec-001",
+                actor="test-user",
+            )
+            executor.current_execution = ExecutionResult(
+                execution_id="test-exec-001",
+                plan_id="test-plan-001",
+                status=ExecutionStatus.RUNNING,
+                started_at=datetime.now(),
+            )
+            return executor
+        return _setup
+
+    @pytest.mark.asyncio
+    async def test_policy_violation_for_deployment_with_restrictive_policy(self, setup_executor_state):
+        """Test that deployment task raises PolicyViolationError with restrictive policy"""
+        restrictive_policy = ExecutionPolicy(
+            allowed_operations={AllowedOperation.READ_FILE}
+        )
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=restrictive_policy,
+        )
+        setup_executor_state(executor)
+
+        task = SubTask(
+            task_id="test-deploy-001",
+            task_type=SubTaskType.DEPLOYMENT,
+            description="Deploy to staging",
+        )
+
+        with pytest.raises(PolicyViolationError) as exc_info:
+            await executor._execute_task(task)
+
+        assert "Policy violation" in str(exc_info.value)
+        assert "deploy_staging" in str(exc_info.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_policy_violation_logs_audit_event(self, setup_executor_state):
+        """Test that policy violation logs audit event"""
+        restrictive_policy = ExecutionPolicy(
+            allowed_operations={AllowedOperation.READ_FILE}
+        )
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=restrictive_policy,
+        )
+        setup_executor_state(executor)
+
+        task = SubTask(
+            task_id="test-deploy-002",
+            task_type=SubTaskType.DEPLOYMENT,
+            description="Deploy to staging",
+        )
+
+        try:
+            await executor._execute_task(task)
+        except PolicyViolationError:
+            pass
+
+        assert executor.audit_logger is not None
+        event_types = [e.event_type.value for e in executor.audit_logger.events]
+        assert "policy_violation" in event_types
+
+    @pytest.mark.asyncio
+    async def test_policy_allows_safe_tasks(self, setup_executor_state):
+        """Test that default policy allows safe tasks like analyze_code"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+        )
+        setup_executor_state(executor)
+
+        task = SubTask(
+            task_id="test-analyze-001",
+            task_type=SubTaskType.ANALYZE_CODE,
+            description="Analyze code structure",
+        )
+
+        result = await executor._execute_task(task)
+        assert result is True
+        assert task.status == SubTaskStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_policy_augments_requires_approval(self, setup_executor_state):
+        """Test that policy augments task.requires_approval based on operations"""
+        policy = ExecutionPolicy(
+            allowed_operations={
+                AllowedOperation.READ_FILE,
+                AllowedOperation.DEPLOY_STAGING,
+            },
+            require_approval_for_deployment=True,
+        )
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=policy,
+        )
+        setup_executor_state(executor)
+
+        task = SubTask(
+            task_id="test-deploy-003",
+            task_type=SubTaskType.DEPLOYMENT,
+            description="Deploy to staging",
+        )
+
+        approval_requested = []
+
+        def on_approval(t):
+            approval_requested.append(t.task_id)
+            return True
+
+        executor.on_approval_required = on_approval
+
+        await executor._execute_task(task)
+
+        assert task.requires_approval is True
+        assert "test-deploy-003" in approval_requested
+
+
+class TestDryRunBehavior:
+    """Tests for dry_run behavior in AutonomousExecutor (#1959)"""
+
+    @pytest.fixture
+    def setup_executor_state(self):
+        """Helper to initialize executor state for direct handler calls"""
+        from datetime import datetime
+        from ..audit_log import AuditLogger
+
+        def _setup(executor):
+            executor.audit_logger = AuditLogger(
+                execution_id="test-exec-dry-001",
+                actor="test-user",
+            )
+            executor.current_execution = ExecutionResult(
+                execution_id="test-exec-dry-001",
+                plan_id="test-plan-dry-001",
+                status=ExecutionStatus.RUNNING,
+                started_at=datetime.now(),
+            )
+            return executor
+        return _setup
+
+    @pytest.mark.asyncio
+    async def test_dry_run_deployment_does_not_execute(self):
+        """Test that dry_run mode prevents actual deployment"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+
+        task = SubTask(
+            task_id="test-dry-deploy-001",
+            task_type=SubTaskType.DEPLOYMENT,
+            description="Deploy to staging",
+        )
+
+        result = await executor._handle_deployment(task)
+
+        assert result["dry_run"] is True
+        assert result["deployment_complete"] is False
+        assert "planned_action" in result
+
+    @pytest.mark.asyncio
+    async def test_dry_run_write_code_does_not_execute(self):
+        """Test that dry_run mode prevents actual code writing"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+
+        task = SubTask(
+            task_id="test-dry-write-001",
+            task_type=SubTaskType.WRITE_CODE,
+            description="Write feature code",
+        )
+
+        result = await executor._handle_write_code(task)
+
+        assert result["dry_run"] is True
+        assert result["code_written"] is False
+        assert "planned_action" in result
+
+    @pytest.mark.asyncio
+    async def test_dry_run_logs_high_risk_operation(self, setup_executor_state):
+        """Test that dry_run mode logs high risk operations"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+        setup_executor_state(executor)
+
+        task = SubTask(
+            task_id="test-dry-deploy-002",
+            task_type=SubTaskType.DEPLOYMENT,
+            description="Deploy to staging",
+        )
+
+        await executor._handle_deployment(task)
+
+        assert executor.audit_logger is not None
+        event_types = [e.event_type.value for e in executor.audit_logger.events]
+        assert "high_risk_operation" in event_types
+
+        high_risk_events = [
+            e for e in executor.audit_logger.events
+            if e.event_type.value == "high_risk_operation"
+        ]
+        assert len(high_risk_events) >= 1
+        assert high_risk_events[0].details.get("dry_run") is True
+
+    @pytest.mark.asyncio
+    async def test_non_dry_run_deployment_executes(self):
+        """Test that non-dry_run mode executes deployment"""
+        policy = ExecutionPolicy(dry_run=False)
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=policy,
+        )
+
+        task = SubTask(
+            task_id="test-real-deploy-001",
+            task_type=SubTaskType.DEPLOYMENT,
+            description="Deploy to staging",
+        )
+
+        result = await executor._handle_deployment(task)
+
+        assert result.get("dry_run") is not True
+        assert result["deployment_complete"] is True
+
+    @pytest.mark.asyncio
+    async def test_non_dry_run_write_code_executes(self):
+        """Test that non-dry_run mode executes code writing"""
+        policy = ExecutionPolicy(dry_run=False)
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=policy,
+        )
+
+        task = SubTask(
+            task_id="test-real-write-001",
+            task_type=SubTaskType.WRITE_CODE,
+            description="Write feature code",
+        )
+
+        result = await executor._handle_write_code(task)
+
+        assert result.get("dry_run") is not True
+        assert result["code_written"] is True
