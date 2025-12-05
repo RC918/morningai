@@ -537,6 +537,49 @@ class Settings(BaseSettings):
         repr=False
     )
 
+    # Webhook secrets for external service integration (#1822)
+    github_webhook_secret_secret: Optional[SecretStr] = Field(
+        None,
+        alias="GITHUB_WEBHOOK_SECRET",
+        description="GitHub webhook secret for signature validation",
+        repr=False
+    )
+
+    @property
+    def github_webhook_secret(self) -> Optional[str]:
+        """GitHub webhook secret (unwrapped from SecretStr)"""
+        return self.github_webhook_secret_secret.get_secret_value() if self.github_webhook_secret_secret else None
+
+    jira_webhook_secret_secret: Optional[SecretStr] = Field(
+        None,
+        alias="JIRA_WEBHOOK_SECRET",
+        description="Jira webhook secret for signature validation",
+        repr=False
+    )
+
+    @property
+    def jira_webhook_secret(self) -> Optional[str]:
+        """Jira webhook secret (unwrapped from SecretStr)"""
+        return self.jira_webhook_secret_secret.get_secret_value() if self.jira_webhook_secret_secret else None
+
+    slack_signing_secret_secret: Optional[SecretStr] = Field(
+        None,
+        alias="SLACK_SIGNING_SECRET",
+        description="Slack signing secret for request signature validation",
+        repr=False
+    )
+
+    @property
+    def slack_signing_secret(self) -> Optional[str]:
+        """Slack signing secret (unwrapped from SecretStr)"""
+        return self.slack_signing_secret_secret.get_secret_value() if self.slack_signing_secret_secret else None
+
+    webhook_verify_signature: bool = Field(
+        default=True,
+        alias="WEBHOOK_VERIFY_SIGNATURE",
+        description="Enable webhook signature verification (disable for testing)"
+    )
+
     telegram_bot_token_secret: Optional[SecretStr] = Field(
         None,
         alias="TELEGRAM_BOT_TOKEN",
