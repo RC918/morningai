@@ -93,7 +93,8 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         self,
         payload: bytes,
         signature: str,
-        secret: str
+        secret: str,
+        headers: Optional[Dict[str, str]] = None
     ) -> bool:
         """
         Validate GitHub webhook signature using HMAC-SHA256.
@@ -104,6 +105,7 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             payload: Raw request body
             signature: X-Hub-Signature-256 header value
             secret: Webhook secret configured in GitHub
+            headers: Optional request headers (not used by GitHub handler)
 
         Returns:
             True if signature is valid

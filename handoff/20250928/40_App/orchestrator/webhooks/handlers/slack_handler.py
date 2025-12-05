@@ -75,7 +75,7 @@ class SlackWebhookHandler(BaseWebhookHandler):
         payload: bytes,
         signature: str,
         secret: str,
-        timestamp: Optional[str] = None
+        headers: Optional[Dict[str, str]] = None
     ) -> bool:
         """
         Validate Slack webhook signature using HMAC-SHA256.
@@ -87,7 +87,7 @@ class SlackWebhookHandler(BaseWebhookHandler):
             payload: Raw request body
             signature: X-Slack-Signature header value
             secret: Slack signing secret
-            timestamp: X-Slack-Request-Timestamp header value
+            headers: Request headers containing X-Slack-Request-Timestamp
 
         Returns:
             True if signature is valid
@@ -96,6 +96,8 @@ class SlackWebhookHandler(BaseWebhookHandler):
             logger.warning("[SlackWebhookHandler] Invalid signature format")
             return False
 
+        # Extract timestamp from headers
+        timestamp = headers.get(self.TIMESTAMP_HEADER) if headers else None
         if not timestamp:
             logger.warning("[SlackWebhookHandler] Missing timestamp")
             return False
@@ -319,12 +321,11 @@ class SlackWebhookHandler(BaseWebhookHandler):
             logger.info("[SlackWebhookHandler] Responding to URL verification challenge")
             return {"challenge": challenge}
 
-        # Validate signature with timestamp
+        # Validate signature with headers (timestamp is extracted from headers)
         if self.config.verify_signature and self.config.secret:
             signature = headers.get(self.SIGNATURE_HEADER)
-            timestamp = headers.get(self.TIMESTAMP_HEADER)
 
-            if not self.validate_signature(payload, signature, self.config.secret, timestamp):
+            if not self.validate_signature(payload, signature, self.config.secret, headers):
                 from ..bot_protocol import WebhookResponse
                 return WebhookResponse(
                     success=False,

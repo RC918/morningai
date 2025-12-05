@@ -16,6 +16,7 @@ Endpoints:
 
 import json
 import logging
+import threading
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from common.config.settings import settings
@@ -29,44 +30,50 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("webhooks", __name__, url_prefix="/api/webhooks")
 
 # Lazy import to avoid circular dependencies
+# Thread-safe initialization using double-checked locking pattern
 _normalizer = None
+_normalizer_lock = threading.Lock()
 
 
 def get_normalizer():
     """
     Get or create the EventNormalizer instance.
 
-    Uses lazy initialization to avoid import issues at module load time.
+    Uses lazy initialization with thread-safe double-checked locking
+    to avoid import issues at module load time and prevent race conditions
+    in multi-threaded environments.
     """
     global _normalizer
     if _normalizer is None:
-        try:
-            from orchestrator.webhooks.normalizer import EventNormalizer
-            from orchestrator.webhooks.bot_protocol import WebhookConfig
+        with _normalizer_lock:
+            # Double-check after acquiring lock
+            if _normalizer is None:
+                try:
+                    from orchestrator.webhooks.normalizer import EventNormalizer
+                    from orchestrator.webhooks.bot_protocol import WebhookConfig
 
-            # Load configurations from settings
-            github_config = WebhookConfig(
-                secret=getattr(settings, 'github_webhook_secret', None),
-                verify_signature=getattr(settings, 'webhook_verify_signature', True),
-            )
-            jira_config = WebhookConfig(
-                secret=getattr(settings, 'jira_webhook_secret', None),
-                verify_signature=getattr(settings, 'webhook_verify_signature', True),
-            )
-            slack_config = WebhookConfig(
-                secret=getattr(settings, 'slack_signing_secret', None),
-                verify_signature=getattr(settings, 'webhook_verify_signature', True),
-            )
+                    # Load configurations from settings
+                    github_config = WebhookConfig(
+                        secret=getattr(settings, 'github_webhook_secret', None),
+                        verify_signature=getattr(settings, 'webhook_verify_signature', True),
+                    )
+                    jira_config = WebhookConfig(
+                        secret=getattr(settings, 'jira_webhook_secret', None),
+                        verify_signature=getattr(settings, 'webhook_verify_signature', True),
+                    )
+                    slack_config = WebhookConfig(
+                        secret=getattr(settings, 'slack_signing_secret', None),
+                        verify_signature=getattr(settings, 'webhook_verify_signature', True),
+                    )
 
-            _normalizer = EventNormalizer(
-                github_config=github_config,
-                jira_config=jira_config,
-                slack_config=slack_config,
-            )
-            logger.info("[Webhooks] EventNormalizer initialized")
-        except ImportError as e:
-            logger.warning("[Webhooks] Failed to import EventNormalizer: %s", e)
-            _normalizer = None
+                    _normalizer = EventNormalizer(
+                        github_config=github_config,
+                        jira_config=jira_config,
+                        slack_config=slack_config,
+                    )
+                    logger.info("[Webhooks] EventNormalizer initialized")
+                except ImportError as e:
+                    logger.warning("[Webhooks] Failed to import EventNormalizer: %s", e)
 
     return _normalizer
 
@@ -98,12 +105,24 @@ def _enqueue_task(task):
         # Import the worker function
         from redis_queue.worker import run_orchestrator_task
 
+        # Get repository from task context or settings
+        # Fail explicitly if no repository is configured to prevent tasks
+        # from being sent to the wrong repository
+        repo = task.context.get("repo") or settings.github_repo
+        if not repo:
+            logger.error(
+                "[Webhooks] No repository specified in task context or settings; "
+                "cannot enqueue task %s",
+                task.task_id,
+            )
+            return None
+
         # Enqueue the task
         job = queue.enqueue(
             run_orchestrator_task,
             task.task_id,
             task.goal_text,
-            task.context.get("repo", settings.github_repo or "RC918/morningai"),
+            repo,
             "webhook",
             job_id=task.task_id,
             ttl=600,
