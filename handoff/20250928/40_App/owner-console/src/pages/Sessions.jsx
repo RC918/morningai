@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Badge, 
@@ -18,35 +18,26 @@ import {
   Activity,
   ListTodo,
   FileCode,
+  FileText,
   TestTube,
   AlertTriangle,
   ChevronRight,
   RotateCcw,
-  StopCircle
+  StopCircle,
+  Settings,
+  Rocket,
+  BadgeCheck,
+  Trash2
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
 
 /**
- * Sessions page for Meta Agent task execution monitoring.
- * 
- * Design: Follows Devin Sessions sidebar structure with MorningAI design system.
- * - Left panel: Session list with status indicators
- * - Right panel: Session details (plan, tasks, logs)
- * 
- * Issue: #1823
- * Phase: M5 - Meta Agent
+ * Mock data for UI skeleton - moved outside component to prevent recreation on each render.
+ * Treat as immutable - do not mutate in place.
+ * Will be replaced with real API calls in Phase 2.
  */
-const Sessions = () => {
-  const { t } = useTranslation()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [sessions, setSessions] = useState([])
-  const [selectedSession, setSelectedSession] = useState(null)
-  const [filter, setFilter] = useState('all')
-
-  // Mock data for UI skeleton - will be replaced with real API calls
-  const mockSessions = [
+const MOCK_SESSIONS = Object.freeze([
     {
       id: 'session_001',
       title: 'Implement user authentication flow',
@@ -161,32 +152,70 @@ const Sessions = () => {
       ]
     }
   ]
+)
 
-  useEffect(() => {
-    loadSessions()
-  }, [])
+/**
+ * Sessions page for Meta Agent task execution monitoring.
+ * 
+ * Design: Follows Devin Sessions sidebar structure with MorningAI design system.
+ * - Left panel: Session list with status indicators
+ * - Right panel: Session details (plan, tasks, logs)
+ * 
+ * Issue: #1823
+ * Phase: M5 - Meta Agent
+ * 
+ * Performance optimizations (#1973):
+ * - MOCK_SESSIONS moved to module scope to prevent recreation
+ * - useCallback for event handlers to prevent unnecessary re-renders
+ * - useMemo for derived values (filteredSessions, sessionCounts)
+ */
+const Sessions = () => {
+  const { t } = useTranslation()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [sessions, setSessions] = useState([])
+  const [selectedSession, setSelectedSession] = useState(null)
+  const [filter, setFilter] = useState('all')
 
-  const loadSessions = async () => {
+  // Memoized loadSessions to prevent recreation on each render
+  const loadSessions = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
       // Simulate API call - will be replaced with real API
       await new Promise(resolve => setTimeout(resolve, 800))
-      setSessions(mockSessions)
+      setSessions(MOCK_SESSIONS)
       
-      // Auto-select first session if none selected
-      if (!selectedSession && mockSessions.length > 0) {
-        setSelectedSession(mockSessions[0])
-      }
+      // Auto-select first session if none selected using functional update
+      setSelectedSession(prev => {
+        if (!prev && MOCK_SESSIONS.length > 0) {
+          return MOCK_SESSIONS[0]
+        }
+        return prev
+      })
     } catch (err) {
       setError(t('sessions.error.loadFailed', 'Failed to load sessions'))
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
-  const getStatusColor = (status) => {
+  useEffect(() => {
+    loadSessions()
+  }, [loadSessions])
+
+  // Memoized filter handler
+  const handleFilterChange = useCallback((newFilter) => {
+    setFilter(newFilter)
+  }, [])
+
+  // Memoized session selection handler using functional update
+  const handleSessionSelect = useCallback((session) => {
+    setSelectedSession(session)
+  }, [])
+
+  const getStatusColor = useCallback((status) => {
     switch (status) {
       case 'running':
         return 'bg-calm-10 text-calm border-calm'
@@ -199,9 +228,9 @@ const Sessions = () => {
       default:
         return 'bg-neutral-100 text-neutral-600'
     }
-  }
+  }, [])
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = useCallback((status) => {
     switch (status) {
       case 'running':
         return <Play className="w-4 h-4" />
@@ -214,9 +243,9 @@ const Sessions = () => {
       default:
         return <Clock className="w-4 h-4" />
     }
-  }
+  }, [])
 
-  const getTaskStatusIcon = (status) => {
+  const getTaskStatusIcon = useCallback((status) => {
     switch (status) {
       case 'completed':
         return <CheckCircle className="w-4 h-4 text-growth" />
@@ -229,9 +258,9 @@ const Sessions = () => {
       default:
         return <Clock className="w-4 h-4 text-neutral-400" />
     }
-  }
+  }, [])
 
-  const getTaskTypeIcon = (type) => {
+  const getTaskTypeIcon = useCallback((type) => {
     switch (type) {
       case 'ANALYZE_CODE':
         return <FileCode className="w-4 h-4" />
@@ -242,17 +271,27 @@ const Sessions = () => {
         return <TestTube className="w-4 h-4" />
       case 'CODE_REVIEW':
         return <ListTodo className="w-4 h-4" />
+      case 'SETUP_ENVIRONMENT':
+        return <Settings className="w-4 h-4" />
+      case 'DEPLOYMENT':
+        return <Rocket className="w-4 h-4" />
+      case 'VERIFICATION':
+        return <BadgeCheck className="w-4 h-4" />
+      case 'DOCUMENTATION':
+        return <FileText className="w-4 h-4" />
+      case 'CLEANUP':
+        return <Trash2 className="w-4 h-4" />
       default:
         return <Activity className="w-4 h-4" />
     }
-  }
+  }, [])
 
-  const formatTimestamp = (timestamp) => {
+  const formatTimestamp = useCallback((timestamp) => {
     if (!timestamp) return t('common.na', 'N/A')
     return new Date(timestamp).toLocaleString()
-  }
+  }, [t])
 
-  const formatRelativeTime = (timestamp) => {
+  const formatRelativeTime = useCallback((timestamp) => {
     if (!timestamp) return ''
     const now = new Date()
     const date = new Date(timestamp)
@@ -263,27 +302,30 @@ const Sessions = () => {
     if (minutes < 1) return t('sessions.time.justNow', 'just now')
     if (minutes < 60) return t('sessions.time.minutesAgo', '{{count}}m ago', { count: minutes })
     if (hours < 24) return t('sessions.time.hoursAgo', '{{count}}h ago', { count: hours })
-    return formatTimestamp(timestamp)
-  }
+    return new Date(timestamp).toLocaleString()
+  }, [t])
 
-  const getConfidenceColor = (confidence) => {
+  const getConfidenceColor = useCallback((confidence) => {
     if (confidence >= 0.8) return 'text-growth'
     if (confidence >= 0.6) return 'text-wisdom'
     return 'text-energy'
-  }
+  }, [])
 
-  const filteredSessions = sessions.filter(session => {
-    if (filter === 'all') return true
-    return session.status === filter
-  })
+  // Memoized derived values to prevent recalculation on every render
+  const filteredSessions = useMemo(() => {
+    return sessions.filter(session => {
+      if (filter === 'all') return true
+      return session.status === filter
+    })
+  }, [sessions, filter])
 
-  const sessionCounts = {
+  const sessionCounts = useMemo(() => ({
     all: sessions.length,
     running: sessions.filter(s => s.status === 'running').length,
     paused: sessions.filter(s => s.status === 'paused').length,
     completed: sessions.filter(s => s.status === 'completed').length,
     failed: sessions.filter(s => s.status === 'failed').length
-  }
+  }), [sessions])
 
   if (loading) {
     return (
@@ -346,7 +388,7 @@ const Sessions = () => {
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => setFilter(key)}
+            onClick={() => handleFilterChange(key)}
             className={`rounded-xl border p-4 text-left transition-all ${
               filter === key
                 ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
@@ -383,15 +425,15 @@ const Sessions = () => {
             filteredSessions.map((session) => (
               <button
                 key={session.id}
-                onClick={() => setSelectedSession(session)}
-                className={`w-full text-left rounded-xl border p-4 transition-all ${
+                onClick={() => handleSessionSelect(session)}
+                className={`w-full text-left rounded-xl border p-4 transition-all flex flex-col items-stretch ${
                   selectedSession?.id === session.id
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                     : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="font-medium text-[var(--text-primary)] truncate">
                       {session.title}
                     </p>
@@ -405,13 +447,13 @@ const Sessions = () => {
                 </div>
                 
                 <div className="flex items-center gap-2 mt-3">
-                  <Badge className={`${getStatusColor(session.status)} text-xs`}>
+                  <Badge variant="outline" className="text-xs">
                     {getStatusIcon(session.status)}
                     <span className="ml-1">{t(`sessions.status.${session.status}`, session.status)}</span>
                   </Badge>
                   
                   {session.requiresApproval && (
-                    <Badge className="bg-wisdom-10 text-wisdom border-wisdom text-xs">
+                    <Badge variant="outline" className="text-xs">
                       <AlertTriangle className="w-3 h-3 mr-1" />
                       {t('sessions.needsApproval', 'Needs Approval')}
                     </Badge>
@@ -446,7 +488,7 @@ const Sessions = () => {
                       {selectedSession.goal}
                     </p>
                   </div>
-                  <Badge className={getStatusColor(selectedSession.status)}>
+                  <Badge variant="outline" className="text-xs">
                     {getStatusIcon(selectedSession.status)}
                     <span className="ml-1">{t(`sessions.status.${selectedSession.status}`, selectedSession.status)}</span>
                   </Badge>
