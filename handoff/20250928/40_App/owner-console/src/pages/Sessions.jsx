@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
+import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
 
 /**
  * Mock data for UI skeleton - moved outside component to prevent recreation on each render.
@@ -177,29 +178,32 @@ const Sessions = () => {
   const [selectedSession, setSelectedSession] = useState(null)
   const [filter, setFilter] = useState('all')
 
-  // Memoized loadSessions to prevent recreation on each render
   const loadSessions = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // Simulate API call - will be replaced with real API
-      await new Promise(resolve => setTimeout(resolve, 800))
-      setSessions(MOCK_SESSIONS)
+      const statusParam = filter !== 'all' ? `?status=${filter}` : ''
+      const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { method: 'GET' })
+      const sessionsData = response.data?.sessions || []
+      setSessions(sessionsData)
       
-      // Auto-select first session if none selected using functional update
       setSelectedSession(prev => {
-        if (!prev && MOCK_SESSIONS.length > 0) {
-          return MOCK_SESSIONS[0]
+        if (!prev && sessionsData.length > 0) {
+          return sessionsData[0]
         }
         return prev
       })
     } catch (err) {
-      setError(t('sessions.error.loadFailed', 'Failed to load sessions'))
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.loadFailed', 'Failed to load sessions'),
+        logContext: 'Sessions.loadSessions'
+      })
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, filter])
 
   useEffect(() => {
     loadSessions()

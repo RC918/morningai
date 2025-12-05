@@ -313,6 +313,14 @@ try:
 except ImportError as e:
     logger.warning("HITL action requests routes not available: %s", e)
 
+# Sessions API for agent session monitoring (Owner Console)
+try:
+    from src.routes.sessions import bp as sessions_bp
+    app.register_blueprint(sessions_bp)
+    logger.info("Sessions API routes enabled")
+except ImportError as e:
+    logger.warning("Sessions API routes not available: %s", e)
+
 # Webhook routes for external service integration (GitHub, Jira, Slack)
 try:
     from src.routes.webhooks import bp as webhooks_bp
