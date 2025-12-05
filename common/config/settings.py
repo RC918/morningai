@@ -1171,10 +1171,11 @@ class Settings(BaseSettings):
     # NOTE: Default value must stay in sync with SENSITIVE_FILE_PATTERNS in
     # handoff/20250928/40_App/orchestrator/project_engineer/semantic_rules.py
     # Use SENSITIVE_FILE_PATTERNS_CSV from semantic_rules.py as the source of truth
+    # PR #1943 revision: Minimal blocklist - only files that should NEVER be modified
     project_engineer_blocked_files: str = Field(
-        default=".env,.env.development,.env.local,.env.production,.env.staging,.key,.npmrc,.p12,.pem,.pfx,.pypirc,credentials.json,docker-compose.prod,fly.toml,id_ed25519,id_rsa,private_key,render.yaml,secrets.yaml,secrets.yml,vercel.json",
+        default=".key,.npmrc,.p12,.pem,.pfx,.pypirc,id_ed25519,id_rsa,private_key,secrets.yaml,secrets.yml",
         alias="PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS",
-        description="Comma-separated list of sensitive file patterns to block (Phase 1 Security Foundation)"
+        description="Comma-separated list of sensitive file patterns to block (Phase 1 Security Foundation - Minimal Blocklist)"
     )
 
     project_engineer_require_hitl_high_risk: bool = Field(
