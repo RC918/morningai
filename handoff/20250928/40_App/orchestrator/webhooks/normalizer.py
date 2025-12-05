@@ -26,6 +26,7 @@ from .bot_protocol import (
 )
 from .handlers.github_handler import GitHubWebhookHandler
 from .handlers.jira_handler import JiraWebhookHandler
+from .handlers.linear_handler import LinearWebhookHandler
 from .handlers.slack_handler import SlackWebhookHandler
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,7 @@ class EventNormalizer:
         self,
         github_config: Optional[WebhookConfig] = None,
         jira_config: Optional[WebhookConfig] = None,
+        linear_config: Optional[WebhookConfig] = None,
         slack_config: Optional[WebhookConfig] = None,
     ):
         """
@@ -112,11 +114,13 @@ class EventNormalizer:
         Args:
             github_config: Configuration for GitHub webhook handler
             jira_config: Configuration for Jira webhook handler
+            linear_config: Configuration for Linear webhook handler
             slack_config: Configuration for Slack webhook handler
         """
         self.handlers: Dict[WebhookSource, BaseWebhookHandler] = {
             WebhookSource.GITHUB: GitHubWebhookHandler(github_config),
             WebhookSource.JIRA: JiraWebhookHandler(jira_config),
+            WebhookSource.LINEAR: LinearWebhookHandler(linear_config),
             WebhookSource.SLACK: SlackWebhookHandler(slack_config),
         }
 
