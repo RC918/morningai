@@ -170,7 +170,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("webhooks", __name__, url_prefix="/api/webhooks")
 
 # Lazy import to avoid circular dependencies
-# Thread-safe singleton pattern with double-checked locking
+# Thread-safe singleton initialization using double-checked locking pattern
 _normalizer = None
 _normalizer_lock = threading.Lock()
 
@@ -179,15 +179,17 @@ def get_normalizer():
     """
     Get or create the EventNormalizer instance.
 
-    Uses lazy initialization with double-checked locking pattern
-    to ensure thread-safety and avoid import issues at module load time.
+    Uses lazy initialization with thread-safe double-checked locking
+    to avoid import issues at module load time and prevent race conditions
+    in multi-threaded environments.
     """
     global _normalizer
-    # First check without lock (fast path)
+    
+    # Fast path: return cached instance without acquiring the lock
     if _normalizer is not None:
         return _normalizer
     
-    # Acquire lock for initialization
+    # Slow path: initialize under lock
     with _normalizer_lock:
         # Double-check after acquiring lock
         if _normalizer is None:
@@ -217,7 +219,7 @@ def get_normalizer():
                 logger.info("[Webhooks] EventNormalizer initialized (thread-safe)")
             except ImportError as e:
                 logger.warning("[Webhooks] Failed to import EventNormalizer: %s", e)
-                # Don't set _normalizer to None here, leave it as None
+                # Intentionally leave _normalizer as None
 
     return _normalizer
 
@@ -242,22 +244,24 @@ def _enqueue_task(task):
             logger.warning("[Webhooks] Redis URL not configured, skipping task enqueue")
             return None
 
-        # Get repo from task context or settings - fail explicitly if not configured
-        repo = task.context.get("repo") or settings.github_repo
-        if not repo:
-            logger.error(
-                "[Webhooks] Cannot enqueue task %s: no repository configured. "
-                "Set GITHUB_REPO environment variable or ensure webhook payload contains repo info.",
-                task.task_id
-            )
-            return None
-
         redis_client = Redis.from_url(redis_url, decode_responses=False)
         queue_name = settings.rq_queue_name or "orchestrator"
         queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
 
         # Import the worker function
         from redis_queue.worker import run_orchestrator_task
+
+        # Get repository from task context or settings
+        # Fail explicitly if no repository is configured to prevent tasks
+        # from being sent to the wrong repository
+        repo = task.context.get("repo") or settings.github_repo
+        if not repo:
+            logger.error(
+                "[Webhooks] No repository specified in task context or settings; "
+                "cannot enqueue task %s",
+                task.task_id,
+            )
+            return None
 
         # Enqueue the task
         job = queue.enqueue(
