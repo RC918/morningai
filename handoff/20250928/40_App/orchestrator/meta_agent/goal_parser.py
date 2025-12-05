@@ -139,8 +139,9 @@ class GoalParser:
         ],
     }
 
-    # High-risk patterns that require approval
+    # High-risk patterns that require approval (English and Chinese)
     HIGH_RISK_PATTERNS = [
+        # English patterns
         r"deploy.*prod",
         r"production",
         r"database.*migration",
@@ -151,6 +152,40 @@ class GoalParser:
         r"security",
         r"authentication",
         r"authorization",
+        r"drop.*table",
+        r"truncate",
+        r"rollback",
+        r"revert.*prod",
+        r"secret",
+        r"credential",
+        r"api.*key",
+        r"password",
+        r"token",
+        # Chinese patterns (中文高風險模式)
+        r"部署.*生產",
+        r"部署.*正式",
+        r"生產環境",
+        r"正式環境",
+        r"資料庫.*遷移",
+        r"數據庫.*遷移",
+        r"刪除.*資料",
+        r"刪除.*數據",
+        r"移除.*用戶",
+        r"移除.*使用者",
+        r"付款",
+        r"支付",
+        r"帳單",
+        r"賬單",
+        r"安全",
+        r"認證",
+        r"授權",
+        r"密碼",
+        r"金鑰",
+        r"密鑰",
+        r"憑證",
+        r"憑據",
+        r"回滾",
+        r"還原.*生產",
     ]
 
     def __init__(self, llm_client: Optional[Any] = None):
