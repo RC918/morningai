@@ -434,9 +434,74 @@
           "logout": "登出",
           "mainNavigation": "主導覽",
           "monitoring": "系統監控",
+          "sessions": "Agent 會話",
           "settings": "平台設定",
           "tenants": "租戶管理",
           "uxMetrics": "UX 指標"
+        },
+        "sessions": {
+          "title": "Agent 會話",
+          "subtitle": "監控與管理 Meta Agent 任務執行會話",
+          "error": {
+            "loadFailed": "載入會話失敗",
+            "title": "執行失敗"
+          },
+          "filter": {
+            "all": "全部",
+            "running": "執行中",
+            "paused": "已暫停",
+            "completed": "已完成",
+            "failed": "失敗"
+          },
+          "list": {
+            "title": "會話列表",
+            "noSessions": "找不到會話"
+          },
+          "status": {
+            "running": "執行中",
+            "paused": "已暫停",
+            "completed": "已完成",
+            "failed": "失敗"
+          },
+          "needsApproval": "需要審核",
+          "confidence": "信心度",
+          "time": {
+            "justNow": "剛剛",
+            "minutesAgo": "{{count}} 分鐘前",
+            "hoursAgo": "{{count}} 小時前"
+          },
+          "selectSession": "選擇一個會話以查看詳情",
+          "actions": {
+            "pause": "暫停",
+            "resume": "繼續",
+            "cancel": "取消",
+            "approve": "核准"
+          },
+          "tabs": {
+            "plan": "任務計劃",
+            "logs": "活動日誌"
+          },
+          "plan": {
+            "progress": "進度",
+            "tasks": "個任務"
+          },
+          "approval": {
+            "title": "需要審核"
+          },
+          "taskType": {
+            "ANALYZE_CODE": "分析",
+            "SETUP_ENVIRONMENT": "設定",
+            "WRITE_CODE": "編碼",
+            "WRITE_TEST": "測試",
+            "RUN_TEST": "執行測試",
+            "CODE_REVIEW": "審查",
+            "DOCUMENTATION": "文件",
+            "DEPLOYMENT": "部署",
+            "VERIFICATION": "驗證",
+            "CLEANUP": "清理"
+          },
+          "startedAt": "開始時間",
+          "viewPR": "查看 Pull Request"
         },
         "approvalQueue": {
           "title": "審核佇列",

@@ -435,10 +435,75 @@
                   "logout": "Logout",
                   "mainNavigation": "Main navigation",
                   "monitoring": "System Monitoring",
+                  "sessions": "Agent Sessions",
                   "settings": "Platform Settings",
                   "tenants": "Tenant Management",
                   "uxMetrics": "UX Metrics"
                 },
+          "sessions": {
+            "title": "Agent Sessions",
+            "subtitle": "Monitor and manage Meta Agent task execution sessions",
+            "error": {
+              "loadFailed": "Failed to load sessions",
+              "title": "Execution Failed"
+            },
+            "filter": {
+              "all": "All",
+              "running": "Running",
+              "paused": "Paused",
+              "completed": "Completed",
+              "failed": "Failed"
+            },
+            "list": {
+              "title": "Sessions",
+              "noSessions": "No sessions found"
+            },
+            "status": {
+              "running": "Running",
+              "paused": "Paused",
+              "completed": "Completed",
+              "failed": "Failed"
+            },
+            "needsApproval": "Needs Approval",
+            "confidence": "Confidence",
+            "time": {
+              "justNow": "just now",
+              "minutesAgo": "{{count}}m ago",
+              "hoursAgo": "{{count}}h ago"
+            },
+            "selectSession": "Select a session to view details",
+            "actions": {
+              "pause": "Pause",
+              "resume": "Resume",
+              "cancel": "Cancel",
+              "approve": "Approve"
+            },
+            "tabs": {
+              "plan": "Task Plan",
+              "logs": "Activity Log"
+            },
+            "plan": {
+              "progress": "Progress",
+              "tasks": "tasks"
+            },
+            "approval": {
+              "title": "Approval Required"
+            },
+            "taskType": {
+              "ANALYZE_CODE": "Analyze",
+              "SETUP_ENVIRONMENT": "Setup",
+              "WRITE_CODE": "Code",
+              "WRITE_TEST": "Test",
+              "RUN_TEST": "Run Test",
+              "CODE_REVIEW": "Review",
+              "DOCUMENTATION": "Docs",
+              "DEPLOYMENT": "Deploy",
+              "VERIFICATION": "Verify",
+              "CLEANUP": "Cleanup"
+            },
+            "startedAt": "Started",
+            "viewPR": "View Pull Request"
+          },
           "approvalQueue": {
             "title": "Approval Queue",
             "subtitle": "Review high-risk actions requiring human approval",

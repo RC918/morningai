@@ -11,6 +11,7 @@ import './App.css'
 const OwnerDashboard = lazy(() => import('@/pages/OwnerDashboard'))
 const AgentGovernance = lazy(() => import('@/pages/AgentGovernance'))
 const ApprovalQueue = lazy(() => import('@/pages/ApprovalQueue'))
+const Sessions = lazy(() => import('@/pages/Sessions'))
 const TenantManagement = lazy(() => import('@/pages/TenantManagement'))
 const SystemMonitoring = lazy(() => import('@/pages/SystemMonitoring'))
 const AgentEvaluationDashboard = lazy(() => import('@/pages/AgentEvaluationDashboard'))
@@ -51,6 +52,7 @@ function AppContent() {
                                 <Route path="/dashboard" element={<OwnerDashboard />} />
                                 <Route path="/governance" element={<AgentGovernance />} />
                                 <Route path="/approval-queue" element={<ApprovalQueue />} />
+                                <Route path="/sessions" element={<Sessions />} />
                                 <Route path="/ai-policies" element={<AIPolicies />} />
                 <Route path="/tenants" element={<TenantManagement />} />
                 <Route path="/monitoring" element={<SystemMonitoring />} />

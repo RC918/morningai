@@ -7,6 +7,7 @@ import {
   Shield,
   ShieldCheck,
   ShieldAlert,
+  ListTodo,
   Users,
   Activity,
   BarChart3,
@@ -48,6 +49,12 @@ const Sidebar = ({ user, onLogout }) => {
                   icon: ShieldAlert,
                   labelKey: 'nav.approvalQueue',
                   descriptionKey: 'approvalQueue.subtitle'
+                },
+                {
+                  path: '/sessions',
+                  icon: ListTodo,
+                  labelKey: 'nav.sessions',
+                  descriptionKey: 'sessions.subtitle'
                 },
                 {
                   path: '/ai-policies',
