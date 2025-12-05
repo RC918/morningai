@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Badge, 
@@ -170,6 +170,8 @@ const MOCK_SESSIONS = Object.freeze([
  * - useCallback for event handlers to prevent unnecessary re-renders
  * - useMemo for derived values (filteredSessions, sessionCounts)
  */
+const POLLING_INTERVAL_MS = 10000
+
 const Sessions = () => {
   const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
@@ -177,6 +179,9 @@ const Sessions = () => {
   const [sessions, setSessions] = useState([])
   const [selectedSession, setSelectedSession] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const pollingIntervalRef = useRef(null)
 
   const loadSessions = useCallback(async () => {
     try {
@@ -208,6 +213,56 @@ const Sessions = () => {
   useEffect(() => {
     loadSessions()
   }, [loadSessions])
+
+  const refreshSessionsSilently = useCallback(async () => {
+    try {
+      setIsRefreshing(true)
+      const statusParam = filter !== 'all' ? `?status=${filter}` : ''
+      const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { method: 'GET' })
+      const sessionsData = response.data?.sessions || []
+      setSessions(sessionsData)
+      
+      setSelectedSession(prev => {
+        if (prev) {
+          const updatedSession = sessionsData.find(s => s.id === prev.id)
+          return updatedSession || prev
+        }
+        return prev
+      })
+    } catch (err) {
+      console.error('Silent refresh failed:', err)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [filter])
+
+  const hasActiveSessions = useMemo(() => {
+    return sessions.some(s => s.status === 'running' || s.status === 'paused')
+  }, [sessions])
+
+  useEffect(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+
+    if (autoRefresh && hasActiveSessions && !loading) {
+      pollingIntervalRef.current = setInterval(() => {
+        refreshSessionsSilently()
+      }, POLLING_INTERVAL_MS)
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [autoRefresh, hasActiveSessions, loading, refreshSessionsSilently])
+
+  const handleToggleAutoRefresh = useCallback(() => {
+    setAutoRefresh(prev => !prev)
+  }, [])
 
   // Memoized filter handler
   const handleFilterChange = useCallback((newFilter) => {
@@ -436,10 +491,36 @@ const Sessions = () => {
             {t('sessions.subtitle', 'Monitor and manage Meta Agent task execution sessions')}
           </p>
         </div>
-        <AppleButton onClick={loadSessions} variant="outline" haptic="light" disabled={loading}>
-          <RotateCcw className="w-4 h-4 mr-2" />
-          {t('common.refresh', 'Refresh')}
-        </AppleButton>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleToggleAutoRefresh}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+              autoRefresh
+                ? 'bg-growth-10 text-growth border border-growth-20'
+                : 'bg-neutral-100 text-neutral-500 border border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700'
+            }`}
+            title={autoRefresh 
+              ? t('sessions.autoRefresh.enabled', 'Auto-refresh enabled (10s)')
+              : t('sessions.autoRefresh.disabled', 'Auto-refresh disabled')
+            }
+          >
+            <div className={`w-2 h-2 rounded-full ${
+              autoRefresh && hasActiveSessions
+                ? 'bg-growth animate-pulse'
+                : autoRefresh
+                  ? 'bg-growth'
+                  : 'bg-neutral-400'
+            }`} />
+            <span>{t('sessions.autoRefresh.label', 'Auto')}</span>
+            {isRefreshing && (
+              <RotateCcw className="w-3 h-3 animate-spin" />
+            )}
+          </button>
+          <AppleButton onClick={loadSessions} variant="outline" haptic="light" disabled={loading}>
+            <RotateCcw className="w-4 h-4 mr-2" />
+            {t('common.refresh', 'Refresh')}
+          </AppleButton>
+        </div>
       </div>
 
       {error && (
