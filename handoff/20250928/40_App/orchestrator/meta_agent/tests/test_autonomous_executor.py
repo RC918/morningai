@@ -279,3 +279,142 @@ class TestTaskHandlers:
 
         result = await executor._handle_verification(task)
         assert result["verification_passed"] is True
+
+
+class TestExecutorIntegration:
+    """Integration tests for AutonomousExecutor with AuditLogger, ExecutionPolicy, and StateManager"""
+
+    @pytest.mark.asyncio
+    async def test_policy_safety_limit_triggers_audit_event(self):
+        """Test that policy safety limits trigger audit events"""
+        from ..execution_policy import ExecutionPolicy
+
+        policy = ExecutionPolicy(max_loop_iterations=0)
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=policy,
+        )
+
+        result = await executor.execute_goal("Simple task")
+
+        assert any("max loop iterations" in err.lower() for err in result.errors)
+
+        assert executor.audit_logger is not None
+        event_type_values = {e.event_type.value for e in executor.audit_logger.events}
+        assert "execution_started" in event_type_values
+        assert "safety_limit_reached" in event_type_values
+
+        safety_events = [
+            e for e in executor.audit_logger.events
+            if e.event_type.value == "safety_limit_reached"
+        ]
+        assert len(safety_events) >= 1
+        assert safety_events[0].details.get("limit_type") == "max_loop_iterations"
+
+    @pytest.mark.asyncio
+    async def test_state_manager_delete_on_completion(self, tmp_path):
+        """Test that state manager deletes state on execution completion"""
+        from ..state_persistence import ExecutionStateManager
+
+        state_manager = ExecutionStateManager(storage_dir=str(tmp_path / "state"))
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            state_manager=state_manager,
+        )
+
+        result = await executor.execute_goal("Quick task")
+
+        assert result.status in [ExecutionStatus.COMPLETED, ExecutionStatus.FAILED]
+
+        loaded = state_manager.load_state(result.execution_id)
+        assert loaded is None
+
+    @pytest.mark.asyncio
+    async def test_audit_logger_records_task_lifecycle(self):
+        """Test that audit logger records task start and completion events"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=10,
+        )
+
+        await executor.execute_goal("Add documentation")
+
+        assert executor.audit_logger is not None
+
+        event_type_values = [e.event_type.value for e in executor.audit_logger.events]
+
+        assert "execution_started" in event_type_values
+
+        task_started_count = sum(1 for e in event_type_values if e == "task_started")
+        task_completed_count = sum(1 for e in event_type_values if e == "task_completed")
+
+        assert task_started_count > 0
+        assert task_completed_count > 0
+
+        assert "execution_completed" in event_type_values or "execution_failed" in event_type_values
+
+    @pytest.mark.asyncio
+    async def test_executor_uses_default_policy_when_none_provided(self):
+        """Test that executor creates default ExecutionPolicy when none provided"""
+        executor = AutonomousExecutor()
+
+        assert executor.policy is not None
+        assert hasattr(executor.policy, "max_loop_iterations")
+        assert executor.policy.max_loop_iterations == 1000
+
+    @pytest.mark.asyncio
+    async def test_executor_respects_custom_policy_limits(self):
+        """Test that executor respects custom policy limits"""
+        from datetime import timedelta
+        from ..execution_policy import ExecutionPolicy
+
+        custom_policy = ExecutionPolicy(
+            max_loop_iterations=5,
+            max_execution_time=timedelta(seconds=1),
+            max_consecutive_failures=2,
+        )
+
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=custom_policy,
+        )
+
+        assert executor.policy.max_loop_iterations == 5
+        assert executor.policy.max_execution_time == timedelta(seconds=1)
+        assert executor.policy.max_consecutive_failures == 2
+
+    @pytest.mark.asyncio
+    async def test_full_integration_audit_policy_state(self, tmp_path):
+        """Test full integration of AuditLogger, ExecutionPolicy, and StateManager"""
+        from ..execution_policy import ExecutionPolicy
+        from ..state_persistence import ExecutionStateManager
+
+        state_manager = ExecutionStateManager(storage_dir=str(tmp_path / "state"))
+        policy = ExecutionPolicy(max_loop_iterations=100)
+
+        executor = AutonomousExecutor(
+            max_retries=2,
+            task_timeout_seconds=10,
+            policy=policy,
+            state_manager=state_manager,
+        )
+
+        result = await executor.execute_goal("Write a simple test")
+
+        assert executor.policy is policy
+        assert executor.state_manager is state_manager
+        assert executor.audit_logger is not None
+
+        event_type_values = {e.event_type.value for e in executor.audit_logger.events}
+        assert "execution_started" in event_type_values
+
+        assert result.execution_id is not None
+        assert result.plan_id is not None
+
+        loaded = state_manager.load_state(result.execution_id)
+        assert loaded is None
