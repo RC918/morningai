@@ -119,5 +119,5 @@ P2 - 非阻擋性改進
 
 ## 相關文件
 
-- [PR Template](.github/pull_request_template.md) - PR 模板包含 Out of Scope 區塊
+- [PR Template](../.github/pull_request_template.md) - PR 模板包含 Out of Scope 區塊
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - 貢獻指南
