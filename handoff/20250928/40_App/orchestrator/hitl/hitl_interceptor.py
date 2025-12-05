@@ -104,9 +104,9 @@ class HITLInterceptor:
         self.timeout_hours = timeout_hours
 
         if SEMANTIC_RULES_AVAILABLE:
-            self.validator = SemanticRulesValidator(
-                require_hitl_for_high_risk=require_hitl_for_high_risk
-            )
+            # Note: SemanticRulesValidator loads require_hitl_for_high_risk from settings internally.
+            # The interceptor's own self.require_hitl_for_high_risk flag controls the approval workflow.
+            self.validator = SemanticRulesValidator()
         else:
             self.validator = None
 
