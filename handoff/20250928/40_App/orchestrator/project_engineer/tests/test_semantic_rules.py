@@ -422,7 +422,16 @@ class TestActionValidation:
 
 
 class TestSensitiveFileValidation:
-    """Test sensitive file validation (Phase 1 Security Foundation)"""
+    """Test sensitive file validation (Phase 1 Security Foundation)
+    
+    Note: The minimal blocklist only includes files that should NEVER be modified:
+    - Private keys and certificates
+    - Explicit secrets files (secrets.yaml, secrets.yml)
+    - Package manager auth tokens (.npmrc, .pypirc)
+    
+    Files like .env, deployment configs, and cloud credentials are NOT blocked
+    to allow Agent flexibility in modifying configuration files.
+    """
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
     def test_validate_normal_file(self, mock_load):
@@ -435,36 +444,30 @@ class TestSensitiveFileValidation:
         assert violation is None
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_env_file_blocked(self, mock_load):
-        """Should block .env files"""
+    def test_validate_env_file_allowed(self, mock_load):
+        """Should allow .env files (not in minimal blocklist)"""
         validator = SemanticRulesValidator()
         validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
         
         is_valid, violation = validator.validate_sensitive_file(".env")
-        assert is_valid is False
-        assert violation is not None
-        assert violation.rule_type == "sensitive_file"
-        assert violation.severity == "critical"
+        assert is_valid is True
+        assert violation is None
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_env_local_blocked(self, mock_load):
-        """Should block .env.local files"""
+    def test_validate_deployment_config_allowed(self, mock_load):
+        """Should allow deployment config files (not in minimal blocklist)"""
         validator = SemanticRulesValidator()
         validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
         
-        is_valid, violation = validator.validate_sensitive_file("config/.env.local")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_credentials_json_blocked(self, mock_load):
-        """Should block credentials.json files"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        # These are now allowed for Agent modification
+        is_valid, violation = validator.validate_sensitive_file("fly.toml")
+        assert is_valid is True
         
-        is_valid, violation = validator.validate_sensitive_file("credentials.json")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
+        is_valid, violation = validator.validate_sensitive_file("docker-compose.yml")
+        assert is_valid is True
+        
+        is_valid, violation = validator.validate_sensitive_file("render.yaml")
+        assert is_valid is True
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
     def test_validate_private_key_blocked(self, mock_load):
@@ -487,12 +490,22 @@ class TestSensitiveFileValidation:
         assert violation.rule_type == "sensitive_file"
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_deployment_config_blocked(self, mock_load):
-        """Should block deployment config files"""
+    def test_validate_secrets_yaml_blocked(self, mock_load):
+        """Should block secrets.yaml files"""
         validator = SemanticRulesValidator()
         validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
         
-        is_valid, violation = validator.validate_sensitive_file("fly.toml")
+        is_valid, violation = validator.validate_sensitive_file("k8s/secrets.yaml")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_validate_npmrc_blocked(self, mock_load):
+        """Should block .npmrc files (contains auth tokens)"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file(".npmrc")
         assert is_valid is False
         assert violation.rule_type == "sensitive_file"
 
@@ -516,165 +529,170 @@ class TestSensitiveFileValidation:
         assert violation.rule_type == "path_traversal"
 
     def test_sensitive_file_patterns_constant(self):
-        """Should have expected sensitive file patterns defined"""
-        assert ".env" in SENSITIVE_FILE_PATTERNS
-        assert "credentials.json" in SENSITIVE_FILE_PATTERNS
+        """Should have expected sensitive file patterns defined (minimal blocklist)"""
+        # Private keys and certificates (MUST be blocked)
         assert "private_key" in SENSITIVE_FILE_PATTERNS
+        assert "id_rsa" in SENSITIVE_FILE_PATTERNS
+        assert "id_ed25519" in SENSITIVE_FILE_PATTERNS
         assert ".pem" in SENSITIVE_FILE_PATTERNS
-        assert "fly.toml" in SENSITIVE_FILE_PATTERNS
+        assert ".key" in SENSITIVE_FILE_PATTERNS
+        assert ".p12" in SENSITIVE_FILE_PATTERNS
+        assert ".pfx" in SENSITIVE_FILE_PATTERNS
+        # Explicit secrets files (MUST be blocked)
+        assert "secrets.yaml" in SENSITIVE_FILE_PATTERNS
+        assert "secrets.yml" in SENSITIVE_FILE_PATTERNS
+        # Package manager auth tokens (MUST be blocked)
+        assert ".npmrc" in SENSITIVE_FILE_PATTERNS
+        assert ".pypirc" in SENSITIVE_FILE_PATTERNS
+        
+    def test_files_not_in_minimal_blocklist(self):
+        """Verify files that should NOT be in minimal blocklist"""
+        # Environment files - Agent can modify
+        assert ".env" not in SENSITIVE_FILE_PATTERNS
+        assert ".env.local" not in SENSITIVE_FILE_PATTERNS
+        # Deployment configs - Agent can modify
+        assert "fly.toml" not in SENSITIVE_FILE_PATTERNS
+        assert "render.yaml" not in SENSITIVE_FILE_PATTERNS
+        assert "vercel.json" not in SENSITIVE_FILE_PATTERNS
+        assert "docker-compose.yml" not in SENSITIVE_FILE_PATTERNS
+        # Cloud credentials - Agent can read (not blocked)
+        assert ".aws/credentials" not in SENSITIVE_FILE_PATTERNS
+        assert "kubeconfig" not in SENSITIVE_FILE_PATTERNS
 
 
-class TestLongTailSensitiveFiles:
-    """Test long-tail sensitive file patterns (Follow-up PR)
+class TestMinimalBlocklistBehavior:
+    """Test minimal blocklist behavior (PR #1943 revision)
     
-    These tests cover additional deployment and configuration files
-    that may contain sensitive information like API keys, database URLs,
-    or infrastructure secrets.
+    The minimal blocklist only blocks files that should NEVER be modified:
+    - Private keys and certificates
+    - Explicit secrets files (secrets.yaml, secrets.yml)
+    - Package manager auth tokens (.npmrc, .pypirc)
+    
+    Deployment configs, .env files, and cloud credentials are NOT blocked
+    to allow Agent flexibility in modifying configuration files.
     """
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_render_yaml_blocked(self, mock_load):
-        """Should block render.yaml files (Render deployment config)"""
+    def test_private_key_files_blocked(self, mock_load):
+        """Should block all private key file types"""
         validator = SemanticRulesValidator()
-        # Add render.yaml to blocked patterns for this test
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["render.yaml"]
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
         
-        is_valid, violation = validator.validate_sensitive_file("render.yaml")
-        assert is_valid is False
-        assert violation is not None
-        assert violation.rule_type == "sensitive_file"
+        # Test various private key patterns
+        key_files = ["id_rsa", "id_ed25519", "server.pem", "cert.key", "auth.p12", "cert.pfx"]
+        for key_file in key_files:
+            is_valid, violation = validator.validate_sensitive_file(key_file)
+            assert is_valid is False, f"Expected {key_file} to be blocked"
+            assert violation.rule_type == "sensitive_file"
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_render_yaml_in_subdirectory_blocked(self, mock_load):
-        """Should block render.yaml in subdirectories"""
+    def test_secrets_files_blocked(self, mock_load):
+        """Should block explicit secrets files"""
         validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["render.yaml"]
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
         
-        is_valid, violation = validator.validate_sensitive_file("deploy/render.yaml")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_vercel_json_blocked(self, mock_load):
-        """Should block vercel.json files (Vercel deployment config)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["vercel.json"]
-        
-        is_valid, violation = validator.validate_sensitive_file("vercel.json")
-        assert is_valid is False
-        assert violation is not None
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_docker_compose_yml_blocked(self, mock_load):
-        """Should block docker-compose.yml files (may contain secrets)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["docker-compose.yml", "docker-compose.yaml"]
-        
-        is_valid, violation = validator.validate_sensitive_file("docker-compose.yml")
-        assert is_valid is False
-        assert violation is not None
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_docker_compose_yaml_blocked(self, mock_load):
-        """Should block docker-compose.yaml files"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["docker-compose.yml", "docker-compose.yaml"]
-        
-        is_valid, violation = validator.validate_sensitive_file("docker-compose.yaml")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_railway_json_blocked(self, mock_load):
-        """Should block railway.json files (Railway deployment config)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["railway.json"]
-        
-        is_valid, violation = validator.validate_sensitive_file("railway.json")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_netlify_toml_blocked(self, mock_load):
-        """Should block netlify.toml files (Netlify deployment config)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["netlify.toml"]
-        
-        is_valid, violation = validator.validate_sensitive_file("netlify.toml")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_heroku_yml_blocked(self, mock_load):
-        """Should block heroku.yml files (Heroku deployment config)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["heroku.yml"]
-        
-        is_valid, violation = validator.validate_sensitive_file("heroku.yml")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_app_yaml_blocked(self, mock_load):
-        """Should block app.yaml files (Google Cloud App Engine config)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["app.yaml"]
-        
-        is_valid, violation = validator.validate_sensitive_file("app.yaml")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_terraform_tfvars_blocked(self, mock_load):
-        """Should block terraform.tfvars files (Terraform variables with secrets)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + [".tfvars"]
-        
-        is_valid, violation = validator.validate_sensitive_file("terraform.tfvars")
-        assert is_valid is False
-        assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_secrets_yaml_blocked(self, mock_load):
-        """Should block secrets.yaml files (Kubernetes secrets)"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["secrets.yaml", "secrets.yml"]
-        
+        # secrets.yaml and secrets.yml should be blocked
         is_valid, violation = validator.validate_sensitive_file("k8s/secrets.yaml")
         assert is_valid is False
         assert violation.rule_type == "sensitive_file"
-
-    @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_kubeconfig_blocked(self, mock_load):
-        """Should block kubeconfig files"""
-        validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["kubeconfig"]
         
-        is_valid, violation = validator.validate_sensitive_file(".kube/kubeconfig")
+        is_valid, violation = validator.validate_sensitive_file("config/secrets.yml")
         assert is_valid is False
         assert violation.rule_type == "sensitive_file"
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_aws_credentials_blocked(self, mock_load):
-        """Should block AWS credentials files"""
+    def test_package_manager_auth_blocked(self, mock_load):
+        """Should block package manager auth token files"""
         validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["credentials"]
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
         
-        is_valid, violation = validator.validate_sensitive_file(".aws/credentials")
+        # .npmrc and .pypirc contain auth tokens
+        is_valid, violation = validator.validate_sensitive_file(".npmrc")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+        
+        is_valid, violation = validator.validate_sensitive_file(".pypirc")
         assert is_valid is False
         assert violation.rule_type == "sensitive_file"
 
     @patch('semantic_rules.SemanticRulesValidator._load_settings')
-    def test_validate_gcloud_config_blocked(self, mock_load):
-        """Should block gcloud configuration files"""
+    def test_deployment_configs_allowed(self, mock_load):
+        """Should allow deployment config files (not in minimal blocklist)"""
         validator = SemanticRulesValidator()
-        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS) + ["application_default_credentials.json"]
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
         
-        is_valid, violation = validator.validate_sensitive_file(".config/gcloud/application_default_credentials.json")
+        # All deployment configs should be allowed
+        allowed_files = [
+            "render.yaml", "vercel.json", "fly.toml",
+            "docker-compose.yml", "docker-compose.yaml",
+            "railway.json", "netlify.toml", "heroku.yml", "app.yaml"
+        ]
+        for config_file in allowed_files:
+            is_valid, violation = validator.validate_sensitive_file(config_file)
+            assert is_valid is True, f"Expected {config_file} to be allowed"
+            assert violation is None
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_env_files_allowed(self, mock_load):
+        """Should allow .env files (not in minimal blocklist)"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        # All .env files should be allowed
+        env_files = [".env", ".env.local", ".env.production", ".env.staging", ".env.development"]
+        for env_file in env_files:
+            is_valid, violation = validator.validate_sensitive_file(env_file)
+            assert is_valid is True, f"Expected {env_file} to be allowed"
+            assert violation is None
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_cloud_credentials_allowed(self, mock_load):
+        """Should allow cloud credential files (not in minimal blocklist)"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        # Cloud credentials are read-only in practice, but not blocked
+        cloud_files = [
+            ".aws/credentials",
+            "application_default_credentials.json",
+            ".kube/kubeconfig",
+            "credentials.json"
+        ]
+        for cloud_file in cloud_files:
+            is_valid, violation = validator.validate_sensitive_file(cloud_file)
+            assert is_valid is True, f"Expected {cloud_file} to be allowed"
+            assert violation is None
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_infrastructure_files_allowed(self, mock_load):
+        """Should allow infrastructure-as-code files (not in minimal blocklist)"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        # IaC files should be allowed
+        is_valid, violation = validator.validate_sensitive_file("terraform.tfvars")
+        assert is_valid is True
+        assert violation is None
+
+    @patch('semantic_rules.SemanticRulesValidator._load_settings')
+    def test_private_key_in_subdirectory_blocked(self, mock_load):
+        """Should block private keys even in subdirectories"""
+        validator = SemanticRulesValidator()
+        validator.blocked_file_patterns = list(SENSITIVE_FILE_PATTERNS)
+        
+        is_valid, violation = validator.validate_sensitive_file("ssh/id_rsa")
         assert is_valid is False
         assert violation.rule_type == "sensitive_file"
+        
+        is_valid, violation = validator.validate_sensitive_file("certs/server.pem")
+        assert is_valid is False
+        assert violation.rule_type == "sensitive_file"
+
+    def test_minimal_blocklist_size(self):
+        """Verify minimal blocklist has expected number of patterns"""
+        # Minimal blocklist should have exactly 11 patterns:
+        # 7 private key patterns + 2 secrets patterns + 2 package manager patterns
+        assert len(SENSITIVE_FILE_PATTERNS) == 11
 
 
 class TestCommandValidation:

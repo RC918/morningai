@@ -60,11 +60,22 @@ class TestPhase1SecurityFoundation:
         assert 'chmod 777' in HIGH_RISK_ACTIONS
 
     def test_sensitive_file_patterns_include_credentials(self):
-        """Sensitive file patterns should include credential files"""
-        assert '.env' in SENSITIVE_FILE_PATTERNS
-        assert 'credentials.json' in SENSITIVE_FILE_PATTERNS
+        """Sensitive file patterns should include credential files (minimal blocklist)
+        
+        Note: PR #1943 revision - minimal blocklist only includes files that should
+        NEVER be modified by agents. .env and credentials.json are now allowed.
+        """
+        # These are in the minimal blocklist (NEVER modify)
         assert 'secrets.yaml' in SENSITIVE_FILE_PATTERNS
+        assert 'secrets.yml' in SENSITIVE_FILE_PATTERNS
         assert 'private_key' in SENSITIVE_FILE_PATTERNS
+        assert '.pem' in SENSITIVE_FILE_PATTERNS
+        assert '.key' in SENSITIVE_FILE_PATTERNS
+        assert '.npmrc' in SENSITIVE_FILE_PATTERNS
+        assert '.pypirc' in SENSITIVE_FILE_PATTERNS
+        # These are NOT in the minimal blocklist (Agent can modify)
+        assert '.env' not in SENSITIVE_FILE_PATTERNS
+        assert 'credentials.json' not in SENSITIVE_FILE_PATTERNS
 
 
 class TestActionWhitelistValidation:
@@ -98,36 +109,52 @@ class TestActionWhitelistValidation:
 
 
 class TestSensitiveFileBlocking:
-    """Test sensitive file blocking (Phase 1 Security Foundation)"""
+    """Test sensitive file blocking (Phase 1 Security Foundation)
+    
+    Note: PR #1943 revision - minimal blocklist only includes files that should
+    NEVER be modified by agents. .env and credentials.json are now allowed.
+    """
 
-    def test_env_file_is_blocked(self):
-        """Should block .env files"""
+    def test_env_file_is_allowed(self):
+        """Should allow .env files (not in minimal blocklist)"""
         is_valid, error = validate_sensitive_file('.env')
-        assert is_valid is False
-        assert error is not None
-        assert 'sensitive' in error.lower()
+        assert is_valid is True
+        assert error is None
 
-    def test_env_local_file_is_blocked(self):
-        """Should block .env.local files"""
+    def test_env_local_file_is_allowed(self):
+        """Should allow .env.local files (not in minimal blocklist)"""
         is_valid, error = validate_sensitive_file('.env.local')
-        assert is_valid is False
-        assert error is not None
+        assert is_valid is True
+        assert error is None
 
-    def test_credentials_json_is_blocked(self):
-        """Should block credentials.json"""
+    def test_credentials_json_is_allowed(self):
+        """Should allow credentials.json (not in minimal blocklist)"""
         is_valid, error = validate_sensitive_file('credentials.json')
-        assert is_valid is False
-        assert error is not None
+        assert is_valid is True
+        assert error is None
 
     def test_secrets_yaml_is_blocked(self):
-        """Should block secrets.yaml"""
+        """Should block secrets.yaml (in minimal blocklist)"""
         is_valid, error = validate_sensitive_file('secrets.yaml')
         assert is_valid is False
         assert error is not None
 
     def test_private_key_is_blocked(self):
-        """Should block private_key files"""
+        """Should block private_key files (in minimal blocklist)"""
         is_valid, error = validate_sensitive_file('private_key')
+        assert is_valid is False
+        assert error is not None
+
+    def test_pem_file_is_blocked(self):
+        """Should block .pem files (in minimal blocklist)"""
+        is_valid, error = validate_sensitive_file('server.pem')
+        assert is_valid is False
+        assert error is not None
+        assert 'sensitive' in error.lower()
+
+    def test_npmrc_file_is_blocked(self):
+        """Should block .npmrc files (in minimal blocklist)"""
+        is_valid, error = validate_sensitive_file('.npmrc')
         assert is_valid is False
         assert error is not None
 
@@ -143,11 +170,11 @@ class TestSensitiveFileBlocking:
         assert is_valid is True
         assert error is None
 
-    def test_path_with_env_in_directory_is_blocked(self):
-        """Should block files with .env in the path"""
+    def test_env_production_file_is_allowed(self):
+        """Should allow .env.production files (not in minimal blocklist)"""
         is_valid, error = validate_sensitive_file('config/.env.production')
-        assert is_valid is False
-        assert error is not None
+        assert is_valid is True
+        assert error is None
 
 
 class TestHighRiskCommandBlocking:
@@ -215,7 +242,8 @@ class TestHITLApprovalMechanism:
         """Sensitive file violations should require HITL approval"""
         validator = SemanticRulesValidator()
 
-        is_valid, violation = validator.validate_sensitive_file('.env')
+        # Use secrets.yaml which is in the minimal blocklist
+        is_valid, violation = validator.validate_sensitive_file('secrets.yaml')
         assert is_valid is False
         assert violation is not None
         assert violation.requires_approval is True
@@ -242,10 +270,11 @@ class TestIntegratedTaskValidation:
         validator.allowed_repos = ['RC918/morningai']
         validator.allowed_task_types = ['documentation_update']
 
+        # Use secrets.yaml which is in the minimal blocklist
         is_valid, violations = validator.validate_task(
             repo='RC918/morningai',
             task_type='documentation_update',
-            file_paths=['.env', 'src/main.py']
+            file_paths=['secrets.yaml', 'src/main.py']
         )
         assert is_valid is False
         assert len(violations) > 0
@@ -354,10 +383,11 @@ class TestAgentSelfDiagnosis:
         validator.allowed_repos = ['RC918/morningai']
         validator.allowed_task_types = ['documentation_update']
 
+        # Use secrets.yaml which is in the minimal blocklist
         is_valid, violations = validator.validate_task(
             repo='RC918/morningai',
             task_type='documentation_update',
-            file_paths=['.env.production']
+            file_paths=['secrets.yaml']
         )
 
         assert is_valid is False
@@ -394,11 +424,12 @@ class TestAgentSelfDiagnosis:
         # 1. Modify a safe file (should be allowed)
         # 2. Then modify a sensitive file (should be blocked)
         # The entire task should fail, preventing any partial execution
+        # Use secrets.yaml which is in the minimal blocklist
 
         is_valid, violations = validator.validate_task(
             repo='RC918/morningai',
             task_type='documentation_update',
-            file_paths=['docs/README.md', '.env.production']  # Mix of safe and sensitive
+            file_paths=['docs/README.md', 'secrets.yaml']  # Mix of safe and sensitive
         )
 
         # Task should fail due to sensitive file
