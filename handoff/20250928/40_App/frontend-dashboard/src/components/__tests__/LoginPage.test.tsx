@@ -69,19 +69,20 @@ describe('LoginPage', () => {
 
     it('should render email input field', () => {
       renderLoginPage()
-      // Use getByRole for email input (type="email" gives it textbox role)
-      const emailInput = screen.getByRole('textbox')
+      // Use getByLabelText with anchored regex for precise i18n matching
+      const emailInput = screen.getByLabelText(/^auth\.login\.email$|^Email$|^電子郵件$/i)
       expect(emailInput).toBeInTheDocument()
       expect(emailInput).toHaveAttribute('name', 'email')
       expect(emailInput).toHaveAttribute('type', 'email')
     })
 
     it('should render password input field', () => {
-      const { container } = renderLoginPage()
-      // Password inputs don't have a role, query by attribute
-      const passwordInput = container.querySelector('input[type="password"]')
+      renderLoginPage()
+      // Use getByLabelText with anchored regex for precise i18n matching
+      const passwordInput = screen.getByLabelText(/^auth\.login\.password$|^Password$|^密碼$/i)
       expect(passwordInput).toBeInTheDocument()
       expect(passwordInput).toHaveAttribute('name', 'password')
+      expect(passwordInput).toHaveAttribute('type', 'password')
     })
 
     it('should render submit button', () => {
@@ -113,7 +114,8 @@ describe('LoginPage', () => {
   describe('Form Interaction', () => {
     it('should update email field on change', async () => {
       const { user } = renderLoginPage()
-      const emailInput = screen.getByRole('textbox')
+      // Use getByLabelText with anchored regex for precise i18n matching
+      const emailInput = screen.getByLabelText(/^auth\.login\.email$|^Email$|^電子郵件$/i)
       
       await user.clear(emailInput)
       await user.type(emailInput, 'test@example.com')
@@ -122,9 +124,9 @@ describe('LoginPage', () => {
     })
 
     it('should update password field on change', async () => {
-      const { user, container } = renderLoginPage()
-      const passwordInput = container.querySelector('input[type="password"]') as HTMLInputElement
-      expect(passwordInput).not.toBeNull()
+      const { user } = renderLoginPage()
+      // Use getByLabelText with anchored regex for precise i18n matching
+      const passwordInput = screen.getByLabelText(/^auth\.login\.password$|^Password$|^密碼$/i)
       
       await user.clear(passwordInput)
       await user.type(passwordInput, 'testpassword')
@@ -154,12 +156,12 @@ describe('LoginPage', () => {
       const form = container.querySelector('form')
       expect(form).toBeInTheDocument()
       
-      // Email input should exist with proper attributes
-      const emailInput = screen.getByRole('textbox')
+      // Email input should be accessible by label and have proper attributes
+      const emailInput = screen.getByLabelText(/^auth\.login\.email$|^Email$|^電子郵件$/i)
       expect(emailInput).toHaveAttribute('required')
       
-      // Password input should exist with proper attributes
-      const passwordInput = container.querySelector('input[type="password"]')
+      // Password input should be accessible by label and have proper attributes
+      const passwordInput = screen.getByLabelText(/^auth\.login\.password$|^Password$|^密碼$/i)
       expect(passwordInput).toBeInTheDocument()
       expect(passwordInput).toHaveAttribute('required')
     })
