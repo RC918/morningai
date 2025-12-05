@@ -42,25 +42,21 @@ HIGH_RISK_ACTIONS: frozenset = frozenset({
 })
 
 # Sensitive file patterns that should never be modified by agents
-# Phase 1 Security Foundation - Issue #1829 Evaluation:
-# - ".env" patterns: Kept conservative. While "environment.ts" won't match (substring check),
-#   we intentionally block .env files including .env.example for security.
-# - "private_key": May have false positives (e.g., generate_private_key.py) but security > convenience.
-#   Operators can override via PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS if needed.
-# - "*.config" REMOVED: Too broad, caused false positives on jest.config, webpack.config, etc.
-# - Deployment configs (fly.toml, render.yaml, vercel.json): Intentionally blocked to prevent
-#   accidental deployment changes.
+# Phase 1 Security Foundation - Minimal Blocklist (PR #1943 revision)
+#
+# This blocklist only includes files that should NEVER be modified by agents:
+# - Private keys and certificates (highest risk of credential exposure)
+# - Explicit secrets files (secrets.yaml, secrets.yml)
+# - Package manager auth tokens (.npmrc, .pypirc)
+#
+# Files NOT blocked (Agent can modify with caution):
+# - .env files: May need modification for configuration
+# - Deployment configs: render.yaml, vercel.json, fly.toml, docker-compose.*, etc.
+# - Cloud credentials: Read-only in practice, but not blocked
+#
+# Operators can extend this list via PROJECT_ENGINEER_BLOCKED_FILE_PATTERNS if needed.
 SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
-    # Environment files
-    ".env",
-    ".env.local",
-    ".env.production",
-    ".env.staging",
-    ".env.development",
-    # Credentials and secrets
-    "credentials.json",
-    "secrets.yaml",
-    "secrets.yml",
+    # Private keys and certificates (NEVER modify)
     "private_key",
     "id_rsa",
     "id_ed25519",
@@ -68,27 +64,12 @@ SENSITIVE_FILE_PATTERNS: frozenset = frozenset({
     ".key",
     ".p12",  # PKCS#12 certificate files
     ".pfx",  # Windows certificate files
-    # Package manager auth tokens
+    # Explicit secrets files (NEVER modify)
+    "secrets.yaml",
+    "secrets.yml",
+    # Package manager auth tokens (NEVER modify)
     ".npmrc",  # NPM auth tokens
     ".pypirc",  # PyPI auth tokens
-    # Deployment configs
-    "fly.toml",  # Fly.io deployment config
-    "render.yaml",  # Render deployment config
-    "vercel.json",  # Vercel deployment config
-    "docker-compose.prod",  # Production Docker config
-    "docker-compose.yml",  # Docker Compose config (may contain secrets)
-    "docker-compose.yaml",  # Docker Compose config (may contain secrets)
-    "railway.json",  # Railway deployment config
-    "netlify.toml",  # Netlify deployment config
-    "heroku.yml",  # Heroku deployment config
-    "app.yaml",  # Google Cloud App Engine config
-    # Infrastructure as Code
-    "terraform.tfvars",  # Terraform variables (often contains secrets)
-    # Kubernetes configs
-    "kubeconfig",  # Kubernetes config
-    # Cloud provider credentials
-    ".aws/credentials",  # AWS credentials file
-    "application_default_credentials.json",  # Google Cloud credentials
 })
 
 # Comma-separated string version of SENSITIVE_FILE_PATTERNS for settings.py default value
