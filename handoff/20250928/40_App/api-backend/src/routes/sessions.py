@@ -382,7 +382,7 @@ def cancel_session(session_id):
         user_id = current_user.get('user_id', 'unknown')
         user_email = current_user.get('username', user_id)
 
-        req_data = request.get_json() or {}
+        req_data = request.get_json(silent=True) or {}
         reason = req_data.get('reason')
 
         redis_client = get_redis_client()
