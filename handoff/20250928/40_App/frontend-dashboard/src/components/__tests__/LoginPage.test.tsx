@@ -3,6 +3,13 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import LoginPage from '../LoginPage'
+import {
+  LOGIN_EMAIL_LABEL,
+  LOGIN_PASSWORD_LABEL,
+  SSO_GOOGLE_BUTTON,
+  SSO_APPLE_BUTTON,
+  SSO_GITHUB_BUTTON,
+} from '@/test/i18n-label-patterns'
 
 vi.mock('@/lib/api', () => ({
   default: {
@@ -69,8 +76,8 @@ describe('LoginPage', () => {
 
     it('should render email input field', () => {
       renderLoginPage()
-      // Use getByLabelText with anchored regex for precise i18n matching
-      const emailInput = screen.getByLabelText(/^auth\.login\.email$|^Email$|^電子郵件$/i)
+      // Use shared i18n label pattern constant
+      const emailInput = screen.getByLabelText(LOGIN_EMAIL_LABEL)
       expect(emailInput).toBeInTheDocument()
       expect(emailInput).toHaveAttribute('name', 'email')
       expect(emailInput).toHaveAttribute('type', 'email')
@@ -78,8 +85,8 @@ describe('LoginPage', () => {
 
     it('should render password input field', () => {
       renderLoginPage()
-      // Use getByLabelText with anchored regex for precise i18n matching
-      const passwordInput = screen.getByLabelText(/^auth\.login\.password$|^Password$|^密碼$/i)
+      // Use shared i18n label pattern constant
+      const passwordInput = screen.getByLabelText(LOGIN_PASSWORD_LABEL)
       expect(passwordInput).toBeInTheDocument()
       expect(passwordInput).toHaveAttribute('name', 'password')
       expect(passwordInput).toHaveAttribute('type', 'password')
@@ -93,10 +100,10 @@ describe('LoginPage', () => {
 
     it('should render SSO buttons', () => {
       renderLoginPage()
-      // Query SSO buttons by aria-label (these have proper aria-labels)
-      const googleButton = screen.getByRole('button', { name: /google/i })
-      const appleButton = screen.getByRole('button', { name: /apple/i })
-      const githubButton = screen.getByRole('button', { name: /github/i })
+      // Query SSO buttons using shared pattern constants
+      const googleButton = screen.getByRole('button', { name: SSO_GOOGLE_BUTTON })
+      const appleButton = screen.getByRole('button', { name: SSO_APPLE_BUTTON })
+      const githubButton = screen.getByRole('button', { name: SSO_GITHUB_BUTTON })
       
       expect(googleButton).toBeInTheDocument()
       expect(appleButton).toBeInTheDocument()
@@ -114,8 +121,8 @@ describe('LoginPage', () => {
   describe('Form Interaction', () => {
     it('should update email field on change', async () => {
       const { user } = renderLoginPage()
-      // Use getByLabelText with anchored regex for precise i18n matching
-      const emailInput = screen.getByLabelText(/^auth\.login\.email$|^Email$|^電子郵件$/i)
+      // Use shared i18n label pattern constant
+      const emailInput = screen.getByLabelText(LOGIN_EMAIL_LABEL)
       
       await user.clear(emailInput)
       await user.type(emailInput, 'test@example.com')
@@ -125,8 +132,8 @@ describe('LoginPage', () => {
 
     it('should update password field on change', async () => {
       const { user } = renderLoginPage()
-      // Use getByLabelText with anchored regex for precise i18n matching
-      const passwordInput = screen.getByLabelText(/^auth\.login\.password$|^Password$|^密碼$/i)
+      // Use shared i18n label pattern constant
+      const passwordInput = screen.getByLabelText(LOGIN_PASSWORD_LABEL)
       
       await user.clear(passwordInput)
       await user.type(passwordInput, 'testpassword')
@@ -140,9 +147,9 @@ describe('LoginPage', () => {
       renderLoginPage()
       
       // All SSO buttons should have aria-labels
-      const googleButton = screen.getByRole('button', { name: /google/i })
-      const appleButton = screen.getByRole('button', { name: /apple/i })
-      const githubButton = screen.getByRole('button', { name: /github/i })
+      const googleButton = screen.getByRole('button', { name: SSO_GOOGLE_BUTTON })
+      const appleButton = screen.getByRole('button', { name: SSO_APPLE_BUTTON })
+      const githubButton = screen.getByRole('button', { name: SSO_GITHUB_BUTTON })
       
       expect(googleButton).toHaveAccessibleName()
       expect(appleButton).toHaveAccessibleName()
@@ -157,11 +164,11 @@ describe('LoginPage', () => {
       expect(form).toBeInTheDocument()
       
       // Email input should be accessible by label and have proper attributes
-      const emailInput = screen.getByLabelText(/^auth\.login\.email$|^Email$|^電子郵件$/i)
+      const emailInput = screen.getByLabelText(LOGIN_EMAIL_LABEL)
       expect(emailInput).toHaveAttribute('required')
       
       // Password input should be accessible by label and have proper attributes
-      const passwordInput = screen.getByLabelText(/^auth\.login\.password$|^Password$|^密碼$/i)
+      const passwordInput = screen.getByLabelText(LOGIN_PASSWORD_LABEL)
       expect(passwordInput).toBeInTheDocument()
       expect(passwordInput).toHaveAttribute('required')
     })
