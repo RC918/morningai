@@ -97,12 +97,15 @@
     "rememberMe": "記住我"
   },
     "common": {
-      "accessDenied": {
-        "message": "您沒有權限存取此功能。如果您認為這是錯誤，請聯繫您的管理員。",
-        "messageWithRole": "此功能需要{{role}}權限。如果您需要存取權限，請聯繫您的管理員。",
-        "title": "存取受限"
-      },
-      "cancel": "取消",
+            "accessDenied": {
+              "message": "您沒有權限存取此功能。如果您認為這是錯誤，請聯繫您的管理員。",
+              "messageWithRole": "此功能需要{{role}}權限。如果您需要存取權限，請聯繫您的管理員。",
+              "title": "存取受限"
+            },
+            "roles": {
+              "platformAdmin": "平台管理員"
+            },
+            "cancel": "取消",
       "changeLanguage": "切換語言",
       "delete": "刪除",
       "edit": "編輯",

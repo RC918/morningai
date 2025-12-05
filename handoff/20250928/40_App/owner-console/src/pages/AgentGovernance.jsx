@@ -16,6 +16,7 @@ import AgentExecutionLogs from '@/components/AgentExecutionLogs'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
 import { AccessDenied } from '@/components/AccessDenied'
+import { ApiError } from '@/lib/api-client'
 
 const AgentGovernance = () => {
   const { t } = useTranslation()
@@ -60,19 +61,19 @@ const AgentGovernance = () => {
       if (statsResponse.status === 200) {
         setStatistics(statsResponse.data)
       }
-    } catch (error) {
-      console.error('Failed to load governance data:', error)
+        } catch (error) {
+          console.error('Failed to load governance data:', error)
       
-      // Check for 403 Forbidden error (platform_admin access required)
-      // This can happen when RLS policies restrict access to agent_reputation tables
-      const errorMessage = error.message || ''
-      if (errorMessage.includes('403') || errorMessage.toLowerCase().includes('forbidden')) {
-        setAccessDenied(true)
-        return
-      }
+          // Check for 403 Forbidden error (platform_admin access required)
+          // This can happen when RLS policies restrict access to agent_reputation tables
+          if (error instanceof ApiError && error.status === 403) {
+            setAccessDenied(true)
+            return
+          }
       
-      setError(errorMessage || 'Failed to load governance data')
-    } finally {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to load governance data'
+          setError(errorMessage || 'Failed to load governance data')
+        }finally {
       setLoading(false)
     }
   }
@@ -154,29 +155,8 @@ const AgentGovernance = () => {
     )
   }
 
-  // Show access denied message for non-platform_admin users
-  if (accessDenied) {
-    return (
-      <div className="space-y-8" data-testid="agent-governance">
-        <div>
-          <h1 className="text-xl font-semibold text-[var(--text-primary)]">
-            {t('governance.title')}
-          </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            {t('governance.subtitle')}
-          </p>
-        </div>
-        <AccessDenied 
-          requiredRole="Platform Admin"
-          testId="governance-access-denied"
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-8" data-testid="agent-governance">
-      {/* Header */}
+    // Header component to avoid duplication (DRY principle)
+    const renderHeader = (showRefreshButton = true) => (
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold text-[var(--text-primary)]">
@@ -186,11 +166,32 @@ const AgentGovernance = () => {
             {t('governance.subtitle')}
           </p>
         </div>
-        <AppleButton onClick={loadGovernanceData} variant="outline" haptic="light" disabled={loading}>
-          <Activity className="w-4 h-4 mr-2" />
-          {t('governance.refresh')}
-        </AppleButton>
+        {showRefreshButton && (
+          <AppleButton onClick={loadGovernanceData} variant="outline" haptic="light" disabled={loading}>
+            <Activity className="w-4 h-4 mr-2" />
+            {t('governance.refresh')}
+          </AppleButton>
+        )}
       </div>
+    )
+
+    // Show access denied message for non-platform_admin users
+    if (accessDenied) {
+      return (
+        <div className="space-y-8" data-testid="agent-governance">
+          {renderHeader(false)}
+          <AccessDenied 
+            requiredRole={t('common.roles.platformAdmin')}
+            testId="governance-access-denied"
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-8" data-testid="agent-governance">
+        {/* Header */}
+        {renderHeader()}
 
       {/* Error Banner */}
       {error && (
