@@ -11,7 +11,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from meta_agent.state_persistence import (
     ExecutionStateManager,
@@ -150,11 +150,19 @@ class TestExecutionStateManager:
 
     def test_list_saved_executions(self, state_manager):
         """Test listing saved executions"""
-        state_manager.save_state("exec-001", {"status": "completed"})
-        time.sleep(0.01)  # Ensure different timestamps
-        state_manager.save_state("exec-002", {"status": "running"})
-        time.sleep(0.01)
-        state_manager.save_state("exec-003", {"status": "failed"})
+        # Mock datetime.now() to return different timestamps for each save
+        with patch("meta_agent.state_persistence.datetime") as mock_datetime:
+            # Configure mock to preserve other datetime functionality
+            mock_datetime.now.side_effect = [
+                datetime(2025, 1, 1, 10, 0, 0),
+                datetime(2025, 1, 1, 10, 0, 1),
+                datetime(2025, 1, 1, 10, 0, 2),
+            ]
+            mock_datetime.fromisoformat = datetime.fromisoformat
+
+            state_manager.save_state("exec-001", {"status": "completed"})
+            state_manager.save_state("exec-002", {"status": "running"})
+            state_manager.save_state("exec-003", {"status": "failed"})
 
         executions = state_manager.list_saved_executions()
 
