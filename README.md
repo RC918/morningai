@@ -97,7 +97,8 @@ HTTP Request → API Backend → Redis Queue → Worker (Routing Decision)
 - **雙模式架構**: Simple mode（穩定基線）+ LangGraph mode（創新路徑）
 - **金絲雀路由**: MD5-based 確定性路由，支持 0-100% 流量控制
 - **共享核心**: 兩種模式使用相同的 `graph.execute()` 執行引擎
-- **Phase 1 配置**: ~95% Simple mode, ~5% LangGraph mode
+- **預設配置**: 100% Simple mode（`USE_LANGGRAPH_PERCENT=0`）
+- **Phase 1 推薦**: 設定 `USE_LANGGRAPH_PERCENT=5` 啟用 5% LangGraph 金絲雀
 
 ### 架構圖
 
