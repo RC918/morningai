@@ -24,9 +24,11 @@ from .bot_protocol import (
     WebhookResponse,
     WebhookConfig,
 )
-from .normalizer import EventNormalizer
+from .normalizer import EventNormalizer, NormalizedTask
+from .task_intake import TaskIntakeService, IntakeTask, IntakeTaskStatus
 from .handlers.github_handler import GitHubWebhookHandler
 from .handlers.jira_handler import JiraWebhookHandler
+from .handlers.linear_handler import LinearWebhookHandler
 from .handlers.slack_handler import SlackWebhookHandler
 
 __all__ = [
@@ -39,8 +41,14 @@ __all__ = [
     "WebhookConfig",
     # Normalizer
     "EventNormalizer",
+    "NormalizedTask",
+    # Task Intake
+    "TaskIntakeService",
+    "IntakeTask",
+    "IntakeTaskStatus",
     # Handlers
     "GitHubWebhookHandler",
     "JiraWebhookHandler",
+    "LinearWebhookHandler",
     "SlackWebhookHandler",
 ]
