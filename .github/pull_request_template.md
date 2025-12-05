@@ -2,6 +2,27 @@
 
 <!-- 簡要說明此 PR 的目的和變更內容 -->
 
+## PR 類型與優先級 (PR Type & Priority)
+
+<!-- 請勾選此 PR 的類型，並在合併前確保已加上對應的 GitHub label -->
+
+- [ ] **P0 - 主線功能 / 緊急修復 (Blocking)** - 必須立即處理，阻擋主線進度
+- [ ] **P1 - 修正既有問題 / 改善體驗 (Non-blocking)** - 重要但不阻擋主線
+- [ ] **P2 - 優化 / 重構 / 技術債 (Nice-to-have)** - 可排期處理
+
+**對應 GitHub Labels**: `P0-urgent`, `P1`, `P2`
+
+## 本 PR 不處理 (Out of Scope)
+
+<!-- 
+明確列出此 PR 不會處理的項目，避免 scope creep。
+這些項目應該建立為 follow-up issues 或 PRs。
+-->
+
+- 
+- 
+- 
+
 ## 如何測試 (How to Test)
 
 <!-- 請詳細說明如何測試此 PR 的變更 -->
