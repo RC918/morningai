@@ -219,6 +219,7 @@ PERMISSIVE_POLICY = ExecutionPolicy(
 DRY_RUN_POLICY = ExecutionPolicy(
     max_execution_time=timedelta(minutes=15),
     max_tasks=100,
+    allowed_operations=set(AllowedOperation),  # Allow all operations in dry_run mode
     dry_run=True,
     allow_production_access=False,
 )
