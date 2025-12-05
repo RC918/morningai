@@ -433,7 +433,7 @@ const Sessions = () => {
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="font-medium text-[var(--text-primary)] truncate">
                       {session.title}
                     </p>
@@ -447,13 +447,13 @@ const Sessions = () => {
                 </div>
                 
                 <div className="flex items-center gap-2 mt-3">
-                  <Badge className={`${getStatusColor(session.status)} text-xs`}>
+                  <Badge variant="outline" className="text-xs">
                     {getStatusIcon(session.status)}
                     <span className="ml-1">{t(`sessions.status.${session.status}`, session.status)}</span>
                   </Badge>
                   
                   {session.requiresApproval && (
-                    <Badge className="bg-wisdom-10 text-wisdom border-wisdom text-xs">
+                    <Badge variant="outline" className="text-xs">
                       <AlertTriangle className="w-3 h-3 mr-1" />
                       {t('sessions.needsApproval', 'Needs Approval')}
                     </Badge>
@@ -488,7 +488,7 @@ const Sessions = () => {
                       {selectedSession.goal}
                     </p>
                   </div>
-                  <Badge className={getStatusColor(selectedSession.status)}>
+                  <Badge variant="outline" className="text-xs">
                     {getStatusIcon(selectedSession.status)}
                     <span className="ml-1">{t(`sessions.status.${selectedSession.status}`, selectedSession.status)}</span>
                   </Badge>
