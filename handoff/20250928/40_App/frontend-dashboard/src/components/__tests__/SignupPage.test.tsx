@@ -3,6 +3,15 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router-dom'
 import SignupPage from '../SignupPage'
+import {
+  SIGNUP_FULL_NAME_LABEL,
+  SIGNUP_EMAIL_LABEL,
+  SIGNUP_PASSWORD_LABEL,
+  SIGNUP_CONFIRM_PASSWORD_LABEL,
+  SSO_GOOGLE_BUTTON,
+  SSO_APPLE_BUTTON,
+  SSO_GITHUB_BUTTON,
+} from '@/test/i18n-label-patterns'
 
 vi.mock('@/lib/supabaseClient', () => ({
   supabase: {
@@ -68,32 +77,32 @@ describe('SignupPage', () => {
 
     it('should render full name input field', () => {
       renderSignupPage()
-      // Use getByLabelText for better accessibility testing
-      const fullNameInput = screen.getByLabelText(/fullName|姓名|name/i)
+      // Use shared i18n label pattern constant
+      const fullNameInput = screen.getByLabelText(SIGNUP_FULL_NAME_LABEL)
       expect(fullNameInput).toBeInTheDocument()
       expect(fullNameInput).toHaveAttribute('type', 'text')
     })
 
     it('should render email input field', () => {
       renderSignupPage()
-      // Use getByLabelText for better accessibility testing
-      const emailInput = screen.getByLabelText(/email|電子郵件/i)
+      // Use shared i18n label pattern constant
+      const emailInput = screen.getByLabelText(SIGNUP_EMAIL_LABEL)
       expect(emailInput).toBeInTheDocument()
       expect(emailInput).toHaveAttribute('type', 'email')
     })
 
     it('should render password input field', () => {
       renderSignupPage()
-      // Use getByLabelText for better accessibility testing (match password but not confirmPassword)
-      const passwordInput = screen.getByLabelText(/^auth\.signup\.password$|^密碼$/i)
+      // Use shared i18n label pattern constant (excludes confirmPassword)
+      const passwordInput = screen.getByLabelText(SIGNUP_PASSWORD_LABEL)
       expect(passwordInput).toBeInTheDocument()
       expect(passwordInput).toHaveAttribute('type', 'password')
     })
 
     it('should render confirm password input field', () => {
       renderSignupPage()
-      // Use getByLabelText for better accessibility testing
-      const confirmPasswordInput = screen.getByLabelText(/confirmPassword|確認密碼/i)
+      // Use shared i18n label pattern constant
+      const confirmPasswordInput = screen.getByLabelText(SIGNUP_CONFIRM_PASSWORD_LABEL)
       expect(confirmPasswordInput).toBeInTheDocument()
       expect(confirmPasswordInput).toHaveAttribute('type', 'password')
     })
@@ -106,10 +115,10 @@ describe('SignupPage', () => {
 
     it('should render SSO buttons', () => {
       renderSignupPage()
-      // Query SSO buttons by aria-label (these have proper aria-labels)
-      const googleButton = screen.getByRole('button', { name: /google/i })
-      const appleButton = screen.getByRole('button', { name: /apple/i })
-      const githubButton = screen.getByRole('button', { name: /github/i })
+      // Query SSO buttons using shared pattern constants
+      const googleButton = screen.getByRole('button', { name: SSO_GOOGLE_BUTTON })
+      const appleButton = screen.getByRole('button', { name: SSO_APPLE_BUTTON })
+      const githubButton = screen.getByRole('button', { name: SSO_GITHUB_BUTTON })
       
       expect(googleButton).toBeInTheDocument()
       expect(appleButton).toBeInTheDocument()
@@ -127,8 +136,8 @@ describe('SignupPage', () => {
   describe('Form Interaction', () => {
     it('should update full name field on change', async () => {
       const { user } = renderSignupPage()
-      // Use getByLabelText for better accessibility testing
-      const fullNameInput = screen.getByLabelText(/fullName|姓名|name/i)
+      // Use shared i18n label pattern constant
+      const fullNameInput = screen.getByLabelText(SIGNUP_FULL_NAME_LABEL)
       
       await user.clear(fullNameInput)
       await user.type(fullNameInput, 'John Doe')
@@ -138,8 +147,8 @@ describe('SignupPage', () => {
 
     it('should update email field on change', async () => {
       const { user } = renderSignupPage()
-      // Use getByLabelText for better accessibility testing
-      const emailInput = screen.getByLabelText(/email|電子郵件/i)
+      // Use shared i18n label pattern constant
+      const emailInput = screen.getByLabelText(SIGNUP_EMAIL_LABEL)
       
       await user.clear(emailInput)
       await user.type(emailInput, 'test@example.com')
@@ -149,8 +158,8 @@ describe('SignupPage', () => {
 
     it('should update password field on change', async () => {
       const { user } = renderSignupPage()
-      // Use getByLabelText for better accessibility testing
-      const passwordInput = screen.getByLabelText(/^auth\.signup\.password$|^密碼$/i)
+      // Use shared i18n label pattern constant
+      const passwordInput = screen.getByLabelText(SIGNUP_PASSWORD_LABEL)
       
       await user.clear(passwordInput)
       await user.type(passwordInput, 'testpassword123')
@@ -160,8 +169,8 @@ describe('SignupPage', () => {
 
     it('should update confirm password field on change', async () => {
       const { user } = renderSignupPage()
-      // Use getByLabelText for better accessibility testing
-      const confirmPasswordInput = screen.getByLabelText(/confirmPassword|確認密碼/i)
+      // Use shared i18n label pattern constant
+      const confirmPasswordInput = screen.getByLabelText(SIGNUP_CONFIRM_PASSWORD_LABEL)
       
       await user.clear(confirmPasswordInput)
       await user.type(confirmPasswordInput, 'testpassword123')
@@ -175,9 +184,9 @@ describe('SignupPage', () => {
       renderSignupPage()
       
       // All SSO buttons should have aria-labels
-      const googleButton = screen.getByRole('button', { name: /google/i })
-      const appleButton = screen.getByRole('button', { name: /apple/i })
-      const githubButton = screen.getByRole('button', { name: /github/i })
+      const googleButton = screen.getByRole('button', { name: SSO_GOOGLE_BUTTON })
+      const appleButton = screen.getByRole('button', { name: SSO_APPLE_BUTTON })
+      const githubButton = screen.getByRole('button', { name: SSO_GITHUB_BUTTON })
       
       expect(googleButton).toHaveAccessibleName()
       expect(appleButton).toHaveAccessibleName()
@@ -191,11 +200,11 @@ describe('SignupPage', () => {
       const form = container.querySelector('form')
       expect(form).toBeInTheDocument()
       
-      // All required inputs should be accessible by label
-      const fullNameInput = screen.getByLabelText(/fullName|姓名|name/i)
-      const emailInput = screen.getByLabelText(/email|電子郵件/i)
-      const passwordInput = screen.getByLabelText(/^auth\.signup\.password$|^密碼$/i)
-      const confirmPasswordInput = screen.getByLabelText(/confirmPassword|確認密碼/i)
+      // All required inputs should be accessible by label using shared constants
+      const fullNameInput = screen.getByLabelText(SIGNUP_FULL_NAME_LABEL)
+      const emailInput = screen.getByLabelText(SIGNUP_EMAIL_LABEL)
+      const passwordInput = screen.getByLabelText(SIGNUP_PASSWORD_LABEL)
+      const confirmPasswordInput = screen.getByLabelText(SIGNUP_CONFIRM_PASSWORD_LABEL)
       
       expect(fullNameInput).toBeInTheDocument()
       expect(emailInput).toBeInTheDocument()
