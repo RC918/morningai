@@ -15,6 +15,7 @@ from orchestrator.memory.error_fix_pairs import (
     get_error_fix_pairs_by_type,
     get_recent_error_fix_pairs,
     get_pair_by_trace_id,
+    update_error_fix_pair,
     get_error_fix_pairs_stats,
     _embed,
 )
@@ -476,6 +477,101 @@ class TestGetPairByTraceId:
         assert pair is not None
         assert pair.error_context is None
         assert pair.fix_metadata is None
+
+
+class TestUpdateErrorFixPair:
+    """Test update_error_fix_pair function (Issue #1838)"""
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_update_error_fix_pair_success(self, mock_get_client, mock_embed):
+        """Test updating an error-fix pair successfully"""
+        mock_client = Mock()
+        mock_table = Mock()
+        mock_table.update.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.execute.return_value = Mock(data=[{"id": 1}])
+        mock_client.table.return_value = mock_table
+        mock_get_client.return_value = mock_client
+        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+
+        result = update_error_fix_pair(
+            pair_id=1,
+            fix_text="Updated fix text",
+            fix_type="resolved"
+        )
+
+        assert result is True
+        mock_table.update.assert_called_once()
+        mock_table.eq.assert_called_once_with("id", 1)
+        mock_embed.assert_called_once_with("Updated fix text")
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_update_error_fix_pair_with_metadata(self, mock_get_client, mock_embed):
+        """Test updating an error-fix pair with metadata"""
+        mock_client = Mock()
+        mock_table = Mock()
+        mock_table.update.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.execute.return_value = Mock(data=[{"id": 1}])
+        mock_client.table.return_value = mock_table
+        mock_get_client.return_value = mock_client
+        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+
+        result = update_error_fix_pair(
+            pair_id=1,
+            fix_text="Updated fix",
+            fix_type="resolved",
+            fix_metadata={"status": "resolved", "updated_at": 1234567890}
+        )
+
+        assert result is True
+        call_args = mock_table.update.call_args[0][0]
+        assert "fix_metadata" in call_args
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_update_error_fix_pair_without_embedding(self, mock_get_client, mock_embed):
+        """Test updating an error-fix pair without generating embedding"""
+        mock_client = Mock()
+        mock_table = Mock()
+        mock_table.update.return_value = mock_table
+        mock_table.eq.return_value = mock_table
+        mock_table.execute.return_value = Mock(data=[{"id": 1}])
+        mock_client.table.return_value = mock_table
+        mock_get_client.return_value = mock_client
+
+        result = update_error_fix_pair(
+            pair_id=1,
+            fix_text="Updated fix",
+            generate_embedding=False
+        )
+
+        assert result is True
+        mock_embed.assert_not_called()
+
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_update_error_fix_pair_no_client(self, mock_get_client):
+        """Test update_error_fix_pair handles missing client"""
+        mock_get_client.return_value = None
+
+        result = update_error_fix_pair(pair_id=1, fix_text="Updated fix")
+
+        assert result is False
+
+    @patch('orchestrator.memory.error_fix_pairs._embed')
+    @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
+    def test_update_error_fix_pair_handles_exception(self, mock_get_client, mock_embed):
+        """Test update_error_fix_pair handles exceptions gracefully"""
+        mock_client = Mock()
+        mock_client.table.side_effect = Exception("Database error")
+        mock_get_client.return_value = mock_client
+        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+
+        result = update_error_fix_pair(pair_id=1, fix_text="Updated fix")
+
+        assert result is False
 
 
 class TestGetErrorFixPairsStats:
