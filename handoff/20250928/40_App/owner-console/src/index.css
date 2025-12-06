@@ -137,12 +137,13 @@
 
   /* Base tokens for shared-ui components (Switch, Button, Input, etc.) */
   /* These are required for Tailwind v4 to generate bg-primary, bg-input, bg-background utilities */
-  /* Format: HSL components without hsl() wrapper, e.g., "226 70% 55%" */
-  --color-primary: 226 70% 55%;
-  --color-input: 214.3 31.8% 82%;
-  --color-background: 0 0% 100%;
-  --color-foreground: 222.2 84% 4.9%;
-  --color-ring: 222.2 84% 4.9%;
+  /* Format: Complete CSS color values (hsl() or hex) - NOT raw HSL components */
+  /* Raw HSL components like "226 70% 55%" are INVALID when used with var() directly */
+  --color-primary: hsl(226 70% 55%);
+  --color-input: hsl(214.3 31.8% 75%);
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222.2 84% 4.9%);
+  --color-ring: hsl(222.2 84% 4.9%);
 }
 
 /* iotask Semantic Design Tokens */
