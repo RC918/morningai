@@ -377,18 +377,30 @@ class TestVMProvisioner:
 
     @pytest.mark.asyncio
     async def test_cleanup_task_vms(self, vm_provisioner):
-        """Test cleaning up all VMs for a task"""
-        await vm_provisioner.provision_vm(
-            task_id="task-12345678",
-            plan_id="plan-87654321",
-        )
+        """Test cleaning up VM for a task"""
         await vm_provisioner.provision_vm(
             task_id="task-12345678",
             plan_id="plan-87654321",
         )
 
         cleaned = await vm_provisioner.cleanup_task_vms("task-12345678")
-        assert cleaned == 2
+        assert cleaned == 1
+
+    @pytest.mark.asyncio
+    async def test_duplicate_vm_prevention(self, vm_provisioner):
+        """Test that duplicate VMs for the same task are prevented (Issue #2004)"""
+        await vm_provisioner.provision_vm(
+            task_id="task-12345678",
+            plan_id="plan-87654321",
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await vm_provisioner.provision_vm(
+                task_id="task-12345678",
+                plan_id="plan-87654321",
+            )
+
+        assert "already exists" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_cleanup_expired_vms(self, vm_provisioner):

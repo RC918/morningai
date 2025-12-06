@@ -203,11 +203,13 @@ class DockerVMProvider(VMProviderBase):
         )
 
         try:
-            client = self._get_client()
+            # Issue #2002: Use asyncio.to_thread to avoid blocking event loop
+            client = await asyncio.to_thread(self._get_client)
 
             container_config = {
                 "image": "morningai-task-vm:latest",
-                "name": f"task-vm-{config.task_id[:8]}",
+                # Issue #2003: Use vm_id instead of task_id[:8] to avoid name collision
+                "name": f"task-vm-{vm_id}",
                 "detach": True,
                 "remove": False,
                 "mem_limit": f"{config.memory_mb}m",
@@ -228,8 +230,11 @@ class DockerVMProvider(VMProviderBase):
                 "network_mode": "bridge" if config.network_enabled else "none",
             }
 
-            container = client.containers.run(**container_config)
-            container.reload()
+            # Issue #2002: Use asyncio.to_thread for sync Docker calls
+            container = await asyncio.to_thread(
+                client.containers.run, **container_config
+            )
+            await asyncio.to_thread(container.reload)
 
             vm.container_id = container.id
             vm.status = VMStatus.READY
@@ -263,9 +268,10 @@ class DockerVMProvider(VMProviderBase):
             return vm
 
         try:
-            client = self._get_client()
-            container = client.containers.get(vm.container_id)
-            container.start()
+            # Issue #2002: Use asyncio.to_thread for sync Docker calls
+            client = await asyncio.to_thread(self._get_client)
+            container = await asyncio.to_thread(client.containers.get, vm.container_id)
+            await asyncio.to_thread(container.start)
             vm.status = VMStatus.RUNNING
             vm.started_at = datetime.now()
             self.logger.info("[DockerVMProvider] Started VM %s", vm.vm_id)
@@ -282,9 +288,10 @@ class DockerVMProvider(VMProviderBase):
             return vm
 
         try:
-            client = self._get_client()
-            container = client.containers.get(vm.container_id)
-            container.stop(timeout=30)
+            # Issue #2002: Use asyncio.to_thread for sync Docker calls
+            client = await asyncio.to_thread(self._get_client)
+            container = await asyncio.to_thread(client.containers.get, vm.container_id)
+            await asyncio.to_thread(container.stop, timeout=30)
             vm.status = VMStatus.STOPPED
             vm.stopped_at = datetime.now()
             self.logger.info("[DockerVMProvider] Stopped VM %s", vm.vm_id)
@@ -300,9 +307,10 @@ class DockerVMProvider(VMProviderBase):
             return True
 
         try:
-            client = self._get_client()
-            container = client.containers.get(vm.container_id)
-            container.remove(force=True)
+            # Issue #2002: Use asyncio.to_thread for sync Docker calls
+            client = await asyncio.to_thread(self._get_client)
+            container = await asyncio.to_thread(client.containers.get, vm.container_id)
+            await asyncio.to_thread(container.remove, force=True)
             vm.status = VMStatus.TERMINATED
             self.logger.info("[DockerVMProvider] Destroyed VM %s", vm.vm_id)
             return True
@@ -317,8 +325,9 @@ class DockerVMProvider(VMProviderBase):
             return VMStatus.FAILED
 
         try:
-            client = self._get_client()
-            container = client.containers.get(vm.container_id)
+            # Issue #2002: Use asyncio.to_thread for sync Docker calls
+            client = await asyncio.to_thread(self._get_client)
+            container = await asyncio.to_thread(client.containers.get, vm.container_id)
             container_status = container.status
 
             status_map = {
@@ -341,9 +350,12 @@ class DockerVMProvider(VMProviderBase):
             return {"success": False, "error": "No container ID"}
 
         try:
-            client = self._get_client()
-            container = client.containers.get(vm.container_id)
-            exit_code, output = container.exec_run(command, demux=True)
+            # Issue #2002: Use asyncio.to_thread for sync Docker calls
+            client = await asyncio.to_thread(self._get_client)
+            container = await asyncio.to_thread(client.containers.get, vm.container_id)
+            exit_code, output = await asyncio.to_thread(
+                container.exec_run, command, demux=True
+            )
 
             stdout = output[0].decode() if output[0] else ""
             stderr = output[1].decode() if output[1] else ""
@@ -511,6 +523,13 @@ class VMProvisioner:
             RuntimeError: If max concurrent VMs reached
         """
         async with self._lock:
+            # Issue #2004: Prevent duplicate VM creation for the same task
+            if any(vm.task_id == task_id and vm.is_active for vm in self._vms.values()):
+                raise RuntimeError(
+                    f"An active VM for task {task_id[:8]} already exists. "
+                    "Use get_vm_for_task() to retrieve the existing VM."
+                )
+
             # Check concurrent VM limit
             active_vms = sum(1 for vm in self._vms.values() if vm.is_active)
             if active_vms >= self.max_concurrent_vms:
