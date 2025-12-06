@@ -5,6 +5,7 @@ This module provides structured audit logging for tracking who approved what,
 when, and what operations were performed during autonomous execution.
 
 Issue: #1821 - Meta Agent 自主任務規劃與執行
+Issue: #1960 - 狀態目錄權限與敏感資料遮罩
 Milestone: M5 - Meta Agent 優化
 """
 
@@ -14,6 +15,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
+
+from .sensitive_data_masker import SensitiveDataMasker, get_masker
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +88,10 @@ class AuditLogger:
 
     Provides methods for logging various events with consistent structure,
     and supports multiple output handlers (console, file, external service).
+
+    Security features (#1960):
+    - Automatic masking of sensitive data in event details
+    - Configurable masking patterns
     """
 
     def __init__(
@@ -92,6 +99,8 @@ class AuditLogger:
         execution_id: str,
         actor: Optional[str] = None,
         handlers: Optional[List[Callable[[AuditEvent], None]]] = None,
+        masker: Optional[SensitiveDataMasker] = None,
+        mask_sensitive_data: bool = True,
     ):
         """
         Initialize the AuditLogger.
@@ -100,24 +109,43 @@ class AuditLogger:
             execution_id: The execution ID to associate with all events
             actor: Default actor (user/system) for events
             handlers: Optional list of event handlers for custom processing
+            masker: Optional SensitiveDataMasker instance for masking sensitive data
+            mask_sensitive_data: Whether to mask sensitive data in events
         """
         self.execution_id = execution_id
         self.actor = actor or "system"
         self.handlers = handlers or []
         self.events: List[AuditEvent] = []
         self._event_counter = 0
+        self.masker = masker or get_masker()
+        self.mask_sensitive_data = mask_sensitive_data
 
         logger.info(
-            "[AuditLogger] Initialized for execution %s (actor: %s)",
-            execution_id, self.actor)
+            "[AuditLogger] Initialized for execution %s (actor: %s, masking: %s)",
+            execution_id, self.actor, mask_sensitive_data)
 
     def _generate_event_id(self) -> str:
         """Generate a unique event ID"""
         self._event_counter += 1
         return f"{self.execution_id}-evt-{self._event_counter:04d}"
 
+    def _mask_event_details(self, event: AuditEvent) -> None:
+        """
+        Mask sensitive data in event details and metadata.
+
+        Modifies the event in place to mask sensitive values.
+        """
+        if event.details:
+            event.details = self.masker.mask_dict(event.details)
+        if event.metadata:
+            event.metadata = self.masker.mask_dict(event.metadata)
+
     def _emit_event(self, event: AuditEvent) -> None:
         """Emit an event to all handlers"""
+        # Mask sensitive data if enabled
+        if self.mask_sensitive_data:
+            self._mask_event_details(event)
+
         self.events.append(event)
 
         # Log to standard logger

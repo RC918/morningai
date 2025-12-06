@@ -5,6 +5,7 @@ This module provides state persistence capabilities for long-running execution p
 allowing recovery from interruptions and resumption of paused executions.
 
 Issue: #1821 - Meta Agent 自主任務規劃與執行
+Issue: #1960 - 狀態目錄權限與敏感資料遮罩
 Milestone: M5 - Meta Agent 優化
 """
 
@@ -15,7 +16,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .sensitive_data_masker import SensitiveDataMasker, get_masker
+
 logger = logging.getLogger(__name__)
+
+# Directory permission constants
+STATE_DIR_PERMISSIONS = 0o700  # Owner read/write/execute only
+STATE_DIR_ENV_VAR = "META_AGENT_STATE_DIR"
 
 
 class ExecutionStateManager:
@@ -24,31 +31,110 @@ class ExecutionStateManager:
 
     Supports saving execution state to disk and restoring it later,
     enabling recovery from crashes or intentional pauses.
+
+    Security features (#1960):
+    - Directory permissions set to 0700 (owner only)
+    - Sensitive data masking in saved state
+    - Environment variable support for state directory
     """
 
     def __init__(
         self,
         storage_dir: Optional[str] = None,
         auto_save_interval: int = 30,
+        masker: Optional[SensitiveDataMasker] = None,
+        mask_sensitive_data: bool = True,
     ):
         """
         Initialize the ExecutionStateManager.
 
         Args:
-            storage_dir: Directory to store state files. Defaults to ~/.meta_agent/state
+            storage_dir: Directory to store state files.
+                        Defaults to META_AGENT_STATE_DIR env var or ~/.meta_agent/state
             auto_save_interval: Seconds between auto-saves (0 to disable)
+            masker: Optional SensitiveDataMasker instance for masking sensitive data
+            mask_sensitive_data: Whether to mask sensitive data in saved state
         """
-        self.storage_dir = Path(storage_dir or os.path.expanduser("~/.meta_agent/state"))
+        # Check environment variable first, then fallback to parameter or default
+        env_dir = os.environ.get(STATE_DIR_ENV_VAR)
+        if env_dir:
+            self.storage_dir = Path(env_dir)
+        elif storage_dir:
+            self.storage_dir = Path(storage_dir)
+        else:
+            self.storage_dir = Path(os.path.expanduser("~/.meta_agent/state"))
+
         self.auto_save_interval = auto_save_interval
+        self.masker = masker or get_masker()
+        self.mask_sensitive_data = mask_sensitive_data
         self._ensure_storage_dir()
 
         logger.info(
-            "[StateManager] Initialized with storage_dir=%s, auto_save=%ds",
-            self.storage_dir, auto_save_interval)
+            "[StateManager] Initialized with storage_dir=%s, auto_save=%ds, masking=%s",
+            self.storage_dir, auto_save_interval, mask_sensitive_data)
 
     def _ensure_storage_dir(self) -> None:
-        """Ensure storage directory exists"""
-        self.storage_dir.mkdir(parents=True, exist_ok=True)
+        """
+        Ensure storage directory exists with secure permissions.
+
+        Creates the directory if it doesn't exist and sets permissions to 0700
+        (owner read/write/execute only). Warns if existing directory has
+        permissions that are too permissive.
+        """
+        if not self.storage_dir.exists():
+            self.storage_dir.mkdir(parents=True, exist_ok=True)
+            # Set secure permissions on new directory
+            self.storage_dir.chmod(STATE_DIR_PERMISSIONS)
+            logger.info(
+                "[StateManager] Created state directory with permissions 0700: %s",
+                self.storage_dir)
+        else:
+            # Verify existing directory permissions
+            self._verify_directory_permissions()
+
+    def _verify_directory_permissions(self) -> None:
+        """
+        Verify that directory permissions are secure.
+
+        Warns if permissions are more permissive than 0700.
+        """
+        try:
+            current_mode = self.storage_dir.stat().st_mode
+            # Extract permission bits (last 9 bits)
+            current_perms = current_mode & 0o777
+
+            if current_perms != STATE_DIR_PERMISSIONS:
+                # Check if group or others have any access
+                group_perms = (current_perms >> 3) & 0o7
+                other_perms = current_perms & 0o7
+
+                if group_perms > 0 or other_perms > 0:
+                    logger.warning(
+                        "[StateManager] SECURITY WARNING: State directory %s has "
+                        "permissive permissions (0%o). Recommended: 0700. "
+                        "Run 'chmod 700 %s' to fix.",
+                        self.storage_dir, current_perms, self.storage_dir)
+        except OSError as e:
+            logger.warning(
+                "[StateManager] Could not verify directory permissions: %s", e)
+
+    def set_secure_permissions(self) -> bool:
+        """
+        Set secure permissions (0700) on the state directory.
+
+        Returns:
+            True if permissions were set successfully, False otherwise
+        """
+        try:
+            self.storage_dir.chmod(STATE_DIR_PERMISSIONS)
+            logger.info(
+                "[StateManager] Set secure permissions (0700) on %s",
+                self.storage_dir)
+            return True
+        except OSError as e:
+            logger.error(
+                "[StateManager] Failed to set directory permissions: %s", e)
+            return False
 
     def _get_state_path(self, execution_id: str) -> Path:
         """Get path for execution state file"""
@@ -62,6 +148,8 @@ class ExecutionStateManager:
         """
         Save execution state to disk.
 
+        Sensitive data is automatically masked if mask_sensitive_data is enabled.
+
         Args:
             execution_id: Unique execution identifier
             state: State dictionary to save
@@ -71,12 +159,18 @@ class ExecutionStateManager:
         """
         state_path = self._get_state_path(execution_id)
 
+        # Mask sensitive data if enabled
+        state_to_save = state
+        if self.mask_sensitive_data:
+            state_to_save = self.masker.mask_dict(state)
+
         # Add metadata
         state_with_meta = {
             "execution_id": execution_id,
             "saved_at": datetime.now().isoformat(),
             "version": "1.0",
-            "state": state,
+            "masked": self.mask_sensitive_data,
+            "state": state_to_save,
         }
 
         # Write atomically using temp file
