@@ -21,6 +21,15 @@ function generateCSSVariables(tokens, prefix = '') {
   let css = '';
   
   for (const [key, value] of Object.entries(tokens)) {
+    // Special handling for "base" tokens - generate without "base-" prefix
+    // These are the tokens that Tailwind v4 utilities like bg-primary expect
+    if (key === 'base' && typeof value === 'object') {
+      for (const [baseKey, baseValue] of Object.entries(value)) {
+        css += `  --color-${baseKey}: ${baseValue};\n`;
+      }
+      continue;
+    }
+    
     const varName = prefix ? `${prefix}-${key}` : key;
     
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {

@@ -14,6 +14,22 @@
   --container-6xl: 72rem;    /* 1152px - max-w-6xl */
   --container-7xl: 80rem;    /* 1280px - max-w-7xl */
 
+  /* Base Color Tokens - Required for shared-ui components (Switch, etc.) */
+  /* These tokens are used by Tailwind v4 utilities like bg-primary, bg-input, etc. */
+  --color-primary: #4D7CFE;
+  --color-primary-foreground: #ffffff;
+  --color-background: #ffffff;
+  --color-foreground: #1A1A2E;
+  --color-input: #E8ECEF;
+  --color-ring: #4D7CFE;
+  --color-border: #E8ECEF;
+  --color-muted: #F2F4F6;
+  --color-muted-foreground: #778CA2;
+  --color-accent: #F2F4F6;
+  --color-accent-foreground: #1A1A2E;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+
   /* Semantic Color Tokens - Design System */
   /* Error colors (red) - for error states, destructive actions */
   --color-error-50: #fef2f2;
