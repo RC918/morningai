@@ -493,7 +493,8 @@ class TestUpdateErrorFixPair:
         mock_table.execute.return_value = Mock(data=[{"id": 1}])
         mock_client.table.return_value = mock_table
         mock_get_client.return_value = mock_client
-        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+        test_embedding = [0.1, 0.2, 0.3] * 512
+        mock_embed.return_value = test_embedding
 
         result = update_error_fix_pair(
             pair_id=1,
@@ -502,7 +503,11 @@ class TestUpdateErrorFixPair:
         )
 
         assert result is True
-        mock_table.update.assert_called_once()
+        mock_table.update.assert_called_once_with({
+            "fix_text": "Updated fix text",
+            "fix_embedding": test_embedding,
+            "fix_type": "resolved"
+        })
         mock_table.eq.assert_called_once_with("id", 1)
         mock_embed.assert_called_once_with("Updated fix text")
 
@@ -510,6 +515,7 @@ class TestUpdateErrorFixPair:
     @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
     def test_update_error_fix_pair_with_metadata(self, mock_get_client, mock_embed):
         """Test updating an error-fix pair with metadata"""
+        import json
         mock_client = Mock()
         mock_table = Mock()
         mock_table.update.return_value = mock_table
@@ -517,18 +523,24 @@ class TestUpdateErrorFixPair:
         mock_table.execute.return_value = Mock(data=[{"id": 1}])
         mock_client.table.return_value = mock_table
         mock_get_client.return_value = mock_client
-        mock_embed.return_value = [0.1, 0.2, 0.3] * 512
+        test_embedding = [0.1, 0.2, 0.3] * 512
+        mock_embed.return_value = test_embedding
+        test_metadata = {"status": "resolved", "updated_at": 1234567890}
 
         result = update_error_fix_pair(
             pair_id=1,
             fix_text="Updated fix",
             fix_type="resolved",
-            fix_metadata={"status": "resolved", "updated_at": 1234567890}
+            fix_metadata=test_metadata
         )
 
         assert result is True
-        call_args = mock_table.update.call_args[0][0]
-        assert "fix_metadata" in call_args
+        mock_table.update.assert_called_once_with({
+            "fix_text": "Updated fix",
+            "fix_embedding": test_embedding,
+            "fix_type": "resolved",
+            "fix_metadata": json.dumps(test_metadata)
+        })
 
     @patch('orchestrator.memory.error_fix_pairs._embed')
     @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
@@ -550,6 +562,10 @@ class TestUpdateErrorFixPair:
 
         assert result is True
         mock_embed.assert_not_called()
+        # Verify payload does not contain fix_embedding when generate_embedding=False
+        mock_table.update.assert_called_once_with({
+            "fix_text": "Updated fix"
+        })
 
     @patch('orchestrator.memory.error_fix_pairs._get_supabase_client')
     def test_update_error_fix_pair_no_client(self, mock_get_client):
