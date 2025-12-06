@@ -408,6 +408,7 @@ const MOCK_SESSIONS_COUNTS = calculateSessionCounts(MOCK_SESSIONS)
  */
 const POLLING_INTERVAL_MS = 10000
 const CONFIDENCE_THRESHOLD = 0.8
+const MEDIUM_CONFIDENCE_THRESHOLD = 0.6
 
 const Sessions = () => {
   const { t } = useTranslation()
@@ -692,8 +693,8 @@ const Sessions = () => {
   }, [t])
 
   const getConfidenceColor = useCallback((confidence) => {
-    if (confidence >= 0.8) return 'text-growth'
-    if (confidence >= 0.6) return 'text-wisdom'
+    if (confidence >= CONFIDENCE_THRESHOLD) return 'text-growth'
+    if (confidence >= MEDIUM_CONFIDENCE_THRESHOLD) return 'text-wisdom'
     return 'text-energy'
   }, [])
 
