@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Badge, 
@@ -38,14 +38,17 @@ import {
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
 import { 
-  TaskPlanTimeline, 
-  TaskEditor, 
-  ApprovalWorkflow,
   CodeReviewPanel,
   TestResultsPanel,
   ConfidenceApproval,
   FileDiffViewer
 } from '@/components/sessions'
+
+// Lazy load task plan components to improve FCP (First Contentful Paint)
+// These components are only needed when a session is selected
+const TaskPlanTimeline = lazy(() => import('@/components/sessions/TaskPlanTimeline'))
+const TaskEditor = lazy(() => import('@/components/sessions/TaskEditor'))
+const ApprovalWorkflow = lazy(() => import('@/components/sessions/ApprovalWorkflow'))
 
 /**
  * Mock data for UI skeleton - moved outside component to prevent recreation on each render.
@@ -407,6 +410,8 @@ const MOCK_SESSIONS_COUNTS = calculateSessionCounts(MOCK_SESSIONS)
  * - useMemo for derived values (filteredSessions, sessionCounts)
  */
 const POLLING_INTERVAL_MS = 10000
+const CONFIDENCE_THRESHOLD = 0.8
+const MEDIUM_CONFIDENCE_THRESHOLD = 0.6
 
 const Sessions = () => {
   const { t } = useTranslation()
@@ -691,8 +696,8 @@ const Sessions = () => {
   }, [t])
 
   const getConfidenceColor = useCallback((confidence) => {
-    if (confidence >= 0.8) return 'text-growth'
-    if (confidence >= 0.6) return 'text-wisdom'
+    if (confidence >= CONFIDENCE_THRESHOLD) return 'text-growth'
+    if (confidence >= MEDIUM_CONFIDENCE_THRESHOLD) return 'text-wisdom'
     return 'text-energy'
   }, [])
 
@@ -703,6 +708,11 @@ const Sessions = () => {
       return session.status === filter
     })
   }, [sessions, filter])
+
+  // Issue #2066: Memoize currentTask lookup to avoid recalculation on every render
+  const currentTaskName = useMemo(() => {
+    return selectedSession?.plan?.tasks?.find(t => t.status === 'in_progress')?.name || ''
+  }, [selectedSession])
 
   // Issue #1981: sessionCounts is now a state variable populated from API response
   // This ensures counts reflect ALL sessions, not just the filtered/paginated ones
@@ -852,8 +862,11 @@ const Sessions = () => {
   }, [])
 
   const handleConfidenceApprove = useCallback(async ({ comment }) => {
+    if (!selectedSession?.id) {
+      return
+    }
     try {
-      await apiClientWithMeta(`/api/sessions/${selectedSession?.id}/approve`, {
+      await apiClientWithMeta(`/api/sessions/${selectedSession.id}/approve`, {
         method: 'POST',
         body: JSON.stringify({ comment, action: 'approve' })
       })
@@ -869,8 +882,11 @@ const Sessions = () => {
   }, [selectedSession, refreshSessionsSilently, handleCloseConfidenceApproval, t])
 
   const handleConfidenceRequestChanges = useCallback(async ({ comment }) => {
+    if (!selectedSession?.id) {
+      return
+    }
     try {
-      await apiClientWithMeta(`/api/sessions/${selectedSession?.id}/approve`, {
+      await apiClientWithMeta(`/api/sessions/${selectedSession.id}/approve`, {
         method: 'POST',
         body: JSON.stringify({ comment, action: 'request_changes' })
       })
@@ -1219,19 +1235,27 @@ const Sessions = () => {
                   )}
 
                   {/* Task Plan Timeline (#1823) */}
-                  <TaskPlanTimeline
-                    tasks={selectedSession.plan.tasks}
-                    completedTasks={selectedSession.plan.completedTasks}
-                    totalTasks={selectedSession.plan.totalTasks}
-                    confidence={selectedSession.confidence}
-                    editable={isEditMode && selectedSession.status === 'paused'}
-                    onTaskReorder={handleTaskReorder}
-                    onTaskEdit={handleOpenTaskEditor}
-                    onTaskApprove={(taskId) => {
-                      const task = selectedSession.plan.tasks.find(t => t.id === taskId)
-                      if (task) handleOpenApproval(task)
-                    }}
-                  />
+                  <Suspense fallback={
+                    <div className="space-y-3 animate-pulse">
+                      <div className="h-16 bg-neutral-100 dark:bg-neutral-800 rounded-xl" />
+                      <div className="h-24 bg-neutral-100 dark:bg-neutral-800 rounded-xl" />
+                      <div className="h-24 bg-neutral-100 dark:bg-neutral-800 rounded-xl" />
+                    </div>
+                  }>
+                    <TaskPlanTimeline
+                      tasks={selectedSession.plan.tasks}
+                      completedTasks={selectedSession.plan.completedTasks}
+                      totalTasks={selectedSession.plan.totalTasks}
+                      confidence={selectedSession.confidence}
+                      editable={isEditMode && selectedSession.status === 'paused'}
+                      onTaskReorder={handleTaskReorder}
+                      onTaskEdit={handleOpenTaskEditor}
+                      onTaskApprove={(taskId) => {
+                        const task = selectedSession.plan.tasks.find(t => t.id === taskId)
+                        if (task) handleOpenApproval(task)
+                      }}
+                    />
+                  </Suspense>
                 </TabsContent>
 
                 <TabsContent value="codeReview" className="p-5">
@@ -1366,32 +1390,36 @@ const Sessions = () => {
       </div>
 
       {/* Task Editor Modal (#1823) */}
-      <TaskEditor
-        task={editingTask}
-        isOpen={isTaskEditorOpen}
-        onClose={handleCloseTaskEditor}
-        onSave={handleSaveTask}
-        onDelete={handleDeleteTask}
-        isNewTask={isNewTask}
-      />
+      <Suspense fallback={null}>
+        <TaskEditor
+          task={editingTask}
+          isOpen={isTaskEditorOpen}
+          onClose={handleCloseTaskEditor}
+          onSave={handleSaveTask}
+          onDelete={handleDeleteTask}
+          isNewTask={isNewTask}
+        />
+      </Suspense>
 
       {/* Approval Workflow Modal (#1823) */}
       {selectedSession && approvalTask && (
-        <ApprovalWorkflow
-          sessionId={selectedSession.id}
-          taskId={approvalTask.id}
-          isOpen={isApprovalOpen}
-          onClose={handleCloseApproval}
-          onApproved={handleTaskApproved}
-          onRejected={handleTaskRejected}
-          approvalData={{
-            reason: approvalTask.approvalReason || selectedSession.approvalReason,
-            riskLevel: approvalTask.riskLevel || 'medium',
-            affectedResources: approvalTask.affectedResources || [],
-            taskName: approvalTask.name,
-            description: approvalTask.description
-          }}
-        />
+        <Suspense fallback={null}>
+          <ApprovalWorkflow
+            sessionId={selectedSession.id}
+            taskId={approvalTask.id}
+            isOpen={isApprovalOpen}
+            onClose={handleCloseApproval}
+            onApproved={handleTaskApproved}
+            onRejected={handleTaskRejected}
+            approvalData={{
+              reason: approvalTask.approvalReason || selectedSession.approvalReason,
+              riskLevel: approvalTask.riskLevel || 'medium',
+              affectedResources: approvalTask.affectedResources || [],
+              taskName: approvalTask.name,
+              description: approvalTask.description
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Confidence Approval Modal (#1823) */}
@@ -1402,10 +1430,10 @@ const Sessions = () => {
           onApprove={handleConfidenceApprove}
           onRequestChanges={handleConfidenceRequestChanges}
           confidence={selectedSession.confidence}
-          confidenceThreshold={0.8}
+          confidenceThreshold={CONFIDENCE_THRESHOLD}
           factors={selectedSession.confidenceFactors || []}
           sessionTitle={selectedSession.title}
-          currentTask={selectedSession.plan?.tasks?.find(t => t.status === 'in_progress')?.name || ''}
+          currentTask={currentTaskName}
           riskAssessment={selectedSession.riskAssessment || null}
         />
       )}
