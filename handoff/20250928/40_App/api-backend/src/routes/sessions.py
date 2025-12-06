@@ -11,6 +11,7 @@ import logging
 import os
 import sys
 import json
+from collections import Counter
 from datetime import datetime
 from functools import wraps
 from flask import Blueprint, jsonify, request
@@ -211,17 +212,19 @@ def list_sessions():
                 session_data = json.loads(data)
                 transformed = transform_session_for_frontend(session_data)
                 all_sessions.append(transformed)
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning("Failed to parse session %s: %s", key, e)
+            except (json.JSONDecodeError, KeyError, TypeError, IndexError) as e:
+                logger.warning("Failed to process session data for key %s: %s", key, e)
                 continue
 
         # Calculate counts for all statuses (regardless of filter)
+        # Use Counter for single-pass iteration (performance optimization)
+        status_counts = Counter(s.get('status') for s in all_sessions)
         counts = {
             'all': len(all_sessions),
-            'running': sum(1 for s in all_sessions if s['status'] == 'running'),
-            'paused': sum(1 for s in all_sessions if s['status'] == 'paused'),
-            'completed': sum(1 for s in all_sessions if s['status'] == 'completed'),
-            'failed': sum(1 for s in all_sessions if s['status'] == 'failed')
+            'running': status_counts.get('running', 0),
+            'paused': status_counts.get('paused', 0),
+            'completed': status_counts.get('completed', 0),
+            'failed': status_counts.get('failed', 0)
         }
 
         # Apply status filter
