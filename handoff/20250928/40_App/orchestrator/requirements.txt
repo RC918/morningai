@@ -14,4 +14,4 @@ langgraph>=0.2.4
 langgraph-checkpoint-redis>=0.2.1
 langchain-core>=0.3.0
 # aiohttp for MCP HTTP client in VSCodeIDEService
-aiohttp==3.9.1
+aiohttp>=3.12.14
