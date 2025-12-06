@@ -983,74 +983,78 @@ const Sessions = () => {
 
       {/* Main Content: Session List + Details */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Session List */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-[var(--text-secondary)] px-1">
-            {t('sessions.list.title', 'Sessions')} ({filteredSessions.length})
-          </h2>
-          
-          {filteredSessions.length === 0 ? (
-            <SectionCard
-              title={t('sessions.list.empty', 'No Sessions')}
-              subtitle={t('sessions.list.emptySubtitle', 'No sessions match the current filter')}
-            >
-              <div className="py-4 text-center">
-                <Activity className="w-12 h-12 text-neutral-300 mx-auto" />
+        {/* Session List - Wrapped in SectionCard for Dashboard consistency */}
+        <SectionCard
+          title={t('sessions.list.title', 'Sessions')}
+          subtitle={t('sessions.list.subtitle', 'Select a session to view details')}
+          action={
+            <span className="text-xs text-[var(--text-secondary)]">
+              {filteredSessions.length} {t('sessions.list.count', 'total')}
+            </span>
+          }
+        >
+          <div className="space-y-3">
+            {filteredSessions.length === 0 ? (
+              <div className="py-8 text-center">
+                <Activity className="w-12 h-12 text-neutral-300 mx-auto mb-2" />
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {t('sessions.list.emptySubtitle', 'No sessions match the current filter')}
+                </p>
               </div>
-            </SectionCard>
-          ): (
-            filteredSessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => handleSessionSelect(session)}
-                className={`w-full text-left rounded-xl border p-4 transition-all ${
-                  selectedSession?.id === session.id
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                    : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
-                }`}
-              >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                        {session.title}
-                      </p>
-                      <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
-                        {session.goal}
-                      </p>
+            ): (
+              filteredSessions.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => handleSessionSelect(session)}
+                  className={`w-full text-left rounded-lg border p-3 transition-all ${
+                    selectedSession?.id === session.id
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-sm'
+                      : 'border-[var(--border)] bg-[var(--surface-muted)] hover:border-primary-300 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                          {session.title}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1 truncate">
+                          {session.goal}
+                        </p>
+                      </div>
+                      <ChevronRight className={`w-4 h-4 ml-2 flex-shrink-0 ${
+                        selectedSession?.id === session.id ? 'text-primary-500' : 'text-neutral-400'
+                      }`} />
                     </div>
-                    <ChevronRight className={`w-4 h-4 ml-2 flex-shrink-0 ${
-                      selectedSession?.id === session.id ? 'text-primary-500' : 'text-neutral-400'
-                    }`} />
-                  </div>
-                  
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant={getStatusBadgeVariant(session.status)} className="text-xs">
-                      {getStatusIcon(session.status)}
-                      <span>{t(`sessions.status.${session.status}`, session.status)}</span>
-                    </Badge>
                     
-                    {session.requiresApproval && (
-                      <Badge variant="warning" className="text-xs">
-                        <AlertTriangle />
-                        <span>{t('sessions.needsApproval', 'Needs Approval')}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={getStatusBadgeVariant(session.status)} className="text-xs">
+                        {getStatusIcon(session.status)}
+                        <span>{t(`sessions.status.${session.status}`, session.status)}</span>
                       </Badge>
-                    )}
+                      
+                      {session.requiresApproval && (
+                        <Badge variant="warning" className="text-xs">
+                          <AlertTriangle />
+                          <span>{t('sessions.needsApproval', 'Needs Approval')}</span>
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                      <span>{formatRelativeTime(session.updatedAt)}</span>
+                      <span className={getConfidenceColor(session.confidence)}>
+                        {t('sessions.confidence', 'Confidence')}: {Math.round(session.confidence * 100)}%
+                      </span>
+                    </div>
+                    
+                    <Progress value={session.progress} className="h-1" />
                   </div>
-                  
-                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                    <span>{formatRelativeTime(session.updatedAt)}</span>
-                    <span className={getConfidenceColor(session.confidence)}>
-                      {t('sessions.confidence', 'Confidence')}: {Math.round(session.confidence * 100)}%
-                    </span>
-                  </div>
-                  
-                  <Progress value={session.progress} className="h-1" />
-                </div>
-              </button>
-            ))
-          )}
-        </div>
+                </button>
+              ))
+            )}
+          </div>
+        </SectionCard>
 
         {/* Session Details */}
         <div className="lg:col-span-2">

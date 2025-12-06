@@ -462,6 +462,8 @@
             },
               "list": {
                 "title": "Sessions",
+                "subtitle": "Select a session to view details",
+                "count": "total",
                 "noSessions": "No sessions found",
                 "empty": "No Sessions",
                 "emptySubtitle": "No sessions match the current filter"

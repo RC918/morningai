@@ -461,6 +461,8 @@
           },
           "list": {
             "title": "會話列表",
+            "subtitle": "選擇一個會話以查看詳情",
+            "count": "個",
             "noSessions": "找不到會話",
             "empty": "沒有會話",
             "emptySubtitle": "沒有符合目前篩選條件的會話"
