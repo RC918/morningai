@@ -180,8 +180,8 @@ const ConfidenceApproval = ({
                 </h4>
               </div>
               <div className="divide-y divide-[var(--border)]">
-                {factors.map((factor, index) => (
-                  <div key={index} className="px-4 py-3 flex items-start gap-3">
+                {factors.map((factor) => (
+                  <div key={factor.name || factor.id} className="px-4 py-3 flex items-start gap-3">
                     {getFactorIcon(factor.trend)}
                     <div className="flex-1">
                       <p className="text-sm text-[var(--text-primary)]">{factor.name}</p>

@@ -180,9 +180,9 @@ const ApprovalWorkflow = ({
                 {t('sessions.approval.affectedResources', 'Affected Resources')}
               </p>
               <div className="space-y-2">
-                {affectedResources.map((resource, index) => (
+                {affectedResources.map((resource) => (
                   <div 
-                    key={index}
+                    key={resource.name || resource.id}
                     className="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 dark:bg-neutral-800"
                   >
                     {getResourceIcon(resource.type)}

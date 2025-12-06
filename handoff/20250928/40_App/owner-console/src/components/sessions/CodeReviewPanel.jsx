@@ -218,8 +218,8 @@ const CodeReviewPanel = ({
             </h4>
           </div>
           <div className="divide-y divide-[var(--border)]">
-            {fileChanges.map((file, index) => (
-              <div key={index}>
+            {fileChanges.map((file) => (
+              <div key={file.path}>
                 <button
                   type="button"
                   onClick={() => toggleFileExpand(file.path)}
@@ -266,8 +266,8 @@ const CodeReviewPanel = ({
             </h4>
           </div>
           <div className="divide-y divide-[var(--border)]">
-            {reviewComments.map((comment, index) => (
-              <div key={index} className="p-4">
+            {reviewComments.map((comment) => (
+              <div key={comment.id || `${comment.author}-${comment.filePath}-${comment.line}`} className="p-4">
                 <div className="flex items-start gap-3">
                   <MessageSquare className="w-4 h-4 text-neutral-400 mt-1 flex-shrink-0" />
                   <div className="flex-1">
@@ -305,8 +305,8 @@ const CodeReviewPanel = ({
             {t('sessions.codeReview.reviewers', 'Reviewers')}
           </h4>
           <div className="flex flex-wrap gap-2">
-            {reviewers.map((reviewer, index) => (
-              <div key={index} className="flex items-center gap-2 px-3 py-2 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)]">
+            {reviewers.map((reviewer) => (
+              <div key={reviewer.name || reviewer.id} className="flex items-center gap-2 px-3 py-2 rounded-full bg-[var(--surface-elevated)] border border-[var(--border)]">
                 <span className="text-sm text-[var(--text-primary)]">{reviewer.name}</span>
                 {reviewer.status === 'approved' && (
                   <CheckCircle className="w-4 h-4 text-growth" />
