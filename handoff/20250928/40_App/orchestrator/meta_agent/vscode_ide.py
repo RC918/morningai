@@ -27,6 +27,7 @@ Features:
 
 import asyncio
 import logging
+import shlex
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -477,10 +478,12 @@ class VSCodeIDEService:
             return {"success": False, "error": "Session is closed"}
 
         try:
-            # Build grep command
-            include_flag = f" --include='{file_pattern}'" if file_pattern else ""
+            # Build grep command with proper escaping to prevent command injection
+            include_flag = (
+                f" --include={shlex.quote(file_pattern)}" if file_pattern else ""
+            )
             context_flag = f" -C {context_lines}" if context_lines > 0 else ""
-            command = f"grep -rn{context_flag} '{query}' .{include_flag}"
+            command = f"grep -rn{context_flag} {shlex.quote(query)} .{include_flag}"
 
             result = await self._execute_shell_command(session, command)
 
@@ -548,7 +551,8 @@ class VSCodeIDEService:
             return {"success": False, "error": f"No formatter for {language.value}"}
 
         try:
-            command = f"{formatter} {file_path}"
+            # Use shlex.quote to prevent command injection
+            command = f"{formatter} {shlex.quote(file_path)}"
             result = await self._execute_shell_command(session, command)
 
             if result.get("success"):
@@ -594,7 +598,8 @@ class VSCodeIDEService:
             return {"success": False, "error": f"No linter for {language.value}"}
 
         try:
-            command = f"{linter} {file_path}"
+            # Use shlex.quote to prevent command injection
+            command = f"{linter} {shlex.quote(file_path)}"
             result = await self._execute_shell_command(session, command)
 
             session.last_activity = datetime.now()
@@ -674,12 +679,12 @@ class VSCodeIDEService:
             return {"success": False, "error": f"No test runner for {language.value}"}
 
         try:
-            # Build test command
+            # Build test command with proper escaping to prevent command injection
             command = test_runner
             if test_path:
-                command = f"{command} {test_path}"
+                command = f"{command} {shlex.quote(test_path)}"
             if test_pattern and language == Language.PYTHON:
-                command = f"{command} -k '{test_pattern}'"
+                command = f"{command} -k {shlex.quote(test_pattern)}"
 
             result = await self._execute_shell_command(session, command)
 
@@ -788,9 +793,10 @@ class VSCodeIDEService:
             return {"success": False, "error": "Session is closed"}
 
         try:
+            # Use shlex.quote to prevent command injection
             command = (
                 f"tree -L {max_depth} "
-                f"-I 'node_modules|__pycache__|.git|.venv' {path}"
+                f"-I 'node_modules|__pycache__|.git|.venv' {shlex.quote(path)}"
             )
             result = await self._execute_shell_command(session, command)
 
