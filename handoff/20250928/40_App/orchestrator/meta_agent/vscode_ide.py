@@ -819,9 +819,23 @@ class VSCodeIDEService:
         """
         Execute a command in the terminal.
 
+        SECURITY WARNING: This is a low-level, privileged API that executes
+        arbitrary shell commands in the VM. Unlike other methods in this class
+        (search_code, format_code, etc.) which construct commands from
+        sanitized inputs, this method passes the command string directly to
+        the shell without any escaping or validation.
+
+        This method MUST only be called by:
+        - Trusted, authenticated users via the IDE UI
+        - Highly privileged internal components
+
+        This method MUST NOT be:
+        - Wired directly to untrusted HTTP request parameters
+        - Called with user-supplied input without proper authorization checks
+
         Args:
             session: IDE session
-            command: Command to execute
+            command: Command to execute (passed directly to shell - no escaping)
             timeout_seconds: Command timeout in seconds
 
         Returns:
