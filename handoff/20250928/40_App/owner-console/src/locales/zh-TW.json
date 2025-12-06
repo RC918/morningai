@@ -444,7 +444,13 @@
           "subtitle": "監控與管理 Meta Agent 任務執行會話",
           "error": {
             "loadFailed": "載入會話失敗",
-            "title": "執行失敗"
+            "title": "執行失敗",
+            "pauseFailed": "暫停會話失敗",
+            "resumeFailed": "繼續會話失敗",
+            "cancelFailed": "取消會話失敗",
+            "saveTaskFailed": "儲存任務失敗",
+            "deleteTaskFailed": "刪除任務失敗",
+            "reorderFailed": "重新排序任務失敗"
           },
           "filter": {
             "all": "全部",
@@ -489,10 +495,50 @@
           },
           "plan": {
             "progress": "進度",
-            "tasks": "個任務"
+            "tasks": "個任務",
+            "editMode": "編輯計劃",
+            "editModeOn": "編輯中",
+            "addTask": "新增任務"
           },
           "approval": {
-            "title": "需要審核"
+            "title": "需要審核",
+            "review": "審核",
+            "approve": "核准",
+            "reject": "拒絕",
+            "comment": "備註",
+            "commentPlaceholder": "新增備註至審計日誌...",
+            "riskLevel": "風險等級",
+            "affectedResources": "受影響資源",
+            "risk": {
+              "low": "低",
+              "medium": "中",
+              "high": "高",
+              "critical": "嚴重"
+            },
+            "errors": {
+              "approveFailed": "核准任務失敗",
+              "rejectFailed": "拒絕任務失敗"
+            }
+          },
+          "task": {
+            "started": "開始時間",
+            "completed": "完成時間",
+            "duration": "持續時間",
+            "approve": "核准",
+            "edit": "編輯任務"
+          },
+          "taskEditor": {
+            "titleNew": "新增任務",
+            "titleEdit": "編輯任務",
+            "name": "任務名稱",
+            "namePlaceholder": "輸入任務名稱...",
+            "description": "描述",
+            "descriptionPlaceholder": "新增任務詳情...",
+            "type": "任務類型",
+            "errors": {
+              "nameRequired": "任務名稱為必填",
+              "nameTooLong": "任務名稱不得超過 200 字元"
+            }
           },
           "taskType": {
             "ANALYZE_CODE": "分析",
