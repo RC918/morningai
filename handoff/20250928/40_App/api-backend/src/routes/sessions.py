@@ -42,6 +42,18 @@ bp = Blueprint('sessions', __name__, url_prefix='/api/sessions')
 # Session key pattern used by orchestrator's SessionStore
 SESSION_KEY_PREFIX = "dev_agent:session:"
 
+# Session TTL in seconds (24 hours) - Issue #1992
+SESSION_TTL_SECONDS = 86400
+
+# Status mapping from internal to frontend format - shared across endpoints
+STATUS_MAP = {
+    'active': 'running',
+    'paused': 'paused',
+    'completed': 'completed',
+    'failed': 'failed',
+    'escalated': 'paused'  # Escalated sessions need human attention
+}
+
 
 def require_redis_available(fn):
     """Decorator to check if Redis is available before executing endpoint."""
@@ -56,6 +68,38 @@ def require_redis_available(fn):
     return wrapper
 
 
+def _get_session_and_user(session_id: str) -> tuple:
+    """
+    Get session data and user info from Redis and request context.
+
+    DRY helper for control endpoints (pause/resume/cancel) - Issue #1990
+
+    Args:
+        session_id: The session ID to fetch
+
+    Returns:
+        tuple: (session_data: dict, user_info: dict, redis_key: str)
+
+    Raises:
+        ValueError: If session is not found (caller should return 404)
+    """
+    current_user = getattr(request, 'current_user', {})
+    user_info = {
+        'user_id': current_user.get('user_id', 'unknown'),
+        'user_email': current_user.get('username', current_user.get('user_id', 'unknown'))
+    }
+
+    redis_client = get_redis_client()
+    key = f"{SESSION_KEY_PREFIX}{session_id}"
+    data = redis_client.get(key)
+
+    if not data:
+        raise ValueError(f"Session {session_id} not found")
+
+    session_data = json.loads(data)
+    return session_data, user_info, key
+
+
 def transform_session_for_frontend(session_data: dict) -> dict:
     """
     Transform orchestrator SessionState to frontend format.
@@ -67,15 +111,8 @@ def transform_session_for_frontend(session_data: dict) -> dict:
     iteration = session_data.get('iteration', 0)
     progress = min(100, int((iteration / max_iterations) * 100)) if max_iterations > 0 else 0
 
-    # Map internal status to frontend status
-    status_map = {
-        'active': 'running',
-        'paused': 'paused',
-        'completed': 'completed',
-        'failed': 'failed',
-        'escalated': 'paused'  # Escalated sessions need human attention
-    }
-    status = status_map.get(session_data.get('status', 'active'), 'running')
+    # Map internal status to frontend status using shared STATUS_MAP
+    status = STATUS_MAP.get(session_data.get('status', 'active'), 'running')
 
     # Build tasks from decisions/actions
     tasks = []
@@ -305,18 +342,10 @@ def pause_session(session_id):
     Requires: Owner role
     """
     try:
-        current_user = getattr(request, 'current_user', {})
-        user_id = current_user.get('user_id', 'unknown')
-        user_email = current_user.get('username', user_id)
+        # Use DRY helper for session and user retrieval - Issue #1990
+        session_data, user_info, key = _get_session_and_user(session_id)
+        user_email = user_info['user_email']
 
-        redis_client = get_redis_client()
-        key = f"{SESSION_KEY_PREFIX}{session_id}"
-        data = redis_client.get(key)
-
-        if not data:
-            return jsonify({'error': 'Session not found'}), 404
-
-        session_data = json.loads(data)
         current_status = session_data.get('status', 'active')
 
         if current_status != 'active':
@@ -329,19 +358,24 @@ def pause_session(session_id):
         session_data['updated_at'] = datetime.utcnow().isoformat()
         session_data['paused_by'] = user_email
 
-        redis_client.setex(key, 86400, json.dumps(session_data))
+        redis_client = get_redis_client()
+        redis_client.setex(key, SESSION_TTL_SECONDS, json.dumps(session_data))
 
         logger.info("Session %s paused by %s", session_id, user_email)
+        # Use STATUS_MAP for frontend-consistent status - Issue #1989
         return jsonify({
             'success': True,
             'session_id': session_id,
-            'status': 'paused',
+            'status': STATUS_MAP.get('paused', 'paused'),
             'paused_by': user_email,
             'timestamp': datetime.utcnow().isoformat()
         })
     except json.JSONDecodeError:
+        # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
         logger.exception("Failed to parse session %s", session_id)
         return jsonify({'error': 'Failed to parse session data'}), 500
+    except ValueError:
+        return jsonify({'error': 'Session not found'}), 404
     except Exception:
         logger.exception("Failed to pause session")
         return jsonify({'error': 'Failed to pause session'}), 500
@@ -360,18 +394,10 @@ def resume_session(session_id):
     Requires: Owner role
     """
     try:
-        current_user = getattr(request, 'current_user', {})
-        user_id = current_user.get('user_id', 'unknown')
-        user_email = current_user.get('username', user_id)
+        # Use DRY helper for session and user retrieval - Issue #1990
+        session_data, user_info, key = _get_session_and_user(session_id)
+        user_email = user_info['user_email']
 
-        redis_client = get_redis_client()
-        key = f"{SESSION_KEY_PREFIX}{session_id}"
-        data = redis_client.get(key)
-
-        if not data:
-            return jsonify({'error': 'Session not found'}), 404
-
-        session_data = json.loads(data)
         current_status = session_data.get('status', 'active')
 
         if current_status not in ['paused', 'escalated']:
@@ -384,19 +410,25 @@ def resume_session(session_id):
         session_data['updated_at'] = datetime.utcnow().isoformat()
         session_data['resumed_by'] = user_email
 
-        redis_client.setex(key, 86400, json.dumps(session_data))
+        redis_client = get_redis_client()
+        redis_client.setex(key, SESSION_TTL_SECONDS, json.dumps(session_data))
 
         logger.info("Session %s resumed by %s", session_id, user_email)
+        # Use STATUS_MAP for frontend-consistent status - Issue #1989
+        # Note: 'active' maps to 'running' in frontend
         return jsonify({
             'success': True,
             'session_id': session_id,
-            'status': 'active',
+            'status': STATUS_MAP.get('active', 'running'),
             'resumed_by': user_email,
             'timestamp': datetime.utcnow().isoformat()
         })
     except json.JSONDecodeError:
+        # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
         logger.exception("Failed to parse session %s", session_id)
         return jsonify({'error': 'Failed to parse session data'}), 500
+    except ValueError:
+        return jsonify({'error': 'Session not found'}), 404
     except Exception:
         logger.exception("Failed to resume session")
         return jsonify({'error': 'Failed to resume session'}), 500
@@ -418,21 +450,13 @@ def cancel_session(session_id):
     Requires: Owner role
     """
     try:
-        current_user = getattr(request, 'current_user', {})
-        user_id = current_user.get('user_id', 'unknown')
-        user_email = current_user.get('username', user_id)
+        # Use DRY helper for session and user retrieval - Issue #1990
+        session_data, user_info, key = _get_session_and_user(session_id)
+        user_email = user_info['user_email']
 
         req_data = request.get_json(silent=True) or {}
         reason = req_data.get('reason')
 
-        redis_client = get_redis_client()
-        key = f"{SESSION_KEY_PREFIX}{session_id}"
-        data = redis_client.get(key)
-
-        if not data:
-            return jsonify({'error': 'Session not found'}), 404
-
-        session_data = json.loads(data)
         current_status = session_data.get('status', 'active')
 
         if current_status in ['completed', 'failed']:
@@ -448,20 +472,25 @@ def cancel_session(session_id):
             session_data['context'] = session_data.get('context', {})
             session_data['context']['cancellation_reason'] = reason
 
-        redis_client.setex(key, 86400, json.dumps(session_data))
+        redis_client = get_redis_client()
+        redis_client.setex(key, SESSION_TTL_SECONDS, json.dumps(session_data))
 
         logger.info("Session %s cancelled by %s: %s", session_id, user_email, reason or "No reason")
+        # Use STATUS_MAP for frontend-consistent status - Issue #1989
         return jsonify({
             'success': True,
             'session_id': session_id,
-            'status': 'failed',
+            'status': STATUS_MAP.get('failed', 'failed'),
             'cancelled_by': user_email,
             'reason': reason,
             'timestamp': datetime.utcnow().isoformat()
         })
     except json.JSONDecodeError:
+        # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
         logger.exception("Failed to parse session %s", session_id)
         return jsonify({'error': 'Failed to parse session data'}), 500
+    except ValueError:
+        return jsonify({'error': 'Session not found'}), 404
     except Exception:
         logger.exception("Failed to cancel session")
         return jsonify({'error': 'Failed to cancel session'}), 500
