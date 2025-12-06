@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Badge, 
@@ -38,14 +38,17 @@ import {
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
 import { 
-  TaskPlanTimeline, 
-  TaskEditor, 
-  ApprovalWorkflow,
   CodeReviewPanel,
   TestResultsPanel,
   ConfidenceApproval,
   FileDiffViewer
 } from '@/components/sessions'
+
+// Lazy load task plan components to improve FCP (First Contentful Paint)
+// These components are only needed when a session is selected
+const TaskPlanTimeline = lazy(() => import('@/components/sessions/TaskPlanTimeline'))
+const TaskEditor = lazy(() => import('@/components/sessions/TaskEditor'))
+const ApprovalWorkflow = lazy(() => import('@/components/sessions/ApprovalWorkflow'))
 
 /**
  * Mock data for UI skeleton - moved outside component to prevent recreation on each render.
@@ -1232,19 +1235,27 @@ const Sessions = () => {
                   )}
 
                   {/* Task Plan Timeline (#1823) */}
-                  <TaskPlanTimeline
-                    tasks={selectedSession.plan.tasks}
-                    completedTasks={selectedSession.plan.completedTasks}
-                    totalTasks={selectedSession.plan.totalTasks}
-                    confidence={selectedSession.confidence}
-                    editable={isEditMode && selectedSession.status === 'paused'}
-                    onTaskReorder={handleTaskReorder}
-                    onTaskEdit={handleOpenTaskEditor}
-                    onTaskApprove={(taskId) => {
-                      const task = selectedSession.plan.tasks.find(t => t.id === taskId)
-                      if (task) handleOpenApproval(task)
-                    }}
-                  />
+                  <Suspense fallback={
+                    <div className="space-y-3 animate-pulse">
+                      <div className="h-16 bg-neutral-100 dark:bg-neutral-800 rounded-xl" />
+                      <div className="h-24 bg-neutral-100 dark:bg-neutral-800 rounded-xl" />
+                      <div className="h-24 bg-neutral-100 dark:bg-neutral-800 rounded-xl" />
+                    </div>
+                  }>
+                    <TaskPlanTimeline
+                      tasks={selectedSession.plan.tasks}
+                      completedTasks={selectedSession.plan.completedTasks}
+                      totalTasks={selectedSession.plan.totalTasks}
+                      confidence={selectedSession.confidence}
+                      editable={isEditMode && selectedSession.status === 'paused'}
+                      onTaskReorder={handleTaskReorder}
+                      onTaskEdit={handleOpenTaskEditor}
+                      onTaskApprove={(taskId) => {
+                        const task = selectedSession.plan.tasks.find(t => t.id === taskId)
+                        if (task) handleOpenApproval(task)
+                      }}
+                    />
+                  </Suspense>
                 </TabsContent>
 
                 <TabsContent value="codeReview" className="p-5">
@@ -1379,32 +1390,36 @@ const Sessions = () => {
       </div>
 
       {/* Task Editor Modal (#1823) */}
-      <TaskEditor
-        task={editingTask}
-        isOpen={isTaskEditorOpen}
-        onClose={handleCloseTaskEditor}
-        onSave={handleSaveTask}
-        onDelete={handleDeleteTask}
-        isNewTask={isNewTask}
-      />
+      <Suspense fallback={null}>
+        <TaskEditor
+          task={editingTask}
+          isOpen={isTaskEditorOpen}
+          onClose={handleCloseTaskEditor}
+          onSave={handleSaveTask}
+          onDelete={handleDeleteTask}
+          isNewTask={isNewTask}
+        />
+      </Suspense>
 
       {/* Approval Workflow Modal (#1823) */}
       {selectedSession && approvalTask && (
-        <ApprovalWorkflow
-          sessionId={selectedSession.id}
-          taskId={approvalTask.id}
-          isOpen={isApprovalOpen}
-          onClose={handleCloseApproval}
-          onApproved={handleTaskApproved}
-          onRejected={handleTaskRejected}
-          approvalData={{
-            reason: approvalTask.approvalReason || selectedSession.approvalReason,
-            riskLevel: approvalTask.riskLevel || 'medium',
-            affectedResources: approvalTask.affectedResources || [],
-            taskName: approvalTask.name,
-            description: approvalTask.description
-          }}
-        />
+        <Suspense fallback={null}>
+          <ApprovalWorkflow
+            sessionId={selectedSession.id}
+            taskId={approvalTask.id}
+            isOpen={isApprovalOpen}
+            onClose={handleCloseApproval}
+            onApproved={handleTaskApproved}
+            onRejected={handleTaskRejected}
+            approvalData={{
+              reason: approvalTask.approvalReason || selectedSession.approvalReason,
+              riskLevel: approvalTask.riskLevel || 'medium',
+              affectedResources: approvalTask.affectedResources || [],
+              taskName: approvalTask.name,
+              description: approvalTask.description
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Confidence Approval Modal (#1823) */}
