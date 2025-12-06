@@ -308,6 +308,9 @@ describe('TestResultsPanel', () => {
       
       // The malicious content should be rendered as text
       expect(screen.getByText(xssSuiteName)).toBeInTheDocument()
+      
+      // Verify no div elements with onclick handlers were created from the XSS payload
+      expect(document.querySelector('div[onclick]')).toBeNull()
     })
   })
 })
