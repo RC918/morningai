@@ -305,3 +305,84 @@ class TestPermissionVerification:
                     if "SECURITY WARNING" in str(call)
                 ]
                 assert len(warning_calls) > 0
+
+
+class TestTOCTOUDefense:
+    """Tests for TOCTOU (Time-of-check to time-of-use) defense in save_state()
+
+    Issue: #2025 - add TOCTOU defense in save_state()
+    """
+
+    def test_save_state_verifies_permissions_before_write(self):
+        """Test that save_state() calls _verify_directory_permissions() before writing
+
+        This ensures that directory permissions are re-checked on each save,
+        defending against TOCTOU attacks where permissions may have changed
+        after ExecutionStateManager initialization.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = ExecutionStateManager(storage_dir=tmpdir)
+
+            with patch.object(
+                manager, "_verify_directory_permissions"
+            ) as mock_verify:
+                manager.save_state("exec-001", {"status": "running"})
+                mock_verify.assert_called_once()
+
+    def test_save_state_warns_if_permissions_changed_after_init(self):
+        """Test that save_state() warns if permissions become insecure after init"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = os.path.join(tmpdir, "state_dir")
+            os.makedirs(state_dir)
+            os.chmod(state_dir, 0o700)  # Start secure
+
+            manager = ExecutionStateManager(storage_dir=state_dir)
+
+            # Change permissions to insecure after initialization
+            os.chmod(state_dir, 0o755)
+
+            with patch("meta_agent.state_persistence.logger") as mock_logger:
+                manager.save_state("exec-001", {"status": "running"})
+
+                # Should log a security warning
+                warning_calls = [
+                    call for call in mock_logger.warning.call_args_list
+                    if "SECURITY WARNING" in str(call)
+                ]
+                assert len(warning_calls) > 0
+
+    def test_save_state_completes_despite_insecure_permissions(self):
+        """Test that save_state() still writes data even with insecure permissions
+
+        The current behavior is to warn but not block writes, maintaining
+        backward compatibility while providing visibility into security issues.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state_dir = os.path.join(tmpdir, "state_dir")
+            os.makedirs(state_dir)
+            os.chmod(state_dir, 0o755)  # Insecure from the start
+
+            manager = ExecutionStateManager(storage_dir=state_dir)
+
+            # Should still save successfully
+            path = manager.save_state("exec-001", {"status": "running"})
+            assert os.path.exists(path)
+
+            # Verify data was written correctly
+            loaded = manager.load_state("exec-001")
+            assert loaded["status"] == "running"
+
+    def test_multiple_saves_verify_permissions_each_time(self):
+        """Test that each save_state() call verifies permissions independently"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = ExecutionStateManager(storage_dir=tmpdir)
+
+            with patch.object(
+                manager, "_verify_directory_permissions"
+            ) as mock_verify:
+                manager.save_state("exec-001", {"status": "running"})
+                manager.save_state("exec-002", {"status": "completed"})
+                manager.save_state("exec-003", {"status": "failed"})
+
+                # Should be called once per save
+                assert mock_verify.call_count == 3

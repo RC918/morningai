@@ -150,6 +150,10 @@ class ExecutionStateManager:
 
         Sensitive data is automatically masked if mask_sensitive_data is enabled.
 
+        Security: Re-verifies directory permissions before each write to defend
+        against TOCTOU (Time-of-check to time-of-use) attacks where permissions
+        may have changed after initialization. See issue #2025.
+
         Args:
             execution_id: Unique execution identifier
             state: State dictionary to save
@@ -157,6 +161,9 @@ class ExecutionStateManager:
         Returns:
             Path to saved state file
         """
+        # TOCTOU defense: Re-verify directory permissions before each write (#2025)
+        self._verify_directory_permissions()
+
         state_path = self._get_state_path(execution_id)
 
         # Mask sensitive data if enabled
