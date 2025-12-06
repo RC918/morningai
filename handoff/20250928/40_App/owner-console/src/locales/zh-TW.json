@@ -491,7 +491,65 @@
           },
           "tabs": {
             "plan": "任務計劃",
+            "codeReview": "程式碼審查",
+            "tests": "測試結果",
             "logs": "活動日誌"
+          },
+          "codeReview": {
+            "title": "程式碼審查",
+            "noPR": "尚未建立 Pull Request",
+            "prStatus": "PR 狀態",
+            "checks": "CI 檢查",
+            "checksStatus": "{{passed}}/{{total}} 項檢查通過",
+            "fileChanges": "檔案變更",
+            "reviewers": "審查者",
+            "comments": "審查評論",
+            "noComments": "沒有審查評論",
+            "status": {
+              "pending": "待審核",
+              "approved": "已核准",
+              "changes_requested": "需要修改",
+              "merged": "已合併",
+              "closed": "已關閉"
+            }
+          },
+          "tests": {
+            "title": "測試結果",
+            "noResults": "沒有可用的測試結果",
+            "summary": "測試摘要",
+            "passRate": "通過率",
+            "duration": "執行時間",
+            "total": "總計",
+            "passed": "通過",
+            "failed": "失敗",
+            "skipped": "跳過",
+            "suites": "測試套件",
+            "running": "執行中..."
+          },
+          "confidence": {
+            "high": "高",
+            "medium": "中",
+            "low": "低"
+          },
+          "confidenceApproval": {
+            "title": "信心度審核",
+            "score": "信心分數",
+            "threshold": "閾值",
+            "meetsThreshold": "達到閾值",
+            "belowThreshold": "低於閾值",
+            "factors": "影響因素",
+            "riskLevel": "風險等級",
+            "currentTask": "目前任務",
+            "comment": "備註",
+            "commentPlaceholder": "新增備註或回饋...",
+            "approve": "核准並繼續",
+            "requestChanges": "要求修改",
+            "lowConfidenceWarning": "信心分數低於閾值。請檢視上方因素，並考慮是否需要要求修改。"
+          },
+          "diff": {
+            "noChanges": "沒有變更可顯示",
+            "additions": "新增",
+            "deletions": "刪除"
           },
           "plan": {
             "progress": "進度",

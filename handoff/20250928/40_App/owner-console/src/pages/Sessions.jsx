@@ -36,7 +36,15 @@ import {
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
-import { TaskPlanTimeline, TaskEditor, ApprovalWorkflow } from '@/components/sessions'
+import { 
+  TaskPlanTimeline, 
+  TaskEditor, 
+  ApprovalWorkflow,
+  CodeReviewPanel,
+  TestResultsPanel,
+  ConfidenceApproval,
+  FileDiffViewer
+} from '@/components/sessions'
 
 /**
  * Mock data for UI skeleton - moved outside component to prevent recreation on each render.
@@ -72,6 +80,54 @@ const MOCK_SESSIONS = Object.freeze([
         { timestamp: '2024-01-15T11:45:00Z', message: 'Starting integration test implementation', level: 'info' },
         { timestamp: '2024-01-15T11:30:00Z', message: 'Unit tests passed: 12/12', level: 'success' },
         { timestamp: '2024-01-15T11:15:00Z', message: 'Completed GitHub OAuth handler', level: 'info' }
+      ],
+      codeReview: {
+        prUrl: 'https://github.com/example/repo/pull/456',
+        prStatus: 'pending',
+        checksStatus: { passed: 8, failed: 0, pending: 2, total: 10 },
+        fileChanges: [
+          { path: 'src/auth/google-oauth.ts', additions: 45, deletions: 0, status: 'added' },
+          { path: 'src/auth/github-oauth.ts', additions: 52, deletions: 0, status: 'added' },
+          { path: 'src/auth/index.ts', additions: 12, deletions: 3, status: 'modified' }
+        ],
+        reviewComments: [],
+        reviewers: [
+          { name: 'Alice Chen', status: 'pending', avatarUrl: null }
+        ]
+      },
+      testResults: {
+        totalTests: 12,
+        passedTests: 12,
+        failedTests: 0,
+        skippedTests: 0,
+        duration: 4.5,
+        testSuites: [
+          {
+            name: 'GoogleOAuthHandler',
+            status: 'passed',
+            duration: 2.1,
+            tests: [
+              { name: 'should redirect to Google OAuth', status: 'passed', duration: 0.3 },
+              { name: 'should handle callback', status: 'passed', duration: 0.5 },
+              { name: 'should create user session', status: 'passed', duration: 0.4 }
+            ]
+          },
+          {
+            name: 'GitHubOAuthHandler',
+            status: 'passed',
+            duration: 2.4,
+            tests: [
+              { name: 'should redirect to GitHub OAuth', status: 'passed', duration: 0.3 },
+              { name: 'should handle callback', status: 'passed', duration: 0.6 },
+              { name: 'should create user session', status: 'passed', duration: 0.5 }
+            ]
+          }
+        ]
+      },
+      confidenceFactors: [
+        { name: 'Code complexity', trend: 'positive', impact: 15, description: 'Low cyclomatic complexity' },
+        { name: 'Test coverage', trend: 'positive', impact: 20, description: '95% coverage achieved' },
+        { name: 'Similar patterns', trend: 'positive', impact: 10, description: 'Matches existing auth patterns' }
       ]
     },
     {
@@ -129,6 +185,57 @@ const MOCK_SESSIONS = Object.freeze([
       logs: [
         { timestamp: '2024-01-14T18:30:00Z', message: 'PR created and ready for review', level: 'success' },
         { timestamp: '2024-01-14T18:00:00Z', message: 'All tests passed: 24/24', level: 'success' }
+      ],
+      codeReview: {
+        prUrl: 'https://github.com/example/repo/pull/123',
+        prStatus: 'approved',
+        checksStatus: { passed: 15, failed: 0, pending: 0, total: 15 },
+        fileChanges: [
+          { path: 'src/payments/stripe-handler.ts', additions: 120, deletions: 45, status: 'modified' },
+          { path: 'src/payments/webhooks.ts', additions: 85, deletions: 0, status: 'added' },
+          { path: 'src/payments/types.ts', additions: 25, deletions: 10, status: 'modified' }
+        ],
+        reviewComments: [
+          { id: 1, author: 'Bob Smith', body: 'Great refactoring! Much cleaner now.', path: 'src/payments/stripe-handler.ts', line: 45, resolved: true }
+        ],
+        reviewers: [
+          { name: 'Bob Smith', status: 'approved', avatarUrl: null },
+          { name: 'Carol Wang', status: 'approved', avatarUrl: null }
+        ]
+      },
+      testResults: {
+        totalTests: 24,
+        passedTests: 24,
+        failedTests: 0,
+        skippedTests: 0,
+        duration: 8.2,
+        testSuites: [
+          {
+            name: 'StripeHandler',
+            status: 'passed',
+            duration: 3.5,
+            tests: [
+              { name: 'should process payment', status: 'passed', duration: 0.8 },
+              { name: 'should handle refund', status: 'passed', duration: 0.6 },
+              { name: 'should validate card', status: 'passed', duration: 0.4 }
+            ]
+          },
+          {
+            name: 'WebhookHandler',
+            status: 'passed',
+            duration: 4.7,
+            tests: [
+              { name: 'should verify signature', status: 'passed', duration: 0.5 },
+              { name: 'should handle payment_intent.succeeded', status: 'passed', duration: 0.7 },
+              { name: 'should handle payment_intent.failed', status: 'passed', duration: 0.6 }
+            ]
+          }
+        ]
+      },
+      confidenceFactors: [
+        { name: 'Code quality', trend: 'positive', impact: 25, description: 'Clean architecture patterns' },
+        { name: 'Test coverage', trend: 'positive', impact: 30, description: '100% coverage achieved' },
+        { name: 'Review feedback', trend: 'positive', impact: 20, description: 'All reviewers approved' }
       ]
     },
     {
@@ -155,6 +262,32 @@ const MOCK_SESSIONS = Object.freeze([
       logs: [
         { timestamp: '2024-01-14T11:30:00Z', message: 'Failed to connect to Grafana API: Authentication error', level: 'error' },
         { timestamp: '2024-01-14T11:00:00Z', message: 'Attempting Grafana API connection...', level: 'info' }
+      ],
+      testResults: {
+        totalTests: 5,
+        passedTests: 2,
+        failedTests: 3,
+        skippedTests: 0,
+        duration: 2.1,
+        testSuites: [
+          {
+            name: 'GrafanaConnection',
+            status: 'failed',
+            duration: 2.1,
+            tests: [
+              { name: 'should connect to API', status: 'failed', duration: 1.0, errorMessage: 'Authentication failed: Invalid API key' },
+              { name: 'should fetch dashboards', status: 'failed', duration: 0.5, errorMessage: 'Connection refused' },
+              { name: 'should validate config', status: 'passed', duration: 0.3 },
+              { name: 'should parse response', status: 'passed', duration: 0.2 },
+              { name: 'should handle timeout', status: 'failed', duration: 0.1, errorMessage: 'Test skipped due to connection failure' }
+            ]
+          }
+        ]
+      },
+      confidenceFactors: [
+        { name: 'API connectivity', trend: 'negative', impact: -30, description: 'Cannot connect to Grafana API' },
+        { name: 'Configuration', trend: 'negative', impact: -15, description: 'Missing or invalid credentials' },
+        { name: 'Code quality', trend: 'neutral', impact: 0, description: 'Code structure is acceptable' }
       ]
     }
   ]
@@ -829,6 +962,14 @@ const Sessions = () => {
                     <ListTodo className="w-4 h-4 mr-2" />
                     {t('sessions.tabs.plan', 'Task Plan')}
                   </TabsTrigger>
+                  <TabsTrigger value="codeReview" className="data-[state=active]:border-b-2 data-[state=active]:border-primary-500">
+                    <FileCode className="w-4 h-4 mr-2" />
+                    {t('sessions.tabs.codeReview', 'Code Review')}
+                  </TabsTrigger>
+                  <TabsTrigger value="tests" className="data-[state=active]:border-b-2 data-[state=active]:border-primary-500">
+                    <TestTube className="w-4 h-4 mr-2" />
+                    {t('sessions.tabs.tests', 'Tests')}
+                  </TabsTrigger>
                   <TabsTrigger value="logs" className="data-[state=active]:border-b-2 data-[state=active]:border-primary-500">
                     <Activity className="w-4 h-4 mr-2" />
                     {t('sessions.tabs.logs', 'Activity Log')}
@@ -929,6 +1070,46 @@ const Sessions = () => {
                       if (task) handleOpenApproval(task)
                     }}
                   />
+                </TabsContent>
+
+                <TabsContent value="codeReview" className="p-5">
+                  {selectedSession.codeReview ? (
+                    <CodeReviewPanel
+                      prUrl={selectedSession.codeReview.prUrl}
+                      prStatus={selectedSession.codeReview.prStatus}
+                      reviewComments={selectedSession.codeReview.reviewComments}
+                      fileChanges={selectedSession.codeReview.fileChanges}
+                      reviewers={selectedSession.codeReview.reviewers}
+                      checksStatus={selectedSession.codeReview.checksStatus}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileCode className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        {t('sessions.codeReview.noPR', 'No pull request created yet')}
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="tests" className="p-5">
+                  {selectedSession.testResults ? (
+                    <TestResultsPanel
+                      testSuites={selectedSession.testResults.testSuites}
+                      totalTests={selectedSession.testResults.totalTests}
+                      passedTests={selectedSession.testResults.passedTests}
+                      failedTests={selectedSession.testResults.failedTests}
+                      skippedTests={selectedSession.testResults.skippedTests}
+                      duration={selectedSession.testResults.duration}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <TestTube className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        {t('sessions.tests.noResults', 'No test results available')}
+                      </p>
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="logs" className="p-5">
