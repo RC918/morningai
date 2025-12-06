@@ -8,8 +8,6 @@ Phase: M5 - Meta Agent
 PR: PR 2 - Sessions API Integration
 """
 import logging
-import os
-import sys
 import json
 from collections import Counter
 from datetime import datetime
@@ -19,15 +17,6 @@ from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, admin_required
 
 logger = logging.getLogger(__name__)
-
-# Setup paths for orchestrator module import
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-orchestrator_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
-if orchestrator_path not in sys.path:
-    sys.path.insert(0, orchestrator_path)
 
 # Try to import Redis client
 try:
