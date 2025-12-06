@@ -180,6 +180,31 @@ const Sessions = () => {
   const [selectedSession, setSelectedSession] = useState(null)
   const [filter, setFilter] = useState('all')
 
+  // Monitor FCP (First Contentful Paint) performance metric
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.PerformanceObserver) {
+      return
+    }
+
+    try {
+      const observer = new PerformanceObserver((entryList) => {
+        const entries = entryList.getEntriesByName('first-contentful-paint')
+        if (entries.length > 0) {
+          const fcp = entries[0]
+          // Log FCP metric for monitoring (can be sent to analytics service)
+          console.debug('[Sessions] FCP:', Math.round(fcp.startTime), 'ms')
+        }
+      })
+      
+      observer.observe({ type: 'paint', buffered: true })
+      
+      return () => observer.disconnect()
+    } catch (e) {
+      // PerformanceObserver not supported or paint type not available
+      console.debug('[Sessions] FCP monitoring not available')
+    }
+  }, [])
+
   const loadSessions = useCallback(async () => {
     try {
       setLoading(true)
@@ -463,6 +488,8 @@ const Sessions = () => {
         ].map(({ key, label, icon: Icon, variant }) => (
           <button
             key={key}
+            type="button"
+            aria-pressed={filter === key}
             onClick={() => handleFilterChange(key)}
             className={`text-left transition-all rounded-xl ${
               filter === key
@@ -494,13 +521,10 @@ const Sessions = () => {
               subtitle={t('sessions.list.emptySubtitle', 'No sessions match the current filter')}
             >
               <div className="py-4 text-center">
-                <Activity className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-                <p className="text-neutral-500">
-                  {t('sessions.list.noSessions', 'No sessions found')}
-                </p>
+                <Activity className="w-12 h-12 text-neutral-300 mx-auto" />
               </div>
             </SectionCard>
-          ) : (
+          ): (
             filteredSessions.map((session) => (
               <button
                 key={session.id}
@@ -774,10 +798,7 @@ const Sessions = () => {
               subtitle={t('sessions.details.subtitle', 'Select a session from the list')}
             >
               <div className="py-8 text-center">
-                <ListTodo className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-                <p className="text-neutral-500">
-                  {t('sessions.selectSession', 'Select a session to view details')}
-                </p>
+                <ListTodo className="w-16 h-16 text-neutral-300 mx-auto" />
               </div>
             </SectionCard>
           )}
