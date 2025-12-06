@@ -202,21 +202,7 @@ const TaskPlanTimeline = ({
     const handleKeyboardReorder = useCallback((e, task, index) => {
       if (!editable) return
 
-      // Space or Enter: if a task is already grabbed, release it; otherwise let the expand/collapse handler run
-      if (e.key === ' ' || e.key === 'Enter') {
-        if (keyboardGrabbedIndex === null) {
-          // Not currently grabbing - let the expand/collapse handler run
-          return
-        } else {
-          // Release the grabbed task
-          e.preventDefault()
-          announce(t('sessions.a11y.taskDropped', 'Task {{name}} dropped at position {{position}}', { name: task.name, position: index + 1 }))
-          setKeyboardGrabbedIndex(null)
-          return
-        }
-      }
-
-      // Alt+Space to grab/release task for reordering
+      // Alt+Space to grab/release task for reordering (must be checked before generic Space/Enter)
       if (e.altKey && e.key === ' ') {
         e.preventDefault()
         if (keyboardGrabbedIndex === index) {
@@ -229,6 +215,20 @@ const TaskPlanTimeline = ({
           setKeyboardGrabbedIndex(index)
         }
         return
+      }
+
+      // Space or Enter (without Alt): if a task is already grabbed, release it; otherwise let the expand/collapse handler run
+      if (!e.altKey && (e.key === ' ' || e.key === 'Enter')) {
+        if (keyboardGrabbedIndex === null) {
+          // Not currently grabbing - let the expand/collapse handler run
+          return
+        } else {
+          // Release the grabbed task
+          e.preventDefault()
+          announce(t('sessions.a11y.taskDropped', 'Task {{name}} dropped at position {{position}}', { name: task.name, position: index + 1 }))
+          setKeyboardGrabbedIndex(null)
+          return
+        }
       }
 
       // Alt+Up to move task up
