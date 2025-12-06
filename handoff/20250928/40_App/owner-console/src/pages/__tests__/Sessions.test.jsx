@@ -129,9 +129,10 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
 
       render(<Sessions />);
 
-      // Use findBy which waits for the element to appear
-      const autoButton = await screen.findByTitle('Auto-refresh enabled (10s)');
-      expect(autoButton).toBeInTheDocument();
+      // Use findByRole to find the Switch component
+      const autoSwitch = await screen.findByRole('switch', { name: /auto-refresh enabled/i });
+      expect(autoSwitch).toBeInTheDocument();
+      expect(autoSwitch).toHaveAttribute('aria-checked', 'true');
     });
 
     it('should toggle auto-refresh off when clicked', async () => {
@@ -139,12 +140,12 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
 
       render(<Sessions />);
 
-      // Wait for loading to complete and find the button
-      const autoButton = await screen.findByText('Auto');
-      fireEvent.click(autoButton);
+      // Wait for loading to complete and find the switch
+      const autoSwitch = await screen.findByRole('switch', { name: /auto-refresh/i });
+      fireEvent.click(autoSwitch);
 
       await waitFor(() => {
-        expect(screen.getByTitle('Auto-refresh disabled')).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: /auto-refresh disabled/i })).toBeInTheDocument();
       });
     });
 
@@ -154,18 +155,18 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       render(<Sessions />);
 
       // Wait for loading to complete
-      const autoButton = await screen.findByText('Auto');
+      const autoSwitch = await screen.findByRole('switch', { name: /auto-refresh/i });
       
       // Toggle off
-      fireEvent.click(autoButton);
+      fireEvent.click(autoSwitch);
       await waitFor(() => {
-        expect(screen.getByTitle('Auto-refresh disabled')).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: /auto-refresh disabled/i })).toBeInTheDocument();
       });
 
       // Toggle back on
-      fireEvent.click(autoButton);
+      fireEvent.click(autoSwitch);
       await waitFor(() => {
-        expect(screen.getByTitle('Auto-refresh enabled (10s)')).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: /auto-refresh enabled/i })).toBeInTheDocument();
       });
     });
   });
@@ -196,9 +197,9 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       render(<Sessions />);
       await waitForLoadingComplete();
 
-      // Find and click the auto-refresh toggle
-      const autoButton = screen.getByText('Auto');
-      fireEvent.click(autoButton);
+      // Find and click the auto-refresh toggle (now a Switch component)
+      const autoSwitch = screen.getByRole('switch', { name: /auto-refresh/i });
+      fireEvent.click(autoSwitch);
 
       const callCountAfterToggle = apiClient.apiClientWithMeta.mock.calls.length;
 
@@ -215,10 +216,10 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       render(<Sessions />);
       await waitForLoadingComplete();
 
-      const autoButton = screen.getByText('Auto');
+      const autoSwitch = screen.getByRole('switch', { name: /auto-refresh/i });
       
       // Toggle off
-      fireEvent.click(autoButton);
+      fireEvent.click(autoSwitch);
 
       await act(async () => {
         vi.advanceTimersByTime(10000);
@@ -227,7 +228,7 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       const callCountBeforeResume = apiClient.apiClientWithMeta.mock.calls.length;
 
       // Toggle back on
-      fireEvent.click(autoButton);
+      fireEvent.click(autoSwitch);
 
       await act(async () => {
         vi.advanceTimersByTime(10000);

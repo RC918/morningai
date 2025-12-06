@@ -9,7 +9,9 @@ import {
   Skeleton,
   Progress,
   StatCard,
-  SectionCard
+  SectionCard,
+  Switch,
+  AppleButton
 } from '@morningai/shared-ui'
 import { 
   Play,
@@ -34,7 +36,6 @@ import {
   Edit3
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
-import { AppleButton } from '@/components/apple/apple-button'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
 import { 
   TaskPlanTimeline, 
@@ -796,30 +797,26 @@ const Sessions = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleToggleAutoRefresh}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-              autoRefresh
-                ? 'bg-growth-10 text-growth border border-growth-20'
-                : 'bg-neutral-100 text-neutral-500 border border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700'
-            }`}
-            title={autoRefresh 
-              ? t('sessions.autoRefresh.enabled', 'Auto-refresh enabled (10s)')
-              : t('sessions.autoRefresh.disabled', 'Auto-refresh disabled')
-            }
-          >
-            <div className={`w-2 h-2 rounded-full ${
-              autoRefresh && hasActiveSessions
-                ? 'bg-growth animate-pulse'
-                : autoRefresh
-                  ? 'bg-growth'
-                  : 'bg-neutral-400'
-            }`} />
-            <span>{t('sessions.autoRefresh.label', 'Auto')}</span>
+          <div className="flex items-center gap-2">
+            <label 
+              htmlFor="auto-refresh-switch" 
+              className="text-sm text-[var(--text-secondary)] cursor-pointer"
+            >
+              {t('sessions.autoRefresh.label', 'Auto')}
+            </label>
+            <Switch
+              id="auto-refresh-switch"
+              checked={autoRefresh}
+              onCheckedChange={handleToggleAutoRefresh}
+              aria-label={autoRefresh 
+                ? t('sessions.autoRefresh.enabled', 'Auto-refresh enabled (10s)')
+                : t('sessions.autoRefresh.disabled', 'Auto-refresh disabled')
+              }
+            />
             {isRefreshing && (
-              <RotateCcw className="w-3 h-3 animate-spin" />
+              <RotateCcw className="w-3 h-3 animate-spin text-[var(--text-secondary)]" />
             )}
-          </button>
+          </div>
           <AppleButton onClick={loadSessions} variant="outline" haptic="light" disabled={loading}>
             <RotateCcw className="w-4 h-4 mr-2" />
             {t('common.refresh', 'Refresh')}
