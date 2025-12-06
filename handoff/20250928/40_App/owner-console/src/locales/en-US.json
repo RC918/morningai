@@ -492,7 +492,65 @@
             },
             "tabs": {
               "plan": "Task Plan",
+              "codeReview": "Code Review",
+              "tests": "Tests",
               "logs": "Activity Log"
+            },
+            "codeReview": {
+              "title": "Code Review",
+              "noPR": "No pull request created yet",
+              "prStatus": "PR Status",
+              "checks": "CI Checks",
+              "checksStatus": "{{passed}}/{{total}} checks passed",
+              "fileChanges": "File Changes",
+              "reviewers": "Reviewers",
+              "comments": "Review Comments",
+              "noComments": "No review comments",
+              "status": {
+                "pending": "Pending",
+                "approved": "Approved",
+                "changes_requested": "Changes Requested",
+                "merged": "Merged",
+                "closed": "Closed"
+              }
+            },
+            "tests": {
+              "title": "Test Results",
+              "noResults": "No test results available",
+              "summary": "Test Summary",
+              "passRate": "Pass Rate",
+              "duration": "Duration",
+              "total": "Total",
+              "passed": "Passed",
+              "failed": "Failed",
+              "skipped": "Skipped",
+              "suites": "Test Suites",
+              "running": "Running..."
+            },
+            "confidence": {
+              "high": "High",
+              "medium": "Medium",
+              "low": "Low"
+            },
+            "confidenceApproval": {
+              "title": "Confidence Review",
+              "score": "Confidence Score",
+              "threshold": "Threshold",
+              "meetsThreshold": "Meets Threshold",
+              "belowThreshold": "Below Threshold",
+              "factors": "Contributing Factors",
+              "riskLevel": "Risk Level",
+              "currentTask": "Current Task",
+              "comment": "Comment",
+              "commentPlaceholder": "Add any notes or feedback...",
+              "approve": "Approve & Continue",
+              "requestChanges": "Request Changes",
+              "lowConfidenceWarning": "The confidence score is below the threshold. Review the factors above and consider requesting changes if needed."
+            },
+            "diff": {
+              "noChanges": "No changes to display",
+              "additions": "additions",
+              "deletions": "deletions"
             },
             "plan": {
               "progress": "Progress",
