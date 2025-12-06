@@ -112,7 +112,7 @@ export const EditMode = {
       // This should be fixed in the component itself (tracked separately)
       config: {
         rules: [
-          { id: 'listitem', enabled: false },
+          { id: 'aria-required-parent', enabled: false },
         ],
       },
     },
