@@ -1,9 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import TaskPlanTimeline from '../TaskPlanTimeline'
 
-// Mock react-i18next
-const mockT = (key, fallback) => fallback || key
+// Mock react-i18next with interpolation support
+const mockT = (key, fallbackOrParams, params) => {
+  // Handle both t('key', 'fallback') and t('key', 'template {{var}}', { var: value })
+  const fallback = typeof fallbackOrParams === 'string' ? fallbackOrParams : key
+  const variables = typeof fallbackOrParams === 'object' ? fallbackOrParams : params
+  
+  if (variables) {
+    return fallback.replace(/\{\{(\w+)\}\}/g, (_, varName) => variables[varName] ?? '')
+  }
+  return fallback
+}
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: mockT,
@@ -317,6 +326,306 @@ describe('TaskPlanTimeline', () => {
       const { container } = render(<TaskPlanTimeline {...defaultProps} />)
       const pendingCards = container.querySelectorAll('.bg-\\[var\\(--surface\\)\\]')
       expect(pendingCards.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('Keyboard Accessibility (Issue #2036)', () => {
+    const editableProps = {
+      ...defaultProps,
+      editable: true,
+      onTaskReorder: vi.fn()
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    describe('Alt+Space to grab/release task', () => {
+      it('should grab task when Alt+Space is pressed', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        // Find the first task item (role="listitem")
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        expect(taskItems.length).toBeGreaterThan(0)
+        
+        // Press Alt+Space to grab the task
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        
+        // Task should now have aria-grabbed="true" and visual ring
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'true')
+        expect(taskItems[0]).toHaveClass('ring-2')
+      })
+
+      it('should release task when Alt+Space is pressed again', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Grab the task
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'true')
+        
+        // Release the task
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'false')
+        expect(taskItems[0]).not.toHaveClass('ring-2')
+      })
+
+      it('should announce grab action to screen readers', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Press Alt+Space to grab
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        
+        // Check live region has announcement
+        const liveRegion = container.querySelector('[role="status"]')
+        expect(liveRegion).toBeInTheDocument()
+        expect(liveRegion.textContent).toContain('grabbed')
+      })
+    })
+
+    describe('Alt+Up/Down to move task', () => {
+      it('should move task up when Alt+ArrowUp is pressed', () => {
+        const onTaskReorder = vi.fn()
+        const { container } = render(
+          <TaskPlanTimeline {...editableProps} onTaskReorder={onTaskReorder} />
+        )
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Press Alt+ArrowUp on the second task (index 1)
+        fireEvent.keyDown(taskItems[1], { key: 'ArrowUp', altKey: true })
+        
+        // Should call onTaskReorder with (1, 0) - move from index 1 to index 0
+        expect(onTaskReorder).toHaveBeenCalledWith(1, 0)
+      })
+
+      it('should move task down when Alt+ArrowDown is pressed', () => {
+        const onTaskReorder = vi.fn()
+        const { container } = render(
+          <TaskPlanTimeline {...editableProps} onTaskReorder={onTaskReorder} />
+        )
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Press Alt+ArrowDown on the first task (index 0)
+        fireEvent.keyDown(taskItems[0], { key: 'ArrowDown', altKey: true })
+        
+        // Should call onTaskReorder with (0, 1) - move from index 0 to index 1
+        expect(onTaskReorder).toHaveBeenCalledWith(0, 1)
+      })
+
+      it('should not move first task up (boundary check)', () => {
+        const onTaskReorder = vi.fn()
+        const { container } = render(
+          <TaskPlanTimeline {...editableProps} onTaskReorder={onTaskReorder} />
+        )
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Press Alt+ArrowUp on the first task (index 0)
+        fireEvent.keyDown(taskItems[0], { key: 'ArrowUp', altKey: true })
+        
+        // Should not call onTaskReorder - can't move first item up
+        expect(onTaskReorder).not.toHaveBeenCalled()
+      })
+
+      it('should not move last task down (boundary check)', () => {
+        const onTaskReorder = vi.fn()
+        const { container } = render(
+          <TaskPlanTimeline {...editableProps} onTaskReorder={onTaskReorder} />
+        )
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        const lastIndex = taskItems.length - 1
+        
+        // Press Alt+ArrowDown on the last task
+        fireEvent.keyDown(taskItems[lastIndex], { key: 'ArrowDown', altKey: true })
+        
+        // Should not call onTaskReorder - can't move last item down
+        expect(onTaskReorder).not.toHaveBeenCalled()
+      })
+
+      it('should announce move action to screen readers', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Press Alt+ArrowDown on the first task
+        fireEvent.keyDown(taskItems[0], { key: 'ArrowDown', altKey: true })
+        
+        // Check live region has announcement
+        const liveRegion = container.querySelector('[role="status"]')
+        expect(liveRegion).toBeInTheDocument()
+        expect(liveRegion.textContent).toContain('moved down')
+      })
+    })
+
+    describe('Escape to cancel grab', () => {
+      it('should cancel grab when Escape is pressed', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Grab the task
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'true')
+        
+        // Press Escape to cancel
+        fireEvent.keyDown(taskItems[0], { key: 'Escape' })
+        
+        // Task should no longer be grabbed
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'false')
+        expect(taskItems[0]).not.toHaveClass('ring-2')
+      })
+
+      it('should announce cancel action to screen readers', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Grab the task
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        
+        // Press Escape to cancel
+        fireEvent.keyDown(taskItems[0], { key: 'Escape' })
+        
+        // Check live region has cancellation announcement
+        const liveRegion = container.querySelector('[role="status"]')
+        expect(liveRegion).toBeInTheDocument()
+        expect(liveRegion.textContent).toContain('cancelled')
+      })
+    })
+
+    describe('Space/Enter to release grabbed task', () => {
+      it('should release grabbed task when Space is pressed', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Grab the task with Alt+Space
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'true')
+        
+        // Release with plain Space
+        fireEvent.keyDown(taskItems[0], { key: ' ' })
+        
+        // Task should be released
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'false')
+      })
+
+      it('should release grabbed task when Enter is pressed', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Grab the task with Alt+Space
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'true')
+        
+        // Release with Enter
+        fireEvent.keyDown(taskItems[0], { key: 'Enter' })
+        
+        // Task should be released
+        expect(taskItems[0]).toHaveAttribute('aria-grabbed', 'false')
+      })
+
+      it('should toggle expand when Space is pressed and no task is grabbed', () => {
+        render(<TaskPlanTimeline {...editableProps} />)
+        
+        // Description should not be visible initially
+        expect(screen.queryByText('Analyze the codebase')).not.toBeInTheDocument()
+        
+        // Find the first task item and press Space (no task grabbed)
+        const taskItems = screen.getAllByRole('listitem')
+        fireEvent.keyDown(taskItems[0], { key: ' ' })
+        
+        // Description should now be visible (expand toggled)
+        expect(screen.getByText('Analyze the codebase')).toBeInTheDocument()
+      })
+    })
+
+    describe('Announcement auto-clear (memory leak fix)', () => {
+      it('should clear announcement after 1 second', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Trigger an announcement by grabbing a task
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        
+        // Announcement should be present
+        const liveRegion = container.querySelector('[role="status"]')
+        expect(liveRegion.textContent).not.toBe('')
+        
+        // Advance timers by 1 second
+        act(() => {
+          vi.advanceTimersByTime(1000)
+        })
+        
+        // Announcement should be cleared
+        expect(liveRegion.textContent).toBe('')
+      })
+    })
+
+    describe('ARIA attributes', () => {
+      it('should have role="list" on tasks container when editable', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const listContainer = container.querySelector('[role="list"]')
+        expect(listContainer).toBeInTheDocument()
+      })
+
+      it('should not have role="list" when not editable', () => {
+        const { container } = render(<TaskPlanTimeline {...defaultProps} editable={false} />)
+        
+        const listContainer = container.querySelector('[role="list"]')
+        expect(listContainer).toBeNull()
+      })
+
+      it('should have aria-label with instructions on task items when editable', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        expect(taskItems[0]).toHaveAttribute('aria-label')
+        expect(taskItems[0].getAttribute('aria-label')).toContain('Alt+Space')
+      })
+
+      it('should have aria-dropeffect on non-grabbed items when a task is grabbed', () => {
+        const { container } = render(<TaskPlanTimeline {...editableProps} />)
+        
+        const taskItems = container.querySelectorAll('[role="listitem"]')
+        
+        // Grab the first task
+        fireEvent.keyDown(taskItems[0], { key: ' ', altKey: true })
+        
+        // Other tasks should have aria-dropeffect="move"
+        expect(taskItems[1]).toHaveAttribute('aria-dropeffect', 'move')
+      })
+    })
+
+    describe('Non-editable mode', () => {
+      it('should not respond to keyboard reorder commands when not editable', () => {
+        const onTaskReorder = vi.fn()
+        const { container } = render(
+          <TaskPlanTimeline {...defaultProps} editable={false} onTaskReorder={onTaskReorder} />
+        )
+        
+        // Find task items (they won't have role="listitem" when not editable)
+        const taskCards = container.querySelectorAll('.rounded-xl.border')
+        
+        // Try to move with Alt+ArrowDown
+        fireEvent.keyDown(taskCards[0], { key: 'ArrowDown', altKey: true })
+        
+        // Should not call onTaskReorder
+        expect(onTaskReorder).not.toHaveBeenCalled()
+      })
     })
   })
 })

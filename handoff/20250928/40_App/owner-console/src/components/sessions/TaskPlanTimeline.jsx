@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Badge,
@@ -53,6 +53,9 @@ const TaskPlanTimeline = ({
   const { t } = useTranslation()
   const [expandedTasks, setExpandedTasks] = useState(new Set())
   const [draggedTask, setDraggedTask] = useState(null)
+  // Keyboard accessibility state for drag-and-drop
+  const [keyboardGrabbedIndex, setKeyboardGrabbedIndex] = useState(null)
+  const [announcement, setAnnouncement] = useState('')
 
   const toggleTaskExpanded = useCallback((taskId) => {
     setExpandedTasks(prev => {
@@ -178,9 +181,92 @@ const TaskPlanTimeline = ({
     setDraggedTask(null)
   }, [editable, draggedTask, onTaskReorder])
 
-  const handleDragEnd = useCallback(() => {
-    setDraggedTask(null)
-  }, [])
+    const handleDragEnd = useCallback(() => {
+      setDraggedTask(null)
+    }, [])
+
+    // Announce changes to screen readers
+    const announce = useCallback((message) => {
+      setAnnouncement(message)
+    }, [])
+
+    // Clear announcement after a short delay to allow re-announcement of same message
+    // Using useEffect with cleanup to prevent memory leaks on unmount
+    useEffect(() => {
+      if (!announcement) return
+      const timer = setTimeout(() => setAnnouncement(''), 1000)
+      return () => clearTimeout(timer)
+    }, [announcement])
+
+    // Handle keyboard-based task reordering (Alt+Up/Down)
+    const handleKeyboardReorder = useCallback((e, task, index) => {
+      if (!editable) return
+
+      // Alt+Space to grab/release task for reordering (must be checked before generic Space/Enter)
+      if (e.altKey && e.key === ' ') {
+        e.preventDefault()
+        if (keyboardGrabbedIndex === index) {
+          // Release the task
+          announce(t('sessions.a11y.taskDropped', 'Task {{name}} dropped at position {{position}}', { name: task.name, position: index + 1 }))
+          setKeyboardGrabbedIndex(null)
+        } else {
+          // Grab the task
+          announce(t('sessions.a11y.taskGrabbed', 'Task {{name}} grabbed. Use Alt+Up or Alt+Down to move, Alt+Space to drop.', { name: task.name }))
+          setKeyboardGrabbedIndex(index)
+        }
+        return
+      }
+
+      // Space or Enter (without Alt): if a task is already grabbed, release it; otherwise let the expand/collapse handler run
+      if (!e.altKey && (e.key === ' ' || e.key === 'Enter')) {
+        if (keyboardGrabbedIndex === null) {
+          // Not currently grabbing - let the expand/collapse handler run
+          return
+        } else {
+          // Release the grabbed task
+          e.preventDefault()
+          announce(t('sessions.a11y.taskDropped', 'Task {{name}} dropped at position {{position}}', { name: task.name, position: index + 1 }))
+          setKeyboardGrabbedIndex(null)
+          return
+        }
+      }
+
+      // Alt+Up to move task up
+      if (e.altKey && e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (index > 0 && onTaskReorder) {
+          onTaskReorder(index, index - 1)
+          announce(t('sessions.a11y.taskMovedUp', 'Task {{name}} moved up to position {{position}}', { name: task.name, position: index }))
+          // Update grabbed index if we're in grab mode
+          if (keyboardGrabbedIndex === index) {
+            setKeyboardGrabbedIndex(index - 1)
+          }
+        }
+        return
+      }
+
+      // Alt+Down to move task down
+      if (e.altKey && e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (index < tasks.length - 1 && onTaskReorder) {
+          onTaskReorder(index, index + 1)
+          announce(t('sessions.a11y.taskMovedDown', 'Task {{name}} moved down to position {{position}}', { name: task.name, position: index + 2 }))
+          // Update grabbed index if we're in grab mode
+          if (keyboardGrabbedIndex === index) {
+            setKeyboardGrabbedIndex(index + 1)
+          }
+        }
+        return
+      }
+
+      // Escape to cancel grab
+      if (e.key === 'Escape' && keyboardGrabbedIndex !== null) {
+        e.preventDefault()
+        announce(t('sessions.a11y.reorderCancelled', 'Reorder cancelled'))
+        setKeyboardGrabbedIndex(null)
+        return
+      }
+    }, [editable, keyboardGrabbedIndex, onTaskReorder, tasks.length, announce, t])
 
   const progressPercentage = useMemo(() => {
     if (totalTasks === 0) return 0
@@ -258,12 +344,17 @@ const TaskPlanTimeline = ({
             const isLast = index === tasks.length - 1
             const isDragging = draggedTask?.task.id === task.id
 
+            const isKeyboardGrabbed = keyboardGrabbedIndex === index
+
             return (
               <div
                 key={task.id}
                 role={editable ? 'listitem' : undefined}
                 tabIndex={editable ? 0 : undefined}
-                className={`relative ${isDragging ? 'opacity-50' : ''}`}
+                aria-grabbed={editable ? (isKeyboardGrabbed || isDragging) : undefined}
+                aria-dropeffect={editable && keyboardGrabbedIndex !== null && keyboardGrabbedIndex !== index ? 'move' : undefined}
+                aria-label={editable ? t('sessions.a11y.taskItem', 'Task {{position}}: {{name}}. Press Alt+Space to grab for reordering, Alt+Up/Down to move.', { position: index + 1, name: task.name }) : undefined}
+                className={`relative ${isDragging ? 'opacity-50' : ''} ${isKeyboardGrabbed ? 'ring-2 ring-calm ring-offset-2' : ''}`}
                 draggable={editable}
                 {...(editable ? {
                   onDragStart: (e) => handleDragStart(e, task, index),
@@ -271,7 +362,10 @@ const TaskPlanTimeline = ({
                   onDrop: (e) => handleDrop(e, index),
                   onDragEnd: handleDragEnd,
                   onKeyDown: (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    // Handle keyboard reordering first
+                    handleKeyboardReorder(e, task, index)
+                    // If not handled by reorder, handle expand/collapse
+                    if (!e.defaultPrevented && (e.key === 'Enter' || e.key === ' ')) {
                       e.preventDefault()
                       toggleTaskExpanded(task.id)
                     }
@@ -427,6 +521,18 @@ const TaskPlanTimeline = ({
           })}
         </div>
       </div>
+
+      {/* Screen reader live region for announcements */}
+      {editable && (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+        >
+          {announcement}
+        </div>
+      )}
     </div>
   )
 }
