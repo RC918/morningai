@@ -33,7 +33,14 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+import aiohttp
+
 logger = logging.getLogger(__name__)
+
+# MCP Client configuration
+MCP_DEFAULT_TIMEOUT = 30  # seconds
+MCP_MAX_RETRIES = 3
+MCP_RETRY_DELAY = 1.0  # seconds
 
 
 class IDESessionStatus(Enum):
@@ -885,15 +892,75 @@ class VSCodeIDEService:
         session: IDESession,
         endpoint: str,
         payload: Dict[str, Any],
+        timeout_seconds: int = MCP_DEFAULT_TIMEOUT,
     ) -> Dict[str, Any]:
-        """Execute a command via MCP endpoint"""
-        # In a real implementation, this would make HTTP requests to the MCP server
-        # For now, return a mock response
-        return {
-            "success": True,
-            "endpoint": endpoint,
-            "payload": payload,
-        }
+        """
+        Execute a command via MCP endpoint with retry logic.
+
+        Args:
+            session: IDE session containing MCP endpoint
+            endpoint: MCP endpoint path (e.g., 'file/read', 'file/write')
+            payload: Request payload
+            timeout_seconds: Request timeout in seconds
+
+        Returns:
+            Dict with success status and response data
+        """
+        if not session.mcp_endpoint:
+            return {"success": False, "error": "No MCP endpoint configured"}
+
+        url = f"{session.mcp_endpoint}/{endpoint}"
+        last_error = None
+
+        for attempt in range(MCP_MAX_RETRIES):
+            try:
+                timeout = aiohttp.ClientTimeout(total=timeout_seconds)
+                async with aiohttp.ClientSession(timeout=timeout) as http_session:
+                    async with http_session.post(
+                        url,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                    ) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            logger.debug(
+                                "[VSCodeIDEService] MCP command %s succeeded",
+                                endpoint
+                            )
+                            return {"success": True, **data}
+                        else:
+                            error_text = await response.text()
+                            logger.warning(
+                                "[VSCodeIDEService] MCP command %s failed: %s - %s",
+                                endpoint, response.status, error_text
+                            )
+                            last_error = f"HTTP {response.status}: {error_text}"
+
+            except asyncio.TimeoutError:
+                last_error = f"Request timeout after {timeout_seconds}s"
+                logger.warning(
+                    "[VSCodeIDEService] MCP command %s timed out (attempt %d/%d)",
+                    endpoint, attempt + 1, MCP_MAX_RETRIES
+                )
+            except aiohttp.ClientError as e:
+                last_error = f"Connection error: {e}"
+                logger.warning(
+                    "[VSCodeIDEService] MCP command %s connection error: %s (attempt %d/%d)",
+                    endpoint, e, attempt + 1, MCP_MAX_RETRIES
+                )
+            except Exception as e:
+                last_error = f"Unexpected error: {e}"
+                logger.error(
+                    "[VSCodeIDEService] MCP command %s unexpected error: %s",
+                    endpoint, e
+                )
+                break  # Don't retry on unexpected errors
+
+            # Wait before retry (except on last attempt)
+            if attempt < MCP_MAX_RETRIES - 1:
+                await asyncio.sleep(MCP_RETRY_DELAY * (attempt + 1))
+
+        return {"success": False, "error": last_error}
 
     async def _execute_shell_command(
         self,
@@ -901,15 +968,43 @@ class VSCodeIDEService:
         command: str,
         timeout_seconds: int = 60,
     ) -> Dict[str, Any]:
-        """Execute a shell command in the VM"""
-        # In a real implementation, this would execute via MCP shell API
-        # For now, return a mock response
+        """
+        Execute a shell command in the VM via MCP shell API.
+
+        Args:
+            session: IDE session
+            command: Shell command to execute
+            timeout_seconds: Command timeout in seconds
+
+        Returns:
+            Dict with success status, stdout, stderr, and exit_code
+        """
+        result = await self._execute_mcp_command(
+            session,
+            "shell/execute",
+            {
+                "command": command,
+                "timeout": timeout_seconds,
+                "cwd": session.workspace_path,
+            },
+            timeout_seconds=timeout_seconds + 5,  # Add buffer for network latency
+        )
+
+        if not result.get("success"):
+            return {
+                "success": False,
+                "command": command,
+                "stdout": "",
+                "stderr": result.get("error", "Unknown error"),
+                "exit_code": -1,
+            }
+
         return {
             "success": True,
             "command": command,
-            "stdout": "",
-            "stderr": "",
-            "exit_code": 0,
+            "stdout": result.get("stdout", ""),
+            "stderr": result.get("stderr", ""),
+            "exit_code": result.get("exit_code", 0),
         }
 
     def _has_terminal_capability(self, session: IDESession) -> bool:
