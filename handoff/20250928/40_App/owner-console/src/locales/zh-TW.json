@@ -455,7 +455,13 @@
           },
           "list": {
             "title": "會話列表",
-            "noSessions": "找不到會話"
+            "noSessions": "找不到會話",
+            "empty": "沒有會話",
+            "emptySubtitle": "沒有符合目前篩選條件的會話"
+          },
+          "details": {
+            "title": "會話詳情",
+            "subtitle": "從列表中選擇一個會話"
           },
           "status": {
             "running": "執行中",

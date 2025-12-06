@@ -7,7 +7,9 @@ import {
   TabsList, 
   TabsTrigger, 
   Skeleton,
-  Progress
+  Progress,
+  StatCard,
+  SectionCard
 } from '@morningai/shared-ui'
 import { 
   Play,
@@ -182,6 +184,31 @@ const Sessions = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const pollingIntervalRef = useRef(null)
+
+  // Monitor FCP (First Contentful Paint) performance metric
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.PerformanceObserver) {
+      return
+    }
+
+    try {
+      const observer = new PerformanceObserver((entryList) => {
+        const entries = entryList.getEntriesByName('first-contentful-paint')
+        if (entries.length > 0) {
+          const fcp = entries[0]
+          // Log FCP metric for monitoring (can be sent to analytics service)
+          console.debug('[Sessions] FCP:', Math.round(fcp.startTime), 'ms')
+        }
+      })
+      
+      observer.observe({ type: 'paint', buffered: true })
+      
+      return () => observer.disconnect()
+    } catch (e) {
+      // PerformanceObserver not supported or paint type not available
+      console.debug('[Sessions] FCP monitoring not available')
+    }
+  }, [])
 
   const loadSessions = useCallback(async () => {
     try {
@@ -457,7 +484,7 @@ const Sessions = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
+      <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-7 w-48 mb-2" aria-hidden="true" />
@@ -480,7 +507,7 @@ const Sessions = () => {
   }
 
   return (
-    <div className="space-y-6" data-testid="sessions-page">
+    <div className="space-y-8" data-testid="sessions-page">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -531,31 +558,32 @@ const Sessions = () => {
         />
       )}
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Using StatCard components */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { key: 'all', label: t('sessions.filter.all', 'All'), icon: Activity },
-          { key: 'running', label: t('sessions.filter.running', 'Running'), icon: Play },
-          { key: 'paused', label: t('sessions.filter.paused', 'Paused'), icon: Pause },
-          { key: 'completed', label: t('sessions.filter.completed', 'Completed'), icon: CheckCircle },
-          { key: 'failed', label: t('sessions.filter.failed', 'Failed'), icon: XCircle }
-        ].map(({ key, label, icon: Icon }) => (
+          { key: 'all', label: t('sessions.filter.all', 'All'), icon: Activity, variant: 'default' },
+          { key: 'running', label: t('sessions.filter.running', 'Running'), icon: Play, variant: 'blue' },
+          { key: 'paused', label: t('sessions.filter.paused', 'Paused'), icon: Pause, variant: 'yellow' },
+          { key: 'completed', label: t('sessions.filter.completed', 'Completed'), icon: CheckCircle, variant: 'green' },
+          { key: 'failed', label: t('sessions.filter.failed', 'Failed'), icon: XCircle, variant: 'red' }
+        ].map(({ key, label, icon: Icon, variant }) => (
           <button
             key={key}
+            type="button"
+            aria-pressed={filter === key}
             onClick={() => handleFilterChange(key)}
-            className={`rounded-xl border p-4 text-left transition-all ${
+            className={`text-left transition-all rounded-xl ${
               filter === key
-                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                : 'border-[var(--border)] bg-[var(--surface)] hover:border-primary-300'
+                ? 'ring-2 ring-primary-500 ring-offset-2'
+                : 'hover:ring-1 hover:ring-primary-300'
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">{label}</p>
-              <Icon className={`w-5 h-5 ${filter === key ? 'text-primary-500' : 'text-neutral-400'}`} />
-            </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {sessionCounts[key]}
-            </p>
+            <StatCard
+              label={label}
+              value={String(sessionCounts[key])}
+              icon={<Icon className="w-5 h-5" />}
+              variant={variant}
+            />
           </button>
         ))}
       </div>
@@ -569,13 +597,15 @@ const Sessions = () => {
           </h2>
           
           {filteredSessions.length === 0 ? (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-              <Activity className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
-              <p className="text-neutral-500">
-                {t('sessions.list.noSessions', 'No sessions found')}
-              </p>
-            </div>
-          ) : (
+            <SectionCard
+              title={t('sessions.list.empty', 'No Sessions')}
+              subtitle={t('sessions.list.emptySubtitle', 'No sessions match the current filter')}
+            >
+              <div className="py-4 text-center">
+                <Activity className="w-12 h-12 text-neutral-300 mx-auto" />
+              </div>
+            </SectionCard>
+          ): (
             filteredSessions.map((session) => (
               <button
                 key={session.id}
@@ -844,12 +874,14 @@ const Sessions = () => {
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
-              <ListTodo className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-              <p className="text-neutral-500">
-                {t('sessions.selectSession', 'Select a session to view details')}
-              </p>
-            </div>
+            <SectionCard
+              title={t('sessions.details.title', 'Session Details')}
+              subtitle={t('sessions.details.subtitle', 'Select a session from the list')}
+            >
+              <div className="py-8 text-center">
+                <ListTodo className="w-16 h-16 text-neutral-300 mx-auto" />
+              </div>
+            </SectionCard>
           )}
         </div>
       </div>

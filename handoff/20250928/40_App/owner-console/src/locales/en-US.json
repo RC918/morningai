@@ -454,10 +454,16 @@
               "completed": "Completed",
               "failed": "Failed"
             },
-            "list": {
-              "title": "Sessions",
-              "noSessions": "No sessions found"
-            },
+              "list": {
+                "title": "Sessions",
+                "noSessions": "No sessions found",
+                "empty": "No Sessions",
+                "emptySubtitle": "No sessions match the current filter"
+              },
+              "details": {
+                "title": "Session Details",
+                "subtitle": "Select a session from the list"
+              },
             "status": {
               "running": "Running",
               "paused": "Paused",
