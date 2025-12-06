@@ -507,7 +507,12 @@
             "CLEANUP": "清理"
           },
           "startedAt": "開始時間",
-          "viewPR": "查看 Pull Request"
+          "viewPR": "查看 Pull Request",
+          "autoRefresh": {
+            "label": "自動",
+            "enabled": "自動刷新已啟用 (10秒)",
+            "disabled": "自動刷新已停用"
+          }
         },
         "approvalQueue": {
           "title": "審核佇列",
