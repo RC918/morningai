@@ -156,6 +156,13 @@
   
   /* Shadow */
   --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  
+  /* Shared-ui component tokens (required for Switch, etc.) */
+  --color-background: 0 0% 100%;
+  --color-foreground: 222.2 84% 4.9%;
+  --color-primary: 226 70% 55%;
+  --color-input: 214.3 31.8% 91.4%;
+  --color-ring: 222.2 84% 4.9%;
 }
 
 /* Shadow utility class for SaaS cards */
