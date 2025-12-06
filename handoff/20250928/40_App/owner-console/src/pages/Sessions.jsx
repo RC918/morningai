@@ -91,6 +91,42 @@ const MOCK_SESSIONS = Object.freeze([
           { path: 'src/auth/github-oauth.ts', additions: 52, deletions: 0, status: 'added' },
           { path: 'src/auth/index.ts', additions: 12, deletions: 3, status: 'modified' }
         ],
+        fileDiffs: [
+          {
+            path: 'src/auth/google-oauth.ts',
+            language: 'typescript',
+            additions: 45,
+            deletions: 0,
+            diffLines: [
+              { type: 'addition', content: "import { OAuth2Client } from 'google-auth-library';", oldLineNumber: null, newLineNumber: 1 },
+              { type: 'addition', content: "import { config } from '../config';", oldLineNumber: null, newLineNumber: 2 },
+              { type: 'addition', content: '', oldLineNumber: null, newLineNumber: 3 },
+              { type: 'addition', content: 'export class GoogleOAuthHandler {', oldLineNumber: null, newLineNumber: 4 },
+              { type: 'addition', content: '  private client: OAuth2Client;', oldLineNumber: null, newLineNumber: 5 },
+              { type: 'addition', content: '', oldLineNumber: null, newLineNumber: 6 },
+              { type: 'addition', content: '  constructor() {', oldLineNumber: null, newLineNumber: 7 },
+              { type: 'addition', content: '    this.client = new OAuth2Client(config.google.clientId);', oldLineNumber: null, newLineNumber: 8 },
+              { type: 'addition', content: '  }', oldLineNumber: null, newLineNumber: 9 },
+              { type: 'addition', content: '}', oldLineNumber: null, newLineNumber: 10 }
+            ]
+          },
+          {
+            path: 'src/auth/index.ts',
+            language: 'typescript',
+            additions: 12,
+            deletions: 3,
+            diffLines: [
+              { type: 'context', content: "import { AuthProvider } from './types';", oldLineNumber: 1, newLineNumber: 1 },
+              { type: 'deletion', content: "import { BasicAuth } from './basic-auth';", oldLineNumber: 2, newLineNumber: null },
+              { type: 'addition', content: "import { GoogleOAuthHandler } from './google-oauth';", oldLineNumber: null, newLineNumber: 2 },
+              { type: 'addition', content: "import { GitHubOAuthHandler } from './github-oauth';", oldLineNumber: null, newLineNumber: 3 },
+              { type: 'context', content: '', oldLineNumber: 3, newLineNumber: 4 },
+              { type: 'deletion', content: 'export const authProvider = new BasicAuth();', oldLineNumber: 4, newLineNumber: null },
+              { type: 'addition', content: 'export const googleAuth = new GoogleOAuthHandler();', oldLineNumber: null, newLineNumber: 5 },
+              { type: 'addition', content: 'export const githubAuth = new GitHubOAuthHandler();', oldLineNumber: null, newLineNumber: 6 }
+            ]
+          }
+        ],
         reviewComments: [],
         reviewers: [
           { name: 'Alice Chen', status: 'pending', avatarUrl: null }
@@ -129,7 +165,16 @@ const MOCK_SESSIONS = Object.freeze([
         { name: 'Code complexity', trend: 'positive', impact: 15, description: 'Low cyclomatic complexity' },
         { name: 'Test coverage', trend: 'positive', impact: 20, description: '95% coverage achieved' },
         { name: 'Similar patterns', trend: 'positive', impact: 10, description: 'Matches existing auth patterns' }
-      ]
+      ],
+      riskAssessment: {
+        level: 'low',
+        summary: 'Low risk implementation with well-tested OAuth patterns',
+        factors: [
+          { category: 'Security', level: 'low', description: 'Using established OAuth2 libraries' },
+          { category: 'Performance', level: 'low', description: 'Minimal impact on response times' },
+          { category: 'Compatibility', level: 'medium', description: 'Requires user migration for existing accounts' }
+        ]
+      }
     },
     {
       id: 'session_002',
@@ -195,6 +240,41 @@ const MOCK_SESSIONS = Object.freeze([
           { path: 'src/payments/stripe-handler.ts', additions: 120, deletions: 45, status: 'modified' },
           { path: 'src/payments/webhooks.ts', additions: 85, deletions: 0, status: 'added' },
           { path: 'src/payments/types.ts', additions: 25, deletions: 10, status: 'modified' }
+        ],
+        fileDiffs: [
+          {
+            path: 'src/payments/stripe-handler.ts',
+            language: 'typescript',
+            additions: 120,
+            deletions: 45,
+            diffLines: [
+              { type: 'context', content: "import Stripe from 'stripe';", oldLineNumber: 1, newLineNumber: 1 },
+              { type: 'deletion', content: "import { legacyPaymentProcessor } from './legacy';", oldLineNumber: 2, newLineNumber: null },
+              { type: 'addition', content: "import { PaymentProcessor } from './processor';", oldLineNumber: null, newLineNumber: 2 },
+              { type: 'addition', content: "import { WebhookHandler } from './webhooks';", oldLineNumber: null, newLineNumber: 3 },
+              { type: 'context', content: '', oldLineNumber: 3, newLineNumber: 4 },
+              { type: 'deletion', content: 'export class StripeHandler {', oldLineNumber: 4, newLineNumber: null },
+              { type: 'addition', content: 'export class StripeHandler extends PaymentProcessor {', oldLineNumber: null, newLineNumber: 5 },
+              { type: 'context', content: '  private stripe: Stripe;', oldLineNumber: 5, newLineNumber: 6 },
+              { type: 'addition', content: '  private webhookHandler: WebhookHandler;', oldLineNumber: null, newLineNumber: 7 }
+            ]
+          },
+          {
+            path: 'src/payments/webhooks.ts',
+            language: 'typescript',
+            additions: 85,
+            deletions: 0,
+            diffLines: [
+              { type: 'addition', content: "import Stripe from 'stripe';", oldLineNumber: null, newLineNumber: 1 },
+              { type: 'addition', content: "import { logger } from '../utils/logger';", oldLineNumber: null, newLineNumber: 2 },
+              { type: 'addition', content: '', oldLineNumber: null, newLineNumber: 3 },
+              { type: 'addition', content: 'export class WebhookHandler {', oldLineNumber: null, newLineNumber: 4 },
+              { type: 'addition', content: '  async handleEvent(event: Stripe.Event) {', oldLineNumber: null, newLineNumber: 5 },
+              { type: 'addition', content: "    logger.info('Processing webhook event', { type: event.type });", oldLineNumber: null, newLineNumber: 6 },
+              { type: 'addition', content: '  }', oldLineNumber: null, newLineNumber: 7 },
+              { type: 'addition', content: '}', oldLineNumber: null, newLineNumber: 8 }
+            ]
+          }
         ],
         reviewComments: [
           { id: 1, author: 'Bob Smith', body: 'Great refactoring! Much cleaner now.', path: 'src/payments/stripe-handler.ts', line: 45, resolved: true }
@@ -344,6 +424,8 @@ const Sessions = () => {
   const [isApprovalOpen, setIsApprovalOpen] = useState(false)
   const [approvalTask, setApprovalTask] = useState(null)
   const [isEditMode, setIsEditMode] = useState(false)
+  // Confidence Approval state (#1823)
+  const [isConfidenceApprovalOpen, setIsConfidenceApprovalOpen] = useState(false)
   // Issue #1981: Use counts from API response instead of calculating locally
   const [sessionCounts, setSessionCounts] = useState({ all: 0, running: 0, paused: 0, completed: 0, failed: 0 })
 
@@ -760,6 +842,49 @@ const Sessions = () => {
     handleCloseApproval()
   }, [refreshSessionsSilently, handleCloseApproval])
 
+  // Confidence Approval handlers (#1823)
+  const handleOpenConfidenceApproval = useCallback(() => {
+    setIsConfidenceApprovalOpen(true)
+  }, [])
+
+  const handleCloseConfidenceApproval = useCallback(() => {
+    setIsConfidenceApprovalOpen(false)
+  }, [])
+
+  const handleConfidenceApprove = useCallback(async ({ comment }) => {
+    try {
+      await apiClientWithMeta(`/api/sessions/${selectedSession?.id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ comment, action: 'approve' })
+      })
+      refreshSessionsSilently()
+      handleCloseConfidenceApproval()
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.approveFailed', 'Failed to approve session'),
+        logContext: 'Sessions.handleConfidenceApprove'
+      })
+      setError(errorMessage)
+    }
+  }, [selectedSession, refreshSessionsSilently, handleCloseConfidenceApproval, t])
+
+  const handleConfidenceRequestChanges = useCallback(async ({ comment }) => {
+    try {
+      await apiClientWithMeta(`/api/sessions/${selectedSession?.id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ comment, action: 'request_changes' })
+      })
+      refreshSessionsSilently()
+      handleCloseConfidenceApproval()
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.requestChangesFailed', 'Failed to request changes'),
+        logContext: 'Sessions.handleConfidenceRequestChanges'
+      })
+      setError(errorMessage)
+    }
+  }, [selectedSession, refreshSessionsSilently, handleCloseConfidenceApproval, t])
+
   if (loading) {
     return (
       <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
@@ -974,6 +1099,21 @@ const Sessions = () => {
                       {t('sessions.actions.approve', 'Approve')}
                     </AppleButton>
                   )}
+                  {/* Confidence Review Button (#1823) */}
+                  {selectedSession.confidence !== undefined && (
+                    <AppleButton 
+                      variant="outline" 
+                      size="sm" 
+                      haptic="light" 
+                      onClick={handleOpenConfidenceApproval}
+                    >
+                      <AlertTriangle className="w-4 h-4 mr-1" />
+                      {t('sessions.actions.reviewConfidence', 'Review Confidence')}
+                      <span className={`ml-2 px-1 py-0 rounded text-xs font-medium ${getConfidenceColor(selectedSession.confidence)}`}>
+                        {Math.round(selectedSession.confidence * 100)}%
+                      </span>
+                    </AppleButton>
+                  )}
                 </div>
               </div>
 
@@ -1096,14 +1236,35 @@ const Sessions = () => {
 
                 <TabsContent value="codeReview" className="p-5">
                   {selectedSession.codeReview ? (
-                    <CodeReviewPanel
-                      prUrl={selectedSession.codeReview.prUrl}
-                      prStatus={selectedSession.codeReview.prStatus}
-                      reviewComments={selectedSession.codeReview.reviewComments}
-                      fileChanges={selectedSession.codeReview.fileChanges}
-                      reviewers={selectedSession.codeReview.reviewers}
-                      checksStatus={selectedSession.codeReview.checksStatus}
-                    />
+                    <div className="space-y-6">
+                      <CodeReviewPanel
+                        prUrl={selectedSession.codeReview.prUrl}
+                        prStatus={selectedSession.codeReview.prStatus}
+                        reviewComments={selectedSession.codeReview.reviewComments}
+                        fileChanges={selectedSession.codeReview.fileChanges}
+                        reviewers={selectedSession.codeReview.reviewers}
+                        checksStatus={selectedSession.codeReview.checksStatus}
+                      />
+                      
+                      {/* File Diffs (#1823) */}
+                      {selectedSession.codeReview.fileDiffs && selectedSession.codeReview.fileDiffs.length > 0 && (
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-medium text-[var(--text-primary)]">
+                            {t('sessions.codeReview.fileDiffs', 'File Changes')}
+                          </h3>
+                          {selectedSession.codeReview.fileDiffs.map((diff) => (
+                            <FileDiffViewer
+                              key={diff.path}
+                              filePath={diff.path}
+                              language={diff.language}
+                              diffLines={diff.diffLines}
+                              additions={diff.additions}
+                              deletions={diff.deletions}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="text-center py-8">
                       <FileCode className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
@@ -1230,6 +1391,22 @@ const Sessions = () => {
             taskName: approvalTask.name,
             description: approvalTask.description
           }}
+        />
+      )}
+
+      {/* Confidence Approval Modal (#1823) */}
+      {selectedSession && (
+        <ConfidenceApproval
+          isOpen={isConfidenceApprovalOpen}
+          onClose={handleCloseConfidenceApproval}
+          onApprove={handleConfidenceApprove}
+          onRequestChanges={handleConfidenceRequestChanges}
+          confidence={selectedSession.confidence}
+          confidenceThreshold={0.8}
+          factors={selectedSession.confidenceFactors || []}
+          sessionTitle={selectedSession.title}
+          currentTask={selectedSession.plan?.tasks?.find(t => t.status === 'in_progress')?.name || ''}
+          riskAssessment={selectedSession.riskAssessment || null}
         />
       )}
     </div>
