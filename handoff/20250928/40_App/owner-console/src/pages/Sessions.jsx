@@ -161,6 +161,23 @@ const MOCK_SESSIONS = Object.freeze([
 )
 
 /**
+ * Helper function to calculate session counts from a sessions array.
+ * Used when falling back to MOCK_SESSIONS to keep counts consistent with displayed sessions.
+ */
+const calculateSessionCounts = (sessionsArray) => {
+  return {
+    all: sessionsArray.length,
+    running: sessionsArray.filter(s => s.status === 'running').length,
+    paused: sessionsArray.filter(s => s.status === 'paused').length,
+    completed: sessionsArray.filter(s => s.status === 'completed').length,
+    failed: sessionsArray.filter(s => s.status === 'failed').length
+  }
+}
+
+// Pre-calculated counts for MOCK_SESSIONS to avoid recalculating on each fallback
+const MOCK_SESSIONS_COUNTS = calculateSessionCounts(MOCK_SESSIONS)
+
+/**
  * Sessions page for Meta Agent task execution monitoring.
  * 
  * Design: Follows Devin Sessions sidebar structure with MorningAI design system.
@@ -234,12 +251,15 @@ const Sessions = () => {
       
       // Use MOCK_SESSIONS as fallback when API returns empty (for demo/preview)
       // This allows users to see the TaskPlanTimeline, TaskEditor, and ApprovalWorkflow components
+      // Also sync counts with MOCK_SESSIONS to avoid UI inconsistency (counts showing 0 while list shows sessions)
       if (sessionsData.length === 0) {
         sessionsData = [...MOCK_SESSIONS]
+        setSessions(sessionsData)
+        setSessionCounts(MOCK_SESSIONS_COUNTS)
+      } else {
+        setSessions(sessionsData)
+        setSessionCounts(countsData)
       }
-      
-      setSessions(sessionsData)
-      setSessionCounts(countsData)
       
       setSelectedSession(prev => {
         if (!prev && sessionsData.length > 0) {
@@ -254,7 +274,9 @@ const Sessions = () => {
       })
       setError(errorMessage)
       // Use MOCK_SESSIONS as fallback on error (for demo/preview)
+      // Also sync counts with MOCK_SESSIONS to avoid UI inconsistency
       setSessions([...MOCK_SESSIONS])
+      setSessionCounts(MOCK_SESSIONS_COUNTS)
       setSelectedSession(MOCK_SESSIONS[0])
     } finally {
       setLoading(false)
@@ -279,11 +301,20 @@ const Sessions = () => {
       // Verify filter hasn't changed during request
       if (signal?.aborted) return
       
-      const sessionsData = response.data?.sessions || []
+      let sessionsData = response.data?.sessions || []
       // Issue #1981: Use counts from API response (calculated from all sessions, not filtered)
       const countsData = response.data?.counts || { all: 0, running: 0, paused: 0, completed: 0, failed: 0 }
-      setSessions(sessionsData)
-      setSessionCounts(countsData)
+      
+      // Use MOCK_SESSIONS as fallback when API returns empty (for demo/preview)
+      // Also sync counts with MOCK_SESSIONS to avoid UI inconsistency (counts showing 0 while list shows sessions)
+      if (sessionsData.length === 0) {
+        sessionsData = [...MOCK_SESSIONS]
+        setSessions(sessionsData)
+        setSessionCounts(MOCK_SESSIONS_COUNTS)
+      } else {
+        setSessions(sessionsData)
+        setSessionCounts(countsData)
+      }
       
       // Issue #1997: Return null instead of prev when session not found
       setSelectedSession(prev => {
