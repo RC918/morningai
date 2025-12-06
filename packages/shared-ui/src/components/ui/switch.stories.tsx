@@ -34,6 +34,7 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   args: {
     checked: false,
+    'aria-label': 'Toggle setting',
   },
 }
 
@@ -44,6 +45,7 @@ export const Default: Story = {
 export const Checked: Story = {
   args: {
     checked: true,
+    'aria-label': 'Toggle setting',
   },
 }
 
@@ -55,6 +57,7 @@ export const DisabledUnchecked: Story = {
   args: {
     checked: false,
     disabled: true,
+    'aria-label': 'Toggle setting (disabled)',
   },
 }
 
@@ -66,6 +69,7 @@ export const DisabledChecked: Story = {
   args: {
     checked: true,
     disabled: true,
+    'aria-label': 'Toggle setting (disabled)',
   },
 }
 
@@ -76,6 +80,7 @@ export const DisabledChecked: Story = {
 export const Interactive: Story = {
   args: {
     defaultChecked: false,
+    'aria-label': 'Interactive toggle',
   },
 }
 
@@ -89,19 +94,19 @@ export const AllStates: Story = {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
         <span className="w-32 text-sm text-gray-600">OFF (default):</span>
-        <Switch checked={false} />
+        <Switch checked={false} aria-label="OFF state example" />
       </div>
       <div className="flex items-center gap-4">
         <span className="w-32 text-sm text-gray-600">ON (checked):</span>
-        <Switch checked={true} />
+        <Switch checked={true} aria-label="ON state example" />
       </div>
       <div className="flex items-center gap-4">
         <span className="w-32 text-sm text-gray-600">Disabled OFF:</span>
-        <Switch checked={false} disabled />
+        <Switch checked={false} disabled aria-label="Disabled OFF example" />
       </div>
       <div className="flex items-center gap-4">
         <span className="w-32 text-sm text-gray-600">Disabled ON:</span>
-        <Switch checked={true} disabled />
+        <Switch checked={true} disabled aria-label="Disabled ON example" />
       </div>
     </div>
   ),
