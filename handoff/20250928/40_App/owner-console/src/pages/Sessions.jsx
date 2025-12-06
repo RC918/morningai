@@ -183,6 +183,8 @@ const Sessions = () => {
   const [filter, setFilter] = useState('all')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  // Issue #1981: Use counts from API response instead of calculating locally
+  const [sessionCounts, setSessionCounts] = useState({ all: 0, running: 0, paused: 0, completed: 0, failed: 0 })
 
   // Monitor FCP (First Contentful Paint) performance metric
   useEffect(() => {
@@ -217,7 +219,10 @@ const Sessions = () => {
       const statusParam = filter !== 'all' ? `?status=${filter}` : ''
       const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { method: 'GET' })
       const sessionsData = response.data?.sessions || []
+      // Issue #1981: Use counts from API response (calculated from all sessions, not filtered)
+      const countsData = response.data?.counts || { all: 0, running: 0, paused: 0, completed: 0, failed: 0 }
       setSessions(sessionsData)
+      setSessionCounts(countsData)
       
       setSelectedSession(prev => {
         if (!prev && sessionsData.length > 0) {
@@ -255,7 +260,10 @@ const Sessions = () => {
       if (signal?.aborted) return
       
       const sessionsData = response.data?.sessions || []
+      // Issue #1981: Use counts from API response (calculated from all sessions, not filtered)
+      const countsData = response.data?.counts || { all: 0, running: 0, paused: 0, completed: 0, failed: 0 }
       setSessions(sessionsData)
+      setSessionCounts(countsData)
       
       // Issue #1997: Return null instead of prev when session not found
       setSelectedSession(prev => {
@@ -429,13 +437,8 @@ const Sessions = () => {
     })
   }, [sessions, filter])
 
-  const sessionCounts = useMemo(() => ({
-    all: sessions.length,
-    running: sessions.filter(s => s.status === 'running').length,
-    paused: sessions.filter(s => s.status === 'paused').length,
-    completed: sessions.filter(s => s.status === 'completed').length,
-    failed: sessions.filter(s => s.status === 'failed').length
-  }), [sessions])
+  // Issue #1981: sessionCounts is now a state variable populated from API response
+  // This ensures counts reflect ALL sessions, not just the filtered/paginated ones
 
   // Issue #1991: DRY handler for session actions (pause/resume/cancel)
   const handleSessionAction = useCallback(async (sessionId, action, newStatus) => {
