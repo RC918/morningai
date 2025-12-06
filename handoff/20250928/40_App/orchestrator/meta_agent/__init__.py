@@ -57,6 +57,20 @@ from .vm_provisioner import (
     VMStatus,
     vm_provisioner,
 )
+from .vscode_ide import (
+    FileContent,
+    IDESession,
+    IDESessionStatus,
+    Language,
+    LintResult,
+    SearchResult,
+    TestResult,
+    TestStatus,
+    TestSuiteResult,
+    VSCodeIDEService,
+    get_vscode_ide_service,
+    vscode_ide_service,
+)
 
 __all__ = [
     # Goal Parser
@@ -113,4 +127,17 @@ __all__ = [
     "VMConfig",
     "TaskVM",
     "vm_provisioner",
+    # VS Code IDE
+    "VSCodeIDEService",
+    "IDESession",
+    "IDESessionStatus",
+    "Language",
+    "FileContent",
+    "SearchResult",
+    "LintResult",
+    "TestResult",
+    "TestStatus",
+    "TestSuiteResult",
+    "get_vscode_ide_service",
+    "vscode_ide_service",
 ]
