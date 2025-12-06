@@ -41,6 +41,36 @@ from .state_persistence import (
     create_checkpoint_from_execution,
 )
 from .task_planner import SubTask, SubTaskStatus, SubTaskType, TaskPlan, TaskPlanner
+from .confidence_scorer import (
+    ConfidenceLevel,
+    ConfidenceScore,
+    ConfidenceScorer,
+    Question,
+    QuestionCategory,
+    ScoredPlan,
+)
+from .vm_provisioner import (
+    TaskVM,
+    VMConfig,
+    VMProvider,
+    VMProvisioner,
+    VMStatus,
+    vm_provisioner,
+)
+from .vscode_ide import (
+    FileContent,
+    IDESession,
+    IDESessionStatus,
+    Language,
+    LintResult,
+    SearchResult,
+    TestResult,
+    TestStatus,
+    TestSuiteResult,
+    VSCodeIDEService,
+    get_vscode_ide_service,
+    vscode_ide_service,
+)
 
 __all__ = [
     # Goal Parser
@@ -83,4 +113,31 @@ __all__ = [
     "ExecutionStateManager",
     "ExecutionCheckpoint",
     "create_checkpoint_from_execution",
+    # Confidence Scorer
+    "ConfidenceScorer",
+    "ConfidenceScore",
+    "ConfidenceLevel",
+    "ScoredPlan",
+    "Question",
+    "QuestionCategory",
+    # VM Provisioner
+    "VMProvisioner",
+    "VMProvider",
+    "VMStatus",
+    "VMConfig",
+    "TaskVM",
+    "vm_provisioner",
+    # VS Code IDE
+    "VSCodeIDEService",
+    "IDESession",
+    "IDESessionStatus",
+    "Language",
+    "FileContent",
+    "SearchResult",
+    "LintResult",
+    "TestResult",
+    "TestStatus",
+    "TestSuiteResult",
+    "get_vscode_ide_service",
+    "vscode_ide_service",
 ]
