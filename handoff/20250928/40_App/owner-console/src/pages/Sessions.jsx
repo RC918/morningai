@@ -407,6 +407,7 @@ const MOCK_SESSIONS_COUNTS = calculateSessionCounts(MOCK_SESSIONS)
  * - useMemo for derived values (filteredSessions, sessionCounts)
  */
 const POLLING_INTERVAL_MS = 10000
+const CONFIDENCE_THRESHOLD = 0.8
 
 const Sessions = () => {
   const { t } = useTranslation()
@@ -704,6 +705,11 @@ const Sessions = () => {
     })
   }, [sessions, filter])
 
+  // Issue #2066: Memoize currentTask lookup to avoid recalculation on every render
+  const currentTaskName = useMemo(() => {
+    return selectedSession?.plan?.tasks?.find(t => t.status === 'in_progress')?.name || ''
+  }, [selectedSession])
+
   // Issue #1981: sessionCounts is now a state variable populated from API response
   // This ensures counts reflect ALL sessions, not just the filtered/paginated ones
 
@@ -852,8 +858,11 @@ const Sessions = () => {
   }, [])
 
   const handleConfidenceApprove = useCallback(async ({ comment }) => {
+    if (!selectedSession?.id) {
+      return
+    }
     try {
-      await apiClientWithMeta(`/api/sessions/${selectedSession?.id}/approve`, {
+      await apiClientWithMeta(`/api/sessions/${selectedSession.id}/approve`, {
         method: 'POST',
         body: JSON.stringify({ comment, action: 'approve' })
       })
@@ -869,8 +878,11 @@ const Sessions = () => {
   }, [selectedSession, refreshSessionsSilently, handleCloseConfidenceApproval, t])
 
   const handleConfidenceRequestChanges = useCallback(async ({ comment }) => {
+    if (!selectedSession?.id) {
+      return
+    }
     try {
-      await apiClientWithMeta(`/api/sessions/${selectedSession?.id}/approve`, {
+      await apiClientWithMeta(`/api/sessions/${selectedSession.id}/approve`, {
         method: 'POST',
         body: JSON.stringify({ comment, action: 'request_changes' })
       })
@@ -1402,10 +1414,10 @@ const Sessions = () => {
           onApprove={handleConfidenceApprove}
           onRequestChanges={handleConfidenceRequestChanges}
           confidence={selectedSession.confidence}
-          confidenceThreshold={0.8}
+          confidenceThreshold={CONFIDENCE_THRESHOLD}
           factors={selectedSession.confidenceFactors || []}
           sessionTitle={selectedSession.title}
-          currentTask={selectedSession.plan?.tasks?.find(t => t.status === 'in_progress')?.name || ''}
+          currentTask={currentTaskName}
           riskAssessment={selectedSession.riskAssessment || null}
         />
       )}
