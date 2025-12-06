@@ -990,5 +990,6 @@ class TestTruncateErrorMessage:
             + "x" * 1000
         )
         result = _truncate_error_message(sensitive_message, max_length=100)
-        assert len(result) < len(sensitive_message)
-        assert "sk-secret-key-12345" not in result or len(result) <= 100 + len("... [truncated]")
+        assert len(result) == 100 + len("... [truncated]")
+        assert result.endswith("... [truncated]")
+        assert "sk-secret-key-12345" not in result

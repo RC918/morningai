@@ -44,7 +44,7 @@ MCP_RETRY_DELAY = 1.0  # seconds
 MCP_ERROR_LOG_MAX_LENGTH = 500  # Max characters for error logs (Issue #2075)
 
 
-def _truncate_error_message(message: str, max_length: int = MCP_ERROR_LOG_MAX_LENGTH) -> str:
+def _truncate_error_message(message: Optional[str], max_length: int = MCP_ERROR_LOG_MAX_LENGTH) -> Optional[str]:
     """
     Truncate error message to prevent sensitive data leakage in logs.
 
