@@ -797,15 +797,9 @@ const Sessions = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label 
-              htmlFor="auto-refresh-switch" 
-              className="text-sm text-[var(--text-secondary)] cursor-pointer"
-            >
-              {t('sessions.autoRefresh.label', 'Auto')}
-            </label>
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
+            {t('sessions.autoRefresh.label', 'Auto')}
             <Switch
-              id="auto-refresh-switch"
               checked={autoRefresh}
               onCheckedChange={handleToggleAutoRefresh}
               aria-label={autoRefresh 
@@ -816,7 +810,7 @@ const Sessions = () => {
             {isRefreshing && (
               <RotateCcw className="w-3 h-3 animate-spin text-[var(--text-secondary)]" />
             )}
-          </div>
+          </label>
           <AppleButton onClick={loadSessions} variant="outline" haptic="light" disabled={loading}>
             <RotateCcw className="w-4 h-4 mr-2" />
             {t('common.refresh', 'Refresh')}
