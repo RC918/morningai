@@ -248,4 +248,66 @@ describe('TestResultsPanel', () => {
       expect(screen.getByText('Running')).toBeInTheDocument()
     })
   })
+
+  describe('XSS Protection (Issue #2074)', () => {
+    it('should escape HTML in test error messages', () => {
+      const xssPayload = '<script>alert("XSS")</script>'
+      const testSuites = [{
+        name: 'XSS Test Suite',
+        status: 'failed',
+        tests: [
+          { name: 'xss test', status: 'failed', error: xssPayload }
+        ]
+      }]
+      
+      render(<TestResultsPanel testSuites={testSuites} totalTests={1} failedTests={1} />)
+      
+      // Expand the suite to see the error
+      fireEvent.click(screen.getByText('XSS Test Suite'))
+      
+      // The script tag should be rendered as text, not executed
+      // React automatically escapes content in JSX expressions
+      const errorElement = screen.getByText(xssPayload)
+      expect(errorElement).toBeInTheDocument()
+      expect(errorElement.tagName).toBe('PRE')
+      
+      // Verify no script elements were created
+      expect(document.querySelector('script')).toBeNull()
+    })
+
+    it('should escape HTML entities in test names', () => {
+      const xssName = '<img src=x onerror="alert(1)">'
+      const testSuites = [{
+        name: 'Test Suite',
+        status: 'passed',
+        tests: [
+          { name: xssName, status: 'passed' }
+        ]
+      }]
+      
+      render(<TestResultsPanel testSuites={testSuites} totalTests={1} passedTests={1} />)
+      
+      fireEvent.click(screen.getByText('Test Suite'))
+      
+      // The malicious content should be rendered as text
+      expect(screen.getByText(xssName)).toBeInTheDocument()
+      
+      // Verify no img elements were created from the XSS payload
+      expect(document.querySelector('img[src="x"]')).toBeNull()
+    })
+
+    it('should escape HTML in suite names', () => {
+      const xssSuiteName = '<div onclick="alert(1)">Malicious Suite</div>'
+      const testSuites = [{
+        name: xssSuiteName,
+        status: 'passed',
+        tests: []
+      }]
+      
+      render(<TestResultsPanel testSuites={testSuites} totalTests={0} />)
+      
+      // The malicious content should be rendered as text
+      expect(screen.getByText(xssSuiteName)).toBeInTheDocument()
+    })
+  })
 })
