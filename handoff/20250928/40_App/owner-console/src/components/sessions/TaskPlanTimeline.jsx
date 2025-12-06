@@ -252,7 +252,7 @@ const TaskPlanTimeline = ({
         <div className="absolute left-[15px] top-0 bottom-0 w-0.5 bg-neutral-200 dark:bg-neutral-700" />
 
         {/* Tasks */}
-        <div className="space-y-3">
+        <div className="space-y-3" role={editable ? 'list' : undefined}>
           {tasks.map((task, index) => {
             const isExpanded = expandedTasks.has(task.id)
             const isLast = index === tasks.length - 1
