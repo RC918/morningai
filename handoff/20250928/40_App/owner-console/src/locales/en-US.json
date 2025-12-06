@@ -554,7 +554,12 @@
               "CLEANUP": "Cleanup"
             },
             "startedAt": "Started",
-            "viewPR": "View Pull Request"
+            "viewPR": "View Pull Request",
+            "autoRefresh": {
+              "label": "Auto",
+              "enabled": "Auto-refresh enabled (10s)",
+              "disabled": "Auto-refresh disabled"
+            }
           },
           "approvalQueue": {
             "title": "Approval Queue",
