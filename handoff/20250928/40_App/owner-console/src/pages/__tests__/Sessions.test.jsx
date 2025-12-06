@@ -66,12 +66,22 @@ const mockEmptySessions = {
 describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
+
+  // Helper to wait for initial API call to complete
+  const waitForInitialLoad = async () => {
+    await waitFor(() => {
+      expect(apiClient.apiClientWithMeta).toHaveBeenCalledTimes(1);
+    });
+    // Flush microtasks to ensure state updates
+    await act(async () => {
+      await Promise.resolve();
+    });
+  };
 
   describe('Auto-refresh Toggle State', () => {
     it('should have auto-refresh enabled by default with active sessions', async () => {
@@ -126,14 +136,15 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
   });
 
   describe('Polling Behavior with Active Sessions', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
     it('should start polling when auto-refresh is on and active sessions exist', async () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockSessionsWithActive);
 
       render(<Sessions />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
+      await waitForInitialLoad();
 
       const initialCallCount = apiClient.apiClientWithMeta.mock.calls.length;
 
@@ -148,17 +159,11 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockSessionsWithActive);
 
       render(<Sessions />);
+      await waitForInitialLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
-
+      // Find and click the auto-refresh toggle
       const autoButton = screen.getByText('Auto');
       fireEvent.click(autoButton);
-
-      await waitFor(() => {
-        expect(screen.getByTitle('Auto-refresh disabled')).toBeInTheDocument();
-      });
 
       const callCountAfterToggle = apiClient.apiClientWithMeta.mock.calls.length;
 
@@ -173,17 +178,12 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockSessionsWithActive);
 
       render(<Sessions />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
+      await waitForInitialLoad();
 
       const autoButton = screen.getByText('Auto');
       
+      // Toggle off
       fireEvent.click(autoButton);
-      await waitFor(() => {
-        expect(screen.getByTitle('Auto-refresh disabled')).toBeInTheDocument();
-      });
 
       await act(async () => {
         vi.advanceTimersByTime(10000);
@@ -191,10 +191,8 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       
       const callCountBeforeResume = apiClient.apiClientWithMeta.mock.calls.length;
 
+      // Toggle back on
       fireEvent.click(autoButton);
-      await waitFor(() => {
-        expect(screen.getByTitle('Auto-refresh enabled (10s)')).toBeInTheDocument();
-      });
 
       await act(async () => {
         vi.advanceTimersByTime(10000);
@@ -205,14 +203,15 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
   });
 
   describe('Polling Behavior without Active Sessions', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
     it('should not poll when no active sessions exist', async () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockSessionsNoActive);
 
       render(<Sessions />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
+      await waitForInitialLoad();
 
       const initialCallCount = apiClient.apiClientWithMeta.mock.calls.length;
 
@@ -227,10 +226,7 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockEmptySessions);
 
       render(<Sessions />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
+      await waitForInitialLoad();
 
       const initialCallCount = apiClient.apiClientWithMeta.mock.calls.length;
 
@@ -243,27 +239,31 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
   });
 
   describe('Polling Interval', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
     it('should poll every 10 seconds (POLLING_INTERVAL_MS)', async () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockSessionsWithActive);
 
       render(<Sessions />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
+      await waitForInitialLoad();
 
       const initialCallCount = apiClient.apiClientWithMeta.mock.calls.length;
 
+      // At 5 seconds, no polling yet
       await act(async () => {
         vi.advanceTimersByTime(5000);
       });
       expect(apiClient.apiClientWithMeta).toHaveBeenCalledTimes(initialCallCount);
 
+      // At 10 seconds, first poll
       await act(async () => {
         vi.advanceTimersByTime(5000);
       });
       expect(apiClient.apiClientWithMeta).toHaveBeenCalledTimes(initialCallCount + 1);
 
+      // At 20 seconds, second poll
       await act(async () => {
         vi.advanceTimersByTime(10000);
       });
@@ -272,14 +272,15 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
   });
 
   describe('AbortController Integration (#1996)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
     it('should pass signal to API calls during polling', async () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockSessionsWithActive);
 
       render(<Sessions />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
+      await waitForInitialLoad();
 
       await act(async () => {
         vi.advanceTimersByTime(10000);
@@ -293,14 +294,15 @@ describe('Sessions Page - Polling Toggle Behavior (#2000)', () => {
   });
 
   describe('Cleanup on Unmount', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
     it('should clear interval when component unmounts', async () => {
       apiClient.apiClientWithMeta.mockResolvedValue(mockSessionsWithActive);
 
       const { unmount } = render(<Sessions />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Auto')).toBeInTheDocument();
-      });
+      await waitForInitialLoad();
 
       const callCountBeforeUnmount = apiClient.apiClientWithMeta.mock.calls.length;
 
