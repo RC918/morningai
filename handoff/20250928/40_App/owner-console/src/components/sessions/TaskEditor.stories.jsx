@@ -1,3 +1,9 @@
+/* eslint-disable i18next/no-literal-string */
+/* NOTE: This file is exempted from strict i18n checks as Storybook stories
+ * are developer documentation, not user-facing UI. This aligns with the
+ * established pattern in frontend-dashboard stories.
+ */
+
 import { useState } from 'react'
 import TaskEditor from './TaskEditor'
 
