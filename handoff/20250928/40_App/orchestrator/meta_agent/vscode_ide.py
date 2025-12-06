@@ -41,6 +41,27 @@ logger = logging.getLogger(__name__)
 MCP_DEFAULT_TIMEOUT = 30  # seconds
 MCP_MAX_RETRIES = 3
 MCP_RETRY_DELAY = 1.0  # seconds
+MCP_ERROR_LOG_MAX_LENGTH = 500  # Max characters for error logs (Issue #2075)
+
+
+def _truncate_error_message(message: str, max_length: int = MCP_ERROR_LOG_MAX_LENGTH) -> str:
+    """
+    Truncate error message to prevent sensitive data leakage in logs.
+
+    Issue #2075: MCP server error responses may contain sensitive information
+    (stack traces, environment variables, tokens). This function truncates
+    error messages to a safe length for logging.
+
+    Args:
+        message: Error message to truncate
+        max_length: Maximum allowed length (default: MCP_ERROR_LOG_MAX_LENGTH)
+
+    Returns:
+        Truncated message with ellipsis if truncated
+    """
+    if not message or len(message) <= max_length:
+        return message
+    return message[:max_length] + "... [truncated]"
 
 
 class IDESessionStatus(Enum):
@@ -930,11 +951,13 @@ class VSCodeIDEService:
                             return {"success": True, **data}
                         else:
                             error_text = await response.text()
+                            # Issue #2075: Truncate error logs to prevent sensitive data leakage
+                            truncated_error = _truncate_error_message(error_text)
                             logger.warning(
                                 "[VSCodeIDEService] MCP command %s failed: %s - %s",
-                                endpoint, response.status, error_text
+                                endpoint, response.status, truncated_error
                             )
-                            last_error = f"HTTP {response.status}: {error_text}"
+                            last_error = f"HTTP {response.status}: {truncated_error}"
 
             except asyncio.TimeoutError:
                 last_error = f"Request timeout after {timeout_seconds}s"
@@ -943,16 +966,20 @@ class VSCodeIDEService:
                     endpoint, attempt + 1, MCP_MAX_RETRIES
                 )
             except aiohttp.ClientError as e:
-                last_error = f"Connection error: {e}"
+                # Issue #2075: Truncate error logs to prevent sensitive data leakage
+                truncated_error = _truncate_error_message(str(e))
+                last_error = f"Connection error: {truncated_error}"
                 logger.warning(
                     "[VSCodeIDEService] MCP command %s connection error: %s (attempt %d/%d)",
-                    endpoint, e, attempt + 1, MCP_MAX_RETRIES
+                    endpoint, truncated_error, attempt + 1, MCP_MAX_RETRIES
                 )
             except Exception as e:
-                last_error = f"Unexpected error: {e}"
+                # Issue #2075: Truncate error logs to prevent sensitive data leakage
+                truncated_error = _truncate_error_message(str(e))
+                last_error = f"Unexpected error: {truncated_error}"
                 logger.error(
                     "[VSCodeIDEService] MCP command %s unexpected error: %s",
-                    endpoint, e
+                    endpoint, truncated_error
                 )
                 break  # Don't retry on unexpected errors
 
