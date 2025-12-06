@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Badge, 
@@ -183,7 +183,6 @@ const Sessions = () => {
   const [filter, setFilter] = useState('all')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const pollingIntervalRef = useRef(null)
 
   // Monitor FCP (First Contentful Paint) performance metric
   useEffect(() => {
@@ -241,25 +240,38 @@ const Sessions = () => {
     loadSessions()
   }, [loadSessions])
 
-  const refreshSessionsSilently = useCallback(async () => {
+  // Issue #1996: Use AbortController to handle race conditions when filter changes
+  const refreshSessionsSilently = useCallback(async (signal) => {
+    const currentFilter = filter
     try {
       setIsRefreshing(true)
-      const statusParam = filter !== 'all' ? `?status=${filter}` : ''
-      const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { method: 'GET' })
+      const statusParam = currentFilter !== 'all' ? `?status=${currentFilter}` : ''
+      const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { 
+        method: 'GET',
+        signal 
+      })
+      
+      // Verify filter hasn't changed during request
+      if (signal?.aborted) return
+      
       const sessionsData = response.data?.sessions || []
       setSessions(sessionsData)
       
+      // Issue #1997: Return null instead of prev when session not found
       setSelectedSession(prev => {
         if (prev) {
           const updatedSession = sessionsData.find(s => s.id === prev.id)
-          return updatedSession || prev
+          return updatedSession || null
         }
         return prev
       })
     } catch (err) {
+      if (err.name === 'AbortError') return
       console.error('Silent refresh failed:', err)
     } finally {
-      setIsRefreshing(false)
+      if (!signal?.aborted) {
+        setIsRefreshing(false)
+      }
     }
   }, [filter])
 
@@ -267,23 +279,20 @@ const Sessions = () => {
     return sessions.some(s => s.status === 'running' || s.status === 'paused')
   }, [sessions])
 
+  // Issue #1998: Simplified polling useEffect following React conventions
   useEffect(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current)
-      pollingIntervalRef.current = null
+    if (!autoRefresh || !hasActiveSessions || loading) {
+      return
     }
 
-    if (autoRefresh && hasActiveSessions && !loading) {
-      pollingIntervalRef.current = setInterval(() => {
-        refreshSessionsSilently()
-      }, POLLING_INTERVAL_MS)
-    }
+    const controller = new AbortController()
+    const intervalId = setInterval(() => {
+      refreshSessionsSilently(controller.signal)
+    }, POLLING_INTERVAL_MS)
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
-      }
+      controller.abort()
+      clearInterval(intervalId)
     }
   }, [autoRefresh, hasActiveSessions, loading, refreshSessionsSilently])
 
@@ -428,59 +437,32 @@ const Sessions = () => {
     failed: sessions.filter(s => s.status === 'failed').length
   }), [sessions])
 
-  const handlePauseSession = useCallback(async (sessionId) => {
+  // Issue #1991: DRY handler for session actions (pause/resume/cancel)
+  const handleSessionAction = useCallback(async (sessionId, action, newStatus) => {
     try {
-      await apiClientWithMeta(`/api/sessions/${sessionId}/pause`, { method: 'POST' })
+      await apiClientWithMeta(`/api/sessions/${sessionId}/${action}`, { method: 'POST' })
       setSessions(prev => prev.map(s => 
-        s.id === sessionId ? { ...s, status: 'paused' } : s
+        s.id === sessionId ? { ...s, status: newStatus } : s
       ))
       setSelectedSession(prev => 
-        prev?.id === sessionId ? { ...prev, status: 'paused' } : prev
+        prev?.id === sessionId ? { ...prev, status: newStatus } : prev
       )
     } catch (err) {
       const errorMessage = handleApiError(err, {
-        defaultMessage: t('sessions.error.pauseFailed', 'Failed to pause session'),
-        logContext: 'Sessions.handlePauseSession'
+        defaultMessage: t(`sessions.error.${action}Failed`, `Failed to ${action} session`),
+        logContext: `Sessions.handleSessionAction.${action}`
       })
       setError(errorMessage)
     }
   }, [t])
 
-  const handleResumeSession = useCallback(async (sessionId) => {
-    try {
-      await apiClientWithMeta(`/api/sessions/${sessionId}/resume`, { method: 'POST' })
-      setSessions(prev => prev.map(s => 
-        s.id === sessionId ? { ...s, status: 'running' } : s
-      ))
-      setSelectedSession(prev => 
-        prev?.id === sessionId ? { ...prev, status: 'running' } : prev
-      )
-    } catch (err) {
-      const errorMessage = handleApiError(err, {
-        defaultMessage: t('sessions.error.resumeFailed', 'Failed to resume session'),
-        logContext: 'Sessions.handleResumeSession'
-      })
-      setError(errorMessage)
-    }
-  }, [t])
-
-  const handleCancelSession = useCallback(async (sessionId) => {
-    try {
-      await apiClientWithMeta(`/api/sessions/${sessionId}/cancel`, { method: 'POST' })
-      setSessions(prev => prev.map(s => 
-        s.id === sessionId ? { ...s, status: 'failed' } : s
-      ))
-      setSelectedSession(prev => 
-        prev?.id === sessionId ? { ...prev, status: 'failed' } : prev
-      )
-    } catch (err) {
-      const errorMessage = handleApiError(err, {
-        defaultMessage: t('sessions.error.cancelFailed', 'Failed to cancel session'),
-        logContext: 'Sessions.handleCancelSession'
-      })
-      setError(errorMessage)
-    }
-  }, [t])
+  // Convenience wrappers for backward compatibility
+  const handlePauseSession = useCallback((sessionId) => 
+    handleSessionAction(sessionId, 'pause', 'paused'), [handleSessionAction])
+  const handleResumeSession = useCallback((sessionId) => 
+    handleSessionAction(sessionId, 'resume', 'running'), [handleSessionAction])
+  const handleCancelSession = useCallback((sessionId) => 
+    handleSessionAction(sessionId, 'cancel', 'failed'), [handleSessionAction])
 
   if (loading) {
     return (
