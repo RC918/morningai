@@ -370,11 +370,12 @@ def pause_session(session_id):
             'paused_by': user_email,
             'timestamp': datetime.utcnow().isoformat()
         })
-    except ValueError:
-        return jsonify({'error': 'Session not found'}), 404
     except json.JSONDecodeError:
+        # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
         logger.exception("Failed to parse session %s", session_id)
         return jsonify({'error': 'Failed to parse session data'}), 500
+    except ValueError:
+        return jsonify({'error': 'Session not found'}), 404
     except Exception:
         logger.exception("Failed to pause session")
         return jsonify({'error': 'Failed to pause session'}), 500
@@ -422,11 +423,12 @@ def resume_session(session_id):
             'resumed_by': user_email,
             'timestamp': datetime.utcnow().isoformat()
         })
-    except ValueError:
-        return jsonify({'error': 'Session not found'}), 404
     except json.JSONDecodeError:
+        # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
         logger.exception("Failed to parse session %s", session_id)
         return jsonify({'error': 'Failed to parse session data'}), 500
+    except ValueError:
+        return jsonify({'error': 'Session not found'}), 404
     except Exception:
         logger.exception("Failed to resume session")
         return jsonify({'error': 'Failed to resume session'}), 500
@@ -483,11 +485,12 @@ def cancel_session(session_id):
             'reason': reason,
             'timestamp': datetime.utcnow().isoformat()
         })
-    except ValueError:
-        return jsonify({'error': 'Session not found'}), 404
     except json.JSONDecodeError:
+        # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
         logger.exception("Failed to parse session %s", session_id)
         return jsonify({'error': 'Failed to parse session data'}), 500
+    except ValueError:
+        return jsonify({'error': 'Session not found'}), 404
     except Exception:
         logger.exception("Failed to cancel session")
         return jsonify({'error': 'Failed to cancel session'}), 500

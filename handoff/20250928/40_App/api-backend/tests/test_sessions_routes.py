@@ -226,7 +226,8 @@ class TestResumeSessionEndpoint:
                 assert response.status_code == 200
                 data = response.get_json()
                 assert data['success'] is True
-                assert data['status'] == 'active'
+                # Issue #1989: status should be 'running' (frontend format) not 'active' (internal)
+                assert data['status'] == 'running'
                 assert 'resumed_by' in data
                 assert 'timestamp' in data
 
