@@ -25,11 +25,13 @@ from meta_agent.vscode_ide import (
     IDESessionStatus,
     Language,
     LintResult,
+    MCP_ERROR_LOG_MAX_LENGTH,
     SearchResult,
     TestResult,
     TestStatus,
     TestSuiteResult,
     VSCodeIDEService,
+    _truncate_error_message,
     get_vscode_ide_service,
     vscode_ide_service,
 )
@@ -928,3 +930,66 @@ class TestFormatterAndLinterConfig:
         assert "npm test" in service.TEST_RUNNERS[Language.TYPESCRIPT]
         assert "go test" in service.TEST_RUNNERS[Language.GO]
         assert "cargo test" in service.TEST_RUNNERS[Language.RUST]
+
+
+class TestTruncateErrorMessage:
+    """Tests for _truncate_error_message function (Issue #2075)"""
+
+    def test_truncate_short_message(self):
+        """Test that short messages are not truncated"""
+        message = "Short error message"
+        result = _truncate_error_message(message)
+        assert result == message
+
+    def test_truncate_exact_length_message(self):
+        """Test message at exactly max length is not truncated"""
+        message = "a" * MCP_ERROR_LOG_MAX_LENGTH
+        result = _truncate_error_message(message)
+        assert result == message
+        assert len(result) == MCP_ERROR_LOG_MAX_LENGTH
+
+    def test_truncate_long_message(self):
+        """Test that long messages are truncated"""
+        message = "a" * (MCP_ERROR_LOG_MAX_LENGTH + 100)
+        result = _truncate_error_message(message)
+        assert len(result) < len(message)
+        assert result.endswith("... [truncated]")
+        assert result.startswith("a" * 100)
+
+    def test_truncate_empty_message(self):
+        """Test that empty messages are handled"""
+        result = _truncate_error_message("")
+        assert result == ""
+
+    def test_truncate_none_message(self):
+        """Test that None messages are handled"""
+        result = _truncate_error_message(None)
+        assert result is None
+
+    def test_truncate_custom_max_length(self):
+        """Test truncation with custom max length"""
+        message = "a" * 100
+        result = _truncate_error_message(message, max_length=50)
+        assert len(result) == 50 + len("... [truncated]")
+        assert result.endswith("... [truncated]")
+
+    def test_truncate_preserves_beginning(self):
+        """Test that truncation preserves the beginning of the message"""
+        message = "ERROR: " + "x" * 1000
+        result = _truncate_error_message(message, max_length=100)
+        assert result.startswith("ERROR: ")
+
+    def test_truncate_sensitive_data_scenario(self):
+        """Test truncation of message containing sensitive-looking data"""
+        sensitive_message = (
+            "Error: Connection failed\n"
+            "Stack trace:\n"
+            "  at connect() line 123\n"
+            "Environment: API_KEY=sk-secret-key-12345\n"
+            "Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\n"
+            + "x" * 1000
+        )
+        result = _truncate_error_message(sensitive_message, max_length=100)
+        assert len(result) == 100 + len("... [truncated]")
+        assert result.endswith("... [truncated]")
+        assert "sk-secret-key-12345" not in result
