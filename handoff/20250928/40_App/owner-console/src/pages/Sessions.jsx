@@ -226,7 +226,14 @@ const Sessions = () => {
       
       const statusParam = filter !== 'all' ? `?status=${filter}` : ''
       const response = await apiClientWithMeta(`/api/sessions${statusParam}`, { method: 'GET' })
-      const sessionsData = response.data?.sessions || []
+      let sessionsData = response.data?.sessions || []
+      
+      // Use MOCK_SESSIONS as fallback when API returns empty (for demo/preview)
+      // This allows users to see the TaskPlanTimeline, TaskEditor, and ApprovalWorkflow components
+      if (sessionsData.length === 0) {
+        sessionsData = [...MOCK_SESSIONS]
+      }
+      
       setSessions(sessionsData)
       
       setSelectedSession(prev => {
@@ -241,6 +248,9 @@ const Sessions = () => {
         logContext: 'Sessions.loadSessions'
       })
       setError(errorMessage)
+      // Use MOCK_SESSIONS as fallback on error (for demo/preview)
+      setSessions([...MOCK_SESSIONS])
+      setSelectedSession(MOCK_SESSIONS[0])
     } finally {
       setLoading(false)
     }
