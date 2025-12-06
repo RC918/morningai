@@ -11,6 +11,7 @@ import logging
 import os
 import sys
 import json
+from collections import Counter
 from datetime import datetime
 from functools import wraps
 from flask import Blueprint, jsonify, request
@@ -164,6 +165,10 @@ def list_sessions():
 
     Returns list of sessions ordered by updated_at descending.
 
+    Performance optimization (#1980):
+    - Uses MGET for batch fetching instead of individual GET calls
+    - Returns counts for all statuses regardless of filter (#1981)
+
     Requires: Owner role
     """
     try:
@@ -177,22 +182,56 @@ def list_sessions():
         pattern = f"{SESSION_KEY_PREFIX}*"
         session_keys = list(redis_client.scan_iter(match=pattern, count=1000))
 
-        sessions = []
-        for key in session_keys:
-            try:
-                data = redis_client.get(key)
-                if data:
-                    session_data = json.loads(data)
-                    transformed = transform_session_for_frontend(session_data)
+        if not session_keys:
+            return jsonify({
+                'sessions': [],
+                'total': 0,
+                'page': page,
+                'perPage': limit,
+                'counts': {
+                    'all': 0,
+                    'running': 0,
+                    'paused': 0,
+                    'completed': 0,
+                    'failed': 0
+                },
+                'filters': {
+                    'status': status_filter
+                },
+                'timestamp': datetime.utcnow().isoformat()
+            })
 
-                    # Apply status filter
-                    if status_filter and transformed['status'] != status_filter:
-                        continue
+        # Batch fetch all sessions using MGET for better performance
+        session_data_list = redis_client.mget(session_keys)
 
-                    sessions.append(transformed)
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning("Failed to parse session %s: %s", key, e)
+        all_sessions = []
+        for key, data in zip(session_keys, session_data_list):
+            if data is None:
                 continue
+            try:
+                session_data = json.loads(data)
+                transformed = transform_session_for_frontend(session_data)
+                all_sessions.append(transformed)
+            except (json.JSONDecodeError, KeyError, TypeError, IndexError) as e:
+                logger.warning("Failed to process session data for key %s: %s", key, e)
+                continue
+
+        # Calculate counts for all statuses (regardless of filter)
+        # Use Counter for single-pass iteration (performance optimization)
+        status_counts = Counter(s.get('status') for s in all_sessions)
+        counts = {
+            'all': len(all_sessions),
+            'running': status_counts.get('running', 0),
+            'paused': status_counts.get('paused', 0),
+            'completed': status_counts.get('completed', 0),
+            'failed': status_counts.get('failed', 0)
+        }
+
+        # Apply status filter
+        if status_filter:
+            sessions = [s for s in all_sessions if s['status'] == status_filter]
+        else:
+            sessions = all_sessions
 
         # Sort by updatedAt descending
         sessions.sort(key=lambda x: x.get('updatedAt', ''), reverse=True)
@@ -208,6 +247,7 @@ def list_sessions():
             'total': total,
             'page': page,
             'perPage': limit,
+            'counts': counts,
             'filters': {
                 'status': status_filter
             },
