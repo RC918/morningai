@@ -445,7 +445,13 @@
             "subtitle": "Monitor and manage Meta Agent task execution sessions",
             "error": {
               "loadFailed": "Failed to load sessions",
-              "title": "Execution Failed"
+              "title": "Execution Failed",
+              "pauseFailed": "Failed to pause session",
+              "resumeFailed": "Failed to resume session",
+              "cancelFailed": "Failed to cancel session",
+              "saveTaskFailed": "Failed to save task",
+              "deleteTaskFailed": "Failed to delete task",
+              "reorderFailed": "Failed to reorder tasks"
             },
             "filter": {
               "all": "All",
@@ -490,10 +496,50 @@
             },
             "plan": {
               "progress": "Progress",
-              "tasks": "tasks"
+              "tasks": "tasks",
+              "editMode": "Edit Plan",
+              "editModeOn": "Editing",
+              "addTask": "Add Task"
             },
             "approval": {
-              "title": "Approval Required"
+              "title": "Approval Required",
+              "review": "Review",
+              "approve": "Approve",
+              "reject": "Reject",
+              "comment": "Comment",
+              "commentPlaceholder": "Add a comment for the audit log...",
+              "riskLevel": "Risk Level",
+              "affectedResources": "Affected Resources",
+              "risk": {
+                "low": "LOW",
+                "medium": "MEDIUM",
+                "high": "HIGH",
+                "critical": "CRITICAL"
+              },
+              "errors": {
+                "approveFailed": "Failed to approve task",
+                "rejectFailed": "Failed to reject task"
+              }
+            },
+            "task": {
+              "started": "Started",
+              "completed": "Completed",
+              "duration": "Duration",
+              "approve": "Approve",
+              "edit": "Edit Task"
+            },
+            "taskEditor": {
+              "titleNew": "Add New Task",
+              "titleEdit": "Edit Task",
+              "name": "Task Name",
+              "namePlaceholder": "Enter task name...",
+              "description": "Description",
+              "descriptionPlaceholder": "Add details about this task...",
+              "type": "Task Type",
+              "errors": {
+                "nameRequired": "Task name is required",
+                "nameTooLong": "Task name must be less than 200 characters"
+              }
             },
             "taskType": {
               "ANALYZE_CODE": "Analyze",

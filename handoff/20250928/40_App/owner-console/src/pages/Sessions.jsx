@@ -29,11 +29,14 @@ import {
   Settings,
   Rocket,
   BadgeCheck,
-  Trash2
+  Trash2,
+  Plus,
+  Edit3
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
+import { TaskPlanTimeline, TaskEditor, ApprovalWorkflow } from '@/components/sessions'
 
 /**
  * Mock data for UI skeleton - moved outside component to prevent recreation on each render.
@@ -184,6 +187,14 @@ const Sessions = () => {
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const pollingIntervalRef = useRef(null)
+  
+  // Task Plan Visualization state (#1823)
+  const [isTaskEditorOpen, setIsTaskEditorOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+  const [isNewTask, setIsNewTask] = useState(false)
+  const [isApprovalOpen, setIsApprovalOpen] = useState(false)
+  const [approvalTask, setApprovalTask] = useState(null)
+  const [isEditMode, setIsEditMode] = useState(false)
 
   // Monitor FCP (First Contentful Paint) performance metric
   useEffect(() => {
@@ -482,6 +493,114 @@ const Sessions = () => {
     }
   }, [t])
 
+  // Task Plan Visualization handlers (#1823)
+  const handleToggleEditMode = useCallback(() => {
+    setIsEditMode(prev => !prev)
+  }, [])
+
+  const handleOpenTaskEditor = useCallback((task = null) => {
+    setEditingTask(task)
+    setIsNewTask(!task)
+    setIsTaskEditorOpen(true)
+  }, [])
+
+  const handleCloseTaskEditor = useCallback(() => {
+    setIsTaskEditorOpen(false)
+    setEditingTask(null)
+    setIsNewTask(false)
+  }, [])
+
+  const handleSaveTask = useCallback(async (taskData) => {
+    if (!selectedSession) return
+
+    try {
+      if (isNewTask) {
+        await apiClientWithMeta(`/api/sessions/${selectedSession.id}/tasks`, {
+          method: 'POST',
+          body: JSON.stringify(taskData)
+        })
+      } else {
+        await apiClientWithMeta(`/api/sessions/${selectedSession.id}/tasks/${taskData.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(taskData)
+        })
+      }
+      
+      refreshSessionsSilently()
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.saveTaskFailed', 'Failed to save task'),
+        logContext: 'Sessions.handleSaveTask'
+      })
+      setError(errorMessage)
+    }
+  }, [selectedSession, isNewTask, refreshSessionsSilently, t])
+
+  const handleDeleteTask = useCallback(async (taskId) => {
+    if (!selectedSession) return
+
+    try {
+      await apiClientWithMeta(`/api/sessions/${selectedSession.id}/tasks/${taskId}`, {
+        method: 'DELETE'
+      })
+      
+      refreshSessionsSilently()
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.deleteTaskFailed', 'Failed to delete task'),
+        logContext: 'Sessions.handleDeleteTask'
+      })
+      setError(errorMessage)
+    }
+  }, [selectedSession, refreshSessionsSilently, t])
+
+  const handleTaskReorder = useCallback(async (fromIndex, toIndex) => {
+    if (!selectedSession) return
+
+    const newTasks = [...selectedSession.plan.tasks]
+    const [movedTask] = newTasks.splice(fromIndex, 1)
+    newTasks.splice(toIndex, 0, movedTask)
+
+    setSelectedSession(prev => ({
+      ...prev,
+      plan: { ...prev.plan, tasks: newTasks }
+    }))
+
+    try {
+      await apiClientWithMeta(`/api/sessions/${selectedSession.id}/tasks/reorder`, {
+        method: 'POST',
+        body: JSON.stringify({ taskIds: newTasks.map(t => t.id) })
+      })
+    } catch (err) {
+      refreshSessionsSilently()
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.error.reorderFailed', 'Failed to reorder tasks'),
+        logContext: 'Sessions.handleTaskReorder'
+      })
+      setError(errorMessage)
+    }
+  }, [selectedSession, refreshSessionsSilently, t])
+
+  const handleOpenApproval = useCallback((task) => {
+    setApprovalTask(task)
+    setIsApprovalOpen(true)
+  }, [])
+
+  const handleCloseApproval = useCallback(() => {
+    setIsApprovalOpen(false)
+    setApprovalTask(null)
+  }, [])
+
+  const handleTaskApproved = useCallback((taskId) => {
+    refreshSessionsSilently()
+    handleCloseApproval()
+  }, [refreshSessionsSilently, handleCloseApproval])
+
+  const handleTaskRejected = useCallback((taskId) => {
+    refreshSessionsSilently()
+    handleCloseApproval()
+  }, [refreshSessionsSilently, handleCloseApproval])
+
   if (loading) {
     return (
       <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
@@ -723,24 +842,35 @@ const Sessions = () => {
                 </TabsList>
 
                 <TabsContent value="plan" className="p-5">
-                  {/* Progress Summary */}
-                  <div className="flex items-center justify-between mb-4 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800">
-                    <div>
-                      <p className="text-sm text-[var(--text-secondary)]">
-                        {t('sessions.plan.progress', 'Progress')}
-                      </p>
-                      <p className="text-lg font-semibold text-[var(--text-primary)]">
-                        {selectedSession.plan.completedTasks} / {selectedSession.plan.totalTasks} {t('sessions.plan.tasks', 'tasks')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-[var(--text-secondary)]">
-                        {t('sessions.confidence', 'Confidence')}
-                      </p>
-                      <p className={`text-lg font-semibold ${getConfidenceColor(selectedSession.confidence)}`}>
-                        {Math.round(selectedSession.confidence * 100)}%
-                      </p>
-                    </div>
+                  {/* Edit Mode Toggle & Add Task Button */}
+                  <div className="flex items-center justify-end gap-2 mb-4">
+                    {selectedSession.status === 'paused' && (
+                      <>
+                        <AppleButton
+                          variant={isEditMode ? 'default' : 'outline'}
+                          size="sm"
+                          haptic="light"
+                          onClick={handleToggleEditMode}
+                        >
+                          <Edit3 className="w-4 h-4 mr-1" />
+                          {isEditMode 
+                            ? t('sessions.plan.editModeOn', 'Editing') 
+                            : t('sessions.plan.editMode', 'Edit Plan')
+                          }
+                        </AppleButton>
+                        {isEditMode && (
+                          <AppleButton
+                            variant="outline"
+                            size="sm"
+                            haptic="light"
+                            onClick={() => handleOpenTaskEditor()}
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            {t('sessions.plan.addTask', 'Add Task')}
+                          </AppleButton>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Approval Banner */}
@@ -748,7 +878,7 @@ const Sessions = () => {
                     <div className="mb-4 p-4 rounded-lg bg-wisdom-10 border border-wisdom">
                       <div className="flex items-start gap-3">
                         <AlertTriangle className="w-5 h-5 text-wisdom flex-shrink-0 mt-1" />
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium text-wisdom-dark">
                             {t('sessions.approval.title', 'Approval Required')}
                           </p>
@@ -756,6 +886,20 @@ const Sessions = () => {
                             {selectedSession.approvalReason}
                           </p>
                         </div>
+                        <AppleButton
+                          variant="default"
+                          size="sm"
+                          haptic="medium"
+                          onClick={() => {
+                            const waitingTask = selectedSession.plan.tasks.find(t => t.status === 'waiting_approval')
+                            if (waitingTask) {
+                              handleOpenApproval(waitingTask)
+                            }
+                          }}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          {t('sessions.approval.review', 'Review')}
+                        </AppleButton>
                       </div>
                     </div>
                   )}
@@ -777,43 +921,20 @@ const Sessions = () => {
                     </div>
                   )}
 
-                  {/* Task List */}
-                  <div className="space-y-2">
-                    {selectedSession.plan.tasks.map((task, index) => (
-                      <div
-                        key={task.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg border ${
-                          task.status === 'running'
-                            ? 'border-calm bg-calm-10'
-                            : task.status === 'completed'
-                            ? 'border-growth-20 bg-growth-10'
-                            : task.status === 'failed'
-                            ? 'border-energy bg-energy-10'
-                            : task.status === 'waiting_approval'
-                            ? 'border-wisdom bg-wisdom-10'
-                            : 'border-[var(--border)] bg-[var(--surface)]'
-                        }`}
-                      >
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-neutral-100 dark:bg-neutral-700 text-xs font-medium">
-                          {index + 1}
-                        </div>
-                        {getTaskStatusIcon(task.status)}
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${
-                            task.status === 'pending' ? 'text-neutral-500' : 'text-[var(--text-primary)]'
-                          }`}>
-                            {task.name}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {getTaskTypeIcon(task.type)}
-                          <span className="text-xs text-[var(--text-secondary)]">
-                            {t(`sessions.taskType.${task.type}`, task.type)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  {/* Task Plan Timeline (#1823) */}
+                  <TaskPlanTimeline
+                    tasks={selectedSession.plan.tasks}
+                    completedTasks={selectedSession.plan.completedTasks}
+                    totalTasks={selectedSession.plan.totalTasks}
+                    confidence={selectedSession.confidence}
+                    editable={isEditMode && selectedSession.status === 'paused'}
+                    onTaskReorder={handleTaskReorder}
+                    onTaskEdit={handleOpenTaskEditor}
+                    onTaskApprove={(taskId) => {
+                      const task = selectedSession.plan.tasks.find(t => t.id === taskId)
+                      if (task) handleOpenApproval(task)
+                    }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="logs" className="p-5">
@@ -885,6 +1006,35 @@ const Sessions = () => {
           )}
         </div>
       </div>
+
+      {/* Task Editor Modal (#1823) */}
+      <TaskEditor
+        task={editingTask}
+        isOpen={isTaskEditorOpen}
+        onClose={handleCloseTaskEditor}
+        onSave={handleSaveTask}
+        onDelete={handleDeleteTask}
+        isNewTask={isNewTask}
+      />
+
+      {/* Approval Workflow Modal (#1823) */}
+      {selectedSession && approvalTask && (
+        <ApprovalWorkflow
+          sessionId={selectedSession.id}
+          taskId={approvalTask.id}
+          isOpen={isApprovalOpen}
+          onClose={handleCloseApproval}
+          onApproved={handleTaskApproved}
+          onRejected={handleTaskRejected}
+          approvalData={{
+            reason: approvalTask.approvalReason || selectedSession.approvalReason,
+            riskLevel: approvalTask.riskLevel || 'medium',
+            affectedResources: approvalTask.affectedResources || [],
+            taskName: approvalTask.name,
+            description: approvalTask.description
+          }}
+        />
+      )}
     </div>
   )
 }
