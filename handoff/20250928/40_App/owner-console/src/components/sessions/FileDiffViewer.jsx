@@ -173,8 +173,8 @@ const FileDiffViewer = ({
         <div className={`overflow-auto ${isFullScreen ? 'h-[calc(100%-60px)]' : 'max-h-96'}`}>
           <table className="w-full text-xs font-mono">
             <tbody>
-              {diffLines.map((line, index) => (
-                <tr key={index} className={getLineClass(line.type)}>
+              {diffLines.map((line) => (
+                <tr key={`${line.oldLineNumber || 'new'}-${line.newLineNumber || 'old'}-${line.type}`} className={getLineClass(line.type)}>
                   {/* Old Line Number */}
                   <td className="w-12 px-2 py-1 text-right text-neutral-400 select-none border-r border-[var(--border)] bg-[var(--surface-elevated)]">
                     {line.type !== 'addition' ? line.oldLineNumber : ''}
