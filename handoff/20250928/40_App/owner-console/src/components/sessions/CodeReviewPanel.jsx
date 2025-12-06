@@ -130,26 +130,82 @@ const CodeReviewPanel = ({
           <h4 className="text-sm font-medium text-[var(--text-primary)] mb-3">
             {t('sessions.codeReview.ciChecks', 'CI Checks')}
           </h4>
-          <div className="space-y-2">
-            {checksStatus.checks?.map((check, index) => (
-              <div key={index} className="flex items-center justify-between text-sm">
-                <span className="text-[var(--text-secondary)]">{check.name}</span>
+          {/* Summary view when checksStatus has counts */}
+          {(checksStatus.passed !== undefined || checksStatus.total !== undefined) && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--text-secondary)]">
+                  {t('sessions.codeReview.checksStatus', '{{passed}}/{{total}} checks passed', {
+                    passed: checksStatus.passed ?? 0,
+                    total: checksStatus.total ?? ((checksStatus.passed ?? 0) + (checksStatus.failed ?? 0) + (checksStatus.pending ?? 0))
+                  })}
+                </span>
                 <Badge 
-                  variant={check.status === 'success' ? 'success' : check.status === 'failure' ? 'destructive' : 'secondary'}
+                  variant={checksStatus.failed > 0 ? 'destructive' : checksStatus.pending > 0 ? 'secondary' : 'success'}
                   className="text-xs"
                 >
-                  {check.status === 'success' ? (
-                    <CheckCircle className="w-3 h-3" />
-                  ) : check.status === 'failure' ? (
+                  {checksStatus.failed > 0 ? (
                     <XCircle className="w-3 h-3" />
-                  ) : (
+                  ) : checksStatus.pending > 0 ? (
                     <Clock className="w-3 h-3" />
+                  ) : (
+                    <CheckCircle className="w-3 h-3" />
                   )}
-                  <span>{check.status}</span>
+                  <span>
+                    {checksStatus.failed > 0 
+                      ? t('sessions.codeReview.checksFailed', 'Failed')
+                      : checksStatus.pending > 0 
+                        ? t('sessions.codeReview.checksPending', 'Pending')
+                        : t('sessions.codeReview.checksPassed', 'Passed')}
+                  </span>
                 </Badge>
               </div>
-            ))}
-          </div>
+              {/* Progress bar for checks */}
+              <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+                {(checksStatus.passed ?? 0) > 0 && (
+                  <div 
+                    className="bg-growth h-full" 
+                    style={{ width: `${((checksStatus.passed ?? 0) / (checksStatus.total ?? 1)) * 100}%` }}
+                  />
+                )}
+                {(checksStatus.failed ?? 0) > 0 && (
+                  <div 
+                    className="bg-energy h-full" 
+                    style={{ width: `${((checksStatus.failed ?? 0) / (checksStatus.total ?? 1)) * 100}%` }}
+                  />
+                )}
+                {(checksStatus.pending ?? 0) > 0 && (
+                  <div 
+                    className="bg-neutral-300 dark:bg-neutral-600 h-full" 
+                    style={{ width: `${((checksStatus.pending ?? 0) / (checksStatus.total ?? 1)) * 100}%` }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+          {/* Detailed view when checksStatus has checks array */}
+          {checksStatus.checks && checksStatus.checks.length > 0 && (
+            <div className="space-y-2">
+              {checksStatus.checks.map((check, index) => (
+                <div key={check.name || index} className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--text-secondary)]">{check.name}</span>
+                  <Badge 
+                    variant={check.status === 'success' ? 'success' : check.status === 'failure' ? 'destructive' : 'secondary'}
+                    className="text-xs"
+                  >
+                    {check.status === 'success' ? (
+                      <CheckCircle className="w-3 h-3" />
+                    ) : check.status === 'failure' ? (
+                      <XCircle className="w-3 h-3" />
+                    ) : (
+                      <Clock className="w-3 h-3" />
+                    )}
+                    <span>{check.status}</span>
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

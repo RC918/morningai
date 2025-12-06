@@ -70,18 +70,29 @@ const TestResultsPanel = ({
     }
   }, [])
 
+  // Compute suite counts from tests array, with fallback to explicit counts if provided
+  const getSuiteCounts = useCallback((suite) => {
+    const tests = suite.tests ?? []
+    const total = suite.totalCount ?? tests.length
+    const passed = suite.passedCount ?? tests.filter(t => t.status === 'passed').length
+    const failed = suite.failedCount ?? tests.filter(t => t.status === 'failed').length
+    const skipped = suite.skippedCount ?? tests.filter(t => t.status === 'skipped').length
+    return { total, passed, failed, skipped }
+  }, [])
+
   const getSuiteStatusBadge = useCallback((suite) => {
     if (suite.status === 'running') {
       return { variant: 'secondary', label: t('sessions.tests.status.running', 'Running') }
     }
-    if (suite.failedCount > 0) {
+    const { total, passed, failed } = getSuiteCounts(suite)
+    if (failed > 0) {
       return { variant: 'destructive', label: t('sessions.tests.status.failed', 'Failed') }
     }
-    if (suite.passedCount === suite.totalCount) {
+    if (passed === total && total > 0) {
       return { variant: 'success', label: t('sessions.tests.status.passed', 'Passed') }
     }
     return { variant: 'warning', label: t('sessions.tests.status.partial', 'Partial') }
-  }, [t])
+  }, [t, getSuiteCounts])
 
   const formatDuration = useCallback((ms) => {
     if (ms < 1000) return `${ms}ms`
@@ -165,8 +176,9 @@ const TestResultsPanel = ({
           <div className="divide-y divide-[var(--border)]">
             {testSuites.map((suite, index) => {
               const statusBadge = getSuiteStatusBadge(suite)
+              const suiteCounts = getSuiteCounts(suite)
               return (
-                <div key={index}>
+                <div key={suite.name || index}>
                   <button
                     type="button"
                     onClick={() => toggleSuiteExpand(suite.name)}
@@ -185,7 +197,7 @@ const TestResultsPanel = ({
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-[var(--text-secondary)]">
-                        {suite.passedCount}/{suite.totalCount}
+                        {suiteCounts.passed}/{suiteCounts.total}
                       </span>
                       <Badge variant={statusBadge.variant} className="text-xs">
                         {statusBadge.label}
