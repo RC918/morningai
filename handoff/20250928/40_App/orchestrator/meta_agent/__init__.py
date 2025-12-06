@@ -35,10 +35,17 @@ from .execution_policy import (
     DRY_RUN_POLICY,
 )
 from .goal_parser import GoalParser, GoalPriority, GoalType, ParsedGoal
+from .sensitive_data_masker import (
+    SensitiveDataMasker,
+    get_masker,
+    mask_sensitive_data,
+)
 from .state_persistence import (
     ExecutionCheckpoint,
     ExecutionStateManager,
     create_checkpoint_from_execution,
+    STATE_DIR_ENV_VAR,
+    STATE_DIR_PERMISSIONS,
 )
 from .task_planner import SubTask, SubTaskStatus, SubTaskType, TaskPlan, TaskPlanner
 from .confidence_scorer import (
@@ -109,10 +116,16 @@ __all__ = [
     "AgentTask",
     "AgentResult",
     "AgentCapability",
+    # Sensitive Data Masker
+    "SensitiveDataMasker",
+    "get_masker",
+    "mask_sensitive_data",
     # State Persistence
     "ExecutionStateManager",
     "ExecutionCheckpoint",
     "create_checkpoint_from_execution",
+    "STATE_DIR_ENV_VAR",
+    "STATE_DIR_PERMISSIONS",
     # Confidence Scorer
     "ConfidenceScorer",
     "ConfidenceScore",
