@@ -833,6 +833,12 @@ class VSCodeIDEService:
         - Wired directly to untrusted HTTP request parameters
         - Called with user-supplied input without proper authorization checks
 
+        CAPABILITY GATE (Issue #2023):
+        This method requires the 'terminal_access_enabled' capability to be
+        set in the session metadata. Sessions are created with this capability
+        disabled by default. To enable terminal access, set:
+            session.metadata["terminal_access_enabled"] = True
+
         Args:
             session: IDE session
             command: Command to execute (passed directly to shell - no escaping)
@@ -843,6 +849,19 @@ class VSCodeIDEService:
         """
         if session.status == IDESessionStatus.CLOSED:
             return {"success": False, "error": "Session is closed"}
+
+        # Issue #2023: Capability gate for terminal access
+        if not self._has_terminal_capability(session):
+            logger.warning(
+                "[VSCodeIDEService] Denied terminal command for task %s: "
+                "terminal_access_enabled capability not granted",
+                session.task_id[:8],
+            )
+            return {
+                "success": False,
+                "error": "Terminal access is not enabled for this session. "
+                "Set session.metadata['terminal_access_enabled'] = True to enable.",
+            }
 
         try:
             result = await self._execute_shell_command(
@@ -892,6 +911,21 @@ class VSCodeIDEService:
             "stderr": "",
             "exit_code": 0,
         }
+
+    def _has_terminal_capability(self, session: IDESession) -> bool:
+        """
+        Check if session has terminal access capability (Issue #2023).
+
+        Terminal access is a privileged capability that must be explicitly
+        granted. Sessions are created with this capability disabled by default.
+
+        Args:
+            session: IDE session to check
+
+        Returns:
+            True if terminal access is enabled, False otherwise
+        """
+        return bool(session.metadata.get("terminal_access_enabled", False))
 
     def _detect_language(self, file_path: str) -> Optional[Language]:
         """Detect programming language from file extension"""

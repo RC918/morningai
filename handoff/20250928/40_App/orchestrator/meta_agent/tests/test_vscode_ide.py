@@ -594,12 +594,27 @@ class TestVSCodeIDEService:
 
     @pytest.mark.asyncio
     async def test_execute_terminal_command(self, service, mock_session):
-        """Test executing terminal command"""
+        """Test executing terminal command with capability enabled"""
         service._sessions[mock_session.session_id] = mock_session
+        # Issue #2023: Grant terminal access capability
+        mock_session.metadata["terminal_access_enabled"] = True
 
         result = await service.execute_terminal_command(mock_session, "ls -la")
 
         assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_execute_terminal_command_no_capability(
+        self, service, mock_session
+    ):
+        """Test executing terminal command without capability (Issue #2023)"""
+        service._sessions[mock_session.session_id] = mock_session
+        # Capability not granted - should be denied
+
+        result = await service.execute_terminal_command(mock_session, "ls -la")
+
+        assert result["success"] is False
+        assert "Terminal access is not enabled" in result["error"]
 
     @pytest.mark.asyncio
     async def test_execute_terminal_command_closed_session(
