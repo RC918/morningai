@@ -143,7 +143,7 @@
   --color-input: hsl(214.3 31.8% 75%);
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(222.2 84% 4.9%);
-  --color-ring: hsl(222.2 84% 4.9%);
+  --color-ring: var(--color-foreground);
 }
 
 /* iotask Semantic Design Tokens */
@@ -268,7 +268,7 @@ a:focus-visible {
   --color-muted-foreground: 215 20.2% 65.1%;
   --color-border: 217.2 32.6% 17.5%;
   --color-input: 217.2 32.6% 17.5%;
-  --color-ring: 212.7 26.8% 83.9%;
+  --color-ring: var(--color-foreground);
   --color-destructive: 0 62.8% 30.6%;
   --color-destructive-foreground: 210 40% 98%;
   --color-secondary: 217.2 32.6% 17.5%;
