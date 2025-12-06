@@ -11,8 +11,8 @@ import { stubGovernanceEndpoints, stubCsrfEndpoint } from './utils/fixtures';
  * 
  * Related:
  * - PR #1303: https://github.com/RC918/morningai/pull/1303
- * - Root cause: theme.css --spacing-* tokens being used for max-width utilities
- * - Solution: Defined separate --max-width-* tokens in theme.css
+ * - Root cause: --spacing-* tokens being used for max-width utilities
+ * - Solution: Defined separate --container-* tokens in index.css @theme block
  */
 
 test.describe('Tailwind v4 max-w-* utilities regression tests', () => {
