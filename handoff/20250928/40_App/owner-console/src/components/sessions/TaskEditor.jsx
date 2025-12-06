@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Dialog,
@@ -62,6 +62,18 @@ const TaskEditor = ({
     type: task?.type || 'WRITE_CODE'
   })
   const [errors, setErrors] = useState({})
+
+  // Reset form when task changes or dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: task?.name || '',
+        description: task?.description || '',
+        type: task?.type || 'WRITE_CODE'
+      })
+      setErrors({})
+    }
+  }, [task, isOpen])
 
   const handleInputChange = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
