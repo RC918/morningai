@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   Badge,
@@ -188,18 +188,24 @@ const TaskPlanTimeline = ({
     // Announce changes to screen readers
     const announce = useCallback((message) => {
       setAnnouncement(message)
-      // Clear announcement after a short delay to allow re-announcement of same message
-      setTimeout(() => setAnnouncement(''), 1000)
     }, [])
+
+    // Clear announcement after a short delay to allow re-announcement of same message
+    // Using useEffect with cleanup to prevent memory leaks on unmount
+    useEffect(() => {
+      if (!announcement) return
+      const timer = setTimeout(() => setAnnouncement(''), 1000)
+      return () => clearTimeout(timer)
+    }, [announcement])
 
     // Handle keyboard-based task reordering (Alt+Up/Down)
     const handleKeyboardReorder = useCallback((e, task, index) => {
       if (!editable) return
 
-      // Space or Enter to grab/release task
+      // Space or Enter: if a task is already grabbed, release it; otherwise let the expand/collapse handler run
       if (e.key === ' ' || e.key === 'Enter') {
         if (keyboardGrabbedIndex === null) {
-          // Not currently grabbing - toggle expand instead (existing behavior)
+          // Not currently grabbing - let the expand/collapse handler run
           return
         } else {
           // Release the grabbed task
