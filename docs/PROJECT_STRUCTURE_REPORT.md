@@ -258,7 +258,7 @@ This document provides a comprehensive overview of the MorningAI project structu
   - **Owner Console**: 59.89% lines, 45.76% branches (32 E2E tests, 218 unit tests)
   - **Backend**: 74%+ (超過目標，CI 環境已修復)
   - **Target**: 80% by Q2 2026
-- **Active Branches**: `main` (production), `develop` (staging)
+- **Active Branches**: `main` (production) - trunk-based development model
 - **Recent Activity**: 116 commits in past 9 days (2025-11-12 至 2025-11-21)
 - **CI Status**: All workflows passing (backend.yml, test-apps.yml unified)
 
@@ -1138,7 +1138,9 @@ SENTRY_ENVIRONMENT=production
 - Redis: Upstash (shared, key prefix: `stg:`)
 - Monitoring: Sentry (environment: staging)
 
-**Branch**: `develop`
+**Branch**: `main` (with `ENVIRONMENT=staging` for backend services)
+
+> **Note**: This project uses a trunk-based development model. There is no persistent `develop` branch. Staging is handled via Render backend services (deploying from `main` with staging env vars) and Vercel preview deployments.
 
 **Status**: ✅ Fully Operational (as of 2025-11-04)
 
@@ -1191,7 +1193,7 @@ TESTING=false
 - **Production**: `app.gm365.me` (dashboard), `admin.gm365.me` (owner console)
 - **Staging**: `staging.morningai.me` (dashboard), `staging-owner.morningai.me` (owner console)
 - **Preview**: Auto-deploy for `feature/*`, `fix/*`, `devin/*` branches
-- **Branch Policy**: `develop` → staging, `main` → production
+- **Branch Policy**: `main` → production, `feature/*|fix/*|devin/*` → preview
 - **Ignore Script**: `scripts/vercel-ignore.sh` (skips docs-only changes)
 - **Documentation**: [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 - **Cost**: $0/month (Free tier)
@@ -1211,29 +1213,23 @@ TESTING=false
 - **Isolation**: Key prefixes (`stg:` for staging)
 - **Cost**: $0/month (Free tier) or $10/month (Pay-as-you-go)
 
-### Deployment Workflow
+### Deployment Workflow (Trunk-Based)
 
 ```mermaid
 graph LR
-    A[Feature Branch] -->|PR| B[develop]
-    B -->|Auto-deploy| C[Staging Environment]
-    C -->|Manual Test| D{Tests Pass?}
-    D -->|Yes| E[PR to main]
-    E -->|Manual Approval| F[Production]
-    D -->|No| A
+    A[Feature Branch] -->|PR| B[main]
+    B -->|Auto-deploy| C[Production]
+    A -->|Preview Deploy| D[Staging Test]
+    D -->|Manual Test| E{Tests Pass?}
+    E -->|Yes| B
+    E -->|No| A
 ```
 
-**CI/CD Workflows**:
-1. **Staging CI** (`.github/workflows/staging-deploy.yml`)
-   - Trigger: Push/PR to `develop`
-   - Tests: Backend (pytest + coverage), Frontend (build)
-   - Deploy: Auto-deploy to Render staging services
-
-2. **Production CI** (`.github/workflows/backend.yml`, etc.)
-   - Trigger: Push to `main`
-   - Tests: Full test suite, E2E tests
-   - Deploy: Auto-deploy to production services
-   - Validation: Post-deploy health checks (90% SLA)
+**CI/CD Workflows** (`.github/workflows/backend.yml`, etc.):
+- **Trigger**: Push/PR to `main` branch
+- **Tests**: Backend (pytest + coverage 74%+), Frontend (build), E2E tests
+- **Deploy**: Auto-deploy to production services on merge to `main`
+- **Validation**: Post-deploy health checks (90% SLA)
 
 ### Docker Configuration
 
@@ -1334,23 +1330,25 @@ primary_region = "nrt"
 
 ## Development Workflows
 
-### Git Workflow
+### Git Workflow (Trunk-Based)
 
 **Branches**:
-- `main`: Production branch
-- `develop`: Staging branch
+- `main`: Production branch (single long-lived branch)
 - `feature/*`: Feature branches
 - `fix/*`: Bug fix branches
 - `hotfix/*`: Hotfix branches
+- `devin/*`: AI-assisted development branches
+
+> **Note**: This project uses a trunk-based development model. There is no persistent `develop` branch.
 
 **Workflow**:
-1. Create feature branch from `develop`
+1. Create feature branch from `main`
 2. Develop and commit changes
-3. Create PR to `develop`
-4. Auto-deploy to staging
-5. Test on staging
-6. Create PR to `main` (after staging validation)
-7. Manual approval required
+3. Create PR to `main`
+4. Vercel creates preview deployment for testing
+5. Test on staging backend + preview frontend
+6. Get PR approval
+7. Merge to `main`
 8. Auto-deploy to production
 
 ### PR Guidelines

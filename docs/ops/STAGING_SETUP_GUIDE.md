@@ -1,17 +1,21 @@
 # Staging Environment Setup Guide
 
+> **Note (2025-12-07)**: This project now uses a **trunk-based development model**. The `develop` branch has been removed. Staging is handled via:
+> - **Backend**: Render staging services (`morningai-backend-v2-stg`, `morningai-orchestrator-api-stg`) deploying from `main` with staging environment variables
+> - **Frontend**: Vercel preview deployments from feature branches (`feature/*`, `fix/*`, `devin/*`)
+
 ## ✅ Phase 1 Complete (已完成)
 
 ### What's Been Done
 
-1. **✅ `develop` Branch Created**
-   - Branch: `develop` 
-   - Remote: https://github.com/RC918/morningai/tree/develop
-   - Status: Pushed and ready
+1. **✅ Trunk-Based Development Model**
+   - Branch: `main` (single long-lived branch)
+   - Staging services deploy from `main` with `ENVIRONMENT=staging`
+   - Status: Active
 
 2. **✅ Staging CI Workflow**
    - File: `.github/workflows/staging-deploy.yml`
-   - Triggers: Push/PR to `develop` branch
+   - Triggers: Push/PR to `main` branch (for staging services)
    - Tests: Backend (pytest + coverage), Frontend (build), Smoke tests
    - Environment: `ENVIRONMENT=staging`
 
@@ -35,7 +39,7 @@
 1. **✅ Backend Staging Service**
    - Service Name: `morningai-backend-v2-stg`
    - URL: https://morningai-backend-v2-stg.onrender.com
-   - Branch: `develop`
+   - Branch: `main` (with `ENVIRONMENT=staging`)
    - Runtime: Python 3
    - Status: ✅ Healthy
    - Database: ✅ Connected (Supabase PostgreSQL)
@@ -44,7 +48,7 @@
 2. **✅ Orchestrator Staging Service**
    - Service Name: `morningai-orchestrator-api-stg`
    - URL: https://morningai-orchestrator-api-stg.onrender.com
-   - Branch: `develop`
+   - Branch: `main` (with `ENVIRONMENT=staging`)
    - Runtime: Docker
    - Status: ✅ Healthy
    - Redis: ✅ Connected (TLS)
@@ -89,13 +93,13 @@ Create 2 staging services on Render to mirror critical production services:
 |---------|-------|
 | **Name** | `morningai-backend-v2-stg` |
 | **Region** | Oregon (US West) or Tokyo (Asia) |
-| **Branch** | `develop` |
+| **Branch** | `main` |
 | **Root Directory** | `handoff/20250928/40_App/api-backend` |
 | **Runtime** | Python 3 |
 | **Build Command** | `pip install -r requirements.txt` |
 | **Start Command** | `gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 src.main:app` |
 | **Instance Type** | Starter ($7/month) |
-| **Auto-Deploy** | Yes (on push to `develop`) |
+| **Auto-Deploy** | Yes (on push to `main`) |
 
 #### Environment Variables
 
@@ -175,13 +179,13 @@ HITL_APPROVAL_ENABLED=false
 |---------|-------|
 | **Name** | `morningai-orchestrator-api-stg` |
 | **Region** | Oregon (US West) or Tokyo (Asia) |
-| **Branch** | `develop` |
+| **Branch** | `main` |
 | **Root Directory** | `.` (repository root) |
 | **Runtime** | Docker |
 | **Docker Build Context** | `.` |
 | **Dockerfile Path** | `orchestrator/Dockerfile` |
 | **Instance Type** | Starter ($7/month) |
-| **Auto-Deploy** | Yes (on push to `develop`) |
+| **Auto-Deploy** | Yes (on push to `main`) |
 
 #### Environment Variables
 
@@ -243,10 +247,10 @@ openssl rand -hex 32
 
 ### Option A: Automatic Preview Deployments (推薦)
 
-Vercel automatically creates preview deployments for all branches:
+Vercel automatically creates preview deployments for feature branches:
 
-1. **Push to `develop` branch** → Vercel auto-deploys
-2. **Preview URL**: `https://morningai-git-develop-rc918.vercel.app`
+1. **Push to feature branch** (`feature/*`, `fix/*`, `devin/*`) → Vercel auto-deploys
+2. **Preview URL**: `https://morningai-git-{branch-name}-rc918.vercel.app`
 3. **No configuration needed** ✅
 
 ### Option B: Custom Staging Domain (進階)
@@ -254,9 +258,9 @@ Vercel automatically creates preview deployments for all branches:
 If you want a fixed staging URL:
 
 1. **Go to Vercel Dashboard** → Project Settings
-2. **Git** → Add `develop` as Production Branch
+2. **Git** → Configure branch alias for staging
 3. **Domains** → Add custom domain: `staging.morningai.app`
-4. **Environment Variables** (for `develop` branch):
+4. **Environment Variables** (for preview deployments):
 
 ```bash
 VITE_API_BASE_URL=https://morningai-backend-v2-stg.onrender.com
@@ -333,24 +337,24 @@ curl https://morningai-backend-v2-stg.onrender.com/api/agent/tasks/abc123
 
 ## 🔄 Deployment Workflow
 
-### Development → Staging → Production
+### Development → Production (Trunk-Based)
 
 ```mermaid
 graph LR
-    A[Feature Branch] -->|PR| B[develop]
-    B -->|Auto-deploy| C[Staging Environment]
-    C -->|Manual Test| D{Tests Pass?}
-    D -->|Yes| E[PR to main]
-    E -->|Manual Approval| F[Production]
-    D -->|No| A
+    A[Feature Branch] -->|PR| B[main]
+    B -->|Auto-deploy| C[Production]
+    A -->|Preview Deploy| D[Staging Test]
+    D -->|Manual Test| E{Tests Pass?}
+    E -->|Yes| B
+    E -->|No| A
 ```
 
 ### Step-by-Step
 
 1. **Create Feature Branch**
    ```bash
-   git checkout develop
-   git pull origin develop
+   git checkout main
+   git pull origin main
    git checkout -b feature/my-feature
    ```
 
@@ -361,20 +365,18 @@ graph LR
    git push origin feature/my-feature
    ```
 
-3. **Create PR to `develop`**
-   - GitHub will run staging CI checks
-   - Auto-deploys to Render staging services
+3. **Create PR to `main`**
+   - GitHub will run CI checks
+   - Vercel creates preview deployment for testing
 
 4. **Test on Staging**
-   - Verify at `https://morningai-backend-v2-stg.onrender.com`
+   - Frontend: Use Vercel preview URL
+   - Backend: Verify at `https://morningai-backend-v2-stg.onrender.com`
    - Run manual tests
    - Check logs in Render dashboard
 
-5. **Merge to `develop`**
-   - Staging environment updated
-
-6. **Create PR to `main`** (when ready for production)
-   - Requires manual approval
+5. **Merge to `main`** (when ready for production)
+   - Requires PR approval
    - Deploys to production services
 
 ---
@@ -433,10 +435,10 @@ python -c "from sqlalchemy import create_engine; engine = create_engine('$DATABA
 - Disable auto-suspend in Render dashboard
 - Or: Set up cron job to ping `/healthz` every 10 minutes
 
-### Issue: CI checks fail on `develop`
+### Issue: CI checks fail
 
 **Check**:
-1. `.github/workflows/staging-deploy.yml` syntax
+1. `.github/workflows/` CI workflow syntax
 2. Test coverage threshold (74%+)
 3. Environment variables in CI (REDIS_URL, TESTING=true)
 
@@ -455,8 +457,8 @@ pytest --cov=src --cov-fail-under=74 -v
 ## 📝 Checklist
 
 ### Phase 1 (完成 ✅)
-- [x] Create `develop` branch
-- [x] Push `develop` to remote
+- [x] Trunk-based development model (single `main` branch)
+- [x] Staging services deploy from `main` with `ENVIRONMENT=staging`
 - [x] Create staging CI workflow
 - [x] Create Supabase staging project
 - [x] Receive staging credentials
@@ -491,8 +493,8 @@ pytest --cov=src --cov-fail-under=74 -v
 
 ## 🔗 Quick Links
 
-- **Staging Branch**: https://github.com/RC918/morningai/tree/develop
-- **Staging CI**: https://github.com/RC918/morningai/actions/workflows/staging-deploy.yml
+- **Main Branch**: https://github.com/RC918/morningai/tree/main
+- **CI Workflows**: https://github.com/RC918/morningai/actions
 - **Supabase Dashboard**: https://supabase.com/dashboard/project/dckisglnlemvpvmyvnut
 - **Render Dashboard**: https://dashboard.render.com/
 - **Staging Environment Plan**: `docs/ops/staging-environment-plan.md` (500+ lines)

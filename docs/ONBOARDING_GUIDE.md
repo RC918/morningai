@@ -553,12 +553,14 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 **Infrastructure**:
 - **Database**: Supabase PostgreSQL (staging: dckisglnlemvpvmyvnut)
 - **Redis**: Upstash (shared, key prefix: `stg:`)
-- **Branch**: `develop`
+- **Branch**: `main` (with `ENVIRONMENT=staging` for backend services)
 - **Auto-Deploy**: Yes
 - **Status**: ✅ Fully Operational
 
+> **Note**: This project uses a trunk-based development model. There is no persistent `develop` branch. Staging is handled via Render backend services (deploying from `main` with staging env vars) and Vercel preview deployments.
+
 **Frontend Deployment** (Vercel):
-- **Branch Policy**: `develop` → staging, `main` → production, `feature/*|fix/*|devin/*` → preview
+- **Branch Policy**: `main` → production, `feature/*|fix/*|devin/*` → preview
 - **Ignore Script**: Skips deployment for docs-only changes
 - **Documentation**: [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](../deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 
@@ -578,10 +580,12 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 - **Database**: Local PostgreSQL or Staging Supabase
 - **Redis**: Local Redis or Staging Redis
 
-### Deployment Flow
+### Deployment Flow (Trunk-Based)
 
 ```
-Feature Branch → develop (Staging) → main (Production)
+Feature Branch → PR → main (Production)
+                ↓
+         Preview Deploy (Staging Test)
 ```
 
 **Detailed Documentation**: [docs/ENVIRONMENTS.md](ENVIRONMENTS.md)
@@ -1223,22 +1227,24 @@ pnpm storybook
 
 ## Development Workflow
 
-### Branch Strategy
+### Branch Strategy (Trunk-Based)
 
 ```
 main (production)
   ↑
-develop (staging)
-  ↑
-feature/your-feature (development)
+feature/your-feature (development) → PR → main
+                                     ↓
+                              Preview Deploy (Staging Test)
 ```
+
+> **Note**: This project uses a trunk-based development model. There is no persistent `develop` branch.
 
 ### Creating a Feature
 
 ```bash
-# 1. Start from develop
-git checkout develop
-git pull origin develop
+# 1. Start from main
+git checkout main
+git pull origin main
 
 # 2. Create feature branch
 git checkout -b feature/your-feature-name
@@ -1250,32 +1256,31 @@ git commit -m "feat: add your feature"
 # 4. Push to remote
 git push origin feature/your-feature-name
 
-# 5. Create PR to develop
-# Go to GitHub and create Pull Request to develop branch
+# 5. Create PR to main
+# Go to GitHub and create Pull Request to main branch
+# Vercel will create a preview deployment for testing
 ```
 
 ### Testing on Staging
 
 ```bash
-# 1. Merge PR to develop
-# GitHub Actions will automatically deploy to staging
+# 1. Create PR to main
+# Vercel creates preview deployment for frontend testing
+# Backend staging: https://morningai-backend-v2-stg.onrender.com
 
-# 2. Test on staging
+# 2. Test on staging backend
 curl https://morningai-backend-v2-stg.onrender.com/healthz
 
-# 3. Verify functionality on staging environment
+# 3. Test frontend via Vercel preview URL
 ```
 
 ### Deploying to Production
 
 ```bash
-# 1. Create PR from develop to main
-# Requires manual approval
-
-# 2. After approval, merge to main
+# 1. Get PR approval and merge to main
 # GitHub Actions will automatically deploy to production
 
-# 3. Monitor production deployment
+# 2. Monitor production deployment
 curl https://morningai-backend-v2.onrender.com/healthz
 ```
 
@@ -2165,8 +2170,8 @@ After completing this onboarding guide, you should:
 2. ✅ **Run all services locally and verify they work**
 3. ✅ **Read the key documentation** (ENVIRONMENTS.md, CONTRIBUTING.md)
 4. ✅ **Create your first feature branch**
-5. ✅ **Make a small change and create a PR to develop**
-6. ✅ **Test your change on staging**
+5. ✅ **Make a small change and create a PR to main**
+6. ✅ **Test your change via Vercel preview deployment**
 7. ✅ **Join team communication channels**
 8. ✅ **Review open issues and pick your first task**
 
