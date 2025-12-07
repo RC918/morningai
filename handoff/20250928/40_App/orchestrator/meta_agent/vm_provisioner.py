@@ -34,6 +34,11 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from .distributed_vm_lock import VMRegistryEntry
 
+try:
+    from common.config.settings import settings
+except ImportError:
+    settings = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -506,23 +511,22 @@ class VMProvisioner:
         self._use_distributed_locking = False
 
         try:
-            from common.config.settings import settings
-            if settings.use_distributed_vm_locking and redis_client is not None:
+            if (
+                settings is not None
+                and getattr(settings, "use_distributed_vm_locking", False)
+                and redis_client is not None
+            ):
                 from .distributed_vm_lock import DistributedVMLockManager
                 self._distributed_lock = DistributedVMLockManager(
                     redis_client=redis_client,
                     max_concurrent_vms=max_concurrent_vms,
-                    lock_ttl_seconds=settings.vm_lock_ttl_seconds,
-                    registry_ttl_buffer=settings.vm_registry_ttl_buffer,
+                    lock_ttl_seconds=getattr(settings, "vm_lock_ttl_seconds", 300),
+                    registry_ttl_buffer=getattr(settings, "vm_registry_ttl_buffer", 300),
                 )
                 self._use_distributed_locking = True
                 logger.info(
                     "[VMProvisioner] Distributed locking enabled via Redis"
                 )
-        except ImportError:
-            logger.debug(
-                "[VMProvisioner] Distributed locking not available (settings not found)"
-            )
         except Exception as e:
             logger.warning(
                 "[VMProvisioner] Failed to initialize distributed locking: %s", e

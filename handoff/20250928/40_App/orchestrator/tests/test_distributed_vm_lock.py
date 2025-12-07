@@ -14,7 +14,7 @@ These tests verify:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from meta_agent.distributed_vm_lock import (
     DistributedVMLockManager,
@@ -104,18 +104,18 @@ class TestDistributedVMLockManager:
 
     @pytest.fixture
     def mock_redis(self):
-        """Create a mock Redis client"""
+        """Create a mock Redis client with AsyncMock for async methods"""
         redis = MagicMock()
-        redis.set = MagicMock(return_value=True)
-        redis.get = MagicMock(return_value=None)
-        redis.delete = MagicMock(return_value=1)
-        redis.eval = MagicMock(return_value=1)
-        redis.hset = MagicMock(return_value=1)
-        redis.hgetall = MagicMock(return_value={})
-        redis.hdel = MagicMock(return_value=1)
-        redis.expire = MagicMock(return_value=True)
-        redis.exists = MagicMock(return_value=0)
-        redis.keys = MagicMock(return_value=[])
+        redis.set = AsyncMock(return_value=True)
+        redis.get = AsyncMock(return_value=None)
+        redis.delete = AsyncMock(return_value=1)
+        redis.eval = AsyncMock(return_value=1)
+        redis.hset = AsyncMock(return_value=1)
+        redis.hgetall = AsyncMock(return_value={})
+        redis.hdel = AsyncMock(return_value=1)
+        redis.expire = AsyncMock(return_value=True)
+        redis.exists = AsyncMock(return_value=0)
+        redis.keys = AsyncMock(return_value=[])
         return redis
 
     @pytest.fixture
@@ -354,18 +354,18 @@ class TestVMProvisionerDistributedLocking:
 
     @pytest.fixture
     def mock_redis(self):
-        """Create a mock Redis client"""
+        """Create a mock Redis client with AsyncMock for async methods"""
         redis = MagicMock()
-        redis.set = MagicMock(return_value=True)
-        redis.get = MagicMock(return_value=None)
-        redis.delete = MagicMock(return_value=1)
-        redis.eval = MagicMock(return_value=1)
-        redis.hset = MagicMock(return_value=1)
-        redis.hgetall = MagicMock(return_value={})
-        redis.hdel = MagicMock(return_value=1)
-        redis.expire = MagicMock(return_value=True)
-        redis.exists = MagicMock(return_value=0)
-        redis.keys = MagicMock(return_value=[])
+        redis.set = AsyncMock(return_value=True)
+        redis.get = AsyncMock(return_value=None)
+        redis.delete = AsyncMock(return_value=1)
+        redis.eval = AsyncMock(return_value=1)
+        redis.hset = AsyncMock(return_value=1)
+        redis.hgetall = AsyncMock(return_value={})
+        redis.hdel = AsyncMock(return_value=1)
+        redis.expire = AsyncMock(return_value=True)
+        redis.exists = AsyncMock(return_value=0)
+        redis.keys = AsyncMock(return_value=[])
         return redis
 
     @pytest.fixture

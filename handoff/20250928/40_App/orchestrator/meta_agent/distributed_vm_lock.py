@@ -86,7 +86,7 @@ class DistributedVMLockManager:
     4. Secondary index for O(1) task-to-VM lookups
 
     Redis Key Schema:
-        vm:lock:task:{task_id}     → Task-level lock (prevents duplicates)
+        vm:task_lock:{task_id}     → Task-level lock (prevents duplicates)
         vm:registry:{vm_id}        → VM state (replaces in-memory _vms dict)
         vm:task_to_vm:{task_id}    → Secondary index: task_id → vm_id
         vm:active_count            → Counter for active VMs
@@ -108,7 +108,7 @@ class DistributedVMLockManager:
             lock_ttl_seconds: TTL for task locks (default: 5 minutes)
             registry_ttl_buffer: Additional TTL buffer for registry entries
         """
-        self.redis = redis_client
+        self.redis_client = redis_client
         self.max_concurrent_vms = max_concurrent_vms
         self.lock_ttl_seconds = lock_ttl_seconds
         self.registry_ttl_buffer = registry_ttl_buffer
@@ -123,7 +123,7 @@ class DistributedVMLockManager:
     @property
     def is_available(self) -> bool:
         """Check if Redis is available for distributed locking."""
-        return self.redis is not None
+        return self.redis_client is not None
 
     async def acquire_task_lock(self, task_id: str) -> bool:
         """
@@ -138,14 +138,14 @@ class DistributedVMLockManager:
         Returns:
             True if lock acquired, False otherwise
         """
-        if not self.redis:
+        if not self.redis_client:
             return True
 
-        lock_key = f"vm:lock:task:{task_id}"
+        lock_key = f"vm:task_lock:{task_id}"
         lock_token = uuid.uuid4().hex
 
         try:
-            acquired = await self.redis.set(
+            acquired = await self.redis_client.set(
                 lock_key,
                 lock_token,
                 nx=True,
@@ -180,10 +180,10 @@ class DistributedVMLockManager:
         Returns:
             True if lock released, False otherwise
         """
-        if not self.redis:
+        if not self.redis_client:
             return True
 
-        lock_key = f"vm:lock:task:{task_id}"
+        lock_key = f"vm:task_lock:{task_id}"
         lock_token = self._task_lock_tokens.get(task_id)
         if not lock_token:
             return False
@@ -197,7 +197,7 @@ class DistributedVMLockManager:
         """
 
         try:
-            deleted = await self.redis.eval(script, 1, lock_key, lock_token)
+            deleted = await self.redis_client.eval(script, 1, lock_key, lock_token)
             if deleted:
                 self._task_lock_tokens.pop(task_id, None)
                 logger.debug(
@@ -222,7 +222,7 @@ class DistributedVMLockManager:
         Returns:
             True if slot acquired, False if limit reached
         """
-        if not self.redis:
+        if not self.redis_client:
             return True
 
         script = """
@@ -238,7 +238,7 @@ class DistributedVMLockManager:
         """
 
         try:
-            result = await self.redis.eval(
+            result = await self.redis_client.eval(
                 script, 1,
                 "vm:active_count",
                 self.max_concurrent_vms
@@ -261,14 +261,17 @@ class DistributedVMLockManager:
             )
             return False
 
-    async def release_vm_slot(self) -> None:
+    async def release_vm_slot(self) -> bool:
         """
         Release a slot when VM is destroyed.
 
         Decrements the active count, with floor at 0.
+
+        Returns:
+            True if slot released successfully, False on error
         """
-        if not self.redis:
-            return
+        if not self.redis_client:
+            return True
 
         script = """
         local current = tonumber(redis.call("get", KEYS[1]) or "0")
@@ -279,13 +282,15 @@ class DistributedVMLockManager:
         """
 
         try:
-            await self.redis.eval(script, 1, "vm:active_count")
+            await self.redis_client.eval(script, 1, "vm:active_count")
             logger.debug("[DistributedVMLockManager] Released VM slot")
+            return True
 
         except Exception as e:
             logger.error(
                 "[DistributedVMLockManager] Failed to release VM slot: %s", e
             )
+            return False
 
     async def register_vm(self, entry: VMRegistryEntry) -> None:
         """
@@ -297,7 +302,7 @@ class DistributedVMLockManager:
         Args:
             entry: VM registry entry to store
         """
-        if not self.redis:
+        if not self.redis_client:
             return
 
         vm_key = f"vm:registry:{entry.vm_id}"
@@ -307,10 +312,10 @@ class DistributedVMLockManager:
 
         try:
             vm_data = entry.to_dict()
-            await self.redis.hset(vm_key, mapping=vm_data)
-            await self.redis.expire(vm_key, ttl)
+            await self.redis_client.hset(vm_key, mapping=vm_data)
+            await self.redis_client.expire(vm_key, ttl)
 
-            await self.redis.set(index_key, entry.vm_id, ex=ttl)
+            await self.redis_client.set(index_key, entry.vm_id, ex=ttl)
 
             logger.debug(
                 "[DistributedVMLockManager] Registered VM %s for task %s",
@@ -333,14 +338,14 @@ class DistributedVMLockManager:
             vm_id: VM ID to unregister
             task_id: Task ID associated with the VM
         """
-        if not self.redis:
+        if not self.redis_client:
             return
 
         vm_key = f"vm:registry:{vm_id}"
         index_key = f"vm:task_to_vm:{task_id}"
 
         try:
-            await self.redis.delete(vm_key)
+            await self.redis_client.delete(vm_key)
 
             script = """
             if redis.call("get", KEYS[1]) == ARGV[1] then
@@ -349,7 +354,7 @@ class DistributedVMLockManager:
                 return 0
             end
             """
-            await self.redis.eval(script, 1, index_key, vm_id)
+            await self.redis_client.eval(script, 1, index_key, vm_id)
 
             logger.debug(
                 "[DistributedVMLockManager] Unregistered VM %s", vm_id
@@ -372,13 +377,13 @@ class DistributedVMLockManager:
         Returns:
             VMRegistryEntry if found and active, None otherwise
         """
-        if not self.redis:
+        if not self.redis_client:
             return None
 
         index_key = f"vm:task_to_vm:{task_id}"
 
         try:
-            vm_id = await self.redis.get(index_key)
+            vm_id = await self.redis_client.get(index_key)
             if not vm_id:
                 return None
 
@@ -386,7 +391,7 @@ class DistributedVMLockManager:
                 vm_id = vm_id.decode()
 
             vm_key = f"vm:registry:{vm_id}"
-            vm_data = await self.redis.hgetall(vm_key)
+            vm_data = await self.redis_client.hgetall(vm_key)
             if not vm_data:
                 return None
 
@@ -410,7 +415,7 @@ class DistributedVMLockManager:
     async def wait_for_vm_or_lock(
         self,
         task_id: str,
-        timeout_seconds: float = MAX_LOCK_WAIT_SECONDS,
+        max_wait_seconds: float = MAX_LOCK_WAIT_SECONDS,
     ) -> Optional[VMRegistryEntry]:
         """
         Wait for either an existing VM to appear or acquire the lock ourselves.
@@ -420,7 +425,7 @@ class DistributedVMLockManager:
 
         Args:
             task_id: Task ID to wait for
-            timeout_seconds: Maximum time to wait
+            max_wait_seconds: Maximum time to wait
 
         Returns:
             VMRegistryEntry if another worker created one, None if we acquired the lock
@@ -428,10 +433,10 @@ class DistributedVMLockManager:
         Raises:
             RuntimeError: If timed out waiting for lock or VM
         """
-        if not self.redis:
+        if not self.redis_client:
             return None
 
-        deadline = time.monotonic() + timeout_seconds
+        deadline = time.monotonic() + max_wait_seconds
 
         while time.monotonic() < deadline:
             vm = await self.get_vm_for_task(task_id)
@@ -458,11 +463,11 @@ class DistributedVMLockManager:
         Returns:
             Current active VM count, or 0 if unavailable
         """
-        if not self.redis:
+        if not self.redis_client:
             return 0
 
         try:
-            count = await self.redis.get("vm:active_count")
+            count = await self.redis_client.get("vm:active_count")
             if count is None:
                 return 0
             if isinstance(count, bytes):
@@ -484,18 +489,18 @@ class DistributedVMLockManager:
         Returns:
             Number of stale entries cleaned up
         """
-        if not self.redis:
+        if not self.redis_client:
             return 0
 
         cleaned = 0
         actual_active = 0
 
         try:
-            async for key in self.redis.scan_iter("vm:registry:*"):
+            async for key in self.redis_client.scan_iter("vm:registry:*"):
                 if isinstance(key, bytes):
                     key = key.decode()
 
-                vm_data = await self.redis.hgetall(key)
+                vm_data = await self.redis_client.hgetall(key)
                 if not vm_data:
                     continue
 
@@ -510,10 +515,10 @@ class DistributedVMLockManager:
                 if status in {"ready", "running", "creating"}:
                     actual_active += 1
                 elif status in {"stopped", "failed", "terminated"}:
-                    await self.redis.delete(key)
+                    await self.redis_client.delete(key)
                     cleaned += 1
 
-            await self.redis.set("vm:active_count", actual_active)
+            await self.redis_client.set("vm:active_count", actual_active)
 
             if cleaned > 0:
                 logger.info(
@@ -541,17 +546,17 @@ class DistributedVMLockManager:
         Returns:
             True if updated successfully, False otherwise
         """
-        if not self.redis:
+        if not self.redis_client:
             return True
 
         vm_key = f"vm:registry:{vm_id}"
 
         try:
-            exists = await self.redis.exists(vm_key)
+            exists = await self.redis_client.exists(vm_key)
             if not exists:
                 return False
 
-            await self.redis.hset(vm_key, "status", status)
+            await self.redis_client.hset(vm_key, "status", status)
             logger.debug(
                 "[DistributedVMLockManager] Updated VM %s status to %s",
                 vm_id, status
