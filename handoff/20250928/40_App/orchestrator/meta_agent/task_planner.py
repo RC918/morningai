@@ -5,7 +5,14 @@ This module implements automatic task decomposition, breaking down high-level
 goals into executable subtasks with dependencies and execution order.
 
 Issue: #1821 - Meta Agent 自主任務規劃與執行
+Issue: #2072 - Failure Learning Context Integration
 Milestone: M5 - Meta Agent 優化
+
+Features:
+- Template-based task decomposition by goal type
+- LLM-enhanced planning (optional)
+- Failure learning context integration (Phase 2 Brain Layer)
+- Automatic recovery planning from failures
 """
 
 import logging
@@ -18,6 +25,62 @@ from typing import Any, Dict, List, Optional, Set
 from .goal_parser import GoalType, ParsedGoal
 
 logger = logging.getLogger(__name__)
+
+
+def _get_failure_learning_enabled() -> bool:
+    """
+    Check if failure learning context is enabled.
+
+    Returns:
+        True if ENABLE_FAILURE_LEARNING_CONTEXT is enabled, False otherwise
+    """
+    try:
+        from common.config.settings import settings
+        return getattr(settings, 'enable_failure_learning_context', True)
+    except ImportError:
+        logger.debug("[TaskPlanner] Settings not available, defaulting to enabled")
+        return True
+
+
+def _get_learning_context(goal_summary: str, task_type: Optional[str] = None) -> str:
+    """
+    Get learning context from past failures for planning.
+
+    This function queries the Observer Node for similar past failures
+    and returns formatted context for the planner.
+
+    Args:
+        goal_summary: Summary of the current goal
+        task_type: Optional task type for filtering
+
+    Returns:
+        Formatted learning context string, empty if not available
+    """
+    if not _get_failure_learning_enabled():
+        logger.debug("[TaskPlanner] Failure learning context disabled")
+        return ""
+
+    try:
+        # Dual-path import: prefer local-module import when orchestrator/ is on sys.path
+        # (which is the standard test/run environment), fallback to package import
+        try:
+            from observer_node import get_learning_context  # type: ignore[import]
+        except ImportError:
+            from orchestrator.observer_node import get_learning_context  # type: ignore[import]
+
+        context = get_learning_context(goal_summary, task_type)
+        if context:
+            logger.info(
+                "[TaskPlanner] Retrieved failure learning context (%d chars)",
+                len(context)
+            )
+        return context
+    except ImportError as e:
+        logger.debug("[TaskPlanner] Observer node not available: %s", e)
+        return ""
+    except Exception as e:
+        logger.warning("[TaskPlanner] Failed to get learning context: %s", e)
+        return ""
 
 
 class SubTaskType(Enum):
@@ -227,6 +290,9 @@ class TaskPlanner:
         """
         Create an execution plan for a parsed goal.
 
+        This method integrates failure learning context from the Observer Node
+        (Phase 2 Brain Layer) to help avoid repeating past mistakes.
+
         Args:
             goal: The parsed goal to plan for
             context: Optional context information
@@ -241,10 +307,24 @@ class TaskPlanner:
             "[TaskPlanner] Creating plan for goal %s (type: %s)",
             goal.goal_id[:8], goal.goal_type.value)
 
+        # Get failure learning context from Observer Node (#2072)
+        learning_context = _get_learning_context(
+            goal_summary=goal.summary,
+            task_type=goal.goal_type.value if goal.goal_type else None
+        )
+
+        # Add learning context to the planning context
+        if learning_context:
+            context["failure_learning_context"] = learning_context
+            logger.info(
+                "[TaskPlanner] Added failure learning context to plan %s",
+                plan_id[:8]
+            )
+
         # Get base template for goal type
         template = self.TASK_TEMPLATES.get(goal.goal_type, self.TASK_TEMPLATES[GoalType.FEATURE_DEVELOPMENT])
 
-        # Generate subtasks from template
+        # Generate subtasks from template (includes learning context in inputs)
         subtasks = self._generate_subtasks(goal, template, context)
 
         # Adjust based on complexity
@@ -266,14 +346,15 @@ class TaskPlanner:
             total_estimated_minutes=total_minutes,
             metadata={
                 "context": context,
-                "planner_version": "1.0.0",
+                "planner_version": "1.1.0",  # Version bump for learning context
                 "template_used": goal.goal_type.value,
+                "has_learning_context": bool(learning_context),
             },
         )
 
         logger.info(
-            "[TaskPlanner] Created plan %s: %d subtasks, estimated %d minutes",
-            plan_id[:8], len(subtasks), total_minutes
+            "[TaskPlanner] Created plan %s: %d subtasks, estimated %d minutes, learning_context=%s",
+            plan_id[:8], len(subtasks), total_minutes, bool(learning_context)
         )
 
         return plan
@@ -284,12 +365,39 @@ class TaskPlanner:
         template: List[tuple],
         context: Dict[str, Any]
     ) -> List[SubTask]:
-        """Generate subtasks from template and goal objectives"""
+        """
+        Generate subtasks from template and goal objectives.
+
+        Includes failure learning context from Observer Node (#2072) in subtask
+        inputs to help agents avoid repeating past mistakes.
+        """
         subtasks = []
+
+        # Extract failure learning context if available
+        learning_context = context.get("failure_learning_context", "")
 
         for i, (task_type, description, agent_type, duration) in enumerate(template):
             # Customize description based on goal
             customized_desc = self._customize_description(description, goal)
+
+            # Build subtask inputs with learning context
+            task_inputs: Dict[str, Any] = {
+                "goal_summary": goal.summary,
+                "objectives": goal.objectives,
+                "constraints": goal.constraints,
+                "repo": context.get("repo", "RC918/morningai"),
+            }
+
+            # Add learning context to relevant task types (#2072)
+            # Include learning context for analysis and code tasks where
+            # past failure knowledge is most valuable
+            if learning_context and task_type in [
+                SubTaskType.ANALYZE_CODE,
+                SubTaskType.WRITE_CODE,
+                SubTaskType.WRITE_TEST,
+                SubTaskType.RUN_TEST,
+            ]:
+                task_inputs["failure_learning_context"] = learning_context
 
             task = SubTask(
                 task_id=f"{goal.goal_id[:8]}-{i:02d}",
@@ -298,12 +406,7 @@ class TaskPlanner:
                 priority=i,
                 estimated_duration_minutes=duration,
                 agent_type=agent_type,
-                inputs={
-                    "goal_summary": goal.summary,
-                    "objectives": goal.objectives,
-                    "constraints": goal.constraints,
-                    "repo": context.get("repo", "RC918/morningai"),
-                },
+                inputs=task_inputs,
             )
             subtasks.append(task)
 
