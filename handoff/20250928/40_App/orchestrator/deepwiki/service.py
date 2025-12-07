@@ -14,7 +14,9 @@ Feature Flag: ENABLE_DEEPWIKI (default: False)
 """
 
 import logging
+import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any, Optional, List
@@ -88,7 +90,6 @@ class DeepWikiService:
         self.enable_embeddings = enable_embeddings
         
         self._kg_manager = None
-        self._query_counter = 0
         
         logger.info("[DeepWiki] Service initialized", extra={
             "operation": "init",
@@ -111,9 +112,8 @@ class DeepWikiService:
         return self._kg_manager
     
     def _generate_query_id(self) -> str:
-        """Generate unique query ID."""
-        self._query_counter += 1
-        return f"dw-{int(time.time())}-{self._query_counter}"
+        """Generate unique query ID using UUID for thread safety."""
+        return f"dw-{uuid.uuid4()}"
     
     def query(
         self,
@@ -496,30 +496,40 @@ class DeepWikiService:
 
 
 _deepwiki_service: Optional[DeepWikiService] = None
+_deepwiki_service_lock = threading.Lock()
 
 
 def get_deepwiki_service() -> DeepWikiService:
     """
     Get or create the DeepWiki service singleton.
     
+    Uses double-checked locking pattern for thread safety.
+    
     Returns:
         DeepWikiService instance
     """
     global _deepwiki_service
     
-    if _deepwiki_service is None:
-        try:
-            from common.config.settings import settings
-            
-            if not getattr(settings, 'enable_deepwiki', False):
-                logger.warning("[DeepWiki] Service disabled via ENABLE_DEEPWIKI flag")
-            
-            _deepwiki_service = DeepWikiService(
-                enable_kg=getattr(settings, 'enable_knowledge_graph_learning', False),
-                enable_error_pairs=getattr(settings, 'enable_failure_learning_context', True),
-                enable_embeddings=True,
-            )
-        except ImportError:
-            _deepwiki_service = DeepWikiService()
+    # First check without lock (fast path)
+    if _deepwiki_service is not None:
+        return _deepwiki_service
+    
+    # Acquire lock for thread-safe initialization
+    with _deepwiki_service_lock:
+        # Double-check after acquiring lock
+        if _deepwiki_service is None:
+            try:
+                from common.config.settings import settings
+                
+                if not getattr(settings, 'enable_deepwiki', False):
+                    logger.warning("[DeepWiki] Service disabled via ENABLE_DEEPWIKI flag")
+                
+                _deepwiki_service = DeepWikiService(
+                    enable_kg=getattr(settings, 'enable_knowledge_graph_learning', False),
+                    enable_error_pairs=getattr(settings, 'enable_failure_learning_context', True),
+                    enable_embeddings=True,
+                )
+            except ImportError:
+                _deepwiki_service = DeepWikiService()
     
     return _deepwiki_service
