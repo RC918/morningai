@@ -6,12 +6,55 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 2.0.0  
-**Last Updated**: 2025-12-05  
-**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory) + Phase 4 (Refactor Agent)  
+**Document Version**: 2.1.0  
+**Last Updated**: 2025-12-07  
+**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory) + Phase 4 (Refactor Agent) + VSCode/MCP Integration  
 **Test Coverage**: 59.89% (Owner Console), 70%+ (Orchestrator), 74%+ (Backend)  
-**Recent Activity**: 340+ commits on main (2025-11-12 至 2025-12-05，快照值截至 2025-12-05)  
+**Recent Activity**: 440+ commits on main (2025-11-12 至 2025-12-07，快照值截至 2025-12-07)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
+
+**Recent PRs (Dec 6 - Dec 7, 2025)**:
+
+*VSCode/MCP Integration & Meta-Agent Production Wiring:*
+- **PR #2114** (Merged): feat(meta-agent): integrate VSCodeIDEService into production code
+  - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py` (major update)
+  - New: VM/IDE lifecycle management integrated into AutonomousExecutor
+- **PR #2067** (Merged): feat(meta-agent): implement MCP HTTP client for cloud IDE integration
+  - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py` (core implementation)
+- **PR #2106** (Merged): perf(vscode-ide): share aiohttp ClientSession for connection reuse
+- **PR #2102** (Merged): refactor(vscode-ide): extract constants and use exponential backoff
+- **PR #2077** (Merged): security(vscode-ide): truncate error logs to prevent sensitive data leakage
+
+*VSCode/MCP Documentation & Infrastructure:*
+- **PR #2101** (Merged): docs(meta-agent): add Tier 2 VSCode/VM documentation
+  - Path: `handoff/20250928/40_App/orchestrator/docs/` (new directory)
+  - New files: `TERMINAL_ACCESS.md`, `VM_LOCKING_DESIGN.md`, `VM_PROVISIONER_LIFECYCLE.md`
+- **PR #2115** (Merged): docs(orchestrator): add cross-process limitation note and environment settings
+- **PR #2110** (Merged): test(vscode-ide): use mocker.patch.object() for cleaner test mocking
+  - Path: `handoff/20250928/40_App/orchestrator/requirements-test.txt` (added pytest-mock)
+
+*Documentation Auto-Generation Security:*
+- **PR #2103** (Merged): refactor(orchestrator): improve documentation auto-generation security
+  - New env var: `ORCHESTRATOR_DOCS_MAX_PRS_PER_HOUR` (integer, default: 3)
+
+*Owner Console Sessions UI & Performance:*
+- **PR #2063** (Merged): feat(owner-console): integrate ConfidenceApproval and FileDiffViewer
+- **PR #2088** (Merged): refactor(owner-console): Sessions.jsx defensive code improvements
+- **PR #2089** (Merged): perf(owner-console): optimize FCP with lazy loading
+- **PR #2087** (Merged): a11y(owner-console): improve keyboard accessibility for drag-and-drop
+
+*Design System & Storybook:*
+- **PR #2068** (Merged): fix(owner-console): add base tokens to @theme for shared-ui Switch
+- **PR #2084** (Merged): docs(shared-ui): add Switch Storybook visual verification story
+  - Path: `packages/shared-ui/src/components/ui/switch.stories.tsx` (new file)
+- **PR #2083** (Merged): docs(owner-console): add Storybook stories for task plan components
+- **PR #2061** (Merged): chore(owner-console): remove dead theme.css file
+  - Path: `handoff/20250928/40_App/owner-console/src/styles/theme.css` (removed)
+
+*Security & Testing:*
+- **PR #2052** (Merged): fix(meta-agent): add TOCTOU defense in save_state()
+- **PR #2078** (Merged): test(owner-console): add XSS protection tests for TestResultsPanel
+- **PR #2079** (Merged): test(orchestrator): add unit tests for update_error_fix_pair
 
 **Recent PRs (Dec 3 - Dec 5, 2025)**:
 

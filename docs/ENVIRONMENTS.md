@@ -1,7 +1,7 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-12-05  
-**Document Version**: 2.6  
+**Last Updated**: 2025-12-07  
+**Document Version**: 2.7  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
@@ -20,6 +20,62 @@
 ## Overview
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
+
+**近期重要更新** (2025-12-06 至 2025-12-07):
+
+*VSCode/MCP Integration & Meta-Agent Production Wiring:*
+- **PR #2114**: feat(meta-agent): integrate VSCodeIDEService into production code
+  - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
+  - 影響：將 VMProvisioner 和 VSCodeIDEService 整合到 AutonomousExecutor；新增 VM/IDE 生命週期管理
+- **PR #2067**: feat(meta-agent): implement MCP HTTP client for cloud IDE integration
+  - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
+  - 影響：核心 MCP HTTP 客戶端實作
+- **PR #2106**: perf(vscode-ide): share aiohttp ClientSession for connection reuse
+  - 影響：TCP 連線池和 DNS 快取以提升 MCP 效能
+- **PR #2102**: refactor(vscode-ide): extract constants and use exponential backoff
+  - 影響：可配置的 MCP 超時、重試和錯誤日誌截斷常數
+- **PR #2077**: security(vscode-ide): truncate error logs to prevent sensitive data leakage
+  - 影響：錯誤日誌截斷至 500 字元以防止憑證洩漏
+
+*VSCode/MCP Documentation & Infrastructure:*
+- **PR #2101**: docs(meta-agent): add Tier 2 VSCode/VM documentation
+  - Path: `handoff/20250928/40_App/orchestrator/docs/` (新目錄)
+  - 新增檔案：`TERMINAL_ACCESS.md`, `VM_LOCKING_DESIGN.md`, `VM_PROVISIONER_LIFECYCLE.md`
+- **PR #2115**: docs(orchestrator): add cross-process limitation note and environment settings
+  - 影響：記錄 VM 佈建的跨進程限制和終端機能力環境設定
+- **PR #2110**: test(vscode-ide): use mocker.patch.object() for cleaner test mocking
+  - Path: `handoff/20250928/40_App/orchestrator/requirements-test.txt` (新增 pytest-mock)
+
+*Documentation Auto-Generation Security:*
+- **PR #2103**: refactor(orchestrator): improve documentation auto-generation security
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 新增環境變數：`ORCHESTRATOR_DOCS_MAX_PRS_PER_HOUR` (integer, default: 3) - 每小時最大文件 PR 數量限制
+  - 影響：防止衝突的 FAQ PR；新增主題 slug 生成和內容驗證
+
+*Owner Console Sessions UI & Performance:*
+- **PR #2063**: feat(owner-console): integrate ConfidenceApproval and FileDiffViewer
+  - 影響：Sessions 頁面現在顯示信心分數和檔案差異
+- **PR #2088**: refactor(owner-console): Sessions.jsx defensive code improvements
+  - 影響：提取 `MEDIUM_CONFIDENCE_THRESHOLD` 常數；改善 null 安全性
+- **PR #2089**: perf(owner-console): optimize FCP with lazy loading
+  - 影響：延遲載入 TaskPlanViewer 和 TaskPlanEditor 以加快首次繪製
+- **PR #2087**: a11y(owner-console): improve keyboard accessibility for drag-and-drop
+  - 影響：任務重新排序的鍵盤導航支援
+
+*Design System & Storybook:*
+- **PR #2068**: fix(owner-console): add base tokens to @theme for shared-ui Switch
+  - 影響：修復 Switch 元件在深色/淺色模式下的可見性
+- **PR #2084**: docs(shared-ui): add Switch Storybook visual verification story
+  - Path: `packages/shared-ui/src/components/ui/switch.stories.tsx` (新檔案)
+- **PR #2083**: docs(owner-console): add Storybook stories for task plan components
+- **PR #2061**: chore(owner-console): remove dead theme.css file
+  - Path: `handoff/20250928/40_App/owner-console/src/styles/theme.css` (已移除)
+
+*Security & Testing:*
+- **PR #2052**: fix(meta-agent): add TOCTOU defense in save_state()
+  - 影響：原子檔案寫入防止狀態持久化中的競爭條件
+- **PR #2078**: test(owner-console): add XSS protection tests for TestResultsPanel
+- **PR #2079**: test(orchestrator): add unit tests for update_error_fix_pair
 
 **近期重要更新** (2025-12-03 至 2025-12-05):
 
