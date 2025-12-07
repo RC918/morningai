@@ -136,7 +136,9 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     env:
-      BASELINE_SOURCE_ERRORS: 187
+      FRONTEND_DASHBOARD_BASELINE: 0
+      OWNER_CONSOLE_BASELINE: 6
+      SHARED_UI_BASELINE: 9
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm
@@ -154,21 +156,61 @@ jobs:
       - name: Build shared-ui package
         run: pnpm --filter @morningai/shared-ui build
       
-      - name: Run strict typecheck
+      - name: Run strict typecheck - frontend-dashboard
         run: |
           cd handoff/20250928/40_App/frontend-dashboard
-          pnpm run typecheck:strict 2>&1 | tee strict-report.txt || true
-          SOURCE_ERRORS=$(grep "src/" strict-report.txt | grep "error TS" | wc -l || echo 0)
-          echo "::notice::Source code errors: $SOURCE_ERRORS / ${{ env.BASELINE_SOURCE_ERRORS }} (baseline)"
-          echo "SOURCE_ERRORS=$SOURCE_ERRORS" >> $GITHUB_ENV
+          pnpm run typecheck:strict 2>&1 | tee strict-report-fd.txt || true
+          FD_ERRORS=$(grep "src/" strict-report-fd.txt | grep "error TS" | wc -l || echo 0)
+          echo "::notice::frontend-dashboard strict errors: $FD_ERRORS / ${{ env.FRONTEND_DASHBOARD_BASELINE }} (baseline)"
+          echo "FD_ERRORS=$FD_ERRORS" >> $GITHUB_ENV
       
-      - name: Upload strict typecheck report
+      - name: Run strict typecheck - owner-console
+        run: |
+          cd handoff/20250928/40_App/owner-console
+          pnpm run typecheck:strict 2>&1 | tee strict-report-oc.txt || true
+          OC_ERRORS=$(grep "src/" strict-report-oc.txt | grep "error TS" | wc -l || echo 0)
+          echo "::notice::owner-console strict errors: $OC_ERRORS / ${{ env.OWNER_CONSOLE_BASELINE }} (baseline)"
+          echo "OC_ERRORS=$OC_ERRORS" >> $GITHUB_ENV
+      
+      - name: Run strict typecheck - shared-ui
+        run: |
+          cd packages/shared-ui
+          pnpm run type-check:strict 2>&1 | tee strict-report-sui.txt || true
+          SUI_ERRORS=$(grep "src/" strict-report-sui.txt | grep "error TS" | wc -l || echo 0)
+          echo "::notice::shared-ui strict errors: $SUI_ERRORS / ${{ env.SHARED_UI_BASELINE }} (baseline)"
+          echo "SUI_ERRORS=$SUI_ERRORS" >> $GITHUB_ENV
+      
+      - name: Upload strict typecheck reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: strict-typecheck-report
-          path: handoff/20250928/40_App/frontend-dashboard/strict-report.txt
+          name: strict-typecheck-reports
+          path: |
+            handoff/20250928/40_App/frontend-dashboard/strict-report-fd.txt
+            handoff/20250928/40_App/owner-console/strict-report-oc.txt
+            packages/shared-ui/strict-report-sui.txt
           retention-days: 30
+      
+      - name: Check for regressions
+        run: |
+          REGRESSION=false
+          if [ "$FD_ERRORS" -gt "${{ env.FRONTEND_DASHBOARD_BASELINE }}" ]; then
+            echo "::error::frontend-dashboard strict errors increased: $FD_ERRORS > ${{ env.FRONTEND_DASHBOARD_BASELINE }}"
+            REGRESSION=true
+          fi
+          if [ "$OC_ERRORS" -gt "${{ env.OWNER_CONSOLE_BASELINE }}" ]; then
+            echo "::error::owner-console strict errors increased: $OC_ERRORS > ${{ env.OWNER_CONSOLE_BASELINE }}"
+            REGRESSION=true
+          fi
+          if [ "$SUI_ERRORS" -gt "${{ env.SHARED_UI_BASELINE }}" ]; then
+            echo "::error::shared-ui strict errors increased: $SUI_ERRORS > ${{ env.SHARED_UI_BASELINE }}"
+            REGRESSION=true
+          fi
+          if [ "$REGRESSION" = true ]; then
+            echo "REGRESSION=true" >> $GITHUB_ENV
+          else
+            echo "REGRESSION=false" >> $GITHUB_ENV
+          fi
       
       - name: Comment on PR with progress
         if: github.event_name == 'pull_request'
@@ -179,7 +221,11 @@ jobs:
           body: |
             ## 📊 TypeScript Strict Mode Progress
             
-            **Source Code Errors**: ${{ env.SOURCE_ERRORS }} / ${{ env.BASELINE_SOURCE_ERRORS }} (baseline)
+            | Package | Current | Baseline | Status |
+            |---------|---------|----------|--------|
+            | frontend-dashboard | ${{ env.FD_ERRORS }} | ${{ env.FRONTEND_DASHBOARD_BASELINE }} | ${{ env.FD_ERRORS <= env.FRONTEND_DASHBOARD_BASELINE && '✅' || '⚠️ Regression' }} |
+            | owner-console | ${{ env.OC_ERRORS }} | ${{ env.OWNER_CONSOLE_BASELINE }} | ${{ env.OC_ERRORS <= env.OWNER_CONSOLE_BASELINE && '✅' || '⚠️ Regression' }} |
+            | shared-ui | ${{ env.SUI_ERRORS }} | ${{ env.SHARED_UI_BASELINE }} | ${{ env.SUI_ERRORS <= env.SHARED_UI_BASELINE && '✅' || '⚠️ Regression' }} |
             
             This is a non-blocking check to track progress toward full strict mode adoption.
             See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.
