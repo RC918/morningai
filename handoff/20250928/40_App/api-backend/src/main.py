@@ -329,6 +329,14 @@ try:
 except ImportError as e:
     logger.warning("Webhook routes not available: %s", e)
 
+# DeepWiki API for knowledge base queries (Issue #2158)
+try:
+    from src.routes.deepwiki import bp as deepwiki_bp
+    app.register_blueprint(deepwiki_bp)
+    logger.info("DeepWiki API routes enabled")
+except ImportError as e:
+    logger.warning("DeepWiki API routes not available: %s", e)
+
 from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
 
 app.add_url_rule(
