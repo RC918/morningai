@@ -505,6 +505,12 @@ class VMProvisioner:
         """
         Provision a new VM for a task.
 
+        Note:
+            At most one active VM per task is enforced within a single process.
+            Cross-process uniqueness is NOT guaranteed. If your deployment runs
+            multiple VMProvisioner instances across processes or nodes, consider
+            using a Redis/DB-backed lock for cluster-wide uniqueness.
+
         Args:
             task_id: ID of the task
             plan_id: ID of the execution plan
@@ -520,7 +526,7 @@ class VMProvisioner:
             TaskVM instance
 
         Raises:
-            RuntimeError: If max concurrent VMs reached
+            RuntimeError: If max concurrent VMs reached or duplicate VM for task
         """
         async with self._lock:
             # Issue #2004: Prevent duplicate VM creation for the same task
