@@ -672,6 +672,88 @@ class AutonomousExecutor:
             self.current_execution.tasks_skipped,
         )
 
+        # Generate DeepWiki session insights if enabled (Tier 5 #1824)
+        self._generate_session_insights(plan)
+
+    def _generate_session_insights(self, plan: TaskPlan) -> None:
+        """
+        Generate session insights using DeepWiki service.
+
+        Issue #1824: DeepWiki 知識庫與 Session Insights
+
+        This method is called after execution finalization to provide
+        actionable insights based on the execution results.
+
+        Args:
+            plan: The executed TaskPlan
+        """
+        # Check if DeepWiki is enabled
+        if settings is None:
+            return
+
+        if not getattr(settings, 'enable_deepwiki', False):
+            logger.debug("[AutonomousExecutor] DeepWiki disabled, skipping session insights")
+            return
+
+        try:
+            from deepwiki.service import get_deepwiki_service
+
+            deepwiki = get_deepwiki_service()
+
+            # Prepare execution result data for insights
+            # Pass all errors to DeepWiki for better insights quality
+            execution_result = {
+                "status": self.current_execution.status.value,
+                "tasks_completed": self.current_execution.tasks_completed,
+                "tasks_failed": self.current_execution.tasks_failed,
+                "tasks_skipped": self.current_execution.tasks_skipped,
+                "errors": list(self.current_execution.errors),  # Pass all errors
+                "duration_seconds": self.current_execution.total_duration_seconds,
+            }
+
+            # Prepare task plan data
+            task_plan = {
+                "plan_id": plan.plan_id,
+                "steps": [
+                    {
+                        "task_id": task.task_id,
+                        "description": task.description,
+                        "status": task.status.value if hasattr(task.status, 'value') else str(task.status),
+                    }
+                    for task in plan.subtasks
+                ],
+            }
+
+            # Get session insights
+            insight = deepwiki.get_session_insights(
+                session_id=self.current_execution.execution_id,
+                execution_result=execution_result,
+                task_plan=task_plan,
+            )
+
+            # Store insights in execution metadata
+            self.current_execution.metadata["deepwiki_insights"] = {
+                "session_id": insight.session_id,
+                "insight_type": insight.insight_type,
+                "summary": insight.summary,
+                "recommendations": insight.recommendations,
+                "metrics": insight.metrics,
+            }
+
+            logger.info(
+                "[AutonomousExecutor] DeepWiki session insights generated: %s",
+                insight.summary[:100] if insight.summary else "No summary",
+            )
+
+        except ImportError as e:
+            logger.debug("[AutonomousExecutor] DeepWiki not available: %s", e)
+        except Exception as e:
+            # Don't fail execution due to insights generation failure
+            logger.warning(
+                "[AutonomousExecutor] Failed to generate DeepWiki insights: %s",
+                e,
+            )
+
     # Task handlers
     async def _handle_setup_environment(self, task: SubTask) -> Dict[str, Any]:
         """
