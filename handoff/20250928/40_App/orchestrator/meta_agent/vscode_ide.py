@@ -47,6 +47,13 @@ MCP_RETRY_DELAY = 1.0  # seconds, base delay for exponential backoff (delay = MC
 MCP_ERROR_LOG_MAX_LENGTH = 500  # Max characters for error logs (Issue #2075)
 MCP_SHELL_EXEC_TIMEOUT_BUFFER = 5  # seconds, buffer for network latency (Issue #2071)
 
+# Session capability constants (Issue #2023)
+# Terminal access is a privileged capability that allows execution of arbitrary
+# shell commands in the VM. This capability must be explicitly granted by trusted
+# services/admins and should never be wired to untrusted user input.
+# See: handoff/20250928/40_App/orchestrator/docs/TERMINAL_ACCESS.md
+TERMINAL_ACCESS_CAPABILITY = "terminal_access_enabled"
+
 
 def _truncate_error_message(message: Optional[str], max_length: int = MCP_ERROR_LOG_MAX_LENGTH) -> Optional[str]:
     """
@@ -900,10 +907,13 @@ class VSCodeIDEService:
         - Called with user-supplied input without proper authorization checks
 
         CAPABILITY GATE (Issue #2023):
-        This method requires the 'terminal_access_enabled' capability to be
-        set in the session metadata. Sessions are created with this capability
-        disabled by default. To enable terminal access, set:
-            session.metadata["terminal_access_enabled"] = True
+        This method requires the TERMINAL_ACCESS_CAPABILITY to be set in the
+        session metadata. Sessions are created with this capability disabled
+        by default. To enable terminal access, set:
+            session.metadata[TERMINAL_ACCESS_CAPABILITY] = True
+
+        For detailed authorization flow, see:
+            handoff/20250928/40_App/orchestrator/docs/TERMINAL_ACCESS.md
 
         Args:
             session: IDE session
@@ -920,13 +930,14 @@ class VSCodeIDEService:
         if not self._has_terminal_capability(session):
             logger.warning(
                 "[VSCodeIDEService] Denied terminal command for task %s: "
-                "terminal_access_enabled capability not granted",
+                "%s capability not granted",
                 session.task_id[:8],
+                TERMINAL_ACCESS_CAPABILITY,
             )
             return {
                 "success": False,
-                "error": "Terminal access is not enabled for this session. "
-                "Set session.metadata['terminal_access_enabled'] = True to enable.",
+                "error": f"Terminal access is not enabled for this session. "
+                f"Set session.metadata['{TERMINAL_ACCESS_CAPABILITY}'] = True to enable.",
             }
 
         try:
@@ -1087,7 +1098,7 @@ class VSCodeIDEService:
         Returns:
             True if terminal access is enabled, False otherwise
         """
-        return bool(session.metadata.get(self._TERMINAL_ACCESS_KEY, False))
+        return bool(session.metadata.get(TERMINAL_ACCESS_CAPABILITY, False))
 
     def _detect_language(self, file_path: str) -> Optional[Language]:
         """Detect programming language from file extension"""
