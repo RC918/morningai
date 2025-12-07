@@ -924,7 +924,7 @@ class VMProvisioner:
                 # Issue #2104: Release slot and unregister from Redis
                 if self._use_distributed_locking and self._distributed_lock:
                     try:
-                        await self._distributed_lock.unregister_vm(vm_id)
+                        await self._distributed_lock.unregister_vm(vm_id, vm.task_id)
                         await self._distributed_lock.release_vm_slot()
                         logger.info(
                             "[VMProvisioner] Destroyed VM %s and released distributed slot",

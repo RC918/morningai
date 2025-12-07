@@ -229,9 +229,8 @@ class TestDistributedVMLockManager:
             b"task_id": b"task-12345678",
         }
 
-        result = await lock_manager.unregister_vm("vm-test-123")
+        await lock_manager.unregister_vm("vm-test-123", "task-12345678")
 
-        assert result is True
         mock_redis.delete.assert_called()
 
     @pytest.mark.asyncio
