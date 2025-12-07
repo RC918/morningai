@@ -650,7 +650,8 @@ class TestVSCodeIDEService:
         service._sessions[mock_session.session_id] = mock_session
         service._execute_shell_command = mock_shell_response
         # Issue #2023: Grant terminal access capability
-        mock_session.metadata["terminal_access_enabled"] = True
+        # Issue #2042: Use class constant for terminal access key
+        mock_session.metadata[VSCodeIDEService._TERMINAL_ACCESS_KEY] = True
 
         result = await service.execute_terminal_command(mock_session, "ls -la")
 

@@ -42,6 +42,7 @@ MCP_DEFAULT_TIMEOUT = 30  # seconds
 MCP_MAX_RETRIES = 3
 MCP_RETRY_DELAY = 1.0  # seconds
 MCP_ERROR_LOG_MAX_LENGTH = 500  # Max characters for error logs (Issue #2075)
+MCP_SHELL_EXEC_TIMEOUT_BUFFER = 5  # seconds, buffer for network latency (Issue #2071)
 
 
 def _truncate_error_message(message: Optional[str], max_length: int = MCP_ERROR_LOG_MAX_LENGTH) -> Optional[str]:
@@ -295,6 +296,9 @@ class VSCodeIDEService:
         Language.RUST: "cargo test",
         Language.JAVA: "mvn test",
     }
+
+    # Issue #2042: Class constant for terminal access capability key
+    _TERMINAL_ACCESS_KEY = "terminal_access_enabled"
 
     def __init__(self):
         """Initialize the VS Code IDE service"""
@@ -984,8 +988,9 @@ class VSCodeIDEService:
                 break  # Don't retry on unexpected errors
 
             # Wait before retry (except on last attempt)
+            # Issue #2070: Use exponential backoff for better server load handling
             if attempt < MCP_MAX_RETRIES - 1:
-                await asyncio.sleep(MCP_RETRY_DELAY * (attempt + 1))
+                await asyncio.sleep(MCP_RETRY_DELAY * (2 ** attempt))
 
         return {"success": False, "error": last_error}
 
@@ -1014,7 +1019,7 @@ class VSCodeIDEService:
                 "timeout": timeout_seconds,
                 "cwd": session.workspace_path,
             },
-            timeout_seconds=timeout_seconds + 5,  # Add buffer for network latency
+            timeout_seconds=timeout_seconds + MCP_SHELL_EXEC_TIMEOUT_BUFFER,
         )
 
         if not result.get("success"):
@@ -1047,7 +1052,7 @@ class VSCodeIDEService:
         Returns:
             True if terminal access is enabled, False otherwise
         """
-        return bool(session.metadata.get("terminal_access_enabled", False))
+        return bool(session.metadata.get(self._TERMINAL_ACCESS_KEY, False))
 
     def _detect_language(self, file_path: str) -> Optional[Language]:
         """Detect programming language from file extension"""
