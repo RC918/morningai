@@ -19,9 +19,39 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple, Type
+
+try:
+    from utils.retry import retry_with_backoff, API_RETRY_CONFIG
+    from utils.rate_limit import check_deepwiki_rate_limit
+except ImportError:
+    from orchestrator.utils.retry import retry_with_backoff, API_RETRY_CONFIG
+    from orchestrator.utils.rate_limit import check_deepwiki_rate_limit
 
 logger = logging.getLogger(__name__)
+
+
+class DeepWikiQueryError(Exception):
+    """Base exception for DeepWiki query errors."""
+    pass
+
+
+class DeepWikiTransientError(DeepWikiQueryError):
+    """Transient error that may be resolved by retry."""
+    pass
+
+
+class DeepWikiPermanentError(DeepWikiQueryError):
+    """Permanent error that should not be retried."""
+    pass
+
+
+DEEPWIKI_RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+    DeepWikiTransientError,
+    ConnectionError,
+    TimeoutError,
+    OSError,
+)
 
 
 class QueryType(Enum):
@@ -122,6 +152,9 @@ class DeepWikiService:
         language: Optional[str] = None,
         repo: Optional[str] = None,
         limit: int = 5,
+        enable_rate_limit: bool = True,
+        max_queries_per_minute: int = 60,
+        redis_url: Optional[str] = None,
     ) -> QueryResult:
         """
         Query the DeepWiki knowledge base.
@@ -132,12 +165,45 @@ class DeepWikiService:
             language: Optional language filter (e.g., 'python', 'javascript')
             repo: Optional repository filter
             limit: Maximum number of sources to return
+            enable_rate_limit: Enable rate limiting (default: True)
+            max_queries_per_minute: Maximum queries per minute (default: 60)
+            redis_url: Redis URL for rate limiting (optional)
             
         Returns:
             QueryResult with answer, sources, and confidence score
         """
         start_time = time.time()
         query_id = self._generate_query_id()
+        
+        # Issue #2153: Rate limiting for DeepWiki API calls
+        if enable_rate_limit:
+            allowed, count = check_deepwiki_rate_limit(
+                query_type=query_type.value,
+                max_per_minute=max_queries_per_minute,
+                redis_url=redis_url,
+            )
+            if not allowed:
+                logger.warning("[DeepWiki] Rate limited", extra={
+                    "operation": "query",
+                    "query_id": query_id,
+                    "query_type": query_type.value,
+                    "rate_limit_count": count,
+                    "max_per_minute": max_queries_per_minute,
+                })
+                return QueryResult(
+                    query_id=query_id,
+                    query_type=query_type,
+                    question=question,
+                    answer="Rate limit exceeded. Please try again later.",
+                    sources=[],
+                    confidence=0.0,
+                    latency_ms=(time.time() - start_time) * 1000,
+                    metadata={
+                        "rate_limited": True,
+                        "rate_limit_count": count,
+                        "max_per_minute": max_queries_per_minute,
+                    }
+                )
         
         logger.info("[DeepWiki] Processing query", extra={
             "operation": "query",
@@ -232,34 +298,51 @@ class DeepWikiService:
             return []
         
         try:
-            from observer_node import query_past_failures, DEFAULT_SIMILARITY_THRESHOLD
-            
-            past_failures = query_past_failures(
-                error_text=query,
-                limit=limit,
-                threshold=DEFAULT_SIMILARITY_THRESHOLD,
-            )
-            
-            sources = []
-            for failure in past_failures:
-                sources.append({
-                    "type": "error_fix_pair",
-                    "id": failure.get("id"),
-                    "error_text": failure.get("error_text", "")[:200],
-                    "fix_text": failure.get("fix_text", "")[:200],
-                    "error_type": failure.get("error_type"),
-                    "similarity": failure.get("similarity", 0),
-                    "confidence": failure.get("confidence_score", 0),
-                })
-            
-            return sources
-            
+            return self._query_error_pairs_with_retry(query, limit)
         except ImportError as e:
             logger.debug(f"[DeepWiki] Error-fix pairs not available: {e}")
             return []
         except Exception as e:
-            logger.warning(f"[DeepWiki] Failed to query error pairs: {e}")
+            logger.warning(f"[DeepWiki] Failed to query error pairs after retries: {e}")
             return []
+    
+    @retry_with_backoff(
+        max_retries=API_RETRY_CONFIG.max_retries,
+        initial_delay=API_RETRY_CONFIG.initial_delay,
+        backoff_factor=API_RETRY_CONFIG.backoff_factor,
+        exceptions=DEEPWIKI_RETRYABLE_EXCEPTIONS,
+    )
+    def _query_error_pairs_with_retry(
+        self,
+        query: str,
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Internal method to query error-fix pairs with retry logic.
+        
+        Issue #2152: Implements exponential backoff retry for transient failures.
+        """
+        from observer_node import query_past_failures, DEFAULT_SIMILARITY_THRESHOLD
+        
+        past_failures = query_past_failures(
+            error_text=query,
+            limit=limit,
+            threshold=DEFAULT_SIMILARITY_THRESHOLD,
+        )
+        
+        sources = []
+        for failure in past_failures:
+            sources.append({
+                "type": "error_fix_pair",
+                "id": failure.get("id"),
+                "error_text": failure.get("error_text", "")[:200],
+                "fix_text": failure.get("fix_text", "")[:200],
+                "error_type": failure.get("error_type"),
+                "similarity": failure.get("similarity", 0),
+                "confidence": failure.get("confidence_score", 0),
+            })
+        
+        return sources
     
     def _query_knowledge_graph(
         self,
@@ -276,36 +359,55 @@ class DeepWikiService:
             return []
         
         try:
-            result = kg_manager.search_relevant_patterns(
-                goal=query,
-                error_context=None,
-                language=language,
-                limit=limit,
-            )
-            
-            if not result.get("success"):
-                return []
-            
-            patterns = result.get("data", {}).get("patterns", [])
-            
-            sources = []
-            for pattern in patterns:
-                sources.append({
-                    "type": "knowledge_graph_pattern",
-                    "id": pattern.get("id"),
-                    "pattern_name": pattern.get("pattern_name"),
-                    "pattern_type": pattern.get("pattern_type"),
-                    "pattern_template": pattern.get("pattern_template", "")[:200],
-                    "confidence": pattern.get("confidence_score", 0),
-                    "frequency": pattern.get("frequency", 0),
-                    "language": pattern.get("language"),
-                })
-            
-            return sources
-            
+            return self._query_knowledge_graph_with_retry(kg_manager, query, language, limit)
         except Exception as e:
-            logger.warning(f"[DeepWiki] Failed to query Knowledge Graph: {e}")
+            logger.warning(f"[DeepWiki] Failed to query Knowledge Graph after retries: {e}")
             return []
+    
+    @retry_with_backoff(
+        max_retries=API_RETRY_CONFIG.max_retries,
+        initial_delay=API_RETRY_CONFIG.initial_delay,
+        backoff_factor=API_RETRY_CONFIG.backoff_factor,
+        exceptions=DEEPWIKI_RETRYABLE_EXCEPTIONS,
+    )
+    def _query_knowledge_graph_with_retry(
+        self,
+        kg_manager: Any,
+        query: str,
+        language: Optional[str],
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Internal method to query Knowledge Graph with retry logic.
+        
+        Issue #2152: Implements exponential backoff retry for transient failures.
+        """
+        result = kg_manager.search_relevant_patterns(
+            goal=query,
+            error_context=None,
+            language=language,
+            limit=limit,
+        )
+        
+        if not result.get("success"):
+            return []
+        
+        patterns = result.get("data", {}).get("patterns", [])
+        
+        sources = []
+        for pattern in patterns:
+            sources.append({
+                "type": "knowledge_graph_pattern",
+                "id": pattern.get("id"),
+                "pattern_name": pattern.get("pattern_name"),
+                "pattern_type": pattern.get("pattern_type"),
+                "pattern_template": pattern.get("pattern_template", "")[:200],
+                "confidence": pattern.get("confidence_score", 0),
+                "frequency": pattern.get("frequency", 0),
+                "language": pattern.get("language"),
+            })
+        
+        return sources
     
     def _format_error_sources(self, sources: List[Dict[str, Any]]) -> str:
         """Format error-fix pair sources as readable text."""

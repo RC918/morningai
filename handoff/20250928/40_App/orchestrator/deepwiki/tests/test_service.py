@@ -715,3 +715,272 @@ class TestDeepWikiThreadSafety:
         
         # Cleanup
         service_module._deepwiki_service = None
+
+
+class TestDeepWikiRetryLogic:
+    """Tests for retry logic with exponential backoff (#2152)."""
+
+    def test_retry_exceptions_defined(self):
+        """Test retryable exceptions are properly defined."""
+        from deepwiki.service import (
+            DeepWikiQueryError,
+            DeepWikiTransientError,
+            DeepWikiPermanentError,
+            DEEPWIKI_RETRYABLE_EXCEPTIONS,
+        )
+        
+        assert issubclass(DeepWikiTransientError, DeepWikiQueryError)
+        assert issubclass(DeepWikiPermanentError, DeepWikiQueryError)
+        assert DeepWikiTransientError in DEEPWIKI_RETRYABLE_EXCEPTIONS
+        assert ConnectionError in DEEPWIKI_RETRYABLE_EXCEPTIONS
+        assert TimeoutError in DEEPWIKI_RETRYABLE_EXCEPTIONS
+        assert OSError in DEEPWIKI_RETRYABLE_EXCEPTIONS
+
+    def test_query_error_pairs_retries_on_transient_error(self):
+        """Test error pairs query retries on transient errors."""
+        from deepwiki.service import DeepWikiTransientError
+        
+        service = DeepWikiService()
+        call_count = 0
+        
+        def mock_query_past_failures(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise ConnectionError("Connection failed")
+            return [
+                {
+                    "id": "1",
+                    "error_text": "Test error",
+                    "fix_text": "Test fix",
+                    "error_type": "TestError",
+                    "similarity": 0.9,
+                    "confidence_score": 0.85,
+                }
+            ]
+        
+        mock_observer = MagicMock()
+        mock_observer.query_past_failures = mock_query_past_failures
+        mock_observer.DEFAULT_SIMILARITY_THRESHOLD = 0.6
+        
+        with patch.dict("sys.modules", {"observer_node": mock_observer}):
+            with patch("time.sleep"):  # Skip actual sleep
+                result = service._query_error_pairs("test error")
+        
+        assert call_count == 3
+        assert len(result) == 1
+        assert result[0]["type"] == "error_fix_pair"
+
+    def test_query_error_pairs_fails_after_max_retries(self):
+        """Test error pairs query fails after max retries."""
+        service = DeepWikiService()
+        
+        mock_observer = MagicMock()
+        mock_observer.query_past_failures.side_effect = ConnectionError("Connection failed")
+        mock_observer.DEFAULT_SIMILARITY_THRESHOLD = 0.6
+        
+        with patch.dict("sys.modules", {"observer_node": mock_observer}):
+            with patch("time.sleep"):  # Skip actual sleep
+                result = service._query_error_pairs("test error")
+        
+        # Should return empty list after all retries fail
+        assert result == []
+
+    @patch("deepwiki.service.DeepWikiService._get_kg_manager")
+    def test_query_kg_retries_on_transient_error(self, mock_get_manager):
+        """Test KG query retries on transient errors."""
+        call_count = 0
+        
+        def mock_search(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise TimeoutError("Request timed out")
+            return {
+                "success": True,
+                "data": {
+                    "patterns": [
+                        {
+                            "id": "1",
+                            "pattern_name": "Test Pattern",
+                            "pattern_type": "test",
+                            "pattern_template": "Test template",
+                            "confidence_score": 0.9,
+                            "frequency": 5,
+                            "language": "python",
+                        }
+                    ]
+                }
+            }
+        
+        mock_manager = Mock()
+        mock_manager.search_relevant_patterns = mock_search
+        mock_get_manager.return_value = mock_manager
+        
+        service = DeepWikiService()
+        with patch("time.sleep"):  # Skip actual sleep
+            result = service._query_knowledge_graph("test query", "python", 3)
+        
+        assert call_count == 2
+        assert len(result) == 1
+        assert result[0]["pattern_name"] == "Test Pattern"
+
+    @patch("deepwiki.service.DeepWikiService._get_kg_manager")
+    def test_query_kg_fails_after_max_retries(self, mock_get_manager):
+        """Test KG query fails after max retries."""
+        mock_manager = Mock()
+        mock_manager.search_relevant_patterns.side_effect = TimeoutError("Request timed out")
+        mock_get_manager.return_value = mock_manager
+        
+        service = DeepWikiService()
+        with patch("time.sleep"):  # Skip actual sleep
+            result = service._query_knowledge_graph("test query")
+        
+        # Should return empty list after all retries fail
+        assert result == []
+
+    def test_query_error_pairs_no_retry_on_import_error(self):
+        """Test error pairs query does not retry on ImportError."""
+        service = DeepWikiService()
+        
+        # ImportError should not be retried
+        result = service._query_error_pairs("test error")
+        
+        # Should return empty list immediately without retries
+        assert result == []
+
+    def test_query_succeeds_without_retry_when_no_error(self):
+        """Test query succeeds on first attempt when no error."""
+        service = DeepWikiService()
+        call_count = 0
+        
+        def mock_query_past_failures(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return [
+                {
+                    "id": "1",
+                    "error_text": "Test error",
+                    "fix_text": "Test fix",
+                    "error_type": "TestError",
+                    "similarity": 0.9,
+                    "confidence_score": 0.85,
+                }
+            ]
+        
+        mock_observer = MagicMock()
+        mock_observer.query_past_failures = mock_query_past_failures
+        mock_observer.DEFAULT_SIMILARITY_THRESHOLD = 0.6
+        
+        with patch.dict("sys.modules", {"observer_node": mock_observer}):
+            result = service._query_error_pairs("test error")
+        
+        # Should succeed on first attempt
+        assert call_count == 1
+        assert len(result) == 1
+
+
+class TestDeepWikiRateLimiting:
+    """Tests for rate limiting functionality (#2153)."""
+
+    def test_query_with_rate_limit_disabled(self):
+        """Test query works when rate limiting is disabled."""
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=False,
+        )
+        
+        assert isinstance(result, QueryResult)
+        assert result.metadata.get("rate_limited") is None
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_rate_limited(self, mock_rate_limit):
+        """Test query returns rate limit response when limit exceeded."""
+        mock_rate_limit.return_value = (False, 61)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=True,
+            max_queries_per_minute=60,
+        )
+        
+        assert result.metadata.get("rate_limited") is True
+        assert result.metadata.get("rate_limit_count") == 61
+        assert result.metadata.get("max_per_minute") == 60
+        assert "Rate limit exceeded" in result.answer
+        assert result.confidence == 0.0
+        assert result.sources == []
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_allowed_by_rate_limit(self, mock_rate_limit):
+        """Test query proceeds when under rate limit."""
+        mock_rate_limit.return_value = (True, 5)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=True,
+        )
+        
+        assert result.metadata.get("rate_limited") is None
+        mock_rate_limit.assert_called_once()
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_rate_limit_called_with_correct_params(self, mock_rate_limit):
+        """Test rate limit check is called with correct parameters."""
+        mock_rate_limit.return_value = (True, 1)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        service.query(
+            question="test query",
+            query_type=QueryType.ERROR_LOOKUP,
+            enable_rate_limit=True,
+            max_queries_per_minute=30,
+            redis_url="redis://localhost:6379",
+        )
+        
+        mock_rate_limit.assert_called_once_with(
+            query_type="error_lookup",
+            max_per_minute=30,
+            redis_url="redis://localhost:6379",
+        )
+
+    def test_query_rate_limit_default_enabled(self):
+        """Test rate limiting is enabled by default."""
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        with patch("deepwiki.service.check_deepwiki_rate_limit") as mock_rate_limit:
+            mock_rate_limit.return_value = (True, 1)
+            
+            service.query(
+                question="test query",
+                query_type=QueryType.CODE_QUESTION,
+            )
+            
+            mock_rate_limit.assert_called_once()
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_rate_limit_graceful_degradation(self, mock_rate_limit):
+        """Test query proceeds when rate limit check fails gracefully."""
+        # Simulate graceful degradation (Redis unavailable)
+        mock_rate_limit.return_value = (True, 0)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=True,
+        )
+        
+        # Should proceed normally
+        assert result.metadata.get("rate_limited") is None
