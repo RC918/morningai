@@ -1066,7 +1066,7 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
         raise
 
 
-@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
+@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=1800)
 def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str, context: dict = None):
     """
     Execute Meta Agent task using AutonomousExecutor for end-to-end autonomous execution.
@@ -1094,24 +1094,28 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
     Feature Flags:
         - ENABLE_META_AGENT: Must be True to enable this path (default: False)
         - ENABLE_META_AGENT_VM: Controls VM provisioning (default: False)
+
+    Note:
+        timeout=1800 (30 minutes) to match the TTL in _enqueue_meta_agent_task,
+        allowing sufficient time for autonomous execution including VM provisioning.
     """
     import asyncio
 
     job_id = task_id
     context = context or {}
 
-    logger.info(
-        "[MetaAgent] Starting task",
-        extra={
-            "operation": "run_meta_agent_task",
-            "task_id": task_id,
-            "job_id": job_id,
-            "trace_id": task_id,
-            "tenant_id": tenant_id,
-            "goal_text": goal_text[:100] if goal_text else "",
-            "repo": repo
-        }
-    )
+    # Consolidated log data for consistent logging and Sentry breadcrumbs
+    log_data = {
+        "operation": "run_meta_agent_task",
+        "task_id": task_id,
+        "job_id": job_id,
+        "trace_id": task_id,
+        "tenant_id": tenant_id,
+        "goal_text": goal_text[:100] if goal_text else "",
+        "repo": repo
+    }
+
+    logger.info("[MetaAgent] Starting task", extra=log_data)
 
     if SENTRY_DSN:
         sentry_sdk.set_tag("trace_id", task_id)
@@ -1122,14 +1126,7 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
             category='task',
             message='Starting Meta Agent task',
             level='info',
-            data={
-                'task_id': task_id,
-                'job_id': job_id,
-                'trace_id': task_id,
-                'tenant_id': tenant_id,
-                'goal_text': goal_text[:100],
-                'repo': repo
-            }
+            data=log_data
         )
 
     start_time_ns = time.monotonic_ns()
