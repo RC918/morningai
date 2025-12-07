@@ -163,14 +163,15 @@ Configuration values safe to share:
 - `FLASK_ENV`, `ENVIRONMENT`, `PORT`, `CORS_ORIGINS`
 - `APP_VERSION`, `APP_PHASE`, `HOSTNAME`
 
-### Feature Flags (13 variables)
-All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, USE_DISTRIBUTED_VM_LOCKING, ENABLE_KNOWLEDGE_GRAPH_LEARNING, ENABLE_VISUAL_VERIFICATION, and notification flags:
+### Feature Flags (14 variables)
+All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, USE_DISTRIBUTED_VM_LOCKING, ENABLE_KNOWLEDGE_GRAPH_LEARNING, ENABLE_VISUAL_VERIFICATION, ENABLE_DEEPWIKI, and notification flags:
 - `PHASE7_ENABLED`, `OPS_AGENT_ENABLED`, `GROWTH_STRATEGIST_ENABLED`
 - `PM_AGENT_ENABLED`, `HITL_APPROVAL_ENABLED`
 - `DEMO_MODE`, `SANDBOX_ENABLED`
 - `USE_DISTRIBUTED_VM_LOCKING` - Redis-backed distributed VM locking (#2104)
 - `ENABLE_KNOWLEDGE_GRAPH_LEARNING` - Knowledge Graph patterns in Planner learning context (Tier 3)
 - `ENABLE_VISUAL_VERIFICATION` - Visual verification for Meta Agent task execution (Tier 5)
+- `ENABLE_DEEPWIKI` - DeepWiki knowledge base for code query and session insights (Tier 5)
 - `ENABLE_GITHUB_NOTIFICATIONS` - Outbound notifications to GitHub (Tier 5)
 - `ENABLE_JIRA_NOTIFICATIONS` - Outbound notifications to Jira (Tier 5)
 - `ENABLE_SLACK_NOTIFICATIONS` - Outbound notifications to Slack (Tier 5)
@@ -199,6 +200,12 @@ All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, USE_DISTRIBUTED_V
 | ENABLE_GITHUB_NOTIFICATIONS | boolean | false | Enable outbound notifications to GitHub (comments on issues/PRs) |
 | ENABLE_JIRA_NOTIFICATIONS | boolean | false | Enable outbound notifications to Jira (comments on issues) |
 | ENABLE_SLACK_NOTIFICATIONS | boolean | false | Enable outbound notifications to Slack (messages) |
+
+### DeepWiki Knowledge Base (2 variables)
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| ENABLE_DEEPWIKI | boolean | false | Enable DeepWiki knowledge base service for code query and session insights (#1824) |
+| DEEPWIKI_MAX_SOURCES | integer | 5 | Maximum number of knowledge sources to include in DeepWiki query results (1-20) |
 
 ### Frontend (4 variables)
 All VITE_* prefixed for Vite build:
