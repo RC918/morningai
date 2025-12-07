@@ -651,7 +651,8 @@
             "actionPayload": "操作內容",
             "rejectionReason": "拒絕原因（選填）",
             "rejectionReasonLabel": "拒絕原因（用於審計追蹤）",
-            "rejectionReasonPlaceholder": "輸入拒絕原因..."
+            "rejectionReasonPlaceholder": "輸入拒絕原因...",
+            "rejectionReasonHint": "提供原因以協助審計追蹤和未來參考"
           },
           "actions": {
             "approving": "核准中...",

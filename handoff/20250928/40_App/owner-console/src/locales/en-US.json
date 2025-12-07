@@ -652,7 +652,8 @@
               "actionPayload": "Action Payload",
               "rejectionReason": "Rejection Reason (optional)",
               "rejectionReasonLabel": "Rejection Reason (for audit trail)",
-              "rejectionReasonPlaceholder": "Enter reason for rejection..."
+              "rejectionReasonPlaceholder": "Enter reason for rejection...",
+              "rejectionReasonHint": "Provide a reason to help with audit trail and future reference"
             },
             "actions": {
               "approving": "Approving...",

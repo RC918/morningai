@@ -585,6 +585,9 @@ const ApprovalQueue = () => {
                       onChange={(e) => setRejectionReason(e.target.value)}
                       aria-describedby="rejection-reason-hint"
                     />
+                    <span id="rejection-reason-hint" className="text-xs text-[var(--text-secondary)] mt-1 block">
+                      {t('approvalQueue.details.rejectionReasonHint', 'Provide a reason to help with audit trail and future reference')}
+                    </span>
                   </label>
                 </div>
 
