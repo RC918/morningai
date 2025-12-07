@@ -28,6 +28,14 @@ DEFAULT_SIMILARITY_THRESHOLD = 0.6
 # Default limit for past failure queries
 DEFAULT_QUERY_LIMIT = 3
 
+# Truncation limits for failure summaries and learning context
+# Maximum characters for goal text in failure summaries
+MAX_GOAL_CHARS = 200
+# Maximum characters for error text in failure summaries
+MAX_ERROR_CHARS = 500
+# Maximum characters for text snippets in learning context
+MAX_CONTEXT_SNIPPET_CHARS = 200
+
 
 def _generate_failure_summary(state: Dict[str, Any]) -> str:
     """
@@ -43,14 +51,14 @@ def _generate_failure_summary(state: Dict[str, Any]) -> str:
 
     goal = state.get("goal", "")
     if goal:
-        parts.append(f"Goal: {goal[:200]}")
+        parts.append(f"Goal: {goal[:MAX_GOAL_CHARS]}")
 
     task_type = state.get("task_type", "unknown")
     parts.append(f"Task Type: {task_type}")
 
     error = state.get("error", "")
     if error:
-        parts.append(f"Error: {error[:500]}")
+        parts.append(f"Error: {error[:MAX_ERROR_CHARS]}")
 
     ci_state = state.get("ci_state", "")
     if ci_state:
@@ -331,11 +339,11 @@ def get_learning_context(
         for i, failure in enumerate(past_failures, 1):
             context_parts.append(f"### Case {i} (Similarity: {failure.get('similarity', 0):.2f})")
             context_parts.append(f"Error Type: {failure.get('error_type', 'unknown')}")
-            context_parts.append(f"Error: {failure.get('error_text', '')[:200]}")
+            context_parts.append(f"Error: {failure.get('error_text', '')[:MAX_CONTEXT_SNIPPET_CHARS]}")
 
             fix_text = failure.get("fix_text", "")
             if fix_text and not fix_text.startswith("[PENDING]"):
-                context_parts.append(f"Fix: {fix_text[:200]}")
+                context_parts.append(f"Fix: {fix_text[:MAX_CONTEXT_SNIPPET_CHARS]}")
                 context_parts.append(f"Confidence: {failure.get('confidence_score', 0):.2f}")
 
             context_parts.append("")
