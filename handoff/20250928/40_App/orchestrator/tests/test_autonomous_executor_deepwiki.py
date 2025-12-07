@@ -50,10 +50,10 @@ class TestGenerateSessionInsights:
             status=ExecutionStatus.COMPLETED,
             started_at=datetime.now(),
             tasks_completed=1,
-            tasks_failed=1,
+            tasks_failed=2,
             tasks_skipped=0,
             total_duration_seconds=10.5,
-            errors=["Task task-2: Test error"],
+            errors=["Task task-2: Test error 1", "Task task-3: Test error 2"],
         )
         return executor
 
@@ -187,8 +187,12 @@ class TestGenerateSessionInsights:
             execution_result = call_args.kwargs["execution_result"]
             assert execution_result["status"] == "completed"
             assert execution_result["tasks_completed"] == 1
-            assert execution_result["tasks_failed"] == 1
-            assert execution_result["error"] == "Task task-2: Test error"
+            assert execution_result["tasks_failed"] == 2
+            # Verify all errors are passed (not just the first one)
+            assert execution_result["errors"] == [
+                "Task task-2: Test error 1",
+                "Task task-3: Test error 2",
+            ]
 
             task_plan = call_args.kwargs["task_plan"]
             assert task_plan["plan_id"] == "test-plan-123"

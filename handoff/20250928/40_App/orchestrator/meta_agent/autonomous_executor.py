@@ -701,12 +701,13 @@ class AutonomousExecutor:
             deepwiki = get_deepwiki_service()
 
             # Prepare execution result data for insights
+            # Pass all errors to DeepWiki for better insights quality
             execution_result = {
                 "status": self.current_execution.status.value,
                 "tasks_completed": self.current_execution.tasks_completed,
                 "tasks_failed": self.current_execution.tasks_failed,
                 "tasks_skipped": self.current_execution.tasks_skipped,
-                "error": self.current_execution.errors[0] if self.current_execution.errors else None,
+                "errors": list(self.current_execution.errors),  # Pass all errors
                 "duration_seconds": self.current_execution.total_duration_seconds,
             }
 
