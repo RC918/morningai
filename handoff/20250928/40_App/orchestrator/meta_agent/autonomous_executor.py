@@ -21,7 +21,7 @@ from .execution_policy import ExecutionPolicy
 from .goal_parser import GoalParser
 from .state_persistence import ExecutionStateManager, create_checkpoint_from_execution
 from .task_planner import SubTask, SubTaskStatus, SubTaskType, TaskPlan, TaskPlanner
-from .visual_verifier import VisualVerifier, VerificationStatus
+from .visual_verifier import VisualVerifier
 from .vm_provisioner import VMProvisioner, VMProvider, TaskVM
 from .vscode_ide import VSCodeIDEService, IDESession
 

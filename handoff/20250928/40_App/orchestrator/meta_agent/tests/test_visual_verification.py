@@ -15,7 +15,7 @@ Test coverage:
 
 import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from orchestrator.meta_agent.visual_verifier import (
     VisualVerifier,
