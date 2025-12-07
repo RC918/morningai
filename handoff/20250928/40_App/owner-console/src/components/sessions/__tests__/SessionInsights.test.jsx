@@ -202,9 +202,14 @@ describe('SessionInsights', () => {
       render(<SessionInsights {...defaultProps} />)
       
       await waitFor(() => {
-        // Get the recommendations section and verify list items exist
-        const recommendationsHeading = screen.getByText('Recommendations')
-        const recommendationsSection = recommendationsHeading.closest('div')
+        // Get the recommendations heading
+        const heading = screen.getByText('Recommendations')
+        expect(heading).toBeInTheDocument()
+        
+        // Walk up to the outer container: heading -> header div -> outer container div
+        const headerDiv = heading.parentElement
+        expect(headerDiv).not.toBeNull()
+        const recommendationsSection = headerDiv.parentElement
         expect(recommendationsSection).not.toBeNull()
         
         // Get all list items and verify they have numbered badges
@@ -236,8 +241,10 @@ describe('SessionInsights', () => {
         const failedLabel = screen.getByText('Failed')
         expect(failedLabel).toBeInTheDocument()
         
-        // Get the metric tile container and verify the value within it
-        const failedTile = failedLabel.closest('div.p-3')
+        // Walk up to the metric tile container: label -> inner div -> outer tile div
+        const innerDiv = failedLabel.parentElement
+        expect(innerDiv).not.toBeNull()
+        const failedTile = innerDiv.parentElement
         expect(failedTile).not.toBeNull()
         expect(within(failedTile).getByText('1')).toBeInTheDocument()
       })
