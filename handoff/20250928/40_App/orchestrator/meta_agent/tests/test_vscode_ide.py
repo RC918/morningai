@@ -391,10 +391,10 @@ class TestVSCodeIDEService:
         assert session is None
 
     @pytest.mark.asyncio
-    async def test_open_file(self, service, mock_session, mock_mcp_response):
+    async def test_open_file(self, service, mock_session, mock_mcp_response, mocker):
         """Test opening a file"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_mcp_command = mock_mcp_response
+        mocker.patch.object(service, "_execute_mcp_command", new=mock_mcp_response)
 
         result = await service.open_file(mock_session, "test.py")
 
@@ -414,10 +414,10 @@ class TestVSCodeIDEService:
         assert "closed" in result["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_edit_file(self, service, mock_session, mock_mcp_response):
+    async def test_edit_file(self, service, mock_session, mock_mcp_response, mocker):
         """Test editing a file"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_mcp_command = mock_mcp_response
+        mocker.patch.object(service, "_execute_mcp_command", new=mock_mcp_response)
 
         result = await service.edit_file(
             mock_session,
@@ -437,10 +437,10 @@ class TestVSCodeIDEService:
         assert result["success"] is False
 
     @pytest.mark.asyncio
-    async def test_search_code(self, service, mock_session, mock_shell_response):
+    async def test_search_code(self, service, mock_session, mock_shell_response, mocker):
         """Test searching code"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_shell_command = mock_shell_response
+        mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
 
         result = await service.search_code(mock_session, "def test")
 
@@ -448,11 +448,11 @@ class TestVSCodeIDEService:
 
     @pytest.mark.asyncio
     async def test_search_code_with_pattern(
-        self, service, mock_session, mock_shell_response
+        self, service, mock_session, mock_shell_response, mocker
     ):
         """Test searching code with file pattern"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_shell_command = mock_shell_response
+        mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
 
         result = await service.search_code(
             mock_session,
@@ -473,11 +473,11 @@ class TestVSCodeIDEService:
 
     @pytest.mark.asyncio
     async def test_format_code_python(
-        self, service, mock_session, mock_shell_response
+        self, service, mock_session, mock_shell_response, mocker
     ):
         """Test formatting Python code"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_shell_command = mock_shell_response
+        mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
 
         result = await service.format_code(
             mock_session,
@@ -489,11 +489,11 @@ class TestVSCodeIDEService:
 
     @pytest.mark.asyncio
     async def test_format_code_auto_detect(
-        self, service, mock_session, mock_shell_response
+        self, service, mock_session, mock_shell_response, mocker
     ):
         """Test formatting with auto-detected language"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_shell_command = mock_shell_response
+        mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
 
         result = await service.format_code(mock_session, "test.py")
 
@@ -593,10 +593,10 @@ class TestVSCodeIDEService:
         assert result["success"] is False
 
     @pytest.mark.asyncio
-    async def test_start_lsp(self, service, mock_session, mock_mcp_response):
+    async def test_start_lsp(self, service, mock_session, mock_mcp_response, mocker):
         """Test starting LSP server"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_mcp_command = mock_mcp_response
+        mocker.patch.object(service, "_execute_mcp_command", new=mock_mcp_response)
 
         result = await service.start_lsp(mock_session, Language.PYTHON)
 
@@ -612,10 +612,10 @@ class TestVSCodeIDEService:
         assert result["success"] is False
 
     @pytest.mark.asyncio
-    async def test_get_file_tree(self, service, mock_session, mock_shell_response):
+    async def test_get_file_tree(self, service, mock_session, mock_shell_response, mocker):
         """Test getting file tree"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_shell_command = mock_shell_response
+        mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
 
         result = await service.get_file_tree(mock_session)
 
@@ -623,11 +623,11 @@ class TestVSCodeIDEService:
 
     @pytest.mark.asyncio
     async def test_get_file_tree_custom_path(
-        self, service, mock_session, mock_shell_response
+        self, service, mock_session, mock_shell_response, mocker
     ):
         """Test getting file tree with custom path"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_shell_command = mock_shell_response
+        mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
 
         result = await service.get_file_tree(mock_session, path="src", max_depth=2)
 
@@ -644,11 +644,11 @@ class TestVSCodeIDEService:
 
     @pytest.mark.asyncio
     async def test_execute_terminal_command(
-        self, service, mock_session, mock_shell_response
+        self, service, mock_session, mock_shell_response, mocker
     ):
         """Test executing terminal command with capability enabled"""
         service._sessions[mock_session.session_id] = mock_session
-        service._execute_shell_command = mock_shell_response
+        mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
         # Issue #2023: Grant terminal access capability
         # Issue #2042: Use class constant for terminal access key
         mock_session.metadata[VSCodeIDEService._TERMINAL_ACCESS_KEY] = True
