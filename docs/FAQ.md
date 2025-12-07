@@ -1,107 +1,74 @@
-# System Architecture of MorningAI
+# Migrate Flask Routes to Use Blueprint Pattern
 
-The system architecture of MorningAI is designed to be robust, scalable, and efficient, facilitating seamless integration and real-time task orchestration across various platforms. This document provides an overview of the architecture, focusing on key components and their interactions within the MorningAI platform.
+## Introduction
+Migrating Flask routes to use the Blueprint pattern is a strategic move for enhancing the scalability and maintainability of your MorningAI application. Blueprints allow you to organize your Flask application into modular components, each potentially encapsulating a set of operations related to a specific feature or component of your platform.
 
-## Overview
+## Step-by-Step Guide
 
-MorningAI leverages a microservices-based architecture, utilizing a range of technologies to ensure high performance, reliability, and scalability. The core components of the system include:
+### Step 1: Create a Blueprint
 
-- **Frontend**: Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
-- **Backend**: Python and Flask serve as the backbone of the server-side application, with Gunicorn for multi-worker support ensuring scalability and efficiency.
-- **Database**: PostgreSQL with Row Level Security (RLS) is used for data storage, enhanced by Supabase for additional functionality including authentication and real-time subscriptions.
-- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and job queues, allowing for efficient task scheduling and execution.
-- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex autonomous operations within the system.
-- **AI Integration**: OpenAI's GPT-4 model powers content generation, including FAQ generation and code suggestions.
-- **Deployment**: Render.com is used for hosting, benefiting from its CI/CD features for streamlined deployment processes.
-
-### Detailed Component Interaction
-
-1. **Frontend**:
-   - Users interact with the MorningAI platform through the web interface built with React.
-   - TailwindCSS is employed for styling, ensuring a consistent look and feel across different devices.
-
-```jsx
-// Example: Frontend component in React
-import React from 'react';
-
-function App() {
-  return (
-    <div className="app-container">
-      <h1>Welcome to MorningAI</h1>
-      // More UI components here
-    </div>
-  );
-}
-
-export default App;
-```
-
-2. **Backend**:
-   - Flask routes handle API requests from the frontend, interacting with the database or queue system as needed.
-   - Gunicorn serves as the WSGI HTTP Server to manage multiple worker processes.
+First, define a new Blueprint object in a separate module within your application. For instance, if you are creating a user management component, you might have a `user.py` file in your `views` directory.
 
 ```python
-# Example: Flask route in app.py
+# views/user.py
+from flask import Blueprint
+
+user_blueprint = Blueprint('user', __name__)
+
+@user_blueprint.route('/users')
+def list_users():
+    # Logic to list users
+    return "User list"
+```
+
+### Step 2: Register the Blueprint with Your Application
+
+After defining your Blueprint, the next step is to register it with your Flask application instance. This step is typically done in your main application file or within a factory function that creates your app.
+
+```python
+# app.py
 from flask import Flask
+from views.user import user_blueprint
 
 app = Flask(__name__)
-
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    # Logic to fetch or process data here
-    return {"data": "Sample data"}
-
-if __name__ == '__main__':
-    app.run()
+app.register_blueprint(user_blueprint)
 ```
 
-3. **Database Operations**:
-   - Supabase adds real-time capabilities and easy management tools on top of PostgreSQL.
+### Step 3: Organize Your Blueprints
 
-```sql
--- Example: PostgreSQL query with RLS
-CREATE TABLE secure_data (
-    id SERIAL PRIMARY KEY,
-    info TEXT,
-    user_id INTEGER REFERENCES users(id)
-);
-```
-
-4. **Queue Management**:
-   - Background tasks are handled via Redis Queue, allowing asynchronous processing of long-running operations.
+For larger applications, consider organizing your Blueprints into a separate module or package. This could involve creating a `views` or `blueprints` directory and initializing each Blueprint in its respective module. Then, create an `__init__.py` file within this directory where you import and register all Blueprints with the application.
 
 ```python
-# Example: Enqueuing a job in Redis Queue
-from rq import Queue
-from redis import Redis
-import my_background_task
+# views/__init__.py
+from .user import user_blueprint
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
-
-result = q.enqueue(my_background_task.process_data, 'http://example.com')
+def register_blueprints(app):
+    app.register_blueprint(user_blueprint)
+    # Register other blueprints as needed
 ```
 
-5. **Deployment**:
-   - Continuous Integration and Deployment through Render.com automates the deployment process every time changes are pushed to the repository.
+And in your application factory or main app file:
 
-### Related Documentation Links
+```python
+# app.py or factory.py
+from flask import Flask
+import views
 
-- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
+app = Flask(__name__)
+views.register_blueprints(app)
+```
 
-### Common Troubleshooting Tips
+## Related Documentation Links
 
-1. **Frontend Issues**: Ensure dependencies are up to date and correctly installed. Check console logs for errors during development.
-2. **Backend Connectivity**: Verify that environment variables for database connections are correctly set. Test endpoints using tools like Postman.
-3. **Database Permissions**: When facing RLS issues, ensure roles and policies are correctly defined in PostgreSQL.
-4. **Queue Processing Delays**: Monitor Redis Queue dashboard for failed jobs or bottlenecks in task processing.
-5. **Deployment Failures**: Check build logs in Render.com for specific errors related to deployment failures.
+- Official Flask Blueprints documentation: [Flask Blueprints](https://flask.palletsprojects.com/en/2.0.x/blueprints/)
 
-This comprehensive overview aims to equip developers with a fundamental understanding of MorningAI's system architecture, promoting efficient development and troubleshooting practices within this ecosystem.
+## Common Troubleshooting Tips
+
+- **Blueprints Not Registered**: Ensure that you've called the `register_blueprints` function and passed the application instance to it properly.
+- **Circular Imports**: Be cautious of circular imports when organizing your blueprints and application structure. If you encounter import errors, review how and where you're importing modules.
+- **URL Prefixes**: When registering blueprints, you can specify a URL prefix to apply to all routes associated with that blueprint. If routes are not behaving as expected, ensure that these prefixes are correctly set and used.
+
+By following these steps and guidelines, developers can effectively migrate existing routes in their MorningAI project to use the Blueprint pattern, leading to better organized and more maintainable code.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -109,8 +76,8 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `00b32bea-50b3-494c-a8a7-178118e23a74`
+- Task: Migrate Flask routes to use Blueprint pattern
+- Trace ID: `task-008`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Provider: openai
 - Repository: RC918/morningai
