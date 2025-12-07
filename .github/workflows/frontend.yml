@@ -175,7 +175,7 @@ jobs:
       - name: Run strict typecheck - shared-ui
         run: |
           cd packages/shared-ui
-          pnpm run type-check:strict 2>&1 | tee strict-report-sui.txt || true
+          pnpm run typecheck:strict 2>&1 | tee strict-report-sui.txt || true
           SUI_ERRORS=$(grep "src/" strict-report-sui.txt | grep "error TS" | wc -l || echo 0)
           echo "::notice::shared-ui strict errors: $SUI_ERRORS / ${{ env.SHARED_UI_BASELINE }} (baseline)"
           echo "SUI_ERRORS=$SUI_ERRORS" >> $GITHUB_ENV
