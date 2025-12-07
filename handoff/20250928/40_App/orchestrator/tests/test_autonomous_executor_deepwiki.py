@@ -99,9 +99,10 @@ class TestGenerateSessionInsights:
         mock_deepwiki = Mock()
         mock_deepwiki.get_session_insights.return_value = mock_insight
 
-        with patch(
-            "meta_agent.autonomous_executor.get_deepwiki_service",
-            return_value=mock_deepwiki,
+        # Patch the import inside the method by patching the module that gets imported
+        with patch.dict(
+            "sys.modules",
+            {"deepwiki.service": Mock(get_deepwiki_service=Mock(return_value=mock_deepwiki))},
         ):
             executor._generate_session_insights(plan)
 
@@ -121,10 +122,11 @@ class TestGenerateSessionInsights:
         executor = self._create_executor_with_execution()
         plan = self._create_mock_plan()
 
-        with patch(
-            "meta_agent.autonomous_executor.get_deepwiki_service",
-            side_effect=ImportError("deepwiki not available"),
-        ):
+        # Simulate ImportError by making the import fail
+        mock_module = Mock()
+        mock_module.get_deepwiki_service = Mock(side_effect=ImportError("deepwiki not available"))
+
+        with patch.dict("sys.modules", {"deepwiki.service": mock_module}):
             # Should not raise exception
             executor._generate_session_insights(plan)
 
@@ -142,10 +144,10 @@ class TestGenerateSessionInsights:
         mock_deepwiki = Mock()
         mock_deepwiki.get_session_insights.side_effect = Exception("Service error")
 
-        with patch(
-            "meta_agent.autonomous_executor.get_deepwiki_service",
-            return_value=mock_deepwiki,
-        ):
+        mock_module = Mock()
+        mock_module.get_deepwiki_service = Mock(return_value=mock_deepwiki)
+
+        with patch.dict("sys.modules", {"deepwiki.service": mock_module}):
             # Should not raise exception
             executor._generate_session_insights(plan)
 
@@ -170,10 +172,10 @@ class TestGenerateSessionInsights:
         mock_deepwiki = Mock()
         mock_deepwiki.get_session_insights.return_value = mock_insight
 
-        with patch(
-            "meta_agent.autonomous_executor.get_deepwiki_service",
-            return_value=mock_deepwiki,
-        ):
+        mock_module = Mock()
+        mock_module.get_deepwiki_service = Mock(return_value=mock_deepwiki)
+
+        with patch.dict("sys.modules", {"deepwiki.service": mock_module}):
             executor._generate_session_insights(plan)
 
             # Verify get_session_insights was called with correct arguments
