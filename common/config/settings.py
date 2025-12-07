@@ -713,9 +713,15 @@ class Settings(BaseSettings):
     )
 
     orchestrator_test_mode: bool = Field(
-        default=False,
+        default=True,
         alias="ORCHESTRATOR_TEST_MODE",
-        description="Enable orchestrator test mode"
+        description="Enable orchestrator test mode (default: True for safety, set to False for production PRs)"
+    )
+
+    orchestrator_docs_max_prs_per_hour: int = Field(
+        default=3,
+        alias="ORCHESTRATOR_DOCS_MAX_PRS_PER_HOUR",
+        description="Maximum documentation PRs allowed per hour (default: 3 to prevent PR bombing)"
     )
 
     orchestrator_dry_run: bool = Field(
