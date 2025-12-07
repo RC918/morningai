@@ -494,7 +494,26 @@
               "plan": "Task Plan",
               "codeReview": "Code Review",
               "tests": "Tests",
-              "logs": "Activity Log"
+              "logs": "Activity Log",
+              "insights": "Insights"
+            },
+            "insights": {
+              "title": "Session Insights",
+              "fetchError": "Failed to load session insights",
+              "serviceUnavailable": "DeepWiki service is not available",
+              "cached": "Cached",
+              "generated": "Generated",
+              "errorTitle": "Unable to load insights",
+              "noInsights": "No insights available for this session",
+              "refresh": "Refresh insights",
+              "summary": "Summary",
+              "tasksCompleted": "Completed",
+              "tasksFailed": "Failed",
+              "duration": "Duration",
+              "durationValue": "{{count}}m",
+              "confidence": "Confidence",
+              "recommendations": "Recommendations",
+              "lastUpdated": "Last updated"
             },
             "codeReview": {
               "title": "Code Review",
