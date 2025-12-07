@@ -115,7 +115,6 @@ class TestDeepWikiService:
         assert service.enable_error_pairs is True
         assert service.enable_embeddings is True
         assert service._kg_manager is None
-        assert service._query_counter == 0
 
     def test_service_initialization_custom(self):
         """Test service initializes with custom settings."""
@@ -129,7 +128,7 @@ class TestDeepWikiService:
         assert service.enable_embeddings is False
 
     def test_generate_query_id(self):
-        """Test query ID generation is unique and incremental."""
+        """Test query ID generation is unique."""
         service = DeepWikiService()
         id1 = service._generate_query_id()
         id2 = service._generate_query_id()
@@ -137,7 +136,6 @@ class TestDeepWikiService:
         assert id1.startswith("dw-")
         assert id2.startswith("dw-")
         assert id1 != id2
-        assert service._query_counter == 2
 
     def test_query_code_question_no_sources(self):
         """Test CODE_QUESTION query when no sources available."""
@@ -635,3 +633,85 @@ class TestDeepWikiServiceImprovementSuggestions:
         
         assert "Based on Code Patterns" in result
         assert "Null Object Pattern" in result
+
+
+class TestDeepWikiThreadSafety:
+    """Tests for thread safety improvements (#2147, #2148)."""
+
+    def test_generate_query_id_uses_uuid(self):
+        """Test query ID uses UUID format for thread safety (#2147)."""
+        service = DeepWikiService()
+        
+        id1 = service._generate_query_id()
+        id2 = service._generate_query_id()
+        
+        # Should start with dw- prefix
+        assert id1.startswith("dw-")
+        assert id2.startswith("dw-")
+        
+        # Should be unique (UUID guarantees this)
+        assert id1 != id2
+        
+        # Should contain UUID format (36 chars after prefix)
+        # UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        uuid_part = id1[3:]  # Remove "dw-" prefix
+        assert len(uuid_part) == 36
+        assert uuid_part.count("-") == 4
+
+    def test_generate_query_id_thread_safe(self):
+        """Test query ID generation is thread-safe (#2147)."""
+        import threading
+        
+        service = DeepWikiService()
+        query_ids = []
+        lock = threading.Lock()
+        
+        def generate_ids():
+            for _ in range(100):
+                qid = service._generate_query_id()
+                with lock:
+                    query_ids.append(qid)
+        
+        threads = [threading.Thread(target=generate_ids) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        
+        # All IDs should be unique
+        assert len(query_ids) == 1000
+        assert len(set(query_ids)) == 1000
+
+    def test_get_deepwiki_service_thread_safe_singleton(self):
+        """Test singleton factory is thread-safe (#2148)."""
+        import threading
+        import deepwiki.service as service_module
+        
+        # Reset singleton
+        service_module._deepwiki_service = None
+        
+        instances = []
+        lock = threading.Lock()
+        
+        def get_service():
+            service = get_deepwiki_service()
+            with lock:
+                instances.append(service)
+        
+        with patch("deepwiki.service.settings", create=True) as mock_settings:
+            mock_settings.enable_deepwiki = True
+            mock_settings.enable_knowledge_graph_learning = False
+            mock_settings.enable_failure_learning_context = True
+            
+            threads = [threading.Thread(target=get_service) for _ in range(20)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        
+        # All instances should be the same object
+        assert len(instances) == 20
+        assert all(inst is instances[0] for inst in instances)
+        
+        # Cleanup
+        service_module._deepwiki_service = None
