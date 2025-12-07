@@ -63,6 +63,34 @@ Only if the capability check passes, the command is forwarded to the VM's shell 
 User/Service → execute_terminal_command() → _has_terminal_capability() → _execute_shell_command() → MCP → VM Shell
 ```
 
+## Environment Settings Guide
+
+The following table provides recommended settings for terminal access capability across different deployment environments:
+
+| Environment | Recommended Setting | Description |
+|-------------|---------------------|-------------|
+| Development | Can be enabled | For local development and testing. Developers can freely enable terminal access for debugging. |
+| Staging | Restricted | Requires review before enabling. Use for integration testing with limited scope. |
+| Production | Strictly controlled | Only enable for specific, audited use cases. Requires explicit authorization and logging. |
+
+### Environment-Specific Configuration
+
+**Development:**
+- Terminal access can be enabled by default for developer convenience
+- No additional authorization checks required
+- Useful for debugging and rapid iteration
+
+**Staging:**
+- Terminal access should be disabled by default
+- Enable only for specific test scenarios
+- Log all terminal access grants for review
+
+**Production:**
+- Terminal access must be disabled by default
+- Require explicit user authorization before granting
+- Implement audit logging for all terminal commands
+- Consider time-limited access grants
+
 ## Security Considerations
 
 ### Who Can Grant Terminal Access
@@ -128,6 +156,7 @@ result = await service.execute_terminal_command(unprivileged_session, "npm insta
 ## Related Issues
 
 - Issue #2023: Capability gate for terminal access
+- Issue #2044: Document terminal capability authorization flow and environment settings
 - Issue #1822: VS Code IDE integration
 
 ## Related Files
