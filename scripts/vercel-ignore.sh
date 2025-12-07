@@ -15,14 +15,15 @@ if [ -n "$changed" ]; then
   fi
 fi
 
+# Note: This project uses trunk-based development. No persistent 'develop' branch exists.
 if [ "$e" = "preview" ]; then
   case "$r" in
-    develop|feature/*|fix/*|devin/*)
+    feature/*|fix/*|devin/*)
       echo "✅ Allowing preview deployment for branch: $r"
       exit 1
       ;;
     *)
-      echo "⏭️  Skipping preview deployment for branch: $r (not a develop/feature/fix/devin branch)"
+      echo "⏭️  Skipping preview deployment for branch: $r (not a feature/fix/devin branch)"
       exit 0
       ;;
   esac

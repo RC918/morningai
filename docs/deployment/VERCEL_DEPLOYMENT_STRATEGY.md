@@ -32,16 +32,17 @@ We have **two Vercel projects** in the `morning-ai` team:
 | Environment | Branch | Deployment Type | URL Pattern |
 |------------|--------|----------------|-------------|
 | **Production** | `main` | Automatic | `morningai.vercel.app` / custom domain |
-| **Staging** | `develop` | Automatic (via Branch Alias) | `staging.morningai.me`, `staging-owner.morningai.me` |
 | **Preview** | `feature/*`, `fix/*`, `devin/*` | Automatic | `morningai-{hash}.vercel.app` |
 | **Skip** | All other branches | None | N/A |
+
+> **Note**: This is a trunk-based development model. There is no persistent `develop` branch. Staging backend services (on Render) deploy from `main`, while frontend staging uses Vercel preview deployments from feature branches.
 
 ### Deployment Rules
 
 The deployment logic is controlled by `scripts/vercel-ignore.sh`:
 
 1. **Docs-only changes**: Skip deployment if only `docs/` or `*.md` files changed (uses `VERCEL_GIT_COMMIT_SHA` for robustness)
-2. **Preview deployments**: Only allow `develop`, `feature/*`, `fix/*`, `devin/*` branches
+2. **Preview deployments**: Only allow `feature/*`, `fix/*`, `devin/*` branches
 3. **Production deployments**: Only allow `main` branch
 4. **All other branches**: Skip deployment
 
@@ -99,17 +100,19 @@ The deployment logic is controlled by `scripts/vercel-ignore.sh`:
 
 Repeat for the `owner-console` project.
 
-### Step 2: Configure Branch Aliases (Staging Environment)
+### Step 2: Staging Environment (Trunk-Based Model)
 
-**Completed via API on 2025-11-04**:
-- `staging.morningai.me` → `develop` branch (morningai project)
-- `staging-owner.morningai.me` → `develop` branch (owner-console project)
+> **Note**: The project uses a trunk-based development model. There is no persistent `develop` branch.
+
+**Frontend Staging**: Use Vercel preview deployments from feature branches (`feature/*`, `fix/*`, `devin/*`).
+
+**Backend Staging**: Render services (`morningai-backend-v2-stg`, `morningai-orchestrator-api-stg`) deploy from `main` branch with staging environment variables.
 
 **DNS Configuration** (Cloudflare - morningai.me zone):
 - CNAME: `staging.morningai.me` → `cname.vercel-dns.com` (DNS-only, proxied=false)
 - CNAME: `staging-owner.morningai.me` → `cname.vercel-dns.com` (DNS-only, proxied=false)
 
-This creates a **stable staging environment** that always deploys from the `develop` branch.
+> **Historical Note**: Branch aliases for `develop` were configured on 2025-11-04 but the `develop` branch was later removed in favor of trunk-based development.
 
 ### Step 3: Configure Ignored Build Step (Optional)
 
@@ -242,27 +245,21 @@ Based on the codebase analysis, consider adding:
    # Create PR → Vercel automatically creates preview deployment
    ```
 
-2. **Staging Deployment**:
+2. **Production Deployment** (Trunk-Based):
    ```bash
-   git checkout develop
-   git merge feature/my-feature
-   git push origin develop
-   # Vercel automatically deploys to staging-dashboard.morningai.app
+   # Merge feature branch directly to main via PR
+   git checkout main
+   git pull origin main
+   # Create PR from feature branch → main
+   # After PR approval and merge, Vercel automatically deploys to production
    ```
 
-3. **Production Deployment**:
-   ```bash
-   git checkout main
-   git merge develop
-   git push origin main
-   # Vercel automatically deploys to production
-   ```
+> **Note**: This is a trunk-based development model. Features are merged directly to `main` after review. Backend staging services on Render use `main` branch with staging environment variables.
 
 ### For CI/CD
 
 The deployment is fully automated:
 - **Preview**: Automatic on PR creation for `feature/*`, `fix/*`, `devin/*` branches
-- **Staging**: Automatic on push to `develop` branch
 - **Production**: Automatic on push to `main` branch
 
 ## Post-Deployment Smoke Tests
@@ -337,18 +334,12 @@ All deployments send errors and performance data to Sentry:
 
 **Symptom**: Accessing `staging.morningai.me` or `staging-owner.morningai.me` shows a 404 error with code `DEPLOYMENT_NOT_FOUND`.
 
-**Root Cause**: The `develop` branch has no deployments yet, or the ignore script is blocking develop branch deployments.
+**Root Cause**: The staging domain aliases were configured for a `develop` branch that no longer exists (trunk-based model).
 
 **Solution**:
-1. Ensure `vercel-ignore.sh` allows `develop` branch in the preview case statement
-2. Merge the updated script to the `develop` branch (Vercel runs the script from the commit being deployed)
-3. Push a commit to `develop` to trigger the first deployment:
-   ```bash
-   git checkout develop
-   git merge main  # or merge your PR branch
-   git push origin develop
-   ```
-4. Wait for Vercel to deploy, then check the staging URLs again
+1. Use Vercel preview deployments from feature branches for frontend staging
+2. Backend staging is available at Render services (`morningai-backend-v2-stg.onrender.com`)
+3. For a stable frontend staging URL, configure a branch alias to point to `main` or use preview deployment URLs directly
 
 ### Build Failures
 

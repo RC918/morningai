@@ -274,10 +274,12 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 
 ## Environment Summary
 
+> **Note**: This project uses a **trunk-based development model**. There is no persistent `develop` branch. Staging is handled via Render backend services (deploying from `main` with staging env vars) and Vercel preview deployments.
+
 | Environment | Status | Purpose | Branch | Auto-Deploy |
 |-------------|--------|---------|--------|-------------|
 | **Production** | ✅ Active | Live user-facing services | `main` | Yes |
-| **Staging** | ✅ Active | Pre-production testing | `develop` | Yes |
+| **Staging** | ✅ Active | Pre-production testing | `main` (staging env vars) | Yes |
 | **Local Development** | ✅ Active | Developer workstations | Any | No |
 
 ---
@@ -771,8 +773,8 @@ class Settings(BaseSettings):
 - **Service Name**: `morningai-backend-v2-stg`
 - **Platform**: Render
 - **Runtime**: Python 3
-- **Branch**: `develop`
-- **Auto-Deploy**: Yes (on push to `develop`)
+- **Branch**: `main` (with `ENVIRONMENT=staging`)
+- **Auto-Deploy**: Yes (on push to `main`)
 - **Health Check**: `GET /healthz`
 - **Status**: ✅ Healthy
 
@@ -807,8 +809,8 @@ class Settings(BaseSettings):
 - **Platform**: Render
 - **Runtime**: Docker
 - **Dockerfile**: `orchestrator/Dockerfile`
-- **Branch**: `develop`
-- **Auto-Deploy**: Yes (on push to `develop`)
+- **Branch**: `main` (with `ENVIRONMENT=staging`)
+- **Auto-Deploy**: Yes (on push to `main`)
 - **Health Check**: `GET /health`
 - **Status**: ✅ Healthy
 
@@ -826,23 +828,23 @@ class Settings(BaseSettings):
 ```
 
 #### Frontend Dashboard Staging
-- **URL**: https://staging.morningai.me
+- **URL**: https://staging.morningai.me (or use Vercel preview URLs)
 - **Platform**: Vercel
 - **Framework**: Vite + React
-- **Branch**: `develop`
-- **Auto-Deploy**: Yes (on push to `develop`)
+- **Branch**: Preview deployments from `feature/*`, `fix/*`, `devin/*`
+- **Auto-Deploy**: Yes (on PR creation)
 - **Status**: ✅ Healthy
 
 #### Owner Console Staging
-- **URL**: https://staging-owner.morningai.me
+- **URL**: https://staging-owner.morningai.me (or use Vercel preview URLs)
 - **Platform**: Vercel
 - **Framework**: Vite + React
-- **Branch**: `develop`
-- **Auto-Deploy**: Yes (on push to `develop`)
+- **Branch**: Preview deployments from `feature/*`, `fix/*`, `devin/*`
+- **Auto-Deploy**: Yes (on PR creation)
 - **Status**: ✅ Healthy
 
-**Deployment Strategy**:
-- **Branch Policy**: `develop` → staging, `main` → production, `feature/*|fix/*|devin/*` → preview
+**Deployment Strategy** (Trunk-Based):
+- **Branch Policy**: `main` → production, `feature/*|fix/*|devin/*` → preview
 - **Ignore Script**: `scripts/vercel-ignore.sh` (skips docs-only changes)
 - **Documentation**: See [docs/deployment/VERCEL_DEPLOYMENT_STRATEGY.md](deployment/VERCEL_DEPLOYMENT_STRATEGY.md) for complete setup and troubleshooting
 
@@ -1248,25 +1250,25 @@ See [monitoring/DEPLOYMENT.md](../monitoring/DEPLOYMENT.md#troubleshooting) for 
 
 ## 🔄 Deployment Workflow
 
-### Development Flow
+### Development Flow (Trunk-Based)
 
 ```mermaid
 graph LR
-    A[Feature Branch] -->|PR| B[develop]
-    B -->|Auto-deploy| C[Staging Environment]
-    C -->|Manual Test| D{Tests Pass?}
-    D -->|Yes| E[PR to main]
-    E -->|Manual Approval| F[Production]
-    D -->|No| A
+    A[Feature Branch] -->|PR| B[main]
+    B -->|Auto-deploy| C[Production]
+    A -->|Preview Deploy| D[Staging Test]
+    D -->|Manual Test| E{Tests Pass?}
+    E -->|Yes| B
+    E -->|No| A
 ```
 
 ### Step-by-Step Process
 
 #### 1. Feature Development
 ```bash
-# Create feature branch from develop
-git checkout develop
-git pull origin develop
+# Create feature branch from main
+git checkout main
+git pull origin main
 git checkout -b feature/my-feature
 
 # Develop and commit
@@ -1275,31 +1277,31 @@ git commit -m "feat: add new feature"
 git push origin feature/my-feature
 ```
 
-#### 2. Staging Deployment
+#### 2. Staging Test (Preview Deployment)
 ```bash
-# Create PR to develop
+# Create PR to main
 # GitHub Actions will:
-# - Run staging CI checks
-# - Auto-deploy to Render staging services
+# - Run CI checks
+# - Vercel creates preview deployment for testing
 
-# Test on staging
+# Test on staging backend
 curl https://morningai-backend-v2-stg.onrender.com/healthz
+# Test frontend via Vercel preview URL
 ```
 
 #### 3. Production Deployment
 ```bash
-# After staging tests pass, create PR to main
-# Requires manual approval
+# After PR approval and merge to main
 # Auto-deploys to production services
 ```
 
 ### CI/CD Workflows
 
-#### Staging CI (`.github/workflows/staging-deploy.yml`)
-- **Trigger**: Push/PR to `develop` branch
+#### CI (`.github/workflows/`)
+- **Trigger**: Push/PR to `main` branch
 - **Tests**: Backend (pytest + coverage), Frontend (build), Smoke tests
-- **Deploy**: Auto-deploy to Render staging services
-- **Environment**: `ENVIRONMENT=staging`
+- **Deploy**: Auto-deploy to production services on merge
+- **Environment**: `ENVIRONMENT=production` (or `staging` for Render staging services)
 
 #### Production CI (`.github/workflows/backend.yml`, etc.)
 - **Trigger**: Push to `main` branch
