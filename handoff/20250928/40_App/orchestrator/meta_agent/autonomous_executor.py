@@ -25,6 +25,11 @@ from .visual_verifier import VisualVerifier
 from .vm_provisioner import VMProvisioner, VMProvider, TaskVM
 from .vscode_ide import VSCodeIDEService, IDESession
 
+try:
+    from common.config.settings import settings
+except ImportError:
+    settings = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -927,8 +932,21 @@ class AutonomousExecutor:
         verification_results = []
         screenshot_result = None
 
-        # Check if visual verification is requested
+        # Check if visual verification is enabled and requested
+        # Tier 5: Visual verification is gated behind ENABLE_VISUAL_VERIFICATION flag
+        visual_verification_enabled = (
+            settings is not None and
+            getattr(settings, 'enable_visual_verification', False)
+        )
         visual_config = task.inputs.get("visual_verification") if task.inputs else None
+
+        if visual_config and not visual_verification_enabled:
+            logger.info(
+                "[AutonomousExecutor] Visual verification requested but disabled "
+                "(ENABLE_VISUAL_VERIFICATION=false), skipping"
+            )
+            checks_performed.append("Skipped: Visual verification disabled")
+            visual_config = None  # Skip visual verification
 
         if visual_config:
             url = visual_config.get("url", "")

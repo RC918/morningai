@@ -1296,6 +1296,12 @@ class Settings(BaseSettings):
         description="VM provider for Meta Agent: 'local', 'docker', or 'fly' (requires ENABLE_META_AGENT_VM=true)"
     )
 
+    enable_visual_verification: bool = Field(
+        default=False,
+        alias="ENABLE_VISUAL_VERIFICATION",
+        description="Enable visual verification for Meta Agent task execution using headless browser (requires ENABLE_META_AGENT=true)"
+    )
+
     vite_api_base_url: str = Field(
         default="http://localhost:5001",
         description="Frontend API base URL"
