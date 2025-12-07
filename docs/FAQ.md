@@ -1,107 +1,71 @@
-# System Architecture of MorningAI
+# Fix Memory Leak in Redis Queue Worker
 
-The system architecture of MorningAI is designed to be robust, scalable, and efficient, facilitating seamless integration and real-time task orchestration across various platforms. This document provides an overview of the architecture, focusing on key components and their interactions within the MorningAI platform.
+Memory leaks in Redis Queue (RQ) workers can lead to degraded performance and system instability over time. This guide provides insights into identifying and addressing memory leaks within the MorningAI platform's RQ workers, ensuring efficient operation and longevity of the service.
 
-## Overview
+## Understanding the Issue
 
-MorningAI leverages a microservices-based architecture, utilizing a range of technologies to ensure high performance, reliability, and scalability. The core components of the system include:
+A memory leak occurs when a Redis Queue worker retains memory that is no longer needed, preventing that memory from being used by other processes. Over time, this can cause an accumulation of unused memory, leading to potential crashes or slowdowns.
 
-- **Frontend**: Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
-- **Backend**: Python and Flask serve as the backbone of the server-side application, with Gunicorn for multi-worker support ensuring scalability and efficiency.
-- **Database**: PostgreSQL with Row Level Security (RLS) is used for data storage, enhanced by Supabase for additional functionality including authentication and real-time subscriptions.
-- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and job queues, allowing for efficient task scheduling and execution.
-- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex autonomous operations within the system.
-- **AI Integration**: OpenAI's GPT-4 model powers content generation, including FAQ generation and code suggestions.
-- **Deployment**: Render.com is used for hosting, benefiting from its CI/CD features for streamlined deployment processes.
+### Symptoms of Memory Leak:
 
-### Detailed Component Interaction
+- Gradual increase in memory usage over time without corresponding increase in workload.
+- Slowdowns or timeouts due to insufficient available memory.
+- Workers crashing and restarting frequently.
 
-1. **Frontend**:
-   - Users interact with the MorningAI platform through the web interface built with React.
-   - TailwindCSS is employed for styling, ensuring a consistent look and feel across different devices.
+## Identifying the Leak
 
-```jsx
-// Example: Frontend component in React
-import React from 'react';
+1. **Monitoring Memory Usage**: Use tools like `top` or `htop` on Linux to monitor the memory usage of your RQ workers. A steadily increasing memory footprint could indicate a leak.
 
-function App() {
-  return (
-    <div className="app-container">
-      <h1>Welcome to MorningAI</h1>
-      // More UI components here
-    </div>
-  );
-}
+2. **Logging Memory Metrics**: Implement logging within your worker's tasks to report memory usage at the start and end of each task. This can help identify specific tasks that are leaking memory.
 
-export default App;
-```
+    ```python
+    import os
+    import psutil
+    def log_memory_usage():
+        process = psutil.Process(os.getpid())
+        print(f"Memory Usage: {process.memory_info().rss / 1024 ** 2} MB")
+    ```
 
-2. **Backend**:
-   - Flask routes handle API requests from the frontend, interacting with the database or queue system as needed.
-   - Gunicorn serves as the WSGI HTTP Server to manage multiple worker processes.
+3. **Using Debugging Tools**: Tools like `objgraph` can help identify objects that are not being garbage-collected, potentially pointing towards a leak.
 
-```python
-# Example: Flask route in app.py
-from flask import Flask
+    ```python
+    import objgraph
+    objgraph.show_most_common_types()  # Shows common types of leaked objects
+    ```
 
-app = Flask(__name__)
+## Fixing the Leak
 
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    # Logic to fetch or process data here
-    return {"data": "Sample data"}
+Once you've identified a potential source of the leak, follow these steps:
 
-if __name__ == '__main__':
-    app.run()
-```
+1. **Review Task Code**: Check for common sources of leaks in Python, such as circular references or globals that hold onto large data structures longer than necessary.
 
-3. **Database Operations**:
-   - Supabase adds real-time capabilities and easy management tools on top of PostgreSQL.
+2. **Use Context Managers**: Ensure that resources like files and network connections are managed within context managers (`with` statement) to ensure proper cleanup.
 
-```sql
--- Example: PostgreSQL query with RLS
-CREATE TABLE secure_data (
-    id SERIAL PRIMARY KEY,
-    info TEXT,
-    user_id INTEGER REFERENCES users(id)
-);
-```
+3. **Update Dependencies**: Outdated dependencies might have known memory leaks that have been fixed in newer versions.
 
-4. **Queue Management**:
-   - Background tasks are handled via Redis Queue, allowing asynchronous processing of long-running operations.
+4. **Limit Task Size**: Break down large tasks into smaller chunks to limit the maximum amount of memory used by any single task.
 
-```python
-# Example: Enqueuing a job in Redis Queue
-from rq import Queue
-from redis import Redis
-import my_background_task
+5. **Restart Workers Regularly**: As a temporary measure, consider setting up a scheduled restart for your workers. This can mitigate the effects of a leak until a permanent fix is applied.
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+    ```shell
+    # Example Cron job to restart RQ workers every 24 hours
+    0 3 * * * /path/to/your/restart_script.sh
+    ```
 
-result = q.enqueue(my_background_task.process_data, 'http://example.com')
-```
+## Related Documentation Links
 
-5. **Deployment**:
-   - Continuous Integration and Deployment through Render.com automates the deployment process every time changes are pushed to the repository.
+- Redis Queue Documentation: [https://python-rq.org/docs/](https://python-rq.org/docs/)
+- Python Memory Management: [https://docs.python.org/3/c-api/memory.html](https://docs.python.org/3/c-api/memory.html)
+- Psutil Documentation: [https://psutil.readthedocs.io/en/latest/](https://psutil.readthedocs.io/en/latest/)
+- Objgraph GitHub Repository: [https://github.com/mgedmin/objgraph](https://github.com/mgedmin/objgraph)
 
-### Related Documentation Links
+## Common Troubleshooting Tips
 
-- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
+- **Restarting Does Not Fix Issue**: If restarting workers does not alleviate the issue, it indicates that the leak is caused by persistent patterns in your code rather than a one-time anomaly.
+- **Leak Still Present After Fixes**: If initial fixes do not resolve the leak, consider more extensive profiling with tools like `memory_profiler` or consulting with developers familiar with deep Python internals.
+- **Performance Regression Post-Fix**: Ensure that any changes made to address memory leaks do not introduce significant performance regressions by thoroughly testing any modified code paths.
 
-### Common Troubleshooting Tips
-
-1. **Frontend Issues**: Ensure dependencies are up to date and correctly installed. Check console logs for errors during development.
-2. **Backend Connectivity**: Verify that environment variables for database connections are correctly set. Test endpoints using tools like Postman.
-3. **Database Permissions**: When facing RLS issues, ensure roles and policies are correctly defined in PostgreSQL.
-4. **Queue Processing Delays**: Monitor Redis Queue dashboard for failed jobs or bottlenecks in task processing.
-5. **Deployment Failures**: Check build logs in Render.com for specific errors related to deployment failures.
-
-This comprehensive overview aims to equip developers with a fundamental understanding of MorningAI's system architecture, promoting efficient development and troubleshooting practices within this ecosystem.
+For detailed insights into managing and optimizing RQ workers within MorningAI, refer to our developer documentation under `docs/FAQ.md` in the RC918/morningai repository.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -109,8 +73,8 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `00b32bea-50b3-494c-a8a7-178118e23a74`
+- Task: Fix memory leak in Redis queue worker
+- Trace ID: `task-007`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Provider: openai
 - Repository: RC918/morningai
