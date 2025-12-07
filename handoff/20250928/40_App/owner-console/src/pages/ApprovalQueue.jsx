@@ -34,6 +34,7 @@ const ApprovalQueue = () => {
   const [activeTab, setActiveTab] = useState('pending')
   const [lastUpdated, setLastUpdated] = useState(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [shouldFocusDetails, setShouldFocusDetails] = useState(false)
   const listRef = useRef(null)
   const detailsRef = useRef(null)
 
@@ -52,6 +53,18 @@ const ApprovalQueue = () => {
     
     return () => clearInterval(intervalId)
   }, [autoRefresh, loadApprovalData])
+
+  // Focus management for details panel (replaces setTimeout with requestAnimationFrame)
+  useEffect(() => {
+    if (!shouldFocusDetails || activeTab !== 'details' || !selectedRequest) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      detailsRef.current?.focus()
+      setShouldFocusDetails(false)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [shouldFocusDetails, activeTab, selectedRequest])
 
   const sortRequests = useCallback((requests) => {
     return [...requests].sort((a, b) => {
@@ -158,10 +171,7 @@ const ApprovalQueue = () => {
   const handleSelectRequest = useCallback((request) => {
     setSelectedRequest(request)
     setActiveTab('details')
-    // Focus on details panel for accessibility
-    setTimeout(() => {
-      detailsRef.current?.focus()
-    }, 100)
+    setShouldFocusDetails(true)
   }, [])
 
   // Keyboard navigation for the list
