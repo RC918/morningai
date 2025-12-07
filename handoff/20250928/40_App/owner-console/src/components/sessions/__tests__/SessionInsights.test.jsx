@@ -105,8 +105,8 @@ describe('SessionInsights', () => {
       mockApiClientWithMeta.mockImplementation(() => new Promise(() => {})) // Never resolves
       render(<SessionInsights {...defaultProps} />)
       
-      // Should show skeleton elements
-      const skeletons = document.querySelectorAll('.h-5, .h-4, .h-8')
+      // Should show skeleton elements using data-testid
+      const skeletons = await screen.findAllByTestId('skeleton')
       expect(skeletons.length).toBeGreaterThan(0)
     })
 
@@ -134,8 +134,8 @@ describe('SessionInsights', () => {
         expect(screen.getByText('Unable to load insights')).toBeInTheDocument()
       })
       
-      // Should have a refresh button
-      const refreshButton = document.querySelector('button')
+      // Should have a refresh button using getByRole
+      const refreshButton = screen.getByRole('button')
       expect(refreshButton).toBeInTheDocument()
     })
 
@@ -149,7 +149,7 @@ describe('SessionInsights', () => {
         expect(screen.getByText('Unable to load insights')).toBeInTheDocument()
       })
       
-      const refreshButton = document.querySelector('button')
+      const refreshButton = screen.getByRole('button')
       fireEvent.click(refreshButton)
       
       await waitFor(() => {
