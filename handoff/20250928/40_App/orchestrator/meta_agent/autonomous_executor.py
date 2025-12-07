@@ -354,6 +354,8 @@ class AutonomousExecutor:
                 if self.is_cancelled:
                     logger.info("[AutonomousExecutor] Execution cancelled")
                     self.current_execution.status = ExecutionStatus.CANCELLED
+                    # Clean up resources on cancellation (Issue #2018)
+                    await self.cleanup_resources()
                     break
 
                 # Check for pause
@@ -433,6 +435,8 @@ class AutonomousExecutor:
             self.current_execution.errors.append(str(e))
             if self.audit_logger:
                 self.audit_logger.log_execution_failed(error=str(e))
+            # Clean up resources on unexpected failure (Issue #2018)
+            await self.cleanup_resources()
 
         self.current_execution.completed_at = datetime.now()
         self.current_execution.total_duration_seconds = (
@@ -691,13 +695,11 @@ class AutonomousExecutor:
         except Exception as e:
             logger.error(
                 "[AutonomousExecutor] Failed to provision VM for task %s: %s",
-                task.task_id[:8], e
+                task.task_id[:8], type(e).__name__
             )
-            return {
-                "environment_ready": False,
-                "error": f"VM provisioning failed: {e}",
-                "setup_steps": setup_steps,
-            }
+            raise ExecutionError(
+                f"VM provisioning failed for task {task.task_id[:8]}: {type(e).__name__}"
+            ) from e
 
         # Step 2: Create IDE session for the VM (Issue #2018)
         if self._current_vm and self._current_vm.mcp_endpoint:
@@ -923,6 +925,7 @@ class AutonomousExecutor:
         logger.info("[AutonomousExecutor] Cleaning up for task %s", task.task_id)
 
         cleanup_steps = []
+        cleanup_failures = []
 
         # Step 1: Close IDE session (Issue #2018)
         if self._current_ide_session:
@@ -938,7 +941,7 @@ class AutonomousExecutor:
                     "[AutonomousExecutor] Failed to close IDE session %s: %s",
                     self._current_ide_session.session_id, e
                 )
-                cleanup_steps.append(f"IDE session close failed: {e}")
+                cleanup_failures.append(f"IDE session close failed: {type(e).__name__}")
             finally:
                 self._current_ide_session = None
 
@@ -953,19 +956,23 @@ class AutonomousExecutor:
                         self._current_vm.vm_id
                     )
                 else:
-                    cleanup_steps.append(f"VM destruction returned False for {self._current_vm.vm_id}")
+                    cleanup_failures.append(
+                        f"VM destruction returned False for {self._current_vm.vm_id}"
+                    )
             except Exception as e:
                 logger.warning(
                     "[AutonomousExecutor] Failed to destroy VM %s: %s",
                     self._current_vm.vm_id, e
                 )
-                cleanup_steps.append(f"VM destruction failed: {e}")
+                cleanup_failures.append(f"VM destruction failed: {type(e).__name__}")
             finally:
                 self._current_vm = None
 
+        cleanup_complete = len(cleanup_failures) == 0
         return {
-            "cleanup_complete": True,
+            "cleanup_complete": cleanup_complete,
             "cleanup_steps": cleanup_steps,
+            "cleanup_failures": cleanup_failures,
         }
 
     async def _call_dev_agent(self, action: str, task: SubTask) -> Dict[str, Any]:

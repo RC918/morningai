@@ -879,3 +879,88 @@ class TestVMAndIDEIntegration:
 
         assert executor._current_vm is None
         assert executor._current_ide_session is None
+
+    @pytest.mark.asyncio
+    async def test_setup_environment_raises_on_vm_failure(self, mock_plan):
+        """Test that setup_environment raises ExecutionError when VM provisioning fails"""
+        from unittest.mock import AsyncMock, patch
+        from ..autonomous_executor import ExecutionError
+
+        executor = AutonomousExecutor()
+        executor.current_plan = mock_plan
+
+        # Mock vm_provisioner to raise an exception
+        executor.vm_provisioner.provision_vm = AsyncMock(
+            side_effect=RuntimeError("VM provisioning failed")
+        )
+
+        setup_task = SubTask(
+            task_id="test-setup-fail-001",
+            task_type=SubTaskType.SETUP_ENVIRONMENT,
+            description="Set up environment",
+        )
+
+        with pytest.raises(ExecutionError) as exc_info:
+            await executor._handle_setup_environment(setup_task)
+
+        assert "VM provisioning failed" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_cleanup_returns_false_on_vm_destroy_failure(self, mock_plan):
+        """Test that cleanup returns cleanup_complete=False when VM destruction fails"""
+        from unittest.mock import AsyncMock
+
+        executor = AutonomousExecutor()
+        executor.current_plan = mock_plan
+
+        # First provision a VM
+        setup_task = SubTask(
+            task_id="test-setup-cleanup-fail-001",
+            task_type=SubTaskType.SETUP_ENVIRONMENT,
+            description="Set up environment",
+        )
+        await executor._handle_setup_environment(setup_task)
+
+        # Mock destroy_vm to return False
+        executor.vm_provisioner.destroy_vm = AsyncMock(return_value=False)
+
+        cleanup_task = SubTask(
+            task_id="test-cleanup-fail-001",
+            task_type=SubTaskType.CLEANUP,
+            description="Clean up resources",
+        )
+        result = await executor._handle_cleanup(cleanup_task)
+
+        assert result["cleanup_complete"] is False
+        assert len(result["cleanup_failures"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_cleanup_returns_false_on_vm_destroy_exception(self, mock_plan):
+        """Test that cleanup returns cleanup_complete=False when VM destruction raises"""
+        from unittest.mock import AsyncMock
+
+        executor = AutonomousExecutor()
+        executor.current_plan = mock_plan
+
+        # First provision a VM
+        setup_task = SubTask(
+            task_id="test-setup-cleanup-exc-001",
+            task_type=SubTaskType.SETUP_ENVIRONMENT,
+            description="Set up environment",
+        )
+        await executor._handle_setup_environment(setup_task)
+
+        # Mock destroy_vm to raise an exception
+        executor.vm_provisioner.destroy_vm = AsyncMock(
+            side_effect=RuntimeError("VM destruction failed")
+        )
+
+        cleanup_task = SubTask(
+            task_id="test-cleanup-exc-001",
+            task_type=SubTaskType.CLEANUP,
+            description="Clean up resources",
+        )
+        result = await executor._handle_cleanup(cleanup_task)
+
+        assert result["cleanup_complete"] is False
+        assert "VM destruction failed" in str(result["cleanup_failures"])
