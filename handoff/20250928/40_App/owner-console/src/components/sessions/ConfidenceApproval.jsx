@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   ShieldAlert
 } from 'lucide-react'
+import { CONFIDENCE_THRESHOLD, validateConfidence } from './constants'
 
 /**
  * ConfidenceApproval - Modal for confidence score approval workflow
@@ -41,7 +42,7 @@ const ConfidenceApproval = ({
   onApprove,
   onRequestChanges,
   confidence = 0,
-  confidenceThreshold = 0.8,
+  confidenceThreshold = CONFIDENCE_THRESHOLD,
   factors = [],
   sessionTitle = '',
   currentTask = '',
@@ -62,9 +63,11 @@ const ConfidenceApproval = ({
     onClose?.()
   }, [comment, onRequestChanges, onClose])
 
+  // Guard clause: validate score to handle null/undefined/NaN/out-of-range values
   const getConfidenceLevel = useCallback((score) => {
-    if (score >= 0.9) return { level: 'high', color: 'text-growth', bgColor: 'bg-growth-10', label: t('sessions.confidence.high', 'High') }
-    if (score >= 0.7) return { level: 'medium', color: 'text-wisdom', bgColor: 'bg-wisdom-10', label: t('sessions.confidence.medium', 'Medium') }
+    const validScore = validateConfidence(score)
+    if (validScore >= 0.9) return { level: 'high', color: 'text-growth', bgColor: 'bg-growth-10', label: t('sessions.confidence.high', 'High') }
+    if (validScore >= 0.7) return { level: 'medium', color: 'text-wisdom', bgColor: 'bg-wisdom-10', label: t('sessions.confidence.medium', 'Medium') }
     return { level: 'low', color: 'text-energy', bgColor: 'bg-energy-10', label: t('sessions.confidence.low', 'Low') }
   }, [t])
 

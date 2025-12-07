@@ -41,7 +41,10 @@ import {
   CodeReviewPanel,
   TestResultsPanel,
   ConfidenceApproval,
-  FileDiffViewer
+  FileDiffViewer,
+  CONFIDENCE_THRESHOLD,
+  MEDIUM_CONFIDENCE_THRESHOLD,
+  validateConfidence
 } from '@/components/sessions'
 
 // Lazy load task plan components to improve FCP (First Contentful Paint)
@@ -410,8 +413,7 @@ const MOCK_SESSIONS_COUNTS = calculateSessionCounts(MOCK_SESSIONS)
  * - useMemo for derived values (filteredSessions, sessionCounts)
  */
 const POLLING_INTERVAL_MS = 10000
-const CONFIDENCE_THRESHOLD = 0.8
-const MEDIUM_CONFIDENCE_THRESHOLD = 0.6
+// CONFIDENCE_THRESHOLD and MEDIUM_CONFIDENCE_THRESHOLD are now imported from @/components/sessions
 
 const Sessions = () => {
   const { t } = useTranslation()
@@ -695,9 +697,11 @@ const Sessions = () => {
     return new Date(timestamp).toLocaleString()
   }, [t])
 
+  // Guard clause: validate confidence to handle null/undefined/NaN/out-of-range values
   const getConfidenceColor = useCallback((confidence) => {
-    if (confidence >= CONFIDENCE_THRESHOLD) return 'text-growth'
-    if (confidence >= MEDIUM_CONFIDENCE_THRESHOLD) return 'text-wisdom'
+    const validConfidence = validateConfidence(confidence)
+    if (validConfidence >= CONFIDENCE_THRESHOLD) return 'text-growth'
+    if (validConfidence >= MEDIUM_CONFIDENCE_THRESHOLD) return 'text-wisdom'
     return 'text-energy'
   }, [])
 
