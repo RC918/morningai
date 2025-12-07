@@ -15,6 +15,10 @@ on:
       - 'handoff/20250928/40_App/owner-console/**'
       - 'packages/shared-ui/**'
 
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
 jobs:
   smoke-tests:
     name: UX QA Smoke Tests
