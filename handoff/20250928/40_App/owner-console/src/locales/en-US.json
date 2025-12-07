@@ -642,6 +642,8 @@
             "title": "Approval Queue",
             "subtitle": "Review high-risk actions requiring human approval",
             "viewDetails": "View Details",
+            "lastUpdated": "Last updated",
+            "autoRefresh": "Auto-refresh",
             "stats": {
               "pending": "Pending",
               "critical": "Critical",
@@ -667,7 +669,14 @@
               "riskReason": "Risk Reason",
               "affectedResources": "Affected Resources",
               "actionPayload": "Action Payload",
-              "rejectionReason": "Rejection Reason (optional)"
+              "rejectionReason": "Rejection Reason (optional)",
+              "rejectionReasonLabel": "Rejection Reason (for audit trail)",
+              "rejectionReasonPlaceholder": "Enter reason for rejection...",
+              "rejectionReasonHint": "Provide a reason to help with audit trail and future reference"
+            },
+            "actions": {
+              "approving": "Approving...",
+              "rejecting": "Rejecting..."
             }
           },
   "settings": {

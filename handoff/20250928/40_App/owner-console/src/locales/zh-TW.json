@@ -641,6 +641,8 @@
           "title": "審核佇列",
           "subtitle": "審核需要人工授權的高風險操作",
           "viewDetails": "查看詳情",
+          "lastUpdated": "最後更新",
+          "autoRefresh": "自動刷新",
           "stats": {
             "pending": "待審核",
             "critical": "嚴重",
@@ -666,7 +668,14 @@
             "riskReason": "風險原因",
             "affectedResources": "受影響的資源",
             "actionPayload": "操作內容",
-            "rejectionReason": "拒絕原因（選填）"
+            "rejectionReason": "拒絕原因（選填）",
+            "rejectionReasonLabel": "拒絕原因（用於審計追蹤）",
+            "rejectionReasonPlaceholder": "輸入拒絕原因...",
+            "rejectionReasonHint": "提供原因以協助審計追蹤和未來參考"
+          },
+          "actions": {
+            "approving": "核准中...",
+            "rejecting": "拒絕中..."
           }
         },
   "settings": {
