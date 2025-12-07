@@ -1116,7 +1116,7 @@ def run_vm_cleanup_scheduler():
                     )
                     lock_manager = DistributedVMLockManager(
                         redis_client=async_redis,
-                        max_concurrent_vms=settings.max_concurrent_vms or 10,
+                        max_concurrent_vms=getattr(settings, 'max_concurrent_vms', 10),
                         lock_ttl_seconds=settings.vm_lock_ttl_seconds,
                         registry_ttl_buffer=settings.vm_registry_ttl_buffer,
                     )
