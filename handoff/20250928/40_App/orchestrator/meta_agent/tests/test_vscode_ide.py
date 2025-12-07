@@ -27,6 +27,7 @@ from meta_agent.vscode_ide import (
     LintResult,
     MCP_ERROR_LOG_MAX_LENGTH,
     SearchResult,
+    TERMINAL_ACCESS_CAPABILITY,
     TestResult,
     TestStatus,
     TestSuiteResult,
@@ -650,7 +651,7 @@ class TestVSCodeIDEService:
         service._sessions[mock_session.session_id] = mock_session
         service._execute_shell_command = mock_shell_response
         # Issue #2023: Grant terminal access capability
-        mock_session.metadata["terminal_access_enabled"] = True
+        mock_session.metadata[TERMINAL_ACCESS_CAPABILITY] = True
 
         result = await service.execute_terminal_command(mock_session, "ls -la")
 
