@@ -391,15 +391,32 @@ def _get_knowledge_graph_context(
 
         kg_manager = get_knowledge_graph_manager()
 
-        # Determine language from task_type if available
+        # Language detection mapping for task_type to language filter
+        # Keys are substrings to match in task_type (case-insensitive)
+        LANGUAGE_DETECTION_MAP = {
+            "python": "python",
+            "javascript": "javascript",
+            "js": "javascript",
+            "typescript": "typescript",
+            "ts": "typescript",
+            "go": "go",
+            "golang": "go",
+            "rust": "rust",
+            "java": "java",
+            "ruby": "ruby",
+            "php": "php",
+            "csharp": "csharp",
+            "c#": "csharp",
+        }
+
+        # Determine language from task_type using dictionary lookup
         language = None
         if task_type:
-            if "python" in task_type.lower():
-                language = "python"
-            elif "javascript" in task_type.lower() or "js" in task_type.lower():
-                language = "javascript"
-            elif "typescript" in task_type.lower() or "ts" in task_type.lower():
-                language = "typescript"
+            task_type_lower = task_type.lower()
+            for keyword, lang in LANGUAGE_DETECTION_MAP.items():
+                if keyword in task_type_lower:
+                    language = lang
+                    break
 
         result = kg_manager.search_relevant_patterns(
             goal=goal,
@@ -432,10 +449,11 @@ def _get_knowledge_graph_context(
             if examples and len(examples) > 0:
                 example = examples[0]
                 if isinstance(example, dict):
+                    # Show both fix_strategy and root_cause when available
+                    if example.get("root_cause"):
+                        context_parts.append(f"Root Cause: {example['root_cause'][:MAX_CONTEXT_SNIPPET_CHARS]}")
                     if example.get("fix_strategy"):
                         context_parts.append(f"Fix Strategy: {example['fix_strategy'][:MAX_CONTEXT_SNIPPET_CHARS]}")
-                    elif example.get("root_cause"):
-                        context_parts.append(f"Root Cause: {example['root_cause'][:MAX_CONTEXT_SNIPPET_CHARS]}")
 
             context_parts.append("")
 

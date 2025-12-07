@@ -353,7 +353,8 @@ class KnowledgeGraphManager:
 
         This method is used by the Observer Node to enrich learning context
         with Knowledge Graph patterns. It searches for both bug patterns
-        and fix patterns that might be relevant to the current task.
+        and fix patterns that might be relevant to the current task using
+        PostgreSQL full-text search.
 
         Args:
             goal: The current task goal or error description
@@ -379,14 +380,27 @@ class KnowledgeGraphManager:
             conn = self._get_connection()
             cursor = conn.cursor(cursor_factory=extras.RealDictCursor)
 
+            # Use PostgreSQL full-text search to find relevant patterns
+            # ts_rank scores how well the document matches the query
             query = """
                 SELECT id, pattern_name, pattern_type, pattern_template,
                        frequency, confidence_score, examples, metadata,
-                       language
+                       language,
+                       ts_rank(
+                           to_tsvector('english', COALESCE(pattern_name, '') || ' ' ||
+                                       COALESCE(pattern_template, '')),
+                           plainto_tsquery('english', %s)
+                       ) AS search_rank
                 FROM code_patterns
                 WHERE pattern_type IN ('bug_pattern', 'fix_pattern')
+                  AND (
+                      to_tsvector('english', COALESCE(pattern_name, '') || ' ' ||
+                                  COALESCE(pattern_template, ''))
+                      @@ plainto_tsquery('english', %s)
+                      OR %s = ''
+                  )
             """
-            params = []
+            params = [search_text, search_text, search_text]
 
             if language:
                 query += " AND language = %s"
@@ -394,6 +408,7 @@ class KnowledgeGraphManager:
 
             query += """
                 ORDER BY
+                    search_rank DESC,
                     CASE WHEN pattern_type = 'fix_pattern' THEN 0 ELSE 1 END,
                     confidence_score DESC,
                     frequency DESC
@@ -407,6 +422,8 @@ class KnowledgeGraphManager:
             patterns = []
             for row in results:
                 pattern = dict(row)
+                # Remove search_rank from output (internal use only)
+                pattern.pop('search_rank', None)
                 if pattern.get('examples'):
                     pattern['examples'] = pattern['examples'][:2]
                 patterns.append(pattern)
