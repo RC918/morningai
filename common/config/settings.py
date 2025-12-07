@@ -1317,6 +1317,24 @@ class Settings(BaseSettings):
         description="Enable visual verification for Meta Agent task execution using headless browser (requires ENABLE_META_AGENT=true)"
     )
 
+    # Tier 5: Outbound Notifier Feature Flags (per-service)
+    enable_github_notifications: bool = Field(
+        default=False,
+        alias="ENABLE_GITHUB_NOTIFICATIONS",
+        description="Enable outbound notifications to GitHub (comments on issues/PRs) for Meta Agent task status"
+    )
+
+    enable_jira_notifications: bool = Field(
+        default=False,
+        alias="ENABLE_JIRA_NOTIFICATIONS",
+        description="Enable outbound notifications to Jira (comments on issues) for Meta Agent task status"
+    )
+
+    enable_slack_notifications: bool = Field(
+        default=False,
+        alias="ENABLE_SLACK_NOTIFICATIONS",
+        description="Enable outbound notifications to Slack (messages) for Meta Agent task status"
+    )
     vite_api_base_url: str = Field(
         default="http://localhost:5001",
         description="Frontend API base URL"

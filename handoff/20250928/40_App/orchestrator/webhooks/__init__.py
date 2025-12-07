@@ -26,6 +26,15 @@ from .bot_protocol import (
 )
 from .normalizer import EventNormalizer, NormalizedTask
 from .task_intake import TaskIntakeService, IntakeTask, IntakeTaskStatus
+from .outbound_notifier import (
+    OutboundNotifier,
+    NotificationPayload,
+    NotificationStatus,
+    NotificationType,
+    GitHubNotifier,
+    JiraNotifier,
+    SlackNotifier,
+)
 from .handlers.github_handler import GitHubWebhookHandler
 from .handlers.jira_handler import JiraWebhookHandler
 from .handlers.linear_handler import LinearWebhookHandler
@@ -46,6 +55,14 @@ __all__ = [
     "TaskIntakeService",
     "IntakeTask",
     "IntakeTaskStatus",
+    # Outbound Notifier
+    "OutboundNotifier",
+    "NotificationPayload",
+    "NotificationStatus",
+    "NotificationType",
+    "GitHubNotifier",
+    "JiraNotifier",
+    "SlackNotifier",
     # Handlers
     "GitHubWebhookHandler",
     "JiraWebhookHandler",

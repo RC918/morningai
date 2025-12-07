@@ -163,14 +163,17 @@ Configuration values safe to share:
 - `FLASK_ENV`, `ENVIRONMENT`, `PORT`, `CORS_ORIGINS`
 - `APP_VERSION`, `APP_PHASE`, `HOSTNAME`
 
-### Feature Flags (10 variables)
-All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, USE_DISTRIBUTED_VM_LOCKING, ENABLE_KNOWLEDGE_GRAPH_LEARNING, and ENABLE_VISUAL_VERIFICATION:
+### Feature Flags (13 variables)
+All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, USE_DISTRIBUTED_VM_LOCKING, ENABLE_KNOWLEDGE_GRAPH_LEARNING, ENABLE_VISUAL_VERIFICATION, and notification flags:
 - `PHASE7_ENABLED`, `OPS_AGENT_ENABLED`, `GROWTH_STRATEGIST_ENABLED`
 - `PM_AGENT_ENABLED`, `HITL_APPROVAL_ENABLED`
 - `DEMO_MODE`, `SANDBOX_ENABLED`
 - `USE_DISTRIBUTED_VM_LOCKING` - Redis-backed distributed VM locking (#2104)
 - `ENABLE_KNOWLEDGE_GRAPH_LEARNING` - Knowledge Graph patterns in Planner learning context (Tier 3)
 - `ENABLE_VISUAL_VERIFICATION` - Visual verification for Meta Agent task execution (Tier 5)
+- `ENABLE_GITHUB_NOTIFICATIONS` - Outbound notifications to GitHub (Tier 5)
+- `ENABLE_JIRA_NOTIFICATIONS` - Outbound notifications to Jira (Tier 5)
+- `ENABLE_SLACK_NOTIFICATIONS` - Outbound notifications to Slack (Tier 5)
 
 ### Knowledge Graph (2 variables)
 | Variable | Type | Default | Description |
@@ -186,13 +189,16 @@ All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, USE_DISTRIBUTED_V
 | VM_REGISTRY_TTL_BUFFER | integer | 300 | Additional TTL buffer for VM registry entries |
 | VM_CLEANUP_INTERVAL_SECONDS | integer | 300 | Interval for stale VM cleanup job (0 to disable)
 
-### Meta Agent (4 variables)
+### Meta Agent (8 variables)
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | ENABLE_META_AGENT | boolean | false | Enable Meta Agent autonomous execution path via webhooks (#1822) |
 | ENABLE_META_AGENT_VM | boolean | false | Enable VM provisioning for Meta Agent isolated execution |
 | META_AGENT_VM_PROVIDER | string | local | VM provider: 'local', 'docker', or 'fly' |
-| ENABLE_VISUAL_VERIFICATION | boolean | false | Enable visual verification using headless browser for task execution (Tier 5)
+| ENABLE_VISUAL_VERIFICATION | boolean | false | Enable visual verification using headless browser for task execution (Tier 5) |
+| ENABLE_GITHUB_NOTIFICATIONS | boolean | false | Enable outbound notifications to GitHub (comments on issues/PRs) |
+| ENABLE_JIRA_NOTIFICATIONS | boolean | false | Enable outbound notifications to Jira (comments on issues) |
+| ENABLE_SLACK_NOTIFICATIONS | boolean | false | Enable outbound notifications to Slack (messages) |
 
 ### Frontend (4 variables)
 All VITE_* prefixed for Vite build:
