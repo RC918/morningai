@@ -1167,6 +1167,21 @@ class Settings(BaseSettings):
         description="Maximum number of Knowledge Graph patterns to include in learning context (1-10, default 3)"
     )
 
+    # Issue #1824: DeepWiki Knowledge Base
+    enable_deepwiki: bool = Field(
+        default=False,
+        alias="ENABLE_DEEPWIKI",
+        description="Enable DeepWiki knowledge base service for code query and session insights (#1824 DeepWiki 知識庫)"
+    )
+
+    deepwiki_max_sources: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        alias="DEEPWIKI_MAX_SOURCES",
+        description="Maximum number of knowledge sources to include in DeepWiki query results (1-20, default 5)"
+    )
+
     # Phase 2 PR-1813: Agent Evaluation Integration
     enable_agent_eval: bool = Field(
         default=True,
@@ -1296,6 +1311,12 @@ class Settings(BaseSettings):
         description="VM provider for Meta Agent: 'local', 'docker', or 'fly' (requires ENABLE_META_AGENT_VM=true)"
     )
 
+    enable_visual_verification: bool = Field(
+        default=False,
+        alias="ENABLE_VISUAL_VERIFICATION",
+        description="Enable visual verification for Meta Agent task execution using headless browser (requires ENABLE_META_AGENT=true)"
+    )
+
     # Tier 5: Outbound Notifier Feature Flags (per-service)
     enable_github_notifications: bool = Field(
         default=False,
@@ -1314,7 +1335,6 @@ class Settings(BaseSettings):
         alias="ENABLE_SLACK_NOTIFICATIONS",
         description="Enable outbound notifications to Slack (messages) for Meta Agent task status"
     )
-
     vite_api_base_url: str = Field(
         default="http://localhost:5001",
         description="Frontend API base URL"
