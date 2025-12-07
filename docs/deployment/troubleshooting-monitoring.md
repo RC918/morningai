@@ -1,6 +1,6 @@
 # Monitoring Dashboard Troubleshooting Guide
 
-**Last Updated**: 2025-12-05  
+**Last Updated**: 2025-12-07  
 **Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)
 
 ---
@@ -406,6 +406,69 @@ For additional support:
 - **Email**: ryan2939z@gmail.com
 
 ---
+
+## Recent Updates (Dec 6 - Dec 7, 2025)
+
+### VSCode/MCP Integration & Meta-Agent Production Wiring
+
+#### PR #2114: Integrate VSCodeIDEService into Production Code
+- **Path**: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
+- **Change**: Wire VMProvisioner and VSCodeIDEService into AutonomousExecutor
+- **Impact**: VM/IDE lifecycle management now integrated with 8 new integration tests
+
+#### PR #2067: MCP HTTP Client for Cloud IDE Integration
+- **Path**: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
+- **Change**: Core MCP HTTP client implementation
+- **Impact**: Enables VSCode IDE integration for task execution
+
+#### PR #2106: Share aiohttp ClientSession for Connection Reuse
+- **Path**: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
+- **Change**: TCP connection pooling and DNS caching
+- **Impact**: Improved MCP performance
+
+#### PR #2077: Truncate Error Logs to Prevent Sensitive Data Leakage
+- **Path**: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
+- **Change**: Error logs truncated to 500 characters
+- **Impact**: Security improvement to prevent credential leakage
+
+### VSCode/MCP Documentation & Infrastructure
+
+#### PR #2101: Tier 2 VSCode/VM Documentation
+- **Path**: `handoff/20250928/40_App/orchestrator/docs/` (new directory)
+- **New Files**: `TERMINAL_ACCESS.md`, `VM_LOCKING_DESIGN.md`, `VM_PROVISIONER_LIFECYCLE.md`
+- **Impact**: Comprehensive documentation for VSCode/VM infrastructure
+
+#### PR #2115: Cross-Process Limitation Note and Environment Settings
+- **Path**: `handoff/20250928/40_App/orchestrator/meta_agent/vm_provisioner.py`, `orchestrator/docs/TERMINAL_ACCESS.md`
+- **Change**: Document VM provisioning cross-process limitations
+- **Impact**: Clarifies in-memory locking limitations for multi-process deployments
+
+### Documentation Auto-Generation Security
+
+#### PR #2103: Improve Documentation Auto-Generation Security
+- **Path**: `handoff/20250928/40_App/orchestrator/`
+- **New Env Var**: `ORCHESTRATOR_DOCS_MAX_PRS_PER_HOUR` (integer, default: 3)
+- **Change**: Rate limiting, topic slug generation, content validation
+- **Impact**: Prevents conflicting FAQ PRs
+
+### Owner Console Sessions UI & Performance
+
+#### PR #2063: Integrate ConfidenceApproval and FileDiffViewer
+- **Path**: `handoff/20250928/40_App/owner-console/src/pages/Sessions.jsx`
+- **Change**: Sessions page now displays confidence scores and file diffs
+- **Impact**: Enhanced task visibility
+
+#### PR #2089: Optimize FCP with Lazy Loading
+- **Path**: `handoff/20250928/40_App/owner-console/src/pages/Sessions.jsx`
+- **Change**: Lazy-loaded TaskPlanViewer and TaskPlanEditor
+- **Impact**: Faster initial page paint
+
+### Security & Testing
+
+#### PR #2052: TOCTOU Defense in save_state()
+- **Path**: `handoff/20250928/40_App/orchestrator/meta_agent/state_persistence.py`
+- **Change**: Atomic file writes
+- **Impact**: Prevents race conditions in state persistence
 
 ## Recent Updates (Dec 3 - Dec 5, 2025)
 
