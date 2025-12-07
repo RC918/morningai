@@ -169,9 +169,11 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
   - Schema: Minimal test schema (tenants, user_profiles, agent_tasks)
   - Purpose: RLS testing and security validation
 - **Redis**: Upstash (shared, key prefix: `stg:`)
-- **Branch**: `develop`
+- **Branch**: `main` (with `ENVIRONMENT=staging` for backend services)
 - **Status**: ✅ Fully Operational
 - **文檔**: [Staging Setup Guide](docs/ops/STAGING_SETUP_GUIDE.md)
+
+> **Note**: This project uses a trunk-based development model. There is no persistent `develop` branch. Staging is handled via Render backend services (deploying from `main` with staging env vars) and Vercel preview deployments.
 
 ⚠️ **Database Architecture Note**: MorningAI uses two separate Supabase databases for production and staging. Staging has a minimal schema focused on P0 security testing (RLS policies). This is intentional to keep the staging environment lightweight. See [docs/ENVIRONMENTS.md](docs/ENVIRONMENTS.md) for complete details.
 
@@ -180,7 +182,9 @@ MorningAI 採用多環境部署架構，確保開發、測試和生產環境的�
 - **Frontend**: `http://localhost:5173`
 - **文檔**: [本地開發設定](docs/setup_local.md)
 
-**部署流程**: Feature Branch → `develop` (Staging) → `main` (Production)
+**部署流程** (Trunk-Based): Feature Branch → PR → `main` (Production)
+- Frontend staging: Vercel preview deployments
+- Backend staging: Render services with `ENVIRONMENT=staging`
 
 ---
 

@@ -17,8 +17,9 @@ This guide explains the Vercel token configuration for the MorningAI platform. T
 **Important**: Vercel deployments are handled by Vercel's native GitHub integration, NOT GitHub Actions.
 
 - **Production**: Automatic on push to `main` branch
-- **Staging**: Automatic on push to `develop` branch
 - **Preview**: Automatic on PR creation for `feature/*`, `fix/*`, `devin/*` branches
+
+> **Note**: This project uses a trunk-based development model. There is no persistent `develop` branch. Staging is handled via Render backend services (deploying from `main` with staging env vars) and Vercel preview deployments.
 
 The `VERCEL_TOKEN` is NOT required for deployments. It is only needed for:
 1. Ops Agent Vercel operations (deployment monitoring, rollback, status checks)

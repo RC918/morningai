@@ -85,8 +85,8 @@ environments:
         required: true
 
   staging:
-    description: "Pre-production testing environment on develop branch"
-    branch: develop
+    description: "Pre-production testing environment (Render backend services + Vercel preview deployments)"
+    branch: main  # Staging services deploy from main; frontend uses preview deployments
     auto_deploy: true
     
     # Orchestrator Mode Configuration
