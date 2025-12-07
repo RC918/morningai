@@ -33,7 +33,8 @@ import {
   BadgeCheck,
   Trash2,
   Plus,
-  Edit3
+  Edit3,
+  Lightbulb
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
@@ -42,6 +43,7 @@ import {
   TestResultsPanel,
   ConfidenceApproval,
   FileDiffViewer,
+  SessionInsights,
   CONFIDENCE_THRESHOLD,
   MEDIUM_CONFIDENCE_THRESHOLD,
   validateConfidence
@@ -1156,6 +1158,10 @@ const Sessions = () => {
                     <Activity className="w-4 h-4 mr-2" />
                     {t('sessions.tabs.logs', 'Activity Log')}
                   </TabsTrigger>
+                  <TabsTrigger value="insights" className="data-[state=active]:border-b-2 data-[state=active]:border-primary-500">
+                    <Lightbulb className="w-4 h-4 mr-2" />
+                    {t('sessions.tabs.insights', 'Insights')}
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="plan" className="p-5">
@@ -1358,6 +1364,13 @@ const Sessions = () => {
                       </div>
                     ))}
                   </div>
+                </TabsContent>
+
+                <TabsContent value="insights" className="p-5">
+                  <SessionInsights
+                    sessionId={selectedSession.id}
+                    isOpen={true}
+                  />
                 </TabsContent>
               </Tabs>
 
