@@ -5,6 +5,7 @@ This module implements VM provisioning for task isolation, ensuring each task
 executes in its own isolated environment with proper resource limits and security.
 
 Issue: #1822 - 整合開發工具 (Integrate Development Tools)
+Issue: #2104 - Redis-backed distributed VM locking
 Milestone: M5 - Meta Agent 優化
 
 Architecture:
@@ -14,6 +15,11 @@ Supported Providers:
     - docker: Local Docker containers (default, fast)
     - fly: Fly.io cloud VMs (production, scalable)
     - local: Local process isolation (development only)
+
+Distributed Locking (when USE_DISTRIBUTED_VM_LOCKING=true):
+    - Task locks prevent duplicate VM creation across processes
+    - Concurrency semaphore enforces global MAX_CONCURRENT_VMS
+    - Shared VM registry enables cross-process visibility
 """
 
 import asyncio
@@ -23,7 +29,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .distributed_vm_lock import VMRegistryEntry
 
 logger = logging.getLogger(__name__)
 
@@ -451,6 +460,11 @@ class VMProvisioner:
     - Resource isolation (CPU, memory, disk)
     - Security isolation (network, filesystem)
     - Automatic cleanup after task completion
+
+    When USE_DISTRIBUTED_VM_LOCKING is enabled (#2104):
+    - Cross-process coordination via Redis
+    - Global concurrency limits across all workers
+    - Duplicate VM prevention across processes
     """
 
     # Default resource limits
@@ -466,6 +480,7 @@ class VMProvisioner:
         self,
         default_provider: VMProvider = VMProvider.LOCAL,
         max_concurrent_vms: int = MAX_CONCURRENT_VMS,
+        redis_client: Optional[Any] = None,
     ):
         """
         Initialize the VMProvisioner.
@@ -473,6 +488,7 @@ class VMProvisioner:
         Args:
             default_provider: Default VM provider to use
             max_concurrent_vms: Maximum number of concurrent VMs
+            redis_client: Optional Redis client for distributed locking (#2104)
         """
         self.default_provider = default_provider
         self.max_concurrent_vms = max_concurrent_vms
@@ -485,9 +501,36 @@ class VMProvisioner:
             VMProvider.LOCAL: LocalVMProvider(),
         }
 
+        # Issue #2104: Initialize distributed locking if enabled
+        self._distributed_lock: Optional["DistributedVMLockManager"] = None
+        self._use_distributed_locking = False
+
+        try:
+            from common.config.settings import settings
+            if settings.use_distributed_vm_locking and redis_client is not None:
+                from .distributed_vm_lock import DistributedVMLockManager
+                self._distributed_lock = DistributedVMLockManager(
+                    redis_client=redis_client,
+                    max_concurrent_vms=max_concurrent_vms,
+                    lock_ttl_seconds=settings.vm_lock_ttl_seconds,
+                    registry_ttl_buffer=settings.vm_registry_ttl_buffer,
+                )
+                self._use_distributed_locking = True
+                logger.info(
+                    "[VMProvisioner] Distributed locking enabled via Redis"
+                )
+        except ImportError:
+            logger.debug(
+                "[VMProvisioner] Distributed locking not available (settings not found)"
+            )
+        except Exception as e:
+            logger.warning(
+                "[VMProvisioner] Failed to initialize distributed locking: %s", e
+            )
+
         logger.info(
-            "[VMProvisioner] Initialized with provider=%s, max_vms=%d",
-            default_provider.value, max_concurrent_vms
+            "[VMProvisioner] Initialized with provider=%s, max_vms=%d, distributed=%s",
+            default_provider.value, max_concurrent_vms, self._use_distributed_locking
         )
 
     async def provision_vm(
@@ -505,11 +548,14 @@ class VMProvisioner:
         """
         Provision a new VM for a task.
 
-        Note:
-            At most one active VM per task is enforced within a single process.
-            Cross-process uniqueness is NOT guaranteed. If your deployment runs
-            multiple VMProvisioner instances across processes or nodes, consider
-            using a Redis/DB-backed lock for cluster-wide uniqueness.
+        When USE_DISTRIBUTED_VM_LOCKING is enabled (#2104):
+            - Cross-process uniqueness is guaranteed via Redis locks
+            - Global concurrency limits are enforced across all workers
+            - Existing VMs from other processes are visible
+
+        When disabled (default):
+            - At most one active VM per task is enforced within a single process
+            - Cross-process uniqueness is NOT guaranteed
 
         Args:
             task_id: ID of the task
@@ -527,6 +573,50 @@ class VMProvisioner:
 
         Raises:
             RuntimeError: If max concurrent VMs reached or duplicate VM for task
+        """
+        # Issue #2104: Use distributed locking if enabled
+        if self._use_distributed_locking and self._distributed_lock:
+            return await self._provision_vm_distributed(
+                task_id=task_id,
+                plan_id=plan_id,
+                provider=provider,
+                cpu_cores=cpu_cores,
+                memory_mb=memory_mb,
+                disk_mb=disk_mb,
+                timeout_minutes=timeout_minutes,
+                environment=environment,
+                labels=labels,
+            )
+
+        # Fallback to in-memory locking
+        return await self._provision_vm_local(
+            task_id=task_id,
+            plan_id=plan_id,
+            provider=provider,
+            cpu_cores=cpu_cores,
+            memory_mb=memory_mb,
+            disk_mb=disk_mb,
+            timeout_minutes=timeout_minutes,
+            environment=environment,
+            labels=labels,
+        )
+
+    async def _provision_vm_local(
+        self,
+        task_id: str,
+        plan_id: str,
+        provider: Optional[VMProvider] = None,
+        cpu_cores: Optional[float] = None,
+        memory_mb: Optional[int] = None,
+        disk_mb: Optional[int] = None,
+        timeout_minutes: Optional[int] = None,
+        environment: Optional[Dict[str, str]] = None,
+        labels: Optional[Dict[str, str]] = None,
+    ) -> TaskVM:
+        """
+        Provision VM using in-memory locking (single-process mode).
+
+        This is the original implementation for backward compatibility.
         """
         async with self._lock:
             # Issue #2004: Prevent duplicate VM creation for the same task
@@ -578,15 +668,185 @@ class VMProvisioner:
 
             return vm
 
+    async def _provision_vm_distributed(
+        self,
+        task_id: str,
+        plan_id: str,
+        provider: Optional[VMProvider] = None,
+        cpu_cores: Optional[float] = None,
+        memory_mb: Optional[int] = None,
+        disk_mb: Optional[int] = None,
+        timeout_minutes: Optional[int] = None,
+        environment: Optional[Dict[str, str]] = None,
+        labels: Optional[Dict[str, str]] = None,
+    ) -> TaskVM:
+        """
+        Provision VM using distributed Redis locking (#2104).
+
+        This implementation provides cross-process coordination:
+        1. Acquire task lock (prevent duplicates across processes)
+        2. Acquire VM slot (enforce global concurrency limit)
+        3. Create VM via provider
+        4. Register in shared Redis registry
+        5. Release task lock
+        """
+        from .distributed_vm_lock import VMRegistryEntry
+
+        # Step 1: Try to acquire task lock or wait for existing VM
+        try:
+            existing_entry = await self._distributed_lock.wait_for_vm_or_lock(task_id)
+            if existing_entry:
+                # Another process created a VM for this task
+                logger.info(
+                    "[VMProvisioner] Found existing VM %s for task %s from another process",
+                    existing_entry.vm_id, task_id[:8]
+                )
+                # Return a TaskVM from the registry entry
+                return self._registry_entry_to_task_vm(existing_entry)
+        except RuntimeError as e:
+            raise RuntimeError(
+                f"Failed to acquire lock for task {task_id[:8]}: {e}"
+            )
+
+        try:
+            # Step 2: Acquire concurrency slot
+            if not await self._distributed_lock.acquire_vm_slot():
+                raise RuntimeError(
+                    f"Max concurrent VMs ({self.max_concurrent_vms}) reached globally"
+                )
+
+            try:
+                # Step 3: Create VM config
+                config = VMConfig(
+                    task_id=task_id,
+                    plan_id=plan_id,
+                    provider=provider or self.default_provider,
+                    cpu_cores=cpu_cores or self.DEFAULT_CPU_CORES,
+                    memory_mb=memory_mb or self.DEFAULT_MEMORY_MB,
+                    disk_mb=disk_mb or self.DEFAULT_DISK_MB,
+                    timeout_minutes=timeout_minutes or self.DEFAULT_TIMEOUT_MINUTES,
+                    environment=environment or {},
+                    labels=labels or {},
+                )
+
+                # Get provider
+                vm_provider = self._providers.get(config.provider)
+                if not vm_provider:
+                    raise ValueError(f"Unsupported provider: {config.provider}")
+
+                # Create VM
+                logger.info(
+                    "[VMProvisioner] Provisioning VM for task %s with provider %s (distributed)",
+                    task_id[:8], config.provider.value
+                )
+
+                vm = await vm_provider.create(config)
+
+                # Step 4: Register in shared registry
+                registry_entry = VMRegistryEntry(
+                    vm_id=vm.vm_id,
+                    task_id=vm.task_id,
+                    plan_id=vm.plan_id,
+                    status=vm.status.value,
+                    provider=vm.provider.value,
+                    created_at=vm.created_at.isoformat(),
+                    process_id=self._distributed_lock.process_id,
+                    ip_address=vm.ip_address,
+                    mcp_endpoint=vm.mcp_endpoint,
+                    container_id=vm.container_id,
+                    timeout_minutes=config.timeout_minutes,
+                )
+                await self._distributed_lock.register_vm(registry_entry)
+
+                # Also store locally for fast access
+                self._vms[vm.vm_id] = vm
+
+                logger.info(
+                    "[VMProvisioner] VM %s provisioned for task %s (status: %s, distributed)",
+                    vm.vm_id, task_id[:8], vm.status.value
+                )
+
+                return vm
+
+            except Exception:
+                # Release slot on failure
+                await self._distributed_lock.release_vm_slot()
+                raise
+
+        finally:
+            # Step 5: Always release task lock
+            await self._distributed_lock.release_task_lock(task_id)
+
+    def _registry_entry_to_task_vm(self, entry: "VMRegistryEntry") -> TaskVM:
+        """Convert a VMRegistryEntry to a TaskVM object."""
+        from datetime import datetime
+
+        provider_map = {
+            "docker": VMProvider.DOCKER,
+            "fly": VMProvider.FLY,
+            "local": VMProvider.LOCAL,
+        }
+        status_map = {
+            "pending": VMStatus.PENDING,
+            "creating": VMStatus.CREATING,
+            "ready": VMStatus.READY,
+            "running": VMStatus.RUNNING,
+            "stopping": VMStatus.STOPPING,
+            "stopped": VMStatus.STOPPED,
+            "failed": VMStatus.FAILED,
+            "terminated": VMStatus.TERMINATED,
+        }
+
+        provider = provider_map.get(entry.provider, VMProvider.LOCAL)
+        status = status_map.get(entry.status, VMStatus.READY)
+
+        try:
+            created_at = datetime.fromisoformat(entry.created_at)
+        except (ValueError, TypeError):
+            created_at = datetime.now()
+
+        config = VMConfig(
+            task_id=entry.task_id,
+            plan_id=entry.plan_id,
+            provider=provider,
+            timeout_minutes=entry.timeout_minutes,
+        )
+
+        return TaskVM(
+            vm_id=entry.vm_id,
+            task_id=entry.task_id,
+            plan_id=entry.plan_id,
+            provider=provider,
+            status=status,
+            config=config,
+            created_at=created_at,
+            ip_address=entry.ip_address,
+            mcp_endpoint=entry.mcp_endpoint,
+            container_id=entry.container_id,
+        )
+
     async def get_vm(self, vm_id: str) -> Optional[TaskVM]:
         """Get VM by ID"""
         return self._vms.get(vm_id)
 
     async def get_vm_for_task(self, task_id: str) -> Optional[TaskVM]:
-        """Get VM for a specific task"""
+        """
+        Get VM for a specific task.
+
+        When distributed locking is enabled (#2104), also checks Redis registry
+        for VMs created by other processes.
+        """
+        # First check local cache
         for vm in self._vms.values():
             if vm.task_id == task_id and vm.is_active:
                 return vm
+
+        # Issue #2104: Check Redis registry for VMs from other processes
+        if self._use_distributed_locking and self._distributed_lock:
+            entry = await self._distributed_lock.get_vm_for_task(task_id)
+            if entry:
+                return self._registry_entry_to_task_vm(entry)
+
         return None
 
     async def execute_in_vm(
@@ -642,7 +902,12 @@ class VMProvisioner:
         return True
 
     async def destroy_vm(self, vm_id: str) -> bool:
-        """Destroy a VM and clean up resources"""
+        """
+        Destroy a VM and clean up resources.
+
+        When distributed locking is enabled (#2104), also releases the VM slot
+        and unregisters from the shared Redis registry.
+        """
         async with self._lock:
             vm = self._vms.get(vm_id)
             if not vm:
@@ -655,7 +920,23 @@ class VMProvisioner:
             success = await provider.destroy(vm)
             if success:
                 del self._vms[vm_id]
-                logger.info("[VMProvisioner] Destroyed VM %s", vm_id)
+
+                # Issue #2104: Release slot and unregister from Redis
+                if self._use_distributed_locking and self._distributed_lock:
+                    try:
+                        await self._distributed_lock.unregister_vm(vm_id)
+                        await self._distributed_lock.release_vm_slot()
+                        logger.info(
+                            "[VMProvisioner] Destroyed VM %s and released distributed slot",
+                            vm_id
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "[VMProvisioner] Failed to release distributed resources for VM %s: %s",
+                            vm_id, e
+                        )
+                else:
+                    logger.info("[VMProvisioner] Destroyed VM %s", vm_id)
 
             return success
 
