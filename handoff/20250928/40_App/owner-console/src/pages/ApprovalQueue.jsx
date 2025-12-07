@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger, Skeleton } from '@morningai/shared-ui'
 import { 
@@ -10,11 +10,16 @@ import {
   Activity,
   Database,
   FileWarning,
-  Server
+  Server,
+  Loader2,
+  RefreshCw
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleButton } from '@/components/apple/apple-button'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
+
+const RISK_LEVEL_ORDER = { critical: 0, high: 1, medium: 2, low: 3 }
+const AUTO_REFRESH_INTERVAL = 30000 // 30 seconds
 
 const ApprovalQueue = () => {
   const { t } = useTranslation()
@@ -24,15 +29,49 @@ const ApprovalQueue = () => {
   const [statistics, setStatistics] = useState(null)
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [actionType, setActionType] = useState(null) // 'approve' or 'reject'
   const [rejectionReason, setRejectionReason] = useState('')
+  const [activeTab, setActiveTab] = useState('pending')
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const listRef = useRef(null)
+  const detailsRef = useRef(null)
 
+  // Initial load
   useEffect(() => {
     loadApprovalData()
+  }, [loadApprovalData])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+    
+    const intervalId = setInterval(() => {
+      loadApprovalData(true)
+    }, AUTO_REFRESH_INTERVAL)
+    
+    return () => clearInterval(intervalId)
+  }, [autoRefresh, loadApprovalData])
+
+  const sortRequests = useCallback((requests) => {
+    return [...requests].sort((a, b) => {
+      // Primary sort: risk level (critical > high > medium > low)
+      const riskA = RISK_LEVEL_ORDER[a.risk_level] ?? 4
+      const riskB = RISK_LEVEL_ORDER[b.risk_level] ?? 4
+      if (riskA !== riskB) return riskA - riskB
+      
+      // Secondary sort: timeout (sooner first)
+      const timeoutA = a.timeout_at ? new Date(a.timeout_at).getTime() : Infinity
+      const timeoutB = b.timeout_at ? new Date(b.timeout_at).getTime() : Infinity
+      return timeoutA - timeoutB
+    })
   }, [])
 
-  const loadApprovalData = async () => {
+  const loadApprovalData = useCallback(async (isAutoRefresh = false) => {
     try {
-      setLoading(true)
+      if (!isAutoRefresh) {
+        setLoading(true)
+      }
       setError(null)
       
       const [requestsResult, statsResult] = await Promise.all([
@@ -44,7 +83,9 @@ const ApprovalQueue = () => {
       ])
 
       const requestsData = (requestsResult && requestsResult.data) || {}
-      setPendingRequests(requestsData.requests || [])
+      const sortedRequests = sortRequests(requestsData.requests || [])
+      setPendingRequests(sortedRequests)
+      setLastUpdated(new Date())
 
       if (statsResult) {
         setStatistics(statsResult.data || null)
@@ -57,13 +98,16 @@ const ApprovalQueue = () => {
       })
       setError(message)
     } finally {
-      setLoading(false)
+      if (!isAutoRefresh) {
+        setLoading(false)
+      }
     }
-  }
+  }, [sortRequests])
 
   const handleApprove = async (requestId) => {
     try {
       setActionLoading(true)
+      setActionType('approve')
       
       await apiClientWithMeta(`/api/action-requests/${requestId}/approve`, {
         method: 'POST'
@@ -71,6 +115,7 @@ const ApprovalQueue = () => {
 
       await loadApprovalData()
       setSelectedRequest(null)
+      setActiveTab('pending')
     } catch (err) {
       const message = handleApiError(err, {
         defaultMessage: 'Failed to approve request',
@@ -79,12 +124,14 @@ const ApprovalQueue = () => {
       setError(message)
     } finally {
       setActionLoading(false)
+      setActionType(null)
     }
   }
 
   const handleReject = async (requestId) => {
     try {
       setActionLoading(true)
+      setActionType('reject')
       
       await apiClientWithMeta(`/api/action-requests/${requestId}/reject`, {
         method: 'POST',
@@ -94,6 +141,7 @@ const ApprovalQueue = () => {
       await loadApprovalData()
       setSelectedRequest(null)
       setRejectionReason('')
+      setActiveTab('pending')
     } catch (err) {
       const message = handleApiError(err, {
         defaultMessage: 'Failed to reject request',
@@ -102,8 +150,47 @@ const ApprovalQueue = () => {
       setError(message)
     } finally {
       setActionLoading(false)
+      setActionType(null)
     }
   }
+
+  // Handle request selection with auto-tab switch
+  const handleSelectRequest = useCallback((request) => {
+    setSelectedRequest(request)
+    setActiveTab('details')
+    // Focus on details panel for accessibility
+    setTimeout(() => {
+      detailsRef.current?.focus()
+    }, 100)
+  }, [])
+
+  // Keyboard navigation for the list
+  const handleListKeyDown = useCallback((e) => {
+    if (!pendingRequests.length) return
+    
+    const currentIndex = selectedRequest 
+      ? pendingRequests.findIndex(r => r.request_id === selectedRequest.request_id)
+      : -1
+    
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIndex = currentIndex < pendingRequests.length - 1 ? currentIndex + 1 : 0
+      handleSelectRequest(pendingRequests[nextIndex])
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : pendingRequests.length - 1
+      handleSelectRequest(pendingRequests[prevIndex])
+    } else if (e.key === 'Enter' && selectedRequest) {
+      e.preventDefault()
+      setActiveTab('details')
+    }
+  }, [pendingRequests, selectedRequest, handleSelectRequest])
+
+  // Format last updated time
+  const formatLastUpdated = useCallback((date) => {
+    if (!date) return ''
+    return date.toLocaleTimeString()
+  }, [])
 
   const getRiskLevelColor = (level) => {
     switch (level) {
@@ -213,10 +300,27 @@ const ApprovalQueue = () => {
             {t('approvalQueue.subtitle', 'Review and approve high-risk actions requiring human authorization')}
           </p>
         </div>
-        <AppleButton onClick={loadApprovalData} variant="outline" haptic="light" disabled={loading}>
-          <Activity className="w-4 h-4 mr-2" />
-          {t('common.refresh', 'Refresh')}
-        </AppleButton>
+        <div className="flex items-center gap-4">
+          {lastUpdated && (
+            <span className="text-xs text-[var(--text-secondary)]">
+              {t('approvalQueue.lastUpdated', 'Last updated')}: {formatLastUpdated(lastUpdated)}
+            </span>
+          )}
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="rounded border-[var(--border)]"
+              aria-label={t('approvalQueue.autoRefresh', 'Auto-refresh')}
+            />
+            {t('approvalQueue.autoRefresh', 'Auto-refresh')}
+          </label>
+          <AppleButton onClick={() => loadApprovalData()} variant="outline" haptic="light" disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+            {t('common.refresh', 'Refresh')}
+          </AppleButton>
+        </div>
       </div>
 
       {error && (
@@ -279,7 +383,7 @@ const ApprovalQueue = () => {
         </div>
       )}
 
-      <Tabs defaultValue="pending" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="pending">
             {t('approvalQueue.tabs.pending', 'Pending Approvals')}
@@ -303,10 +407,17 @@ const ApprovalQueue = () => {
               </p>
             </div>
             <div className="p-5">
-              <div className="space-y-3">
+              <div 
+                ref={listRef}
+                role="listbox"
+                aria-label={t('approvalQueue.pending.title', 'Pending Action Requests')}
+                onKeyDown={handleListKeyDown}
+                tabIndex={pendingRequests.length > 0 ? 0 : -1}
+                className="space-y-3 outline-none"
+              >
                 {pendingRequests.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 space-y-3">
-                    <CheckCircle className="w-12 h-12 text-growth" />
+                    <CheckCircle className="w-12 h-12 text-growth" aria-hidden="true" />
                     <p className="text-neutral-500 dark:text-neutral-400">
                       {t('approvalQueue.pending.noRequests', 'No pending approval requests')}
                     </p>
@@ -315,12 +426,18 @@ const ApprovalQueue = () => {
                   pendingRequests.map((request) => (
                     <button
                       key={request.request_id}
-                      className="w-full text-left p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer transition-opacity hover:opacity-80"
-                      onClick={() => setSelectedRequest(request)}
+                      role="option"
+                      aria-selected={selectedRequest?.request_id === request.request_id}
+                      className={`w-full text-left p-4 rounded-lg border cursor-pointer transition-all ${
+                        selectedRequest?.request_id === request.request_id
+                          ? 'border-calm bg-calm-10 ring-2 ring-calm'
+                          : 'border-[var(--border)] bg-[var(--surface)] hover:opacity-80'
+                      }`}
+                      onClick={() => handleSelectRequest(request)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-4">
-                          {getRiskLevelIcon(request.risk_level)}
+                          <span aria-hidden="true">{getRiskLevelIcon(request.risk_level)}</span>
                           <div>
                             <p className="font-semibold text-[var(--text-primary)]">
                               {request.action_type}
@@ -336,7 +453,7 @@ const ApprovalQueue = () => {
                                 {t('approvalQueue.details.agent', 'Agent')}: {request.agent_id}
                               </Badge>
                               <Badge variant="outline" className="text-xs flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
+                                <Clock className="w-3 h-3" aria-hidden="true" />
                                 {getTimeRemaining(request.timeout_at)}
                               </Badge>
                             </div>
@@ -349,7 +466,7 @@ const ApprovalQueue = () => {
                             haptic="light"
                             onClick={(e) => {
                               e.stopPropagation()
-                              setSelectedRequest(request)
+                              handleSelectRequest(request)
                             }}
                             disabled={actionLoading}
                           >
@@ -367,12 +484,18 @@ const ApprovalQueue = () => {
 
         <TabsContent value="details" className="space-y-4">
           {selectedRequest ? (
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="request-details">
+            <div 
+              ref={detailsRef}
+              tabIndex={-1}
+              aria-busy={actionLoading}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card outline-none" 
+              data-testid="request-details"
+            >
               <div className="px-5 py-4 border-b border-[var(--border)]">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      {getActionTypeIcon(selectedRequest.action_type)}
+                      <span aria-hidden="true">{getActionTypeIcon(selectedRequest.action_type)}</span>
                       {selectedRequest.action_type}
                     </h2>
                     <p className="text-sm text-[var(--text-secondary)] mt-1">{selectedRequest.request_id}</p>
@@ -421,7 +544,7 @@ const ApprovalQueue = () => {
                   <div>
                     <p className="text-sm text-[var(--text-secondary)] mb-2">{t('approvalQueue.details.riskReason', 'Risk Reason')}</p>
                     <div className="flex items-start gap-2 bg-joy-10 p-4 rounded-lg">
-                      <AlertTriangle className="w-5 h-5 text-joy" />
+                      <AlertTriangle className="w-5 h-5 text-joy" aria-hidden="true" />
                       <p className="text-joy-dark">{selectedRequest.risk_reason}</p>
                     </div>
                   </div>
@@ -450,16 +573,19 @@ const ApprovalQueue = () => {
                 )}
 
                 <div className="border-t pt-4">
-                  <p className="text-sm text-[var(--text-secondary)] mb-2">
-                    {t('approvalQueue.details.rejectionReason', 'Rejection Reason (optional)')}
-                  </p>
-                  <textarea
-                    className="w-full p-3 border rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
-                    rows={3}
-                    placeholder="Enter reason for rejection..."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                  />
+                  <label className="block">
+                    <span className="text-sm text-[var(--text-secondary)] mb-2 block">
+                      {t('approvalQueue.details.rejectionReasonLabel', 'Rejection Reason (for audit trail)')}
+                    </span>
+                    <textarea
+                      className="w-full p-3 border rounded-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white"
+                      rows={3}
+                      placeholder={t('approvalQueue.details.rejectionReasonPlaceholder', 'Enter reason for rejection...')}
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      aria-describedby="rejection-reason-hint"
+                    />
+                  </label>
                 </div>
 
                 <div className="flex justify-end gap-3">
@@ -469,7 +595,9 @@ const ApprovalQueue = () => {
                     onClick={() => {
                       setSelectedRequest(null)
                       setRejectionReason('')
+                      setActiveTab('pending')
                     }}
+                    disabled={actionLoading}
                   >
                     {t('common.cancel', 'Cancel')}
                   </AppleButton>
@@ -479,18 +607,32 @@ const ApprovalQueue = () => {
                     onClick={() => handleReject(selectedRequest.request_id)}
                     disabled={actionLoading}
                     className="border-energy text-energy hover:bg-energy-10"
+                    aria-busy={actionType === 'reject'}
                   >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    {t('common.reject', 'Reject')}
+                    {actionType === 'reject' ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <XCircle className="w-4 h-4 mr-2" aria-hidden="true" />
+                    )}
+                    {actionType === 'reject' 
+                      ? t('approvalQueue.actions.rejecting', 'Rejecting...') 
+                      : t('common.reject', 'Reject')}
                   </AppleButton>
                   <AppleButton
                     haptic="medium"
                     onClick={() => handleApprove(selectedRequest.request_id)}
                     disabled={actionLoading}
                     className="bg-growth text-white hover:bg-growth-dark"
+                    aria-busy={actionType === 'approve'}
                   >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    {t('common.approve', 'Approve')}
+                    {actionType === 'approve' ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" aria-hidden="true" />
+                    )}
+                    {actionType === 'approve' 
+                      ? t('approvalQueue.actions.approving', 'Approving...') 
+                      : t('common.approve', 'Approve')}
                   </AppleButton>
                 </div>
               </div>
@@ -499,7 +641,7 @@ const ApprovalQueue = () => {
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card" data-testid="empty-state">
               <div className="py-8">
                 <div className="flex flex-col items-center justify-center space-y-3">
-                  <Shield className="w-12 h-12 text-[var(--text-secondary)]" />
+                  <Shield className="w-12 h-12 text-[var(--text-secondary)]" aria-hidden="true" />
                   <p className="text-sm text-[var(--text-secondary)]">
                     {t('approvalQueue.details.selectRequest', 'Select a request from the pending list to view details')}
                   </p>
