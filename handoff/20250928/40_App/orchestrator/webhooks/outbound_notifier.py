@@ -219,8 +219,8 @@ class GitHubNotifier(BaseNotifier):
                         return False
 
         except ImportError:
-            logger.warning("[GitHubNotifier] aiohttp not available, using stub mode")
-            return True  # Stub mode for testing
+            logger.warning("[GitHubNotifier] aiohttp not available, notification skipped")
+            return False  # Return False when aiohttp is not available
         except Exception as e:
             logger.error("[GitHubNotifier] Error posting comment: %s", e)
             return False
@@ -344,8 +344,8 @@ class JiraNotifier(BaseNotifier):
                         return False
 
         except ImportError:
-            logger.warning("[JiraNotifier] aiohttp not available, using stub mode")
-            return True  # Stub mode for testing
+            logger.warning("[JiraNotifier] aiohttp not available, notification skipped")
+            return False  # Return False when aiohttp is not available
         except Exception as e:
             logger.error("[JiraNotifier] Error posting comment: %s", e)
             return False
@@ -467,11 +467,15 @@ class SlackNotifier(BaseNotifier):
                         return False
 
         except ImportError:
-            logger.warning("[SlackNotifier] aiohttp not available, using stub mode")
-            return True  # Stub mode for testing
+            logger.warning("[SlackNotifier] aiohttp not available, notification skipped")
+            return False  # Return False when aiohttp is not available
         except Exception as e:
             logger.error("[SlackNotifier] Error posting message: %s", e)
             return False
+
+
+# Default maximum notification history size to prevent memory leaks
+DEFAULT_MAX_HISTORY_SIZE = 1000
 
 
 class OutboundNotifier:
@@ -485,6 +489,74 @@ class OutboundNotifier:
     4. Supports feature flags for each service
     """
 
+    @classmethod
+    def from_settings(cls) -> "OutboundNotifier":
+        """
+        Factory method to create OutboundNotifier from settings.
+
+        Reads feature flags from common.config.settings:
+        - ENABLE_GITHUB_NOTIFICATIONS
+        - ENABLE_JIRA_NOTIFICATIONS
+        - ENABLE_SLACK_NOTIFICATIONS
+
+        Returns:
+            OutboundNotifier instance configured from settings
+        """
+        try:
+            from common.config.settings import settings
+
+            enable_github = getattr(settings, 'enable_github_notifications', False)
+            enable_jira = getattr(settings, 'enable_jira_notifications', False)
+            enable_slack = getattr(settings, 'enable_slack_notifications', False)
+
+            # Get tokens from settings if available
+            github_token = getattr(settings, 'github_token', None)
+            slack_bot_token = getattr(settings, 'slack_bot_token', None)
+
+            # Create notifiers if tokens are available
+            github_notifier = GitHubNotifier(github_token=github_token) if github_token else None
+            slack_notifier = SlackNotifier(slack_bot_token=slack_bot_token) if slack_bot_token else None
+
+            # Jira requires multiple settings
+            jira_url = getattr(settings, 'jira_url', None)
+            jira_email = getattr(settings, 'jira_email', None)
+            jira_api_token = getattr(settings, 'jira_api_token', None)
+            jira_notifier = None
+            if jira_url and jira_email and jira_api_token:
+                jira_notifier = JiraNotifier(
+                    jira_url=jira_url,
+                    jira_email=jira_email,
+                    jira_api_token=jira_api_token,
+                )
+
+            logger.info(
+                "[OutboundNotifier.from_settings] Created with enable_github=%s, "
+                "enable_jira=%s, enable_slack=%s",
+                enable_github,
+                enable_jira,
+                enable_slack,
+            )
+
+            return cls(
+                github_notifier=github_notifier,
+                jira_notifier=jira_notifier,
+                slack_notifier=slack_notifier,
+                enable_github=enable_github,
+                enable_jira=enable_jira,
+                enable_slack=enable_slack,
+            )
+
+        except ImportError:
+            logger.warning(
+                "[OutboundNotifier.from_settings] Could not import settings, "
+                "using defaults (all disabled)"
+            )
+            return cls(
+                enable_github=False,
+                enable_jira=False,
+                enable_slack=False,
+            )
+
     def __init__(
         self,
         github_notifier: Optional[GitHubNotifier] = None,
@@ -493,6 +565,7 @@ class OutboundNotifier:
         enable_github: bool = True,
         enable_jira: bool = True,
         enable_slack: bool = True,
+        max_history_size: int = DEFAULT_MAX_HISTORY_SIZE,
     ):
         """
         Initialize the OutboundNotifier.
@@ -504,6 +577,8 @@ class OutboundNotifier:
             enable_github: Enable GitHub notifications
             enable_jira: Enable Jira notifications
             enable_slack: Enable Slack notifications
+            max_history_size: Maximum number of notifications to keep in history
+                              (default: 1000, set to 0 for unlimited)
         """
         self._notifiers: Dict[WebhookSource, BaseNotifier] = {}
         self._enabled: Dict[WebhookSource, bool] = {
@@ -519,8 +594,9 @@ class OutboundNotifier:
         if slack_notifier:
             self._notifiers[WebhookSource.SLACK] = slack_notifier
 
-        # Notification history
+        # Notification history with size limit to prevent memory leaks
         self._notifications: Dict[str, NotificationPayload] = {}
+        self._max_history_size = max_history_size
 
         # Callbacks
         self.on_notification_sent: Optional[Callable[[NotificationPayload], None]] = None
@@ -727,6 +803,9 @@ class OutboundNotifier:
         # Store in history
         self._notifications[notification_id] = payload
 
+        # Prune history if it exceeds max size (P2: avoid memory leak)
+        self._prune_history()
+
         # Send the notification
         try:
             success = await notifier.send_notification(payload)
@@ -766,6 +845,43 @@ class OutboundNotifier:
                 self.on_notification_failed(payload, str(e))
 
         return payload
+
+    def _prune_history(self) -> int:
+        """
+        Prune notification history if it exceeds max size.
+
+        Removes oldest notifications (by created_at) to stay within limit.
+
+        Returns:
+            Number of notifications pruned
+        """
+        if self._max_history_size <= 0:
+            return 0  # Unlimited history
+
+        current_size = len(self._notifications)
+        if current_size <= self._max_history_size:
+            return 0
+
+        # Sort by created_at and remove oldest
+        sorted_notifications = sorted(
+            self._notifications.items(),
+            key=lambda x: x[1].created_at,
+        )
+
+        # Calculate how many to remove
+        to_remove = current_size - self._max_history_size
+
+        # Remove oldest notifications
+        for notification_id, _ in sorted_notifications[:to_remove]:
+            del self._notifications[notification_id]
+
+        logger.debug(
+            "[OutboundNotifier] Pruned %d notifications from history (max=%d)",
+            to_remove,
+            self._max_history_size,
+        )
+
+        return to_remove
 
     def get_notification(self, notification_id: str) -> Optional[NotificationPayload]:
         """Get a notification by ID"""
