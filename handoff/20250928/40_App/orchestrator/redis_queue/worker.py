@@ -1066,6 +1066,114 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
         raise
 
 
+vm_cleanup_thread = None
+VM_CLEANUP_INTERVAL = settings.vm_cleanup_interval_seconds
+
+
+def run_vm_cleanup_scheduler():
+    """
+    Background thread to periodically clean up stale VM entries.
+    
+    Runs cleanup_stale_vms from DistributedVMLockManager at configured interval.
+    Only runs if USE_DISTRIBUTED_VM_LOCKING is enabled and interval > 0.
+    
+    Configuration (via settings.py):
+    - settings.vm_cleanup_interval_seconds: Cleanup interval (default: 300 = 5 minutes)
+    - settings.use_distributed_vm_locking: Must be True to enable cleanup
+    """
+    if not settings.use_distributed_vm_locking:
+        logger.info(
+            "VM cleanup scheduler disabled (USE_DISTRIBUTED_VM_LOCKING=false)",
+            extra={"operation": "vm_cleanup"}
+        )
+        return
+    
+    if VM_CLEANUP_INTERVAL <= 0:
+        logger.info(
+            "VM cleanup scheduler disabled (VM_CLEANUP_INTERVAL_SECONDS=0)",
+            extra={"operation": "vm_cleanup"}
+        )
+        return
+    
+    logger.info(
+        f"VM cleanup scheduler started (interval={VM_CLEANUP_INTERVAL}s)",
+        extra={"operation": "vm_cleanup", "interval": VM_CLEANUP_INTERVAL}
+    )
+    
+    lock_manager = None
+    
+    while not shutdown_event.is_set():
+        try:
+            if lock_manager is None:
+                try:
+                    from meta_agent.distributed_vm_lock import DistributedVMLockManager
+                    import redis as redis_lib
+                    
+                    async_redis = redis_lib.asyncio.from_url(
+                        redis_url,
+                        decode_responses=False,
+                        socket_connect_timeout=10,
+                    )
+                    lock_manager = DistributedVMLockManager(
+                        redis_client=async_redis,
+                        max_concurrent_vms=settings.max_concurrent_vms or 10,
+                        lock_ttl_seconds=settings.vm_lock_ttl_seconds,
+                        registry_ttl_buffer=settings.vm_registry_ttl_buffer,
+                    )
+                    logger.info(
+                        "VM cleanup lock manager initialized",
+                        extra={"operation": "vm_cleanup"}
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to initialize VM cleanup lock manager: {e}",
+                        extra={"operation": "vm_cleanup", "error": str(e)}
+                    )
+                    shutdown_event.wait(VM_CLEANUP_INTERVAL)
+                    continue
+            
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            cleaned = loop.run_until_complete(lock_manager.cleanup_stale_vms())
+            
+            if cleaned > 0:
+                logger.info(
+                    f"VM cleanup completed: {cleaned} stale entries removed",
+                    extra={"operation": "vm_cleanup", "cleaned": cleaned}
+                )
+            else:
+                logger.debug(
+                    "VM cleanup completed: no stale entries",
+                    extra={"operation": "vm_cleanup"}
+                )
+            
+            shutdown_event.wait(VM_CLEANUP_INTERVAL)
+            
+        except RedisConnectionError as e:
+            logger.error(
+                f"VM cleanup Redis connection error: {e}",
+                extra={"operation": "vm_cleanup"}
+            )
+            if SENTRY_DSN:
+                sentry_sdk.capture_exception(e)
+            shutdown_event.wait(60)
+        except Exception as e:
+            logger.exception(
+                f"VM cleanup failed: {e}",
+                extra={"operation": "vm_cleanup"}
+            )
+            if SENTRY_DSN:
+                sentry_sdk.capture_exception(e)
+            shutdown_event.wait(60)
+    
+    logger.info("VM cleanup scheduler stopped", extra={"operation": "vm_cleanup"})
+
+
 def cleanup_stale_legacy_worker():
     """
     Defensive cleanup for stale legacy 'worker-local' registrations.
@@ -1159,6 +1267,19 @@ if __name__ == "__main__":
             "rq_worker_name": RQ_WORKER_NAME,
             "ttl": HEARTBEAT_TTL,
             "interval": HEARTBEAT_INTERVAL
+        }
+    )
+    
+    vm_cleanup_thread = threading.Thread(target=run_vm_cleanup_scheduler, daemon=False, name="VMCleanupThread")
+    vm_cleanup_thread.start()
+    logger.info(
+        f"VM cleanup scheduler started",
+        extra={
+            "operation": "startup",
+            "heartbeat_id": HEARTBEAT_ID,
+            "rq_worker_name": RQ_WORKER_NAME,
+            "interval": VM_CLEANUP_INTERVAL,
+            "enabled": settings.use_distributed_vm_locking
         }
     )
     

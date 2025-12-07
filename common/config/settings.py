@@ -736,6 +736,30 @@ class Settings(BaseSettings):
         description="Use Redis-based checkpointer for LangGraph state persistence instead of in-memory MemorySaver. Enables cross-process state recovery."
     )
 
+    use_distributed_vm_locking: bool = Field(
+        default=False,
+        alias="USE_DISTRIBUTED_VM_LOCKING",
+        description="Use Redis-backed distributed locking for VM provisioning. Enables cross-process coordination for duplicate prevention and concurrency limits. (#2104)"
+    )
+
+    vm_lock_ttl_seconds: int = Field(
+        default=300,
+        alias="VM_LOCK_TTL_SECONDS",
+        description="TTL in seconds for VM task locks (default: 300 = 5 minutes). Locks auto-expire to handle process crashes."
+    )
+
+    vm_registry_ttl_buffer: int = Field(
+        default=300,
+        alias="VM_REGISTRY_TTL_BUFFER",
+        description="Additional TTL buffer in seconds for VM registry entries beyond VM timeout (default: 300 = 5 minutes)."
+    )
+
+    vm_cleanup_interval_seconds: int = Field(
+        default=300,
+        alias="VM_CLEANUP_INTERVAL_SECONDS",
+        description="Interval in seconds for running stale VM cleanup job (default: 300 = 5 minutes). Set to 0 to disable."
+    )
+
     redis_checkpointer_ttl: int = Field(
         default=86400,
         alias="REDIS_CHECKPOINTER_TTL",
