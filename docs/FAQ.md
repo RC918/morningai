@@ -1,107 +1,64 @@
-# System Architecture of MorningAI
+# Fixing RLS Policy Recursion in the `user_profiles` Table
 
-The system architecture of MorningAI is designed to be robust, scalable, and efficient, facilitating seamless integration and real-time task orchestration across various platforms. This document provides an overview of the architecture, focusing on key components and their interactions within the MorningAI platform.
+Row Level Security (RLS) policies in PostgreSQL provide a powerful mechanism to control access to rows in a database table based on the user accessing them. This feature is crucial for multi-tenant applications like MorningAI, ensuring that users can only access their data. However, improperly configured RLS policies, especially on tables like `user_profiles`, can lead to recursion issues, affecting performance and potentially causing infinite loops.
 
-## Overview
+## Understanding the Issue
 
-MorningAI leverages a microservices-based architecture, utilizing a range of technologies to ensure high performance, reliability, and scalability. The core components of the system include:
+Recursion in RLS policies occurs when a policy indirectly causes itself to be re-evaluated without reaching a terminal condition. For example, if an RLS policy on the `user_profiles` table checks data in the same table to make a decision, and this check inadvertently triggers the same RLS policy again, it can lead to an endless loop or excessive processing time.
 
-- **Frontend**: Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
-- **Backend**: Python and Flask serve as the backbone of the server-side application, with Gunicorn for multi-worker support ensuring scalability and efficiency.
-- **Database**: PostgreSQL with Row Level Security (RLS) is used for data storage, enhanced by Supabase for additional functionality including authentication and real-time subscriptions.
-- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and job queues, allowing for efficient task scheduling and execution.
-- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex autonomous operations within the system.
-- **AI Integration**: OpenAI's GPT-4 model powers content generation, including FAQ generation and code suggestions.
-- **Deployment**: Render.com is used for hosting, benefiting from its CI/CD features for streamlined deployment processes.
+## Implementing a Solution
 
-### Detailed Component Interaction
+### Step 1: Review Existing Policies
 
-1. **Frontend**:
-   - Users interact with the MorningAI platform through the web interface built with React.
-   - TailwindCSS is employed for styling, ensuring a consistent look and feel across different devices.
-
-```jsx
-// Example: Frontend component in React
-import React from 'react';
-
-function App() {
-  return (
-    <div className="app-container">
-      <h1>Welcome to MorningAI</h1>
-      // More UI components here
-    </div>
-  );
-}
-
-export default App;
-```
-
-2. **Backend**:
-   - Flask routes handle API requests from the frontend, interacting with the database or queue system as needed.
-   - Gunicorn serves as the WSGI HTTP Server to manage multiple worker processes.
-
-```python
-# Example: Flask route in app.py
-from flask import Flask
-
-app = Flask(__name__)
-
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    # Logic to fetch or process data here
-    return {"data": "Sample data"}
-
-if __name__ == '__main__':
-    app.run()
-```
-
-3. **Database Operations**:
-   - Supabase adds real-time capabilities and easy management tools on top of PostgreSQL.
+First, examine the existing RLS policies applied to the `user_profiles` table. You can do this by running:
 
 ```sql
--- Example: PostgreSQL query with RLS
-CREATE TABLE secure_data (
-    id SERIAL PRIMARY KEY,
-    info TEXT,
-    user_id INTEGER REFERENCES users(id)
+SELECT polname, pg_get_expr(pol.expr, pol.polrelid) AS expression
+FROM pg_policies pol
+WHERE pol.tablename = 'user_profiles';
+```
+
+This query returns all RLS policies applied to the `user_profiles` table, allowing you to review their definitions.
+
+### Step 2: Modify Recursive Policies
+
+Identify any policies that directly or indirectly cause recursion. These policies will typically involve SELECT statements on the `user_profiles` table that don't exclude the current row being evaluated or other conditions leading back to the same policy check.
+
+Replace or update these policies with non-recursive alternatives. For instance, if a policy checks user roles by querying the same table, consider adding a condition to exclude the current row or utilizing a different mechanism for role checking.
+
+Here's an example of modifying an existing policy to prevent recursion:
+
+```sql
+ALTER POLICY your_policy_name ON public.user_profiles
+USING (
+    id = current_user_id() OR
+    NOT EXISTS(
+        SELECT 1 FROM public.user_profiles up
+        WHERE up.id = auth.uid() AND up.id <> user_profiles.id -- Prevent recursion by excluding current row
+    )
 );
 ```
 
-4. **Queue Management**:
-   - Background tasks are handled via Redis Queue, allowing asynchronous processing of long-running operations.
+### Step 3: Test Your Changes
 
-```python
-# Example: Enqueuing a job in Redis Queue
-from rq import Queue
-from redis import Redis
-import my_background_task
+After applying changes, thoroughly test them to ensure that:
+- The recursion issue is resolved.
+- The RLS policies still enforce the intended security constraints.
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+Testing can be done by attempting to access or modify data from different user accounts and verifying that only appropriate data is accessible based on your security model.
 
-result = q.enqueue(my_background_task.process_data, 'http://example.com')
-```
+## Related Documentation
 
-5. **Deployment**:
-   - Continuous Integration and Deployment through Render.com automates the deployment process every time changes are pushed to the repository.
+- PostgreSQL RLS Policies: [PostgreSQL Documentation - Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+- Supabase Row Level Security: [Supabase Documentation - Row Level Security](https://supabase.com/docs/guides/auth/row-level-security)
 
-### Related Documentation Links
+## Common Troubleshooting Tips
 
-- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
+- **Infinite Loops**: If you encounter infinite loops after modifying RLS policies, confirm that your new conditions properly exclude cases that would re-trigger the same policy checks.
+- **Performance Issues**: Excessive or complex RLS conditions can degrade performance. Use EXPLAIN plans to understand and optimize costly operations.
+- **Access Denied Errors**: If users report unexpected access denials, ensure your RLS conditions correctly account for all legitimate access patterns and don't overly restrict data visibility.
 
-### Common Troubleshooting Tips
-
-1. **Frontend Issues**: Ensure dependencies are up to date and correctly installed. Check console logs for errors during development.
-2. **Backend Connectivity**: Verify that environment variables for database connections are correctly set. Test endpoints using tools like Postman.
-3. **Database Permissions**: When facing RLS issues, ensure roles and policies are correctly defined in PostgreSQL.
-4. **Queue Processing Delays**: Monitor Redis Queue dashboard for failed jobs or bottlenecks in task processing.
-5. **Deployment Failures**: Check build logs in Render.com for specific errors related to deployment failures.
-
-This comprehensive overview aims to equip developers with a fundamental understanding of MorningAI's system architecture, promoting efficient development and troubleshooting practices within this ecosystem.
+Remember, modifying RLS policies affects data security and accessibility across your application. Always back up your database before making changes and conduct thorough testing in a development environment before applying changes in production.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -109,8 +66,8 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `00b32bea-50b3-494c-a8a7-178118e23a74`
+- Task: Fix RLS policy recursion in user_profiles table
+- Trace ID: `task-005`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Provider: openai
 - Repository: RC918/morningai
