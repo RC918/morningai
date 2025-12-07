@@ -39,9 +39,20 @@ logger = logging.getLogger(__name__)
 
 # MCP Client configuration
 MCP_DEFAULT_TIMEOUT = 30  # seconds
+# Note: With MCP_MAX_RETRIES=3 and MCP_RETRY_DELAY=1.0, exponential backoff (1s, 2s, 4s)
+# behaves similarly to linear backoff (1s, 2s, 3s). The difference becomes significant
+# only with higher retry counts. Using exponential backoff for future scalability.
 MCP_MAX_RETRIES = 3
-MCP_RETRY_DELAY = 1.0  # seconds
+MCP_RETRY_DELAY = 1.0  # seconds, base delay for exponential backoff (delay = MCP_RETRY_DELAY * 2^attempt)
 MCP_ERROR_LOG_MAX_LENGTH = 500  # Max characters for error logs (Issue #2075)
+MCP_SHELL_EXEC_TIMEOUT_BUFFER = 5  # seconds, buffer for network latency (Issue #2071)
+
+# Session capability constants (Issue #2023)
+# Terminal access is a privileged capability that allows execution of arbitrary
+# shell commands in the VM. This capability must be explicitly granted by trusted
+# services/admins and should never be wired to untrusted user input.
+# See: handoff/20250928/40_App/orchestrator/docs/TERMINAL_ACCESS.md
+TERMINAL_ACCESS_CAPABILITY = "terminal_access_enabled"
 
 
 def _truncate_error_message(message: Optional[str], max_length: int = MCP_ERROR_LOG_MAX_LENGTH) -> Optional[str]:
@@ -296,11 +307,45 @@ class VSCodeIDEService:
         Language.JAVA: "mvn test",
     }
 
+    # Issue #2042: Class constant for terminal access capability key
+    _TERMINAL_ACCESS_KEY = "terminal_access_enabled"
+
     def __init__(self):
         """Initialize the VS Code IDE service"""
         self._sessions: Dict[str, IDESession] = {}
         self._lock = asyncio.Lock()
+        self._http_session: Optional[aiohttp.ClientSession] = None
+        self._http_session_lock = asyncio.Lock()
         logger.info("[VSCodeIDEService] Initialized")
+
+    async def _get_http_session(self) -> aiohttp.ClientSession:
+        """
+        Get or create the shared aiohttp ClientSession.
+
+        Issue #2076: Reuse ClientSession for better connection pooling,
+        DNS caching, and reduced connection overhead.
+
+        Returns:
+            Shared aiohttp ClientSession instance
+        """
+        if self._http_session is None or self._http_session.closed:
+            async with self._http_session_lock:
+                if self._http_session is None or self._http_session.closed:
+                    self._http_session = aiohttp.ClientSession()
+                    logger.debug("[VSCodeIDEService] Created shared HTTP session")
+        return self._http_session
+
+    async def close(self) -> None:
+        """
+        Close the service and release resources.
+
+        Issue #2076: Properly close the shared ClientSession to release
+        TCP connections and other resources.
+        """
+        if self._http_session is not None and not self._http_session.closed:
+            await self._http_session.close()
+            self._http_session = None
+            logger.info("[VSCodeIDEService] Closed shared HTTP session")
 
     async def create_session(
         self,
@@ -862,10 +907,13 @@ class VSCodeIDEService:
         - Called with user-supplied input without proper authorization checks
 
         CAPABILITY GATE (Issue #2023):
-        This method requires the 'terminal_access_enabled' capability to be
-        set in the session metadata. Sessions are created with this capability
-        disabled by default. To enable terminal access, set:
-            session.metadata["terminal_access_enabled"] = True
+        This method requires the TERMINAL_ACCESS_CAPABILITY to be set in the
+        session metadata. Sessions are created with this capability disabled
+        by default. To enable terminal access, set:
+            session.metadata[TERMINAL_ACCESS_CAPABILITY] = True
+
+        For detailed authorization flow, see:
+            handoff/20250928/40_App/orchestrator/docs/TERMINAL_ACCESS.md
 
         Args:
             session: IDE session
@@ -882,13 +930,14 @@ class VSCodeIDEService:
         if not self._has_terminal_capability(session):
             logger.warning(
                 "[VSCodeIDEService] Denied terminal command for task %s: "
-                "terminal_access_enabled capability not granted",
+                "%s capability not granted",
                 session.task_id[:8],
+                TERMINAL_ACCESS_CAPABILITY,
             )
             return {
                 "success": False,
-                "error": "Terminal access is not enabled for this session. "
-                "Set session.metadata['terminal_access_enabled'] = True to enable.",
+                "error": f"Terminal access is not enabled for this session. "
+                f"Set session.metadata['{TERMINAL_ACCESS_CAPABILITY}'] = True to enable.",
             }
 
         try:
@@ -935,29 +984,30 @@ class VSCodeIDEService:
 
         for attempt in range(MCP_MAX_RETRIES):
             try:
+                http_session = await self._get_http_session()
                 timeout = aiohttp.ClientTimeout(total=timeout_seconds)
-                async with aiohttp.ClientSession(timeout=timeout) as http_session:
-                    async with http_session.post(
-                        url,
-                        json=payload,
-                        headers={"Content-Type": "application/json"},
-                    ) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            logger.debug(
-                                "[VSCodeIDEService] MCP command %s succeeded",
-                                endpoint
-                            )
-                            return {"success": True, **data}
-                        else:
-                            error_text = await response.text()
-                            # Issue #2075: Truncate error logs to prevent sensitive data leakage
-                            truncated_error = _truncate_error_message(error_text)
-                            logger.warning(
-                                "[VSCodeIDEService] MCP command %s failed: %s - %s",
-                                endpoint, response.status, truncated_error
-                            )
-                            last_error = f"HTTP {response.status}: {truncated_error}"
+                async with http_session.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=timeout,
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.debug(
+                            "[VSCodeIDEService] MCP command %s succeeded",
+                            endpoint
+                        )
+                        return {"success": True, **data}
+                    else:
+                        error_text = await response.text()
+                        # Issue #2075: Truncate error logs to prevent sensitive data leakage
+                        truncated_error = _truncate_error_message(error_text)
+                        logger.warning(
+                            "[VSCodeIDEService] MCP command %s failed: %s - %s",
+                            endpoint, response.status, truncated_error
+                        )
+                        last_error = f"HTTP {response.status}: {truncated_error}"
 
             except asyncio.TimeoutError:
                 last_error = f"Request timeout after {timeout_seconds}s"
@@ -984,8 +1034,9 @@ class VSCodeIDEService:
                 break  # Don't retry on unexpected errors
 
             # Wait before retry (except on last attempt)
+            # Issue #2070: Use exponential backoff for better server load handling
             if attempt < MCP_MAX_RETRIES - 1:
-                await asyncio.sleep(MCP_RETRY_DELAY * (attempt + 1))
+                await asyncio.sleep(MCP_RETRY_DELAY * (2 ** attempt))
 
         return {"success": False, "error": last_error}
 
@@ -1014,7 +1065,7 @@ class VSCodeIDEService:
                 "timeout": timeout_seconds,
                 "cwd": session.workspace_path,
             },
-            timeout_seconds=timeout_seconds + 5,  # Add buffer for network latency
+            timeout_seconds=timeout_seconds + MCP_SHELL_EXEC_TIMEOUT_BUFFER,
         )
 
         if not result.get("success"):
@@ -1047,7 +1098,7 @@ class VSCodeIDEService:
         Returns:
             True if terminal access is enabled, False otherwise
         """
-        return bool(session.metadata.get("terminal_access_enabled", False))
+        return bool(session.metadata.get(TERMINAL_ACCESS_CAPABILITY, False))
 
     def _detect_language(self, file_path: str) -> Optional[Language]:
         """Detect programming language from file extension"""
