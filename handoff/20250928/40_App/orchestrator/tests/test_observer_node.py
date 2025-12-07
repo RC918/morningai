@@ -7,6 +7,41 @@ Tests the failure observation and learning context functionality.
 import sys
 from unittest.mock import patch, MagicMock
 
+
+class TestObserverNodeConstants:
+    """Tests for Observer Node named constants (#1839)."""
+
+    def test_constants_are_exported(self):
+        """Test that all named constants are exported and have expected values."""
+        from observer_node import (
+            MAX_FIXER_RETRIES,
+            DEFAULT_SIMILARITY_THRESHOLD,
+            DEFAULT_QUERY_LIMIT,
+            MAX_GOAL_CHARS,
+            MAX_ERROR_CHARS,
+            MAX_CONTEXT_SNIPPET_CHARS,
+        )
+
+        assert MAX_FIXER_RETRIES == 3
+        assert DEFAULT_SIMILARITY_THRESHOLD == 0.6
+        assert DEFAULT_QUERY_LIMIT == 3
+        assert MAX_GOAL_CHARS == 200
+        assert MAX_ERROR_CHARS == 500
+        assert MAX_CONTEXT_SNIPPET_CHARS == 200
+
+    def test_truncation_constants_are_positive(self):
+        """Test that truncation constants are positive integers."""
+        from observer_node import (
+            MAX_GOAL_CHARS,
+            MAX_ERROR_CHARS,
+            MAX_CONTEXT_SNIPPET_CHARS,
+        )
+
+        assert MAX_GOAL_CHARS > 0
+        assert MAX_ERROR_CHARS > 0
+        assert MAX_CONTEXT_SNIPPET_CHARS > 0
+
+
 mock_supabase = MagicMock()
 mock_openai = MagicMock()
 sys.modules['supabase'] = mock_supabase
