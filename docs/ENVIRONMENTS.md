@@ -1297,16 +1297,11 @@ curl https://morningai-backend-v2-stg.onrender.com/healthz
 
 ### CI/CD Workflows
 
-#### CI (`.github/workflows/`)
+#### CI (`.github/workflows/backend.yml`, etc.)
 - **Trigger**: Push/PR to `main` branch
-- **Tests**: Backend (pytest + coverage), Frontend (build), Smoke tests
-- **Deploy**: Auto-deploy to production services on merge
-- **Environment**: `ENVIRONMENT=production` (or `staging` for Render staging services)
-
-#### Production CI (`.github/workflows/backend.yml`, etc.)
-- **Trigger**: Push to `main` branch
-- **Tests**: Full test suite, E2E tests
-- **Deploy**: Auto-deploy to production services
+- **Tests**: Backend (pytest + coverage 74%+), Frontend (build), E2E tests, Smoke tests
+- **Deploy**: Auto-deploy to production services on merge to `main`
+- **Environment**: `ENVIRONMENT=production`
 - **Validation**: Post-deploy health checks (90% SLA)
 
 ---

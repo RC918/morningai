@@ -1225,17 +1225,11 @@ graph LR
     E -->|No| A
 ```
 
-**CI/CD Workflows**:
-1. **CI** (`.github/workflows/`)
-   - Trigger: Push/PR to `main`
-   - Tests: Backend (pytest + coverage), Frontend (build)
-   - Deploy: Auto-deploy to production services on merge
-
-2. **Production CI** (`.github/workflows/backend.yml`, etc.)
-   - Trigger: Push to `main`
-   - Tests: Full test suite, E2E tests
-   - Deploy: Auto-deploy to production services
-   - Validation: Post-deploy health checks (90% SLA)
+**CI/CD Workflows** (`.github/workflows/backend.yml`, etc.):
+- **Trigger**: Push/PR to `main` branch
+- **Tests**: Backend (pytest + coverage 74%+), Frontend (build), E2E tests
+- **Deploy**: Auto-deploy to production services on merge to `main`
+- **Validation**: Post-deploy health checks (90% SLA)
 
 ### Docker Configuration
 
