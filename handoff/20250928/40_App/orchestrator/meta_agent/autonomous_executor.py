@@ -1241,7 +1241,8 @@ class AutonomousExecutor:
         try:
             deepwiki = get_deepwiki_service()
 
-            query_result = deepwiki.query(
+            query_result = await asyncio.to_thread(
+                deepwiki.query,
                 question=goal_text,
                 query_type=QueryType.CODE_QUESTION,
                 language=context.get("language"),
@@ -1304,7 +1305,8 @@ class AutonomousExecutor:
         try:
             deepwiki = get_deepwiki_service()
 
-            query_result = deepwiki.query(
+            query_result = await asyncio.to_thread(
+                deepwiki.query,
                 question=error_text[:1000],
                 query_type=QueryType.ERROR_LOOKUP,
                 limit=3,
