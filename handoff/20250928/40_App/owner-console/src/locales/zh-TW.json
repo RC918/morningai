@@ -493,7 +493,26 @@
             "plan": "任務計劃",
             "codeReview": "程式碼審查",
             "tests": "測試結果",
-            "logs": "活動日誌"
+            "logs": "活動日誌",
+            "insights": "洞察分析"
+          },
+          "insights": {
+            "title": "會話洞察",
+            "fetchError": "載入會話洞察失敗",
+            "serviceUnavailable": "DeepWiki 服務目前無法使用",
+            "cached": "快取",
+            "generated": "即時產生",
+            "errorTitle": "無法載入洞察",
+            "noInsights": "此會話沒有可用的洞察分析",
+            "refresh": "重新整理洞察",
+            "summary": "摘要",
+            "tasksCompleted": "已完成",
+            "tasksFailed": "失敗",
+            "duration": "執行時間",
+            "durationValue": "{{count}} 分鐘",
+            "confidence": "信心度",
+            "recommendations": "建議",
+            "lastUpdated": "最後更新"
           },
           "codeReview": {
             "title": "程式碼審查",
