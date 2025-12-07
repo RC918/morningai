@@ -163,12 +163,19 @@ Configuration values safe to share:
 - `FLASK_ENV`, `ENVIRONMENT`, `PORT`, `CORS_ORIGINS`
 - `APP_VERSION`, `APP_PHASE`, `HOSTNAME`
 
-### Feature Flags (8 variables)
-All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, and USE_DISTRIBUTED_VM_LOCKING:
+### Feature Flags (9 variables)
+All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, USE_DISTRIBUTED_VM_LOCKING, and ENABLE_KNOWLEDGE_GRAPH_LEARNING:
 - `PHASE7_ENABLED`, `OPS_AGENT_ENABLED`, `GROWTH_STRATEGIST_ENABLED`
 - `PM_AGENT_ENABLED`, `HITL_APPROVAL_ENABLED`
 - `DEMO_MODE`, `SANDBOX_ENABLED`
 - `USE_DISTRIBUTED_VM_LOCKING` - Redis-backed distributed VM locking (#2104)
+- `ENABLE_KNOWLEDGE_GRAPH_LEARNING` - Knowledge Graph patterns in Planner learning context (Tier 3)
+
+### Knowledge Graph (2 variables)
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| ENABLE_KNOWLEDGE_GRAPH_LEARNING | boolean | false | Enable querying Knowledge Graph for code patterns in Planner learning context |
+| KNOWLEDGE_GRAPH_MAX_PATTERNS | integer | 3 | Maximum number of KG patterns to include in learning context (1-10) |
 
 ### VM Provisioning (4 variables)
 | Variable | Type | Default | Description |
