@@ -1,107 +1,103 @@
-# System Architecture of MorningAI
+# Add Dark Mode Toggle to System Monitoring Page
 
-The system architecture of MorningAI is designed to be robust, scalable, and efficient, facilitating seamless integration and real-time task orchestration across various platforms. This document provides an overview of the architecture, focusing on key components and their interactions within the MorningAI platform.
+Implementing a dark mode toggle on the system monitoring page of the MorningAI platform enhances user experience by providing a visually comfortable environment for both day and night usage. This guide outlines the steps necessary to add a dark mode feature, leveraging the platform's existing tech stack.
 
 ## Overview
 
-MorningAI leverages a microservices-based architecture, utilizing a range of technologies to ensure high performance, reliability, and scalability. The core components of the system include:
+To add a dark mode toggle, we'll update the frontend React components with conditional styling based on a user's preference. This involves:
+1. Creating a toggle button component.
+2. Storing the user's theme preference.
+3. Dynamically applying CSS classes or styles for dark mode.
+4. Ensuring persistent theme preference across sessions.
 
-- **Frontend**: Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
-- **Backend**: Python and Flask serve as the backbone of the server-side application, with Gunicorn for multi-worker support ensuring scalability and efficiency.
-- **Database**: PostgreSQL with Row Level Security (RLS) is used for data storage, enhanced by Supabase for additional functionality including authentication and real-time subscriptions.
-- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and job queues, allowing for efficient task scheduling and execution.
-- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex autonomous operations within the system.
-- **AI Integration**: OpenAI's GPT-4 model powers content generation, including FAQ generation and code suggestions.
-- **Deployment**: Render.com is used for hosting, benefiting from its CI/CD features for streamlined deployment processes.
+### Prerequisites
 
-### Detailed Component Interaction
+- Ensure you have access to the RC918/morningai repository.
+- Familiarity with React and TailwindCSS is required.
+- Basic understanding of browser storage mechanisms (e.g., `localStorage`).
 
-1. **Frontend**:
-   - Users interact with the MorningAI platform through the web interface built with React.
-   - TailwindCSS is employed for styling, ensuring a consistent look and feel across different devices.
+### Implementation Steps
+
+#### 1. Creating a Toggle Button Component
+
+In your React application within the frontend directory (`/src/components`), create a new component `DarkModeToggle.jsx`.
 
 ```jsx
-// Example: Frontend component in React
+// src/components/DarkModeToggle.jsx
 import React from 'react';
 
-function App() {
+const DarkModeToggle = ({ isDarkMode, setIsDarkMode }) => {
   return (
-    <div className="app-container">
-      <h1>Welcome to MorningAI</h1>
-      // More UI components here
+    <button
+      className="p-2 bg-gray-200 dark:bg-gray-800 text-black dark:text-white"
+      onClick={() => setIsDarkMode(!isDarkMode)}>
+      {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+    </button>
+  );
+};
+
+export default DarkModeToggle;
+```
+
+#### 2. Storing Theme Preference
+
+Use `localStorage` to persist the user's theme preference. Update your main or relevant component to handle theme state.
+
+```jsx
+// src/App.js or similar
+import React, { useState, useEffect } from 'react';
+import DarkModeToggle from './components/DarkModeToggle';
+
+const App = () => {
+  const [isDarkMode, setIsDarkMode] = useState(() => 
+    localStorage.getItem('theme') === 'dark'
+  );
+
+  useEffect(() => {
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  return (
+    <div className={isDarkMode ? 'dark' : ''}>
+      <DarkModeToggle isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+      {/* Rest of your component */}
     </div>
   );
-}
+};
 
 export default App;
 ```
 
-2. **Backend**:
-   - Flask routes handle API requests from the frontend, interacting with the database or queue system as needed.
-   - Gunicorn serves as the WSGI HTTP Server to manage multiple worker processes.
+#### 3. Applying Conditional Styling
 
-```python
-# Example: Flask route in app.py
-from flask import Flask
+Ensure your project is set up with TailwindCSS for easy theme switching. In your `tailwind.config.js`, enable dark mode using class strategy.
 
-app = Flask(__name__)
-
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    # Logic to fetch or process data here
-    return {"data": "Sample data"}
-
-if __name__ == '__main__':
-    app.run()
+```javascript
+// tailwind.config.js
+module.exports = {
+  darkMode: 'class',
+  // other configurations...
+};
 ```
 
-3. **Database Operations**:
-   - Supabase adds real-time capabilities and easy management tools on top of PostgreSQL.
+Then, style your components accordingly using Tailwind's `dark:` variant.
 
-```sql
--- Example: PostgreSQL query with RLS
-CREATE TABLE secure_data (
-    id SERIAL PRIMARY KEY,
-    info TEXT,
-    user_id INTEGER REFERENCES users(id)
-);
-```
+#### 4. Persistent Theme Preference
 
-4. **Queue Management**:
-   - Background tasks are handled via Redis Queue, allowing asynchronous processing of long-running operations.
+The code above automatically saves the user’s preference to `localStorage`, ensuring that their choice persists across sessions without additional steps.
 
-```python
-# Example: Enqueuing a job in Redis Queue
-from rq import Queue
-from redis import Redis
-import my_background_task
+### Related Documentation
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
-
-result = q.enqueue(my_background_task.process_data, 'http://example.com')
-```
-
-5. **Deployment**:
-   - Continuous Integration and Deployment through Render.com automates the deployment process every time changes are pushed to the repository.
-
-### Related Documentation Links
-
-- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
+- [React Documentation](https://reactjs.org/docs/getting-started.html)
+- [TailwindCSS Dark Mode](https://tailwindcss.com/docs/dark-mode)
 
 ### Common Troubleshooting Tips
 
-1. **Frontend Issues**: Ensure dependencies are up to date and correctly installed. Check console logs for errors during development.
-2. **Backend Connectivity**: Verify that environment variables for database connections are correctly set. Test endpoints using tools like Postman.
-3. **Database Permissions**: When facing RLS issues, ensure roles and policies are correctly defined in PostgreSQL.
-4. **Queue Processing Delays**: Monitor Redis Queue dashboard for failed jobs or bottlenecks in task processing.
-5. **Deployment Failures**: Check build logs in Render.com for specific errors related to deployment failures.
+- **Theme Not Persisting Across Sessions:** Ensure you're correctly setting and retrieving from `localStorage`.
+- **Incorrect Theming:** Verify that your TailwindCSS setup includes the `dark:` variant and that you're applying it correctly in your CSS classes.
+- **Toggle Button Not Updating:** Ensure state management for `isDarkMode` is implemented correctly and that it triggers re-renders as expected.
 
-This comprehensive overview aims to equip developers with a fundamental understanding of MorningAI's system architecture, promoting efficient development and troubleshooting practices within this ecosystem.
+By following these steps, you should be able to seamlessly integrate a dark mode toggle into the system monitoring page of MorningAI, improving usability and aesthetics.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -109,8 +105,8 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `00b32bea-50b3-494c-a8a7-178118e23a74`
+- Task: Add dark mode toggle to system monitoring page
+- Trace ID: `task-006`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Provider: openai
 - Repository: RC918/morningai
