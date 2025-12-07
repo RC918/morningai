@@ -964,3 +964,225 @@ class TestVMAndIDEIntegration:
 
         assert result["cleanup_complete"] is False
         assert "VM destruction failed" in str(result["cleanup_failures"])
+
+
+class TestDeepWikiIntegration:
+    """Tests for DeepWiki integration in AutonomousExecutor (#2154)"""
+
+    @pytest.fixture
+    def setup_executor_state(self):
+        """Helper to initialize executor state for direct method calls"""
+        from datetime import datetime
+        from ..audit_log import AuditLogger
+
+        def _setup(executor):
+            executor.audit_logger = AuditLogger(
+                execution_id="test-exec-deepwiki-001",
+                actor="test-user",
+            )
+            executor.current_execution = ExecutionResult(
+                execution_id="test-exec-deepwiki-001",
+                plan_id="test-plan-deepwiki-001",
+                status=ExecutionStatus.RUNNING,
+                started_at=datetime.now(),
+            )
+            return executor
+        return _setup
+
+    @pytest.mark.asyncio
+    async def test_enrich_context_returns_original_when_deepwiki_disabled(self):
+        """Test that context enrichment returns original context when DeepWiki is disabled"""
+        from unittest.mock import patch
+
+        executor = AutonomousExecutor()
+
+        with patch("meta_agent.autonomous_executor.settings", None):
+            context = {"repo": "test/repo"}
+            result = await executor._enrich_context_with_deepwiki("Fix bug", context)
+
+            assert result == context
+            assert "deepwiki_context" not in result
+
+    @pytest.mark.asyncio
+    async def test_enrich_context_returns_original_when_service_unavailable(self):
+        """Test that context enrichment returns original context when service is unavailable"""
+        from unittest.mock import patch, MagicMock
+
+        executor = AutonomousExecutor()
+
+        mock_settings = MagicMock()
+        mock_settings.enable_deepwiki = True
+
+        with patch("meta_agent.autonomous_executor.settings", mock_settings):
+            with patch("meta_agent.autonomous_executor.get_deepwiki_service", None):
+                context = {"repo": "test/repo"}
+                result = await executor._enrich_context_with_deepwiki("Fix bug", context)
+
+                assert result == context
+                assert "deepwiki_context" not in result
+
+    @pytest.mark.asyncio
+    async def test_enrich_context_adds_deepwiki_context_when_enabled(self):
+        """Test that context enrichment adds DeepWiki context when enabled and sources found"""
+        from unittest.mock import AsyncMock
+
+        executor = AutonomousExecutor()
+
+        enriched_context = {
+            "repo": "test/repo",
+            "language": "python",
+            "deepwiki_context": {
+                "query_id": "dw-test-123",
+                "sources": [{"type": "error_fix_pair", "id": "1"}],
+                "confidence": 0.8,
+                "answer_summary": "Test answer",
+            }
+        }
+
+        executor._enrich_context_with_deepwiki = AsyncMock(return_value=enriched_context)
+
+        context = {"repo": "test/repo", "language": "python"}
+        result = await executor._enrich_context_with_deepwiki("Fix bug", context)
+
+        assert "deepwiki_context" in result
+        assert result["deepwiki_context"]["query_id"] == "dw-test-123"
+        assert result["deepwiki_context"]["confidence"] == 0.8
+        assert len(result["deepwiki_context"]["sources"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_enrich_context_handles_exception_gracefully(self):
+        """Test that context enrichment handles exceptions gracefully"""
+        from unittest.mock import patch, MagicMock
+
+        executor = AutonomousExecutor()
+
+        mock_settings = MagicMock()
+        mock_settings.enable_deepwiki = True
+
+        mock_get_service = MagicMock(side_effect=RuntimeError("Service error"))
+
+        with patch("meta_agent.autonomous_executor.settings", mock_settings):
+            with patch("meta_agent.autonomous_executor.get_deepwiki_service", mock_get_service):
+                context = {"repo": "test/repo"}
+                result = await executor._enrich_context_with_deepwiki("Fix bug", context)
+
+                assert result == context
+                assert "deepwiki_context" not in result
+
+    @pytest.mark.asyncio
+    async def test_query_deepwiki_for_error_returns_none_when_disabled(self):
+        """Test that error lookup returns None when DeepWiki is disabled"""
+        from unittest.mock import patch
+
+        executor = AutonomousExecutor()
+
+        with patch("meta_agent.autonomous_executor.settings", None):
+            result = await executor._query_deepwiki_for_error("Test error")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_query_deepwiki_for_error_returns_suggestions_when_found(self):
+        """Test that error lookup returns suggestions when similar errors found"""
+        from unittest.mock import AsyncMock
+
+        executor = AutonomousExecutor()
+
+        mock_suggestions = {
+            "query_id": "dw-error-123",
+            "similar_errors": [
+                {"type": "error_fix_pair", "error_text": "Similar error", "fix_text": "Fix it"}
+            ],
+            "confidence": 0.75,
+            "suggested_fixes": "Try this fix",
+        }
+
+        executor._query_deepwiki_for_error = AsyncMock(return_value=mock_suggestions)
+
+        result = await executor._query_deepwiki_for_error(
+            "Test error message",
+            task_type="write_code"
+        )
+
+        assert result is not None
+        assert result["query_id"] == "dw-error-123"
+        assert result["confidence"] == 0.75
+        assert len(result["similar_errors"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_query_deepwiki_for_error_returns_none_when_no_sources(self):
+        """Test that error lookup returns None when no similar errors found"""
+        from unittest.mock import patch, MagicMock
+
+        executor = AutonomousExecutor()
+
+        mock_settings = MagicMock()
+        mock_settings.enable_deepwiki = True
+
+        mock_query_result = MagicMock()
+        mock_query_result.sources = []
+
+        mock_service = MagicMock()
+        mock_service.query.return_value = mock_query_result
+
+        mock_get_service = MagicMock(return_value=mock_service)
+
+        with patch("meta_agent.autonomous_executor.settings", mock_settings):
+            with patch("meta_agent.autonomous_executor.get_deepwiki_service", mock_get_service):
+                with patch("meta_agent.autonomous_executor.QueryType") as mock_query_type:
+                    mock_query_type.ERROR_LOOKUP = "error_lookup"
+
+                    result = await executor._query_deepwiki_for_error("Test error")
+                    assert result is None
+
+    @pytest.mark.asyncio
+    async def test_execute_goal_calls_enrich_context(self):
+        """Test that execute_goal calls _enrich_context_with_deepwiki"""
+        from unittest.mock import patch, AsyncMock
+
+        executor = AutonomousExecutor()
+
+        mock_enrich = AsyncMock(return_value={"repo": "test/repo", "enriched": True})
+
+        with patch.object(executor, "_enrich_context_with_deepwiki", mock_enrich):
+            await executor.execute_goal("Fix a bug", {"repo": "test/repo"})
+
+            mock_enrich.assert_called_once()
+            call_args = mock_enrich.call_args
+            assert call_args[0][0] == "Fix a bug"
+            assert call_args[0][1]["repo"] == "test/repo"
+
+    @pytest.mark.asyncio
+    async def test_task_failure_queries_deepwiki_for_suggestions(self, setup_executor_state):
+        """Test that task failure triggers DeepWiki error lookup"""
+        from unittest.mock import patch, AsyncMock, MagicMock
+
+        executor = AutonomousExecutor(max_retries=1, task_timeout_seconds=1)
+        setup_executor_state(executor)
+
+        mock_suggestions = {
+            "query_id": "dw-fail-123",
+            "similar_errors": [{"error_text": "Similar"}],
+            "confidence": 0.8,
+            "suggested_fixes": "Try this",
+        }
+
+        mock_query_error = AsyncMock(return_value=mock_suggestions)
+
+        task = SubTask(
+            task_id="test-fail-deepwiki-001",
+            task_type=SubTaskType.WRITE_CODE,
+            description="Write failing code",
+        )
+
+        async def failing_handler(t):
+            raise RuntimeError("Intentional failure")
+
+        with patch.object(executor, "_query_deepwiki_for_error", mock_query_error):
+            with patch.object(executor, "_handle_write_code", failing_handler):
+                result = await executor._execute_task(task)
+
+                assert result is False
+                assert task.status == SubTaskStatus.FAILED
+                mock_query_error.assert_called_once()
+                assert task.outputs is not None
+                assert "deepwiki_error_suggestions" in task.outputs

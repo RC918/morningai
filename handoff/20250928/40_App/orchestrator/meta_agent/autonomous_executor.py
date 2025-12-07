@@ -30,6 +30,12 @@ try:
 except ImportError:
     settings = None  # type: ignore[assignment]
 
+try:
+    from deepwiki.service import get_deepwiki_service, QueryType
+except ImportError:
+    get_deepwiki_service = None  # type: ignore[assignment,misc]
+    QueryType = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -201,9 +207,12 @@ class AutonomousExecutor:
         Execute a goal from natural language description.
 
         This is the main entry point for autonomous execution. It:
-        1. Parses the goal into structured format
-        2. Creates an execution plan
-        3. Executes the plan with error handling
+        1. Enriches context with DeepWiki knowledge (if enabled)
+        2. Parses the goal into structured format
+        3. Creates an execution plan
+        4. Executes the plan with error handling
+
+        Issue #2154: Integrates DeepWiki for context enrichment before planning.
 
         Args:
             goal_text: Natural language goal description
@@ -228,6 +237,9 @@ class AutonomousExecutor:
         )
 
         try:
+            # Step 0: Enrich context with DeepWiki knowledge (Issue #2154)
+            context = await self._enrich_context_with_deepwiki(goal_text, context)
+
             # Step 1: Parse the goal
             parsed_goal = self.goal_parser.parse(goal_text, context)
             logger.info(
@@ -626,6 +638,21 @@ class AutonomousExecutor:
         logger.error(
             "[AutonomousExecutor] Task %s failed after %d attempts: %s",
             task.task_id, self.max_retries, last_error)
+
+        # Issue #2154: Query DeepWiki for error suggestions
+        task_type_value = task.task_type.value if hasattr(task.task_type, 'value') else str(task.task_type)
+        deepwiki_suggestions = await self._query_deepwiki_for_error(
+            error_text=last_error or "Unknown error",
+            task_type=task_type_value,
+        )
+        if deepwiki_suggestions:
+            task.outputs = task.outputs or {}
+            task.outputs["deepwiki_error_suggestions"] = deepwiki_suggestions
+            logger.info(
+                "[AutonomousExecutor] DeepWiki provided %d error suggestions for task %s",
+                len(deepwiki_suggestions.get("similar_errors", [])),
+                task.task_id,
+            )
 
         # Log task failure to audit log
         if self.audit_logger:
@@ -1262,3 +1289,130 @@ class AutonomousExecutor:
                 )
             finally:
                 self._current_vm = None
+
+    async def _enrich_context_with_deepwiki(
+        self,
+        goal_text: str,
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Enrich execution context with DeepWiki knowledge.
+
+        Issue #2154: Queries DeepWiki for relevant patterns and past failures
+        before planning to provide better context for task execution.
+
+        Args:
+            goal_text: Natural language goal description
+            context: Current execution context
+
+        Returns:
+            Enriched context dictionary with DeepWiki insights
+        """
+        deepwiki_enabled = (
+            settings is not None and
+            getattr(settings, 'enable_deepwiki', False) and
+            get_deepwiki_service is not None
+        )
+
+        if not deepwiki_enabled:
+            logger.debug(
+                "[AutonomousExecutor] DeepWiki disabled or unavailable, skipping context enrichment"
+            )
+            return context
+
+        try:
+            deepwiki = get_deepwiki_service()
+
+            query_result = await asyncio.to_thread(
+                deepwiki.query,
+                question=goal_text,
+                query_type=QueryType.CODE_QUESTION,
+                language=context.get("language"),
+                repo=context.get("repo"),
+                limit=5,
+            )
+
+            if query_result.sources:
+                enriched_context = context.copy()
+                enriched_context["deepwiki_context"] = {
+                    "query_id": query_result.query_id,
+                    "sources": query_result.sources,
+                    "confidence": query_result.confidence,
+                    "answer_summary": query_result.answer[:500] if query_result.answer else None,
+                }
+
+                logger.info(
+                    "[AutonomousExecutor] Context enriched with DeepWiki: %d sources, confidence=%.2f",
+                    len(query_result.sources),
+                    query_result.confidence,
+                )
+                return enriched_context
+
+            logger.debug("[AutonomousExecutor] DeepWiki returned no relevant sources")
+            return context
+
+        except Exception as e:
+            logger.warning(
+                "[AutonomousExecutor] DeepWiki context enrichment failed: %s", e
+            )
+            return context
+
+    async def _query_deepwiki_for_error(
+        self,
+        error_text: str,
+        task_type: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Query DeepWiki for error resolution suggestions.
+
+        Issue #2154: When a task fails, queries DeepWiki for similar past
+        failures and their fixes to help with error recovery.
+
+        Args:
+            error_text: Error message or stack trace
+            task_type: Optional task type for context
+
+        Returns:
+            Dictionary with error suggestions or None if unavailable
+        """
+        deepwiki_enabled = (
+            settings is not None and
+            getattr(settings, 'enable_deepwiki', False) and
+            get_deepwiki_service is not None
+        )
+
+        if not deepwiki_enabled:
+            return None
+
+        try:
+            deepwiki = get_deepwiki_service()
+
+            query_result = await asyncio.to_thread(
+                deepwiki.query,
+                question=error_text[:1000],
+                query_type=QueryType.ERROR_LOOKUP,
+                limit=3,
+            )
+
+            if query_result.sources:
+                suggestions = {
+                    "query_id": query_result.query_id,
+                    "similar_errors": query_result.sources,
+                    "confidence": query_result.confidence,
+                    "suggested_fixes": query_result.answer,
+                }
+
+                logger.info(
+                    "[AutonomousExecutor] DeepWiki found %d similar errors for task_type=%s",
+                    len(query_result.sources),
+                    task_type,
+                )
+                return suggestions
+
+            return None
+
+        except Exception as e:
+            logger.warning(
+                "[AutonomousExecutor] DeepWiki error lookup failed: %s", e
+            )
+            return None
