@@ -878,3 +878,109 @@ class TestDeepWikiRetryLogic:
         # Should succeed on first attempt
         assert call_count == 1
         assert len(result) == 1
+
+
+class TestDeepWikiRateLimiting:
+    """Tests for rate limiting functionality (#2153)."""
+
+    def test_query_with_rate_limit_disabled(self):
+        """Test query works when rate limiting is disabled."""
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=False,
+        )
+        
+        assert isinstance(result, QueryResult)
+        assert result.metadata.get("rate_limited") is None
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_rate_limited(self, mock_rate_limit):
+        """Test query returns rate limit response when limit exceeded."""
+        mock_rate_limit.return_value = (False, 61)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=True,
+            max_queries_per_minute=60,
+        )
+        
+        assert result.metadata.get("rate_limited") is True
+        assert result.metadata.get("rate_limit_count") == 61
+        assert result.metadata.get("max_per_minute") == 60
+        assert "Rate limit exceeded" in result.answer
+        assert result.confidence == 0.0
+        assert result.sources == []
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_allowed_by_rate_limit(self, mock_rate_limit):
+        """Test query proceeds when under rate limit."""
+        mock_rate_limit.return_value = (True, 5)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=True,
+        )
+        
+        assert result.metadata.get("rate_limited") is None
+        mock_rate_limit.assert_called_once()
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_rate_limit_called_with_correct_params(self, mock_rate_limit):
+        """Test rate limit check is called with correct parameters."""
+        mock_rate_limit.return_value = (True, 1)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        service.query(
+            question="test query",
+            query_type=QueryType.ERROR_LOOKUP,
+            enable_rate_limit=True,
+            max_queries_per_minute=30,
+            redis_url="redis://localhost:6379",
+        )
+        
+        mock_rate_limit.assert_called_once_with(
+            query_type="error_lookup",
+            max_per_minute=30,
+            redis_url="redis://localhost:6379",
+        )
+
+    def test_query_rate_limit_default_enabled(self):
+        """Test rate limiting is enabled by default."""
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        with patch("deepwiki.service.check_deepwiki_rate_limit") as mock_rate_limit:
+            mock_rate_limit.return_value = (True, 1)
+            
+            service.query(
+                question="test query",
+                query_type=QueryType.CODE_QUESTION,
+            )
+            
+            mock_rate_limit.assert_called_once()
+
+    @patch("deepwiki.service.check_deepwiki_rate_limit")
+    def test_query_rate_limit_graceful_degradation(self, mock_rate_limit):
+        """Test query proceeds when rate limit check fails gracefully."""
+        # Simulate graceful degradation (Redis unavailable)
+        mock_rate_limit.return_value = (True, 0)
+        
+        service = DeepWikiService(enable_kg=False, enable_error_pairs=False)
+        
+        result = service.query(
+            question="test query",
+            query_type=QueryType.CODE_QUESTION,
+            enable_rate_limit=True,
+        )
+        
+        # Should proceed normally
+        assert result.metadata.get("rate_limited") is None

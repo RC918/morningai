@@ -23,8 +23,10 @@ from typing import Dict, Any, Optional, List, Tuple, Type
 
 try:
     from utils.retry import retry_with_backoff, API_RETRY_CONFIG
+    from utils.rate_limit import check_deepwiki_rate_limit
 except ImportError:
     from orchestrator.utils.retry import retry_with_backoff, API_RETRY_CONFIG
+    from orchestrator.utils.rate_limit import check_deepwiki_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +152,9 @@ class DeepWikiService:
         language: Optional[str] = None,
         repo: Optional[str] = None,
         limit: int = 5,
+        enable_rate_limit: bool = True,
+        max_queries_per_minute: int = 60,
+        redis_url: Optional[str] = None,
     ) -> QueryResult:
         """
         Query the DeepWiki knowledge base.
@@ -160,12 +165,45 @@ class DeepWikiService:
             language: Optional language filter (e.g., 'python', 'javascript')
             repo: Optional repository filter
             limit: Maximum number of sources to return
+            enable_rate_limit: Enable rate limiting (default: True)
+            max_queries_per_minute: Maximum queries per minute (default: 60)
+            redis_url: Redis URL for rate limiting (optional)
             
         Returns:
             QueryResult with answer, sources, and confidence score
         """
         start_time = time.time()
         query_id = self._generate_query_id()
+        
+        # Issue #2153: Rate limiting for DeepWiki API calls
+        if enable_rate_limit:
+            allowed, count = check_deepwiki_rate_limit(
+                query_type=query_type.value,
+                max_per_minute=max_queries_per_minute,
+                redis_url=redis_url,
+            )
+            if not allowed:
+                logger.warning("[DeepWiki] Rate limited", extra={
+                    "operation": "query",
+                    "query_id": query_id,
+                    "query_type": query_type.value,
+                    "rate_limit_count": count,
+                    "max_per_minute": max_queries_per_minute,
+                })
+                return QueryResult(
+                    query_id=query_id,
+                    query_type=query_type,
+                    question=question,
+                    answer="Rate limit exceeded. Please try again later.",
+                    sources=[],
+                    confidence=0.0,
+                    latency_ms=(time.time() - start_time) * 1000,
+                    metadata={
+                        "rate_limited": True,
+                        "rate_limit_count": count,
+                        "max_per_minute": max_queries_per_minute,
+                    }
+                )
         
         logger.info("[DeepWiki] Processing query", extra={
             "operation": "query",
