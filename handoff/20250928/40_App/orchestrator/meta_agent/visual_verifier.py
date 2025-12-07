@@ -221,57 +221,55 @@ class VisualVerifier:
         try:
             await self._ensure_browser()
 
-            context = await self._browser.new_context(
+            # Use async with to ensure context is always closed even on exceptions
+            async with await self._browser.new_context(
                 viewport={
                     "width": self.viewport_width,
                     "height": self.viewport_height,
                 }
-            )
-            page = await context.new_page()
+            ) as context:
+                page = await context.new_page()
 
-            # Navigate to URL
-            await page.goto(url, timeout=self.timeout_ms)
+                # Navigate to URL
+                await page.goto(url, timeout=self.timeout_ms)
 
-            # Wait for navigation to settle
-            await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
+                # Wait for navigation to settle
+                await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
 
-            # Wait for specific selector if requested
-            if wait_for_selector:
-                timeout = wait_timeout_ms or self.timeout_ms
-                await page.wait_for_selector(wait_for_selector, timeout=timeout)
+                # Wait for specific selector if requested
+                if wait_for_selector:
+                    timeout = wait_timeout_ms or self.timeout_ms
+                    await page.wait_for_selector(wait_for_selector, timeout=timeout)
 
-            # Capture screenshot
-            if selector:
-                element = await page.query_selector(selector)
-                if element:
-                    screenshot_bytes = await element.screenshot()
-                    box = await element.bounding_box()
-                    width = int(box["width"]) if box else 0
-                    height = int(box["height"]) if box else 0
+                # Capture screenshot
+                if selector:
+                    element = await page.query_selector(selector)
+                    if element:
+                        screenshot_bytes = await element.screenshot()
+                        box = await element.bounding_box()
+                        width = int(box["width"]) if box else 0
+                        height = int(box["height"]) if box else 0
+                    else:
+                        return ScreenshotResult(
+                            success=False,
+                            url=url,
+                            selector=selector,
+                            error=f"Element not found: {selector}",
+                        )
                 else:
-                    await context.close()
-                    return ScreenshotResult(
-                        success=False,
-                        url=url,
-                        selector=selector,
-                        error=f"Element not found: {selector}",
-                    )
-            else:
-                screenshot_bytes = await page.screenshot(full_page=full_page)
-                width = self.viewport_width
-                height = self.viewport_height if not full_page else 0
+                    screenshot_bytes = await page.screenshot(full_page=full_page)
+                    width = self.viewport_width
+                    height = self.viewport_height if not full_page else 0
 
-            await context.close()
-
-            return ScreenshotResult(
-                success=True,
-                url=url,
-                screenshot_bytes=screenshot_bytes,
-                selector=selector,
-                width=width,
-                height=height,
-                captured_at=datetime.now(),
-            )
+                return ScreenshotResult(
+                    success=True,
+                    url=url,
+                    screenshot_bytes=screenshot_bytes,
+                    selector=selector,
+                    width=width,
+                    height=height,
+                    captured_at=datetime.now(),
+                )
 
         except Exception as e:
             logger.error(
@@ -305,36 +303,36 @@ class VisualVerifier:
         try:
             await self._ensure_browser()
 
-            context = await self._browser.new_context(
+            # Use async with to ensure context is always closed even on exceptions
+            async with await self._browser.new_context(
                 viewport={
                     "width": self.viewport_width,
                     "height": self.viewport_height,
                 }
-            )
-            page = await context.new_page()
+            ) as context:
+                page = await context.new_page()
 
-            await page.goto(url, timeout=self.timeout_ms)
-            await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
+                await page.goto(url, timeout=self.timeout_ms)
+                await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
 
-            timeout = timeout_ms or self.timeout_ms
-            element = await page.wait_for_selector(
-                selector, timeout=timeout, state="attached"
-            )
+                timeout = timeout_ms or self.timeout_ms
+                element = await page.wait_for_selector(
+                    selector, timeout=timeout, state="attached"
+                )
 
-            exists = element is not None
-            await context.close()
+                exists = element is not None
 
-            return VerificationResult(
-                status=VerificationStatus.PASSED if exists else VerificationStatus.FAILED,
-                check_type="element_exists",
-                passed=exists,
-                url=url,
-                selector=selector,
-                expected=True,
-                actual=exists,
-                message=f"Element {'found' if exists else 'not found'}: {selector}",
-                verified_at=datetime.now(),
-            )
+                return VerificationResult(
+                    status=VerificationStatus.PASSED if exists else VerificationStatus.FAILED,
+                    check_type="element_exists",
+                    passed=exists,
+                    url=url,
+                    selector=selector,
+                    expected=True,
+                    actual=exists,
+                    message=f"Element {'found' if exists else 'not found'}: {selector}",
+                    verified_at=datetime.now(),
+                )
 
         except Exception as e:
             logger.error(
@@ -373,39 +371,38 @@ class VisualVerifier:
         try:
             await self._ensure_browser()
 
-            context = await self._browser.new_context(
+            # Use async with to ensure context is always closed even on exceptions
+            async with await self._browser.new_context(
                 viewport={
                     "width": self.viewport_width,
                     "height": self.viewport_height,
                 }
-            )
-            page = await context.new_page()
+            ) as context:
+                page = await context.new_page()
 
-            await page.goto(url, timeout=self.timeout_ms)
-            await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
+                await page.goto(url, timeout=self.timeout_ms)
+                await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
 
-            timeout = timeout_ms or self.timeout_ms
-            try:
-                await page.wait_for_selector(
-                    selector, timeout=timeout, state="visible"
+                timeout = timeout_ms or self.timeout_ms
+                try:
+                    await page.wait_for_selector(
+                        selector, timeout=timeout, state="visible"
+                    )
+                    is_visible = True
+                except Exception:
+                    is_visible = False
+
+                return VerificationResult(
+                    status=VerificationStatus.PASSED if is_visible else VerificationStatus.FAILED,
+                    check_type="element_visible",
+                    passed=is_visible,
+                    url=url,
+                    selector=selector,
+                    expected=True,
+                    actual=is_visible,
+                    message=f"Element {'visible' if is_visible else 'not visible'}: {selector}",
+                    verified_at=datetime.now(),
                 )
-                is_visible = True
-            except Exception:
-                is_visible = False
-
-            await context.close()
-
-            return VerificationResult(
-                status=VerificationStatus.PASSED if is_visible else VerificationStatus.FAILED,
-                check_type="element_visible",
-                passed=is_visible,
-                url=url,
-                selector=selector,
-                expected=True,
-                actual=is_visible,
-                message=f"Element {'visible' if is_visible else 'not visible'}: {selector}",
-                verified_at=datetime.now(),
-            )
 
         except Exception as e:
             logger.error(
@@ -448,43 +445,42 @@ class VisualVerifier:
         try:
             await self._ensure_browser()
 
-            context = await self._browser.new_context(
+            # Use async with to ensure context is always closed even on exceptions
+            async with await self._browser.new_context(
                 viewport={
                     "width": self.viewport_width,
                     "height": self.viewport_height,
                 }
-            )
-            page = await context.new_page()
+            ) as context:
+                page = await context.new_page()
 
-            await page.goto(url, timeout=self.timeout_ms)
-            await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
+                await page.goto(url, timeout=self.timeout_ms)
+                await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
 
-            timeout = timeout_ms or self.timeout_ms
-            element = await page.wait_for_selector(selector, timeout=timeout)
+                timeout = timeout_ms or self.timeout_ms
+                element = await page.wait_for_selector(selector, timeout=timeout)
 
-            if element:
-                actual_text = await element.text_content() or ""
-                if exact_match:
-                    passed = actual_text.strip() == expected_text.strip()
+                if element:
+                    actual_text = await element.text_content() or ""
+                    if exact_match:
+                        passed = actual_text.strip() == expected_text.strip()
+                    else:
+                        passed = expected_text in actual_text
                 else:
-                    passed = expected_text in actual_text
-            else:
-                actual_text = ""
-                passed = False
+                    actual_text = ""
+                    passed = False
 
-            await context.close()
-
-            return VerificationResult(
-                status=VerificationStatus.PASSED if passed else VerificationStatus.FAILED,
-                check_type="element_text",
-                passed=passed,
-                url=url,
-                selector=selector,
-                expected=expected_text,
-                actual=actual_text,
-                message=f"Text {'matches' if passed else 'does not match'}",
-                verified_at=datetime.now(),
-            )
+                return VerificationResult(
+                    status=VerificationStatus.PASSED if passed else VerificationStatus.FAILED,
+                    check_type="element_text",
+                    passed=passed,
+                    url=url,
+                    selector=selector,
+                    expected=expected_text,
+                    actual=actual_text,
+                    message=f"Text {'matches' if passed else 'does not match'}",
+                    verified_at=datetime.now(),
+                )
 
         except Exception as e:
             logger.error(
@@ -525,59 +521,56 @@ class VisualVerifier:
         try:
             await self._ensure_browser()
 
-            context = await self._browser.new_context(
+            # Use async with to ensure context is always closed even on exceptions
+            async with await self._browser.new_context(
                 viewport={
                     "width": self.viewport_width,
                     "height": self.viewport_height,
                 }
-            )
-            page = await context.new_page()
+            ) as context:
+                page = await context.new_page()
 
-            await page.goto(url, timeout=self.timeout_ms)
-            await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
+                await page.goto(url, timeout=self.timeout_ms)
+                await asyncio.sleep(self.DEFAULT_NAVIGATION_WAIT_MS / 1000)
 
-            timeout = timeout_ms or self.timeout_ms
-            element = await page.wait_for_selector(selector, timeout=timeout)
+                timeout = timeout_ms or self.timeout_ms
+                element = await page.wait_for_selector(selector, timeout=timeout)
 
-            if element:
-                box = await element.bounding_box()
-                if box:
-                    element_center_x = box["x"] + box["width"] / 2
-                    viewport_center_x = self.viewport_width / 2
-                    offset = abs(element_center_x - viewport_center_x)
-                    is_centered = offset <= tolerance_px
+                if element:
+                    box = await element.bounding_box()
+                    if box:
+                        element_center_x = box["x"] + box["width"] / 2
+                        viewport_center_x = self.viewport_width / 2
+                        offset = abs(element_center_x - viewport_center_x)
+                        is_centered = offset <= tolerance_px
 
-                    await context.close()
+                        return VerificationResult(
+                            status=VerificationStatus.PASSED if is_centered else VerificationStatus.FAILED,
+                            check_type="element_centered",
+                            passed=is_centered,
+                            url=url,
+                            selector=selector,
+                            expected=f"centered (tolerance: {tolerance_px}px)",
+                            actual=f"offset: {offset:.1f}px",
+                            message=f"Element {'is' if is_centered else 'is not'} centered (offset: {offset:.1f}px)",
+                            verified_at=datetime.now(),
+                            metadata={
+                                "element_center_x": element_center_x,
+                                "viewport_center_x": viewport_center_x,
+                                "offset_px": offset,
+                                "tolerance_px": tolerance_px,
+                            },
+                        )
 
-                    return VerificationResult(
-                        status=VerificationStatus.PASSED if is_centered else VerificationStatus.FAILED,
-                        check_type="element_centered",
-                        passed=is_centered,
-                        url=url,
-                        selector=selector,
-                        expected=f"centered (tolerance: {tolerance_px}px)",
-                        actual=f"offset: {offset:.1f}px",
-                        message=f"Element {'is' if is_centered else 'is not'} centered (offset: {offset:.1f}px)",
-                        verified_at=datetime.now(),
-                        metadata={
-                            "element_center_x": element_center_x,
-                            "viewport_center_x": viewport_center_x,
-                            "offset_px": offset,
-                            "tolerance_px": tolerance_px,
-                        },
-                    )
-
-            await context.close()
-
-            return VerificationResult(
-                status=VerificationStatus.FAILED,
-                check_type="element_centered",
-                passed=False,
-                url=url,
-                selector=selector,
-                message=f"Element not found or has no bounding box: {selector}",
-                verified_at=datetime.now(),
-            )
+                return VerificationResult(
+                    status=VerificationStatus.FAILED,
+                    check_type="element_centered",
+                    passed=False,
+                    url=url,
+                    selector=selector,
+                    message=f"Element not found or has no bounding box: {selector}",
+                    verified_at=datetime.now(),
+                )
 
         except Exception as e:
             logger.error(

@@ -26,6 +26,31 @@ from orchestrator.meta_agent.visual_verifier import (
 )
 
 
+def create_mock_browser_with_context(mock_context):
+    """
+    Helper to create a mock browser that supports async with await pattern.
+
+    The code uses: async with await self._browser.new_context(...) as context:
+    This means new_context() returns a coroutine that resolves to an async context manager.
+
+    Args:
+        mock_context: The mock context to return from the context manager
+
+    Returns:
+        mock_browser: A mock browser with properly configured new_context
+    """
+    # Create an async context manager that yields mock_context
+    mock_cm = AsyncMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_context)
+    mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+    # new_context() returns a coroutine that resolves to the context manager
+    mock_browser = AsyncMock()
+    mock_browser.new_context = AsyncMock(return_value=mock_cm)
+
+    return mock_browser
+
+
 class TestScreenshotResult:
     """Tests for ScreenshotResult dataclass"""
 
@@ -176,10 +201,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -209,10 +233,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -239,10 +262,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -269,10 +291,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -301,10 +322,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -334,10 +354,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -369,10 +388,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -404,10 +422,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
@@ -438,10 +455,9 @@ class TestVisualVerifier:
 
         mock_context = AsyncMock()
         mock_context.new_page = AsyncMock(return_value=mock_page)
-        mock_context.close = AsyncMock()
 
-        mock_browser = AsyncMock()
-        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        # Use helper to create browser with async context manager support
+        mock_browser = create_mock_browser_with_context(mock_context)
 
         # Directly set internal state to bypass _ensure_browser
         verifier._browser = mock_browser
