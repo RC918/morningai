@@ -1168,15 +1168,17 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
             logger.error(f"[MetaAgent] Failed to import: {e}")
             raise ImportError(f"AutonomousExecutor not available: {e}")
 
-        # Determine VM provider based on settings
+        # Determine VM provider based on settings using dictionary mapping
         enable_vm = getattr(settings, 'enable_meta_agent_vm', False)
+        vm_provider_mapping = {
+            'local': VMProvider.LOCAL,
+            'docker': VMProvider.DOCKER,
+            'fly': VMProvider.FLY,
+        }
         vm_provider = VMProvider.LOCAL
         if enable_vm:
             vm_provider_str = getattr(settings, 'meta_agent_vm_provider', 'local')
-            if vm_provider_str == 'docker':
-                vm_provider = VMProvider.DOCKER
-            elif vm_provider_str == 'fly':
-                vm_provider = VMProvider.FLY
+            vm_provider = vm_provider_mapping.get(vm_provider_str, VMProvider.LOCAL)
 
         logger.info(
             "[MetaAgent] Initializing executor",
