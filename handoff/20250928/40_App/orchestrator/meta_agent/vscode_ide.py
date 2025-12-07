@@ -39,8 +39,11 @@ logger = logging.getLogger(__name__)
 
 # MCP Client configuration
 MCP_DEFAULT_TIMEOUT = 30  # seconds
+# Note: With MCP_MAX_RETRIES=3 and MCP_RETRY_DELAY=1.0, exponential backoff (1s, 2s, 4s)
+# behaves similarly to linear backoff (1s, 2s, 3s). The difference becomes significant
+# only with higher retry counts. Using exponential backoff for future scalability.
 MCP_MAX_RETRIES = 3
-MCP_RETRY_DELAY = 1.0  # seconds
+MCP_RETRY_DELAY = 1.0  # seconds, base delay for exponential backoff (delay = MCP_RETRY_DELAY * 2^attempt)
 MCP_ERROR_LOG_MAX_LENGTH = 500  # Max characters for error logs (Issue #2075)
 MCP_SHELL_EXEC_TIMEOUT_BUFFER = 5  # seconds, buffer for network latency (Issue #2071)
 
