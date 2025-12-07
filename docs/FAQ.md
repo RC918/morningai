@@ -1,107 +1,66 @@
-# System Architecture of MorningAI
+# Fixing Authentication Timeout Issue in MorningAI
 
-The system architecture of MorningAI is designed to be robust, scalable, and efficient, facilitating seamless integration and real-time task orchestration across various platforms. This document provides an overview of the architecture, focusing on key components and their interactions within the MorningAI platform.
+Authentication timeout issues can interrupt your workflow and affect user experience on the MorningAI platform. This FAQ provides a comprehensive guide to understanding and resolving authentication timeouts.
 
-## Overview
+## Understanding Authentication Timeout
 
-MorningAI leverages a microservices-based architecture, utilizing a range of technologies to ensure high performance, reliability, and scalability. The core components of the system include:
+Authentication timeout, or session timeout, occurs when a user's login session expires due to inactivity or server-side configurations. In MorningAI, this is often managed by session tokens that have an expiration time set for security purposes.
 
-- **Frontend**: Developed with React, Vite, and TailwindCSS for a responsive and modern user interface.
-- **Backend**: Python and Flask serve as the backbone of the server-side application, with Gunicorn for multi-worker support ensuring scalability and efficiency.
-- **Database**: PostgreSQL with Row Level Security (RLS) is used for data storage, enhanced by Supabase for additional functionality including authentication and real-time subscriptions.
-- **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and job queues, allowing for efficient task scheduling and execution.
-- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex autonomous operations within the system.
-- **AI Integration**: OpenAI's GPT-4 model powers content generation, including FAQ generation and code suggestions.
-- **Deployment**: Render.com is used for hosting, benefiting from its CI/CD features for streamlined deployment processes.
+## Causes of Authentication Timeout
 
-### Detailed Component Interaction
+1. **Expired Session Tokens:** Tokens have a predefined lifespan after which they expire.
+2. **Server Configuration:** Server settings may automatically log users out after a certain period.
+3. **Client-Side Issues:** Browser settings or network issues can disrupt the session.
 
-1. **Frontend**:
-   - Users interact with the MorningAI platform through the web interface built with React.
-   - TailwindCSS is employed for styling, ensuring a consistent look and feel across different devices.
+## How to Fix
 
-```jsx
-// Example: Frontend component in React
-import React from 'react';
+### Adjusting Token Expiration Settings
 
-function App() {
-  return (
-    <div className="app-container">
-      <h1>Welcome to MorningAI</h1>
-      // More UI components here
-    </div>
-  );
-}
-
-export default App;
-```
-
-2. **Backend**:
-   - Flask routes handle API requests from the frontend, interacting with the database or queue system as needed.
-   - Gunicorn serves as the WSGI HTTP Server to manage multiple worker processes.
+For developers looking to adjust the authentication token's expiration settings, you can modify the token lifespan in your Flask backend configuration.
 
 ```python
-# Example: Flask route in app.py
-from flask import Flask
+# Flask app configuration
+from datetime import timedelta
 
-app = Flask(__name__)
-
-@app.route('/api/data', methods=['GET'])
-def get_data():
-    # Logic to fetch or process data here
-    return {"data": "Sample data"}
-
-if __name__ == '__main__':
-    app.run()
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=5)
 ```
 
-3. **Database Operations**:
-   - Supabase adds real-time capabilities and easy management tools on top of PostgreSQL.
+This example extends the session duration to five days. Adjust `timedelta` according to your security policies and user experience requirements.
 
-```sql
--- Example: PostgreSQL query with RLS
-CREATE TABLE secure_data (
-    id SERIAL PRIMARY KEY,
-    info TEXT,
-    user_id INTEGER REFERENCES users(id)
-);
+### Ensuring Continuous Session Refresh
+
+Implementing a mechanism to refresh the token before it expires can help maintain the session without requiring the user to re-authenticate manually.
+
+```javascript
+// Example of refreshing an authentication token using JavaScript Fetch API
+fetch('/refresh-token', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${yourCurrentAuthToken}`
+  },
+})
+.then(response => response.json())
+.then(data => {
+  console.log('Token refreshed successfully:', data);
+})
+.catch((error) => {
+  console.error('Error refreshing token:', error);
+});
 ```
 
-4. **Queue Management**:
-   - Background tasks are handled via Redis Queue, allowing asynchronous processing of long-running operations.
+### Troubleshooting Common Issues
 
-```python
-# Example: Enqueuing a job in Redis Queue
-from rq import Queue
-from redis import Redis
-import my_background_task
+1. **Browser Cookies:** Ensure that your browser accepts cookies from MorningAI, as cookies are essential for maintaining sessions.
+2. **Network Stability:** A stable internet connection is crucial. Intermittent connectivity can cause unexpected logouts.
+3. **Server Clocks:** Ensure that the server hosting MorningAI has synchronized clocks. Time discrepancies can lead to premature token expiration.
 
-redis_conn = Redis()
-q = Queue(connection=redis_conn)
+## Related Documentation Links
 
-result = q.enqueue(my_background_task.process_data, 'http://example.com')
-```
+- Flask Sessions: [Flask Session Documentation](https://flask.palletsprojects.com/en/2.0.x/quickstart/#sessions)
+- JavaScript Fetch API: [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
 
-5. **Deployment**:
-   - Continuous Integration and Deployment through Render.com automates the deployment process every time changes are pushed to the repository.
-
-### Related Documentation Links
-
-- React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
-- Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
-- PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
-- Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
-
-### Common Troubleshooting Tips
-
-1. **Frontend Issues**: Ensure dependencies are up to date and correctly installed. Check console logs for errors during development.
-2. **Backend Connectivity**: Verify that environment variables for database connections are correctly set. Test endpoints using tools like Postman.
-3. **Database Permissions**: When facing RLS issues, ensure roles and policies are correctly defined in PostgreSQL.
-4. **Queue Processing Delays**: Monitor Redis Queue dashboard for failed jobs or bottlenecks in task processing.
-5. **Deployment Failures**: Check build logs in Render.com for specific errors related to deployment failures.
-
-This comprehensive overview aims to equip developers with a fundamental understanding of MorningAI's system architecture, promoting efficient development and troubleshooting practices within this ecosystem.
+By adjusting server configurations, implementing client-side refresh mechanisms, and considering common troubleshooting tips, developers can effectively manage and resolve authentication timeout issues in MorningAI.
 
 ---
 Generated by MorningAI Orchestrator using GPT-4
@@ -109,8 +68,8 @@ Generated by MorningAI Orchestrator using GPT-4
 ---
 
 **Metadata**:
-- Task: What is the system architecture?
-- Trace ID: `00b32bea-50b3-494c-a8a7-178118e23a74`
+- Task: Fix authentication timeout issue
+- Trace ID: `task-001`
 - Generated by: MorningAI Orchestrator using gpt-4-turbo-preview
 - Provider: openai
 - Repository: RC918/morningai
