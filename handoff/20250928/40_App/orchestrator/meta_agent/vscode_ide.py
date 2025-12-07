@@ -307,7 +307,38 @@ class VSCodeIDEService:
         """Initialize the VS Code IDE service"""
         self._sessions: Dict[str, IDESession] = {}
         self._lock = asyncio.Lock()
+        self._http_session: Optional[aiohttp.ClientSession] = None
+        self._http_session_lock = asyncio.Lock()
         logger.info("[VSCodeIDEService] Initialized")
+
+    async def _get_http_session(self) -> aiohttp.ClientSession:
+        """
+        Get or create the shared aiohttp ClientSession.
+
+        Issue #2076: Reuse ClientSession for better connection pooling,
+        DNS caching, and reduced connection overhead.
+
+        Returns:
+            Shared aiohttp ClientSession instance
+        """
+        if self._http_session is None or self._http_session.closed:
+            async with self._http_session_lock:
+                if self._http_session is None or self._http_session.closed:
+                    self._http_session = aiohttp.ClientSession()
+                    logger.debug("[VSCodeIDEService] Created shared HTTP session")
+        return self._http_session
+
+    async def close(self) -> None:
+        """
+        Close the service and release resources.
+
+        Issue #2076: Properly close the shared ClientSession to release
+        TCP connections and other resources.
+        """
+        if self._http_session is not None and not self._http_session.closed:
+            await self._http_session.close()
+            self._http_session = None
+            logger.info("[VSCodeIDEService] Closed shared HTTP session")
 
     async def create_session(
         self,
@@ -942,29 +973,30 @@ class VSCodeIDEService:
 
         for attempt in range(MCP_MAX_RETRIES):
             try:
+                http_session = await self._get_http_session()
                 timeout = aiohttp.ClientTimeout(total=timeout_seconds)
-                async with aiohttp.ClientSession(timeout=timeout) as http_session:
-                    async with http_session.post(
-                        url,
-                        json=payload,
-                        headers={"Content-Type": "application/json"},
-                    ) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            logger.debug(
-                                "[VSCodeIDEService] MCP command %s succeeded",
-                                endpoint
-                            )
-                            return {"success": True, **data}
-                        else:
-                            error_text = await response.text()
-                            # Issue #2075: Truncate error logs to prevent sensitive data leakage
-                            truncated_error = _truncate_error_message(error_text)
-                            logger.warning(
-                                "[VSCodeIDEService] MCP command %s failed: %s - %s",
-                                endpoint, response.status, truncated_error
-                            )
-                            last_error = f"HTTP {response.status}: {truncated_error}"
+                async with http_session.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=timeout,
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.debug(
+                            "[VSCodeIDEService] MCP command %s succeeded",
+                            endpoint
+                        )
+                        return {"success": True, **data}
+                    else:
+                        error_text = await response.text()
+                        # Issue #2075: Truncate error logs to prevent sensitive data leakage
+                        truncated_error = _truncate_error_message(error_text)
+                        logger.warning(
+                            "[VSCodeIDEService] MCP command %s failed: %s - %s",
+                            endpoint, response.status, truncated_error
+                        )
+                        last_error = f"HTTP {response.status}: {truncated_error}"
 
             except asyncio.TimeoutError:
                 last_error = f"Request timeout after {timeout_seconds}s"
