@@ -199,9 +199,11 @@ curl -X POST "https://api.vercel.com/v10/projects/prj_2vBtvZikIy4hahhoauNC2AKQMt
 - No mock data or test users
 - Strict error handling
 
-### Staging (develop branch)
+### Staging (Preview Deployments)
 
-- Use staging API endpoints
+> **Note**: This project uses a trunk-based development model. There is no persistent `develop` branch. Staging is handled via Vercel preview deployments and Render backend staging services.
+
+- Use staging API endpoints (Render staging services)
 - Higher Sentry sampling rates (100%)
 - Test users enabled
 - Relaxed error handling for debugging

@@ -7,6 +7,18 @@ Tests the failure observation and learning context functionality.
 import sys
 from unittest.mock import patch, MagicMock
 
+import pytest
+
+# Check if Knowledge Graph module is available for tests that require it
+KG_MODULE_PATH = "agents.dev_agent.knowledge_graph.knowledge_graph_manager"
+try:
+    import importlib
+    KG_MODULE = importlib.import_module(KG_MODULE_PATH)
+    KG_AVAILABLE = True
+except ImportError:
+    KG_MODULE = None
+    KG_AVAILABLE = False
+
 
 class TestObserverNodeConstants:
     """Tests for Observer Node named constants (#1839)."""
@@ -386,3 +398,211 @@ class TestUpdateFixForFailure:
         result = update_fix_for_failure("test-trace", "Fix")
 
         assert result is False
+
+
+class TestKnowledgeGraphContext:
+    """Tests for Knowledge Graph integration in learning context."""
+
+    @patch("observer_node.query_past_failures")
+    @patch("observer_node._get_knowledge_graph_context")
+    def test_get_learning_context_includes_kg_context(self, mock_kg_context, mock_query):
+        """Test get_learning_context includes Knowledge Graph context when available."""
+        mock_query.return_value = [
+            {
+                "id": 1,
+                "error_text": "Test error",
+                "fix_text": "Test fix",
+                "error_type": "ci_failure",
+                "similarity": 0.8,
+                "confidence_score": 0.9,
+            }
+        ]
+        mock_kg_context.return_value = "## Knowledge Graph Patterns:\n\n### Pattern 1: fix_1234\nType: fix_pattern\n"
+
+        from observer_node import get_learning_context
+
+        context = get_learning_context("Test goal", task_type="python_bug_fix")
+
+        assert "Past Experience" in context
+        assert "Knowledge Graph Patterns" in context
+        mock_kg_context.assert_called_once_with("Test goal", "python_bug_fix")
+
+    @patch("observer_node.query_past_failures")
+    @patch("observer_node._get_knowledge_graph_context")
+    def test_get_learning_context_without_kg_context(self, mock_kg_context, mock_query):
+        """Test get_learning_context works when KG context is empty."""
+        mock_query.return_value = [
+            {
+                "id": 1,
+                "error_text": "Test error",
+                "fix_text": "Test fix",
+                "error_type": "ci_failure",
+                "similarity": 0.8,
+                "confidence_score": 0.9,
+            }
+        ]
+        mock_kg_context.return_value = ""
+
+        from observer_node import get_learning_context
+
+        context = get_learning_context("Test goal")
+
+        assert "Past Experience" in context
+        assert "Knowledge Graph Patterns" not in context
+
+    @patch("common.config.settings.settings")
+    def test_kg_context_disabled_by_flag(self, mock_settings):
+        """Test _get_knowledge_graph_context returns empty when flag is disabled."""
+        mock_settings.enable_knowledge_graph_learning = False
+
+        from observer_node import _get_knowledge_graph_context
+
+        result = _get_knowledge_graph_context("Test goal")
+
+        assert result == ""
+
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
+    @patch("common.config.settings.settings")
+    @patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager")
+    def test_kg_context_with_patterns(self, mock_get_kg, mock_settings):
+        """Test _get_knowledge_graph_context formats patterns correctly."""
+        mock_settings.enable_knowledge_graph_learning = True
+        mock_settings.knowledge_graph_max_patterns = 3
+
+        mock_kg_manager = MagicMock()
+        mock_kg_manager.search_relevant_patterns.return_value = {
+            "success": True,
+            "data": {
+                "patterns": [
+                    {
+                        "pattern_name": "fix_timeout_1234",
+                        "pattern_type": "fix_pattern",
+                        "pattern_template": "Fix: Increase timeout",
+                        "confidence_score": 0.9,
+                        "frequency": 5,
+                        "examples": [{"fix_strategy": "Increase timeout to 60s"}],
+                    }
+                ],
+                "count": 1,
+            }
+        }
+        mock_get_kg.return_value = mock_kg_manager
+
+        from observer_node import _get_knowledge_graph_context
+
+        result = _get_knowledge_graph_context("Connection timeout error", task_type="python_bug_fix")
+
+        assert "Knowledge Graph Patterns" in result
+        assert "fix_timeout_1234" in result
+        assert "fix_pattern" in result
+        assert "0.90" in result
+        assert "Increase timeout" in result
+
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
+    @patch("common.config.settings.settings")
+    @patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager")
+    def test_kg_context_no_patterns_found(self, mock_get_kg, mock_settings):
+        """Test _get_knowledge_graph_context returns empty when no patterns found."""
+        mock_settings.enable_knowledge_graph_learning = True
+        mock_settings.knowledge_graph_max_patterns = 3
+
+        mock_kg_manager = MagicMock()
+        mock_kg_manager.search_relevant_patterns.return_value = {
+            "success": True,
+            "data": {"patterns": [], "count": 0}
+        }
+        mock_get_kg.return_value = mock_kg_manager
+
+        from observer_node import _get_knowledge_graph_context
+
+        result = _get_knowledge_graph_context("New error type")
+
+        assert result == ""
+
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
+    @patch("common.config.settings.settings")
+    @patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager")
+    def test_kg_context_handles_kg_error(self, mock_get_kg, mock_settings):
+        """Test _get_knowledge_graph_context handles KG errors gracefully."""
+        mock_settings.enable_knowledge_graph_learning = True
+        mock_settings.knowledge_graph_max_patterns = 3
+
+        mock_kg_manager = MagicMock()
+        mock_kg_manager.search_relevant_patterns.return_value = {
+            "success": False,
+            "error": "Database connection failed"
+        }
+        mock_get_kg.return_value = mock_kg_manager
+
+        from observer_node import _get_knowledge_graph_context
+
+        result = _get_knowledge_graph_context("Test goal")
+
+        assert result == ""
+
+    @patch("common.config.settings.settings")
+    def test_kg_context_handles_import_error(self, mock_settings):
+        """Test _get_knowledge_graph_context handles import errors gracefully."""
+        mock_settings.enable_knowledge_graph_learning = True
+
+        # Temporarily remove the module to simulate import error
+        import sys
+
+        # Remove the knowledge_graph_manager module if it exists
+        modules_to_remove = [k for k in sys.modules.keys() if 'knowledge_graph_manager' in k]
+        for mod in modules_to_remove:
+            del sys.modules[mod]
+
+        # Mock the import to raise ImportError
+        with patch.dict(sys.modules, {'agents.dev_agent.knowledge_graph.knowledge_graph_manager': None}):
+            from observer_node import _get_knowledge_graph_context
+
+            result = _get_knowledge_graph_context("Test goal")
+
+            # Should return empty string on import error
+            assert result == ""
+
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
+    def test_kg_context_language_detection_python(self):
+        """Test language detection for Python task types."""
+        with patch("common.config.settings.settings") as mock_settings:
+            mock_settings.enable_knowledge_graph_learning = True
+            mock_settings.knowledge_graph_max_patterns = 3
+
+            with patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager") as mock_get_kg:
+                mock_kg_manager = MagicMock()
+                mock_kg_manager.search_relevant_patterns.return_value = {
+                    "success": True,
+                    "data": {"patterns": [], "count": 0}
+                }
+                mock_get_kg.return_value = mock_kg_manager
+
+                from observer_node import _get_knowledge_graph_context
+
+                _get_knowledge_graph_context("Test goal", task_type="python_bug_fix")
+
+                # Verify language was detected and passed
+                call_args = mock_kg_manager.search_relevant_patterns.call_args
+                assert call_args[1]["language"] == "python"
+
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
+    def test_kg_context_language_detection_javascript(self):
+        """Test language detection for JavaScript task types."""
+        with patch("common.config.settings.settings") as mock_settings:
+            mock_settings.enable_knowledge_graph_learning = True
+            mock_settings.knowledge_graph_max_patterns = 3
+
+            with patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager") as mock_get_kg:
+                mock_kg_manager = MagicMock()
+                mock_kg_manager.search_relevant_patterns.return_value = {
+                    "success": True,
+                    "data": {"patterns": [], "count": 0}
+                }
+                mock_get_kg.return_value = mock_kg_manager
+
+                from observer_node import _get_knowledge_graph_context
+
+                _get_knowledge_graph_context("Test goal", task_type="javascript_feature")
+
+                call_args = mock_kg_manager.search_relevant_patterns.call_args
+                assert call_args[1]["language"] == "javascript"

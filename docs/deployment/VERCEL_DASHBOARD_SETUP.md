@@ -75,18 +75,20 @@ This simplifies build paths and makes configuration more maintainable.
 
 Branch Aliases allow you to map a specific branch to a stable domain, creating a persistent staging environment.
 
+> **Note (2025-12-07)**: This project now uses a **trunk-based development model**. The `develop` branch has been removed. The branch aliases configured below are historical and may need reconfiguration for the current workflow.
+
 #### For morningai Project
 
-**Completed via API on 2025-11-04**:
+**Configured via API on 2025-11-04** (Historical):
 - Domain: `staging.morningai.me`
-- Git Branch: `develop`
+- Git Branch: `develop` (no longer exists - use preview deployments instead)
 - Verified: ✅ Yes
 
 #### For owner-console Project
 
-**Completed via API on 2025-11-04**:
+**Configured via API on 2025-11-04** (Historical):
 - Domain: `staging-owner.morningai.me`
-- Git Branch: `develop`
+- Git Branch: `develop` (no longer exists - use preview deployments instead)
 - Verified: ✅ Yes
 
 **DNS Configuration** (Cloudflare - morningai.me zone):
@@ -263,16 +265,19 @@ Speed up builds by caching Turborepo outputs.
 2. Check https://vercel.com/morning-ai/morningai/deployments
 3. Verify deployment succeeds and is marked as "Production"
 
-### Test Staging Deployment
+### Test Preview Deployment (Staging)
 
-1. Push a commit to `develop` branch:
+> **Note**: This project uses trunk-based development. Use preview deployments for staging tests.
+
+1. Create a feature branch and push:
    ```bash
-   git checkout develop
-   git commit --allow-empty -m "test: trigger staging deployment"
-   git push origin develop
+   git checkout -b feature/test-staging
+   git commit --allow-empty -m "test: trigger preview deployment"
+   git push origin feature/test-staging
    ```
-2. Check https://vercel.com/morning-ai/morningai/deployments
-3. Verify deployment succeeds and is accessible at `staging-dashboard.morningai.app`
+2. Create a PR on GitHub
+3. Check https://vercel.com/morning-ai/morningai/deployments
+4. Verify preview deployment succeeds and is accessible at the preview URL
 
 ### Test Preview Deployment
 
@@ -312,12 +317,14 @@ Speed up builds by caching Turborepo outputs.
 
 ### Branch Alias Not Working
 
-**Symptom**: `develop` branch deploys but not to the staging domain.
+**Symptom**: Staging domain shows 404 or doesn't deploy.
+
+**Note**: This project uses trunk-based development. The `develop` branch no longer exists. Use Vercel preview deployments for staging tests instead.
 
 **Solution**:
-1. Verify DNS records are correctly configured
-2. Check domain is assigned to the correct branch in Vercel Dashboard
-3. Wait up to 24 hours for DNS propagation
+1. Use preview deployment URLs from feature branches for staging tests
+2. Backend staging is available at Render services (`morningai-backend-v2-stg.onrender.com`)
+3. If a stable staging URL is needed, configure a branch alias to point to `main` or use preview URLs directly
 
 ### Build Fails After Configuration
 

@@ -5,7 +5,7 @@ Branch Cleanup Script for morningai repository
 This script safely deletes stale remote branches that meet specific criteria:
 - No open PRs associated with the branch
 - Branch is older than a configurable threshold (default: 60 days)
-- Branch is not in the protected list (main, develop, release/*, etc.)
+- Branch is not in the protected list (main, release/*, etc.)
 
 Root Cause Analysis:
 The repository has accumulated 888+ branches because:
@@ -32,9 +32,9 @@ from typing import Dict, List, Optional, Set, Tuple
 PROTECTED_BRANCHES = {
     'main',
     'master',
-    'develop',
     'HEAD',
 }
+# Note: 'develop' removed - project uses trunk-based development model
 
 PROTECTED_PATTERNS = [
     'release/*',
