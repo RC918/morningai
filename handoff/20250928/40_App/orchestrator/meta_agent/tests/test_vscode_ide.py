@@ -27,6 +27,7 @@ from meta_agent.vscode_ide import (
     LintResult,
     MCP_ERROR_LOG_MAX_LENGTH,
     SearchResult,
+    TERMINAL_ACCESS_CAPABILITY,
     TestResult,
     TestStatus,
     TestSuiteResult,
@@ -650,8 +651,7 @@ class TestVSCodeIDEService:
         service._sessions[mock_session.session_id] = mock_session
         mocker.patch.object(service, "_execute_shell_command", new=mock_shell_response)
         # Issue #2023: Grant terminal access capability
-        # Issue #2042: Use class constant for terminal access key
-        mock_session.metadata[VSCodeIDEService._TERMINAL_ACCESS_KEY] = True
+        mock_session.metadata[TERMINAL_ACCESS_CAPABILITY] = True
 
         result = await service.execute_terminal_command(mock_session, "ls -la")
 
