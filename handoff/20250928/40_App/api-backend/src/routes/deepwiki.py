@@ -16,6 +16,13 @@ from src.middleware.auth_middleware import jwt_required, admin_required
 
 logger = logging.getLogger(__name__)
 
+# Try to import Redis client for session cache lookup
+try:
+    from src.utils.redis_client import get_redis_client
+except ImportError:
+    get_redis_client = None
+    logger.debug("Redis client not available; DeepWiki session cache disabled")
+
 # Try to import DeepWiki service
 DEEPWIKI_AVAILABLE = False
 try:
@@ -181,30 +188,28 @@ def get_session_insights(session_id):
     try:
         # Try to get pre-generated insights from Redis session store
         try:
-            from src.utils.redis_client import get_redis_client
-            redis_client = get_redis_client()
+            if get_redis_client is not None:
+                redis_client = get_redis_client()
 
-            # Check session store for insights
-            session_key = f"dev_agent:session:{session_id}"
-            session_data = redis_client.get(session_key)
+                # Check session store for insights
+                session_key = f"dev_agent:session:{session_id}"
+                session_data = redis_client.get(session_key)
 
-            if session_data:
-                import json
-                session = json.loads(session_data)
-                insights = session.get('metadata', {}).get('deepwiki_insights')
+                if session_data:
+                    import json
+                    session = json.loads(session_data)
+                    insights = session.get('metadata', {}).get('deepwiki_insights')
 
-                if insights:
-                    return jsonify({
-                        'session_id': session_id,
-                        'insight_type': insights.get('insight_type', 'execution_analysis'),
-                        'summary': insights.get('summary', ''),
-                        'recommendations': insights.get('recommendations', []),
-                        'metrics': insights.get('metrics', {}),
-                        'source': 'cached',
-                        'timestamp': datetime.utcnow().isoformat()
-                    })
-        except ImportError:
-            logger.debug("Redis client not available for session lookup")
+                    if insights:
+                        return jsonify({
+                            'session_id': session_id,
+                            'insight_type': insights.get('insight_type', 'execution_analysis'),
+                            'summary': insights.get('summary', ''),
+                            'recommendations': insights.get('recommendations', []),
+                            'metrics': insights.get('metrics', {}),
+                            'source': 'cached',
+                            'timestamp': datetime.utcnow().isoformat()
+                        })
         except Exception as e:
             logger.debug("Failed to get cached insights: %s", e)
 
