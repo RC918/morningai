@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 // Mock @morningai/shared-ui
 vi.mock('@morningai/shared-ui', () => ({
@@ -202,9 +202,19 @@ describe('SessionInsights', () => {
       render(<SessionInsights {...defaultProps} />)
       
       await waitFor(() => {
-        expect(screen.getByText('1')).toBeInTheDocument()
-        expect(screen.getByText('2')).toBeInTheDocument()
-        expect(screen.getByText('3')).toBeInTheDocument()
+        // Get the recommendations section and verify list items exist
+        const recommendationsHeading = screen.getByText('Recommendations')
+        const recommendationsSection = recommendationsHeading.closest('div')
+        expect(recommendationsSection).not.toBeNull()
+        
+        // Get all list items and verify they have numbered badges
+        const listItems = within(recommendationsSection).getAllByRole('listitem')
+        expect(listItems).toHaveLength(3)
+        
+        // Verify each recommendation has its number
+        expect(within(listItems[0]).getByText('1')).toBeInTheDocument()
+        expect(within(listItems[1]).getByText('2')).toBeInTheDocument()
+        expect(within(listItems[2]).getByText('3')).toBeInTheDocument()
       })
     })
   })
@@ -223,8 +233,13 @@ describe('SessionInsights', () => {
       render(<SessionInsights {...defaultProps} />)
       
       await waitFor(() => {
-        expect(screen.getByText('Failed')).toBeInTheDocument()
-        expect(screen.getByText('1')).toBeInTheDocument()
+        const failedLabel = screen.getByText('Failed')
+        expect(failedLabel).toBeInTheDocument()
+        
+        // Get the metric tile container and verify the value within it
+        const failedTile = failedLabel.closest('div.p-3')
+        expect(failedTile).not.toBeNull()
+        expect(within(failedTile).getByText('1')).toBeInTheDocument()
       })
     })
 
