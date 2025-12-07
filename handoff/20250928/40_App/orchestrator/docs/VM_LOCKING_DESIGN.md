@@ -23,35 +23,62 @@ Two types of distributed locks are needed:
 ```
 vm:lock:task:{task_id}     → Task-level lock (prevents duplicates)
 vm:registry:{vm_id}        → VM state (replaces in-memory _vms dict)
+vm:task_to_vm:{task_id}    → Secondary index: task_id → vm_id (O(1) lookup)
 vm:active_count            → Counter for active VMs (for concurrency limit)
 ```
+
+#### Secondary Index: `vm:task_to_vm:{task_id}`
+
+Looking up a VM for a task by scanning all `vm:registry:*` keys is O(N) in the number of VMs and does not scale well. To support O(1) lookups and clearer race handling, we introduce a secondary index:
+
+- **Key**: `vm:task_to_vm:{task_id}`
+- **Value**: `vm_id` of the current active VM for that task
+- **TTL**: Same as `vm:registry:{vm_id}` to ensure consistency
+
+This index is maintained alongside the VM registry:
+- On VM creation/registration: Set `vm:task_to_vm:{task_id} = vm_id`
+- On VM destruction/cleanup: Delete `vm:task_to_vm:{task_id}` if it still points to this `vm_id`
 
 ## Detailed Design
 
 ### 1. Task Lock (Duplicate Prevention)
 
+Each task gets a dedicated Redis lock key to prevent duplicate VM creation.
+
+We use a **random UUID lock token** rather than a timestamp. The reasons:
+
+- A UUID is globally unique across processes and machines, even if they start at the same instant
+- The lock token is opaque and hard to guess, which makes it safer to use in a check-and-delete release script
+- A `time.time()` based token can, in theory, collide if two workers on the same host acquire within the same timestamp granularity
+
 #### Acquisition
 
 ```python
+import uuid
+
 async def acquire_task_lock(self, task_id: str, ttl_seconds: int = 300) -> bool:
     """
     Acquire exclusive lock for creating a VM for this task.
     
-    Uses Redis SETNX with TTL to prevent duplicate VM creation.
-    TTL ensures lock is released if process crashes.
+    Uses Redis SET NX with TTL to prevent duplicate VM creation.
+    TTL ensures the lock is eventually released if the owning process crashes.
     """
     lock_key = f"vm:lock:task:{task_id}"
-    lock_value = f"{self.process_id}:{time.time()}"
+    lock_token = uuid.uuid4().hex  # Opaque, globally-unique token
     
-    # SETNX with TTL - atomic operation
+    # SET NX with TTL - atomic operation
     acquired = await self.redis.set(
         lock_key,
-        lock_value,
-        nx=True,  # Only set if not exists
-        ex=ttl_seconds  # Expire after TTL
+        lock_token,
+        nx=True,          # Only set if key does not exist
+        ex=ttl_seconds,   # Expire after TTL
     )
     
-    return acquired is not None
+    if acquired:
+        # Store token in memory so we can release the lock safely later
+        self._task_lock_tokens[task_id] = lock_token
+    
+    return bool(acquired)
 ```
 
 #### Release
@@ -59,13 +86,15 @@ async def acquire_task_lock(self, task_id: str, ttl_seconds: int = 300) -> bool:
 ```python
 async def release_task_lock(self, task_id: str) -> bool:
     """
-    Release task lock after VM creation completes or fails.
+    Release the task lock after VM creation completes or fails.
     
-    Uses Lua script for atomic check-and-delete to prevent
-    releasing a lock acquired by another process.
+    Uses a Lua script for atomic check-and-delete to ensure we only
+    delete the lock if we still own it (token matches).
     """
     lock_key = f"vm:lock:task:{task_id}"
-    expected_value = f"{self.process_id}:{self.lock_acquired_time}"
+    lock_token = self._task_lock_tokens.get(task_id)
+    if not lock_token:
+        return False
     
     # Lua script for atomic check-and-delete
     script = """
@@ -76,8 +105,13 @@ async def release_task_lock(self, task_id: str) -> bool:
     end
     """
     
-    return await self.redis.eval(script, 1, lock_key, expected_value)
+    deleted = await self.redis.eval(script, 1, lock_key, lock_token)
+    if deleted:
+        self._task_lock_tokens.pop(task_id, None)
+    return bool(deleted)
 ```
+
+> **Note**: The `_task_lock_tokens` dictionary is an in-memory structure that maps `task_id` to the UUID token used when acquiring the lock. This is necessary for safe lock release.
 
 ### 2. Concurrency Semaphore (Global Limit)
 
@@ -135,16 +169,19 @@ async def release_vm_slot(self) -> None:
 
 ### 3. VM Registry (Shared State)
 
-#### Store VM State
+#### Store VM State with Secondary Index
 
 ```python
 async def register_vm(self, vm: TaskVM) -> None:
     """
-    Register VM in shared Redis registry.
+    Register VM in shared Redis registry and secondary index.
     
     Replaces in-memory _vms dict for cross-process visibility.
+    The secondary index enables O(1) lookups by task_id.
     """
     vm_key = f"vm:registry:{vm.vm_id}"
+    index_key = f"vm:task_to_vm:{vm.task_id}"
+    
     vm_data = {
         "vm_id": vm.vm_id,
         "task_id": vm.task_id,
@@ -158,22 +195,62 @@ async def register_vm(self, vm: TaskVM) -> None:
     ttl = vm.config.timeout_minutes * 60 + 300  # +5 min buffer
     await self.redis.hset(vm_key, mapping=vm_data)
     await self.redis.expire(vm_key, ttl)
+    
+    # Secondary index for O(1) lookups by task
+    await self.redis.set(index_key, vm.vm_id, ex=ttl)
 ```
 
-#### Query VMs
+#### Query VMs Using Secondary Index
 
 ```python
 async def get_vm_for_task(self, task_id: str) -> Optional[TaskVM]:
     """
-    Find active VM for a task across all processes.
+    Find active VM for a task across all processes using the secondary index.
+    
+    Uses vm:task_to_vm:{task_id} for O(1) lookup instead of scanning.
     """
-    # Scan for VMs with matching task_id
-    async for key in self.redis.scan_iter("vm:registry:*"):
-        vm_data = await self.redis.hgetall(key)
-        if vm_data.get("task_id") == task_id:
-            if vm_data.get("status") in ["ready", "running"]:
-                return self._deserialize_vm(vm_data)
-    return None
+    index_key = f"vm:task_to_vm:{task_id}"
+    vm_id = await self.redis.get(index_key)
+    if not vm_id:
+        return None
+    
+    vm_key = f"vm:registry:{vm_id}"
+    vm_data = await self.redis.hgetall(vm_key)
+    if not vm_data:
+        return None
+    
+    # Filter by active statuses
+    if vm_data.get("status") not in {"ready", "running"}:
+        return None
+    
+    return self._deserialize_vm(vm_data)
+```
+
+#### Cleanup Secondary Index on VM Destruction
+
+```python
+async def unregister_vm(self, vm: TaskVM) -> None:
+    """
+    Remove VM from registry and secondary index.
+    
+    Only removes the secondary index if it still points to this VM
+    (to avoid race conditions with a newer VM for the same task).
+    """
+    vm_key = f"vm:registry:{vm.vm_id}"
+    index_key = f"vm:task_to_vm:{vm.task_id}"
+    
+    # Delete VM registry entry
+    await self.redis.delete(vm_key)
+    
+    # Only delete secondary index if it points to this VM
+    script = """
+    if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+    else
+        return 0
+    end
+    """
+    await self.redis.eval(script, 1, index_key, vm.vm_id)
 ```
 
 ## Integration with VMProvisioner
@@ -219,11 +296,81 @@ async def provision_vm(self, task_id: str, ...) -> TaskVM:
 
 ## Failure Handling
 
+### Race Conditions and `acquire_task_lock` Failures
+
+When `acquire_task_lock(task_id)` returns `False`, there are two main possibilities:
+
+1. **Another process is legitimately creating a VM** for this task and currently holds the lock
+2. **The lock is stale**, left over from a crashed process (will eventually expire via TTL)
+
+We handle this as follows:
+
+#### Step 1: Immediate Check for Existing VM via Secondary Index
+
+First, call `get_vm_for_task(task_id)` using the `vm:task_to_vm:{task_id}` index. If it returns a VM, we treat that as the "winner" of the race:
+- We do **not** try to create a second VM
+- The caller reuses the existing VM instead of raising an error
+
+#### Step 2: Short, Bounded Wait if No VM Exists Yet
+
+If `get_vm_for_task(task_id)` returns `None`, we cannot distinguish between:
+- A legitimate concurrent creator that has the lock but has not registered the VM yet
+- A stale lock from a crashed process that will expire soon
+
+To avoid "stealing" locks and causing split-brain, we do **not** forcefully overwrite the lock. Instead, we retry in a small loop:
+
+```python
+MAX_LOCK_WAIT_SECONDS = 5
+
+async def wait_for_vm_or_lock(self, task_id: str) -> Optional[TaskVM]:
+    """
+    Wait for either an existing VM to appear or acquire the lock ourselves.
+    
+    Returns:
+        TaskVM if another worker created one, None if we acquired the lock
+    Raises:
+        RuntimeError if timed out waiting
+    """
+    deadline = time.monotonic() + MAX_LOCK_WAIT_SECONDS
+    
+    while time.monotonic() < deadline:
+        # Check if VM was created by another worker
+        vm = await self.get_vm_for_task(task_id)
+        if vm:
+            return vm
+        
+        # Try to become the owner
+        if await self.acquire_task_lock(task_id):
+            # We now hold the lock; caller can proceed with creation path
+            return None
+        
+        await asyncio.sleep(0.1)  # Simple backoff
+    
+    raise RuntimeError(f"Timed out waiting for VM lock for task {task_id[:8]}")
+```
+
+#### Step 3: Creation Path Remains Single-Owner
+
+Only the worker that successfully acquires the task lock proceeds to:
+1. Check again for an existing VM (in case the VM was created between queueing and locking)
+2. Acquire a global VM slot (`acquire_vm_slot`)
+3. Call the actual VM provider to create the VM
+4. Register the VM in `vm:registry:{vm_id}` and `vm:task_to_vm:{task_id}`
+5. Release the task lock in a `finally` block
+
+This strategy ensures:
+- At most one VM per task (enforced by task lock + `vm:task_to_vm` index)
+- Other workers either reuse the existing VM or fail fast with a clear "timed out acquiring lock" error
+- We never "steal" a lock from another process; stale locks are resolved by TTL expiration rather than guessing
+
+> **Note**: The `MAX_LOCK_WAIT_SECONDS` value should be tuned based on typical VM provisioning time. If VM creation typically takes longer than 5 seconds, increase this value accordingly.
+
 ### Process Crash Recovery
 
 1. **Task locks**: TTL ensures automatic release (default: 5 minutes)
 2. **VM slots**: Periodic cleanup job reconciles count with actual VMs
 3. **VM registry**: TTL ensures stale entries are cleaned up
+4. **Secondary index**: TTL ensures stale `vm:task_to_vm` entries are cleaned up
 
 ### Cleanup Job
 
