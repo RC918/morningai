@@ -314,7 +314,8 @@ def get_learning_context(
     Get learning context from past failures for the Planner.
 
     This function queries past failures and formats them as context
-    that can be included in the Planner's prompt.
+    that can be included in the Planner's prompt. When ENABLE_KNOWLEDGE_GRAPH_LEARNING
+    is enabled, it also queries the Knowledge Graph for relevant code patterns.
 
     Args:
         goal: The current task goal
@@ -324,6 +325,9 @@ def get_learning_context(
     Returns:
         Formatted context string for the Planner
     """
+    context_parts = []
+
+    # Query past failures from error-fix pairs
     try:
         past_failures = query_past_failures(
             error_text=goal,
@@ -331,27 +335,125 @@ def get_learning_context(
             threshold=DEFAULT_SIMILARITY_THRESHOLD
         )
 
-        if not past_failures:
+        if past_failures:
+            context_parts.append("## Past Experience (Similar Failures):\n")
+
+            for i, failure in enumerate(past_failures, 1):
+                context_parts.append(f"### Case {i} (Similarity: {failure.get('similarity', 0):.2f})")
+                context_parts.append(f"Error Type: {failure.get('error_type', 'unknown')}")
+                context_parts.append(f"Error: {failure.get('error_text', '')[:MAX_CONTEXT_SNIPPET_CHARS]}")
+
+                fix_text = failure.get("fix_text", "")
+                if fix_text and not fix_text.startswith("[PENDING]"):
+                    context_parts.append(f"Fix: {fix_text[:MAX_CONTEXT_SNIPPET_CHARS]}")
+                    context_parts.append(f"Confidence: {failure.get('confidence_score', 0):.2f}")
+
+                context_parts.append("")
+
+    except Exception as e:
+        logger.warning(f"[Observer] Failed to query past failures: {e}")
+
+    # Query Knowledge Graph for relevant patterns (if enabled)
+    kg_context = _get_knowledge_graph_context(goal, task_type)
+    if kg_context:
+        context_parts.append(kg_context)
+
+    return "\n".join(context_parts)
+
+
+def _get_knowledge_graph_context(
+    goal: str,
+    task_type: Optional[str] = None
+) -> str:
+    """
+    Get learning context from Knowledge Graph patterns.
+
+    This function queries the Knowledge Graph for relevant bug/fix patterns
+    and formats them as context for the Planner.
+
+    Args:
+        goal: The current task goal
+        task_type: Optional task type for filtering
+
+    Returns:
+        Formatted context string from Knowledge Graph, or empty string if disabled
+    """
+    try:
+        from common.config.settings import settings
+
+        if not settings.enable_knowledge_graph_learning:
+            logger.debug("[Observer] Knowledge Graph learning disabled via feature flag")
             return ""
 
-        context_parts = ["## Past Experience (Similar Failures):\n"]
+        from agents.dev_agent.knowledge_graph.knowledge_graph_manager import (
+            get_knowledge_graph_manager
+        )
 
-        for i, failure in enumerate(past_failures, 1):
-            context_parts.append(f"### Case {i} (Similarity: {failure.get('similarity', 0):.2f})")
-            context_parts.append(f"Error Type: {failure.get('error_type', 'unknown')}")
-            context_parts.append(f"Error: {failure.get('error_text', '')[:MAX_CONTEXT_SNIPPET_CHARS]}")
+        kg_manager = get_knowledge_graph_manager()
 
-            fix_text = failure.get("fix_text", "")
-            if fix_text and not fix_text.startswith("[PENDING]"):
-                context_parts.append(f"Fix: {fix_text[:MAX_CONTEXT_SNIPPET_CHARS]}")
-                context_parts.append(f"Confidence: {failure.get('confidence_score', 0):.2f}")
+        # Determine language from task_type if available
+        language = None
+        if task_type:
+            if "python" in task_type.lower():
+                language = "python"
+            elif "javascript" in task_type.lower() or "js" in task_type.lower():
+                language = "javascript"
+            elif "typescript" in task_type.lower() or "ts" in task_type.lower():
+                language = "typescript"
+
+        result = kg_manager.search_relevant_patterns(
+            goal=goal,
+            error_context=None,
+            language=language,
+            limit=settings.knowledge_graph_max_patterns
+        )
+
+        if not result.get("success") or not result.get("data", {}).get("patterns"):
+            return ""
+
+        patterns = result["data"]["patterns"]
+        context_parts = ["## Knowledge Graph Patterns:\n"]
+
+        for i, pattern in enumerate(patterns, 1):
+            pattern_type = pattern.get("pattern_type", "unknown")
+            pattern_name = pattern.get("pattern_name", "unnamed")
+            confidence = pattern.get("confidence_score", 0)
+            frequency = pattern.get("frequency", 0)
+
+            context_parts.append(f"### Pattern {i}: {pattern_name}")
+            context_parts.append(f"Type: {pattern_type}")
+            context_parts.append(f"Confidence: {confidence:.2f} (seen {frequency} times)")
+
+            template = pattern.get("pattern_template", "")
+            if template:
+                context_parts.append(f"Description: {template[:MAX_CONTEXT_SNIPPET_CHARS]}")
+
+            examples = pattern.get("examples", [])
+            if examples and len(examples) > 0:
+                example = examples[0]
+                if isinstance(example, dict):
+                    if example.get("fix_strategy"):
+                        context_parts.append(f"Fix Strategy: {example['fix_strategy'][:MAX_CONTEXT_SNIPPET_CHARS]}")
+                    elif example.get("root_cause"):
+                        context_parts.append(f"Root Cause: {example['root_cause'][:MAX_CONTEXT_SNIPPET_CHARS]}")
 
             context_parts.append("")
 
+        logger.info(f"[Observer] Added {len(patterns)} Knowledge Graph patterns to context", extra={
+            "operation": "get_knowledge_graph_context",
+            "pattern_count": len(patterns)
+        })
+
         return "\n".join(context_parts)
 
+    except ImportError as e:
+        logger.debug(f"[Observer] Knowledge Graph module not available: {e}")
+        return ""
     except Exception as e:
-        logger.warning(f"[Observer] Failed to get learning context: {e}")
+        logger.warning(f"[Observer] Failed to get Knowledge Graph context: {e}", extra={
+            "operation": "get_knowledge_graph_context",
+            "error": str(e)
+        })
         return ""
 
 
