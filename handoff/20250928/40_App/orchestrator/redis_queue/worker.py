@@ -1066,6 +1066,268 @@ def run_project_engineer_task(task_id: str, description: str, repo: str, tenant_
         raise
 
 
+@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=1800)
+def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str, context: dict = None):
+    """
+    Execute Meta Agent task using AutonomousExecutor for end-to-end autonomous execution.
+
+    This is the entry point for #1822 integrated development tools flow:
+    Webhook → TaskIntakeService → run_meta_agent_task → AutonomousExecutor
+
+    The AutonomousExecutor handles:
+    - Goal parsing and task planning
+    - VM provisioning for isolated execution
+    - VS Code IDE integration for code editing
+    - Confidence scoring for implementation plans
+    - Policy enforcement and safety limits
+
+    Args:
+        task_id: Unique task identifier (also used as trace_id)
+        goal_text: Natural language goal description from webhook
+        repo: GitHub repository (owner/repo format)
+        tenant_id: Tenant UUID for multi-tenant isolation
+        context: Optional context dict (branch, labels, priority, etc.)
+
+    Returns:
+        dict: {"task_id": str, "status": str, "execution_id": str, "pr_url": str, "trace_id": str}
+
+    Feature Flags:
+        - ENABLE_META_AGENT: Must be True to enable this path (default: False)
+        - ENABLE_META_AGENT_VM: Controls VM provisioning (default: False)
+
+    Note:
+        timeout=1800 (30 minutes) to match the TTL in _enqueue_meta_agent_task,
+        allowing sufficient time for autonomous execution including VM provisioning.
+    """
+    import asyncio
+
+    job_id = task_id
+    context = context or {}
+
+    # Consolidated log data for consistent logging and Sentry breadcrumbs
+    log_data = {
+        "operation": "run_meta_agent_task",
+        "task_id": task_id,
+        "job_id": job_id,
+        "trace_id": task_id,
+        "tenant_id": tenant_id,
+        "goal_text": goal_text[:100] if goal_text else "",
+        "repo": repo
+    }
+
+    logger.info("[MetaAgent] Starting task", extra=log_data)
+
+    if SENTRY_DSN:
+        sentry_sdk.set_tag("trace_id", task_id)
+        sentry_sdk.set_tag("task_id", task_id)
+        sentry_sdk.set_tag("tenant_id", tenant_id)
+        sentry_sdk.set_tag("operation", "meta_agent_task")
+        sentry_sdk.add_breadcrumb(
+            category='task',
+            message='Starting Meta Agent task',
+            level='info',
+            data=log_data
+        )
+
+    start_time_ns = time.monotonic_ns()
+
+    try:
+        # Update Redis status to running
+        redis_key = f"agent:task:{task_id}"
+        redis.hset(
+            redis_key,
+            mapping=sanitize_redis_mapping({
+                "status": "running",
+                "goal_text": goal_text[:500] if goal_text else "",
+                "trace_id": task_id,
+                "job_id": job_id,
+                "task_type": "meta_agent",
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+        )
+        redis.expire(redis_key, 3600)
+
+        # Update DB status to running
+        try:
+            upsert_task_running(task_id=task_id, trace_id=task_id, tenant_id=tenant_id)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task status updated to running in DB',
+                    level='info',
+                    data={'task_id': task_id, 'trace_id': task_id, 'tenant_id': tenant_id, 'status': 'running'}
+                )
+        except Exception as e:
+            logger.error(f"DB write failed for task {task_id} (running): {e}")
+
+        # Initialize AutonomousExecutor
+        try:
+            from meta_agent.autonomous_executor import AutonomousExecutor
+            from meta_agent.vm_provisioner import VMProvider
+        except ImportError as e:
+            logger.error(f"[MetaAgent] Failed to import: {e}")
+            raise ImportError(f"AutonomousExecutor not available: {e}")
+
+        # Determine VM provider based on settings using dictionary mapping
+        enable_vm = getattr(settings, 'enable_meta_agent_vm', False)
+        vm_provider_mapping = {
+            'local': VMProvider.LOCAL,
+            'docker': VMProvider.DOCKER,
+            'fly': VMProvider.FLY,
+        }
+        vm_provider = VMProvider.LOCAL
+        if enable_vm:
+            vm_provider_str = getattr(settings, 'meta_agent_vm_provider', 'local')
+            vm_provider = vm_provider_mapping.get(vm_provider_str, VMProvider.LOCAL)
+
+        logger.info(
+            "[MetaAgent] Initializing executor",
+            extra={
+                "operation": "run_meta_agent_task",
+                "task_id": task_id,
+                "enable_vm": enable_vm,
+                "vm_provider": vm_provider.value
+            }
+        )
+
+        executor = AutonomousExecutor(vm_provider=vm_provider)
+
+        # Build execution context
+        execution_context = {
+            "repo": repo,
+            "tenant_id": tenant_id,
+            "task_id": task_id,
+            **context
+        }
+
+        # Run the task asynchronously
+        async def run_executor():
+            return await executor.execute_goal(goal_text, context=execution_context)
+
+        result = asyncio.run(run_executor())
+
+        elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+
+        # Extract result data
+        execution_id = result.execution_id
+        status = result.status.value
+        pr_url = result.pr_url
+        tasks_completed = result.tasks_completed
+        tasks_failed = result.tasks_failed
+        errors = result.errors
+
+        logger.info(
+            "[MetaAgent] Task completed",
+            extra={
+                "operation": "run_meta_agent_task",
+                "task_id": task_id,
+                "execution_id": execution_id,
+                "status": status,
+                "tasks_completed": tasks_completed,
+                "tasks_failed": tasks_failed,
+                "pr_url": pr_url,
+                "elapsed_ms": elapsed_ms
+            }
+        )
+
+        # Update Redis with result
+        redis.hset(
+            redis_key,
+            mapping=sanitize_redis_mapping({
+                "status": status,
+                "execution_id": execution_id,
+                "pr_url": pr_url,
+                "tasks_completed": str(tasks_completed),
+                "tasks_failed": str(tasks_failed),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+        )
+        redis.expire(redis_key, 3600)
+
+        # Update DB with result
+        try:
+            upsert_task_done(
+                task_id=task_id,
+                trace_id=task_id,
+                pr_url=pr_url,
+                tenant_id=tenant_id
+            )
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task completed and persisted to DB',
+                    level='info',
+                    data={
+                        'task_id': task_id,
+                        'trace_id': task_id,
+                        'status': status,
+                        'pr_url': pr_url
+                    }
+                )
+        except Exception as db_error:
+            logger.error(f"DB write failed for task {task_id} (done): {db_error}")
+
+        return {
+            "task_id": task_id,
+            "execution_id": execution_id,
+            "status": status,
+            "pr_url": pr_url,
+            "tasks_completed": tasks_completed,
+            "tasks_failed": tasks_failed,
+            "errors": errors,
+            "trace_id": task_id,
+            "elapsed_ms": elapsed_ms
+        }
+
+    except Exception as e:
+        elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+        error_msg = str(e)
+
+        logger.exception(
+            "[MetaAgent] Task failed",
+            extra={
+                "operation": "run_meta_agent_task",
+                "task_id": task_id,
+                "error": error_msg,
+                "elapsed_ms": elapsed_ms
+            }
+        )
+
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+
+        # Update Redis with error
+        redis.hset(
+            redis_key,
+            mapping=sanitize_redis_mapping({
+                "status": "error",
+                "error": error_msg[:500],
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            })
+        )
+        redis.expire(redis_key, 3600)
+
+        # Update DB with error
+        try:
+            upsert_task_error(task_id=task_id, trace_id=task_id, error_msg=error_msg)
+            if SENTRY_DSN:
+                sentry_sdk.add_breadcrumb(
+                    category='agent_task',
+                    message='Task error persisted to DB',
+                    level='error',
+                    data={
+                        'task_id': task_id,
+                        'trace_id': task_id,
+                        'status': 'error',
+                        'error_msg': error_msg[:200]
+                    }
+                )
+        except Exception as db_error:
+            logger.error(f"DB write failed for task {task_id} (error): {db_error}")
+
+        raise
+
+
 vm_cleanup_thread = None
 VM_CLEANUP_INTERVAL = settings.vm_cleanup_interval_seconds
 
