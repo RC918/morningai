@@ -163,11 +163,20 @@ Configuration values safe to share:
 - `FLASK_ENV`, `ENVIRONMENT`, `PORT`, `CORS_ORIGINS`
 - `APP_VERSION`, `APP_PHASE`, `HOSTNAME`
 
-### Feature Flags (7 variables)
-All boolean, default `true` except DEMO_MODE and SANDBOX_ENABLED:
+### Feature Flags (8 variables)
+All boolean, default `true` except DEMO_MODE, SANDBOX_ENABLED, and USE_DISTRIBUTED_VM_LOCKING:
 - `PHASE7_ENABLED`, `OPS_AGENT_ENABLED`, `GROWTH_STRATEGIST_ENABLED`
 - `PM_AGENT_ENABLED`, `HITL_APPROVAL_ENABLED`
 - `DEMO_MODE`, `SANDBOX_ENABLED`
+- `USE_DISTRIBUTED_VM_LOCKING` - Redis-backed distributed VM locking (#2104)
+
+### VM Provisioning (4 variables)
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| USE_DISTRIBUTED_VM_LOCKING | boolean | false | Enable Redis-backed distributed locking for VM provisioning |
+| VM_LOCK_TTL_SECONDS | integer | 300 | TTL for VM task locks (5 minutes) |
+| VM_REGISTRY_TTL_BUFFER | integer | 300 | Additional TTL buffer for VM registry entries |
+| VM_CLEANUP_INTERVAL_SECONDS | integer | 300 | Interval for stale VM cleanup job (0 to disable)
 
 ### Frontend (4 variables)
 All VITE_* prefixed for Vite build:

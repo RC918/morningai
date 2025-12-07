@@ -577,6 +577,128 @@ class TestGracefulDegradation:
         assert "Max concurrent VMs" in str(exc_info.value)
 
 
+class TestRedisErrorPaths:
+    """Tests for Redis error handling and graceful degradation"""
+
+    @pytest.fixture
+    def mock_redis_with_errors(self):
+        """Create a mock Redis client that raises exceptions"""
+        redis = MagicMock()
+        redis.set = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.get = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.delete = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.eval = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.hset = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.hgetall = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.hdel = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.expire = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.exists = AsyncMock(side_effect=Exception("Redis connection error"))
+        redis.keys = AsyncMock(side_effect=Exception("Redis connection error"))
+        return redis
+
+    @pytest.mark.asyncio
+    async def test_acquire_task_lock_redis_error(self, mock_redis_with_errors):
+        """Test acquire_task_lock returns False on Redis error"""
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis_with_errors,
+            max_concurrent_vms=5,
+        )
+
+        result = await lock_manager.acquire_task_lock("task-123")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_release_task_lock_redis_error(self, mock_redis_with_errors):
+        """Test release_task_lock returns False on Redis error"""
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis_with_errors,
+            max_concurrent_vms=5,
+        )
+        lock_manager._task_lock_tokens["task-123"] = "token-abc"
+
+        result = await lock_manager.release_task_lock("task-123")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_acquire_vm_slot_redis_error(self, mock_redis_with_errors):
+        """Test acquire_vm_slot returns False on Redis error"""
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis_with_errors,
+            max_concurrent_vms=5,
+        )
+
+        result = await lock_manager.acquire_vm_slot()
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_release_vm_slot_redis_error(self, mock_redis_with_errors):
+        """Test release_vm_slot returns False on Redis error"""
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis_with_errors,
+            max_concurrent_vms=5,
+        )
+
+        result = await lock_manager.release_vm_slot()
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_get_vm_for_task_redis_error(self, mock_redis_with_errors):
+        """Test get_vm_for_task returns None on Redis error"""
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis_with_errors,
+            max_concurrent_vms=5,
+        )
+
+        result = await lock_manager.get_vm_for_task("task-123")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_active_vm_count_redis_error(self, mock_redis_with_errors):
+        """Test get_active_vm_count returns 0 on Redis error"""
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis_with_errors,
+            max_concurrent_vms=5,
+        )
+
+        result = await lock_manager.get_active_vm_count()
+
+        assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_update_vm_status_redis_error(self, mock_redis_with_errors):
+        """Test update_vm_status returns False on Redis error"""
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis_with_errors,
+            max_concurrent_vms=5,
+        )
+
+        result = await lock_manager.update_vm_status("vm-123", "ready")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_cleanup_stale_vms_redis_error(self):
+        """Test cleanup_stale_vms returns 0 on Redis error"""
+        mock_redis = MagicMock()
+        mock_redis.scan_iter = MagicMock(
+            side_effect=Exception("Redis connection error")
+        )
+
+        lock_manager = DistributedVMLockManager(
+            redis_client=mock_redis,
+            max_concurrent_vms=5,
+        )
+
+        result = await lock_manager.cleanup_stale_vms()
+
+        assert result == 0
+
+
 class TestFeatureFlagConfiguration:
     """Tests for feature flag configuration"""
 

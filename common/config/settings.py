@@ -754,6 +754,12 @@ class Settings(BaseSettings):
         description="Additional TTL buffer in seconds for VM registry entries beyond VM timeout (default: 300 = 5 minutes)."
     )
 
+    vm_cleanup_interval_seconds: int = Field(
+        default=300,
+        alias="VM_CLEANUP_INTERVAL_SECONDS",
+        description="Interval in seconds for running stale VM cleanup job (default: 300 = 5 minutes). Set to 0 to disable."
+    )
+
     redis_checkpointer_ttl: int = Field(
         default=86400,
         alias="REDIS_CHECKPOINTER_TTL",
