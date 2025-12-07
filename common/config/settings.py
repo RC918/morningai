@@ -1277,6 +1277,25 @@ class Settings(BaseSettings):
         description="Allow mock governance for testing"
     )
 
+    # Phase 3 #1822: Meta Agent Integration (Integrated Development Tools)
+    enable_meta_agent: bool = Field(
+        default=False,
+        alias="ENABLE_META_AGENT",
+        description="Enable Meta Agent autonomous execution path via webhooks (#1822 Integrated Development Tools)"
+    )
+
+    enable_meta_agent_vm: bool = Field(
+        default=False,
+        alias="ENABLE_META_AGENT_VM",
+        description="Enable VM provisioning for Meta Agent isolated execution (requires ENABLE_META_AGENT=true)"
+    )
+
+    meta_agent_vm_provider: str = Field(
+        default="local",
+        alias="META_AGENT_VM_PROVIDER",
+        description="VM provider for Meta Agent: 'local', 'docker', or 'fly' (requires ENABLE_META_AGENT_VM=true)"
+    )
+
     vite_api_base_url: str = Field(
         default="http://localhost:5001",
         description="Frontend API base URL"

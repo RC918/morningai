@@ -234,6 +234,13 @@ def _enqueue_task(task):
     Returns:
         Job ID if enqueued successfully, None otherwise
     """
+    # Check if Meta Agent path is enabled and should be used
+    enable_meta_agent = getattr(settings, 'enable_meta_agent', False)
+    use_meta_agent = enable_meta_agent and task.context.get("use_meta_agent", False)
+
+    if use_meta_agent:
+        return _enqueue_meta_agent_task(task)
+
     try:
         from redis import Redis
         from rq import Queue
@@ -281,6 +288,91 @@ def _enqueue_task(task):
 
     except Exception as e:
         logger.exception("[Webhooks] Failed to enqueue task: %s", e)
+        return None
+
+
+def _enqueue_meta_agent_task(task):
+    """
+    Enqueue a normalized task for Meta Agent autonomous execution.
+
+    This is the entry point for #1822 integrated development tools flow:
+    Webhook → _enqueue_meta_agent_task → run_meta_agent_task → AutonomousExecutor
+
+    Args:
+        task: NormalizedTask from EventNormalizer
+
+    Returns:
+        Job ID if enqueued successfully, None otherwise
+
+    Feature Flags:
+        - ENABLE_META_AGENT: Must be True to enable this path
+        - ENABLE_META_AGENT_VM: Controls VM provisioning
+    """
+    try:
+        from redis import Redis
+        from rq import Queue
+        from rq.serializers import JSONSerializer
+
+        redis_url = settings.redis_url
+        if not redis_url:
+            logger.warning("[Webhooks] Redis URL not configured, skipping meta agent task enqueue")
+            return None
+
+        redis_client = Redis.from_url(redis_url, decode_responses=False)
+        queue_name = settings.rq_queue_name or "orchestrator"
+        queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
+
+        # Import the worker function
+        from redis_queue.worker import run_meta_agent_task
+
+        # Get repository from task context or settings
+        repo = task.context.get("repo") or settings.github_repo
+        if not repo:
+            logger.error(
+                "[Webhooks] No repository specified in task context or settings; "
+                "cannot enqueue meta agent task %s",
+                task.task_id,
+            )
+            return None
+
+        # Get tenant_id from task context (required for multi-tenant isolation)
+        tenant_id = task.context.get("tenant_id", "default")
+
+        # Build context for Meta Agent
+        meta_agent_context = {
+            "branch": task.context.get("branch"),
+            "labels": task.context.get("labels", []),
+            "priority": task.context.get("priority", "normal"),
+            "source": task.context.get("source", "webhook"),
+            "pr_number": task.context.get("pr_number"),
+            "issue_number": task.context.get("issue_number"),
+        }
+
+        # Enqueue the task
+        job = queue.enqueue(
+            run_meta_agent_task,
+            task.task_id,
+            task.goal_text,
+            repo,
+            tenant_id,
+            meta_agent_context,
+            job_id=task.task_id,
+            ttl=1800,  # 30 minutes for autonomous execution
+            result_ttl=86400,
+            failure_ttl=3600,
+        )
+
+        logger.info(
+            "[Webhooks] Enqueued meta agent task %s as job %s for repo %s (tenant: %s)",
+            task.task_id,
+            job.id,
+            repo,
+            tenant_id,
+        )
+        return job.id
+
+    except Exception as e:
+        logger.exception("[Webhooks] Failed to enqueue meta agent task: %s", e)
         return None
 
 
