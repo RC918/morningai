@@ -7,6 +7,18 @@ Tests the failure observation and learning context functionality.
 import sys
 from unittest.mock import patch, MagicMock
 
+import pytest
+
+# Check if Knowledge Graph module is available for tests that require it
+KG_MODULE_PATH = "agents.dev_agent.knowledge_graph.knowledge_graph_manager"
+try:
+    import importlib
+    KG_MODULE = importlib.import_module(KG_MODULE_PATH)
+    KG_AVAILABLE = True
+except ImportError:
+    KG_MODULE = None
+    KG_AVAILABLE = False
+
 
 class TestObserverNodeConstants:
     """Tests for Observer Node named constants (#1839)."""
@@ -449,6 +461,7 @@ class TestKnowledgeGraphContext:
 
         assert result == ""
 
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
     @patch("common.config.settings.settings")
     @patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager")
     def test_kg_context_with_patterns(self, mock_get_kg, mock_settings):
@@ -485,6 +498,7 @@ class TestKnowledgeGraphContext:
         assert "0.90" in result
         assert "Increase timeout" in result
 
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
     @patch("common.config.settings.settings")
     @patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager")
     def test_kg_context_no_patterns_found(self, mock_get_kg, mock_settings):
@@ -505,6 +519,7 @@ class TestKnowledgeGraphContext:
 
         assert result == ""
 
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
     @patch("common.config.settings.settings")
     @patch("agents.dev_agent.knowledge_graph.knowledge_graph_manager.get_knowledge_graph_manager")
     def test_kg_context_handles_kg_error(self, mock_get_kg, mock_settings):
@@ -547,6 +562,7 @@ class TestKnowledgeGraphContext:
             # Should return empty string on import error
             assert result == ""
 
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
     def test_kg_context_language_detection_python(self):
         """Test language detection for Python task types."""
         with patch("common.config.settings.settings") as mock_settings:
@@ -569,6 +585,7 @@ class TestKnowledgeGraphContext:
                 call_args = mock_kg_manager.search_relevant_patterns.call_args
                 assert call_args[1]["language"] == "python"
 
+    @pytest.mark.skipif(not KG_AVAILABLE, reason="Knowledge Graph module not available")
     def test_kg_context_language_detection_javascript(self):
         """Test language detection for JavaScript task types."""
         with patch("common.config.settings.settings") as mock_settings:
