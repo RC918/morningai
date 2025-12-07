@@ -341,6 +341,113 @@ class KnowledgeGraphManager:
             if conn:
                 self._return_connection(conn)
 
+    def search_relevant_patterns(
+        self,
+        goal: str,
+        error_context: Optional[str] = None,
+        language: Optional[str] = None,
+        limit: int = 3
+    ) -> Dict[str, Any]:
+        """
+        Search for relevant code patterns related to a task goal.
+
+        This method is used by the Observer Node to enrich learning context
+        with Knowledge Graph patterns. It searches for both bug patterns
+        and fix patterns that might be relevant to the current task using
+        PostgreSQL full-text search.
+
+        Args:
+            goal: The current task goal or error description
+            error_context: Optional additional error context
+            language: Optional language filter (e.g., 'python', 'javascript')
+            limit: Maximum number of patterns to return (default 3)
+
+        Returns:
+            Dict with success status and list of relevant patterns
+        """
+        if not self.db_pool:
+            return create_error(
+                ErrorCode.DATABASE_ERROR,
+                "Database not configured"
+            )
+
+        search_text = goal
+        if error_context:
+            search_text = f"{goal} {error_context}"
+
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor(cursor_factory=extras.RealDictCursor)
+
+            # Use PostgreSQL full-text search to find relevant patterns
+            # ts_rank scores how well the document matches the query
+            query = """
+                SELECT id, pattern_name, pattern_type, pattern_template,
+                       frequency, confidence_score, examples, metadata,
+                       language,
+                       ts_rank(
+                           to_tsvector('english', COALESCE(pattern_name, '') || ' ' ||
+                                       COALESCE(pattern_template, '')),
+                           plainto_tsquery('english', %s)
+                       ) AS search_rank
+                FROM code_patterns
+                WHERE pattern_type IN ('bug_pattern', 'fix_pattern')
+                  AND (
+                      to_tsvector('english', COALESCE(pattern_name, '') || ' ' ||
+                                  COALESCE(pattern_template, ''))
+                      @@ plainto_tsquery('english', %s)
+                      OR %s = ''
+                  )
+            """
+            params = [search_text, search_text, search_text]
+
+            if language:
+                query += " AND language = %s"
+                params.append(language)
+
+            query += """
+                ORDER BY
+                    search_rank DESC,
+                    CASE WHEN pattern_type = 'fix_pattern' THEN 0 ELSE 1 END,
+                    confidence_score DESC,
+                    frequency DESC
+                LIMIT %s
+            """
+            params.append(limit)
+
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+
+            patterns = []
+            for row in results:
+                pattern = dict(row)
+                # Remove search_rank from output (internal use only)
+                pattern.pop('search_rank', None)
+                if pattern.get('examples'):
+                    pattern['examples'] = pattern['examples'][:2]
+                patterns.append(pattern)
+
+            logger.debug(
+                f"Found {len(patterns)} relevant patterns for goal: {goal[:50]}..."
+            )
+
+            return create_success({
+                'patterns': patterns,
+                'count': len(patterns),
+                'search_text': search_text[:100]
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to search relevant patterns: {e}")
+            return create_error(
+                ErrorCode.DATABASE_ERROR,
+                f"Pattern search failed: {str(e)}"
+            )
+        finally:
+            if conn:
+                self._return_connection(conn)
+
     def health_check(self) -> Dict[str, Any]:
         """Check system health"""
         health = {

@@ -1153,6 +1153,20 @@ class Settings(BaseSettings):
         description="Enable querying past failures for learning context in Planner (Phase 2 Observer Node)"
     )
 
+    enable_knowledge_graph_learning: bool = Field(
+        default=False,
+        alias="ENABLE_KNOWLEDGE_GRAPH_LEARNING",
+        description="Enable querying Knowledge Graph for code patterns in Planner learning context (Tier 3 Knowledge Graph Integration)"
+    )
+
+    knowledge_graph_max_patterns: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        alias="KNOWLEDGE_GRAPH_MAX_PATTERNS",
+        description="Maximum number of Knowledge Graph patterns to include in learning context (1-10, default 3)"
+    )
+
     # Phase 2 PR-1813: Agent Evaluation Integration
     enable_agent_eval: bool = Field(
         default=True,
