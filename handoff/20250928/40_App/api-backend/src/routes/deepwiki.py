@@ -134,7 +134,10 @@ def query_knowledge_base():
 
         language = data.get('language')
         repo = data.get('repo')
-        limit = min(int(data.get('limit', 5)), 10)
+        try:
+            limit = min(int(data.get('limit', 5)), 10)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'limit must be an integer'}), 400
 
         deepwiki = get_deepwiki_service()
         result = deepwiki.query(
@@ -260,7 +263,10 @@ def lookup_error():
         if not error_text or not error_text.strip():
             return jsonify({'error': 'error_text is required'}), 400
 
-        limit = min(int(data.get('limit', 3)), 10)
+        try:
+            limit = min(int(data.get('limit', 3)), 10)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'limit must be an integer'}), 400
 
         deepwiki = get_deepwiki_service()
         result = deepwiki.query(
@@ -314,7 +320,10 @@ def search_patterns():
             return jsonify({'error': 'query is required'}), 400
 
         language = data.get('language')
-        limit = min(int(data.get('limit', 5)), 10)
+        try:
+            limit = min(int(data.get('limit', 5)), 10)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'limit must be an integer'}), 400
 
         deepwiki = get_deepwiki_service()
         result = deepwiki.query(
