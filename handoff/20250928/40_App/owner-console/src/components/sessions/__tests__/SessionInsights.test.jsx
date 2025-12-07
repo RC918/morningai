@@ -23,8 +23,39 @@ vi.mock('@/components/apple/apple-button', () => ({
 
 import SessionInsights from '../SessionInsights'
 
-// Mock react-i18next
-const mockT = (key, fallback) => fallback || key
+// Mock react-i18next with proper interpolation support
+// Handles: t('key', 'default'), t('key', { count: n }), t('key', 'default {{count}}', { count: n })
+const mockT = (key, defaultValueOrOptions, options) => {
+  // Case 1: t('key', 'default string')
+  if (typeof defaultValueOrOptions === 'string' && !options) {
+    return defaultValueOrOptions
+  }
+  
+  // Case 2: t('key', { count: n }) - options as second arg
+  if (typeof defaultValueOrOptions === 'object' && defaultValueOrOptions !== null) {
+    if (typeof defaultValueOrOptions.count === 'number') {
+      // For durationValue, return formatted string
+      if (key === 'sessions.insights.durationValue') {
+        return `${defaultValueOrOptions.count}m`
+      }
+      return String(defaultValueOrOptions.count)
+    }
+    return key
+  }
+  
+  // Case 3: t('key', 'default {{count}}', { count: n }) - default with interpolation
+  if (typeof defaultValueOrOptions === 'string' && options && typeof options === 'object') {
+    let result = defaultValueOrOptions
+    if (typeof options.count === 'number') {
+      result = result.replace('{{count}}', String(options.count))
+    }
+    return result
+  }
+  
+  // Fallback to key
+  return defaultValueOrOptions || key
+}
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: mockT,
