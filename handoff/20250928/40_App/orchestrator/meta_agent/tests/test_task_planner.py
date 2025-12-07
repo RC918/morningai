@@ -321,21 +321,15 @@ class TestFailureLearningContext:
 
     def test_get_failure_learning_enabled_disabled(self):
         """Test that failure learning can be disabled via settings"""
-        # Create a mock settings object with the flag disabled
-        mock_settings = MagicMock()
-        mock_settings.enable_failure_learning_context = False
-
-        with patch.dict(
-            "sys.modules",
-            {"common.config.settings": MagicMock(settings=mock_settings)}
+        # Test that _get_learning_context returns empty when disabled
+        # This indirectly tests that the disabled flag is respected
+        with patch(
+            "orchestrator.meta_agent.task_planner._get_failure_learning_enabled",
+            return_value=False
         ):
-            # Import fresh to get the patched settings
-            from orchestrator.meta_agent.task_planner import _get_failure_learning_enabled
-            # The function should return the value from settings
-            # Since we can't easily patch the import, we test the behavior
-            # by checking that the function exists and returns a boolean
-            result = _get_failure_learning_enabled()
-            assert isinstance(result, bool)
+            result = _get_learning_context("test goal")
+            # When disabled, should return empty string without calling observer
+            assert result == ""
 
     def test_get_learning_context_returns_empty_when_disabled(self):
         """Test that learning context returns empty when disabled"""
@@ -358,14 +352,20 @@ class TestFailureLearningContext:
             "orchestrator.meta_agent.task_planner._get_failure_learning_enabled",
             return_value=True
         ):
+            # Mock both import paths for the dual-path fallback
             with patch.dict(
                 "sys.modules",
-                {"orchestrator.observer_node": mock_observer}
+                {
+                    "observer_node": mock_observer,
+                    "orchestrator.observer_node": mock_observer,
+                },
+                clear=False
             ):
                 result = _get_learning_context("test goal", "bug_fix")
-                # The function should return the mock context or empty string
-                # depending on whether the import succeeds
-                assert isinstance(result, str)
+                mock_observer.get_learning_context.assert_called_once_with(
+                    "test goal", "bug_fix"
+                )
+                assert result == mock_context
 
     def test_get_learning_context_handles_import_error(self):
         """Test that learning context handles ImportError gracefully"""
@@ -373,11 +373,15 @@ class TestFailureLearningContext:
             "orchestrator.meta_agent.task_planner._get_failure_learning_enabled",
             return_value=True
         ):
-            # Simulate ImportError by making the import fail
-            with patch.dict("sys.modules", {"orchestrator.observer_node": None}):
+            # Simulate ImportError by making both import paths fail
+            with patch.dict(
+                "sys.modules",
+                {"observer_node": None, "orchestrator.observer_node": None},
+                clear=False
+            ):
                 result = _get_learning_context("test goal")
                 # Should return empty string on import error
-                assert result == "" or isinstance(result, str)
+                assert result == ""
 
     def test_plan_includes_learning_context_in_metadata(self, planner, parser):
         """Test that plan metadata includes learning context flag"""
@@ -461,3 +465,60 @@ class TestFailureLearningContext:
         ):
             plan = planner.create_plan(goal)
             assert plan.metadata["planner_version"] == "1.1.0"
+
+    def test_get_learning_context_prefers_local_observer_module(self):
+        """Test that local observer_node import is preferred over package import"""
+        import types
+
+        # Create mock modules for both import paths
+        local_module = types.SimpleNamespace()
+        local_module.get_learning_context = MagicMock(return_value="local-ctx")
+
+        pkg_observer = types.SimpleNamespace()
+        pkg_observer.get_learning_context = MagicMock(return_value="pkg-ctx")
+
+        with patch(
+            "orchestrator.meta_agent.task_planner._get_failure_learning_enabled",
+            return_value=True
+        ):
+            with patch.dict(
+                "sys.modules",
+                {
+                    "observer_node": local_module,
+                    "orchestrator.observer_node": pkg_observer,
+                },
+                clear=False
+            ):
+                result = _get_learning_context("test goal", "bug_fix")
+
+        # Should prefer local import and return "local-ctx"
+        assert result == "local-ctx"
+        local_module.get_learning_context.assert_called_once_with("test goal", "bug_fix")
+        pkg_observer.get_learning_context.assert_not_called()
+
+    def test_get_learning_context_falls_back_to_package_observer(self):
+        """Test that package import is used when local import fails"""
+        import types
+
+        # Create mock module only for package import path
+        pkg_observer = types.SimpleNamespace()
+        pkg_observer.get_learning_context = MagicMock(return_value="pkg-ctx")
+
+        with patch(
+            "orchestrator.meta_agent.task_planner._get_failure_learning_enabled",
+            return_value=True
+        ):
+            # Set local path to None to force ImportError, only register package path
+            with patch.dict(
+                "sys.modules",
+                {
+                    "observer_node": None,  # Force local import to fail
+                    "orchestrator.observer_node": pkg_observer,
+                },
+                clear=False
+            ):
+                result = _get_learning_context("test goal", "bug_fix")
+
+        # Should fall back to package import and return "pkg-ctx"
+        assert result == "pkg-ctx"
+        pkg_observer.get_learning_context.assert_called_once_with("test goal", "bug_fix")

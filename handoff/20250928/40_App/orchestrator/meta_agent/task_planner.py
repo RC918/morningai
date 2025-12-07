@@ -61,7 +61,13 @@ def _get_learning_context(goal_summary: str, task_type: Optional[str] = None) ->
         return ""
 
     try:
-        from orchestrator.observer_node import get_learning_context
+        # Dual-path import: prefer local-module import when orchestrator/ is on sys.path
+        # (which is the standard test/run environment), fallback to package import
+        try:
+            from observer_node import get_learning_context  # type: ignore[import]
+        except ImportError:
+            from orchestrator.observer_node import get_learning_context  # type: ignore[import]
+
         context = get_learning_context(goal_summary, task_type)
         if context:
             logger.info(
