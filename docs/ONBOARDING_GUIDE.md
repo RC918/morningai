@@ -760,6 +760,23 @@ USE_LLM_PLANNER = false            # LangGraph uses static planner by default
 | `USE_LANGGRAPH_PERCENT` | `0` | Canary percentage (0-100) | Worker routing |
 | `USE_LLM_PLANNER` | `false` | Use LLM vs static planner | LangGraph only |
 
+### Feature Flags (Implemented but Default Disabled)
+
+The following features are fully implemented but disabled by default. Enable them via environment variables when ready:
+
+| Flag | Default | Purpose | Status |
+|------|---------|---------|--------|
+| `FEATURE_2FA_PREAUTH` | `false` | Pre-auth token flow for 2FA enrollment | Implemented, requires explicit enablement |
+| `USE_LLM_PLANNER` | `false` | LLM-powered task planning in LangGraph | Implemented, enable for intelligent planning |
+| `USE_LLM_REVIEWER` | `false` | LLM-powered code review in LangGraph | Implemented, enable for automated review |
+| `ENABLE_PROJECT_ENGINEER_FIXER` | `false` | Auto-fix mode in fixer_node | Implemented, enable for automatic CI fix attempts |
+| `ENABLE_PROJECT_ENGINEER_CODEGEN` | `false` | Code generation execution mode | Implemented, enable for ProjectEngineerAgent codegen |
+
+**Why Default Disabled?**
+- These features are production-ready but require careful rollout
+- Enable in staging first to validate behavior
+- Gradual production rollout recommended (feature flags allow instant rollback)
+
 **Override Behavior**:
 - `USE_LANGGRAPH=true` → 100% LangGraph (overrides percent)
 - `USE_LANGGRAPH=false` + `USE_LANGGRAPH_PERCENT=0` → 100% Simple (Kill Switch)
