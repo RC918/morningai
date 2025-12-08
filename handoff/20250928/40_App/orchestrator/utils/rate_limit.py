@@ -148,3 +148,95 @@ def get_deepwiki_query_count(
         
     except Exception:
         return 0
+
+
+def check_notification_rate_limit(
+    source: str,
+    max_per_minute: int = 30,
+    redis_url: Optional[str] = None
+) -> tuple[bool, int]:
+    """
+    Check if outbound notifications are rate limited.
+
+    Issue #2153: Rate limiting for OutboundNotifier to avoid triggering API limits.
+
+    Different services have different rate limits:
+    - GitHub: 5000 requests/hour for authenticated requests
+    - Jira: Varies by plan, typically 100-1000 requests/minute
+    - Slack: 1 message per second per channel (burst allowed)
+
+    This function provides a conservative default of 30/minute per source.
+
+    Args:
+        source: Notification source (e.g., 'github', 'jira', 'slack')
+        max_per_minute: Maximum notifications allowed per minute (default: 30)
+        redis_url: Redis connection URL (optional, uses localhost if None)
+
+    Returns:
+        Tuple of (allowed: bool, current_count: int)
+        - allowed: True if notification should proceed, False if rate limited
+        - current_count: Current number of notifications this minute
+    """
+    try:
+        if redis_url:
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
+        else:
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+        current_minute = int(time.time() / 60)
+        key = f"outbound_notifier:rate_limit:{source}:{current_minute}"
+
+        count = r.incr(key)
+        r.expire(key, 120)  # Keep for 2 minutes to handle edge cases
+
+        if count > max_per_minute:
+            return False, count
+
+        return True, count
+
+    except redis.ConnectionError:
+        # Redis unavailable, allow notification (graceful degradation)
+        return True, 0
+    except Exception:
+        # Unexpected error, allow notification (graceful degradation)
+        return True, 0
+
+
+def get_notification_count(
+    source: str,
+    redis_url: Optional[str] = None
+) -> int:
+    """
+    Get the current notification count for this minute.
+
+    Issue #2153: Helper function for OutboundNotifier rate limiting.
+
+    Args:
+        source: Notification source (e.g., 'github', 'jira', 'slack')
+        redis_url: Redis connection URL (optional)
+
+    Returns:
+        Number of notifications in the current minute, or 0 if unavailable
+    """
+    try:
+        if redis_url:
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
+        else:
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+        current_minute = int(time.time() / 60)
+        key = f"outbound_notifier:rate_limit:{source}:{current_minute}"
+
+        count = r.get(key)
+        return int(count) if count else 0
+
+    except Exception:
+        return 0
+
+
+# Default rate limits per source (requests per minute)
+DEFAULT_NOTIFICATION_RATE_LIMITS = {
+    "github": 60,   # GitHub has generous limits for authenticated requests
+    "jira": 30,     # Jira has stricter limits
+    "slack": 30,    # Slack has per-channel limits, be conservative
+}

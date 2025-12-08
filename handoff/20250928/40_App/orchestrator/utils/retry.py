@@ -197,3 +197,95 @@ API_RETRY_CONFIG = RetryConfig(
     backoff_factor=2.0,
     max_delay=60.0
 )
+
+
+NOTIFICATION_RETRY_CONFIG = RetryConfig(
+    max_retries=3,
+    initial_delay=1.0,
+    backoff_factor=2.0,
+    max_delay=30.0
+)
+
+
+async def async_retry_with_backoff(
+    operation,
+    max_retries: int = 3,
+    initial_delay: float = 1.0,
+    backoff_factor: float = 2.0,
+    max_delay: float = 30.0,
+    exceptions: Tuple[Type[Exception], ...] = (Exception,),
+    operation_name: str = "operation",
+    on_retry: Optional[Callable[[Exception, int, float], None]] = None,
+):
+    """
+    Retry an async function call with exponential backoff.
+
+    Issue #2152: Provides retry with exponential backoff for OutboundNotifier.
+
+    Args:
+        operation: Async function to retry (coroutine function)
+        max_retries: Maximum number of retry attempts (default: 3)
+        initial_delay: Initial delay in seconds (default: 1.0)
+        backoff_factor: Multiplier for delay between retries (default: 2.0)
+        max_delay: Maximum delay between retries (default: 30.0)
+        exceptions: Tuple of exception types to catch (default: all exceptions)
+        operation_name: Name for logging purposes (default: "operation")
+        on_retry: Optional callback function(exception, attempt, delay) called before each retry
+
+    Returns:
+        Result of the operation
+
+    Raises:
+        Last exception if all retries fail
+
+    Example:
+        result = await async_retry_with_backoff(
+            lambda: api.call_endpoint(),
+            max_retries=3,
+            exceptions=(ConnectionError, TimeoutError)
+        )
+    """
+    import asyncio
+
+    delay = initial_delay
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            return await operation()
+        except exceptions as e:
+            last_exception = e
+
+            if attempt >= max_retries:
+                logger.error(
+                    f"{operation_name} failed after {max_retries} retries",
+                    extra={
+                        "operation": operation_name,
+                        "attempts": attempt + 1,
+                        "error": str(e)
+                    }
+                )
+                raise
+
+            # Calculate delay with max cap
+            current_delay = min(delay, max_delay)
+
+            logger.warning(
+                f"{operation_name} failed (attempt {attempt + 1}/{max_retries + 1}), "
+                f"retrying in {current_delay}s",
+                extra={
+                    "operation": operation_name,
+                    "attempt": attempt + 1,
+                    "max_attempts": max_retries + 1,
+                    "delay": current_delay,
+                    "error": str(e)
+                }
+            )
+
+            if on_retry:
+                on_retry(e, attempt + 1, current_delay)
+
+            await asyncio.sleep(current_delay)
+            delay *= backoff_factor
+
+    raise last_exception
