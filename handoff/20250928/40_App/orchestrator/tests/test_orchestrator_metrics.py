@@ -439,3 +439,256 @@ class TestOrchestratorMetricsTransitionTracking:
         metrics.record_transition("planner", "executor", "trace-123")
 
         mock_redis.pipeline.assert_not_called()
+
+
+class TestOrchestratorMetricsFailureLearning:
+    """Tests for failure learning metrics (Issue #2124)"""
+
+    def test_record_failure_observation_enabled(self):
+        """Test recording failure observation when enabled"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_failure_observation(
+            trace_id="trace-123",
+            error_type="ci_failure",
+            saved_to_pgvector=True,
+            latency_ms=150.5
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_failure_observation_disabled(self):
+        """Test recording failure observation when disabled"""
+        mock_redis = MagicMock()
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=False)
+        metrics.record_failure_observation(
+            trace_id="trace-123",
+            error_type="ci_failure",
+            saved_to_pgvector=True,
+            latency_ms=150.5
+        )
+
+        mock_redis.pipeline.assert_not_called()
+
+    def test_record_failure_observation_not_saved(self):
+        """Test recording failure observation when not saved to pgvector"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_failure_observation(
+            trace_id="trace-123",
+            error_type="timeout",
+            saved_to_pgvector=False,
+            latency_ms=50.0
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_failure_query_enabled(self):
+        """Test recording failure query when enabled"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_failure_query(
+            trace_id="trace-123",
+            results_count=3,
+            latency_ms=200.0,
+            query_type="similar_errors"
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_failure_query_disabled(self):
+        """Test recording failure query when disabled"""
+        mock_redis = MagicMock()
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=False)
+        metrics.record_failure_query(
+            trace_id="trace-123",
+            results_count=3,
+            latency_ms=200.0
+        )
+
+        mock_redis.pipeline.assert_not_called()
+
+    def test_record_failure_query_empty_results(self):
+        """Test recording failure query with empty results"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_failure_query(
+            trace_id="trace-123",
+            results_count=0,
+            latency_ms=100.0
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_failure_query_many_results(self):
+        """Test recording failure query with many results"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_failure_query(
+            trace_id="trace-123",
+            results_count=10,
+            latency_ms=300.0
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_learning_context_generation_enabled(self):
+        """Test recording learning context generation when enabled"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_learning_context_generation(
+            trace_id="trace-123",
+            has_past_failures=True,
+            has_kg_patterns=True,
+            latency_ms=250.0
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_learning_context_generation_disabled(self):
+        """Test recording learning context generation when disabled"""
+        mock_redis = MagicMock()
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=False)
+        metrics.record_learning_context_generation(
+            trace_id="trace-123",
+            has_past_failures=True,
+            has_kg_patterns=False,
+            latency_ms=250.0
+        )
+
+        mock_redis.pipeline.assert_not_called()
+
+    def test_record_learning_context_generation_no_context(self):
+        """Test recording learning context generation with no context"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_learning_context_generation(
+            trace_id="trace-123",
+            has_past_failures=False,
+            has_kg_patterns=False,
+            latency_ms=50.0
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_fix_update_success(self):
+        """Test recording fix update with success"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_fix_update(
+            trace_id="trace-123",
+            was_successful=True,
+            latency_ms=100.0
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_fix_update_failure(self):
+        """Test recording fix update with failure"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        metrics.record_fix_update(
+            trace_id="trace-123",
+            was_successful=False,
+            latency_ms=100.0
+        )
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_record_fix_update_disabled(self):
+        """Test recording fix update when disabled"""
+        mock_redis = MagicMock()
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=False)
+        metrics.record_fix_update(
+            trace_id="trace-123",
+            was_successful=True,
+            latency_ms=100.0
+        )
+
+        mock_redis.pipeline.assert_not_called()
+
+    def test_track_failure_learning_operation_context_manager(self):
+        """Test track_failure_learning_operation context manager"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+
+        with metrics.track_failure_learning_operation("query", "trace-456"):
+            pass
+
+        assert mock_redis.pipeline.call_count >= 1
+
+    def test_get_failure_learning_summary_disabled(self):
+        """Test get_failure_learning_summary when disabled"""
+        metrics = OrchestratorMetrics(redis_client=None, enabled=False)
+        result = metrics.get_failure_learning_summary(window_minutes=15)
+        assert result == {"enabled": False}
+
+    def test_get_failure_learning_summary_enabled(self):
+        """Test get_failure_learning_summary when enabled"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        result = metrics.get_failure_learning_summary(window_minutes=15)
+
+        assert "observations" in result
+        assert "pgvector_saved" in result
+        assert "pgvector_skipped" in result
+        assert "save_rate" in result
+        assert "queries" in result
+        assert "context_generations" in result
+        assert "fix_updates" in result
+        assert "fix_success_rate" in result
+        assert "context_with_past_failures" in result
+        assert "context_with_kg_patterns" in result
+
+    def test_comprehensive_summary_includes_failure_learning(self):
+        """Test that comprehensive summary includes failure learning metrics"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+
+        metrics = OrchestratorMetrics(redis_client=mock_redis, enabled=True)
+        result = metrics.get_comprehensive_summary(window_minutes=15)
+
+        assert "failure_learning" in result
+        assert result["enabled"] is True
