@@ -83,7 +83,7 @@ Conducted comprehensive review of 10 merged PRs from the last 48 hours and ident
 - ✅ Added note: "packages/ (shared-ui for cross-app components)"
 - ✅ Added handoff/ directory warning section with explicit "DO NOT import or run code from this directory"
 - ✅ Added ESLint restricted-imports guidance for Owner Console
-- ✅ Added framework labels (Flask for backend, FastAPI for orchestrator, React 18 for frontends)
+- ✅ Added framework labels (Flask for backend, RQ-based orchestrator workers, React 19 for frontends)
 
 **Impact**: Prevents accidental imports from handoff/ and clarifies frontend boundaries.
 

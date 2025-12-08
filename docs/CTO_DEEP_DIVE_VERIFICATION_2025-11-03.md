@@ -348,7 +348,7 @@ curl https://morningai-backend-v2-stg.onrender.com/healthz
 ### 7.2 Frontend Stack
 
 **Verified**:
-- ✅ **Framework**: React 18 + Vite
+- ✅ **Framework**: React 19 + Vite 6
 - ✅ **Language**: TypeScript
 - ✅ **Styling**: Tailwind CSS + Custom Design System
 - ✅ **State Management**: React Context + Hooks

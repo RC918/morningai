@@ -624,7 +624,7 @@ The **strategic gaps** in test coverage, SLO monitoring, and technical debt are 
 - **Deployment**: Render (Docker runtime)
 
 ### Frontend
-- **Framework**: React 18 + Vite
+- **Framework**: React 19 + Vite 6
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS v4
 - **State**: React Context + Hooks
