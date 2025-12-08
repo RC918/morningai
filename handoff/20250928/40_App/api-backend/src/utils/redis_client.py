@@ -1,8 +1,12 @@
-import os
+from __future__ import annotations
+
 import logging
-import ssl
-from typing import Optional, Dict, Any, Iterator, List
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
+
 from common.config.settings import get_settings
+
+if TYPE_CHECKING:
+    from upstash_redis import Redis as UpstashRedisClient
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +22,7 @@ class UpstashRedisAdapter:
     in sessions.py and other places that use scan_iter.
     """
 
-    def __init__(self, client):
+    def __init__(self, client: UpstashRedisClient) -> None:
         """
         Initialize the adapter with an Upstash Redis client.
 
@@ -27,7 +31,9 @@ class UpstashRedisAdapter:
         """
         self._client = client
 
-    def scan_iter(self, match: Optional[str] = None, count: Optional[int] = None) -> Iterator[str]:
+    def scan_iter(
+        self, match: Optional[str] = None, count: Optional[int] = None
+    ) -> Iterator[str]:
         """
         Iterate over keys matching a pattern using SCAN command.
 
@@ -41,7 +47,7 @@ class UpstashRedisAdapter:
         Yields:
             str: Keys matching the pattern
         """
-        cursor = 0
+        cursor: int = 0
         while True:
             result = self._client.scan(cursor=cursor, match=match, count=count)
             # Upstash returns [cursor, [keys]] or (cursor, keys)
@@ -56,12 +62,36 @@ class UpstashRedisAdapter:
             for key in keys:
                 yield key
 
-            # Handle cursor as int or string
+            # Handle cursor as int or string/bytes
             if new_cursor in (0, "0", b"0"):
                 break
-            cursor = int(new_cursor) if isinstance(new_cursor, str) else new_cursor
 
-    def mget(self, *keys) -> List[Optional[str]]:
+            # Handle bytes cursor
+            if isinstance(new_cursor, (bytes, bytearray)):
+                try:
+                    new_cursor = new_cursor.decode()
+                except Exception:
+                    logger.warning(
+                        "Unexpected bytes cursor value from Upstash scan: %r; "
+                        "stopping scan",
+                        new_cursor,
+                    )
+                    break
+
+            # Handle string cursor with ValueError protection
+            if isinstance(new_cursor, str):
+                try:
+                    cursor = int(new_cursor)
+                except ValueError:
+                    logger.warning(
+                        "Unexpected cursor value from Upstash scan: %r; stopping scan",
+                        new_cursor,
+                    )
+                    break
+            else:
+                cursor = new_cursor
+
+    def mget(self, *keys: str) -> List[Optional[str]]:
         """
         Get values for multiple keys.
 
@@ -79,7 +109,7 @@ class UpstashRedisAdapter:
             keys = keys[0]
         return self._client.mget(*keys)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """
         Delegate all other attribute access to the underlying client.
 
