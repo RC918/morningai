@@ -31,6 +31,35 @@ const QUICK_COMMANDS = [
   { id: 'retry', label: 'Retry last action', icon: ChevronUp }
 ]
 
+const MAX_COMMAND_HISTORY = 50
+const STORAGE_KEY_PREFIX = 'sessionCommandHistory'
+
+const getStorageKey = (sessionId) => `${STORAGE_KEY_PREFIX}:${sessionId}`
+
+const loadCommandHistory = (sessionId) => {
+  try {
+    const stored = localStorage.getItem(getStorageKey(sessionId))
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) {
+        return parsed.slice(0, MAX_COMMAND_HISTORY)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load command history from localStorage:', error)
+  }
+  return []
+}
+
+const saveCommandHistory = (sessionId, history) => {
+  try {
+    const trimmed = history.slice(0, MAX_COMMAND_HISTORY)
+    localStorage.setItem(getStorageKey(sessionId), JSON.stringify(trimmed))
+  } catch (error) {
+    console.error('Failed to save command history to localStorage:', error)
+  }
+}
+
 const SessionCommandInput = ({
   sessionId,
   sessionStatus,
@@ -42,11 +71,22 @@ const SessionCommandInput = ({
   const [command, setCommand] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [commandHistory, setCommandHistory] = useState([])
+  const [commandHistory, setCommandHistory] = useState(() => loadCommandHistory(sessionId))
   const [historyIndex, setHistoryIndex] = useState(-1)
   const textareaRef = useRef(null)
 
   const isDisabled = disabled || sessionStatus === 'completed' || sessionStatus === 'failed' || sessionStatus === 'cancelled'
+
+  useEffect(() => {
+    setCommandHistory(loadCommandHistory(sessionId))
+    setHistoryIndex(-1)
+  }, [sessionId])
+
+  useEffect(() => {
+    if (commandHistory.length > 0) {
+      saveCommandHistory(sessionId, commandHistory)
+    }
+  }, [sessionId, commandHistory])
 
   useEffect(() => {
     if (textareaRef.current && isExpanded) {
@@ -67,7 +107,7 @@ const SessionCommandInput = ({
         timestamp: new Date().toISOString()
       })
 
-      setCommandHistory(prev => [trimmedCommand, ...prev.slice(0, 49)])
+      setCommandHistory(prev => [trimmedCommand, ...prev.slice(0, MAX_COMMAND_HISTORY - 1)])
       setCommand('')
       setHistoryIndex(-1)
       setIsExpanded(false)
