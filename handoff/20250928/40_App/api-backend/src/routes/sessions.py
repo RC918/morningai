@@ -505,25 +505,35 @@ def send_command(session_id):
 
     Issue: #2179 - API endpoint for SessionCommandInput
     """
+    VALID_COMMAND_TYPES = {'user_command', 'quick_command'}
+
     try:
         session_data, user_info, key = _get_session_and_user(session_id)
         user_email = user_info['user_email']
         user_id = user_info['user_id']
 
         req_data = request.get_json(silent=True) or {}
-        command = req_data.get('command')
+        command = req_data.get('command', '')
         command_type = req_data.get('type', 'user_command')
         client_timestamp = req_data.get('timestamp')
 
-        if not command:
+        if not command or not command.strip():
             return jsonify({
                 'error': 'Missing required field',
-                'message': 'command is required'
+                'message': 'command is required and cannot be empty or whitespace only'
+            }), 400
+
+        command = command.strip()
+
+        if command_type not in VALID_COMMAND_TYPES:
+            return jsonify({
+                'error': 'Invalid command type',
+                'message': f'type must be one of: {", ".join(sorted(VALID_COMMAND_TYPES))}'
             }), 400
 
         current_status = session_data.get('status', 'active')
 
-        if current_status in ['completed', 'failed']:
+        if current_status in ['completed', 'failed', 'cancelled']:
             return jsonify({
                 'error': 'Cannot send command',
                 'message': f'Session is {current_status}, commands can only be sent to active/paused sessions'
@@ -542,9 +552,7 @@ def send_command(session_id):
             'server_timestamp': server_timestamp
         }
 
-        if 'commands' not in session_data:
-            session_data['commands'] = []
-        session_data['commands'].append(command_entry)
+        session_data.setdefault('commands', []).append(command_entry)
         session_data['updated_at'] = server_timestamp
 
         redis_client = get_redis_client()

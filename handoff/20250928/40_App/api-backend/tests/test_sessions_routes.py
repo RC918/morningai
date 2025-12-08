@@ -834,6 +834,60 @@ class TestSendCommandEndpoint:
                 assert 'error' in data
                 assert 'command is required' in data['message']
 
+    def test_send_command_whitespace_only_command(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when command is whitespace only"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': '   '}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'command is required' in data['message']
+
+    def test_send_command_invalid_type(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when command type is invalid"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test', 'type': 'invalid_type'}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'Invalid command type' in data['error']
+                assert 'quick_command' in data['message']
+                assert 'user_command' in data['message']
+
+    def test_send_command_session_cancelled(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when session is cancelled"""
+        sample_session_data['status'] = 'cancelled'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test command'}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'Cannot send command' in data['error']
+
     def test_send_command_session_not_found(self, client, auth_headers_admin, mock_redis_client):
         """Test POST /api/sessions/:id/command returns 404 when session not found"""
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
