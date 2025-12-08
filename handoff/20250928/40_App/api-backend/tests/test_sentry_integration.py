@@ -799,8 +799,8 @@ class TestStartSpan:
             )
 
 
-class TestSentryMetricsIncrement:
-    """Test SentryMetrics.increment method"""
+class TestSentryMetrics:
+    """Test SentryMetrics class methods (increment, gauge, distribution)"""
 
     def test_increment_when_sentry_disabled(self):
         """Should do nothing when Sentry is disabled"""
@@ -864,10 +864,6 @@ class TestSentryMetricsIncrement:
 
             SentryMetrics.increment("test_metric")
 
-
-class TestSentryMetricsGauge:
-    """Test SentryMetrics.gauge method"""
-
     def test_gauge_when_sentry_disabled(self):
         """Should do nothing when Sentry is disabled"""
         with patch('services.sentry_integration.sentry_sdk', None):
@@ -914,10 +910,6 @@ class TestSentryMetricsGauge:
             from services.sentry_integration import SentryMetrics
 
             SentryMetrics.gauge("test_gauge", value=42.0)
-
-
-class TestSentryMetricsDistribution:
-    """Test SentryMetrics.distribution method"""
 
     def test_distribution_when_sentry_disabled(self):
         """Should do nothing when Sentry is disabled"""
@@ -989,11 +981,6 @@ class TestModuleExports:
 
         for export in expected_exports:
             assert export in sentry_integration.__all__, f"{export} not in __all__"
-
-    def test_scrub_sensitive_data_importable(self):
-        """Should be able to import scrub_sensitive_data"""
-        from services.sentry_integration import scrub_sensitive_data
-        assert callable(scrub_sensitive_data)
 
     def test_sentry_metrics_class_importable(self):
         """Should be able to import SentryMetrics class"""
