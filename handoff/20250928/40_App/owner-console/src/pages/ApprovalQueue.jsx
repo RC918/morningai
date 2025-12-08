@@ -37,34 +37,7 @@ const ApprovalQueue = () => {
   const [shouldFocusDetails, setShouldFocusDetails] = useState(false)
   const listRef = useRef(null)
   const detailsRef = useRef(null)
-
-  // Initial load
-  useEffect(() => {
-    loadApprovalData()
-  }, [loadApprovalData])
-
-  // Auto-refresh
-  useEffect(() => {
-    if (!autoRefresh) return
-    
-    const intervalId = setInterval(() => {
-      loadApprovalData(true)
-    }, AUTO_REFRESH_INTERVAL)
-    
-    return () => clearInterval(intervalId)
-  }, [autoRefresh, loadApprovalData])
-
-  // Focus management for details panel (replaces setTimeout with requestAnimationFrame)
-  useEffect(() => {
-    if (!shouldFocusDetails || activeTab !== 'details' || !selectedRequest) return
-
-    const frameId = window.requestAnimationFrame(() => {
-      detailsRef.current?.focus()
-      setShouldFocusDetails(false)
-    })
-
-    return () => window.cancelAnimationFrame(frameId)
-  }, [shouldFocusDetails, activeTab, selectedRequest])
+  const isRefreshingRef = useRef(false) // In-flight guard to prevent race conditions
 
   const sortRequests = useCallback((requests) => {
     return [...requests].sort((a, b) => {
@@ -81,8 +54,15 @@ const ApprovalQueue = () => {
   }, [])
 
   const loadApprovalData = useCallback(async (isAutoRefresh = false) => {
+    // In-flight guard to prevent race conditions during auto-refresh
+    if (isAutoRefresh && isRefreshingRef.current) {
+      return
+    }
+    
     try {
-      if (!isAutoRefresh) {
+      if (isAutoRefresh) {
+        isRefreshingRef.current = true
+      } else {
         setLoading(true)
       }
       setError(null)
@@ -111,11 +91,59 @@ const ApprovalQueue = () => {
       })
       setError(message)
     } finally {
-      if (!isAutoRefresh) {
+      if (isAutoRefresh) {
+        isRefreshingRef.current = false
+      } else {
         setLoading(false)
       }
     }
   }, [sortRequests])
+
+  // Initial load
+  useEffect(() => {
+    loadApprovalData()
+  }, [loadApprovalData])
+
+  // Auto-refresh using recursive setTimeout to avoid race conditions
+  // setTimeout ensures the next refresh only starts after the previous one completes
+  useEffect(() => {
+    if (!autoRefresh) return
+    
+    let timeoutId = null
+    let isMounted = true
+    
+    const scheduleNextRefresh = async () => {
+      if (!isMounted) return
+      
+      await loadApprovalData(true)
+      
+      if (isMounted) {
+        timeoutId = setTimeout(scheduleNextRefresh, AUTO_REFRESH_INTERVAL)
+      }
+    }
+    
+    // Start the first refresh after the interval
+    timeoutId = setTimeout(scheduleNextRefresh, AUTO_REFRESH_INTERVAL)
+    
+    return () => {
+      isMounted = false
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [autoRefresh, loadApprovalData])
+
+  // Focus management for details panel (replaces setTimeout with requestAnimationFrame)
+  useEffect(() => {
+    if (!shouldFocusDetails || activeTab !== 'details' || !selectedRequest) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      detailsRef.current?.focus()
+      setShouldFocusDetails(false)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [shouldFocusDetails, activeTab, selectedRequest])
 
   const handleApprove = async (requestId) => {
     try {
