@@ -609,7 +609,13 @@ class TestAutonomousExecutorVerificationIntegration:
             selector="#header",
         )
 
+        # Mock settings to enable visual verification
+        mock_settings = AsyncMock()
+        mock_settings.enable_visual_verification = True
+
         with patch(
+            "orchestrator.meta_agent.autonomous_executor.settings", mock_settings
+        ), patch(
             "orchestrator.meta_agent.autonomous_executor.VisualVerifier"
         ) as MockVerifier:
             mock_instance = AsyncMock()
@@ -647,7 +653,13 @@ class TestAutonomousExecutorVerificationIntegration:
             },
         )
 
+        # Mock settings to enable visual verification
+        mock_settings = AsyncMock()
+        mock_settings.enable_visual_verification = True
+
         with patch(
+            "orchestrator.meta_agent.autonomous_executor.settings", mock_settings
+        ), patch(
             "orchestrator.meta_agent.autonomous_executor.VisualVerifier",
             side_effect=ImportError("No module named 'playwright'")
         ):
