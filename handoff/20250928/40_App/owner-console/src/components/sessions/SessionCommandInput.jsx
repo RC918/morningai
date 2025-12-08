@@ -24,6 +24,18 @@ import {
  * Requirement: "產生指令或快速回答" (Quick command/response)
  */
 
+/**
+ * Terminal session statuses where command input should be disabled
+ * @see #2176 - Extract TERMINAL_STATUSES constant
+ */
+const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled']
+
+/**
+ * Maximum number of commands to keep in history
+ * @see #2177 - Extract MAX_COMMAND_HISTORY constant
+ */
+const MAX_COMMAND_HISTORY = 50
+
 const QUICK_COMMANDS = [
   { id: 'continue', label: 'Continue', icon: Sparkles },
   { id: 'explain', label: 'Explain current step', icon: MessageSquare },
@@ -31,11 +43,46 @@ const QUICK_COMMANDS = [
   { id: 'retry', label: 'Retry last action', icon: ChevronUp }
 ]
 
+const STORAGE_KEY_PREFIX = 'sessionCommandHistory'
+
+const getStorageKey = (sessionId) => `${STORAGE_KEY_PREFIX}:${sessionId}`
+
+const loadCommandHistory = (sessionId) => {
+  try {
+    const stored = localStorage.getItem(getStorageKey(sessionId))
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed)) {
+        return parsed.slice(0, MAX_COMMAND_HISTORY)
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load command history from localStorage:', error)
+  }
+  return []
+}
+
+const saveCommandHistory = (sessionId, history) => {
+  try {
+    const trimmed = history.slice(0, MAX_COMMAND_HISTORY)
+    localStorage.setItem(getStorageKey(sessionId), JSON.stringify(trimmed))
+  } catch (error) {
+    console.error('Failed to save command history to localStorage:', error)
+  }
+}
+
+/**
+ * @param {Object} props
+ * @param {string} props.sessionId - The session ID
+ * @param {string} props.sessionStatus - Current session status
+ * @param {Function} props.onSendCommand - Callback when command is sent
+ * @param {string} [props.className] - Additional CSS classes
+ * @see #2178 - Removed redundant disabled prop (handled internally via sessionStatus)
+ */
 const SessionCommandInput = ({
   sessionId,
   sessionStatus,
   onSendCommand,
-  disabled = false,
   className = ''
 }) => {
   const { t } = useTranslation()
@@ -46,7 +93,16 @@ const SessionCommandInput = ({
   const [historyIndex, setHistoryIndex] = useState(-1)
   const textareaRef = useRef(null)
 
-  const isDisabled = disabled || sessionStatus === 'completed' || sessionStatus === 'failed' || sessionStatus === 'cancelled'
+  const isDisabled = TERMINAL_STATUSES.includes(sessionStatus)
+
+  useEffect(() => {
+    setCommandHistory(loadCommandHistory(sessionId))
+    setHistoryIndex(-1)
+  }, [sessionId])
+
+  useEffect(() => {
+    saveCommandHistory(sessionId, commandHistory)
+  }, [sessionId, commandHistory])
 
   useEffect(() => {
     if (textareaRef.current && isExpanded) {
@@ -67,7 +123,7 @@ const SessionCommandInput = ({
         timestamp: new Date().toISOString()
       })
 
-      setCommandHistory(prev => [trimmedCommand, ...prev.slice(0, 49)])
+      setCommandHistory(prev => [trimmedCommand, ...prev.slice(0, MAX_COMMAND_HISTORY - 1)])
       setCommand('')
       setHistoryIndex(-1)
       setIsExpanded(false)
