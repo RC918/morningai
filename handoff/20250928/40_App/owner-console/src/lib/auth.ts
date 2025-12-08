@@ -503,11 +503,38 @@ async function ensureCsrfToken(): Promise<void> {
     return;
   }
   
-  // Use getCsrfToken() which syncs sessionStorage with cookie automatically
-  // This ensures we don't have stale tokens after backend rotates the cookie
-  const existingToken = getCsrfToken();
-  if (existingToken) {
+  // Check cookie first (source of truth), then sessionStorage
+  // Note: We check these directly instead of using getCsrfToken() to avoid
+  // returning early based on the in-memory csrfToken variable, which may be
+  // stale in test environments where sessionStorage/cookies are cleared but
+  // the module-level variable persists.
+  const cookieToken = typeof document !== 'undefined' ? getCookie('csrf_token') : null;
+  if (cookieToken) {
+    // Cookie exists - sync sessionStorage and return
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        const sessionToken = sessionStorage.getItem('csrf_token');
+        if (sessionToken !== cookieToken) {
+          sessionStorage.setItem('csrf_token', cookieToken);
+          csrfToken = cookieToken;
+        }
+      } catch (error) {
+        // Ignore sessionStorage errors
+      }
+    }
     return;
+  }
+  
+  // Check sessionStorage as fallback
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      const sessionToken = sessionStorage.getItem('csrf_token');
+      if (sessionToken) {
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to read CSRF token from sessionStorage:', error);
+    }
   }
   
   if (csrfToken) {
