@@ -783,9 +783,43 @@ class AgentEvalIntegration:
             return result
 
         except Exception as e:
+            # Check if this is a Redis connectivity issue - treat as "eval disabled"
+            # rather than an error to avoid noisy Sentry alerts for expected conditions
+            error_str = str(e).lower()
+            is_redis_error = (
+                "redis" in error_str or
+                "connection" in error_str or
+                "timeout" in error_str or
+                "refused" in error_str or
+                hasattr(e, '__module__') and 'redis' in getattr(e, '__module__', '')
+            )
+
+            if is_redis_error:
+                logger.warning(
+                    "[AgentEval] Redis unavailable, skipping regression detection: %s",
+                    e,
+                    extra={
+                        "operation": "detect_regression",
+                        "error_type": type(e).__name__,
+                        "error": str(e)
+                    }
+                )
+                return {
+                    "has_regression": False,
+                    "enabled": False,
+                    "message": "Evaluation skipped because Redis is unavailable",
+                    "error": str(e)
+                }
+
+            # For non-Redis errors, log at error level as these may indicate real bugs
             logger.error(
                 "[AgentEval] Failed to detect capability regression: %s",
-                e
+                e,
+                extra={
+                    "operation": "detect_regression",
+                    "error_type": type(e).__name__,
+                    "error": str(e)
+                }
             )
             return {
                 "has_regression": False,
