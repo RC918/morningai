@@ -701,6 +701,314 @@ class TestDryRunBehavior:
         assert result["code_written"] is True
 
 
+class TestDryRunAllHandlers:
+    """Tests for dry_run behavior in all handlers (#1959)"""
+
+    @pytest.fixture
+    def setup_executor_state(self):
+        """Helper to initialize executor state for direct handler calls"""
+        from datetime import datetime
+        from ..audit_log import AuditLogger
+
+        def _setup(executor):
+            executor.audit_logger = AuditLogger(
+                execution_id="test-exec-dry-all-001",
+                actor="test-user",
+            )
+            executor.current_execution = ExecutionResult(
+                execution_id="test-exec-dry-all-001",
+                plan_id="test-plan-dry-all-001",
+                status=ExecutionStatus.RUNNING,
+                started_at=datetime.now(),
+            )
+            return executor
+        return _setup
+
+    @pytest.mark.asyncio
+    async def test_dry_run_setup_environment_does_not_provision_vm(self):
+        """Test that dry_run mode prevents actual VM provisioning"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+
+        task = SubTask(
+            task_id="test-dry-setup-001",
+            task_type=SubTaskType.SETUP_ENVIRONMENT,
+            description="Setup environment",
+        )
+
+        result = await executor._handle_setup_environment(task)
+
+        assert result["dry_run"] is True
+        assert result["environment_ready"] is False
+        assert result["vm_id"] is None
+        assert "planned_action" in result
+
+    @pytest.mark.asyncio
+    async def test_dry_run_write_test_does_not_execute(self):
+        """Test that dry_run mode prevents actual test writing"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+
+        task = SubTask(
+            task_id="test-dry-write-test-001",
+            task_type=SubTaskType.WRITE_TEST,
+            description="Write tests",
+        )
+
+        result = await executor._handle_write_test(task)
+
+        assert result["dry_run"] is True
+        assert result["tests_written"] is False
+        assert "planned_action" in result
+
+    @pytest.mark.asyncio
+    async def test_dry_run_run_test_does_not_execute(self):
+        """Test that dry_run mode prevents actual test execution"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+
+        task = SubTask(
+            task_id="test-dry-run-test-001",
+            task_type=SubTaskType.RUN_TEST,
+            description="Run tests",
+        )
+
+        result = await executor._handle_run_test(task)
+
+        assert result["dry_run"] is True
+        assert result["tests_passed"] is False
+        assert "planned_action" in result
+
+    @pytest.mark.asyncio
+    async def test_dry_run_documentation_does_not_execute(self):
+        """Test that dry_run mode prevents actual documentation writing"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+
+        task = SubTask(
+            task_id="test-dry-doc-001",
+            task_type=SubTaskType.DOCUMENTATION,
+            description="Write documentation",
+        )
+
+        result = await executor._handle_documentation(task)
+
+        assert result["dry_run"] is True
+        assert result["documentation_updated"] is False
+        assert "planned_action" in result
+
+    @pytest.mark.asyncio
+    async def test_dry_run_cleanup_does_not_execute(self):
+        """Test that dry_run mode prevents actual cleanup"""
+        executor = AutonomousExecutor(
+            max_retries=1,
+            task_timeout_seconds=5,
+            policy=DRY_RUN_POLICY,
+        )
+
+        task = SubTask(
+            task_id="test-dry-cleanup-001",
+            task_type=SubTaskType.CLEANUP,
+            description="Cleanup resources",
+        )
+
+        result = await executor._handle_cleanup(task)
+
+        assert result["dry_run"] is True
+        assert result["cleanup_complete"] is False
+        assert "planned_action" in result
+
+
+class TestOutboundNotifierIntegration:
+    """Tests for OutboundNotifier integration in AutonomousExecutor (#2154)"""
+
+    @pytest.fixture
+    def setup_executor_state(self):
+        """Helper to initialize executor state for direct method calls"""
+        from datetime import datetime
+        from ..audit_log import AuditLogger
+
+        def _setup(executor):
+            executor.audit_logger = AuditLogger(
+                execution_id="test-exec-notifier-001",
+                actor="test-user",
+            )
+            executor.current_execution = ExecutionResult(
+                execution_id="test-exec-notifier-001",
+                plan_id="test-plan-notifier-001",
+                status=ExecutionStatus.RUNNING,
+                started_at=datetime.now(),
+            )
+            return executor
+        return _setup
+
+    def test_executor_initializes_with_outbound_notifier(self):
+        """Test that executor can be initialized with OutboundNotifier"""
+        from unittest.mock import MagicMock
+
+        mock_notifier = MagicMock()
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+
+        assert executor.outbound_notifier is mock_notifier
+
+    def test_executor_initializes_without_outbound_notifier(self):
+        """Test that executor can be initialized without OutboundNotifier"""
+        executor = AutonomousExecutor()
+
+        assert executor.outbound_notifier is None
+
+    def test_set_notification_source(self):
+        """Test that notification source can be set"""
+        from unittest.mock import MagicMock
+
+        mock_notifier = MagicMock()
+        mock_source = MagicMock()
+        mock_source.value = "github"
+
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+        executor.set_notification_source(mock_source)
+
+        assert executor._notification_source is mock_source
+
+    @pytest.mark.asyncio
+    async def test_notify_task_started_does_nothing_without_notifier(self):
+        """Test that _notify_task_started does nothing without notifier"""
+        executor = AutonomousExecutor()
+
+        # Should not raise
+        await executor._notify_task_started(
+            execution_id="test-001",
+            goal_text="Test goal",
+        )
+
+    @pytest.mark.asyncio
+    async def test_notify_task_started_does_nothing_without_source(self):
+        """Test that _notify_task_started does nothing without source"""
+        from unittest.mock import MagicMock
+
+        mock_notifier = MagicMock()
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+
+        # Should not raise
+        await executor._notify_task_started(
+            execution_id="test-001",
+            goal_text="Test goal",
+        )
+
+        mock_notifier.notify_task_started.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_notify_task_started_calls_notifier(self):
+        """Test that _notify_task_started calls notifier when configured"""
+        from unittest.mock import MagicMock, AsyncMock
+
+        mock_notifier = MagicMock()
+        mock_notifier.notify_task_started = AsyncMock()
+        mock_source = MagicMock()
+
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+        executor._notification_source = mock_source
+
+        await executor._notify_task_started(
+            execution_id="test-001",
+            goal_text="Test goal",
+            metadata={"key": "value"},
+        )
+
+        mock_notifier.notify_task_started.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notify_task_completed_calls_notifier(self):
+        """Test that _notify_task_completed calls notifier when configured"""
+        from unittest.mock import MagicMock, AsyncMock
+
+        mock_notifier = MagicMock()
+        mock_notifier.notify_task_completed = AsyncMock()
+        mock_source = MagicMock()
+
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+        executor._notification_source = mock_source
+
+        await executor._notify_task_completed(
+            execution_id="test-001",
+            goal_text="Test goal",
+            result={"status": "success"},
+            pr_url="https://github.com/test/pr/1",
+        )
+
+        mock_notifier.notify_task_completed.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notify_task_failed_calls_notifier(self):
+        """Test that _notify_task_failed calls notifier when configured"""
+        from unittest.mock import MagicMock, AsyncMock
+
+        mock_notifier = MagicMock()
+        mock_notifier.notify_task_failed = AsyncMock()
+        mock_source = MagicMock()
+
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+        executor._notification_source = mock_source
+
+        await executor._notify_task_failed(
+            execution_id="test-001",
+            goal_text="Test goal",
+            error="Test error",
+        )
+
+        mock_notifier.notify_task_failed.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notify_approval_required_calls_notifier(self):
+        """Test that _notify_approval_required calls notifier when configured"""
+        from unittest.mock import MagicMock, AsyncMock
+
+        mock_notifier = MagicMock()
+        mock_notifier.notify_approval_required = AsyncMock()
+        mock_source = MagicMock()
+
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+        executor._notification_source = mock_source
+
+        await executor._notify_approval_required(
+            execution_id="test-001",
+            task_id="task-001",
+            operation="deployment",
+        )
+
+        mock_notifier.notify_approval_required.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notification_error_does_not_fail_execution(self):
+        """Test that notification errors don't fail execution"""
+        from unittest.mock import MagicMock, AsyncMock
+
+        mock_notifier = MagicMock()
+        mock_notifier.notify_task_started = AsyncMock(side_effect=RuntimeError("Network error"))
+        mock_source = MagicMock()
+
+        executor = AutonomousExecutor(outbound_notifier=mock_notifier)
+        executor._notification_source = mock_source
+
+        # Should not raise
+        await executor._notify_task_started(
+            execution_id="test-001",
+            goal_text="Test goal",
+        )
+
+
 class TestVMAndIDEIntegration:
     """Tests for VM and IDE integration in AutonomousExecutor (#2018)"""
 
@@ -883,7 +1191,7 @@ class TestVMAndIDEIntegration:
     @pytest.mark.asyncio
     async def test_setup_environment_raises_on_vm_failure(self, mock_plan):
         """Test that setup_environment raises ExecutionError when VM provisioning fails"""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import AsyncMock
         from ..autonomous_executor import ExecutionError
 
         executor = AutonomousExecutor()
@@ -1154,7 +1462,7 @@ class TestDeepWikiIntegration:
     @pytest.mark.asyncio
     async def test_task_failure_queries_deepwiki_for_suggestions(self, setup_executor_state):
         """Test that task failure triggers DeepWiki error lookup"""
-        from unittest.mock import patch, AsyncMock, MagicMock
+        from unittest.mock import patch, AsyncMock
 
         executor = AutonomousExecutor(max_retries=1, task_timeout_seconds=1)
         setup_executor_state(executor)
