@@ -38,15 +38,6 @@ class TestValidateRepoAllowed:
         assert is_allowed is False
         assert "not allowed" in error.lower() or "not in" in error.lower()
 
-    @patch('project_engineer.agent.ProjectEngineerAgent._validate_repo_allowed')
-    def test_validate_repo_allowed_with_semantic_rules(self, mock_validate):
-        """Should use semantic_rules.validate_repo when available"""
-        mock_validate.return_value = (True, "")
-        agent = ProjectEngineerAgent()
-        mock_validate.return_value = (True, "")
-        is_allowed, error = agent._validate_repo_allowed("test/repo")
-        assert mock_validate.called
-
     def test_validate_repo_allowed_empty_repo(self):
         """Should handle empty repo name"""
         agent = ProjectEngineerAgent()
@@ -135,10 +126,10 @@ class TestValidateDirectoriesAllowed:
     def test_validate_directories_allowed_import_error_fallback(self):
         """Should fallback gracefully when semantic_rules not available"""
         agent = ProjectEngineerAgent()
-        with patch.object(agent, '_validate_directories_allowed') as mock_method:
-            mock_method.return_value = (True, "")
+        with patch.dict('sys.modules', {'project_engineer.semantic_rules': None}):
             is_allowed, error = agent._validate_directories_allowed(["any/path.py"])
             assert is_allowed is True
+            assert error == ""
 
 
 class TestValidateTaskTypeAllowed:
@@ -321,14 +312,15 @@ class TestValidateTaskSemanticRules:
     def test_validate_task_semantic_rules_import_error_fallback(self):
         """Should fallback gracefully when semantic_rules not available"""
         agent = ProjectEngineerAgent()
-        with patch('project_engineer.agent.ProjectEngineerAgent._validate_task_semantic_rules') as mock_method:
-            mock_method.return_value = (True, "", False)
+        with patch.dict('sys.modules', {'project_engineer.semantic_rules': None}):
             is_valid, error, requires_approval = agent._validate_task_semantic_rules(
                 repo="RC918/morningai",
                 task_type="documentation_update",
                 action="write_file"
             )
             assert is_valid is True
+            assert error == ""
+            assert requires_approval is False
 
     @patch('project_engineer.semantic_rules.get_validator')
     def test_validate_task_semantic_rules_exception_handling(self, mock_get_validator):
@@ -368,9 +360,9 @@ class TestGetTaskTimeout:
     def test_get_task_timeout_import_error(self):
         """Should return default on import error"""
         agent = ProjectEngineerAgent()
-        timeout = agent._get_task_timeout()
-        assert isinstance(timeout, int)
-        assert timeout > 0
+        with patch.dict('sys.modules', {'common.config.settings': None}):
+            timeout = agent._get_task_timeout()
+            assert timeout == 300
 
 
 class TestRunTaskSecurityValidation:
