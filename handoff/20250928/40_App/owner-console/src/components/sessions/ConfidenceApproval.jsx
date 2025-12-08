@@ -66,9 +66,9 @@ const ConfidenceApproval = ({
   // Guard clause: validate score to handle null/undefined/NaN/out-of-range values
   const getConfidenceLevel = useCallback((score) => {
     const validScore = validateConfidence(score)
-    if (validScore >= 0.9) return { level: 'high', color: 'text-growth', bgColor: 'bg-growth-10', label: t('sessions.confidence.high', 'High') }
-    if (validScore >= 0.7) return { level: 'medium', color: 'text-wisdom', bgColor: 'bg-wisdom-10', label: t('sessions.confidence.medium', 'Medium') }
-    return { level: 'low', color: 'text-energy', bgColor: 'bg-energy-10', label: t('sessions.confidence.low', 'Low') }
+    if (validScore >= 0.9) return { level: 'high', color: 'text-growth', bgColor: 'bg-growth-10', label: t('sessions.confidenceLevel.high', 'High') }
+    if (validScore >= 0.7) return { level: 'medium', color: 'text-wisdom', bgColor: 'bg-wisdom-10', label: t('sessions.confidenceLevel.medium', 'Medium') }
+    return { level: 'low', color: 'text-energy', bgColor: 'bg-energy-10', label: t('sessions.confidenceLevel.low', 'Low') }
   }, [t])
 
   const getFactorIcon = useCallback((trend) => {

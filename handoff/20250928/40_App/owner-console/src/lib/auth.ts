@@ -406,11 +406,31 @@ if (typeof sessionStorage !== 'undefined') {
 /**
  * Get CSRF token from cookie (preferred) or in-memory storage (fallback)
  * Tests set csrf_token cookie, so we must read from there first
+ * 
+ * P0 Fix: Always sync sessionStorage with cookie value
+ * When backend rotates CSRF token (e.g., on login), the cookie changes but
+ * sessionStorage may still have the old value. This caused "CSRF token invalid"
+ * errors because ensureCsrfToken() would see sessionStorage token and skip
+ * fetching, while getCsrfToken() correctly read the new cookie value.
+ * Now we always sync sessionStorage when cookie differs to prevent drift.
  */
 function getCsrfToken(): string | null {
   if (typeof document !== 'undefined') {
     const cookieToken = getCookie('csrf_token');
     if (cookieToken) {
+      // Always sync in-memory and sessionStorage with cookie (source of truth)
+      // This ensures all storage layers stay in sync when backend rotates the token
+      csrfToken = cookieToken;
+      if (typeof sessionStorage !== 'undefined') {
+        try {
+          const sessionToken = sessionStorage.getItem('csrf_token');
+          if (sessionToken !== cookieToken) {
+            sessionStorage.setItem('csrf_token', cookieToken);
+          }
+        } catch (error) {
+          // Ignore sessionStorage errors, cookie is the source of truth
+        }
+      }
       return cookieToken;
     }
   }
@@ -484,18 +504,38 @@ async function ensureCsrfToken(): Promise<void> {
     return;
   }
   
+  // Check cookie first (source of truth), then sessionStorage
+  // Note: We check these directly instead of using getCsrfToken() to avoid
+  // returning early based on the in-memory csrfToken variable, which may be
+  // stale in test environments where sessionStorage/cookies are cleared but
+  // the module-level variable persists.
   const cookieToken = typeof document !== 'undefined' ? getCookie('csrf_token') : null;
-  let sessionToken = null;
+  if (cookieToken) {
+    // Cookie exists - sync sessionStorage and return
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        const sessionToken = sessionStorage.getItem('csrf_token');
+        if (sessionToken !== cookieToken) {
+          sessionStorage.setItem('csrf_token', cookieToken);
+          csrfToken = cookieToken;
+        }
+      } catch (error) {
+        // Ignore sessionStorage errors
+      }
+    }
+    return;
+  }
+  
+  // Check sessionStorage as fallback
   if (typeof sessionStorage !== 'undefined') {
     try {
-      sessionToken = sessionStorage.getItem('csrf_token');
+      const sessionToken = sessionStorage.getItem('csrf_token');
+      if (sessionToken) {
+        return;
+      }
     } catch (error) {
       console.error('Failed to read CSRF token from sessionStorage:', error);
     }
-  }
-  
-  if (cookieToken || sessionToken) {
-    return;
   }
   
   if (csrfToken) {

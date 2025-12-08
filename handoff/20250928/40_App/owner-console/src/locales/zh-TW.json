@@ -545,7 +545,7 @@
             "suites": "測試套件",
             "running": "執行中..."
           },
-          "confidence": {
+          "confidenceLevel": {
             "high": "高",
             "medium": "中",
             "low": "低"

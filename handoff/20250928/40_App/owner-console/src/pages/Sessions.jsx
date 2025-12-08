@@ -1081,14 +1081,14 @@ const Sessions = () => {
                     )}
                   </div>
                   
-                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                    <span>{formatRelativeTime(session.updatedAt)}</span>
-                    <span className={getConfidenceColor(session.confidence)}>
+                  <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] w-full">
+                    <span className="truncate">{formatRelativeTime(session.updatedAt)}</span>
+                    <span className={`${getConfidenceColor(session.confidence)} truncate max-w-[50%] text-right`}>
                       {t('sessions.confidence', 'Confidence')}: {Math.round(session.confidence * 100)}%
                     </span>
                   </div>
                   
-                  <Progress value={session.progress} className="h-1" />
+                  <Progress value={session.progress} className="h-1 w-full" />
                 </div>
               </button>
             ))
