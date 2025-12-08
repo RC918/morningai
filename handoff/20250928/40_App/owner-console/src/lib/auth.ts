@@ -406,11 +406,30 @@ if (typeof sessionStorage !== 'undefined') {
 /**
  * Get CSRF token from cookie (preferred) or in-memory storage (fallback)
  * Tests set csrf_token cookie, so we must read from there first
+ * 
+ * P0 Fix: Always sync sessionStorage with cookie value
+ * When backend rotates CSRF token (e.g., on login), the cookie changes but
+ * sessionStorage may still have the old value. This caused "CSRF token invalid"
+ * errors because ensureCsrfToken() would see sessionStorage token and skip
+ * fetching, while getCsrfToken() correctly read the new cookie value.
+ * Now we always sync sessionStorage when cookie differs to prevent drift.
  */
 function getCsrfToken(): string | null {
   if (typeof document !== 'undefined') {
     const cookieToken = getCookie('csrf_token');
     if (cookieToken) {
+      // Sync sessionStorage with cookie to prevent drift
+      if (typeof sessionStorage !== 'undefined') {
+        try {
+          const sessionToken = sessionStorage.getItem('csrf_token');
+          if (sessionToken !== cookieToken) {
+            sessionStorage.setItem('csrf_token', cookieToken);
+            csrfToken = cookieToken;
+          }
+        } catch (error) {
+          // Ignore sessionStorage errors, cookie is the source of truth
+        }
+      }
       return cookieToken;
     }
   }
@@ -484,17 +503,10 @@ async function ensureCsrfToken(): Promise<void> {
     return;
   }
   
-  const cookieToken = typeof document !== 'undefined' ? getCookie('csrf_token') : null;
-  let sessionToken = null;
-  if (typeof sessionStorage !== 'undefined') {
-    try {
-      sessionToken = sessionStorage.getItem('csrf_token');
-    } catch (error) {
-      console.error('Failed to read CSRF token from sessionStorage:', error);
-    }
-  }
-  
-  if (cookieToken || sessionToken) {
+  // Use getCsrfToken() which syncs sessionStorage with cookie automatically
+  // This ensures we don't have stale tokens after backend rotates the cookie
+  const existingToken = getCsrfToken();
+  if (existingToken) {
     return;
   }
   
