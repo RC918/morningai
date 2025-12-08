@@ -83,9 +83,7 @@ const SessionCommandInput = ({
   }, [sessionId])
 
   useEffect(() => {
-    if (commandHistory.length > 0) {
-      saveCommandHistory(sessionId, commandHistory)
-    }
+    saveCommandHistory(sessionId, commandHistory)
   }, [sessionId, commandHistory])
 
   useEffect(() => {
