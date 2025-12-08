@@ -350,7 +350,7 @@ const { show } = useAppleLiveActivity()
 - Provider Pattern（全域狀態）
 
 **技術棧**:
-- React 18
+- React 19
 - TypeScript
 - Framer Motion（動畫）
 - Vitest（測試）

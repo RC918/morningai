@@ -76,8 +76,8 @@ morningai/
 
 **技術棧**:
 ```
-Vite 5.x + React 18 + TypeScript 5.9
-├── UI: Tailwind CSS + shadcn/ui + Radix UI
+Vite 6.x + React 19 + TypeScript 5.9
+├── UI: Tailwind CSS 4 + shadcn/ui + Radix UI
 ├── State: React Context + Hooks
 ├── i18n: Tolgee (en, zh-TW, de, fr)
 ├── PWA: Service Workers + Offline support
@@ -110,8 +110,8 @@ owner-console/
 
 **技術棧**:
 ```
-Vite 5.x + React 18 + TypeScript 5.9
-├── UI: Tailwind CSS + shadcn/ui + Radix UI
+Vite 6.x + React 19 + TypeScript 5.9
+├── UI: Tailwind CSS 4 + shadcn/ui + Radix UI
 ├── State: React Context + Hooks
 ├── Auth: Supabase Auth (JWT + RLS)
 ├── i18n: i18next (en-US, zh-TW)

@@ -625,9 +625,9 @@ MorningAI's orchestrator uses a **dual-mode architecture** with a shared core ex
 │     task_hash = MD5(task_id) % 100                          │
 │     use_langgraph = (task_hash < USE_LANGGRAPH_PERCENT)    │
 │                                                              │
-│ Current: USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=5      │
-│ → ~5% tasks route to LangGraph                              │
-│ → ~95% tasks route to Simple                                │
+│ Default: USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=0      │
+│ → Traffic split controlled by USE_LANGGRAPH_PERCENT        │
+│ → Staging: 15%, Production: 0% (configurable)              │
 └────────────────────┬───────────────────┬────────────────────┘
                      │                   │
        use_langgraph=true    use_langgraph=false
@@ -635,7 +635,7 @@ MorningAI's orchestrator uses a **dual-mode architecture** with a shared core ex
                      ▼                   ▼
         ┌─────────────────────┐  ┌──────────────────┐
         │ LangGraph Mode      │  │ Simple Mode      │
-        │ (~5% tasks)         │  │ (~95% tasks)     │
+        │ (canary traffic)    │  │ (default traffic)│
         └──────────┬──────────┘  └────────┬─────────┘
                    │                      │
                    ▼                      ▼
@@ -649,7 +649,7 @@ MorningAI's orchestrator uses a **dual-mode architecture** with a shared core ex
         └──────────────────┘
 ```
 
-### Mode 1: Simple Mode (Current: ~95% Traffic)
+### Mode 1: Simple Mode (Default Traffic)
 
 **Files**:
 - Entry: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:399`
@@ -670,7 +670,7 @@ MorningAI's orchestrator uses a **dual-mode architecture** with a shared core ex
 Worker → graph.execute() → Create PR → Return result
 ```
 
-### Mode 2: LangGraph Mode (Current: ~5% Traffic, Phase 1)
+### Mode 2: LangGraph Mode (Canary Traffic, Phase 1)
 
 **Files**:
 - Entry: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:396`
@@ -738,14 +738,19 @@ if not use_langgraph and use_langgraph_percent > 0:
 - **Uniform**: MD5 ensures even distribution across 0-99 buckets
 - **Controllable**: Adjust `USE_LANGGRAPH_PERCENT` to change traffic split
 
-**Current Configuration** (Staging/Production):
+**Default Configuration**:
 ```
 USE_LANGGRAPH = false              # Allow canary (not 100%)
-USE_LANGGRAPH_PERCENT = 5          # 5% to LangGraph
-USE_LLM_PLANNER = true             # LangGraph uses LLM planner
+USE_LANGGRAPH_PERCENT = 0          # Default: 0% (100% Simple Mode)
+USE_LLM_PLANNER = false            # LangGraph uses static planner by default
 ```
 
-**Result**: ~5% of tasks use LangGraph + LLM Planner, ~95% use Simple mode.
+**Environment-Specific Defaults** (from env.schema.yaml):
+- Development: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode)
+- Staging: `USE_LANGGRAPH_PERCENT=15` (15% LangGraph canary)
+- Production: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode, conservative)
+
+**Result**: Traffic split is fully configurable via environment variables.
 
 ### Environment Variables
 
@@ -754,6 +759,23 @@ USE_LLM_PLANNER = true             # LangGraph uses LLM planner
 | `USE_LANGGRAPH` | `false` | Force 100% LangGraph routing | Worker routing |
 | `USE_LANGGRAPH_PERCENT` | `0` | Canary percentage (0-100) | Worker routing |
 | `USE_LLM_PLANNER` | `false` | Use LLM vs static planner | LangGraph only |
+
+### Feature Flags (Implemented but Default Disabled)
+
+The following features are fully implemented but disabled by default. Enable them via environment variables when ready:
+
+| Flag | Default | Purpose | Status |
+|------|---------|---------|--------|
+| `FEATURE_2FA_PREAUTH` | `false` | Pre-auth token flow for 2FA enrollment | Implemented, requires explicit enablement |
+| `USE_LLM_PLANNER` | `false` | LLM-powered task planning in LangGraph | Implemented, enable for intelligent planning |
+| `USE_LLM_REVIEWER` | `false` | LLM-powered code review in LangGraph | Implemented, enable for automated review |
+| `ENABLE_PROJECT_ENGINEER_FIXER` | `false` | Auto-fix mode in fixer_node | Implemented, enable for automatic CI fix attempts |
+| `ENABLE_PROJECT_ENGINEER_CODEGEN` | `false` | Code generation execution mode | Implemented, enable for ProjectEngineerAgent codegen |
+
+**Why Default Disabled?**
+- These features are production-ready but require careful rollout
+- Enable in staging first to validate behavior
+- Gradual production rollout recommended (feature flags allow instant rollback)
 
 **Override Behavior**:
 - `USE_LANGGRAPH=true` → 100% LangGraph (overrides percent)
@@ -979,7 +1001,7 @@ ENABLE_PROJECT_ENGINEER_CODEGEN=true
    - Simple mode is frozen. Use LangGraph.
 
 4. **❌ Assuming 100% traffic uses one mode**
-   - Current: 95% Simple, 5% LangGraph. Test both!
+   - Traffic split is configurable. Default is 100% Simple, but staging uses 15% LangGraph. Test both!
 
 5. **❌ Searching for wrong log keywords**
    - Use "Canary deployment", not "canary_selection"

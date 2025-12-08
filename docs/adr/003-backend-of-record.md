@@ -10,7 +10,8 @@
 The MorningAI codebase contains multiple backend-related directories and modules across different locations:
 
 - `handoff/20250928/40_App/api-backend/` - Flask backend application
-- `orchestrator/` - FastAPI orchestrator API service
+- `orchestrator/` - Orchestrator API service (legacy FastAPI, see note)
+- `handoff/20250928/40_App/orchestrator/` - RQ-based orchestrator workers (primary)
 - `phase4_meta_agent_api.py`, `phase5_data_intelligence_api.py`, etc. - Phase API modules in root
 - Various agent modules in `agents/` directory
 
@@ -54,9 +55,12 @@ The Backend of Record is the canonical backend application that:
 - Entry point: `src/main.py`
 
 **Other Backend Components (Not Backend of Record):**
-- **Orchestrator API** (`orchestrator/`): Specialized FastAPI service for task orchestration (see ADR-002)
+- **Orchestrator Workers** (`handoff/20250928/40_App/orchestrator/`): RQ-based workers for task execution (primary orchestrator)
+- **Orchestrator API** (`orchestrator/`): Legacy FastAPI service (may be deprecated)
 - **Phase API Modules** (root `phase*.py`): Imported by Backend of Record, not standalone services
 - **Agent Workers**: Background workers, not HTTP APIs
+
+> **Note**: The primary orchestrator is now RQ-based workers invoked by the Flask backend via Redis Queue. The Flask backend enqueues tasks to Redis, and RQ workers in `handoff/20250928/40_App/orchestrator/` execute them using either Simple Mode or LangGraph Mode.
 
 ### Architecture Relationship
 
@@ -69,7 +73,7 @@ Backend of Record (Flask)
     ├─ Imports: phase6_security_governance_api.py
     ├─ Imports: phase6_startup.py
     ├─ Imports: phase7_startup.py
-    ├─ Calls: Orchestrator API (FastAPI)
+    ├─ Enqueues: Tasks to Redis Queue (RQ Workers)
     └─ Connects: PostgreSQL, Redis
 ```
 

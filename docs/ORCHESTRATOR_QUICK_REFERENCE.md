@@ -25,14 +25,19 @@
 | `USE_LANGGRAPH_PERCENT` | `0` | Canary percentage (0-100) | Worker routing decision |
 | `USE_LLM_PLANNER` | `false` | Use LLM vs static planner | LangGraph mode only |
 
-### Phase 1 Reference Configuration
+### Default Configuration
 
 ```bash
-# Production Worker (morningai-agent-worker)
+# Default Worker Configuration
 USE_LANGGRAPH=false              # Allow canary routing
-USE_LANGGRAPH_PERCENT=5          # 5% traffic to LangGraph
-USE_LLM_PLANNER=true             # LangGraph uses LLM planner
+USE_LANGGRAPH_PERCENT=0          # Default: 0% (100% Simple Mode)
+USE_LLM_PLANNER=false            # LangGraph uses static planner by default
 ```
+
+**Environment-Specific Overrides**:
+- Development: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode)
+- Staging: `USE_LANGGRAPH_PERCENT=15` (15% LangGraph canary)
+- Production: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode, conservative)
 
 **Note**: For staging worker configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Staging worker service names are environment-specific.
 
@@ -128,10 +133,11 @@ pytest tests/test_langgraph_smoke.py -v
 | `task_execution_time` | Logs | End-to-end task duration |
 | `graph_execute_time` | Logs | Time spent in shared core executor |
 
-### Expected Ratios (Phase 1)
+### Expected Ratios
 
-- Simple Mode: ~95% of traffic
-- LangGraph Mode: ~5% of traffic
+Traffic split is configurable via `USE_LANGGRAPH_PERCENT`:
+- Default: 100% Simple Mode (USE_LANGGRAPH_PERCENT=0)
+- Staging: 85% Simple / 15% LangGraph (USE_LANGGRAPH_PERCENT=15)
 - Error Rate: <5% for Simple, <20% for LangGraph (canary tolerance)
 
 ---
