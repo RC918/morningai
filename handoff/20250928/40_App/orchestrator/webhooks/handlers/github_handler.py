@@ -29,6 +29,27 @@ from ..bot_protocol import (
 logger = logging.getLogger(__name__)
 
 
+# AI Reviewer bot whitelist - these bots should NOT be filtered out
+# Issue: #2209 - 修復 AI Reviewer 評論接收機制
+AI_REVIEWER_BOTS: Dict[str, str] = {
+    # GitHub Copilot / OpenAI Codex
+    "github-copilot[bot]": "copilot",
+    "copilot[bot]": "copilot",
+    # ChatGPT Codex (OpenAI)
+    "openai-codex[bot]": "codex",
+    "chatgpt-codex[bot]": "codex",
+    # Google Gemini Code Assist
+    "gemini-code-assist[bot]": "gemini",
+    "google-gemini[bot]": "gemini",
+    # CodeRabbit
+    "coderabbitai[bot]": "coderabbit",
+    # Sourcery
+    "sourcery-ai[bot]": "sourcery",
+    # Devin
+    "devin-ai-integration[bot]": "devin",
+}
+
+
 # GitHub event type to normalized event type mapping
 GITHUB_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
     "pull_request": {
@@ -267,6 +288,23 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             resource_id = ref
             resource_type = ref_type
 
+        # Build metadata
+        metadata: Dict[str, Any] = {
+            "github_event": github_event,
+            "action": payload.get("action"),
+        }
+
+        # Check if actor is an AI reviewer and add review_source to metadata
+        # Issue: #2209 - 修復 AI Reviewer 評論接收機制
+        if actor_name in AI_REVIEWER_BOTS:
+            metadata["review_source"] = AI_REVIEWER_BOTS[actor_name]
+            metadata["is_ai_reviewer"] = True
+            logger.info(
+                "[GitHubWebhookHandler] AI reviewer detected: %s (source: %s)",
+                actor_name,
+                AI_REVIEWER_BOTS[actor_name],
+            )
+
         # Create normalized event
         event = WebhookEvent(
             event_id=event_id,
@@ -286,10 +324,7 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             repo_name=repo_name,
             labels=labels,
             assignees=assignees,
-            metadata={
-                "github_event": github_event,
-                "action": payload.get("action"),
-            },
+            metadata=metadata,
         )
 
         logger.info(
@@ -315,18 +350,31 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         Determine if a GitHub event should be processed.
 
         Additional GitHub-specific filtering:
-        - Ignore bot-generated events
+        - Allow whitelisted AI reviewer bots (Codex, Gemini, etc.)
+        - Ignore other bot-generated events
         - Ignore events from specific users
+
+        Issue: #2209 - 修復 AI Reviewer 評論接收機制
         """
         # First check base class filtering
         if not super().should_process(event, config):
             return False
 
-        # Ignore bot-generated events (optional)
+        # Check if actor is a bot
         actor_name = event.actor_name or ""
         if actor_name.endswith("[bot]"):
+            # Allow whitelisted AI reviewer bots
+            if actor_name in AI_REVIEWER_BOTS:
+                logger.info(
+                    "[GitHubWebhookHandler] Allowing AI reviewer bot: %s (source: %s)",
+                    actor_name,
+                    AI_REVIEWER_BOTS[actor_name],
+                )
+                return True
+
+            # Ignore other bot-generated events
             logger.info(
-                "[GitHubWebhookHandler] Ignoring bot event from %s",
+                "[GitHubWebhookHandler] Ignoring non-whitelisted bot event from %s",
                 actor_name,
             )
             return False
