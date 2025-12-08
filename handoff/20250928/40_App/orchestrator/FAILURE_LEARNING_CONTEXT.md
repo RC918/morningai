@@ -33,25 +33,41 @@ Records a failure observation to pgvector for future learning.
 ```python
 from observer_node import observe_failure
 
+# state is an AgentState dictionary from the orchestrator
+state = {
+    "trace_id": "trace-123",
+    "error": "TypeError: Cannot read property 'x' of undefined",
+    "ci_state": "failure",
+    "merge_decision": "",
+    "retry_count": 0,
+    "goal": "Fix login bug",
+    "task_type": "bug_fix"
+}
+
 result = observe_failure(
-    trace_id="trace-123",
-    error_log="TypeError: Cannot read property 'x' of undefined",
-    last_attempt="Attempted to fix by adding null check",
-    workflow_context={"goal": "Fix login bug", "task_type": "bug_fix"}
+    state=state,
+    save_to_pgvector=True  # default: True
 )
 ```
 
 **Parameters:**
-- `trace_id`: Unique identifier for the workflow
-- `error_log`: The error message or stack trace
-- `last_attempt`: Description of the last fix attempt
-- `workflow_context`: Optional context about the workflow
+- `state`: AgentState dictionary from orchestrator containing:
+  - `trace_id`: Unique identifier for the workflow
+  - `error`: The error message or stack trace
+  - `ci_state`: CI state (e.g., "failure", "success")
+  - `merge_decision`: Merge decision (e.g., "request_changes")
+  - `retry_count`: Number of retry attempts
+  - `goal`: Task goal
+  - `task_type`: Type of task
+- `save_to_pgvector`: Whether to save to pgvector (default: True)
 
 **Returns:**
 - `trace_id`: The trace ID
 - `error_type`: Categorized error type (e.g., "ci_failure", "timeout", "syntax_error")
 - `summary`: Human-readable failure summary
+- `error_context`: Extracted error context
 - `saved_to_pgvector`: Whether the failure was saved to pgvector
+- `pair_id`: The ID of the saved error-fix pair (if saved)
 - `latency_ms`: Operation latency in milliseconds
 
 ### query_past_failures()
@@ -213,11 +229,11 @@ The `get_failure_learning_summary()` method returns:
     "observations": 10,
     "pgvector_saved": 8,
     "pgvector_skipped": 2,
-    "save_rate": 80.0,
+    "save_rate": 80.00,
     "queries": 25,
     "context_generations": 15,
     "fix_updates": 5,
-    "fix_success_rate": 80.0,
+    "fix_success_rate": 80.00,
     "context_with_past_failures": 12,
     "context_with_kg_patterns": 3
 }
@@ -225,19 +241,20 @@ The `get_failure_learning_summary()` method returns:
 
 ## Error Types
 
-The system categorizes errors into the following types:
+The system categorizes errors into the following 10 types based on the `_categorize_error()` function:
 
-| Error Type | Description |
-|------------|-------------|
-| `ci_failure` | CI/CD pipeline failures |
-| `timeout` | Operation timeouts |
-| `syntax_error` | Code syntax errors |
-| `runtime_error` | Runtime exceptions |
-| `type_error` | Type-related errors |
-| `import_error` | Module import failures |
-| `permission_error` | Permission/access denied |
-| `network_error` | Network-related failures |
-| `unknown` | Uncategorized errors |
+| Error Type | Description | Detection Logic |
+|------------|-------------|-----------------|
+| `timeout` | Operation timeouts | "timeout" in error message |
+| `rate_limit` | API rate limiting | "rate limit" or "rate_limit" in error |
+| `authentication` | Authentication failures | "authentication" or "auth" in error |
+| `permission` | Permission/access denied | "permission" or "forbidden" in error |
+| `ci_failure` | CI/CD pipeline failures | `ci_state == "failure"` |
+| `review_rejection` | Code review rejection | `merge_decision == "request_changes"` |
+| `max_retries_exceeded` | Fixer exhausted retries | `retry_count >= MAX_FIXER_RETRIES` |
+| `syntax_error` | Code syntax/parse errors | "syntax" or "parse" in error |
+| `import_error` | Module import failures | "import" or "module" in error |
+| `unknown` | Uncategorized errors | Default fallback |
 
 ## Integration with Planner
 
