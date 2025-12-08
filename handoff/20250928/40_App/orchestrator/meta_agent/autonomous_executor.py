@@ -36,6 +36,12 @@ except ImportError:
     get_deepwiki_service = None  # type: ignore[assignment,misc]
     QueryType = None  # type: ignore[assignment,misc]
 
+try:
+    from webhooks.outbound_notifier import OutboundNotifier, WebhookSource
+except ImportError:
+    OutboundNotifier = None  # type: ignore[assignment,misc]
+    WebhookSource = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -121,6 +127,7 @@ class AutonomousExecutor:
         vm_provisioner: Optional[VMProvisioner] = None,
         ide_service: Optional[VSCodeIDEService] = None,
         vm_provider: VMProvider = VMProvider.LOCAL,
+        outbound_notifier: Optional[Any] = None,
     ):
         """
         Initialize the AutonomousExecutor.
@@ -137,6 +144,7 @@ class AutonomousExecutor:
             vm_provisioner: VMProvisioner for task VM management (Issue #2018)
             ide_service: VSCodeIDEService for IDE integration (Issue #2018)
             vm_provider: Default VM provider to use (Issue #2018)
+            outbound_notifier: OutboundNotifier for closed-loop notifications (Issue #2154)
         """
         self.goal_parser = goal_parser or GoalParser()
         self.task_planner = task_planner or TaskPlanner()
@@ -153,6 +161,10 @@ class AutonomousExecutor:
         self.vm_provisioner = vm_provisioner or VMProvisioner(default_provider=vm_provider)
         self.ide_service = ide_service or VSCodeIDEService()
         self.vm_provider = vm_provider
+
+        # OutboundNotifier for closed-loop notifications (Issue #2154)
+        self.outbound_notifier = outbound_notifier
+        self._notification_source: Optional[Any] = None  # WebhookSource for notifications
 
         # Current VM and IDE session for the execution
         self._current_vm: Optional[TaskVM] = None
@@ -194,9 +206,9 @@ class AutonomousExecutor:
 
         logger.info(
             "[AutonomousExecutor] Initialized with max_retries=%d, timeout=%ds, "
-            "max_loop_iterations=%d, vm_provider=%s",
+            "max_loop_iterations=%d, vm_provider=%s, outbound_notifier=%s",
             max_retries, task_timeout_seconds, self.policy.max_loop_iterations,
-            vm_provider.value)
+            vm_provider.value, "enabled" if outbound_notifier else "disabled")
 
     async def execute_goal(
         self,
@@ -314,6 +326,14 @@ class AutonomousExecutor:
             goal_text=plan.goal.original_text if hasattr(plan, 'goal') and plan.goal else "N/A",
             plan_id=plan.plan_id,
             task_count=len(plan.subtasks),
+        )
+
+        # Issue #2154: Send task started notification (closed-loop)
+        goal_text = plan.goal.original_text if hasattr(plan, 'goal') and plan.goal else "N/A"
+        await self._notify_task_started(
+            execution_id=self.current_execution.execution_id,
+            goal_text=goal_text,
+            metadata={"plan_id": plan.plan_id, "task_count": len(plan.subtasks)},
         )
 
         try:
@@ -447,6 +467,24 @@ class AutonomousExecutor:
                 duration_seconds=self.current_execution.total_duration_seconds,
             )
 
+            # Issue #2154: Send completion/failure notification (closed-loop)
+            if self.current_execution.status == ExecutionStatus.COMPLETED:
+                await self._notify_task_completed(
+                    execution_id=self.current_execution.execution_id,
+                    goal_text=goal_text,
+                    result=self.current_execution.outputs,
+                    pr_url=self.current_execution.pr_url,
+                    metadata={"plan_id": plan.plan_id},
+                )
+            elif self.current_execution.status == ExecutionStatus.FAILED:
+                error_summary = "; ".join(self.current_execution.errors[:3])
+                await self._notify_task_failed(
+                    execution_id=self.current_execution.execution_id,
+                    goal_text=goal_text,
+                    error=error_summary,
+                    metadata={"plan_id": plan.plan_id},
+                )
+
         except Exception as e:
             logger.error("[AutonomousExecutor] Plan execution failed: %s", e, exc_info=True)
             self.current_execution.status = ExecutionStatus.FAILED
@@ -455,6 +493,14 @@ class AutonomousExecutor:
                 self.audit_logger.log_execution_failed(error=str(e))
             # Clean up resources on unexpected failure (Issue #2018)
             await self.cleanup_resources()
+
+            # Issue #2154: Send failure notification (closed-loop)
+            await self._notify_task_failed(
+                execution_id=self.current_execution.execution_id,
+                goal_text=goal_text,
+                error=str(e),
+                metadata={"plan_id": plan.plan_id},
+            )
 
         self.current_execution.completed_at = datetime.now()
         self.current_execution.total_duration_seconds = (
@@ -789,8 +835,33 @@ class AutonomousExecutor:
         Issue #2018: Provisions a VM and creates an IDE session for task execution.
         The VM and IDE session are stored in instance variables for use by other
         task handlers and cleaned up in _handle_cleanup.
+
+        Issue #1959: Supports dry_run mode where VM provisioning is simulated.
         """
         logger.info("[AutonomousExecutor] Setting up environment for task %s", task.task_id)
+
+        # dry_run mode: Log planned action but don't execute (#1959)
+        if self.policy.dry_run:
+            logger.info(
+                "[AutonomousExecutor] DRY_RUN: Would provision VM for task %s",
+                task.task_id)
+            if self.audit_logger:
+                self.audit_logger.log_high_risk_operation(
+                    task_id=task.task_id,
+                    operation="setup_environment",
+                    resource=task.description[:100],
+                    risk_level="low",
+                    dry_run=True,
+                    planned_action="Provision VM and create IDE session",
+                )
+            return {
+                "environment_ready": False,
+                "dry_run": True,
+                "planned_action": "Would provision VM and create IDE session",
+                "vm_id": None,
+                "ide_session_id": None,
+                "setup_steps": ["DRY_RUN: VM provisioning skipped"],
+            }
 
         setup_steps = []
         plan_id = self.current_plan.plan_id if self.current_plan else "unknown"
@@ -920,8 +991,33 @@ class AutonomousExecutor:
         }
 
     async def _handle_write_test(self, task: SubTask) -> Dict[str, Any]:
-        """Handle test writing tasks"""
+        """
+        Handle test writing tasks.
+
+        Issue #1959: Supports dry_run mode where test writing is simulated.
+        """
         logger.info("[AutonomousExecutor] Writing tests for task %s", task.task_id)
+
+        # dry_run mode: Log planned action but don't execute (#1959)
+        if self.policy.dry_run:
+            logger.info(
+                "[AutonomousExecutor] DRY_RUN: Would write tests for task %s",
+                task.task_id)
+            if self.audit_logger:
+                self.audit_logger.log_high_risk_operation(
+                    task_id=task.task_id,
+                    operation="write_test",
+                    resource=task.description[:100],
+                    risk_level="medium",
+                    dry_run=True,
+                    planned_action="Write test files",
+                )
+            return {
+                "tests_written": False,
+                "dry_run": True,
+                "planned_action": "Would write test files",
+                "test_files": [],
+            }
 
         if self.dev_agent:
             try:
@@ -938,8 +1034,34 @@ class AutonomousExecutor:
         }
 
     async def _handle_run_test(self, task: SubTask) -> Dict[str, Any]:
-        """Handle test execution tasks"""
+        """
+        Handle test execution tasks.
+
+        Issue #1959: Supports dry_run mode where test execution is simulated.
+        """
         logger.info("[AutonomousExecutor] Running tests for task %s", task.task_id)
+
+        # dry_run mode: Log planned action but don't execute (#1959)
+        if self.policy.dry_run:
+            logger.info(
+                "[AutonomousExecutor] DRY_RUN: Would run tests for task %s",
+                task.task_id)
+            if self.audit_logger:
+                self.audit_logger.log_high_risk_operation(
+                    task_id=task.task_id,
+                    operation="run_test",
+                    resource=task.description[:100],
+                    risk_level="low",
+                    dry_run=True,
+                    planned_action="Execute test suite",
+                )
+            return {
+                "tests_passed": False,
+                "dry_run": True,
+                "planned_action": "Would execute test suite",
+                "test_count": 0,
+                "coverage": 0,
+            }
 
         if self.dev_agent:
             try:
@@ -969,8 +1091,33 @@ class AutonomousExecutor:
         }
 
     async def _handle_documentation(self, task: SubTask) -> Dict[str, Any]:
-        """Handle documentation tasks"""
+        """
+        Handle documentation tasks.
+
+        Issue #1959: Supports dry_run mode where documentation writing is simulated.
+        """
         logger.info("[AutonomousExecutor] Writing documentation for task %s", task.task_id)
+
+        # dry_run mode: Log planned action but don't execute (#1959)
+        if self.policy.dry_run:
+            logger.info(
+                "[AutonomousExecutor] DRY_RUN: Would write documentation for task %s",
+                task.task_id)
+            if self.audit_logger:
+                self.audit_logger.log_high_risk_operation(
+                    task_id=task.task_id,
+                    operation="documentation",
+                    resource=task.description[:100],
+                    risk_level="low",
+                    dry_run=True,
+                    planned_action="Update documentation files",
+                )
+            return {
+                "documentation_updated": False,
+                "dry_run": True,
+                "planned_action": "Would update documentation files",
+                "files_updated": [],
+            }
 
         await asyncio.sleep(1)
 
@@ -1132,8 +1279,32 @@ class AutonomousExecutor:
 
         Issue #2018: Closes IDE session and destroys VM to release resources.
         This ensures proper cleanup of resources created in _handle_setup_environment.
+
+        Issue #1959: Supports dry_run mode where cleanup is simulated.
         """
         logger.info("[AutonomousExecutor] Cleaning up for task %s", task.task_id)
+
+        # dry_run mode: Log planned action but don't execute (#1959)
+        if self.policy.dry_run:
+            logger.info(
+                "[AutonomousExecutor] DRY_RUN: Would cleanup resources for task %s",
+                task.task_id)
+            if self.audit_logger:
+                self.audit_logger.log_high_risk_operation(
+                    task_id=task.task_id,
+                    operation="cleanup",
+                    resource=task.description[:100],
+                    risk_level="low",
+                    dry_run=True,
+                    planned_action="Close IDE session and destroy VM",
+                )
+            return {
+                "cleanup_complete": False,
+                "dry_run": True,
+                "planned_action": "Would close IDE session and destroy VM",
+                "cleanup_steps": ["DRY_RUN: Cleanup skipped"],
+                "cleanup_failures": [],
+            }
 
         cleanup_steps = []
         cleanup_failures = []
@@ -1416,3 +1587,182 @@ class AutonomousExecutor:
                 "[AutonomousExecutor] DeepWiki error lookup failed: %s", e
             )
             return None
+
+    def set_notification_source(self, source: Any) -> None:
+        """
+        Set the webhook source for outbound notifications.
+
+        Issue #2154: Configures which external service to notify (GitHub, Jira, Slack).
+
+        Args:
+            source: WebhookSource enum value (GITHUB, JIRA, SLACK)
+        """
+        self._notification_source = source
+        logger.info(
+            "[AutonomousExecutor] Notification source set to: %s",
+            source.value if hasattr(source, 'value') else source
+        )
+
+    async def _notify_task_started(
+        self,
+        execution_id: str,
+        goal_text: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Send notification that execution has started.
+
+        Issue #2154: Closed-loop notification for task start.
+
+        Args:
+            execution_id: Execution ID
+            goal_text: Goal text
+            metadata: Additional metadata (repo, issue_number, etc.)
+        """
+        if not self.outbound_notifier or not self._notification_source:
+            return
+
+        if OutboundNotifier is None or WebhookSource is None:
+            return
+
+        try:
+            await self.outbound_notifier.notify_task_started(
+                source=self._notification_source,
+                task_id=execution_id,
+                goal_text=goal_text,
+                metadata=metadata,
+            )
+            logger.info(
+                "[AutonomousExecutor] Sent task started notification for %s",
+                execution_id
+            )
+        except Exception as e:
+            logger.warning(
+                "[AutonomousExecutor] Failed to send task started notification: %s", e
+            )
+
+    async def _notify_task_completed(
+        self,
+        execution_id: str,
+        goal_text: str,
+        result: Optional[Dict[str, Any]] = None,
+        pr_url: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Send notification that execution has completed.
+
+        Issue #2154: Closed-loop notification for task completion.
+
+        Args:
+            execution_id: Execution ID
+            goal_text: Goal text
+            result: Execution result
+            pr_url: URL of created PR (if any)
+            metadata: Additional metadata
+        """
+        if not self.outbound_notifier or not self._notification_source:
+            return
+
+        if OutboundNotifier is None or WebhookSource is None:
+            return
+
+        try:
+            await self.outbound_notifier.notify_task_completed(
+                source=self._notification_source,
+                task_id=execution_id,
+                goal_text=goal_text,
+                result=result,
+                pr_url=pr_url,
+                metadata=metadata,
+            )
+            logger.info(
+                "[AutonomousExecutor] Sent task completed notification for %s",
+                execution_id
+            )
+        except Exception as e:
+            logger.warning(
+                "[AutonomousExecutor] Failed to send task completed notification: %s", e
+            )
+
+    async def _notify_task_failed(
+        self,
+        execution_id: str,
+        goal_text: str,
+        error: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Send notification that execution has failed.
+
+        Issue #2154: Closed-loop notification for task failure.
+
+        Args:
+            execution_id: Execution ID
+            goal_text: Goal text
+            error: Error message
+            metadata: Additional metadata
+        """
+        if not self.outbound_notifier or not self._notification_source:
+            return
+
+        if OutboundNotifier is None or WebhookSource is None:
+            return
+
+        try:
+            await self.outbound_notifier.notify_task_failed(
+                source=self._notification_source,
+                task_id=execution_id,
+                goal_text=goal_text,
+                error=error,
+                metadata=metadata,
+            )
+            logger.info(
+                "[AutonomousExecutor] Sent task failed notification for %s",
+                execution_id
+            )
+        except Exception as e:
+            logger.warning(
+                "[AutonomousExecutor] Failed to send task failed notification: %s", e
+            )
+
+    async def _notify_approval_required(
+        self,
+        execution_id: str,
+        task_id: str,
+        operation: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Send notification that approval is required.
+
+        Issue #2154: Closed-loop notification for approval requests.
+
+        Args:
+            execution_id: Execution ID
+            task_id: Task ID requiring approval
+            operation: Operation requiring approval
+            metadata: Additional metadata
+        """
+        if not self.outbound_notifier or not self._notification_source:
+            return
+
+        if OutboundNotifier is None or WebhookSource is None:
+            return
+
+        try:
+            await self.outbound_notifier.notify_approval_required(
+                source=self._notification_source,
+                task_id=execution_id,
+                operation=operation,
+                resource=task_id,
+                metadata=metadata,
+            )
+            logger.info(
+                "[AutonomousExecutor] Sent approval required notification for %s",
+                task_id
+            )
+        except Exception as e:
+            logger.warning(
+                "[AutonomousExecutor] Failed to send approval required notification: %s", e
+            )
