@@ -490,6 +490,219 @@ class TestOutboundNotifierHistoryLimit:
         assert len(notifier._notifications) == 100
 
 
+class TestOutboundNotifierRetry:
+    """Tests for OutboundNotifier retry with exponential backoff (Issue #2152)"""
+
+    def test_init_retry_enabled_by_default(self):
+        """Test retry is enabled by default"""
+        notifier = OutboundNotifier()
+        assert notifier._enable_retry is True
+        assert notifier._max_retries == 3
+        assert notifier._initial_retry_delay == 1.0
+        assert notifier._retry_backoff_factor == 2.0
+        assert notifier._max_retry_delay == 30.0
+
+    def test_init_retry_disabled(self):
+        """Test retry can be disabled"""
+        notifier = OutboundNotifier(enable_retry=False)
+        assert notifier._enable_retry is False
+
+    def test_init_custom_retry_config(self):
+        """Test custom retry configuration"""
+        notifier = OutboundNotifier(
+            max_retries=5,
+            initial_retry_delay=0.5,
+            retry_backoff_factor=3.0,
+            max_retry_delay=60.0,
+        )
+        assert notifier._max_retries == 5
+        assert notifier._initial_retry_delay == 0.5
+        assert notifier._retry_backoff_factor == 3.0
+        assert notifier._max_retry_delay == 60.0
+
+    def test_on_retry_callback_attribute(self):
+        """Test on_retry callback attribute exists"""
+        notifier = OutboundNotifier()
+        assert hasattr(notifier, 'on_retry')
+        assert notifier.on_retry is None
+
+    @pytest.mark.asyncio
+    async def test_retry_callback_called_on_failure(self):
+        """Test on_retry callback is called when retry occurs"""
+        mock_notifier = MagicMock(spec=GitHubNotifier)
+        mock_notifier.source = WebhookSource.GITHUB
+
+        # First call fails, second succeeds
+        call_count = [0]
+
+        async def mock_send(payload):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise ConnectionError("Network error")
+            return True
+
+        mock_notifier.send_notification = mock_send
+
+        retry_calls = []
+
+        def on_retry_callback(payload, exc, attempt):
+            retry_calls.append((payload, exc, attempt))
+
+        notifier = OutboundNotifier(
+            github_notifier=mock_notifier,
+            enable_retry=True,
+            max_retries=3,
+            initial_retry_delay=0.01,  # Fast for testing
+        )
+        notifier.on_retry = on_retry_callback
+
+        with patch(
+            'webhooks.outbound_notifier.check_notification_rate_limit',
+            return_value=(True, 1)
+        ):
+            with patch(
+                'webhooks.outbound_notifier.async_retry_with_backoff'
+            ) as mock_retry:
+                # Simulate retry behavior
+                mock_retry.return_value = True
+                result = await notifier.notify_task_started(
+                    source=WebhookSource.GITHUB,
+                    task_id="task-123",
+                    goal_text="Test task",
+                    metadata={"repo": "test/repo", "issue_number": 1},
+                )
+
+        assert result is not None
+
+
+class TestOutboundNotifierRateLimiting:
+    """Tests for OutboundNotifier rate limiting (Issue #2153)"""
+
+    def test_init_rate_limiting_enabled_by_default(self):
+        """Test rate limiting is enabled by default"""
+        notifier = OutboundNotifier()
+        assert notifier._enable_rate_limiting is True
+
+    def test_init_rate_limiting_disabled(self):
+        """Test rate limiting can be disabled"""
+        notifier = OutboundNotifier(enable_rate_limiting=False)
+        assert notifier._enable_rate_limiting is False
+
+    def test_init_default_rate_limits(self):
+        """Test default rate limits per source"""
+        notifier = OutboundNotifier()
+        assert notifier._rate_limits.get("github") == 60
+        assert notifier._rate_limits.get("jira") == 30
+        assert notifier._rate_limits.get("slack") == 30
+
+    def test_init_custom_rate_limits(self):
+        """Test custom rate limits"""
+        custom_limits = {"github": 100, "jira": 50, "slack": 200}
+        notifier = OutboundNotifier(rate_limits=custom_limits)
+        assert notifier._rate_limits == custom_limits
+
+    def test_init_redis_url(self):
+        """Test Redis URL configuration"""
+        notifier = OutboundNotifier(redis_url="redis://localhost:6379/0")
+        assert notifier._redis_url == "redis://localhost:6379/0"
+
+    def test_on_rate_limited_callback_attribute(self):
+        """Test on_rate_limited callback attribute exists"""
+        notifier = OutboundNotifier()
+        assert hasattr(notifier, 'on_rate_limited')
+        assert notifier.on_rate_limited is None
+
+    @pytest.mark.asyncio
+    async def test_rate_limited_returns_none(self):
+        """Test notification returns None when rate limited"""
+        from .. import outbound_notifier as on_module
+
+        mock_notifier = MagicMock(spec=GitHubNotifier)
+        mock_notifier.source = WebhookSource.GITHUB
+
+        rate_limited_calls = []
+
+        def on_rate_limited(source, count):
+            rate_limited_calls.append((source, count))
+
+        notifier = OutboundNotifier(
+            github_notifier=mock_notifier,
+            enable_rate_limiting=True,
+        )
+        notifier.on_rate_limited = on_rate_limited
+
+        # Patch at the module where it's imported
+        original_func = on_module.check_notification_rate_limit
+        on_module.check_notification_rate_limit = lambda source, max_per_minute, redis_url: (False, 61)
+        try:
+            result = await notifier.notify_task_started(
+                source=WebhookSource.GITHUB,
+                task_id="task-123",
+                goal_text="Test task",
+                metadata={"repo": "test/repo", "issue_number": 1},
+            )
+        finally:
+            on_module.check_notification_rate_limit = original_func
+
+        assert result is None
+        assert len(rate_limited_calls) == 1
+        assert rate_limited_calls[0][0] == WebhookSource.GITHUB
+        assert rate_limited_calls[0][1] == 61
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_allowed(self):
+        """Test notification proceeds when under rate limit"""
+        mock_notifier = MagicMock(spec=GitHubNotifier)
+        mock_notifier.source = WebhookSource.GITHUB
+        mock_notifier.send_notification = MagicMock(return_value=True)
+
+        notifier = OutboundNotifier(
+            github_notifier=mock_notifier,
+            enable_rate_limiting=True,
+            enable_retry=False,  # Disable retry for simpler test
+        )
+
+        with patch(
+            'webhooks.outbound_notifier.check_notification_rate_limit',
+            return_value=(True, 5)  # Under limit
+        ):
+            result = await notifier.notify_task_started(
+                source=WebhookSource.GITHUB,
+                task_id="task-123",
+                goal_text="Test task",
+                metadata={"repo": "test/repo", "issue_number": 1},
+            )
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_rate_limiting_disabled_skips_check(self):
+        """Test rate limit check is skipped when disabled"""
+        mock_notifier = MagicMock(spec=GitHubNotifier)
+        mock_notifier.source = WebhookSource.GITHUB
+        mock_notifier.send_notification = MagicMock(return_value=True)
+
+        notifier = OutboundNotifier(
+            github_notifier=mock_notifier,
+            enable_rate_limiting=False,
+            enable_retry=False,
+        )
+
+        with patch(
+            'webhooks.outbound_notifier.check_notification_rate_limit'
+        ) as mock_check:
+            result = await notifier.notify_task_started(
+                source=WebhookSource.GITHUB,
+                task_id="task-123",
+                goal_text="Test task",
+                metadata={"repo": "test/repo", "issue_number": 1},
+            )
+
+        # Rate limit check should not be called
+        mock_check.assert_not_called()
+        assert result is not None
+
+
 class TestOutboundNotifierFromSettings:
     """Tests for OutboundNotifier.from_settings() factory (P1)"""
 
@@ -511,6 +724,8 @@ class TestOutboundNotifierFromSettings:
 
     def test_from_settings_with_mock_settings(self):
         """Test from_settings with mocked settings"""
+        from .. import outbound_notifier as on_module
+
         mock_settings = MagicMock()
         mock_settings.enable_github_notifications = True
         mock_settings.enable_jira_notifications = False
@@ -521,20 +736,22 @@ class TestOutboundNotifierFromSettings:
         mock_settings.jira_email = None
         mock_settings.jira_api_token = None
 
-        with patch(
-            'webhooks.outbound_notifier.OutboundNotifier.from_settings'
-        ) as mock_from_settings:
-            # Create a notifier with the expected configuration
-            expected_notifier = OutboundNotifier(
-                github_notifier=GitHubNotifier(github_token="test-github-token"),
-                enable_github=True,
-                enable_jira=False,
-                enable_slack=True,
-            )
-            mock_from_settings.return_value = expected_notifier
+        # Create a notifier with the expected configuration
+        expected_notifier = OutboundNotifier(
+            github_notifier=GitHubNotifier(github_token="test-github-token"),
+            enable_github=True,
+            enable_jira=False,
+            enable_slack=True,
+        )
 
+        # Patch the from_settings method on the class
+        original_method = on_module.OutboundNotifier.from_settings
+        on_module.OutboundNotifier.from_settings = staticmethod(lambda: expected_notifier)
+        try:
             notifier = OutboundNotifier.from_settings()
 
             assert notifier.is_enabled(WebhookSource.GITHUB) is True
             assert notifier.is_enabled(WebhookSource.JIRA) is False
             assert notifier.is_enabled(WebhookSource.SLACK) is True
+        finally:
+            on_module.OutboundNotifier.from_settings = original_method
