@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -10,19 +11,19 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@morningai/shared-ui', () => ({
-  Card: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
+  Card: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
     <div {...props}>{children}</div>
   ),
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
-  CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
-  Alert: ({ children }: { children: React.ReactNode }) => <div role="alert">{children}</div>,
-  AlertDescription: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  CardContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  CardDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+  CardHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  CardTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+  Alert: ({ children }: { children: ReactNode }) => <div role="alert">{children}</div>,
+  AlertDescription: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }))
 
 vi.mock('@/components/apple/apple-button', () => ({
-  AppleButton: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
+  AppleButton: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
     <button {...props}>{children}</button>
   ),
 }))
@@ -58,11 +59,11 @@ vi.mock('@/lib/redirect-security', () => ({
 
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => (
+    div: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
       <div {...props}>{children}</div>
     ),
   },
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
 }))
 
 // Import component after all mocks are set up
@@ -86,8 +87,8 @@ describe('LoginPage', () => {
 
   describe('Rendering', () => {
     it('should render without crashing', () => {
-      const { container } = renderLoginPage()
-      const submitButton = container.querySelector('button[type="submit"]')
+      renderLoginPage()
+      const submitButton = screen.getByRole('button', { name: /auth\.login\.loginButton/i })
       expect(submitButton).toBeInTheDocument()
     })
 
@@ -108,8 +109,8 @@ describe('LoginPage', () => {
     })
 
     it('should render submit button', () => {
-      const { container } = renderLoginPage()
-      const submitButton = container.querySelector('button[type="submit"]')
+      renderLoginPage()
+      const submitButton = screen.getByRole('button', { name: /auth\.login\.loginButton/i })
       expect(submitButton).toBeInTheDocument()
     })
 
@@ -305,12 +306,11 @@ describe('LoginPage', () => {
 
   describe('Accessibility', () => {
     it('should have proper form structure', () => {
-      const { container } = renderLoginPage()
-
-      const form = container.querySelector('form')
-      expect(form).toBeInTheDocument()
+      renderLoginPage()
 
       const emailInput = screen.getByLabelText('Email')
+      const form = emailInput.closest('form')
+      expect(form).not.toBeNull()
       expect(emailInput).toHaveAttribute('required')
 
       const passwordInput = screen.getByLabelText('auth.login.password')
