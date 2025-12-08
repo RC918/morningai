@@ -1,33 +1,15 @@
 import { getAccessToken, getOrRefreshAccessToken, refreshAccessToken, clearTokens, clearTokensAndRedirectToLogin, RefreshAccessTokenError } from './auth.ts';
+import {
+  getApiClientCsrfToken,
+  setApiClientCsrfCache,
+  bootstrapCsrf,
+  updateCsrfFromResponse,
+  UNSAFE_METHODS,
+} from './csrf-token.ts';
+
+export { bootstrapCsrf };
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (typeof process !== 'undefined' ? process.env.VITE_API_BASE_URL : '') || '';
-
-/**
- * CSRF token cache for cross-origin scenarios
- * In cross-origin requests, document.cookie cannot read cookies set by different domain
- * So we cache the token from the response body as a fallback
- */
-let csrfTokenCache: string | null = null;
-
-/**
- * Get CSRF token from cache or cookie
- * Priority: cache (from response body) > cookie (for same-origin)
- */
-function getCsrfToken(): string | null {
-  if (typeof document === 'undefined') return null;
-  
-  if (csrfTokenCache) {
-    return csrfTokenCache;
-  }
-  
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : null;
-}
-
-/**
- * HTTP methods that require CSRF token
- */
-const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
 /**
  * Build authentication headers for API requests
@@ -43,7 +25,7 @@ async function buildAuthHeaders(
   };
 
   if (UNSAFE_METHODS.includes(method.toUpperCase())) {
-    const csrfToken = getCsrfToken();
+    const csrfToken = getApiClientCsrfToken();
     if (csrfToken) {
       headers['X-CSRF-Token'] = csrfToken;
     }
@@ -164,59 +146,6 @@ export async function apiClient<T>(
     status: res.status,
     headers: res.headers,
   } as T;
-}
-
-/**
- * Bootstrap CSRF token before making authenticated requests
- * Call this on app initialization
- * 
- * P0 Fix: Cache CSRF token from response body for cross-origin scenarios
- * Backend returns { csrf_token: "..." } in response body which we can read cross-origin
- * 
- * Preview Mode: Skip CSRF bootstrap for /ux-metrics route in preview environments
- * when VITE_PREVIEW_PUBLIC_METRICS is enabled (static metrics JSON doesn't need auth)
- */
-export async function bootstrapCsrf(): Promise<void> {
-  if (typeof window !== 'undefined' && 
-      import.meta.env.VITE_PREVIEW_PUBLIC_METRICS === 'true' &&
-      window.location.pathname.startsWith('/ux-metrics')) {
-    console.debug('Skipping CSRF bootstrap for /ux-metrics in preview mode');
-    return;
-  }
-
-  if (!API_BASE_URL) {
-    console.warn('CSRF bootstrap skipped: VITE_API_BASE_URL not configured');
-    return;
-  }
-
-  try {
-    const url = `${API_BASE_URL}/api/auth/v2/csrf`;
-    console.debug('Bootstrapping CSRF token from:', url);
-    
-    const response = await fetch(url, {
-      credentials: 'include',
-    });
-    
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('CSRF bootstrap failed: Expected JSON but got', contentType, 'Status:', response.status);
-      console.error('Response preview:', text.substring(0, 200));
-      return;
-    }
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data.csrf_token) {
-        csrfTokenCache = data.csrf_token;
-        console.debug('CSRF token cached from response body');
-      }
-    } else {
-      console.error('CSRF bootstrap failed with status:', response.status);
-    }
-  } catch (error) {
-    console.warn('Failed to bootstrap CSRF token:', error);
-  }
 }
 
 /**
@@ -408,9 +337,7 @@ export async function apiClientWithMeta<T>(
 
     clearTimeout(timeoutId);
 
-    if (response.headers.get('X-CSRF-Token')) {
-      csrfTokenCache = response.headers.get('X-CSRF-Token');
-    }
+    updateCsrfFromResponse(response.headers);
 
     // Handle 401 responses - only retry for "Token expired" cases
     if (response.status === 401) {
@@ -452,9 +379,7 @@ export async function apiClientWithMeta<T>(
           
           clearTimeout(retryTimeoutId);
           
-          if (retryResponse.headers.get('X-CSRF-Token')) {
-            csrfTokenCache = retryResponse.headers.get('X-CSRF-Token');
-          }
+          updateCsrfFromResponse(retryResponse.headers);
           
           if (retryResponse.status === 401) {
             // Retry also failed - clear tokens and redirect to login
