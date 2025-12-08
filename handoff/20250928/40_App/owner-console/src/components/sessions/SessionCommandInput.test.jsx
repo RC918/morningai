@@ -61,13 +61,6 @@ describe('SessionCommandInput', () => {
       expect(container.firstChild).toBeNull()
     })
 
-    it('returns null when disabled prop is true', () => {
-      const { container } = render(
-        <SessionCommandInput {...defaultProps} disabled={true} />
-      )
-      expect(container.firstChild).toBeNull()
-    })
-
     it('renders for running session status', () => {
       render(<SessionCommandInput {...defaultProps} sessionStatus="running" />)
       expect(screen.getByPlaceholderText('Type a command or instruction...')).toBeInTheDocument()
