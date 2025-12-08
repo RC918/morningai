@@ -546,7 +546,7 @@
               "suites": "Test Suites",
               "running": "Running..."
             },
-            "confidence": {
+            "confidenceLevel": {
               "high": "High",
               "medium": "Medium",
               "low": "Low"
