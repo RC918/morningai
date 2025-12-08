@@ -44,6 +44,7 @@ import {
   ConfidenceApproval,
   FileDiffViewer,
   SessionInsights,
+  SessionCommandInput,
   CONFIDENCE_THRESHOLD,
   MEDIUM_CONFIDENCE_THRESHOLD,
   validateConfidence
@@ -907,6 +908,26 @@ const Sessions = () => {
     }
   }, [selectedSession, refreshSessionsSilently, handleCloseConfidenceApproval, t])
 
+  const handleSendCommand = useCallback(async ({ sessionId, command, type, timestamp }) => {
+    if (!sessionId || !command) {
+      return
+    }
+    try {
+      await apiClientWithMeta(`/api/sessions/${sessionId}/command`, {
+        method: 'POST',
+        body: JSON.stringify({ command, type: type || 'user_command', timestamp })
+      })
+      refreshSessionsSilently()
+    } catch (err) {
+      const errorMessage = handleApiError(err, {
+        defaultMessage: t('sessions.command.error.sendFailed', 'Failed to send command'),
+        logContext: 'Sessions.handleSendCommand'
+      })
+      setError(errorMessage)
+      throw err
+    }
+  }, [refreshSessionsSilently, t])
+
   if (loading) {
     return (
       <div className="space-y-8" role="status" aria-live="polite" aria-busy="true" aria-label={t('common.loading')}>
@@ -1373,6 +1394,14 @@ const Sessions = () => {
                   />
                 </TabsContent>
               </Tabs>
+
+              {/* Session Command Input (#1823) - Quick command/response feature */}
+              <SessionCommandInput
+                sessionId={selectedSession.id}
+                sessionStatus={selectedSession.status}
+                onSendCommand={handleSendCommand}
+                disabled={selectedSession.status === 'completed' || selectedSession.status === 'failed'}
+              />
 
               {/* Session Footer */}
               <div className="px-5 py-3 border-t border-[var(--border)] text-xs text-[var(--text-secondary)]">

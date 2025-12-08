@@ -636,6 +636,23 @@
               "label": "Auto",
               "enabled": "Auto-refresh enabled (10s)",
               "disabled": "Auto-refresh disabled"
+            },
+            "command": {
+              "quickActions": "Quick actions:",
+              "placeholder": "Type a command or instruction...",
+              "inputLabel": "Command input",
+              "send": "Send command",
+              "collapse": "Collapse input",
+              "hint": "Press Enter to send, Shift+Enter for new line, Esc to cancel",
+              "quick": {
+                "continue": "Continue",
+                "explain": "Explain current step",
+                "skip": "Skip this task",
+                "retry": "Retry last action"
+              },
+              "error": {
+                "sendFailed": "Failed to send command"
+              }
             }
           },
           "approvalQueue": {

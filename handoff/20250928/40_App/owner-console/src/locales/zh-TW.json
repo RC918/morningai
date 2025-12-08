@@ -635,6 +635,23 @@
             "label": "自動",
             "enabled": "自動刷新已啟用 (10秒)",
             "disabled": "自動刷新已停用"
+          },
+          "command": {
+            "quickActions": "快速操作：",
+            "placeholder": "輸入指令或說明...",
+            "inputLabel": "指令輸入",
+            "send": "發送指令",
+            "collapse": "收合輸入",
+            "hint": "按 Enter 發送，Shift+Enter 換行，Esc 取消",
+            "quick": {
+              "continue": "繼續",
+              "explain": "說明目前步驟",
+              "skip": "跳過此任務",
+              "retry": "重試上一個操作"
+            },
+            "error": {
+              "sendFailed": "發送指令失敗"
+            }
           }
         },
         "approvalQueue": {
