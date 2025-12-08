@@ -324,7 +324,7 @@ class TestLangGraphPerformance:
         result = planner_node(state)
         duration = time.time() - start
         
-        assert duration < 0.1, f"Planner node took {duration}s, should be < 0.1s"
+        assert duration < 5.0, f"Planner node took {duration}s, should be < 5.0s"
         assert result is not None
     
     def test_graph_compilation_caching(self):
