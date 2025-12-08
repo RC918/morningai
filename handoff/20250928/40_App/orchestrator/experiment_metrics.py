@@ -15,11 +15,12 @@ Dependencies:
 
 import logging
 import math
+import threading
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
-from collections import defaultdict
+from typing import Dict, List, Optional, Any, Tuple, Deque
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,8 @@ class MetricsCollector:
     - Track completion times
     - Track merge rates
     - Aggregate metrics by experiment and variant
+    - Incremental aggregation for O(1) metric retrieval
+    - Thread-safe operations
     
     Usage:
         collector = MetricsCollector()
@@ -240,9 +243,12 @@ class MetricsCollector:
         Args:
             max_data_points: Maximum number of data points to store per experiment
         """
-        self._data_points: Dict[str, List[MetricDataPoint]] = defaultdict(list)
+        # Use deque for efficient O(1) append and popleft operations
+        self._data_points: Dict[str, Deque[MetricDataPoint]] = defaultdict(deque)
+        # Live aggregates maintained incrementally (no cache invalidation needed)
         self._metrics_cache: Dict[str, Dict[str, ExperimentMetrics]] = {}
         self._max_data_points = max_data_points
+        self._lock = threading.Lock()
         
         logger.info(
             f"[MetricsCollector] Initialized with max_data_points={max_data_points}"
@@ -281,9 +287,6 @@ class MetricsCollector:
             }
         )
         
-        # Invalidate cache
-        self._invalidate_cache(experiment_name)
-        
         logger.debug(
             f"[MetricsCollector] Recorded success for experiment={experiment_name}, "
             f"variant={variant}, completion_time_ms={completion_time_ms}"
@@ -319,9 +322,6 @@ class MetricsCollector:
             }
         )
         
-        # Invalidate cache
-        self._invalidate_cache(experiment_name)
-        
         logger.debug(
             f"[MetricsCollector] Recorded failure for experiment={experiment_name}, "
             f"variant={variant}, error_type={error_type}"
@@ -353,9 +353,6 @@ class MetricsCollector:
             trace_id=trace_id,
             metadata=metadata or {}
         )
-        
-        # Invalidate cache
-        self._invalidate_cache(experiment_name)
     
     def _record_data_point(
         self,
@@ -366,7 +363,12 @@ class MetricsCollector:
         trace_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> None:
-        """Record a single data point"""
+        """
+        Record a single data point with incremental aggregation.
+        
+        Uses thread-safe operations and maintains live aggregates
+        for O(1) metric retrieval.
+        """
         data_point = MetricDataPoint(
             experiment_name=experiment_name,
             variant=variant,
@@ -376,17 +378,73 @@ class MetricsCollector:
             metadata=metadata or {}
         )
         
-        key = experiment_name
-        self._data_points[key].append(data_point)
-        
-        # Trim old data points if exceeding max
-        if len(self._data_points[key]) > self._max_data_points:
-            self._data_points[key] = self._data_points[key][-self._max_data_points:]
+        with self._lock:
+            key = experiment_name
+            
+            # Initialize aggregates if this is a new experiment
+            if key not in self._metrics_cache:
+                self._metrics_cache[key] = {
+                    "control": ExperimentMetrics(experiment_name=key, variant="control"),
+                    "treatment": ExperimentMetrics(experiment_name=key, variant="treatment")
+                }
+            
+            metrics_by_variant = self._metrics_cache[key]
+            points = self._data_points[key]
+            
+            # If at capacity, remove oldest point and subtract from aggregates
+            if len(points) >= self._max_data_points:
+                old_dp = points.popleft()
+                old_metrics = metrics_by_variant.get(old_dp.variant)
+                if old_metrics is not None:
+                    self._apply_data_point_to_metrics(old_metrics, old_dp, sign=-1)
+            
+            # Add new point and update aggregates
+            points.append(data_point)
+            new_metrics = metrics_by_variant.get(variant)
+            if new_metrics is not None:
+                self._apply_data_point_to_metrics(new_metrics, data_point, sign=+1)
     
-    def _invalidate_cache(self, experiment_name: str) -> None:
-        """Invalidate metrics cache for an experiment"""
-        if experiment_name in self._metrics_cache:
-            del self._metrics_cache[experiment_name]
+    def _apply_data_point_to_metrics(
+        self,
+        metrics: ExperimentMetrics,
+        dp: MetricDataPoint,
+        sign: int
+    ) -> None:
+        """
+        Apply or unapply a data point to/from metrics.
+        
+        Args:
+            metrics: The ExperimentMetrics to update
+            dp: The data point to apply
+            sign: +1 to add, -1 to subtract
+        """
+        metrics.sample_size += sign
+        metrics.total_requests += sign
+        
+        if dp.metric_type == MetricType.SUCCESS_RATE:
+            metrics.success_count += sign
+            completion_time = dp.metadata.get("completion_time_ms", 0)
+            metrics.total_completion_time_ms += sign * completion_time
+            if sign > 0:
+                metrics.latencies.append(completion_time)
+            else:
+                # Defensive removal - only remove if present
+                try:
+                    metrics.latencies.remove(completion_time)
+                except ValueError:
+                    pass  # Already removed or not present
+            if dp.metadata.get("merged", False):
+                metrics.merge_count += sign
+        elif dp.metric_type == MetricType.ERROR_RATE:
+            metrics.failure_count += sign
+        elif dp.metric_type == MetricType.COMPLETION_TIME_MS:
+            if sign > 0:
+                metrics.latencies.append(dp.value)
+            else:
+                try:
+                    metrics.latencies.remove(dp.value)
+                except ValueError:
+                    pass  # Already removed or not present
     
     def get_metrics(
         self,
@@ -394,7 +452,10 @@ class MetricsCollector:
         since: Optional[datetime] = None
     ) -> Dict[str, ExperimentMetrics]:
         """
-        Get aggregated metrics for an experiment
+        Get aggregated metrics for an experiment.
+        
+        Fast path (since=None): O(1) - returns live aggregates
+        Slow path (since specified): O(N) - scans data points with time filter
         
         Args:
             experiment_name: Name of the experiment
@@ -403,55 +464,50 @@ class MetricsCollector:
         Returns:
             Dict mapping variant to ExperimentMetrics
         """
-        # Check cache
-        cache_key = experiment_name
-        if cache_key in self._metrics_cache and since is None:
-            return self._metrics_cache[cache_key]
-        
-        # Aggregate metrics
-        metrics: Dict[str, ExperimentMetrics] = {
-            "control": ExperimentMetrics(experiment_name=experiment_name, variant="control"),
-            "treatment": ExperimentMetrics(experiment_name=experiment_name, variant="treatment")
-        }
-        
-        data_points = self._data_points.get(experiment_name, [])
-        
-        for dp in data_points:
-            # Filter by time if specified
-            if since is not None:
+        with self._lock:
+            # Fast path: return live aggregates (O(1))
+            if since is None:
+                if experiment_name not in self._metrics_cache:
+                    # Initialize empty metrics for unknown experiment
+                    self._metrics_cache[experiment_name] = {
+                        "control": ExperimentMetrics(
+                            experiment_name=experiment_name, variant="control"
+                        ),
+                        "treatment": ExperimentMetrics(
+                            experiment_name=experiment_name, variant="treatment"
+                        )
+                    }
+                return self._metrics_cache[experiment_name]
+            
+            # Slow path: scan with time filter (O(N))
+            metrics: Dict[str, ExperimentMetrics] = {
+                "control": ExperimentMetrics(
+                    experiment_name=experiment_name, variant="control"
+                ),
+                "treatment": ExperimentMetrics(
+                    experiment_name=experiment_name, variant="treatment"
+                )
+            }
+            
+            data_points = self._data_points.get(experiment_name, deque())
+            
+            for dp in data_points:
                 dp_time = datetime.fromisoformat(dp.timestamp.replace('Z', '+00:00'))
                 if dp_time < since:
                     continue
+                
+                variant = dp.variant
+                if variant not in metrics:
+                    continue
+                
+                self._apply_data_point_to_metrics(metrics[variant], dp, sign=+1)
             
-            variant = dp.variant
-            if variant not in metrics:
-                continue
-            
-            m = metrics[variant]
-            m.sample_size += 1
-            m.total_requests += 1
-            
-            if dp.metric_type == MetricType.SUCCESS_RATE:
-                m.success_count += 1
-                completion_time = dp.metadata.get("completion_time_ms", 0)
-                m.total_completion_time_ms += completion_time
-                m.latencies.append(completion_time)
-                if dp.metadata.get("merged", False):
-                    m.merge_count += 1
-            elif dp.metric_type == MetricType.ERROR_RATE:
-                m.failure_count += 1
-            elif dp.metric_type == MetricType.COMPLETION_TIME_MS:
-                m.latencies.append(dp.value)
-        
-        # Cache results (only if no time filter)
-        if since is None:
-            self._metrics_cache[cache_key] = metrics
-        
-        return metrics
+            return metrics
     
     def get_all_experiments(self) -> List[str]:
         """Get list of all experiments with recorded metrics"""
-        return list(self._data_points.keys())
+        with self._lock:
+            return list(self._data_points.keys())
     
     def clear_metrics(self, experiment_name: Optional[str] = None) -> None:
         """
@@ -460,13 +516,15 @@ class MetricsCollector:
         Args:
             experiment_name: Optional experiment to clear (clears all if None)
         """
-        if experiment_name:
-            if experiment_name in self._data_points:
-                del self._data_points[experiment_name]
-            self._invalidate_cache(experiment_name)
-        else:
-            self._data_points.clear()
-            self._metrics_cache.clear()
+        with self._lock:
+            if experiment_name:
+                if experiment_name in self._data_points:
+                    del self._data_points[experiment_name]
+                if experiment_name in self._metrics_cache:
+                    del self._metrics_cache[experiment_name]
+            else:
+                self._data_points.clear()
+                self._metrics_cache.clear()
         
         logger.info(
             f"[MetricsCollector] Cleared metrics for "
@@ -870,16 +928,23 @@ class ExperimentAnalyzer:
         }
 
 
-# Global instances (lazy initialization)
+# Global instances (lazy initialization with thread safety)
+_singleton_lock = threading.Lock()
 _metrics_collector: Optional[MetricsCollector] = None
 _experiment_analyzer: Optional[ExperimentAnalyzer] = None
 
 
 def get_metrics_collector() -> MetricsCollector:
-    """Get or create the global MetricsCollector instance"""
+    """
+    Get or create the global MetricsCollector instance.
+    
+    Thread-safe with double-checked locking pattern.
+    """
     global _metrics_collector
     if _metrics_collector is None:
-        _metrics_collector = MetricsCollector()
+        with _singleton_lock:
+            if _metrics_collector is None:
+                _metrics_collector = MetricsCollector()
     return _metrics_collector
 
 
@@ -887,23 +952,34 @@ def get_experiment_analyzer(
     confidence_level: float = 0.95,
     min_sample_size: int = 100
 ) -> ExperimentAnalyzer:
-    """Get or create the global ExperimentAnalyzer instance"""
+    """
+    Get or create the global ExperimentAnalyzer instance.
+    
+    Thread-safe with double-checked locking pattern.
+    
+    Note: Parameters are only used on first initialization.
+    Subsequent calls return the existing instance regardless of parameters.
+    """
     global _experiment_analyzer
     if _experiment_analyzer is None:
-        _experiment_analyzer = ExperimentAnalyzer(
-            confidence_level=confidence_level,
-            min_sample_size=min_sample_size
-        )
+        with _singleton_lock:
+            if _experiment_analyzer is None:
+                _experiment_analyzer = ExperimentAnalyzer(
+                    confidence_level=confidence_level,
+                    min_sample_size=min_sample_size
+                )
     return _experiment_analyzer
 
 
 def reset_metrics_collector() -> None:
     """Reset the global metrics collector (useful for testing)"""
     global _metrics_collector
-    _metrics_collector = None
+    with _singleton_lock:
+        _metrics_collector = None
 
 
 def reset_experiment_analyzer() -> None:
     """Reset the global experiment analyzer (useful for testing)"""
     global _experiment_analyzer
-    _experiment_analyzer = None
+    with _singleton_lock:
+        _experiment_analyzer = None
