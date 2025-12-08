@@ -37,6 +37,7 @@ const ApprovalQueue = () => {
   const [shouldFocusDetails, setShouldFocusDetails] = useState(false)
   const listRef = useRef(null)
   const detailsRef = useRef(null)
+  const isRefreshingRef = useRef(false) // In-flight guard to prevent race conditions
 
   const sortRequests = useCallback((requests) => {
     return [...requests].sort((a, b) => {
@@ -53,8 +54,15 @@ const ApprovalQueue = () => {
   }, [])
 
   const loadApprovalData = useCallback(async (isAutoRefresh = false) => {
+    // In-flight guard to prevent race conditions during auto-refresh
+    if (isAutoRefresh && isRefreshingRef.current) {
+      return
+    }
+    
     try {
-      if (!isAutoRefresh) {
+      if (isAutoRefresh) {
+        isRefreshingRef.current = true
+      } else {
         setLoading(true)
       }
       setError(null)
@@ -83,7 +91,9 @@ const ApprovalQueue = () => {
       })
       setError(message)
     } finally {
-      if (!isAutoRefresh) {
+      if (isAutoRefresh) {
+        isRefreshingRef.current = false
+      } else {
         setLoading(false)
       }
     }
@@ -94,15 +104,33 @@ const ApprovalQueue = () => {
     loadApprovalData()
   }, [loadApprovalData])
 
-  // Auto-refresh
+  // Auto-refresh using recursive setTimeout to avoid race conditions
+  // setTimeout ensures the next refresh only starts after the previous one completes
   useEffect(() => {
     if (!autoRefresh) return
     
-    const intervalId = setInterval(() => {
-      loadApprovalData(true)
-    }, AUTO_REFRESH_INTERVAL)
+    let timeoutId = null
+    let isMounted = true
     
-    return () => clearInterval(intervalId)
+    const scheduleNextRefresh = async () => {
+      if (!isMounted) return
+      
+      await loadApprovalData(true)
+      
+      if (isMounted) {
+        timeoutId = setTimeout(scheduleNextRefresh, AUTO_REFRESH_INTERVAL)
+      }
+    }
+    
+    // Start the first refresh after the interval
+    timeoutId = setTimeout(scheduleNextRefresh, AUTO_REFRESH_INTERVAL)
+    
+    return () => {
+      isMounted = false
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
   }, [autoRefresh, loadApprovalData])
 
   // Focus management for details panel (replaces setTimeout with requestAnimationFrame)
