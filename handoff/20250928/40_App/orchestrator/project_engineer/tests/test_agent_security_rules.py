@@ -520,16 +520,20 @@ class TestSecurityEdgeCases:
     """Test edge cases for security validation"""
 
     def test_validate_repo_with_special_characters(self):
-        """Should handle repo names with special characters"""
+        """Should reject repos with special characters that are not allowlisted"""
         agent = ProjectEngineerAgent()
         is_allowed, error = agent._validate_repo_allowed("user/repo-with-dashes")
-        assert isinstance(is_allowed, bool)
+        assert is_allowed is False
+        assert error != ""
+        assert "not allowed" in error.lower() or "not in" in error.lower()
 
     def test_validate_repo_with_numbers(self):
-        """Should handle repo names with numbers"""
+        """Should reject repos with numbers that are not allowlisted"""
         agent = ProjectEngineerAgent()
         is_allowed, error = agent._validate_repo_allowed("user123/repo456")
-        assert isinstance(is_allowed, bool)
+        assert is_allowed is False
+        assert error != ""
+        assert "not allowed" in error.lower() or "not in" in error.lower()
 
     @pytest.mark.asyncio
     async def test_process_step_exception_handling(self):
