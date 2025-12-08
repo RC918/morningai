@@ -15,6 +15,13 @@
  * - API Client mode (getApiClientCsrfToken): Cache > Cookie
  *   Used by api-client.ts to preserve cross-origin behavior where cache takes priority
  *
+ * IMPORTANT: Choosing the Correct Mode
+ * -------------------------------------
+ * - For auth flows (login, logout, token refresh): Use `getCsrfToken()` (cookie-first)
+ * - For API client requests: Use `getApiClientCsrfToken()` (cache-first)
+ * - Do NOT use `getApiClientCsrfToken()` in auth flows - this will break cookie rotation
+ * - Do NOT use `getCsrfToken()` in cross-origin API requests - this may cause issues
+ *
  * @module csrf-token
  */
 
