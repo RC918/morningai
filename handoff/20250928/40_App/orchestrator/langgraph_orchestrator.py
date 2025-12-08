@@ -1383,7 +1383,7 @@ def ci_monitor_node(state: AgentState) -> AgentState:
     """
     CI Monitor node: Checks CI status and determines next action
     """
-    from tools.github_api import get_repo, get_pr_checks
+    from tools import github_api
     from exceptions import GitHubAuthenticationError, GitHubResourceNotFoundError
 
     start_time = time.time()
@@ -1408,8 +1408,8 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 
     # Check if GitHub token is configured before attempting to call GitHub API
     # This prevents noisy Sentry alerts in environments where GitHub is not configured
-    github_token = getattr(settings, 'agent_github_token', None) or getattr(settings, 'github_token', None)
-    github_token_configured = bool(github_token)
+    # Use github_api.GITHUB_TOKEN so tests can patch it (same source as the API layer)
+    github_token_configured = bool(github_api.GITHUB_TOKEN)
     if not github_token_configured:
         logger.info("[CI Monitor] GitHub token not configured, skipping CI checks", extra={
             "operation": "ci_monitor",
@@ -1439,8 +1439,8 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 
     success = True
     try:
-        repo = get_repo()
-        ci_state, checks = get_pr_checks(repo, pr_number)
+        repo = github_api.get_repo()
+        ci_state, checks = github_api.get_pr_checks(repo, pr_number)
 
         state["ci_state"] = ci_state
         state["ci_checks"] = checks
