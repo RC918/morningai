@@ -1,10 +1,93 @@
 import os
 import logging
 import ssl
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Iterator, List
 from common.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+class UpstashRedisAdapter:
+    """
+    Adapter class that wraps Upstash Redis client to provide redis-py compatible interface.
+
+    The Upstash Redis Python SDK has a different API than the standard redis-py library.
+    This adapter provides compatibility for methods like scan_iter that don't exist in Upstash.
+
+    Issue: Upstash Redis client doesn't have scan_iter method, causing AttributeError
+    in sessions.py and other places that use scan_iter.
+    """
+
+    def __init__(self, client):
+        """
+        Initialize the adapter with an Upstash Redis client.
+
+        Args:
+            client: The underlying Upstash Redis client instance
+        """
+        self._client = client
+
+    def scan_iter(self, match: Optional[str] = None, count: Optional[int] = None) -> Iterator[str]:
+        """
+        Iterate over keys matching a pattern using SCAN command.
+
+        This method emulates redis-py's scan_iter using Upstash's scan method.
+        Upstash scan returns (cursor, keys) tuple where cursor can be int or str.
+
+        Args:
+            match: Pattern to match keys against (e.g., "prefix:*")
+            count: Hint for number of keys to return per iteration
+
+        Yields:
+            str: Keys matching the pattern
+        """
+        cursor = 0
+        while True:
+            result = self._client.scan(cursor=cursor, match=match, count=count)
+            # Upstash returns [cursor, [keys]] or (cursor, keys)
+            if isinstance(result, (list, tuple)) and len(result) >= 2:
+                new_cursor = result[0]
+                keys = result[1] if len(result) > 1 else []
+            else:
+                # Fallback for unexpected format
+                logger.warning(f"Unexpected scan result format: {type(result)}")
+                break
+
+            for key in keys:
+                yield key
+
+            # Handle cursor as int or string
+            if new_cursor in (0, "0", b"0"):
+                break
+            cursor = int(new_cursor) if isinstance(new_cursor, str) else new_cursor
+
+    def mget(self, *keys) -> List[Optional[str]]:
+        """
+        Get values for multiple keys.
+
+        Ensures compatibility with both redis-py style (list of keys) and
+        Upstash style (varargs).
+
+        Args:
+            *keys: Keys to retrieve (can be passed as list or varargs)
+
+        Returns:
+            List of values (None for missing keys)
+        """
+        # Handle case where a single list is passed
+        if len(keys) == 1 and isinstance(keys[0], (list, tuple)):
+            keys = keys[0]
+        return self._client.mget(*keys)
+
+    def __getattr__(self, name):
+        """
+        Delegate all other attribute access to the underlying client.
+
+        This allows the adapter to be used as a drop-in replacement for
+        the Upstash client while providing additional compatibility methods.
+        """
+        return getattr(self._client, name)
+
 
 def create_redis_client(skip_ping: bool = False):
     """
@@ -13,11 +96,11 @@ def create_redis_client(skip_ping: bool = False):
     1. Upstash Redis (HTTPS REST API)
     2. Redis Cloud (TLS TCP)
     3. Local Redis (non-TLS fallback)
-    
+
     Args:
         skip_ping: If True, skip the initial ping check (useful for testing)
     """
-    
+
     upstash_url = get_settings().upstash_redis_rest_url
     if upstash_url:
         try:
@@ -29,7 +112,8 @@ def create_redis_client(skip_ping: bool = False):
             if not skip_ping:
                 client.ping()
                 logger.info("✅ Connected to Upstash Redis (HTTPS)")
-            return client
+            # Wrap with adapter to provide redis-py compatible interface (scan_iter, etc.)
+            return UpstashRedisAdapter(client)
         except ImportError:
             logger.warning("⚠️ upstash-redis not installed, falling back to standard Redis")
         except Exception as e:
@@ -39,15 +123,15 @@ def create_redis_client(skip_ping: bool = False):
             else:
                 logger.debug(f"Upstash Redis client created (ping skipped): {e}")
                 raise
-    
+
     redis_url = get_settings().redis_url
     if redis_url:
         try:
             import redis
-            
+
             if not redis_url.startswith("rediss://"):
                 logger.warning("⚠️ Redis URL not using TLS (rediss://), recommend upgrading for security")
-            
+
             client = redis.from_url(
                 redis_url,
                 decode_responses=True,
@@ -55,12 +139,12 @@ def create_redis_client(skip_ping: bool = False):
                 socket_timeout=5,
                 retry_on_timeout=True
             )
-            
+
             if not skip_ping:
                 client.ping()
                 tls_status = "TLS" if redis_url.startswith("rediss://") else "non-TLS"
                 logger.info(f"✅ Connected to Redis ({tls_status})")
-            
+
             return client
         except Exception as e:
             if not skip_ping:
@@ -69,7 +153,7 @@ def create_redis_client(skip_ping: bool = False):
             else:
                 logger.debug(f"Redis client created (ping skipped): {e}")
                 raise
-    
+
     raise ValueError("❌ No Redis configuration found (UPSTASH_REDIS_REST_URL or REDIS_URL)")
 
 redis_client: Optional[object] = None
@@ -85,7 +169,7 @@ def get_redis_connection_info():
     """Get Redis connection information for health checks"""
     upstash_url = get_settings().upstash_redis_rest_url
     redis_url = get_settings().redis_url
-    
+
     if upstash_url:
         return {
             "type": "upstash",
@@ -112,13 +196,13 @@ def get_redis_connection_info():
 def check_redis_security() -> Dict[str, Any]:
     """
     Check Redis security status and version
-    
+
     Returns:
         Dict containing security status and recommendations
     """
     try:
         client = get_redis_client()
-        
+
         upstash_url = get_settings().upstash_redis_rest_url
         if upstash_url:
             return {
@@ -128,40 +212,40 @@ def check_redis_security() -> Dict[str, Any]:
                 "cve_2025_49844_risk": "low",
                 "recommendations": []
             }
-        
+
         redis_url = get_settings().redis_url
         if redis_url:
             info = client.info("server")
             redis_version = info.get("redis_version", "unknown")
-            
+
             try:
                 parts = redis_version.split(".")
-                
+
                 major = int(parts[0]) if len(parts) > 0 else 0
                 minor = int(parts[1]) if len(parts) > 1 else 0
-                
+
                 if len(parts) > 2:
                     patch_str = parts[2].split("-")[0].split("+")[0]  # Remove suffixes
                     patch = int(patch_str) if patch_str.isdigit() else 0
                 else:
                     patch = 0
-                
+
                 version_tuple = (major, minor, patch)
             except (ValueError, AttributeError, IndexError) as e:
                 logger.warning(f"Failed to parse Redis version '{redis_version}': {e}")
                 version_tuple = (0, 0, 0)
-            
+
             is_vulnerable = version_tuple < (8, 2, 2)
-            
+
             is_tls = redis_url.startswith("rediss://")
-            
+
             recommendations = []
             if is_vulnerable:
                 recommendations.append("⚠️ CRITICAL: Upgrade Redis to 8.2.2+ to fix CVE-2025-49844 (RediShell)")
                 recommendations.append("Temporary mitigation: Disable Lua scripts via ACL")
             if not is_tls:
                 recommendations.append("⚠️ Enable TLS encryption (use rediss:// instead of redis://)")
-            
+
             return {
                 "status": "vulnerable" if is_vulnerable else "secure",
                 "type": "redis",
@@ -171,7 +255,7 @@ def check_redis_security() -> Dict[str, Any]:
                 "message": f"Redis {redis_version} - {'VULNERABLE' if is_vulnerable else 'Secure'}",
                 "recommendations": recommendations
             }
-        
+
         return {
             "status": "unknown",
             "type": "none",
@@ -179,7 +263,7 @@ def check_redis_security() -> Dict[str, Any]:
             "cve_2025_49844_risk": "unknown",
             "recommendations": ["Configure Redis connection"]
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to check Redis security: {e}")
         return {
