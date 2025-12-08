@@ -12,6 +12,8 @@ This node is triggered when:
 
 The stored data enables the Planner to query past failures and
 learn from previous mistakes.
+
+Issue #2124: Added latency metrics for failure learning observability.
 """
 
 import logging
@@ -19,6 +21,14 @@ import time
 from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
+
+# Issue #2124: Import metrics for failure learning observability
+try:
+    from orchestrator_metrics import get_orchestrator_metrics
+    _METRICS_AVAILABLE = True
+except ImportError:
+    _METRICS_AVAILABLE = False
+    get_orchestrator_metrics = None
 
 # Named constants for magic numbers (#1839)
 # Maximum number of fixer retries before triggering observer
@@ -239,6 +249,19 @@ def observe_failure(
     latency_ms = (time.time() - start_time) * 1000
     result["latency_ms"] = latency_ms
 
+    # Issue #2124: Record failure observation metrics
+    if _METRICS_AVAILABLE and get_orchestrator_metrics is not None:
+        try:
+            metrics = get_orchestrator_metrics()
+            metrics.record_failure_observation(
+                trace_id=trace_id,
+                error_type=error_type,
+                saved_to_pgvector=result["saved_to_pgvector"],
+                latency_ms=latency_ms
+            )
+        except Exception as e:
+            logger.debug(f"[Observer] Failed to record metrics: {e}")
+
     logger.info("[Observer] Failure observation complete", extra={
         "operation": "observe_failure",
         "trace_id": trace_id,
@@ -254,7 +277,8 @@ def query_past_failures(
     error_text: str,
     limit: int = DEFAULT_QUERY_LIMIT,
     threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
-    error_type_filter: Optional[str] = None
+    error_type_filter: Optional[str] = None,
+    trace_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Query past failures similar to the given error.
@@ -267,10 +291,14 @@ def query_past_failures(
         limit: Maximum number of results
         threshold: Minimum similarity score (0.0 to 1.0)
         error_type_filter: Optional filter by error type
+        trace_id: Optional trace ID for metrics (Issue #2124)
 
     Returns:
         List of similar past failures with their fixes
     """
+    start_time = time.time()
+    results = []
+
     try:
         from memory.error_fix_pairs import find_similar_errors
 
@@ -281,7 +309,6 @@ def query_past_failures(
             error_type_filter=error_type_filter
         )
 
-        results = []
         for pair in similar_pairs:
             results.append({
                 "id": pair.id,
@@ -295,20 +322,34 @@ def query_past_failures(
             })
 
         logger.debug(f"[Observer] Found {len(results)} similar past failures")
-        return results
 
     except ImportError as e:
         logger.debug(f"[Observer] error_fix_pairs module not available: {e}")
-        return []
     except Exception as e:
         logger.warning(f"[Observer] Failed to query past failures: {e}")
-        return []
+
+    # Issue #2124: Record query metrics
+    latency_ms = (time.time() - start_time) * 1000
+    if _METRICS_AVAILABLE and get_orchestrator_metrics is not None:
+        try:
+            metrics = get_orchestrator_metrics()
+            metrics.record_failure_query(
+                trace_id=trace_id or "unknown",
+                results_count=len(results),
+                latency_ms=latency_ms,
+                query_type="similar_errors"
+            )
+        except Exception as e:
+            logger.debug(f"[Observer] Failed to record query metrics: {e}")
+
+    return results
 
 
 def get_learning_context(
     goal: str,
     task_type: Optional[str] = None,
-    limit: int = DEFAULT_QUERY_LIMIT
+    limit: int = DEFAULT_QUERY_LIMIT,
+    trace_id: Optional[str] = None
 ) -> str:
     """
     Get learning context from past failures for the Planner.
@@ -321,21 +362,27 @@ def get_learning_context(
         goal: The current task goal
         task_type: Optional task type for filtering
         limit: Maximum number of past failures to include
+        trace_id: Optional trace ID for metrics (Issue #2124)
 
     Returns:
         Formatted context string for the Planner
     """
+    start_time = time.time()
     context_parts = []
+    has_past_failures = False
+    has_kg_patterns = False
 
     # Query past failures from error-fix pairs
     try:
         past_failures = query_past_failures(
             error_text=goal,
             limit=limit,
-            threshold=DEFAULT_SIMILARITY_THRESHOLD
+            threshold=DEFAULT_SIMILARITY_THRESHOLD,
+            trace_id=trace_id
         )
 
         if past_failures:
+            has_past_failures = True
             context_parts.append("## Past Experience (Similar Failures):\n")
 
             for i, failure in enumerate(past_failures, 1):
@@ -356,7 +403,22 @@ def get_learning_context(
     # Query Knowledge Graph for relevant patterns (if enabled)
     kg_context = _get_knowledge_graph_context(goal, task_type)
     if kg_context:
+        has_kg_patterns = True
         context_parts.append(kg_context)
+
+    # Issue #2124: Record learning context generation metrics
+    latency_ms = (time.time() - start_time) * 1000
+    if _METRICS_AVAILABLE and get_orchestrator_metrics is not None:
+        try:
+            metrics = get_orchestrator_metrics()
+            metrics.record_learning_context_generation(
+                trace_id=trace_id or "unknown",
+                has_past_failures=has_past_failures,
+                has_kg_patterns=has_kg_patterns,
+                latency_ms=latency_ms
+            )
+        except Exception as e:
+            logger.debug(f"[Observer] Failed to record context metrics: {e}")
 
     return "\n".join(context_parts)
 
@@ -494,6 +556,9 @@ def update_fix_for_failure(
     Returns:
         True if updated successfully, False otherwise
     """
+    start_time = time.time()
+    success = False
+
     try:
         from memory.error_fix_pairs import (
             get_pair_by_trace_id,
@@ -550,3 +615,16 @@ def update_fix_for_failure(
             "error": str(e)
         })
         return False
+    finally:
+        # Issue #2124: Record fix update metrics
+        latency_ms = (time.time() - start_time) * 1000
+        if _METRICS_AVAILABLE and get_orchestrator_metrics is not None:
+            try:
+                metrics = get_orchestrator_metrics()
+                metrics.record_fix_update(
+                    trace_id=trace_id,
+                    was_successful=success and was_successful,
+                    latency_ms=latency_ms
+                )
+            except Exception as e:
+                logger.debug(f"[Observer] Failed to record fix update metrics: {e}")

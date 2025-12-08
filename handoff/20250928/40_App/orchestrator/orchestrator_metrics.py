@@ -602,7 +602,280 @@ class OrchestratorMetrics:
             "nodes": self.get_node_summary(window_minutes),
             "decisions": self.get_decision_summary(window_minutes),
             "fixer": self.get_fixer_summary(window_minutes),
-            "quality_scores": self.get_quality_score_summary(window_minutes)
+            "quality_scores": self.get_quality_score_summary(window_minutes),
+            "failure_learning": self.get_failure_learning_summary(window_minutes)
+        }
+
+    # ==================== Failure Learning Metrics (Issue #2124) ====================
+
+    def record_failure_observation(
+        self,
+        trace_id: str,
+        error_type: str,
+        saved_to_pgvector: bool,
+        latency_ms: float
+    ) -> None:
+        """
+        Record failure observation metrics.
+
+        Issue #2124: Latency metrics for failure learning observability.
+
+        Args:
+            trace_id: Unique trace identifier
+            error_type: Categorized error type
+            saved_to_pgvector: Whether the failure was saved to pgvector
+            latency_ms: Observation latency in milliseconds
+        """
+        if not self.enabled:
+            return
+
+        # Record observation count
+        key = self._get_minute_key("failure_learning.observe")
+        self._safe_incr(key)
+
+        # Record error type distribution
+        error_key = self._get_minute_key(f"failure_learning.error_type.{error_type}")
+        self._safe_incr(error_key)
+
+        # Record pgvector save status
+        save_status = "saved" if saved_to_pgvector else "skipped"
+        save_key = self._get_minute_key(f"failure_learning.pgvector.{save_status}")
+        self._safe_incr(save_key)
+
+        # Record latency
+        self._record_latency("failure_learning.observe", latency_ms)
+
+        logger.debug("[Metrics] Failure observation recorded", extra={
+            "operation": "metrics_failure_observation",
+            "trace_id": trace_id,
+            "error_type": error_type,
+            "saved_to_pgvector": saved_to_pgvector,
+            "latency_ms": latency_ms
+        })
+
+    def record_failure_query(
+        self,
+        trace_id: str,
+        results_count: int,
+        latency_ms: float,
+        query_type: str = "similar_errors"
+    ) -> None:
+        """
+        Record failure query metrics.
+
+        Issue #2124: Latency metrics for failure learning observability.
+
+        Args:
+            trace_id: Unique trace identifier
+            results_count: Number of results returned
+            latency_ms: Query latency in milliseconds
+            query_type: Type of query (similar_errors, learning_context, etc.)
+        """
+        if not self.enabled:
+            return
+
+        # Record query count
+        key = self._get_minute_key(f"failure_learning.query.{query_type}")
+        self._safe_incr(key)
+
+        # Record results count bucket
+        if results_count == 0:
+            results_bucket = "empty"
+        elif results_count <= 3:
+            results_bucket = "few"
+        else:
+            results_bucket = "many"
+        results_key = self._get_minute_key(
+            f"failure_learning.query.results.{results_bucket}"
+        )
+        self._safe_incr(results_key)
+
+        # Record latency
+        self._record_latency(f"failure_learning.query.{query_type}", latency_ms)
+
+        logger.debug("[Metrics] Failure query recorded", extra={
+            "operation": "metrics_failure_query",
+            "trace_id": trace_id,
+            "query_type": query_type,
+            "results_count": results_count,
+            "latency_ms": latency_ms
+        })
+
+    def record_learning_context_generation(
+        self,
+        trace_id: str,
+        has_past_failures: bool,
+        has_kg_patterns: bool,
+        latency_ms: float
+    ) -> None:
+        """
+        Record learning context generation metrics.
+
+        Issue #2124: Latency metrics for failure learning observability.
+
+        Args:
+            trace_id: Unique trace identifier
+            has_past_failures: Whether past failures were included
+            has_kg_patterns: Whether Knowledge Graph patterns were included
+            latency_ms: Generation latency in milliseconds
+        """
+        if not self.enabled:
+            return
+
+        # Record generation count
+        key = self._get_minute_key("failure_learning.context_generation")
+        self._safe_incr(key)
+
+        # Record context composition
+        if has_past_failures:
+            pf_key = self._get_minute_key("failure_learning.context.has_past_failures")
+            self._safe_incr(pf_key)
+
+        if has_kg_patterns:
+            kg_key = self._get_minute_key("failure_learning.context.has_kg_patterns")
+            self._safe_incr(kg_key)
+
+        # Record latency
+        self._record_latency("failure_learning.context_generation", latency_ms)
+
+        logger.debug("[Metrics] Learning context generation recorded", extra={
+            "operation": "metrics_learning_context",
+            "trace_id": trace_id,
+            "has_past_failures": has_past_failures,
+            "has_kg_patterns": has_kg_patterns,
+            "latency_ms": latency_ms
+        })
+
+    def record_fix_update(
+        self,
+        trace_id: str,
+        was_successful: bool,
+        latency_ms: float
+    ) -> None:
+        """
+        Record fix update metrics.
+
+        Issue #2124: Latency metrics for failure learning observability.
+
+        Args:
+            trace_id: Unique trace identifier
+            was_successful: Whether the fix was successful
+            latency_ms: Update latency in milliseconds
+        """
+        if not self.enabled:
+            return
+
+        # Record update count
+        key = self._get_minute_key("failure_learning.fix_update")
+        self._safe_incr(key)
+
+        # Record success/failure
+        status = "success" if was_successful else "failure"
+        status_key = self._get_minute_key(f"failure_learning.fix_update.{status}")
+        self._safe_incr(status_key)
+
+        # Record latency
+        self._record_latency("failure_learning.fix_update", latency_ms)
+
+        logger.debug("[Metrics] Fix update recorded", extra={
+            "operation": "metrics_fix_update",
+            "trace_id": trace_id,
+            "was_successful": was_successful,
+            "latency_ms": latency_ms
+        })
+
+    @contextmanager
+    def track_failure_learning_operation(
+        self,
+        operation_name: str,
+        trace_id: str
+    ):
+        """
+        Context manager to track failure learning operation latency.
+
+        Issue #2124: Latency metrics for failure learning observability.
+
+        Usage:
+            with metrics.track_failure_learning_operation("query", trace_id):
+                # operation logic here
+
+        Args:
+            operation_name: Name of the operation (observe, query, context, fix_update)
+            trace_id: Unique trace identifier
+        """
+        start_time = time.time()
+
+        try:
+            yield
+        finally:
+            latency_ms = (time.time() - start_time) * 1000
+            key = self._get_minute_key(f"failure_learning.{operation_name}")
+            self._safe_incr(key)
+            self._record_latency(f"failure_learning.{operation_name}", latency_ms)
+
+            logger.debug(f"[Metrics] Failure learning operation: {operation_name}", extra={
+                "operation": f"metrics_failure_learning_{operation_name}",
+                "trace_id": trace_id,
+                "latency_ms": latency_ms
+            })
+
+    def get_failure_learning_summary(self, window_minutes: int = 15) -> Dict:
+        """
+        Get summary of failure learning metrics.
+
+        Issue #2124: Latency metrics for failure learning observability.
+
+        Args:
+            window_minutes: Time window in minutes
+
+        Returns:
+            Dict with failure learning metrics summary
+        """
+        if not self.enabled:
+            return {"enabled": False}
+
+        observations = self.get_window_count(
+            "failure_learning.observe", window_minutes
+        )
+        pgvector_saved = self.get_window_count(
+            "failure_learning.pgvector.saved", window_minutes
+        )
+        pgvector_skipped = self.get_window_count(
+            "failure_learning.pgvector.skipped", window_minutes
+        )
+
+        queries = self.get_window_count(
+            "failure_learning.query.similar_errors", window_minutes
+        )
+        context_generations = self.get_window_count(
+            "failure_learning.context_generation", window_minutes
+        )
+        fix_updates = self.get_window_count(
+            "failure_learning.fix_update", window_minutes
+        )
+        fix_successes = self.get_window_count(
+            "failure_learning.fix_update.success", window_minutes
+        )
+
+        return {
+            "observations": observations,
+            "pgvector_saved": pgvector_saved,
+            "pgvector_skipped": pgvector_skipped,
+            "save_rate": round(
+                pgvector_saved / observations * 100, 2
+            ) if observations > 0 else 0,
+            "queries": queries,
+            "context_generations": context_generations,
+            "fix_updates": fix_updates,
+            "fix_success_rate": round(
+                fix_successes / fix_updates * 100, 2
+            ) if fix_updates > 0 else 0,
+            "context_with_past_failures": self.get_window_count(
+                "failure_learning.context.has_past_failures", window_minutes
+            ),
+            "context_with_kg_patterns": self.get_window_count(
+                "failure_learning.context.has_kg_patterns", window_minutes
+            )
         }
 
 
