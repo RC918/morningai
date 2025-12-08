@@ -71,7 +71,7 @@ const SessionCommandInput = ({
   const [command, setCommand] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [commandHistory, setCommandHistory] = useState(() => loadCommandHistory(sessionId))
+  const [commandHistory, setCommandHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const textareaRef = useRef(null)
 
