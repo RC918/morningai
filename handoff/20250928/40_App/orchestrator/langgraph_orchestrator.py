@@ -1406,20 +1406,10 @@ def ci_monitor_node(state: AgentState) -> AgentState:
         metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
         return state
 
-    # Check if GitHub token is configured before attempting to call GitHub API
-    # This prevents noisy Sentry alerts in environments where GitHub is not configured
-    # Use github_api.GITHUB_TOKEN so tests can patch it (same source as the API layer)
-    github_token_configured = bool(github_api.GITHUB_TOKEN)
-    if not github_token_configured:
-        logger.info("[CI Monitor] GitHub token not configured, skipping CI checks", extra={
-            "operation": "ci_monitor",
-            "trace_id": trace_id,
-            "reason": "no_github_token"
-        })
-        state["ci_state"] = "unknown"
-        latency_ms = (time.time() - start_time) * 1000
-        metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
-        return state
+    # Note: We don't check for GitHub token here - instead we rely on exception handling
+    # below to catch GitHubAuthenticationError when the token is missing/invalid.
+    # This allows tests to patch github_api.get_repo/get_pr_checks and still exercise
+    # the success/error paths.
 
     if not pr_number:
         logger.warning("[CI Monitor] No PR number available", extra={
