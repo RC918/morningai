@@ -21,6 +21,21 @@ from typing import Any, Callable, Dict, List, Optional
 
 from .bot_protocol import WebhookSource
 
+# Import retry and rate limiting utilities (Issue #2152, #2153)
+try:
+    from utils.retry import async_retry_with_backoff, NOTIFICATION_RETRY_CONFIG
+    from utils.rate_limit import (
+        check_notification_rate_limit,
+        DEFAULT_NOTIFICATION_RATE_LIMITS,
+    )
+    _RETRY_AVAILABLE = True
+    _RATE_LIMIT_AVAILABLE = True
+except ImportError:
+    _RETRY_AVAILABLE = False
+    _RATE_LIMIT_AVAILABLE = False
+    NOTIFICATION_RETRY_CONFIG = None
+    DEFAULT_NOTIFICATION_RATE_LIMITS = {"github": 60, "jira": 30, "slack": 30}
+
 logger = logging.getLogger(__name__)
 
 
@@ -566,6 +581,16 @@ class OutboundNotifier:
         enable_jira: bool = True,
         enable_slack: bool = True,
         max_history_size: int = DEFAULT_MAX_HISTORY_SIZE,
+        # Issue #2152: Retry configuration
+        enable_retry: bool = True,
+        max_retries: int = 3,
+        initial_retry_delay: float = 1.0,
+        retry_backoff_factor: float = 2.0,
+        max_retry_delay: float = 30.0,
+        # Issue #2153: Rate limiting configuration
+        enable_rate_limiting: bool = True,
+        rate_limits: Optional[Dict[str, int]] = None,
+        redis_url: Optional[str] = None,
     ):
         """
         Initialize the OutboundNotifier.
@@ -579,6 +604,14 @@ class OutboundNotifier:
             enable_slack: Enable Slack notifications
             max_history_size: Maximum number of notifications to keep in history
                               (default: 1000, set to 0 for unlimited)
+            enable_retry: Enable retry with exponential backoff (Issue #2152)
+            max_retries: Maximum number of retry attempts (default: 3)
+            initial_retry_delay: Initial delay in seconds (default: 1.0)
+            retry_backoff_factor: Multiplier for delay between retries (default: 2.0)
+            max_retry_delay: Maximum delay between retries (default: 30.0)
+            enable_rate_limiting: Enable rate limiting (Issue #2153)
+            rate_limits: Per-source rate limits (requests per minute)
+            redis_url: Redis URL for rate limiting (optional)
         """
         self._notifiers: Dict[WebhookSource, BaseNotifier] = {}
         self._enabled: Dict[WebhookSource, bool] = {
@@ -598,14 +631,34 @@ class OutboundNotifier:
         self._notifications: Dict[str, NotificationPayload] = {}
         self._max_history_size = max_history_size
 
+        # Issue #2152: Retry configuration
+        self._enable_retry = enable_retry and _RETRY_AVAILABLE
+        self._max_retries = max_retries
+        self._initial_retry_delay = initial_retry_delay
+        self._retry_backoff_factor = retry_backoff_factor
+        self._max_retry_delay = max_retry_delay
+
+        # Issue #2153: Rate limiting configuration
+        self._enable_rate_limiting = enable_rate_limiting and _RATE_LIMIT_AVAILABLE
+        self._rate_limits = rate_limits or DEFAULT_NOTIFICATION_RATE_LIMITS
+        self._redis_url = redis_url
+
         # Callbacks
         self.on_notification_sent: Optional[Callable[[NotificationPayload], None]] = None
         self.on_notification_failed: Optional[Callable[[NotificationPayload, str], None]] = None
+        # Issue #2152: Callback for retry events
+        self.on_retry: Optional[Callable[[NotificationPayload, Exception, int], None]] = None
+        # Issue #2153: Callback for rate limit events
+        self.on_rate_limited: Optional[Callable[[WebhookSource, int], None]] = None
 
         logger.info(
-            "[OutboundNotifier] Initialized with notifiers: %s, enabled: %s",
+            "[OutboundNotifier] Initialized with notifiers: %s, enabled: %s, "
+            "retry=%s (max=%d), rate_limiting=%s",
             list(self._notifiers.keys()),
             {k.value: v for k, v in self._enabled.items()},
+            self._enable_retry,
+            self._max_retries if self._enable_retry else 0,
+            self._enable_rate_limiting,
         )
 
     def is_enabled(self, source: WebhookSource) -> bool:
@@ -761,6 +814,9 @@ class OutboundNotifier:
         """
         Internal method to send a notification.
 
+        Issue #2152: Implements retry with exponential backoff.
+        Issue #2153: Implements rate limiting to avoid triggering API limits.
+
         Args:
             source: Webhook source to notify
             notification_type: Type of notification
@@ -787,6 +843,25 @@ class OutboundNotifier:
             )
             return None
 
+        # Issue #2153: Check rate limit before sending
+        if self._enable_rate_limiting:
+            rate_limit = self._rate_limits.get(source.value, 30)
+            allowed, current_count = check_notification_rate_limit(
+                source=source.value,
+                max_per_minute=rate_limit,
+                redis_url=self._redis_url,
+            )
+            if not allowed:
+                logger.warning(
+                    "[OutboundNotifier] Rate limited for %s: %d/%d requests this minute",
+                    source.value,
+                    current_count,
+                    rate_limit,
+                )
+                if self.on_rate_limited:
+                    self.on_rate_limited(source, current_count)
+                return None
+
         # Create notification payload
         import uuid
         notification_id = f"notif-{uuid.uuid4().hex[:8]}"
@@ -806,9 +881,35 @@ class OutboundNotifier:
         # Prune history if it exceeds max size (P2: avoid memory leak)
         self._prune_history()
 
-        # Send the notification
+        # Issue #2152: Define retry callback
+        def on_retry_callback(exc: Exception, attempt: int, delay: float) -> None:
+            logger.warning(
+                "[OutboundNotifier] Retry %d for notification %s: %s (delay: %.1fs)",
+                attempt,
+                notification_id,
+                str(exc),
+                delay,
+            )
+            if self.on_retry:
+                self.on_retry(payload, exc, attempt)
+
+        # Send the notification with retry logic
         try:
-            success = await notifier.send_notification(payload)
+            if self._enable_retry:
+                # Issue #2152: Use async retry with exponential backoff
+                success = await async_retry_with_backoff(
+                    operation=lambda: notifier.send_notification(payload),
+                    max_retries=self._max_retries,
+                    initial_delay=self._initial_retry_delay,
+                    backoff_factor=self._retry_backoff_factor,
+                    max_delay=self._max_retry_delay,
+                    exceptions=(Exception,),
+                    operation_name=f"notification_{source.value}",
+                    on_retry=on_retry_callback,
+                )
+            else:
+                # No retry, send directly
+                success = await notifier.send_notification(payload)
 
             if success:
                 payload.status = NotificationStatus.SENT
@@ -836,7 +937,7 @@ class OutboundNotifier:
             payload.status = NotificationStatus.FAILED
             payload.error = str(e)
             logger.error(
-                "[OutboundNotifier] Error sending notification: %s",
+                "[OutboundNotifier] Error sending notification after retries: %s",
                 e,
                 exc_info=True,
             )
