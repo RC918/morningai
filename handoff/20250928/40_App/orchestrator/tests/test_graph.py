@@ -50,6 +50,7 @@ class TestPlanner:
 class TestExecute:
     """Test execute function"""
     
+    @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
     @patch('graph.commit_file')
@@ -58,7 +59,8 @@ class TestExecute:
     @patch('graph.get_repo')
     @patch('subprocess.run')
     def test_execute_success(self, mock_subprocess, mock_get_repo, mock_create_branch, 
-                            mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks):
+                            mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks,
+                            mock_rate_limit):
         """Test execute function with successful workflow"""
         mock_repo = Mock()
         mock_get_repo.return_value = mock_repo
@@ -66,6 +68,7 @@ class TestExecute:
         mock_generate_faq.return_value = "# FAQ Content\n\nTest content"
         mock_open_pr.return_value = ("https://github.com/test/pr/1", 1)
         mock_pr_checks.return_value = ("success", {"check1": "passed"})
+        mock_rate_limit.return_value = (True, 1)  # Not rate limited
         
         goal = "Create FAQ"
         repo_full = "owner/repo"
@@ -83,6 +86,7 @@ class TestExecute:
         mock_open_pr.assert_called_once()
         mock_pr_checks.assert_called_once()
     
+    @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
     @patch('graph.commit_file')
@@ -90,7 +94,8 @@ class TestExecute:
     @patch('graph.create_branch')
     @patch('graph.get_repo')
     def test_execute_with_trace_id(self, mock_get_repo, mock_create_branch, 
-                                   mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks):
+                                   mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks,
+                                   mock_rate_limit):
         """Test execute with provided trace_id"""
         mock_repo = Mock()
         mock_get_repo.return_value = mock_repo
@@ -98,12 +103,14 @@ class TestExecute:
         mock_generate_faq.return_value = "# FAQ Content"
         mock_open_pr.return_value = ("https://github.com/test/pr/2", 2)
         mock_pr_checks.return_value = ("pending", {})
+        mock_rate_limit.return_value = (True, 1)  # Not rate limited
         
         custom_trace_id = "custom-trace-123"
         pr_url, state, trace_id = execute("Test", "owner/repo", trace_id=custom_trace_id)
         
         assert trace_id == custom_trace_id
     
+    @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
     @patch('graph.commit_file')
@@ -111,7 +118,8 @@ class TestExecute:
     @patch('graph.create_branch')
     @patch('graph.get_repo')
     def test_execute_generates_new_trace_id(self, mock_get_repo, mock_create_branch, 
-                                           mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks):
+                                           mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks,
+                                           mock_rate_limit):
         """Test execute generates UUID when trace_id is None"""
         mock_repo = Mock()
         mock_get_repo.return_value = mock_repo
@@ -119,6 +127,7 @@ class TestExecute:
         mock_generate_faq.return_value = "# FAQ"
         mock_open_pr.return_value = ("https://github.com/test/pr/3", 3)
         mock_pr_checks.return_value = ("success", {})
+        mock_rate_limit.return_value = (True, 1)  # Not rate limited
         
         pr_url, state, trace_id = execute("Test", "owner/repo", trace_id=None)
         
