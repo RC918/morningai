@@ -9,6 +9,7 @@ PR: PR 2 - Sessions API Integration
 """
 import logging
 import json
+import uuid
 from collections import Counter
 from datetime import datetime
 from functools import wraps
@@ -483,6 +484,93 @@ def cancel_session(session_id):
     except Exception:
         logger.exception("Failed to cancel session")
         return jsonify({'error': 'Failed to cancel session'}), 500
+
+
+@bp.route('/<session_id>/command', methods=['POST'])
+@jwt_required
+@admin_required
+@require_redis_available
+def send_command(session_id):
+    """
+    Send a command to a running session.
+
+    The command will be queued for the agent to process.
+
+    Request body:
+    - command: The command text or quick command ID (required)
+    - type: Command type - 'user_command' or 'quick_command' (default: 'user_command')
+    - timestamp: Client timestamp (optional)
+
+    Requires: Owner role
+
+    Issue: #2179 - API endpoint for SessionCommandInput
+    """
+    try:
+        session_data, user_info, key = _get_session_and_user(session_id)
+        user_email = user_info['user_email']
+        user_id = user_info['user_id']
+
+        req_data = request.get_json(silent=True) or {}
+        command = req_data.get('command')
+        command_type = req_data.get('type', 'user_command')
+        client_timestamp = req_data.get('timestamp')
+
+        if not command:
+            return jsonify({
+                'error': 'Missing required field',
+                'message': 'command is required'
+            }), 400
+
+        current_status = session_data.get('status', 'active')
+
+        if current_status in ['completed', 'failed']:
+            return jsonify({
+                'error': 'Cannot send command',
+                'message': f'Session is {current_status}, commands can only be sent to active/paused sessions'
+            }), 400
+
+        command_id = str(uuid.uuid4())
+        server_timestamp = datetime.utcnow().isoformat()
+
+        command_entry = {
+            'command_id': command_id,
+            'command': command,
+            'type': command_type,
+            'sent_by': user_email,
+            'user_id': user_id,
+            'client_timestamp': client_timestamp,
+            'server_timestamp': server_timestamp
+        }
+
+        if 'commands' not in session_data:
+            session_data['commands'] = []
+        session_data['commands'].append(command_entry)
+        session_data['updated_at'] = server_timestamp
+
+        redis_client = get_redis_client()
+        redis_client.setex(key, SESSION_TTL_SECONDS, json.dumps(session_data))
+
+        logger.info(
+            "Command sent to session %s by %s: type=%s, length=%d",
+            session_id, user_email, command_type, len(command)
+        )
+
+        return jsonify({
+            'success': True,
+            'command_id': command_id,
+            'session_id': session_id,
+            'status': 'accepted',
+            'sent_by': user_email,
+            'timestamp': server_timestamp
+        })
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse session %s", session_id)
+        return jsonify({'error': 'Failed to parse session data'}), 500
+    except ValueError:
+        return jsonify({'error': 'Session not found'}), 404
+    except Exception:
+        logger.exception("Failed to send command to session")
+        return jsonify({'error': 'Failed to send command'}), 500
 
 
 @bp.route('/health', methods=['GET'])

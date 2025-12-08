@@ -787,3 +787,205 @@ class TestRequireRedisAvailableDecorator:
             data = response.get_json()
             assert data['error'] == 'Redis not available'
             assert data['sessions_available'] is False
+
+
+class TestSendCommandEndpoint:
+    """Tests for POST /api/sessions/:id/command endpoint - Issue #2179"""
+
+    def test_send_command_no_auth(self, client):
+        """Test POST /api/sessions/:id/command without authentication returns 401"""
+        response = client.post(
+            '/api/sessions/test-session-123/command',
+            json={'command': 'test command'}
+        )
+
+        assert response.status_code == 401
+        data = response.get_json()
+        assert 'error' in data
+
+    def test_send_command_redis_unavailable(self, client, auth_headers_admin):
+        """Test POST /api/sessions/:id/command returns 503 when Redis is unavailable"""
+        with patch('src.routes.sessions.REDIS_AVAILABLE', False):
+            response = client.post(
+                '/api/sessions/test-session-123/command',
+                headers=auth_headers_admin,
+                json={'command': 'test command'}
+            )
+
+            assert response.status_code == 503
+            data = response.get_json()
+            assert 'error' in data
+            assert data['sessions_available'] is False
+
+    def test_send_command_missing_command(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when command is missing"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'command is required' in data['message']
+
+    def test_send_command_session_not_found(self, client, auth_headers_admin, mock_redis_client):
+        """Test POST /api/sessions/:id/command returns 404 when session not found"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = None
+
+                response = client.post(
+                    '/api/sessions/nonexistent-session/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test command'}
+                )
+
+                assert response.status_code == 404
+                data = response.get_json()
+                assert 'error' in data
+
+    def test_send_command_session_completed(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when session is completed"""
+        sample_session_data['status'] = 'completed'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test command'}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'Cannot send command' in data['error']
+
+    def test_send_command_session_failed(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when session is failed"""
+        sample_session_data['status'] = 'failed'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test command'}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'Cannot send command' in data['error']
+
+    def test_send_command_success_active_session(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command succeeds for active session"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={
+                        'command': 'continue',
+                        'type': 'quick_command',
+                        'timestamp': '2025-01-01T00:00:00Z'
+                    }
+                )
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['success'] is True
+                assert data['status'] == 'accepted'
+                assert data['session_id'] == 'test-session-123'
+                assert 'command_id' in data
+                assert 'timestamp' in data
+
+                mock_redis_client.setex.assert_called_once()
+
+    def test_send_command_success_paused_session(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command succeeds for paused session"""
+        sample_session_data['status'] = 'paused'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'explain current step'}
+                )
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['success'] is True
+                assert data['status'] == 'accepted'
+
+    def test_send_command_default_type(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command uses default type 'user_command'"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'custom instruction'}
+                )
+
+                assert response.status_code == 200
+
+                call_args = mock_redis_client.setex.call_args
+                saved_data = json.loads(call_args[0][2])
+                assert saved_data['commands'][0]['type'] == 'user_command'
+
+    def test_send_command_appends_to_existing_commands(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command appends to existing commands list"""
+        sample_session_data['commands'] = [
+            {'command_id': 'existing-1', 'command': 'previous command'}
+        ]
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'new command'}
+                )
+
+                assert response.status_code == 200
+
+                call_args = mock_redis_client.setex.call_args
+                saved_data = json.loads(call_args[0][2])
+                assert len(saved_data['commands']) == 2
+                assert saved_data['commands'][0]['command'] == 'previous command'
+                assert saved_data['commands'][1]['command'] == 'new command'
+
+    def test_send_command_updates_timestamp(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command updates session updated_at"""
+        sample_session_data['updated_at'] = '2025-01-01T00:00:00Z'
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'test'}
+                )
+
+                assert response.status_code == 200
+
+                call_args = mock_redis_client.setex.call_args
+                saved_data = json.loads(call_args[0][2])
+                assert saved_data['updated_at'] != '2025-01-01T00:00:00Z'
