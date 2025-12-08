@@ -614,8 +614,9 @@ class ExperimentAnalyzer:
         effect_size = self._cohens_h(p_control, p_treatment)
         
         # Calculate relative improvement
+        # When p_control is 0, use bounded value to avoid JSON serialization issues
         if p_control == 0:
-            relative_improvement = 0.0 if p_treatment == 0 else float('inf')
+            relative_improvement = 0.0 if p_treatment == 0 else 100.0  # Cap at 100% for JSON compatibility
         else:
             relative_improvement = (p_treatment - p_control) / p_control * 100
         
