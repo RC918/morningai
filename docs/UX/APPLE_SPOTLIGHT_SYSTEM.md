@@ -496,7 +496,7 @@ function CommandPalette() {
 ### Required Features
 
 - CSS backdrop-filter (for glassmorphism)
-- Framer Motion (React 18+)
+- Framer Motion (React 19+)
 - Keyboard event handling
 - Focus management
 

@@ -83,7 +83,7 @@ HTTP Request → API Backend → Redis Queue → Worker (Routing Decision)
                                         ┌────────────┴────────────┐
                                         ↓                         ↓
                                   Simple Mode              LangGraph Mode
-                                  (~95% traffic)           (~5% traffic)
+                                  (default traffic)        (canary traffic)
                                   Feature-frozen           Active development
                                         ↓                         ↓
                                         └────────────┬────────────┘
@@ -108,8 +108,8 @@ graph TB
     B --> C[Redis Queue<br/>orchestrator queue]
     C --> D[Worker<br/>morningai-agent-worker]
     D --> E{Routing Decision<br/>MD5 Hash % 100}
-    E -->|"~95% traffic"| F[Simple Mode<br/>Feature-frozen]
-    E -->|"~5% traffic"| G[LangGraph Mode<br/>Active development]
+    E -->|"default traffic"| F[Simple Mode<br/>Feature-frozen]
+    E -->|"canary traffic"| G[LangGraph Mode<br/>Active development]
     F --> H[graph.execute&#40;&#41;<br/>Shared Core Executor]
     G --> I[LangGraph Workflow]
     I --> H

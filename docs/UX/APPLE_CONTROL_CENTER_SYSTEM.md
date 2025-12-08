@@ -406,7 +406,7 @@ function useWifiControl() {
 
 - CSS backdrop-filter (for glassmorphism)
 - CSS Grid
-- Framer Motion (React 18+)
+- Framer Motion (React 19+)
 - Touch events (for mobile)
 
 ## Future Enhancements

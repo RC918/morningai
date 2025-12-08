@@ -83,7 +83,7 @@ Phase 3 of the Apple-level UI/UX optimization project has been successfully comp
 - Ryan Chen (Product Owner & Review)
 
 **Tools & Technologies**:
-- React 18
+- React 19
 - TypeScript
 - Tailwind CSS
 - Framer Motion

@@ -93,8 +93,8 @@ graph TB
     B --> C[Redis Queue<br/>orchestrator queue]
     C --> D[Worker<br/>morningai-agent-worker]
     D --> E{Routing Decision<br/>MD5 Hash % 100}
-    E -->|"< USE_LANGGRAPH_PERCENT<br/>~95% traffic"| F[Simple Mode<br/>Feature-frozen]
-    E -->|">= USE_LANGGRAPH_PERCENT<br/>~5% traffic"| G[LangGraph Mode<br/>Active development]
+    E -->|"default traffic"| F[Simple Mode<br/>Feature-frozen]
+    E -->|"canary traffic"| G[LangGraph Mode<br/>Active development]
     F --> H[graph.execute&#40;&#41;<br/>Shared Core Executor]
     G --> I[LangGraph Workflow]
     I --> J[executor_node]
@@ -249,8 +249,8 @@ flowchart TD
 ### Scalability
 
 **Current Load** (Phase 1):
-- ~95% Simple Mode: Handles production load efficiently
-- ~5% LangGraph Mode: Canary testing with low risk
+- Default: 100% Simple Mode (USE_LANGGRAPH_PERCENT=0)
+- Staging: 15% LangGraph Mode canary testing
 - Worker capacity: ~10-20 concurrent tasks per worker
 
 **Projected Load** (Phase 2 - 50/50 split):

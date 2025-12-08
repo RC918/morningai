@@ -373,20 +373,20 @@ if not use_langgraph and use_langgraph_percent > 0:
 
 **預設值說明**:
 - `USE_LANGGRAPH_PERCENT` 預設值為 **0**（100% Simple mode，LangGraph 停用）
-- 啟用 5% LangGraph 金絲雀需要明確設定 `USE_LANGGRAPH_PERCENT=5`
+- 啟用 LangGraph 金絲雀需要明確設定 `USE_LANGGRAPH_PERCENT`（例如 Staging 環境設為 15）
 
 **Phase 1 參考配置**（實際配置請查看 Render Dashboard）:
 
 | 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER | 位置 |
 |------|---------------|----------------------|-----------------|------|
-| `morningai-agent-worker` (Production) | `false` | `5` | `true` | Render Dashboard → Production Worker → Environment |
+| `morningai-agent-worker` (Production) | `false` | `0` | `false` | Render Dashboard → Production Worker → Environment |
 
 **Note**: For staging worker configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Staging worker service names are environment-specific and defined in the staging setup documentation.
 
-**配置範例**:
+**配置範例**（Staging 環境）:
 ```bash
 USE_LANGGRAPH=false              # Allow canary routing (not 100%)
-USE_LANGGRAPH_PERCENT=5          # 5% traffic to LangGraph
+USE_LANGGRAPH_PERCENT=15         # 15% traffic to LangGraph (Staging)
 USE_LLM_PLANNER=true             # LangGraph uses LLM planner
 ```
 
@@ -415,7 +415,7 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
 - [ADR-004: Shared Core Executor Pattern](adr/004-shared-core-executor-pattern.md) - Design decision for shared execution engine
 
 **Migration Roadmap**:
-- **Phase 1** (Current): 5% LangGraph canary validation
+- **Phase 1** (Current): LangGraph canary validation (configurable via USE_LANGGRAPH_PERCENT)
 - **Phase 2** (Q1 2026): Gradually increase to 100% LangGraph
 - **Phase 3** (Q2 2026): Refactor `graph.py` to `core_executor.py`
 

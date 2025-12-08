@@ -9,7 +9,7 @@ MorningAI uses a **service-separated dependency management strategy** to ensure 
 ```
 morningai/
 ├── requirements.txt                                    # Shared dev/test dependencies
-├── orchestrator/requirements.txt                       # FastAPI orchestrator service
+├── orchestrator/requirements.txt                       # Orchestrator API service (legacy)
 ├── handoff/20250928/40_App/
 │   ├── api-backend/requirements.txt                   # Flask backend service
 │   └── orchestrator/requirements.txt                  # RQ worker service
@@ -63,12 +63,14 @@ pip install -r requirements.txt
 
 ## Service-Specific Requirements
 
-### 1. Orchestrator API (FastAPI)
+### 1. Orchestrator API (Legacy)
 
 **File**: `orchestrator/requirements.txt`  
-**Framework**: FastAPI  
-**Purpose**: Task submission API endpoint  
+**Framework**: FastAPI (legacy, see note below)  
+**Purpose**: Task submission API endpoint (legacy)  
 **Deployment**: Render (morningai-orchestrator-api)
+
+> **Note**: The primary orchestrator is now RQ-based workers in `handoff/20250928/40_App/orchestrator/`. The Flask backend submits tasks to Redis Queue, and RQ workers execute them. This legacy FastAPI orchestrator API may be deprecated.
 
 #### Key Dependencies
 
