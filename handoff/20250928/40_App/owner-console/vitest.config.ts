@@ -26,14 +26,10 @@ export default defineConfig({
         'e2e/',
       ],
     },
-    deps: {
-      inline: ['@morningai/shared-ui'],
-    },
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@morningai/shared-ui': path.resolve(__dirname, './src/test/mocks/shared-ui.ts'),
     },
   },
 });
