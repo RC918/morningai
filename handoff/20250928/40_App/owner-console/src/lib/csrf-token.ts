@@ -5,12 +5,15 @@
  * consolidating the previously duplicated logic from auth.ts and api-client.ts.
  *
  * Storage Strategy:
- * - Cookie: Set by backend, read-only from frontend (source of truth when available)
+ * - Cookie: Set by backend, read-only from frontend (source of truth for auth flows)
  * - SessionStorage: Persistent across page reloads within the same session
- * - In-memory: Fast access, cleared on page refresh
+ * - In-memory (csrfTokenCache): Fast access for API client, cleared on page refresh
  *
- * Priority for reading: Cookie > SessionStorage > In-memory
- * All storage layers are kept in sync when any value is read or written.
+ * Two different priority modes:
+ * - Auth mode (getCsrfToken): Cookie > SessionStorage > In-memory
+ *   Used by auth.ts to ensure cookie rotation is respected
+ * - API Client mode (getApiClientCsrfToken): Cache > Cookie
+ *   Used by api-client.ts to preserve cross-origin behavior where cache takes priority
  *
  * @module csrf-token
  */
@@ -21,10 +24,17 @@ const API_BASE_URL =
   '';
 
 /**
- * In-memory CSRF token cache
+ * In-memory CSRF token cache for auth flows
  * Used as fallback when cookie/sessionStorage are not available
  */
 let csrfToken: string | null = null;
+
+/**
+ * In-memory CSRF token cache for API client
+ * This is separate from csrfToken to preserve the original api-client.ts behavior
+ * where cached token from response body takes priority over cookie
+ */
+let csrfTokenCache: string | null = null;
 
 /**
  * Single-flight promise for CSRF token fetching
@@ -284,13 +294,77 @@ export async function ensureCsrfToken(): Promise<void> {
 }
 
 /**
- * Bootstrap CSRF token (alias for ensureCsrfToken for backward compatibility)
- * This is kept for api-client.ts compatibility
+ * Bootstrap CSRF token for API client
+ * This matches the original api-client.ts behavior:
+ * - Fetches token from /api/auth/v2/csrf
+ * - Caches token in csrfTokenCache (not sessionStorage)
+ * - Logs specific messages expected by tests
  *
  * @returns Promise that resolves when token is available
  */
 export async function bootstrapCsrf(): Promise<void> {
-  return ensureCsrfToken();
+  if (!API_BASE_URL) {
+    return;
+  }
+
+  const url = `${API_BASE_URL}/api/auth/v2/csrf`;
+  console.debug('Bootstrapping CSRF token from:', url);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      console.error('CSRF bootstrap failed with status:', response.status);
+      return;
+    }
+
+    const contentType = response.headers?.get?.('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return;
+    }
+
+    const data = await response.json();
+    if (data.csrf_token) {
+      csrfTokenCache = data.csrf_token;
+      console.debug('CSRF token cached from response body');
+    }
+  } catch (error) {
+    console.warn('Failed to bootstrap CSRF token:', error);
+  }
+}
+
+/**
+ * Get CSRF token for API client requests
+ * This preserves the original api-client.ts behavior:
+ * - Priority: Cache (from response body) > Cookie (for same-origin)
+ * - Does NOT read from sessionStorage (that's for auth flows)
+ *
+ * @returns CSRF token or null if not available
+ */
+export function getApiClientCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+
+  // Priority 1: Cache from response body (for cross-origin scenarios)
+  if (csrfTokenCache) {
+    return csrfTokenCache;
+  }
+
+  // Priority 2: Cookie (for same-origin scenarios)
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Set the API client CSRF token cache
+ * Used when receiving token from response headers
+ *
+ * @param token - The token to cache
+ */
+export function setApiClientCsrfCache(token: string): void {
+  csrfTokenCache = token;
 }
 
 /**
@@ -321,13 +395,16 @@ export function getCsrfTokenForHeader(): string | null {
 
 /**
  * Update CSRF token from response header if present
- * Some endpoints may return a new CSRF token in the response header
+ * Updates both the API client cache and the auth storage layers
  *
  * @param headers - Response headers
  */
 export function updateCsrfFromResponse(headers: Headers): void {
   const newToken = headers.get('X-CSRF-Token');
   if (newToken) {
+    // Update API client cache
+    csrfTokenCache = newToken;
+    // Also sync to auth storage layers
     storeCsrfToken(newToken);
   }
 }
@@ -338,6 +415,7 @@ export function updateCsrfFromResponse(headers: Headers): void {
  */
 export function _resetCsrfState(): void {
   csrfToken = null;
+  csrfTokenCache = null;
   csrfTokenPromise = null;
   if (typeof sessionStorage !== 'undefined') {
     try {

@@ -1,8 +1,7 @@
 import { getAccessToken, getOrRefreshAccessToken, refreshAccessToken, clearTokens, clearTokensAndRedirectToLogin, RefreshAccessTokenError } from './auth.ts';
 import {
-  getCsrfToken,
-  storeCsrfToken,
-  ensureCsrfToken,
+  getApiClientCsrfToken,
+  setApiClientCsrfCache,
   bootstrapCsrf,
   updateCsrfFromResponse,
   UNSAFE_METHODS,
@@ -26,7 +25,7 @@ async function buildAuthHeaders(
   };
 
   if (UNSAFE_METHODS.includes(method.toUpperCase())) {
-    const csrfToken = getCsrfToken();
+    const csrfToken = getApiClientCsrfToken();
     if (csrfToken) {
       headers['X-CSRF-Token'] = csrfToken;
     }
