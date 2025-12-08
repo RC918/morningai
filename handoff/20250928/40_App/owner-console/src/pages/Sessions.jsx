@@ -1396,11 +1396,11 @@ const Sessions = () => {
               </Tabs>
 
               {/* Session Command Input (#1823) - Quick command/response feature */}
+              {/* #2178: Removed redundant disabled prop - handled internally via sessionStatus */}
               <SessionCommandInput
                 sessionId={selectedSession.id}
                 sessionStatus={selectedSession.status}
                 onSendCommand={handleSendCommand}
-                disabled={selectedSession.status === 'completed' || selectedSession.status === 'failed'}
               />
 
               {/* Session Footer */}
