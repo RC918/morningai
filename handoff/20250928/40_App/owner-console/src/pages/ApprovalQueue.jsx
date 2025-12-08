@@ -38,34 +38,6 @@ const ApprovalQueue = () => {
   const listRef = useRef(null)
   const detailsRef = useRef(null)
 
-  // Initial load
-  useEffect(() => {
-    loadApprovalData()
-  }, [loadApprovalData])
-
-  // Auto-refresh
-  useEffect(() => {
-    if (!autoRefresh) return
-    
-    const intervalId = setInterval(() => {
-      loadApprovalData(true)
-    }, AUTO_REFRESH_INTERVAL)
-    
-    return () => clearInterval(intervalId)
-  }, [autoRefresh, loadApprovalData])
-
-  // Focus management for details panel (replaces setTimeout with requestAnimationFrame)
-  useEffect(() => {
-    if (!shouldFocusDetails || activeTab !== 'details' || !selectedRequest) return
-
-    const frameId = window.requestAnimationFrame(() => {
-      detailsRef.current?.focus()
-      setShouldFocusDetails(false)
-    })
-
-    return () => window.cancelAnimationFrame(frameId)
-  }, [shouldFocusDetails, activeTab, selectedRequest])
-
   const sortRequests = useCallback((requests) => {
     return [...requests].sort((a, b) => {
       // Primary sort: risk level (critical > high > medium > low)
@@ -116,6 +88,34 @@ const ApprovalQueue = () => {
       }
     }
   }, [sortRequests])
+
+  // Initial load
+  useEffect(() => {
+    loadApprovalData()
+  }, [loadApprovalData])
+
+  // Auto-refresh
+  useEffect(() => {
+    if (!autoRefresh) return
+    
+    const intervalId = setInterval(() => {
+      loadApprovalData(true)
+    }, AUTO_REFRESH_INTERVAL)
+    
+    return () => clearInterval(intervalId)
+  }, [autoRefresh, loadApprovalData])
+
+  // Focus management for details panel (replaces setTimeout with requestAnimationFrame)
+  useEffect(() => {
+    if (!shouldFocusDetails || activeTab !== 'details' || !selectedRequest) return
+
+    const frameId = window.requestAnimationFrame(() => {
+      detailsRef.current?.focus()
+      setShouldFocusDetails(false)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [shouldFocusDetails, activeTab, selectedRequest])
 
   const handleApprove = async (requestId) => {
     try {
