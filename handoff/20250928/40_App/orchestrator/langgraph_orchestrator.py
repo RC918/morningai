@@ -1384,6 +1384,7 @@ def ci_monitor_node(state: AgentState) -> AgentState:
     CI Monitor node: Checks CI status and determines next action
     """
     from tools.github_api import get_repo, get_pr_checks
+    from exceptions import GitHubAuthenticationError, GitHubResourceNotFoundError
 
     start_time = time.time()
     metrics = _get_metrics()
@@ -1401,6 +1402,21 @@ def ci_monitor_node(state: AgentState) -> AgentState:
             "trace_id": trace_id,
             "ci_state": ci_state
         })
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    # Check if GitHub token is configured before attempting to call GitHub API
+    # This prevents noisy Sentry alerts in environments where GitHub is not configured
+    github_token = getattr(settings, 'agent_github_token', None) or getattr(settings, 'github_token', None)
+    github_token_configured = bool(github_token)
+    if not github_token_configured:
+        logger.info("[CI Monitor] GitHub token not configured, skipping CI checks", extra={
+            "operation": "ci_monitor",
+            "trace_id": trace_id,
+            "reason": "no_github_token"
+        })
+        state["ci_state"] = "unknown"
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
         return state
@@ -1440,12 +1456,38 @@ def ci_monitor_node(state: AgentState) -> AgentState:
             "checks_count": len(checks) if checks else 0
         })
 
+    except GitHubAuthenticationError as e:
+        # Authentication errors are expected in environments without valid tokens
+        # Log at warning level to avoid noisy Sentry alerts
+        logger.warning(f"[CI Monitor] GitHub authentication error, disabling CI checks: {e}", extra={
+            "operation": "ci_monitor",
+            "trace_id": trace_id,
+            "error_type": "GitHubAuthenticationError",
+            "error": str(e)
+        })
+        state["ci_state"] = "unknown"
+        # Don't set state["error"] for auth errors - this is expected in some environments
+
+    except GitHubResourceNotFoundError as e:
+        # Resource not found errors (repo, PR) are expected in some cases
+        # Log at warning level
+        logger.warning(f"[CI Monitor] GitHub resource not found: {e}", extra={
+            "operation": "ci_monitor",
+            "trace_id": trace_id,
+            "error_type": "GitHubResourceNotFoundError",
+            "error": str(e)
+        })
+        state["ci_state"] = "unknown"
+        state["error"] = str(e)
+
     except Exception as e:
+        # For other errors (rate limits, network issues), log at error level
         success = False
         error_msg = str(e)
         logger.error(f"[CI Monitor] Failed to check CI: {error_msg}", extra={
             "operation": "ci_monitor",
             "trace_id": trace_id,
+            "error_type": type(e).__name__,
             "error": error_msg
         })
         state["ci_state"] = "error"
@@ -2125,12 +2167,17 @@ def evaluation_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("evaluation", trace_id)
 
-    if not settings.enable_agent_eval:
-        logger.info("[Evaluation] Agent evaluation disabled", extra={
+    # Check both settings flag and integration enabled status
+    # This handles cases where Redis is unavailable during initialization
+    if not settings.enable_agent_eval or not getattr(agent_eval, "enabled", False):
+        reason = "disabled via settings" if not settings.enable_agent_eval else "no metrics backend available"
+        logger.info(f"[Evaluation] Agent evaluation {reason}", extra={
             "operation": "evaluation",
-            "trace_id": trace_id
+            "trace_id": trace_id,
+            "settings_enabled": settings.enable_agent_eval,
+            "integration_enabled": getattr(agent_eval, "enabled", False)
         })
-        state["evaluation_result"] = {"enabled": False}
+        state["evaluation_result"] = {"enabled": False, "reason": reason}
         state["evaluation_health_status"] = "unknown"
         state["evaluation_has_regression"] = False
 
@@ -2186,12 +2233,35 @@ def evaluation_node(state: AgentState) -> AgentState:
         })
 
     except Exception as e:
-        logger.error("[Evaluation] Failed to run capability regression detection: %s", e, extra={
-            "operation": "evaluation",
-            "trace_id": trace_id,
-            "error": str(e)
-        })
-        state["evaluation_result"] = {"error": str(e)}
+        # Check if this is a Redis connectivity issue - treat as "eval disabled"
+        # rather than an error to avoid noisy Sentry alerts for expected conditions
+        error_str = str(e).lower()
+        is_redis_error = (
+            "redis" in error_str or
+            "connection" in error_str or
+            "timeout" in error_str or
+            "refused" in error_str or
+            hasattr(e, '__module__') and 'redis' in getattr(e, '__module__', '')
+        )
+
+        if is_redis_error:
+            logger.warning("[Evaluation] Redis unavailable, skipping regression detection: %s", e, extra={
+                "operation": "evaluation",
+                "trace_id": trace_id,
+                "error_type": type(e).__name__,
+                "error": str(e)
+            })
+            state["evaluation_result"] = {"enabled": False, "reason": "Redis unavailable", "error": str(e)}
+        else:
+            # For non-Redis errors, log at error level as these may indicate real bugs
+            logger.error("[Evaluation] Failed to run capability regression detection: %s", e, extra={
+                "operation": "evaluation",
+                "trace_id": trace_id,
+                "error_type": type(e).__name__,
+                "error": str(e)
+            })
+            state["evaluation_result"] = {"error": str(e)}
+
         state["evaluation_health_status"] = "unknown"
         state["evaluation_has_regression"] = False
 
