@@ -418,13 +418,14 @@ function getCsrfToken(): string | null {
   if (typeof document !== 'undefined') {
     const cookieToken = getCookie('csrf_token');
     if (cookieToken) {
-      // Sync sessionStorage with cookie to prevent drift
+      // Always sync in-memory and sessionStorage with cookie (source of truth)
+      // This ensures all storage layers stay in sync when backend rotates the token
+      csrfToken = cookieToken;
       if (typeof sessionStorage !== 'undefined') {
         try {
           const sessionToken = sessionStorage.getItem('csrf_token');
           if (sessionToken !== cookieToken) {
             sessionStorage.setItem('csrf_token', cookieToken);
-            csrfToken = cookieToken;
           }
         } catch (error) {
           // Ignore sessionStorage errors, cookie is the source of truth
