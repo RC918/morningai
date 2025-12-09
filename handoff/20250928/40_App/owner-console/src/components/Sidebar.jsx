@@ -95,10 +95,7 @@ const Sidebar = ({ user, collapsed = false, isMobileDrawer = false }) => {
         }`}
         aria-current={active ? 'page' : undefined}
       >
-        {active && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-500 rounded-r-full transition-all duration-200" />
-        )}
-        <Icon 
+        <Icon
           className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
             collapsed && !isMobileDrawer ? 'mx-auto' : 'mr-3'
           } ${active ? 'text-primary-600 dark:text-primary-400' : ''}`}
