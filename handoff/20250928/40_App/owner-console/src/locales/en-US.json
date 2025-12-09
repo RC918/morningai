@@ -418,14 +418,15 @@
     "usedTotal": "Used/Total",
     "workers": "Workers"
   },
-    "header": {
-      "defaultRole": "Platform Owner",
-      "defaultUser": "Owner",
-      "help": "Help",
-      "notifications": "Notifications",
-      "searchPlaceholder": "Search...",
-      "settings": "Settings"
-    },
+        "header": {
+          "defaultRole": "Platform Owner",
+          "defaultUser": "Owner",
+          "help": "Help",
+          "notifications": "Notifications",
+          "searchPlaceholder": "Search...",
+          "settings": "Settings",
+          "userMenu": "User menu"
+        },
                 "nav": {
                   "aiPolicies": "AI Policies",
                   "approvalQueue": "Approval Queue",

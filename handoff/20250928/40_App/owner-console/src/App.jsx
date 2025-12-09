@@ -40,10 +40,10 @@ function AppContent() {
   return (
     <Router>
       <div className="flex h-screen bg-neutral-100">
-        <Sidebar user={user} onLogout={logout} />
+        <Sidebar user={user} />
         
         <div className="flex-1 flex flex-col overflow-hidden">
-          <DashboardHeader user={user} />
+          <DashboardHeader user={user} onLogout={logout} />
           
           <main id="main-content" className="flex-1 overflow-y-auto p-6" role="main">
             <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div></div>}>
