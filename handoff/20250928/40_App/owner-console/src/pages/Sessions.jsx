@@ -8,7 +8,6 @@ import {
   TabsTrigger, 
   Skeleton,
   Progress,
-  StatCard,
   SectionCard,
   Switch,
   AppleButton
@@ -45,6 +44,7 @@ import {
   FileDiffViewer,
   SessionInsights,
   SessionCommandInput,
+  SessionStatusCard,
   CONFIDENCE_THRESHOLD,
   MEDIUM_CONFIDENCE_THRESHOLD,
   validateConfidence
@@ -994,7 +994,7 @@ const Sessions = () => {
         />
       )}
 
-      {/* Stats Cards - Using StatCard components with design token spacing */}
+      {/* Stats Cards - Using SessionStatusCard with standardized dimensions and active state */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
         {[
           { key: 'all', label: t('sessions.filter.all', 'All'), icon: Activity, variant: 'default' },
@@ -1003,24 +1003,15 @@ const Sessions = () => {
           { key: 'completed', label: t('sessions.filter.completed', 'Completed'), icon: CheckCircle, variant: 'green' },
           { key: 'failed', label: t('sessions.filter.failed', 'Failed'), icon: XCircle, variant: 'red' }
         ].map(({ key, label, icon: Icon, variant }) => (
-          <button
+          <SessionStatusCard
             key={key}
-            type="button"
-            aria-pressed={filter === key}
+            label={label}
+            value={String(sessionCounts[key])}
+            icon={<Icon />}
+            variant={variant}
+            isActive={filter === key}
             onClick={() => handleFilterChange(key)}
-            className={`text-left transition-all rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0284c7] focus-visible:ring-offset-2 ${
-              filter === key
-                ? 'ring-2 ring-[#0284c7]'
-                : 'hover:ring-1 hover:ring-neutral-300'
-            }`}
-          >
-            <StatCard
-              label={label}
-              value={String(sessionCounts[key])}
-              icon={<Icon className="w-5 h-5" />}
-              variant={variant}
-            />
-          </button>
+          />
         ))}
       </div>
 
