@@ -435,15 +435,8 @@ class CommentTriageAgent:
             matches = re.findall(pattern, comment_text)
             files.extend(matches)
 
-        # Deduplicate while preserving order
-        seen = set()
-        unique_files = []
-        for f in files:
-            if f not in seen:
-                seen.add(f)
-                unique_files.append(f)
-
-        return unique_files
+        # Deduplicate while preserving order (using dict.fromkeys for efficiency)
+        return list(dict.fromkeys(files))
 
     def _estimate_lines_affected(
         self, event: WebhookEvent, comment_text: str
@@ -636,10 +629,7 @@ class CommentTriageAgent:
             parts.append(f"(keywords: {keywords_str})")
 
         # Auto-fix decision
-        if should_auto_fix:
-            parts.append(f"- {auto_fix_reason}")
-        else:
-            parts.append(f"- {auto_fix_reason}")
+        parts.append(f"- {auto_fix_reason}")
 
         return " ".join(parts)
 

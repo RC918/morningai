@@ -285,8 +285,7 @@ class TestCommentTriageAgentAutoFix:
 
         assert result is not None
         # Style issues with high confidence and low risk should be auto-fixable
-        if result.confidence >= 0.7 and result.risk_level == RiskLevel.LOW:
-            assert result.should_auto_fix is True
+        assert result.should_auto_fix is True
 
     def test_auto_fix_documentation(self, triage_agent):
         """Test that documentation updates can be auto-fixed"""
@@ -297,8 +296,7 @@ class TestCommentTriageAgentAutoFix:
 
         assert result is not None
         # Documentation with high confidence should be auto-fixable
-        if result.confidence >= 0.7:
-            assert result.should_auto_fix is True
+        assert result.should_auto_fix is True
 
 
 class TestCommentTriageAgentFileExtraction:
