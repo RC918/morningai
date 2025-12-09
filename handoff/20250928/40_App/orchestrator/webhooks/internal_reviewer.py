@@ -445,19 +445,22 @@ class InternalReviewerService:
         if agreement == AIReviewerAgreement.DISAGREE:
             return InternalReviewAction.ESCALATE
 
-        if task.ci_state == "success" and agreement == AIReviewerAgreement.AGREE:
+        if agreement == AIReviewerAgreement.AGREE and task.ci_state == "success":
             return InternalReviewAction.APPROVE
 
         # Issue #2264: Configurable PARTIAL agreement policy
+        # Normalize policy to lowercase for case-insensitive comparison
+        policy = INTERNAL_REVIEW_PARTIAL_POLICY.lower()
+
         if agreement == AIReviewerAgreement.PARTIAL:
-            if INTERNAL_REVIEW_PARTIAL_POLICY == "conservative":
-                # Conservative: PARTIAL → always REQUEST_CHANGES
+            if policy == "conservative":
                 return InternalReviewAction.REQUEST_CHANGES
-            else:
-                # Optimistic (default): PARTIAL + CI success → APPROVE
-                if task.ci_state == "success":
-                    return InternalReviewAction.APPROVE
-                return InternalReviewAction.REQUEST_CHANGES
+            # Optimistic (default): PARTIAL + CI success → APPROVE
+            return (
+                InternalReviewAction.APPROVE
+                if task.ci_state == "success"
+                else InternalReviewAction.REQUEST_CHANGES
+            )
 
         return InternalReviewAction.REQUEST_CHANGES
 
