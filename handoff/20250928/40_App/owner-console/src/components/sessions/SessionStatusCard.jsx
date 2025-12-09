@@ -4,13 +4,14 @@ import { cn } from '@morningai/shared-ui'
 /**
  * SessionStatusCard - Standardized status filter card for Agent Sessions page
  * 
- * Design Specification:
- * - Fixed height: h-24 (96px) for consistent visual alignment
+ * Design Specification (Unified Status Card Standard):
+ * - Fixed dimensions: min-w-[140px] h-24 (96px) for consistent visual alignment
  * - Internal padding: px-4 py-3 (16px horizontal, 12px vertical)
- * - Icon container: 28x28px (h-7 w-7) with rounded-lg
- * - Typography: label text-xs font-medium, value text-2xl font-semibold
- * - Active state: light tinted background + subtle shadow + primary colored value
- * - Focus state: 2px ring with accessibility color (var(--a11y-focus-outline-color))
+ * - Icon container: 28x28px (h-7 w-7) with rounded-lg, positioned top-right
+ * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (bottom-left)
+ * - Vertical spacing: justify-between for consistent label-to-value distance
+ * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
+ * - Focus state: 2px ring with accessibility color (var(--a11y-focus-outline-color)), only on keyboard focus
  * 
  * @param {Object} props
  * @param {string} props.label - Card label text
@@ -77,70 +78,66 @@ function SessionStatusCard({
       aria-pressed={isActive}
       onClick={onClick}
       className={cn(
-        'text-left w-full rounded-xl transition-all duration-150',
+        // Fixed dimensions for all cards - ensures visual consistency
+        'relative min-w-[140px] h-24 w-full',
+        'text-left rounded-xl border px-4 py-3',
+        'flex flex-col justify-between',
+        'transition-all duration-150',
+        // Default state
+        'border-[var(--border)] bg-[var(--surface)] shadow-sm',
+        // Hover state (only when not active)
+        !isActive && 'hover:shadow-md hover:border-[var(--neutral-300)]',
+        // Active state - light tinted background + subtle shadow (no external ring)
+        isActive && [
+          styles.activeBg,
+          styles.activeBorder,
+          'shadow-md',
+        ],
+        // Focus state - only visible on keyboard navigation
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--a11y-focus-outline-color)] focus-visible:ring-offset-2',
         className
       )}
     >
-      <div
-        className={cn(
-          // Base card styles - fixed height for consistency
-          'relative h-24 w-full rounded-xl border px-4 py-3',
-          'flex flex-col justify-between',
-          'transition-all duration-150',
-          // Default state
-          'border-[var(--border)] bg-[var(--surface)] shadow-sm',
-          // Hover state (only when not active)
-          !isActive && 'hover:shadow-md hover:border-[var(--neutral-300)]',
-          // Active state - light tinted background + subtle shadow
-          isActive && [
-            styles.activeBg,
-            styles.activeBorder,
-            'shadow-md',
-          ]
-        )}
-      >
-        {/* Subtle left highlight for active state */}
-        {isActive && (
-          <div 
-            className={cn(
-              'pointer-events-none absolute inset-y-3 left-1.5 w-0.5 rounded-full',
-              variant === 'default' ? 'bg-[var(--neutral-400)]' : styles.iconText
-            )}
-            aria-hidden="true"
-          />
-        )}
-        
-        {/* Top row: Label + Icon */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--text-secondary)]">
-            {label}
-          </span>
-          <div
-            className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-lg shrink-0',
-              styles.iconBg,
-              styles.iconText
-            )}
-          >
-            {icon && cloneElement(icon, { 
-              className: 'w-4 h-4',
-              'aria-hidden': 'true'
-            })}
-          </div>
+      {/* Subtle left highlight for active state */}
+      {isActive && (
+        <div 
+          className={cn(
+            'pointer-events-none absolute inset-y-3 left-1.5 w-0.5 rounded-full',
+            variant === 'default' ? 'bg-[var(--neutral-400)]' : styles.iconText
+          )}
+          aria-hidden="true"
+        />
+      )}
+      
+      {/* Top row: Label + Icon */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-[var(--text-secondary)]">
+          {label}
+        </span>
+        <div
+          className={cn(
+            'flex h-7 w-7 items-center justify-center rounded-lg shrink-0',
+            styles.iconBg,
+            styles.iconText
+          )}
+        >
+          {icon && cloneElement(icon, { 
+            className: 'w-4 h-4',
+            'aria-hidden': 'true'
+          })}
         </div>
+      </div>
         
-        {/* Bottom row: Value */}
-        <div className="flex items-baseline">
-          <span
-            className={cn(
-              'text-2xl font-semibold transition-colors duration-150',
-              isActive ? styles.activeValue : 'text-[var(--text-primary)]'
-            )}
-          >
-            {value}
-          </span>
-        </div>
+      {/* Bottom row: Value */}
+      <div className="flex items-baseline">
+        <span
+          className={cn(
+            'text-2xl font-semibold transition-colors duration-150',
+            isActive ? styles.activeValue : 'text-[var(--text-primary)]'
+          )}
+        >
+          {value}
+        </span>
       </div>
     </button>
   )
