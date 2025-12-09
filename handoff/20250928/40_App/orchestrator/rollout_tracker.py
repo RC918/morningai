@@ -12,6 +12,7 @@ Provides comprehensive tracking for LangGraph rollout progress including:
 All metrics operations are wrapped in try/except to never break the job path.
 """
 
+import json
 import logging
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone, timedelta
@@ -305,19 +306,20 @@ class RolloutTracker:
             return 0
 
     def _get_window_count(self, metric_name: str, window_minutes: int = 15) -> int:
-        """Get total count for a metric over a time window"""
+        """Get total count for a metric over a time window using mget for efficiency"""
         if not self.enabled:
             return 0
 
         try:
             now = datetime.now(timezone.utc)
-            total = 0
+            keys = [
+                self._get_minute_key(metric_name, now - timedelta(minutes=i))
+                for i in range(window_minutes)
+            ]
 
-            for i in range(window_minutes):
-                timestamp = now - timedelta(minutes=i)
-                key = self._get_minute_key(metric_name, timestamp)
-                value = self._safe_get(key)
-                total += value
+            # Use mget for batch retrieval (single round-trip)
+            values = self.redis.mget(keys)
+            total = sum(int(v) for v in values if v is not None)
 
             return total
         except Exception as e:
@@ -457,7 +459,7 @@ class RolloutTracker:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "description": description
             }
-            self.redis.lpush(key, str(incident_data))
+            self.redis.lpush(key, json.dumps(incident_data))
             self.redis.ltrim(key, 0, 99)  # Keep last 100 incidents
             self.redis.expire(key, 86400 * 30)  # 30 days
 
