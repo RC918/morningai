@@ -1,7 +1,7 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-12-07  
-**Document Version**: 2.7  
+**Last Updated**: 2025-12-09  
+**Document Version**: 2.8  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
@@ -20,6 +20,56 @@
 ## Overview
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
+
+**近期重要更新** (2025-12-08 至 2025-12-09):
+
+*Phase 7: 生態系閉環 (AI Review Closed Loop) 完成:*
+- **PR #2257**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py`
+  - 影響：新增 Review Follow-up Mode 追蹤和處理審查評論
+- **PR #2262**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
+  - 影響：Internal Reviewer Agent 具備重新審查能力
+- **PR #2275**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+  - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py`
+  - 影響：多信號觸發系統用於自動化工作流程啟動
+- **PR #2278**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+  - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py`
+  - 影響：LangGraph 推出追蹤器，支援指標和儀表板
+- **PR #2284**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+  - 影響：RolloutTracker 整合到 worker 用於生產監控
+- **PR #2288**: docs: update milestones document with Dec 2025 progress (Issue #2215)
+  - Path: `docs/MILESTONES.md`
+  - 影響：更新里程碑文件，Phase 7 完成狀態
+
+*CSRF Token 管理統一:*
+- **PR #2237**: fix(owner-console): fix CSRF token sync issue causing 403 errors
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
+  - 影響：修復 CSRF token 同步問題，防止 403 錯誤
+- **PR #2238**: refactor(owner-console): unify CSRF token management
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
+  - 影響：統一 CSRF token 管理，支援 Auth 和 API Client 模式
+- **PR #2239, #2240**: docs(owner-console): add CSRF token mode selection warning
+  - 影響：新增 CSRF token 模式選擇警告文檔
+
+*AI Reviewer & Comment Triage:*
+- **PR #2244**: feat(orchestrator): fix AI Reviewer comment intake mechanism
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
+  - 影響：修復 AI Reviewer bot 白名單和評論接收機制
+- **PR #2246**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py`
+  - 影響：新增 Comment Triage Agent 用於分類和優先處理 AI 審查評論
+
+*Sessions UI & 基礎設施:*
+- **PR #2279**: feat(owner-console): add SessionStatusCard component with standardized design spec
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：新增標準化 SessionStatusCard 元件
+- **PR #2232**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - 影響：修復 Upstash Redis scan_iter 相容性
+- **PR #2204**: fix: reduce noisy Sentry alerts for expected error conditions
+  - 影響：減少預期錯誤的 Sentry 警報噪音
 
 **近期重要更新** (2025-12-06 至 2025-12-07):
 
