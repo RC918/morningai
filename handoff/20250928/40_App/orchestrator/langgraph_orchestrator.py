@@ -679,6 +679,33 @@ def internal_review_node(state: AgentState) -> AgentState:
         metrics.record_node_complete("internal_review", trace_id, success=True, latency_ms=latency_ms)
         return state
 
+    # Issue #2263: Validate required fields before processing
+    required_fields = ["original_pr_number", "repo"]
+    missing_fields = [f for f in required_fields if not state.get(f)]
+
+    if missing_fields:
+        logger.error(
+            f"[InternalReview] Missing required fields: {missing_fields}",
+            extra={
+                "operation": "internal_review",
+                "trace_id": trace_id,
+                "missing_fields": missing_fields,
+            }
+        )
+        state["internal_review_mode"] = True
+        state["internal_review_decision"] = "escalate"
+        state["internal_review_error"] = f"Missing required fields: {missing_fields}"
+        state["internal_review_result"] = {
+            "status": "failed",
+            "error": f"Missing required fields: {missing_fields}",
+        }
+        state["ai_reviewer_agreement"] = "disagree"
+        state["requires_hitl_approval"] = True
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("internal_review", trace_id, success=False, latency_ms=latency_ms)
+        return state
+
     state["internal_review_mode"] = True
 
     original_pr_number = state.get("original_pr_number", 0)
