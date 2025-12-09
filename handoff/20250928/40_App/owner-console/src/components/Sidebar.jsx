@@ -14,8 +14,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
-import { Button } from '@morningai/shared-ui'
-import * as Tooltip from '@radix-ui/react-tooltip'
+import { Button, Tooltip, TooltipTrigger, TooltipContent } from '@morningai/shared-ui'
 
 /**
  * Sidebar component for owner-console with iotask-style light theme.
@@ -117,23 +116,18 @@ const Sidebar = ({ user }) => {
 
     if (collapsed) {
       return (
-        <Tooltip.Provider delayDuration={0}>
-          <Tooltip.Root>
-            <Tooltip.Trigger asChild>
-              {linkContent}
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-              <Tooltip.Content
-                side="right"
-                sideOffset={8}
-                className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
-              >
-                {t(item.labelKey)}
-                <Tooltip.Arrow className="fill-neutral-900" />
-              </Tooltip.Content>
-            </Tooltip.Portal>
-          </Tooltip.Root>
-        </Tooltip.Provider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {linkContent}
+          </TooltipTrigger>
+          <TooltipContent
+            side="right"
+            sideOffset={8}
+            className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg"
+          >
+            {t(item.labelKey)}
+          </TooltipContent>
+        </Tooltip>
       )
     }
 
@@ -170,35 +164,30 @@ const Sidebar = ({ user }) => {
             </Link>
           )}
           
-          <Tooltip.Provider delayDuration={300}>
-            <Tooltip.Root>
-              <Tooltip.Trigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setCollapsed(!collapsed)}
-                  className="min-w-[40px] min-h-[40px] p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:text-white dark:hover:bg-neutral-700 transition-all duration-200 hover:scale-105 active:scale-95"
-                  aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-                  aria-expanded={!collapsed}
-                >
-                  <ChevronRight 
-                    className={`w-5 h-5 transition-transform duration-300 ${collapsed ? 'rotate-0' : 'rotate-180'}`}
-                    strokeWidth={1.5}
-                  />
-                </Button>
-              </Tooltip.Trigger>
-              <Tooltip.Portal>
-                <Tooltip.Content
-                  side="right"
-                  sideOffset={8}
-                  className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95"
-                >
-                  {collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-                  <Tooltip.Arrow className="fill-neutral-900" />
-                </Tooltip.Content>
-              </Tooltip.Portal>
-            </Tooltip.Root>
-          </Tooltip.Provider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCollapsed(!collapsed)}
+                className="min-w-[40px] min-h-[40px] p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:text-white dark:hover:bg-neutral-700 transition-all duration-200 hover:scale-105 active:scale-95"
+                aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+                aria-expanded={!collapsed}
+              >
+                <ChevronRight 
+                  className={`w-5 h-5 transition-transform duration-300 ${collapsed ? 'rotate-0' : 'rotate-180'}`}
+                  strokeWidth={1.5}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="right"
+              sideOffset={8}
+              className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg"
+            >
+              {collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
