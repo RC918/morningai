@@ -14,10 +14,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
   Tooltip,
-  TooltipTrigger,
-  TooltipContent
+  TooltipTrigger
 } from '@morningai/shared-ui'
 import { LanguageSwitcher } from './LanguageSwitcher'
+import { OwnerTooltipContent } from './OwnerTooltipContent'
 
 /**
  * GlobalHeader - Single global header for Owner Console
@@ -60,14 +60,9 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar, isMobile, mo
               />
             </Button>
           </TooltipTrigger>
-                    <TooltipContent
-                      side="bottom"
-                      sideOffset={8}
-                      className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
-                      arrowClassName="bg-white fill-white"
-                    >
-                      {isMobile ? (mobileOpen ? t('sidebar.collapse') : t('sidebar.expand')) : (collapsed ? t('sidebar.expand') : t('sidebar.collapse'))}
-          </TooltipContent>
+          <OwnerTooltipContent>
+            {isMobile ? (mobileOpen ? t('sidebar.collapse') : t('sidebar.expand')) : (collapsed ? t('sidebar.expand') : t('sidebar.collapse'))}
+          </OwnerTooltipContent>
         </Tooltip>
 
         {/* Logo + Product Name */}
@@ -124,14 +119,9 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar, isMobile, mo
               <HelpCircle className="w-5 h-5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            sideOffset={8}
-            className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
-            arrowClassName="bg-white fill-white"
-          >
+          <OwnerTooltipContent>
             {t('header.help')}
-          </TooltipContent>
+          </OwnerTooltipContent>
         </Tooltip>
 
         {/* Notifications */}
@@ -146,14 +136,9 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar, isMobile, mo
               <Bell className="w-5 h-5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            sideOffset={8}
-            className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
-            arrowClassName="bg-white fill-white"
-          >
+          <OwnerTooltipContent>
             {t('header.notifications')}
-          </TooltipContent>
+          </OwnerTooltipContent>
         </Tooltip>
 
         {/* Language Switcher */}
