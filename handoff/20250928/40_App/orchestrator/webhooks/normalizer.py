@@ -28,6 +28,7 @@ from .handlers.github_handler import GitHubWebhookHandler
 from .handlers.jira_handler import JiraWebhookHandler
 from .handlers.linear_handler import LinearWebhookHandler
 from .handlers.slack_handler import SlackWebhookHandler
+from .comment_triage import CommentTriageAgent, CommentTriageResult
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +141,10 @@ class EventNormalizer:
             WebhookSource.LINEAR: LinearWebhookHandler(linear_config),
             WebhookSource.SLACK: SlackWebhookHandler(slack_config),
         }
+
+        # Initialize Comment Triage Agent for AI reviewer comment classification
+        # Issue: #2210 - Comment Triage Agent 設計與實作
+        self.comment_triage_agent = CommentTriageAgent()
 
         logger.info(
             "[EventNormalizer] Initialized with handlers: %s",
@@ -445,3 +450,39 @@ class EventNormalizer:
         )
 
         return tasks
+
+    def triage_comment(
+        self, event: WebhookEvent
+    ) -> Optional[CommentTriageResult]:
+        """
+        Triage an AI reviewer comment event.
+
+        This method delegates to the CommentTriageAgent to classify the comment,
+        assess risk, and determine if it should be auto-fixed.
+
+        Args:
+            event: WebhookEvent with is_ai_reviewer=True in metadata
+
+        Returns:
+            CommentTriageResult with classification and recommendations,
+            or None if the event is not from an AI reviewer
+
+        Issue: #2210 - Comment Triage Agent 設計與實作
+        """
+        return self.comment_triage_agent.triage(event)
+
+    def batch_triage_comments(
+        self, events: List[WebhookEvent]
+    ) -> List[CommentTriageResult]:
+        """
+        Triage multiple AI reviewer comment events.
+
+        Args:
+            events: List of WebhookEvents
+
+        Returns:
+            List of CommentTriageResults for AI reviewer events
+
+        Issue: #2210 - Comment Triage Agent 設計與實作
+        """
+        return self.comment_triage_agent.batch_triage(events)
