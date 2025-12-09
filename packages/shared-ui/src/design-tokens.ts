@@ -236,13 +236,12 @@ export const getCSSVariables = (): Record<string, string> => {
   
   Object.assign(cssVars, flattenTokens(breakpoints, 'breakpoint'))
   
-  // Accessibility tokens - use full path naming to match build-time CSS generation
   if (accessibility['wcag-aaa']?.colors) {
-    Object.assign(cssVars, flattenTokens(accessibility['wcag-aaa'].colors, 'accessibility-wcag-aaa-colors'))
+    Object.assign(cssVars, flattenTokens(accessibility['wcag-aaa'].colors, 'a11y-color'))
   }
   
   if (accessibility.focus) {
-    Object.assign(cssVars, flattenTokens(accessibility.focus, 'accessibility-focus'))
+    Object.assign(cssVars, flattenTokens(accessibility.focus, 'a11y-focus'))
   }
   
   return cssVars
