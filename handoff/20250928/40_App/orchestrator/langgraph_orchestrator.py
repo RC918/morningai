@@ -82,13 +82,16 @@ GRAPH FLOWS
 -----------
 
 Standard PR Flow:
-  planner → executor → reviewer → decision → (fixer) → finalizer
+  planner → executor → reviewer → decision → (fixer) → finalizer → evaluation → END
 
 Review Follow-up Flow (Issue #2211):
-  review_intake → planner → executor → reviewer → decision → finalizer
+  review_intake → planner → executor → reviewer → decision → finalizer → evaluation → END
 
 Internal Review Flow (Issue #2212):
-  internal_review → reviewer → decision → finalizer
+  internal_review → reviewer → decision → finalizer → evaluation → END
+
+Note: All flows end with evaluation_node which records metrics and learning data
+before transitioning to END state.
 
 ================================================================================
 """
@@ -2217,10 +2220,16 @@ def reviewer_node(state: AgentState) -> AgentState:
     5. Calculate code quality score
 
     OUTPUTS:
-    - review_result: dict with status and reason
-    - review_comments: list of review comments
+    - review_result: Dict[str, str] with keys:
+        - status: "passed" | "needs_attention" | "pending"
+        - reason: Human-readable explanation of the review outcome
+    - review_comments: List[Dict] with each comment containing:
+        - severity: "low" | "medium" | "high" | "critical"
+        - message: Description of the issue found
     - review_severity: "none" | "low" | "medium" | "high" | "critical"
+        - Aggregate severity based on CI state and LLM analysis
     - code_quality_score: int (0-100)
+        - 80+ for CI success, 40 for CI failure, 60 for pending
 
     NEXT NODE: decision_node
 
