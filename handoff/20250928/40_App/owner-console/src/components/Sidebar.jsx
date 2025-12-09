@@ -15,6 +15,7 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { Button } from '@morningai/shared-ui'
+import * as Tooltip from '@radix-ui/react-tooltip'
 
 /**
  * Sidebar component for owner-console with iotask-style light theme.
@@ -22,6 +23,13 @@ import { Button } from '@morningai/shared-ui'
  * Design Decision: Updated to use light theme following iotask design reference.
  * Uses a thin blue vertical bar indicator for active navigation items instead of
  * full background color, creating a cleaner, more modern SaaS appearance.
+ * 
+ * Optimizations (2024-12):
+ * - Single-line menu items (removed description text)
+ * - 44px row height for better density
+ * - Tooltip on collapsed state (industry standard: Linear, Notion, Slack, Vercel)
+ * - Enhanced expand/collapse control with hover feedback and animation
+ * - Unified icon specs (20x20px)
  */
 const Sidebar = ({ user }) => {
   const { t } = useTranslation()
@@ -32,60 +40,105 @@ const Sidebar = ({ user }) => {
     {
       path: '/dashboard',
       icon: LayoutDashboard,
-      labelKey: 'nav.dashboard',
-      descriptionKey: 'dashboard.subtitle'
+      labelKey: 'nav.dashboard'
     },
-                {
-                  path: '/governance',
-                  icon: Shield,
-                  labelKey: 'nav.governance',
-                  descriptionKey: 'governance.subtitle'
-                },
-                {
-                  path: '/approval-queue',
-                  icon: ShieldAlert,
-                  labelKey: 'nav.approvalQueue',
-                  descriptionKey: 'approvalQueue.subtitle'
-                },
-                {
-                  path: '/sessions',
-                  icon: ListTodo,
-                  labelKey: 'nav.sessions',
-                  descriptionKey: 'sessions.subtitle'
-                },
-                {
-                  path: '/ai-policies',
-                  icon: ShieldCheck,
-                  labelKey: 'nav.aiPolicies',
-                  descriptionKey: 'aiPolicies.subtitle'
-                },
-        {
-          path: '/tenants',
+    {
+      path: '/governance',
+      icon: Shield,
+      labelKey: 'nav.governance'
+    },
+    {
+      path: '/approval-queue',
+      icon: ShieldAlert,
+      labelKey: 'nav.approvalQueue'
+    },
+    {
+      path: '/sessions',
+      icon: ListTodo,
+      labelKey: 'nav.sessions'
+    },
+    {
+      path: '/ai-policies',
+      icon: ShieldCheck,
+      labelKey: 'nav.aiPolicies'
+    },
+    {
+      path: '/tenants',
       icon: Users,
-      labelKey: 'nav.tenants',
-      descriptionKey: 'tenants.subtitle'
+      labelKey: 'nav.tenants'
     },
     {
       path: '/monitoring',
       icon: Activity,
-      labelKey: 'nav.monitoring',
-      descriptionKey: 'monitoring.subtitle'
+      labelKey: 'nav.monitoring'
     },
-        {
-          path: '/ux-metrics',
-          icon: BarChart3,
-          labelKey: 'nav.uxMetrics',
-          descriptionKey: 'uxMetrics.subtitle'
-        },
-        {
-          path: '/failure-experiments',
-          icon: Beaker,
-          labelKey: 'nav.failureExperiments',
-          descriptionKey: 'failureExperiment.subtitle'
-        }
+    {
+      path: '/ux-metrics',
+      icon: BarChart3,
+      labelKey: 'nav.uxMetrics'
+    },
+    {
+      path: '/failure-experiments',
+      icon: Beaker,
+      labelKey: 'nav.failureExperiments'
+    }
   ]
 
   const isActive = (path) => location.pathname === path
+
+  const NavItem = ({ item }) => {
+    const Icon = item.icon
+    const active = isActive(item.path)
+    
+    const linkContent = (
+      <Link
+        to={item.path}
+        className={`relative flex items-center h-11 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+          active
+            ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+            : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white'
+        }`}
+        aria-current={active ? 'page' : undefined}
+      >
+        {active && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-500 rounded-r-full transition-all duration-200" />
+        )}
+        <Icon 
+          className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
+            collapsed ? 'mx-auto' : 'mr-3'
+          } ${active ? 'text-primary-600 dark:text-primary-400' : ''}`}
+          strokeWidth={1.5}
+        />
+        {!collapsed && (
+          <span className="truncate">{t(item.labelKey)}</span>
+        )}
+      </Link>
+    )
+
+    if (collapsed) {
+      return (
+        <Tooltip.Provider delayDuration={0}>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              {linkContent}
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content
+                side="right"
+                sideOffset={8}
+                className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+              >
+                {t(item.labelKey)}
+                <Tooltip.Arrow className="fill-neutral-900" />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      )
+    }
+
+    return linkContent
+  }
 
   return (
     <div className={`bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-700 transition-all duration-300 flex flex-col ${
@@ -117,60 +170,45 @@ const Sidebar = ({ user }) => {
             </Link>
           )}
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:text-white dark:hover:bg-neutral-700"
-            aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-            aria-expanded={!collapsed}
-          >
-            {collapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronLeft className="w-4 h-4" />
-            )}
-          </Button>
+          <Tooltip.Provider delayDuration={300}>
+            <Tooltip.Root>
+              <Tooltip.Trigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCollapsed(!collapsed)}
+                  className="min-w-[40px] min-h-[40px] p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:text-white dark:hover:bg-neutral-700 transition-all duration-200 hover:scale-105 active:scale-95"
+                  aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+                  aria-expanded={!collapsed}
+                >
+                  <ChevronRight 
+                    className={`w-5 h-5 transition-transform duration-300 ${collapsed ? 'rotate-0' : 'rotate-180'}`}
+                    strokeWidth={1.5}
+                  />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content
+                  side="right"
+                  sideOffset={8}
+                  className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95"
+                >
+                  {collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+                  <Tooltip.Arrow className="fill-neutral-900" />
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 overflow-y-auto" aria-label={t('nav.mainNavigation')}>
+      <nav className="flex-1 p-2 overflow-y-auto" aria-label={t('nav.mainNavigation')}>
         <ul className="space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.path)
-            
-            return (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={`relative flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    active
-                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
-                      : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white'
-                  }`}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  {/* iotask-style: thin blue vertical bar indicator for active state */}
-                  {active && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-500 rounded-r-full" />
-                  )}
-                  <Icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : 'mr-3'} ${active ? 'text-primary-600 dark:text-primary-400' : ''}`} />
-                  
-                  {!collapsed && (
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span>{t(item.labelKey)}</span>
-                      </div>
-                      <p className={`text-xs mt-1 ${active ? 'text-primary-500 dark:text-primary-300' : 'text-neutral-500'}`}>
-                        {t(item.descriptionKey)}
-                      </p>
-                    </div>
-                  )}
-                </Link>
-              </li>
-            )
-          })}
+          {menuItems.map((item) => (
+            <li key={item.path}>
+              <NavItem item={item} />
+            </li>
+          ))}
         </ul>
       </nav>
 
