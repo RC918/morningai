@@ -13,6 +13,84 @@ Implements a stateful agent workflow using LangGraph for:
 
 Multi-Agent Flow:
   planner → executor → reviewer → decision → (fixer if needed) → finalizer
+
+================================================================================
+ORCHESTRATOR GRAPH NODE RESPONSIBILITIES (Issue #2265)
+================================================================================
+
+This section documents the responsibilities of each node in the orchestrator
+graph, with special attention to the internal_review and reviewer nodes.
+
+NODE RESPONSIBILITY MATRIX
+--------------------------
+
+| Node              | Responsibility                                    | Trigger Condition           |
+|-------------------|---------------------------------------------------|----------------------------|
+| planner           | Task decomposition and planning                   | All tasks                  |
+| review_intake     | Process incoming review requests                  | Review follow-up tasks     |
+| internal_review   | Validate AI reviewer assessments after fixes      | task_type=internal_review  |
+| reviewer          | Perform code review (CI-based or LLM-based)       | PR available               |
+| decision          | Make merge/fix decision based on review           | After reviewer             |
+| executor          | Execute planned tasks                             | After planner              |
+| fixer             | Auto-fix CI failures                              | CI failure detected        |
+| finalizer         | Complete workflow and report results              | After decision             |
+
+INTERNAL_REVIEW_NODE vs REVIEWER_NODE (Issue #2265)
+---------------------------------------------------
+
+These two nodes serve DIFFERENT purposes and are NOT redundant:
+
+**internal_review_node** (Phase 7 - Issue #2212):
+  - Purpose: Validate if AI reviewer's ORIGINAL assessment was correct
+  - When: After follow-up actions are applied to address AI reviewer comments
+  - Input: Original AI review, follow-up result, triage result, CI state
+  - Output: internal_review_decision (approve/request_changes/escalate),
+            ai_reviewer_agreement (agree/partial/disagree),
+            requires_hitl_approval (bool)
+  - Logic: Compares initial AI assessment with current state to determine
+           if the fix correctly addressed the original comment
+
+**reviewer_node** (Phase 3):
+  - Purpose: Perform actual code review on PR changes
+  - When: PR is available for review
+  - Input: PR number, PR URL, CI state
+  - Output: review_result, review_comments, review_severity, code_quality_score
+  - Logic: Uses CI state as baseline, optionally LLM for additional analysis
+
+INTERNAL_REVIEW → REVIEWER EDGE DESIGN RATIONALE
+------------------------------------------------
+
+The edge from internal_review to reviewer exists because:
+
+1. **State Consistency**: After internal review validates the AI assessment,
+   the reviewer node updates the review state (code_quality_score, severity)
+   based on the current CI state. This ensures decision_node has accurate data.
+
+2. **Separation of Concerns**:
+   - internal_review_node: "Was the AI reviewer's assessment correct?"
+   - reviewer_node: "What is the current code quality?"
+
+3. **Reusability**: The reviewer_node logic is reused for both:
+   - Standard PR review flow (planner → ... → reviewer → decision)
+   - Internal review flow (internal_review → reviewer → decision)
+
+4. **No Redundant Computation**: internal_review_node does NOT perform
+   code review - it only validates the AI reviewer's assessment.
+   reviewer_node does NOT validate AI assessments - it only reviews code.
+
+GRAPH FLOWS
+-----------
+
+Standard PR Flow:
+  planner → executor → reviewer → decision → (fixer) → finalizer
+
+Review Follow-up Flow (Issue #2211):
+  review_intake → planner → executor → reviewer → decision → finalizer
+
+Internal Review Flow (Issue #2212):
+  internal_review → reviewer → decision → finalizer
+
+================================================================================
 """
 
 import functools
@@ -643,16 +721,32 @@ def internal_review_node(state: AgentState) -> AgentState:
     Internal Review node: Entry point for internal re-review tasks.
 
     Issue #2212: Internal Reviewer Agent Re-review Mechanism
+    Issue #2265: Node responsibility documentation
 
-    This node:
-    1. Validates the internal re-review task
+    PURPOSE (see module docstring for full details):
+    Validate if the AI reviewer's ORIGINAL assessment was correct after
+    follow-up actions have been applied. This is NOT a code review node -
+    it validates the AI reviewer's judgment, not the code itself.
+
+    RESPONSIBILITIES:
+    1. Validates the internal re-review task (task_type == "internal_review")
     2. Loads context (original review, triage result, follow-up actions, CI state)
     3. Performs internal re-review using InternalReviewerService
-    4. Determines if HITL approval is required
-    5. Prepares state for decision making
+    4. Determines agreement level (agree/partial/disagree) with original AI review
+    5. Determines if HITL approval is required for high-risk decisions
+    6. Prepares state for decision making
 
-    The node is used when task_type == "internal_review" to validate
-    AI reviewer assessments after fixes are applied.
+    OUTPUTS:
+    - internal_review_decision: "approve" | "request_changes" | "escalate"
+    - ai_reviewer_agreement: "agree" | "partial" | "disagree"
+    - requires_hitl_approval: bool
+    - internal_review_result: dict with detailed assessment
+
+    NEXT NODE: reviewer_node (to update code quality state before decision)
+
+    NOTE: This node is DIFFERENT from reviewer_node:
+    - internal_review_node: "Was the AI reviewer's assessment correct?"
+    - reviewer_node: "What is the current code quality?"
     """
     start_time = time.time()
     metrics = _get_metrics()
@@ -2106,15 +2200,38 @@ def _ci_only_review(ci_state: str) -> dict:
 
 def reviewer_node(state: AgentState) -> AgentState:
     """
-    Reviewer node: Analyzes code changes and provides review feedback
+    Reviewer node: Analyzes code changes and provides review feedback.
 
-    Phase 6 PR-3 Enhancement:
-    - LLM-powered code review with A/B testing support (OpenAI vs Gemini)
-    - Uses CI state as baseline, LLM provides additional risk assessment
-    - CI score acts as ceiling (LLM cannot claim higher quality than CI)
-    - Graceful fallback to CI-only review if LLM unavailable
+    Phase 6 PR-3 Enhancement
+    Issue #2265: Node responsibility documentation
+
+    PURPOSE (see module docstring for full details):
+    Perform actual code review on PR changes. This node evaluates the
+    CURRENT code quality, not the AI reviewer's judgment.
+
+    RESPONSIBILITIES:
+    1. Analyze code changes in the PR
+    2. Use CI state as baseline quality indicator
+    3. Optionally use LLM for additional risk assessment (A/B testing)
+    4. Generate review comments and severity assessment
+    5. Calculate code quality score
+
+    OUTPUTS:
+    - review_result: dict with status and reason
+    - review_comments: list of review comments
+    - review_severity: "none" | "low" | "medium" | "high" | "critical"
+    - code_quality_score: int (0-100)
+
+    NEXT NODE: decision_node
+
+    NOTE: This node is DIFFERENT from internal_review_node:
+    - reviewer_node: "What is the current code quality?"
+    - internal_review_node: "Was the AI reviewer's assessment correct?"
 
     Feature Flag: USE_LLM_REVIEWER (default: False)
+    - LLM-powered code review with A/B testing support (OpenAI vs Gemini)
+    - CI score acts as ceiling (LLM cannot claim higher quality than CI)
+    - Graceful fallback to CI-only review if LLM unavailable
 
     Returns:
         Updated state with review_result, review_comments, review_severity, code_quality_score
