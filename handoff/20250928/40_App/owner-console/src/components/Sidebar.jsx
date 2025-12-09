@@ -11,7 +11,8 @@ import {
   BarChart3,
   Beaker
 } from 'lucide-react'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@morningai/shared-ui'
+import { Tooltip, TooltipTrigger } from '@morningai/shared-ui'
+import { OwnerTooltipContent } from './OwnerTooltipContent'
 
 /**
  * Sidebar component for owner-console with GitHub/Linear-style design.
@@ -114,13 +115,9 @@ const Sidebar = ({ user, collapsed = false, isMobileDrawer = false }) => {
           <TooltipTrigger asChild>
             {linkContent}
           </TooltipTrigger>
-          <TooltipContent
-            side="right"
-            sideOffset={8}
-            className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
-          >
+          <OwnerTooltipContent side="right">
             {t(item.labelKey)}
-          </TooltipContent>
+          </OwnerTooltipContent>
         </Tooltip>
       )
     }

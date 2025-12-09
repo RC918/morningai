@@ -7,6 +7,7 @@ export { default as ConfidenceApproval } from './ConfidenceApproval'
 export { default as FileDiffViewer } from './FileDiffViewer'
 export { default as SessionInsights } from './SessionInsights'
 export { default as SessionCommandInput } from './SessionCommandInput'
+export { SessionStatusCard } from './SessionStatusCard'
 
 // Constants for confidence scoring
 export {
