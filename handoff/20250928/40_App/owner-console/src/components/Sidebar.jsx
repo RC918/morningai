@@ -118,6 +118,7 @@ const Sidebar = ({ user, collapsed = false, isMobileDrawer = false }) => {
             side="right"
             sideOffset={8}
             className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
+            arrowClassName="bg-white fill-white"
           >
             {t(item.labelKey)}
           </TooltipContent>

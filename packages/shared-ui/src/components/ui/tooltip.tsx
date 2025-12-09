@@ -37,11 +37,13 @@ function TooltipTrigger({
 interface TooltipContentProps extends React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content> {
   className?: string;
   sideOffset?: number;
+  arrowClassName?: string;
 }
 
 function TooltipContent({
   className,
   sideOffset = 0,
+  arrowClassName,
   children,
   ...props
 }: TooltipContentProps) {
@@ -57,7 +59,11 @@ function TooltipContent({
         {...props}>
         {children}
         <TooltipPrimitive.Arrow
-          className="bg-primary fill-primary z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+          className={cn(
+            "z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]",
+            arrowClassName || "bg-primary fill-primary"
+          )}
+        />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   );

@@ -64,6 +64,7 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar, isMobile, mo
                       side="bottom"
                       sideOffset={8}
                       className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
+                      arrowClassName="bg-white fill-white"
                     >
                       {isMobile ? (mobileOpen ? t('sidebar.collapse') : t('sidebar.expand')) : (collapsed ? t('sidebar.expand') : t('sidebar.collapse'))}
           </TooltipContent>
@@ -127,6 +128,7 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar, isMobile, mo
             side="bottom"
             sideOffset={8}
             className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
+            arrowClassName="bg-white fill-white"
           >
             {t('header.help')}
           </TooltipContent>
@@ -148,6 +150,7 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar, isMobile, mo
             side="bottom"
             sideOffset={8}
             className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
+            arrowClassName="bg-white fill-white"
           >
             {t('header.notifications')}
           </TooltipContent>
