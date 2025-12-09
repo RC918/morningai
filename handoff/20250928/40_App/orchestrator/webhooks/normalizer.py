@@ -93,6 +93,23 @@ class EventNormalizer:
         WebhookEventType.COMMAND_RECEIVED,
     }
 
+    # AI Reviewer standard phrases that indicate actionable feedback
+    # Issue: #2209 - 修復 AI Reviewer 評論接收機制
+    # Note: Removed overly generic keywords (refactor, simplify, optimize)
+    # to avoid false positives from human comments
+    AI_REVIEWER_KEYWORDS = [
+        # Codex / Copilot standard phrases
+        "suggestion:", "consider:", "recommend:", "could be improved",
+        "potential issue", "possible bug", "code smell",
+        # Gemini Code Assist standard phrases
+        "code review", "improvement suggestion", "best practice",
+        "security concern", "performance issue", "maintainability",
+        # CodeRabbit standard phrases
+        "actionable comment", "nitpick:", "issue:",
+        # General AI reviewer phrases (specific, not generic)
+        "fix:", "bug:", "vulnerability", "deprecated", "unused", "dead code",
+    ]
+
     # Priority mapping based on labels
     PRIORITY_LABELS = {
         "critical": ["critical", "urgent", "p0", "blocker", "緊急"],
@@ -212,9 +229,20 @@ class EventNormalizer:
 
         Returns:
             True if event should trigger task creation
+
+        Issue: #2209 - 修復 AI Reviewer 評論接收機制
         """
         # Check if event type is in actionable list
         if event.event_type in self.ACTIONABLE_EVENT_TYPES:
+            return True
+
+        # Check if event is from an AI reviewer (always actionable)
+        # Issue: #2209 - AI reviewer events should be processed
+        if event.metadata.get("is_ai_reviewer"):
+            logger.info(
+                "[EventNormalizer] AI reviewer event is actionable: source=%s",
+                event.metadata.get("review_source"),
+            )
             return True
 
         # Check for specific keywords in title/description
@@ -227,6 +255,16 @@ class EventNormalizer:
 
         for keyword in action_keywords:
             if keyword in text:
+                return True
+
+        # Check for AI reviewer standard phrases
+        # Issue: #2209 - Recognize AI reviewer standard terminology
+        for keyword in self.AI_REVIEWER_KEYWORDS:
+            if keyword in text:
+                logger.debug(
+                    "[EventNormalizer] AI reviewer keyword detected: %s",
+                    keyword,
+                )
                 return True
 
         return False
