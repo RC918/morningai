@@ -292,6 +292,26 @@ class AgentState(TypedDict):
         ops_health_status: System health status (healthy, degraded, unhealthy, unknown)
         ops_risk: Operations risk level (critical, high, medium, low, info)
         ops_recommended_actions: List of recommended operational actions
+
+    Phase 7 New Fields (Issue #2211 Review Follow-up Mode):
+        task_type: Type of task (default, review_follow_up, internal_review)
+        original_pr_number: Original PR number for review follow-up tasks
+        comment_url: URL to the review comment being addressed
+        comment_body: Body of the review comment
+        review_file_path: File path mentioned in the review comment
+        review_line_number: Line number mentioned in the review comment
+        triage_result: Result from CommentTriageAgent
+        pr_context: Context about the original PR (diff, files, comments)
+        review_follow_up_action: Action to take (auto_fix, manual_review, skip, escalate)
+        requires_hitl_approval: Whether HITL approval is required
+
+    Phase 7 New Fields (Issue #2212 Internal Reviewer Agent Re-review):
+        internal_review_mode: Boolean indicating if this is an internal re-review
+        initial_ai_review: Initial AI reviewer assessment being re-reviewed
+        follow_up_summary: Summary of follow-up actions taken
+        internal_review_result: Result from internal re-review
+        internal_review_decision: Decision (approve, request_changes, escalate)
+        ai_reviewer_agreement: Agreement level (agree, partial, disagree)
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -343,6 +363,24 @@ class AgentState(TypedDict):
     ops_health_status: str
     ops_risk: str
     ops_recommended_actions: list
+    # Phase 7 Issue #2211 Review Follow-up Mode
+    task_type: str
+    original_pr_number: int
+    comment_url: str
+    comment_body: str
+    review_file_path: str
+    review_line_number: int
+    triage_result: dict
+    pr_context: dict
+    review_follow_up_action: str
+    requires_hitl_approval: bool
+    # Phase 7 Issue #2212 Internal Reviewer Agent Re-review
+    internal_review_mode: bool
+    initial_ai_review: dict
+    follow_up_summary: dict
+    internal_review_result: dict
+    internal_review_decision: str
+    ai_reviewer_agreement: str
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -485,6 +523,424 @@ def planner_node(state: AgentState) -> AgentState:
     })
 
     return _planner_success(state, metrics, start_time, trace_id)
+
+
+def review_intake_node(state: AgentState) -> AgentState:
+    """
+    Review Intake node: Entry point for review follow-up tasks.
+
+    Issue #2211: Orchestrator Review Follow-up Mode
+
+    This node:
+    1. Validates the review follow-up task
+    2. Fetches PR context (diff, files, comments)
+    3. Determines if HITL approval is required
+    4. Prepares state for the planner
+
+    The node is used when task_type == "review_follow_up" to handle
+    AI reviewer comments that need to be addressed.
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+    task_type = state.get("task_type", "default")
+
+    metrics.record_node_start("review_intake", trace_id)
+
+    logger.info("[ReviewIntake] Processing review follow-up task", extra={
+        "operation": "review_intake",
+        "trace_id": trace_id,
+        "task_type": task_type,
+        "original_pr_number": state.get("original_pr_number"),
+        "review_file_path": state.get("review_file_path"),
+    })
+
+    # Validate this is a review follow-up task
+    if task_type != "review_follow_up":
+        logger.warning(
+            "[ReviewIntake] Not a review follow-up task, skipping",
+            extra={"operation": "review_intake", "trace_id": trace_id}
+        )
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("review_intake", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    # Extract review context
+    original_pr_number = state.get("original_pr_number", 0)
+    repo = state.get("repo", "")
+    comment_body = state.get("comment_body", "")
+    review_file_path = state.get("review_file_path", "")
+    review_line_number = state.get("review_line_number", 0)
+    triage_result = state.get("triage_result", {})
+
+    # Fetch PR context if not already present
+    pr_context = state.get("pr_context", {})
+    if not pr_context and original_pr_number > 0:
+        try:
+            pr_context = _fetch_pr_context_for_review(repo, original_pr_number, trace_id)
+            state["pr_context"] = pr_context
+            logger.info(
+                "[ReviewIntake] Fetched PR context",
+                extra={
+                    "operation": "review_intake",
+                    "trace_id": trace_id,
+                    "pr_number": original_pr_number,
+                    "files_count": len(pr_context.get("files_changed", [])),
+                }
+            )
+        except Exception as e:
+            logger.warning(
+                f"[ReviewIntake] Failed to fetch PR context: {e}",
+                extra={"operation": "review_intake", "trace_id": trace_id, "error": str(e)}
+            )
+
+    # Determine if HITL approval is required
+    requires_approval = _determine_hitl_requirement(triage_result, review_file_path)
+    state["requires_hitl_approval"] = requires_approval
+
+    # Determine action based on triage result
+    action = state.get("review_follow_up_action", "manual_review")
+    if triage_result:
+        if triage_result.get("should_auto_fix", False):
+            action = "auto_fix"
+        elif triage_result.get("risk_level") == "high":
+            action = "escalate"
+        elif triage_result.get("category") == "security":
+            action = "escalate"
+    state["review_follow_up_action"] = action
+
+    # Build enhanced goal text for review follow-up
+    enhanced_goal = _build_review_follow_up_goal(
+        comment_body, review_file_path, review_line_number, triage_result, pr_context
+    )
+    state["goal"] = enhanced_goal
+
+    # Add message about review intake
+    state["messages"] = state.get("messages", []) + [
+        SystemMessage(content=f"[ReviewIntake] Processing review comment on PR #{original_pr_number}: {comment_body[:100]}...")
+    ]
+
+    logger.info(
+        "[ReviewIntake] Review intake complete",
+        extra={
+            "operation": "review_intake",
+            "trace_id": trace_id,
+            "action": action,
+            "requires_approval": requires_approval,
+        }
+    )
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("review_intake", trace_id, success=True, latency_ms=latency_ms)
+    metrics.record_transition("review_intake", "planner", trace_id)
+
+    return state
+
+
+def internal_review_node(state: AgentState) -> AgentState:
+    """
+    Internal Review node: Entry point for internal re-review tasks.
+
+    Issue #2212: Internal Reviewer Agent Re-review Mechanism
+
+    This node:
+    1. Validates the internal re-review task
+    2. Loads context (original review, triage result, follow-up actions, CI state)
+    3. Performs internal re-review using InternalReviewerService
+    4. Determines if HITL approval is required
+    5. Prepares state for decision making
+
+    The node is used when task_type == "internal_review" to validate
+    AI reviewer assessments after fixes are applied.
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+    task_type = state.get("task_type", "default")
+
+    metrics.record_node_start("internal_review", trace_id)
+
+    logger.info("[InternalReview] Processing internal re-review task", extra={
+        "operation": "internal_review",
+        "trace_id": trace_id,
+        "task_type": task_type,
+        "original_pr_number": state.get("original_pr_number"),
+        "internal_review_mode": state.get("internal_review_mode", False),
+    })
+
+    if task_type != "internal_review":
+        logger.warning(
+            "[InternalReview] Not an internal review task, skipping",
+            extra={"operation": "internal_review", "trace_id": trace_id}
+        )
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("internal_review", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    state["internal_review_mode"] = True
+
+    original_pr_number = state.get("original_pr_number", 0)
+    repo = state.get("repo", "")
+    comment_body = state.get("comment_body", "")
+    review_file_path = state.get("review_file_path", "")
+    review_line_number = state.get("review_line_number", 0)
+    triage_result = state.get("triage_result", {})
+    initial_ai_review = state.get("initial_ai_review", {})
+    follow_up_summary = state.get("follow_up_summary", {})
+    ci_state = state.get("ci_state", "unknown")
+    code_quality_score = state.get("code_quality_score", 100)
+
+    try:
+        from webhooks.internal_reviewer import (
+            InternalReviewerService,
+            create_internal_review_task,
+        )
+
+        service = InternalReviewerService()
+
+        task = create_internal_review_task(
+            trace_id=trace_id,
+            original_pr_number=original_pr_number,
+            repo=repo,
+            initial_ai_review=initial_ai_review,
+            follow_up_result=follow_up_summary,
+            triage_result=triage_result,
+            comment_body=comment_body,
+            file_path=review_file_path,
+            line_number=review_line_number,
+            ci_state=ci_state,
+            code_quality_score=code_quality_score,
+        )
+
+        result = service.perform_internal_review(task)
+
+        state["internal_review_result"] = {
+            "task_id": result.task_id,
+            "status": result.status.value,
+            "action": result.action.value,
+            "agreement": result.agreement.value,
+            "comment_addressed": result.comment_addressed,
+            "addressing_quality": result.addressing_quality,
+            "quality_score_delta": result.quality_score_delta,
+            "severity_assessment": result.severity_assessment,
+            "regression_risk": result.regression_risk,
+            "summary": result.summary,
+            "recommendations": result.recommendations,
+            "review_time_ms": result.review_time_ms,
+        }
+        state["internal_review_decision"] = result.action.value
+        state["ai_reviewer_agreement"] = result.agreement.value
+        state["requires_hitl_approval"] = result.requires_hitl
+
+        logger.info(
+            "[InternalReview] Internal re-review completed",
+            extra={
+                "operation": "internal_review",
+                "trace_id": trace_id,
+                "action": result.action.value,
+                "agreement": result.agreement.value,
+                "requires_hitl": result.requires_hitl,
+                "review_time_ms": result.review_time_ms,
+            }
+        )
+
+        state["messages"] = state.get("messages", []) + [
+            SystemMessage(content=f"[InternalReview] Re-review completed: {result.summary}")
+        ]
+
+    except ImportError as e:
+        logger.warning(
+            f"[InternalReview] InternalReviewerService not available: {e}",
+            extra={"operation": "internal_review", "trace_id": trace_id}
+        )
+        state["internal_review_result"] = {
+            "status": "skipped",
+            "reason": "InternalReviewerService not available",
+        }
+        state["internal_review_decision"] = "request_changes"
+        state["ai_reviewer_agreement"] = "partial"
+
+    except Exception as e:
+        logger.error(
+            f"[InternalReview] Internal re-review failed: {e}",
+            extra={"operation": "internal_review", "trace_id": trace_id, "error": str(e)},
+            exc_info=True
+        )
+        state["internal_review_result"] = {
+            "status": "failed",
+            "error": str(e),
+        }
+        state["internal_review_decision"] = "escalate"
+        state["ai_reviewer_agreement"] = "disagree"
+        state["requires_hitl_approval"] = True
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("internal_review", trace_id, success=True, latency_ms=latency_ms)
+    metrics.record_transition("internal_review", "reviewer", trace_id)
+
+    return state
+
+
+def _fetch_pr_context_for_review(repo: str, pr_number: int, trace_id: str) -> dict:
+    """
+    Fetch PR context for review follow-up.
+
+    Issue #2211: Pulls diff, files, and comments from the PR.
+
+    Args:
+        repo: Repository in owner/repo format
+        pr_number: PR number
+        trace_id: Trace ID for logging
+
+    Returns:
+        Dictionary with PR context
+    """
+    try:
+        from tools.github_api import get_repo as get_github_repo
+
+        logger.debug(
+            "[ReviewIntake] Fetching PR context",
+            extra={"operation": "fetch_pr_context", "trace_id": trace_id, "pr_number": pr_number}
+        )
+
+        github_repo = get_github_repo(repo)
+        pr = github_repo.get_pull(pr_number)
+
+        # Get changed files
+        files_changed = [f.filename for f in pr.get_files()]
+
+        # Build context
+        return {
+            "pr_number": pr_number,
+            "repo": repo,
+            "branch": pr.head.ref,
+            "base_branch": pr.base.ref,
+            "title": pr.title,
+            "description": pr.body or "",
+            "author": pr.user.login,
+            "files_changed": files_changed,
+            "labels": [label.name for label in pr.labels],
+            "state": pr.state,
+            "mergeable": pr.mergeable,
+        }
+
+    except ImportError:
+        logger.warning("[ReviewIntake] GitHub API not available, using stub context")
+        return {
+            "pr_number": pr_number,
+            "repo": repo,
+            "branch": "unknown",
+            "base_branch": "main",
+            "title": f"PR #{pr_number}",
+            "description": "",
+            "author": "unknown",
+            "files_changed": [],
+            "labels": [],
+            "state": "unknown",
+            "mergeable": None,
+            "stub": True,
+        }
+
+    except Exception as e:
+        logger.error(f"[ReviewIntake] Error fetching PR context: {e}")
+        raise
+
+
+def _determine_hitl_requirement(triage_result: dict, file_path: str) -> bool:
+    """
+    Determine if HITL (Human-in-the-Loop) approval is required.
+
+    Issue #2211: HITL approval mechanism for review follow-up.
+
+    Args:
+        triage_result: Result from CommentTriageAgent
+        file_path: File path being modified
+
+    Returns:
+        True if HITL approval is required
+    """
+    # Always require approval for high-risk changes
+    if triage_result.get("risk_level") == "high":
+        return True
+
+    # Require approval for security-related changes
+    if triage_result.get("category") == "security":
+        return True
+
+    # Require approval for sensitive file patterns
+    sensitive_patterns = [
+        "auth", "security", "credential", "password", "secret",
+        "config", "settings", "env", "migration", "schema",
+    ]
+    file_path_lower = file_path.lower()
+    for pattern in sensitive_patterns:
+        if pattern in file_path_lower:
+            return True
+
+    # Auto-fix with high confidence doesn't require approval
+    if (triage_result.get("should_auto_fix", False) and
+            triage_result.get("confidence", 0) >= 0.8):
+        return False
+
+    # Default to requiring approval for safety
+    return True
+
+
+def _build_review_follow_up_goal(
+    comment_body: str,
+    file_path: str,
+    line_number: int,
+    triage_result: dict,
+    pr_context: dict,
+) -> str:
+    """
+    Build an enhanced goal text for review follow-up tasks.
+
+    Issue #2211: Creates a detailed goal for the planner.
+
+    Args:
+        comment_body: Body of the review comment
+        file_path: File path mentioned in comment
+        line_number: Line number mentioned in comment
+        triage_result: Result from CommentTriageAgent
+        pr_context: Context about the PR
+
+    Returns:
+        Enhanced goal text
+    """
+    parts = []
+
+    # Add task type prefix
+    category = triage_result.get("category", "unknown")
+    parts.append(f"[Review Follow-up: {category}]")
+
+    # Add file context
+    if file_path:
+        if line_number > 0:
+            parts.append(f"In file {file_path} at line {line_number}:")
+        else:
+            parts.append(f"In file {file_path}:")
+
+    # Add the comment (truncated if too long)
+    comment = comment_body[:500] if comment_body else "No comment body"
+    parts.append(f"Address review comment: {comment}")
+
+    # Add PR context
+    pr_number = pr_context.get("pr_number", 0)
+    repo = pr_context.get("repo", "")
+    branch = pr_context.get("branch", "")
+    if pr_number:
+        parts.append(f"(PR #{pr_number} on branch '{branch}' in {repo})")
+
+    # Add action hint based on triage
+    if triage_result.get("should_auto_fix"):
+        parts.append("[Auto-fix recommended]")
+    elif triage_result.get("risk_level") == "high":
+        parts.append("[High risk - manual review required]")
+
+    return " ".join(parts)
 
 
 def security_advisor_node(state: AgentState) -> AgentState:
@@ -2320,12 +2776,16 @@ def should_retry_or_finish(state: AgentState) -> str:
         return "monitor_ci"
 
 
-def create_orchestrator_graph():
+def create_orchestrator_graph(entry_point: str = "planner"):
     """
     Creates the LangGraph StateGraph for orchestration
 
     Phase 2 PR-1813 Update (Agent Evaluation):
         planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → policy_enforcement → (executor | finalizer) → ci_monitor → reviewer → decision → (fixer if needed) → finalizer → evaluation → END
+
+    Phase 7 Issue #2211 Review Follow-up Mode:
+        review_intake → planner → ... (same as above)
+        Entry point can be "review_intake" for review follow-up tasks
 
     5-Agent Advisory Pipeline Nodes:
         1. security_advisor: Security analysis (Phase 4 PR-2)
@@ -2349,6 +2809,8 @@ def create_orchestrator_graph():
         - ops_advisor: System health monitoring and operational recommendations
 
     Other Nodes:
+        - review_intake: Entry point for review follow-up tasks (Issue #2211)
+        - internal_review: Entry point for internal re-review tasks (Issue #2212)
         - planner: Task decomposition using LLM Planner
         - executor: Code generation execution
         - ci_monitor: CI status monitoring
@@ -2357,12 +2819,23 @@ def create_orchestrator_graph():
         - fixer: Auto-fix CI failures
         - finalizer: Prepare final result
 
+    Phase 7 Issue #2212 Internal Reviewer Agent Re-review Mode:
+        internal_review → reviewer → decision → ... (same as above)
+        Entry point can be "internal_review" for internal re-review tasks
+
+    Args:
+        entry_point: Entry point node name ("planner", "review_intake", or "internal_review")
+
     Returns:
         Compiled StateGraph ready for execution
     """
     workflow = StateGraph(AgentState)
 
     # Add all nodes
+    # Phase 7 Issue #2211: Review Intake node for review follow-up tasks
+    workflow.add_node("review_intake", review_intake_node)
+    # Phase 7 Issue #2212: Internal Review node for internal re-review tasks
+    workflow.add_node("internal_review", internal_review_node)
     workflow.add_node("planner", planner_node)
     # Phase 3 PR-3 (#1815): PM Agent + Ops Agent nodes
     workflow.add_node("pm_advisor", pm_advisor_node)
@@ -2385,8 +2858,16 @@ def create_orchestrator_graph():
     # Phase 2 PR-1813: Agent Evaluation node
     workflow.add_node("evaluation", evaluation_node)
 
-    # Set entry point
-    workflow.set_entry_point("planner")
+    # Set entry point (Issue #2211: support review_intake as alternative entry point)
+    workflow.set_entry_point(entry_point)
+
+    # Phase 7 Issue #2211: Review Intake → Planner edge
+    # review_intake → planner (for review follow-up tasks)
+    workflow.add_edge("review_intake", "planner")
+
+    # Phase 7 Issue #2212: Internal Review → Reviewer edge
+    # internal_review → reviewer (for internal re-review tasks)
+    workflow.add_edge("internal_review", "reviewer")
 
     # Phase 3 PR-3 (#1815): PM Agent + Ops Agent edges
     # planner → pm_advisor (task decomposition after planning)
@@ -2552,7 +3033,18 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "ops_advisory": {},
         "ops_health_status": "unknown",
         "ops_risk": "info",
-        "ops_recommended_actions": []
+        "ops_recommended_actions": [],
+        # Phase 7 Issue #2211: Review Follow-up Mode initial state
+        "task_type": "default",
+        "original_pr_number": 0,
+        "comment_url": "",
+        "comment_body": "",
+        "review_file_path": "",
+        "review_line_number": 0,
+        "triage_result": {},
+        "pr_context": {},
+        "review_follow_up_action": "",
+        "requires_hitl_approval": False,
     }
 
     config = {"configurable": {"thread_id": trace_id}}
@@ -2612,6 +3104,418 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         return {
             "trace_id": trace_id,
             "pr_url": None,
+            "ci_state": "error",
+            "status": "error",
+            "error": error_msg,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+def run_review_follow_up_orchestrator(
+    review_task: dict,
+    trace_id: str,
+) -> dict:
+    """
+    Run the LangGraph orchestrator workflow for review follow-up tasks.
+
+    Issue #2211: Orchestrator Review Follow-up Mode
+
+    This function is the entry point for processing AI reviewer comments
+    that have been triaged and need to be addressed.
+
+    Args:
+        review_task: Dictionary containing review follow-up task data:
+            - task_type: "review_follow_up"
+            - original_pr_number: PR number being reviewed
+            - repo: Repository in owner/repo format
+            - branch: Branch name
+            - comment_url: URL to the review comment
+            - comment_body: Body of the review comment
+            - file_path: File path mentioned in comment
+            - line_number: Line number mentioned in comment
+            - triage_result: Result from CommentTriageAgent
+        trace_id: Unique identifier for this task
+
+    Returns:
+        dict: Final result containing pr_url, ci_state, status, etc.
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    # Extract task data
+    repo = review_task.get("repo", "")
+    goal = review_task.get("goal", "")
+    original_pr_number = review_task.get("original_pr_number", 0)
+    comment_body = review_task.get("comment_body", "")
+
+    # Build goal if not provided
+    if not goal:
+        goal = f"[Review Follow-up] Address comment on PR #{original_pr_number}: {comment_body[:100]}..."
+
+    logger.info("Starting Review Follow-up orchestrator", extra={
+        "operation": "run_review_follow_up_orchestrator",
+        "trace_id": trace_id,
+        "original_pr_number": original_pr_number,
+        "repo": repo,
+        "task_type": "review_follow_up",
+    })
+
+    metrics.record_workflow_start(trace_id, goal)
+
+    agent_eval = _get_agent_eval()
+    agent_eval.start_workflow_metrics(trace_id, goal)
+
+    # Create graph with review_intake as entry point
+    app = create_orchestrator_graph(entry_point="review_intake")
+
+    # Build initial state with review follow-up data
+    initial_state = {
+        "messages": [HumanMessage(content=goal)],
+        "goal": goal,
+        "trace_id": trace_id,
+        "repo": repo,
+        "branch": review_task.get("branch", ""),
+        "plan": [],
+        "current_step": 0,
+        "pr_url": "",
+        "pr_number": 0,
+        "ci_state": "pending",
+        "ci_checks": {},
+        "error": None,
+        "retry_count": 0,
+        "final_result": {},
+        "review_result": {},
+        "review_comments": [],
+        "review_severity": "none",
+        "merge_decision": "pending",
+        "code_quality_score": 100,
+        "security_advisory": {},
+        "security_risk": "info",
+        "security_findings": [],
+        "security_is_safe": True,
+        "governance_advisory": {},
+        "governance_risk": "info",
+        "governance_findings": [],
+        "governance_is_compliant": True,
+        "cost_advisory": {},
+        "cost_risk": "info",
+        "cost_within_budget": True,
+        "permission_advisory": {},
+        "permission_risk": "info",
+        "permission_granted": True,
+        "reputation_advisory": {},
+        "reputation_score": 100,
+        "reputation_level": "trusted",
+        "policy_blocked": False,
+        "policy_block_reason": "",
+        "evaluation_result": {},
+        "evaluation_health_status": "unknown",
+        "evaluation_has_regression": False,
+        "pm_advisory": {},
+        "pm_sub_tasks": [],
+        "pm_confidence_score": 0.0,
+        "pm_risk": "info",
+        "ops_advisory": {},
+        "ops_health_status": "unknown",
+        "ops_risk": "info",
+        "ops_recommended_actions": [],
+        # Phase 7 Issue #2211: Review Follow-up Mode specific state
+        "task_type": "review_follow_up",
+        "original_pr_number": original_pr_number,
+        "comment_url": review_task.get("comment_url", ""),
+        "comment_body": comment_body,
+        "review_file_path": review_task.get("file_path", ""),
+        "review_line_number": review_task.get("line_number", 0),
+        "triage_result": review_task.get("triage_result", {}),
+        "pr_context": review_task.get("pr_context", {}),
+        "review_follow_up_action": review_task.get("review_follow_up_action", ""),
+        "requires_hitl_approval": review_task.get("requires_approval", False),
+    }
+
+    config = {"configurable": {"thread_id": trace_id}}
+
+    try:
+        result = app.invoke(initial_state, config)
+
+        final_result = result.get("final_result", {})
+
+        logger.info("Review Follow-up orchestrator completed", extra={
+            "operation": "run_review_follow_up_orchestrator",
+            "trace_id": trace_id,
+            "status": final_result.get("status"),
+            "pr_url": final_result.get("pr_url"),
+            "original_pr_number": original_pr_number,
+        })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
+
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="success",
+            pr_created=bool(final_result.get("pr_url")),
+            ci_passed=final_result.get("ci_state") == "success",
+            code_quality_score=result.get("code_quality_score", 100)
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
+        return final_result
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Review Follow-up orchestrator failed: {error_msg}", extra={
+            "operation": "run_review_follow_up_orchestrator",
+            "trace_id": trace_id,
+            "error": error_msg,
+            "original_pr_number": original_pr_number,
+        })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+        failure_recorder = _get_failure_recorder()
+        failure_recorder.record_failure_from_state(
+            state={
+                "trace_id": trace_id,
+                "goal": goal,
+                "repo": repo,
+                "task_type": "review_follow_up",
+                "original_pr_number": original_pr_number,
+            },
+            error_type="review_follow_up_exception",
+            error_message=error_msg
+        )
+
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="error",
+            pr_created=False,
+            ci_passed=False
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
+        return {
+            "trace_id": trace_id,
+            "pr_url": None,
+            "ci_state": "error",
+            "status": "error",
+            "error": error_msg,
+            "task_type": "review_follow_up",
+            "original_pr_number": original_pr_number,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+def run_internal_review_orchestrator(
+    internal_review_task: dict,
+    trace_id: str,
+) -> dict:
+    """
+    Run the LangGraph orchestrator workflow for internal re-review tasks.
+
+    Issue #2212: Internal Reviewer Agent Re-review Mechanism
+
+    This function is the entry point for performing internal re-reviews
+    of AI reviewer assessments after fixes have been applied.
+
+    Args:
+        internal_review_task: Dictionary containing internal review task data:
+            - task_type: "internal_review"
+            - original_pr_number: PR number being re-reviewed
+            - repo: Repository in owner/repo format
+            - branch: Branch name
+            - comment_url: URL to the original review comment
+            - comment_body: Body of the original review comment
+            - file_path: File path mentioned in comment
+            - line_number: Line number mentioned in comment
+            - triage_result: Result from CommentTriageAgent
+            - initial_ai_review: Initial AI reviewer assessment
+            - follow_up_summary: Summary of follow-up actions taken
+            - ci_state: Current CI state
+            - code_quality_score: Current code quality score
+        trace_id: Unique identifier for this task
+
+    Returns:
+        dict: Final result containing internal review decision, agreement, etc.
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    repo = internal_review_task.get("repo", "")
+    goal = internal_review_task.get("goal", "")
+    original_pr_number = internal_review_task.get("original_pr_number", 0)
+    comment_body = internal_review_task.get("comment_body", "")
+
+    if not goal:
+        goal = f"[Internal Review] Re-review AI assessment on PR #{original_pr_number}: {comment_body[:100]}..."
+
+    logger.info("Starting Internal Review orchestrator", extra={
+        "operation": "run_internal_review_orchestrator",
+        "trace_id": trace_id,
+        "original_pr_number": original_pr_number,
+        "repo": repo,
+        "task_type": "internal_review",
+    })
+
+    metrics.record_workflow_start(trace_id, goal)
+
+    agent_eval = _get_agent_eval()
+    agent_eval.start_workflow_metrics(trace_id, goal)
+
+    app = create_orchestrator_graph(entry_point="internal_review")
+
+    initial_state = {
+        "messages": [HumanMessage(content=goal)],
+        "goal": goal,
+        "trace_id": trace_id,
+        "repo": repo,
+        "branch": internal_review_task.get("branch", ""),
+        "plan": [],
+        "current_step": 0,
+        "pr_url": internal_review_task.get("pr_url", ""),
+        "pr_number": internal_review_task.get("pr_number", 0),
+        "ci_state": internal_review_task.get("ci_state", "unknown"),
+        "ci_checks": internal_review_task.get("ci_checks", {}),
+        "error": None,
+        "retry_count": 0,
+        "final_result": {},
+        "review_result": {},
+        "review_comments": [],
+        "review_severity": "none",
+        "merge_decision": "pending",
+        "code_quality_score": internal_review_task.get("code_quality_score", 100),
+        "security_advisory": {},
+        "security_risk": "info",
+        "security_findings": [],
+        "security_is_safe": True,
+        "governance_advisory": {},
+        "governance_risk": "info",
+        "governance_findings": [],
+        "governance_is_compliant": True,
+        "cost_advisory": {},
+        "cost_risk": "info",
+        "cost_within_budget": True,
+        "permission_advisory": {},
+        "permission_risk": "info",
+        "permission_granted": True,
+        "reputation_advisory": {},
+        "reputation_score": 100,
+        "reputation_level": "trusted",
+        "policy_blocked": False,
+        "policy_block_reason": "",
+        "evaluation_result": {},
+        "evaluation_health_status": "unknown",
+        "evaluation_has_regression": False,
+        "pm_advisory": {},
+        "pm_sub_tasks": [],
+        "pm_confidence_score": 0.0,
+        "pm_risk": "info",
+        "ops_advisory": {},
+        "ops_health_status": "unknown",
+        "ops_risk": "info",
+        "ops_recommended_actions": [],
+        "task_type": "internal_review",
+        "original_pr_number": original_pr_number,
+        "comment_url": internal_review_task.get("comment_url", ""),
+        "comment_body": comment_body,
+        "review_file_path": internal_review_task.get("file_path", ""),
+        "review_line_number": internal_review_task.get("line_number", 0),
+        "triage_result": internal_review_task.get("triage_result", {}),
+        "pr_context": internal_review_task.get("pr_context", {}),
+        "review_follow_up_action": "",
+        "requires_hitl_approval": internal_review_task.get("requires_approval", False),
+        "internal_review_mode": True,
+        "initial_ai_review": internal_review_task.get("initial_ai_review", {}),
+        "follow_up_summary": internal_review_task.get("follow_up_summary", {}),
+        "internal_review_result": {},
+        "internal_review_decision": "",
+        "ai_reviewer_agreement": "",
+    }
+
+    config = {"configurable": {"thread_id": trace_id}}
+
+    try:
+        result = app.invoke(initial_state, config)
+
+        internal_review_result = result.get("internal_review_result", {})
+        final_result = result.get("final_result", {})
+
+        logger.info("Internal Review orchestrator completed", extra={
+            "operation": "run_internal_review_orchestrator",
+            "trace_id": trace_id,
+            "internal_review_decision": result.get("internal_review_decision"),
+            "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
+            "requires_hitl": result.get("requires_hitl_approval"),
+            "original_pr_number": original_pr_number,
+        })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
+
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="success",
+            pr_created=bool(final_result.get("pr_url")),
+            ci_passed=result.get("ci_state") == "success",
+            code_quality_score=result.get("code_quality_score", 100)
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
+        return {
+            "trace_id": trace_id,
+            "task_type": "internal_review",
+            "original_pr_number": original_pr_number,
+            "internal_review_result": internal_review_result,
+            "internal_review_decision": result.get("internal_review_decision", ""),
+            "ai_reviewer_agreement": result.get("ai_reviewer_agreement", ""),
+            "requires_hitl_approval": result.get("requires_hitl_approval", False),
+            "ci_state": result.get("ci_state", "unknown"),
+            "code_quality_score": result.get("code_quality_score", 100),
+            "status": "success",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Internal Review orchestrator failed: {error_msg}", extra={
+            "operation": "run_internal_review_orchestrator",
+            "trace_id": trace_id,
+            "error": error_msg,
+            "original_pr_number": original_pr_number,
+        })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+        failure_recorder = _get_failure_recorder()
+        failure_recorder.record_failure_from_state(
+            state={
+                "trace_id": trace_id,
+                "goal": goal,
+                "repo": repo,
+                "task_type": "internal_review",
+                "original_pr_number": original_pr_number,
+            },
+            error_type="internal_review_exception",
+            error_message=error_msg
+        )
+
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="error",
+            pr_created=False,
+            ci_passed=False
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
+        return {
+            "trace_id": trace_id,
+            "task_type": "internal_review",
+            "original_pr_number": original_pr_number,
+            "internal_review_result": {},
+            "internal_review_decision": "escalate",
+            "ai_reviewer_agreement": "disagree",
+            "requires_hitl_approval": True,
             "ci_state": "error",
             "status": "error",
             "error": error_msg,
