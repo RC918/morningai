@@ -37,7 +37,7 @@ AI_REVIEWER_BOTS: Dict[str, str] = {
     "copilot[bot]": "copilot",
     # ChatGPT Codex (OpenAI)
     "openai-codex[bot]": "codex",
-    "chatgpt-codex[bot]": "codex",
+    "chatgpt-codex-connector[bot]": "codex",
     # Google Gemini Code Assist
     "gemini-code-assist[bot]": "gemini",
     "google-gemini[bot]": "gemini",
@@ -296,13 +296,14 @@ class GitHubWebhookHandler(BaseWebhookHandler):
 
         # Check if actor is an AI reviewer and add review_source to metadata
         # Issue: #2209 - 修復 AI Reviewer 評論接收機制
-        if actor_name in AI_REVIEWER_BOTS:
-            metadata["review_source"] = AI_REVIEWER_BOTS[actor_name]
+        # Using walrus operator for single lookup (Gemini suggestion)
+        if review_source := AI_REVIEWER_BOTS.get(actor_name):
+            metadata["review_source"] = review_source
             metadata["is_ai_reviewer"] = True
             logger.info(
                 "[GitHubWebhookHandler] AI reviewer detected: %s (source: %s)",
                 actor_name,
-                AI_REVIEWER_BOTS[actor_name],
+                review_source,
             )
 
         # Create normalized event
@@ -364,11 +365,12 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         actor_name = event.actor_name or ""
         if actor_name.endswith("[bot]"):
             # Allow whitelisted AI reviewer bots
-            if actor_name in AI_REVIEWER_BOTS:
+            # Using walrus operator for single lookup (Gemini suggestion)
+            if review_source := AI_REVIEWER_BOTS.get(actor_name):
                 logger.info(
                     "[GitHubWebhookHandler] Allowing AI reviewer bot: %s (source: %s)",
                     actor_name,
-                    AI_REVIEWER_BOTS[actor_name],
+                    review_source,
                 )
                 return True
 

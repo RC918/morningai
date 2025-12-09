@@ -95,6 +95,8 @@ class EventNormalizer:
 
     # AI Reviewer standard phrases that indicate actionable feedback
     # Issue: #2209 - 修復 AI Reviewer 評論接收機制
+    # Note: Removed overly generic keywords (refactor, simplify, optimize)
+    # to avoid false positives from human comments
     AI_REVIEWER_KEYWORDS = [
         # Codex / Copilot standard phrases
         "suggestion:", "consider:", "recommend:", "could be improved",
@@ -104,9 +106,8 @@ class EventNormalizer:
         "security concern", "performance issue", "maintainability",
         # CodeRabbit standard phrases
         "actionable comment", "nitpick:", "issue:",
-        # General AI reviewer phrases
-        "refactor", "simplify", "optimize", "fix:", "bug:",
-        "vulnerability", "deprecated", "unused", "dead code",
+        # General AI reviewer phrases (specific, not generic)
+        "fix:", "bug:", "vulnerability", "deprecated", "unused", "dead code",
     ]
 
     # Priority mapping based on labels
