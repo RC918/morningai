@@ -463,12 +463,12 @@ RuntimeError: Wrong 'jwt' package detected! This project requires PyJWT, not jwt
 - 🔄 Backend test environment fixes
 - 🔄 Agent evaluation harness
 - 🔄 Owner Console enhancements (Trace ID linking, execution drawer)
+- 🔄 Multi-agent coordination (基礎架構已完成，待整合)
 
 ### Not Started
 
 - ❌ AI-driven planner
 - ❌ General code generator
-- ❌ Multi-agent coordination (基礎架構已完成，待整合)
 - ❌ Self-healing with learning
 - ❌ Stripe integration
 - ❌ Tenant signup flow
