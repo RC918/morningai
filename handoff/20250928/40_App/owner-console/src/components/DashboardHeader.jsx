@@ -91,7 +91,7 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0, onLogou
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 rounded-xl border-0 bg-white shadow-lg">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">{user?.name || t('header.defaultUser')}</p>
@@ -106,10 +106,10 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0, onLogou
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={onLogout}
-                  className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                >
+                                <DropdownMenuItem 
+                                  onClick={onLogout}
+                                  className="cursor-pointer text-error-600 focus:text-error-600 focus:bg-error-50"
+                                >
                   <LogOut className="mr-2 h-4 w-4" />
                   {t('nav.logout')}
                 </DropdownMenuItem>
