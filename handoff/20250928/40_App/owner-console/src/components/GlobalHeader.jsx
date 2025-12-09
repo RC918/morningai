@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Search, Bell, HelpCircle, Settings, LogOut, Menu, PanelLeft } from 'lucide-react'
+import { Search, Bell, HelpCircle, Settings, LogOut, PanelLeft } from 'lucide-react'
 import { 
   Button, 
   Avatar, 
@@ -30,10 +30,12 @@ import { LanguageSwitcher } from './LanguageSwitcher'
  * @param {Object} props
  * @param {Object} props.user - Current user object
  * @param {Function} props.onLogout - Logout handler
- * @param {boolean} props.collapsed - Sidebar collapsed state
+ * @param {boolean} props.collapsed - Sidebar collapsed state (desktop)
  * @param {Function} props.onToggleSidebar - Toggle sidebar handler
+ * @param {boolean} props.isMobile - Whether in mobile viewport
+ * @param {boolean} props.mobileOpen - Mobile drawer open state
  */
-const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar }) => {
+const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar, isMobile, mobileOpen }) => {
   const { t } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -49,8 +51,8 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar }) => {
               size="sm"
               onClick={onToggleSidebar}
               className="group h-9 w-9 rounded-lg p-2 text-neutral-500 hover:bg-primary-500/10 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-primary-500/15 dark:hover:text-white transition-colors duration-150"
-              aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-              aria-expanded={!collapsed}
+                            aria-label={isMobile ? (mobileOpen ? t('sidebar.collapse') : t('sidebar.expand')) : (collapsed ? t('sidebar.expand') : t('sidebar.collapse'))}
+                            aria-expanded={isMobile ? mobileOpen : !collapsed}
             >
               <PanelLeft 
                 className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-all duration-150"
@@ -58,12 +60,12 @@ const GlobalHeader = ({ user, onLogout, collapsed, onToggleSidebar }) => {
               />
             </Button>
           </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            sideOffset={8}
-            className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
-          >
-            {collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
+                    <TooltipContent
+                      side="bottom"
+                      sideOffset={8}
+                      className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
+                    >
+                      {isMobile ? (mobileOpen ? t('sidebar.collapse') : t('sidebar.expand')) : (collapsed ? t('sidebar.expand') : t('sidebar.collapse'))}
           </TooltipContent>
         </Tooltip>
 

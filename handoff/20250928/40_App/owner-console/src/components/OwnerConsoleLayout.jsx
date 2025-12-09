@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import GlobalHeader from './GlobalHeader'
 import Sidebar from './Sidebar'
 import { Sheet, SheetContent } from '@morningai/shared-ui'
@@ -34,21 +34,32 @@ const OwnerConsoleLayout = ({ user, onLogout, children }) => {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  
+  // Store desktop collapsed state to restore when returning from mobile
+  const desktopCollapsedRef = useRef(false)
 
   // Handle responsive breakpoint detection
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768 // md breakpoint
+      const wasMobile = isMobile
+      
       setIsMobile(mobile)
-      if (mobile) {
-        setCollapsed(true) // Auto-collapse on mobile
+      
+      if (mobile && !wasMobile) {
+        // Entering mobile: save desktop state and collapse
+        desktopCollapsedRef.current = collapsed
+        setCollapsed(true)
+      } else if (!mobile && wasMobile) {
+        // Returning to desktop: restore saved state
+        setCollapsed(desktopCollapsedRef.current)
       }
     }
 
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+  }, [isMobile, collapsed])
 
   const handleToggleSidebar = () => {
     if (isMobile) {
@@ -69,13 +80,15 @@ const OwnerConsoleLayout = ({ user, onLogout, children }) => {
   return (
     <SidebarContext.Provider value={contextValue}>
       <div className="flex flex-col h-screen bg-neutral-100 dark:bg-neutral-950">
-        {/* Single Global Header */}
-        <GlobalHeader 
-          user={user} 
-          onLogout={onLogout}
-          collapsed={collapsed}
-          onToggleSidebar={handleToggleSidebar}
-        />
+                {/* Single Global Header */}
+                <GlobalHeader 
+                  user={user} 
+                  onLogout={onLogout}
+                  collapsed={collapsed}
+                  onToggleSidebar={handleToggleSidebar}
+                  isMobile={isMobile}
+                  mobileOpen={mobileOpen}
+                />
 
         {/* Main Layout: Sidebar + Content */}
         <div className="flex flex-1 overflow-hidden">
