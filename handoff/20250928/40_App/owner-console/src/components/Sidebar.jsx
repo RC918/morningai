@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { 
   LayoutDashboard, 
-  Settings, 
   Shield,
   ShieldCheck,
   ShieldAlert,
@@ -12,12 +11,10 @@ import {
   Activity,
   BarChart3,
   Beaker,
-  LogOut,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
 import { Button } from '@morningai/shared-ui'
-import { DarkModeToggle } from './DarkModeToggle'
 
 /**
  * Sidebar component for owner-console with iotask-style light theme.
@@ -26,7 +23,7 @@ import { DarkModeToggle } from './DarkModeToggle'
  * Uses a thin blue vertical bar indicator for active navigation items instead of
  * full background color, creating a cleaner, more modern SaaS appearance.
  */
-const Sidebar = ({ user, onLogout }) => {
+const Sidebar = ({ user }) => {
   const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
@@ -85,13 +82,7 @@ const Sidebar = ({ user, onLogout }) => {
           icon: Beaker,
           labelKey: 'nav.failureExperiments',
           descriptionKey: 'failureExperiment.subtitle'
-        },
-        {
-          path: '/settings',
-      icon: Settings,
-      labelKey: 'nav.settings',
-      descriptionKey: 'settings.subtitle'
-    }
+        }
   ]
 
   const isActive = (path) => location.pathname === path
@@ -183,21 +174,6 @@ const Sidebar = ({ user, onLogout }) => {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-2 mt-auto">
-        <div className={`flex ${collapsed ? 'justify-center' : 'justify-start'}`}>
-          <DarkModeToggle variant={collapsed ? 'compact' : 'default'} />
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onLogout}
-          className={`w-full ${collapsed ? 'px-2' : 'justify-start'} text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-neutral-700`}
-          aria-label={t('nav.logout')}
-        >
-          <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
-          {!collapsed && t('nav.logout')}
-        </Button>
-      </div>
     </div>
   )
 }

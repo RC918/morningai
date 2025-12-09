@@ -417,14 +417,15 @@
     "usedTotal": "已用/總量",
     "workers": "Workers"
   },
-    "header": {
-      "defaultRole": "平台擁有者",
-      "defaultUser": "Owner",
-      "help": "說明",
-      "notifications": "通知",
-      "searchPlaceholder": "搜尋...",
-      "settings": "設定"
-    },
+        "header": {
+          "defaultRole": "平台擁有者",
+          "defaultUser": "Owner",
+          "help": "說明",
+          "notifications": "通知",
+          "searchPlaceholder": "搜尋...",
+          "settings": "設定",
+          "userMenu": "使用者選單"
+        },
         "nav": {
           "aiPolicies": "AI 政策",
           "approvalQueue": "審核佇列",
@@ -435,8 +436,8 @@
           "mainNavigation": "主導覽",
           "monitoring": "系統監控",
           "sessions": "Agent 會話",
-          "settings": "平台設定",
-          "tenants": "租戶管理",
+                    "settings": "帳戶設定",
+                    "tenants": "租戶管理",
           "uxMetrics": "UX 指標"
         },
         "sessions": {
@@ -811,9 +812,9 @@
       "subtitle": "配置安全與合規設定",
       "title": "安全政策"
     },
-    "subtitle": "配置平台全域設定與政策",
-    "title": "平台設定"
-  },
+      "subtitle": "配置平台全域設定與政策",
+      "title": "帳戶設定"
+    },
   "sidebar": {
     "collapse": "收起側邊欄",
     "expand": "展開側邊欄",
