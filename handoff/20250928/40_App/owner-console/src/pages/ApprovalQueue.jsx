@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Badge, Tabs, TabsContent, TabsList, TabsTrigger, Skeleton } from '@morningai/shared-ui'
+import { Badge, Tabs, TabsContent, TabsList, TabsTrigger, Skeleton, StatCard } from '@morningai/shared-ui'
 import { 
   Shield, 
   AlertTriangle,
@@ -370,54 +370,31 @@ const ApprovalQueue = () => {
       )}
 
       {statistics && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.pending', 'Pending')}
-              </p>
-              <Clock className="w-5 h-5 text-joy" />
-            </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {statistics.pending_count || 0}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.critical', 'Critical')}
-              </p>
-              <AlertTriangle className="w-5 h-5 text-energy" />
-            </div>
-            <p className="text-2xl font-bold text-energy">
-              {statistics.by_risk_level?.critical || 0}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.high', 'High Risk')}
-              </p>
-              <FileWarning className="w-5 h-5 text-joy" />
-            </div>
-            <p className="text-2xl font-bold text-joy">
-              {statistics.by_risk_level?.high || 0}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-[var(--text-secondary)]">
-                {t('approvalQueue.stats.medium', 'Medium/Low')}
-              </p>
-              <Shield className="w-5 h-5 text-calm" />
-            </div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {(statistics.by_risk_level?.medium || 0) + (statistics.by_risk_level?.low || 0)}
-            </p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatCard
+            label={t('approvalQueue.stats.pending', 'Pending')}
+            value={String(statistics.pending_count || 0)}
+            icon={<Clock className="w-5 h-5" />}
+            variant="yellow"
+          />
+          <StatCard
+            label={t('approvalQueue.stats.critical', 'Critical')}
+            value={String(statistics.by_risk_level?.critical || 0)}
+            icon={<AlertTriangle className="w-5 h-5" />}
+            variant="red"
+          />
+          <StatCard
+            label={t('approvalQueue.stats.high', 'High Risk')}
+            value={String(statistics.by_risk_level?.high || 0)}
+            icon={<FileWarning className="w-5 h-5" />}
+            variant="yellow"
+          />
+          <StatCard
+            label={t('approvalQueue.stats.medium', 'Medium/Low')}
+            value={String((statistics.by_risk_level?.medium || 0) + (statistics.by_risk_level?.low || 0))}
+            icon={<Shield className="w-5 h-5" />}
+            variant="default"
+          />
         </div>
       )}
 

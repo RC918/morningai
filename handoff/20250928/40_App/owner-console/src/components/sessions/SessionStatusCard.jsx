@@ -4,13 +4,13 @@ import { cn } from '@morningai/shared-ui'
 /**
  * SessionStatusCard - Standardized status filter card for Agent Sessions page
  * 
- * Design Specification (Unified Status Card Standard):
+ * Design Specification (Unified Status Card Standard - aligned with StatCard):
  * - Fixed dimensions: min-w-[140px] h-24 (96px) for consistent visual alignment
- * - Internal padding: px-4 py-3 (16px horizontal, 12px vertical)
- * - Icon container: 28x28px (h-7 w-7) with rounded-lg, positioned top-right
- * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (bottom-left)
- * - Vertical spacing: justify-between for consistent label-to-value distance
- * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
+ * - Internal padding: p-4 (16px) matching StatCard
+ * - Icon container: 40x40px (h-10 w-10) circular (rounded-full), positioned right-center
+ * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (below label)
+ * - Layout: flex row with content on left, icon on right (matching StatCard)
+ * - Active state: light tinted background + subtle shadow + colored border
  * - Focus state: 2px ring with accessibility color (var(--accessibility-focus-outline-color)), only on keyboard focus
  * 
  * @param {Object} props
@@ -80,14 +80,13 @@ function SessionStatusCard({
       className={cn(
         // Fixed dimensions for all cards - ensures visual consistency
         'relative min-w-[140px] h-24 w-full',
-        'text-left rounded-xl border px-4 py-3',
-        'flex flex-col justify-between',
+        'text-left rounded-xl border p-4',
         'transition-all duration-150',
         // Default state
         'border-[var(--border)] bg-[var(--surface)] shadow-sm',
         // Hover state (only when not active)
         !isActive && 'hover:shadow-md hover:border-[var(--neutral-300)]',
-        // Active state - light tinted background + subtle shadow (no external ring)
+        // Active state - light tinted background + subtle shadow
         isActive && [
           styles.activeBg,
           styles.activeBorder,
@@ -98,46 +97,40 @@ function SessionStatusCard({
         className
       )}
     >
-      {/* Subtle left highlight for active state */}
-      {isActive && (
-        <div 
-          className={cn(
-            'pointer-events-none absolute inset-y-3 left-1.5 w-0.5 rounded-full',
-            variant === 'default' ? 'bg-[var(--neutral-400)]' : styles.iconText
-          )}
-          aria-hidden="true"
-        />
-      )}
-      
-      {/* Top row: Label + Icon */}
+      {/* Layout matching StatCard: content left, icon right */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-secondary)]">
-          {label}
-        </span>
-        <div
-          className={cn(
-            'flex h-7 w-7 items-center justify-center rounded-lg shrink-0',
-            styles.iconBg,
-            styles.iconText
-          )}
-        >
-          {icon && cloneElement(icon, { 
-            className: 'w-4 h-4',
-            'aria-hidden': 'true'
-          })}
+        <div className="flex-1">
+          {/* Label */}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">
+              {label}
+            </span>
+          </div>
+          {/* Value */}
+          <div
+            className={cn(
+              'text-2xl font-semibold transition-colors duration-150',
+              isActive ? styles.activeValue : 'text-[var(--text-primary)]'
+            )}
+          >
+            {value}
+          </div>
         </div>
-      </div>
-        
-      {/* Bottom row: Value */}
-      <div className="flex items-baseline">
-        <span
-          className={cn(
-            'text-2xl font-semibold transition-colors duration-150',
-            isActive ? styles.activeValue : 'text-[var(--text-primary)]'
-          )}
-        >
-          {value}
-        </span>
+        {/* Icon container - matching StatCard: h-10 w-10 rounded-full */}
+        {icon && (
+          <div
+            className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-full ml-3 shrink-0',
+              styles.iconBg,
+              styles.iconText
+            )}
+          >
+            {cloneElement(icon, { 
+              className: 'w-5 h-5',
+              'aria-hidden': 'true'
+            })}
+          </div>
+        )}
       </div>
     </button>
   )

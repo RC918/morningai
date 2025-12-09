@@ -106,21 +106,12 @@ describe('SessionStatusCard', () => {
   })
 
   describe('active state', () => {
-    it('shows left highlight bar when active', () => {
-      const { container } = render(<SessionStatusCard {...defaultProps} isActive={true} />)
+    it('applies active background and border when active', () => {
+      render(<SessionStatusCard {...defaultProps} variant="blue" isActive={true} />)
       
-      // The left highlight bar is a div with specific classes (w-0.5 rounded-full)
-      const highlightBar = container.querySelector('div.rounded-full')
-      expect(highlightBar).toBeInTheDocument()
-      expect(highlightBar.className).toContain('w-0.5')
-    })
-
-    it('does not show left highlight bar when inactive', () => {
-      const { container } = render(<SessionStatusCard {...defaultProps} isActive={false} />)
-      
-      // The left highlight bar should not be present when inactive
-      const highlightBar = container.querySelector('div.rounded-full.w-0\\.5')
-      expect(highlightBar).not.toBeInTheDocument()
+      const button = screen.getByRole('button')
+      expect(button.className).toContain('bg-primary-50')
+      expect(button.className).toContain('border-primary-500')
     })
 
     it('applies shadow-md when active', () => {
@@ -146,16 +137,22 @@ describe('SessionStatusCard', () => {
       expect(button.className).toContain('min-w-[140px]')
     })
 
-    it('has consistent padding px-4 py-3', () => {
+    it('has consistent padding p-4 (matching StatCard)', () => {
       render(<SessionStatusCard {...defaultProps} />)
       
       const button = screen.getByRole('button')
-      expect(button.className).toContain('px-4')
-      expect(button.className).toContain('py-3')
+      expect(button.className).toContain('p-4')
     })
   })
 
-  describe('icon variants', () => {
+  describe('icon container', () => {
+    it('has icon container matching StatCard dimensions (h-10 w-10 rounded-full)', () => {
+      const { container } = render(<SessionStatusCard {...defaultProps} />)
+      
+      const iconContainer = container.querySelector('.h-10.w-10.rounded-full')
+      expect(iconContainer).toBeInTheDocument()
+    })
+
     it('renders with Play icon for running status', () => {
       render(<SessionStatusCard {...defaultProps} icon={<Play data-testid="play-icon" />} variant="blue" />)
       
