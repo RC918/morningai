@@ -994,8 +994,8 @@ const Sessions = () => {
         />
       )}
 
-      {/* Stats Cards - Using StatCard components */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* Stats Cards - Using StatCard components with design token spacing */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
         {[
           { key: 'all', label: t('sessions.filter.all', 'All'), icon: Activity, variant: 'default' },
           { key: 'running', label: t('sessions.filter.running', 'Running'), icon: Play, variant: 'blue' },
@@ -1008,10 +1008,10 @@ const Sessions = () => {
             type="button"
             aria-pressed={filter === key}
             onClick={() => handleFilterChange(key)}
-            className={`text-left transition-all rounded-xl ${
+            className={`text-left transition-all rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0284c7] focus-visible:ring-offset-2 ${
               filter === key
-                ? 'ring-2 ring-primary-500 ring-offset-2'
-                : 'hover:ring-1 hover:ring-primary-300'
+                ? 'ring-2 ring-[#0284c7]'
+                : 'hover:ring-1 hover:ring-neutral-300'
             }`}
           >
             <StatCard
