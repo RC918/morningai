@@ -10,7 +10,7 @@ import { cn } from '@morningai/shared-ui'
  * - Icon container: 28x28px (h-7 w-7) with rounded-lg
  * - Typography: label text-xs font-medium, value text-2xl font-semibold
  * - Active state: light tinted background + subtle shadow + primary colored value
- * - Focus state: 2px ring with accessibility color (#0284c7)
+ * - Focus state: 2px ring with accessibility color (var(--a11y-focus-outline-color))
  * 
  * @param {Object} props
  * @param {string} props.label - Card label text
@@ -78,7 +78,7 @@ function SessionStatusCard({
       onClick={onClick}
       className={cn(
         'text-left w-full rounded-xl transition-all duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0284c7] focus-visible:ring-offset-2',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--a11y-focus-outline-color)] focus-visible:ring-offset-2',
         className
       )}
     >
