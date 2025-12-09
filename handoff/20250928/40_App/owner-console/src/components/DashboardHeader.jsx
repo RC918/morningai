@@ -100,7 +100,7 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0, onLogou
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/settings">
+                  <Link to="/settings" className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
                     {t('nav.settings')}
                   </Link>

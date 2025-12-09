@@ -273,10 +273,9 @@ describe('DashboardHeader', () => {
       const menuItems = screen.getAllByTestId('dropdown-item')
       const logoutItem = menuItems.find(item => item.textContent?.includes('nav.logout'))
       
-      if (logoutItem) {
-        await user.click(logoutItem)
-        expect(onLogout).toHaveBeenCalledTimes(1)
-      }
+      expect(logoutItem).toBeDefined()
+      await user.click(logoutItem!)
+      expect(onLogout).toHaveBeenCalledTimes(1)
     })
 
     it('should have error styling on logout button', () => {
@@ -322,11 +321,10 @@ describe('DashboardHeader', () => {
       const menuItems = screen.getAllByTestId('dropdown-item')
       const logoutItem = menuItems.find(item => item.textContent?.includes('nav.logout'))
       
-      if (logoutItem) {
-        logoutItem.focus()
-        await user.keyboard('{Enter}')
-        expect(onLogout).toHaveBeenCalledTimes(1)
-      }
+      expect(logoutItem).toBeDefined()
+      logoutItem!.focus()
+      await user.keyboard('{Enter}')
+      expect(onLogout).toHaveBeenCalledTimes(1)
     })
 
     it('should trigger logout on Space key', async () => {
@@ -346,11 +344,10 @@ describe('DashboardHeader', () => {
       const menuItems = screen.getAllByTestId('dropdown-item')
       const logoutItem = menuItems.find(item => item.textContent?.includes('nav.logout'))
       
-      if (logoutItem) {
-        logoutItem.focus()
-        await user.keyboard(' ')
-        expect(onLogout).toHaveBeenCalledTimes(1)
-      }
+      expect(logoutItem).toBeDefined()
+      logoutItem!.focus()
+      await user.keyboard(' ')
+      expect(onLogout).toHaveBeenCalledTimes(1)
     })
 
     it('should have menu items with role="menuitem"', () => {
