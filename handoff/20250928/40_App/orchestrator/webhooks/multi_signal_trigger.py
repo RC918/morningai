@@ -28,7 +28,7 @@ Milestone: Phase 7: AI Review Closed Loop
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -102,7 +102,7 @@ class TriggerSignal:
     """
     signal_type: SignalType
     source: str
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     priority: SignalPriority = field(default=SignalPriority.MEDIUM)
     metadata: Dict[str, Any] = field(default_factory=dict)
     is_active: bool = True
@@ -147,14 +147,14 @@ class MultiSignalContext:
     pr_number: int
     repo: str
     signals: List[TriggerSignal] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.now)
-    last_updated: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     evaluation_count: int = 0
 
     def add_signal(self, signal: TriggerSignal) -> None:
         """Add a signal to the context"""
         self.signals.append(signal)
-        self.last_updated = datetime.now()
+        self.last_updated = datetime.now(timezone.utc)
         logger.debug(
             "[MultiSignalContext] Added signal: type=%s, source=%s, pr=%d",
             signal.signal_type.value,
