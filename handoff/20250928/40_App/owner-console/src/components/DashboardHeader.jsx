@@ -54,17 +54,17 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0, onLogou
             <HelpCircle className="w-5 h-5" />
           </Button>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg relative"
-                      aria-label={t('header.notifications')}
-                    >
-                      <Bell className="w-5 h-5" />
-                      {hasNotifications && (
-                        <span className="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
-                      )}
-                    </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-2 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg relative"
+            aria-label={t('header.notifications')}
+          >
+            <Bell className="w-5 h-5" />
+            {hasNotifications && (
+              <span className="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
+            )}
+          </Button>
 
           <LanguageSwitcher variant="compact" className="border-none bg-transparent shadow-none text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100" />
 
@@ -100,16 +100,16 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0, onLogou
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/settings" className="flex items-center cursor-pointer">
+                  <Link to="/settings" className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
                     {t('nav.settings')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  onClick={onLogout}
-                                  className="cursor-pointer text-error-600 focus:text-error-600 focus:bg-error-50"
-                                >
+                <DropdownMenuItem 
+                  onClick={onLogout}
+                  className="cursor-pointer text-error-600 focus:text-error-600 focus:bg-error-50"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   {t('nav.logout')}
                 </DropdownMenuItem>
