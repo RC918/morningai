@@ -31,12 +31,21 @@ Usage:
     result = service.perform_internal_review(task)
 """
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
+
+# Issue #2264: Configurable PARTIAL agreement policy
+# Options: "optimistic" (default) or "conservative"
+# - optimistic: PARTIAL + CI success → APPROVE
+# - conservative: PARTIAL → always REQUEST_CHANGES
+INTERNAL_REVIEW_PARTIAL_POLICY = os.environ.get(
+    "INTERNAL_REVIEW_PARTIAL_POLICY", "optimistic"
+).lower()
 
 
 class InternalReviewStatus(Enum):
@@ -419,6 +428,9 @@ class InternalReviewerService:
         """
         Determine the action to take based on re-review.
 
+        Issue #2264: PARTIAL agreement policy is now configurable via
+        INTERNAL_REVIEW_PARTIAL_POLICY environment variable.
+
         Args:
             task: InternalReviewerTask
             agreement: Agreement level with initial review
@@ -436,10 +448,16 @@ class InternalReviewerService:
         if task.ci_state == "success" and agreement == AIReviewerAgreement.AGREE:
             return InternalReviewAction.APPROVE
 
+        # Issue #2264: Configurable PARTIAL agreement policy
         if agreement == AIReviewerAgreement.PARTIAL:
-            if task.ci_state == "success":
-                return InternalReviewAction.APPROVE
-            return InternalReviewAction.REQUEST_CHANGES
+            if INTERNAL_REVIEW_PARTIAL_POLICY == "conservative":
+                # Conservative: PARTIAL → always REQUEST_CHANGES
+                return InternalReviewAction.REQUEST_CHANGES
+            else:
+                # Optimistic (default): PARTIAL + CI success → APPROVE
+                if task.ci_state == "success":
+                    return InternalReviewAction.APPROVE
+                return InternalReviewAction.REQUEST_CHANGES
 
         return InternalReviewAction.REQUEST_CHANGES
 

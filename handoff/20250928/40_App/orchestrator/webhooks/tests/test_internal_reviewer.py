@@ -661,3 +661,186 @@ class TestInternalReviewResult:
         assert result.recommendations == ["No action needed"]
         assert result.requires_hitl is False
         assert result.review_time_ms == 100.5
+
+
+class TestPartialPolicyConfiguration:
+    """
+    Tests for Issue #2264: Configurable PARTIAL agreement policy.
+
+    The INTERNAL_REVIEW_PARTIAL_POLICY environment variable controls
+    how PARTIAL agreement is handled:
+    - "optimistic" (default): PARTIAL + CI success → APPROVE
+    - "conservative": PARTIAL → always REQUEST_CHANGES
+    """
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        self.service = InternalReviewerService()
+
+    def test_optimistic_policy_partial_ci_success_approves(self, monkeypatch):
+        """Test optimistic policy: PARTIAL + CI success → APPROVE"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "optimistic")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "needs_changes", "quality_score": 90},
+            follow_up_result={"status": "completed", "fix_applied": True},
+            ci_state="success",
+            code_quality_score=70,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.PARTIAL
+        assert result.action == InternalReviewAction.APPROVE
+
+    def test_optimistic_policy_partial_ci_failure_requests_changes(self, monkeypatch):
+        """Test optimistic policy: PARTIAL + CI failure → REQUEST_CHANGES"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "optimistic")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "needs_changes", "quality_score": 90},
+            follow_up_result={"status": "completed", "fix_applied": True},
+            ci_state="pending",
+            code_quality_score=70,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.PARTIAL
+        assert result.action == InternalReviewAction.REQUEST_CHANGES
+
+    def test_conservative_policy_partial_ci_success_requests_changes(self, monkeypatch):
+        """Test conservative policy: PARTIAL + CI success → REQUEST_CHANGES"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "conservative")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "needs_changes", "quality_score": 90},
+            follow_up_result={"status": "completed", "fix_applied": True},
+            ci_state="success",
+            code_quality_score=70,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.PARTIAL
+        assert result.action == InternalReviewAction.REQUEST_CHANGES
+
+    def test_conservative_policy_partial_ci_failure_requests_changes(self, monkeypatch):
+        """Test conservative policy: PARTIAL + CI failure → REQUEST_CHANGES"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "conservative")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "needs_changes", "quality_score": 90},
+            follow_up_result={"status": "completed", "fix_applied": True},
+            ci_state="pending",
+            code_quality_score=70,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.PARTIAL
+        assert result.action == InternalReviewAction.REQUEST_CHANGES
+
+    def test_policy_case_insensitive(self, monkeypatch):
+        """Test that policy value is case insensitive"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "CONSERVATIVE")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "needs_changes", "quality_score": 90},
+            follow_up_result={"status": "completed", "fix_applied": True},
+            ci_state="success",
+            code_quality_score=70,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.PARTIAL
+        assert result.action == InternalReviewAction.REQUEST_CHANGES
+
+    def test_unknown_policy_defaults_to_optimistic(self, monkeypatch):
+        """Test that unknown policy value defaults to optimistic behavior"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "unknown_value")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "needs_changes", "quality_score": 90},
+            follow_up_result={"status": "completed", "fix_applied": True},
+            ci_state="success",
+            code_quality_score=70,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.PARTIAL
+        assert result.action == InternalReviewAction.APPROVE
+
+    def test_agree_action_unaffected_by_policy(self, monkeypatch):
+        """Test that AGREE action is not affected by PARTIAL policy"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "conservative")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "needs_changes", "quality_score": 70},
+            follow_up_result={"status": "completed", "fix_applied": True},
+            ci_state="success",
+            code_quality_score=90,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.AGREE
+        assert result.action == InternalReviewAction.APPROVE
+
+    def test_disagree_action_unaffected_by_policy(self, monkeypatch):
+        """Test that DISAGREE action is not affected by PARTIAL policy"""
+        import webhooks.internal_reviewer as ir_module
+        monkeypatch.setattr(ir_module, "INTERNAL_REVIEW_PARTIAL_POLICY", "optimistic")
+
+        task = InternalReviewerTask(
+            task_id="test-123",
+            trace_id="trace-456",
+            original_pr_number=100,
+            repo="owner/repo",
+            initial_ai_review={"decision": "approve"},
+            follow_up_result={},
+            ci_state="pending",
+            code_quality_score=30,
+        )
+
+        result = self.service.perform_internal_review(task)
+
+        assert result.agreement == AIReviewerAgreement.DISAGREE
+        assert result.action == InternalReviewAction.ESCALATE
