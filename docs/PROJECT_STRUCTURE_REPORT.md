@@ -6,8 +6,8 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 2.1.0  
-**Last Updated**: 2025-12-07  
+**Document Version**: 2.2.0  
+**Last Updated**: 2025-12-09  
 **Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory) + Phase 4 (Refactor Agent) + VSCode/MCP Integration  
 **Test Coverage**: 59.89% (Owner Console), 70%+ (Orchestrator), 74%+ (Backend)  
 **Recent Activity**: 440+ commits on main (2025-11-12 至 2025-12-07，快照值截至 2025-12-07)  
@@ -55,6 +55,99 @@
 - **PR #2052** (Merged): fix(meta-agent): add TOCTOU defense in save_state()
 - **PR #2078** (Merged): test(owner-console): add XSS protection tests for TestResultsPanel
 - **PR #2079** (Merged): test(orchestrator): add unit tests for update_error_fix_pair
+
+**Recent PRs (Dec 8 - Dec 9, 2025)**:
+
+*DeepWiki Integration:*
+- **PR #2156** (Merged): feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
+  - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
+- **PR #2157** (Merged): feat(orchestrator): integrate DeepWiki with AutonomousExecutor
+- **PR #2164** (Merged): fix(deepwiki): add retry logic and rate limiting
+- **PR #2163** (Merged): feat(api): add DeepWiki API endpoints for knowledge base queries
+  - Path: `handoff/20250928/40_App/api-backend/`
+- **PR #2169** (Merged): feat(owner-console): add SessionInsights component for DeepWiki insights
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+
+*Sessions UI & HITL Optimization:*
+- **PR #2170** (Merged): feat(owner-console): HITL approval UI/UX optimization
+- **PR #2173** (Merged): feat(i18n): add SessionInsights translation keys and unit tests
+- **PR #2175** (Merged): feat(owner-console): add SessionCommandInput for interactive session commands
+- **PR #2182** (Merged): refactor(owner-console): tidy SessionCommandInput constants and props
+- **PR #2188** (Merged): test(owner-console): add unit tests for SessionCommandInput
+- **PR #2189** (Merged): feat(owner-console): persist command history with localStorage
+- **PR #2225** (Merged): fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
+- **PR #2234** (Merged): fix(owner-console): fix console warnings and session card layout issues
+- **PR #2279** (Merged): feat(owner-console): add SessionStatusCard component with standardized design spec
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+
+*CSRF Token Management:*
+- **PR #2237** (Merged): fix(owner-console): fix CSRF token sync issue causing 403 errors
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
+- **PR #2238** (Merged): refactor(owner-console): unify CSRF token management
+- **PR #2239** (Merged): docs(owner-console): add CSRF token mode selection warning
+- **PR #2240** (Merged): docs(owner-console): add warning comment for CSRF token mode selection
+
+*AI Reviewer & Comment Triage:*
+- **PR #2244** (Merged): feat(orchestrator): fix AI Reviewer comment intake mechanism
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
+- **PR #2246** (Merged): feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py` (new file)
+
+*Review Follow-up & Internal Reviewer (Phase 7 - Issue #2211, #2212):*
+- **PR #2257** (Merged): feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py` (new file)
+- **PR #2262** (Merged): feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py` (new file)
+- **PR #2267** (Merged): refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
+- **PR #2268** (Merged): feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
+- **PR #2269** (Merged): docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
+  - Path: `handoff/20250928/40_App/orchestrator/docs/` (new documentation)
+
+*Multi-Signal Trigger & Rollout Tracker (Phase 7 - Issue #2213, #2214):*
+- **PR #2275** (Merged): feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+  - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py` (new file)
+- **PR #2278** (Merged): feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+  - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py` (new file)
+- **PR #2284** (Merged): feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+- **PR #2288** (Merged): docs: update milestones document with Dec 2025 progress (Issue #2215)
+  - Path: `docs/MILESTONES.md`
+
+*Owner Console UI Refactoring:*
+- **PR #2245** (Merged): refactor(owner-console): move settings and logout to user dropdown menu
+- **PR #2256** (Merged): refactor(owner-console): DashboardHeader cleanup and testing
+  - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.jsx`
+- **PR #2261** (Merged): refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
+  - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`
+- **PR #2266** (Merged): refactor(owner-console): implement single-layer Header + Sidebar architecture
+- **PR #2270** (Merged): fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
+  - Path: `packages/shared-ui/src/components/ui/tooltip.tsx`
+
+*CI/CD & Testing Infrastructure:*
+- **PR #2174** (Merged): feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
+  - Path: `.github/workflows/`
+- **PR #2183** (Merged): fix(orchestrator): fix failing tests in visual_verification and project_engineer
+- **PR #2190** (Merged): fix(orchestrator): increase performance test threshold for planner node
+- **PR #2194** (Merged): fix(orchestrator): add rate limit mock to TestExecute tests
+- **PR #2200** (Merged): test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
+  - Path: `handoff/20250928/40_App/orchestrator/tests/`
+- **PR #2233** (Merged): test(api-backend): add comprehensive tests for sentry_integration.py
+- **PR #2235** (Merged): test(orchestrator): add security rules tests for project_engineer/agent.py
+- **PR #2236** (Merged): test(owner-console): add comprehensive tests for LoginPage component
+
+*Backend & Infrastructure:*
+- **PR #2184** (Merged): feat(api-backend): add /api/sessions/{id}/command endpoint
+  - Path: `handoff/20250928/40_App/api-backend/`
+- **PR #2197** (Merged): feat(orchestrator): add A/B testing metrics collection and analysis framework
+- **PR #2204** (Merged): fix: reduce noisy Sentry alerts for expected error conditions
+- **PR #2218** (Merged): feat(orchestrator): complete Wave 1 Phase 7 prerequisites
+- **PR #2224** (Merged): feat(orchestrator): add retry and rate limiting to OutboundNotifier
+- **PR #2231** (Merged): feat(orchestrator): Wave 3 Failure Learning Enhancement
+- **PR #2232** (Merged): fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+  - Path: `handoff/20250928/40_App/api-backend/`
+
+*Documentation:*
+- **PR #2193** (Merged): docs: align documentation with actual implementation
 
 **Recent PRs (Dec 3 - Dec 5, 2025)**:
 

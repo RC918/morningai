@@ -1,6 +1,6 @@
 # Monitoring Dashboard Troubleshooting Guide
 
-**Last Updated**: 2025-12-07  
+**Last Updated**: 2025-12-09  
 **Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)
 
 ---
@@ -406,6 +406,44 @@ For additional support:
 - **Email**: ryan2939z@gmail.com
 
 ---
+
+## Recent Updates (Dec 8 - Dec 9, 2025)
+
+### Phase 7: AI Review Closed Loop Completion
+
+#### PR #2275: Multi-Signal Trigger System (Issue #2213)
+- **Path**: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py`
+- **Change**: Implement multi-signal trigger system for automated workflow initiation
+- **Impact**: Enables automated triggering based on multiple signal sources
+
+#### PR #2278: LangGraph 100% Rollout Tracker (Issue #2214)
+- **Path**: `handoff/20250928/40_App/orchestrator/rollout_tracker.py`
+- **Change**: Implement rollout tracking with metrics and dashboard support
+- **Impact**: Production monitoring for LangGraph rollout progress
+
+#### PR #2284: Integrate RolloutTracker into worker.py (Issue #2280)
+- **Path**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+- **Change**: RolloutTracker integration into worker for production monitoring
+- **Impact**: Real-time rollout metrics collection
+
+### Backend & Infrastructure
+
+#### PR #2232: Upstash Redis Adapter for scan_iter Compatibility
+- **Path**: `handoff/20250928/40_App/api-backend/`
+- **Change**: Add Upstash Redis adapter for scan_iter compatibility
+- **Impact**: Fixed Redis scan_iter compatibility for Upstash serverless Redis
+
+#### PR #2204: Reduce Noisy Sentry Alerts
+- **Path**: `handoff/20250928/40_App/api-backend/`
+- **Change**: Filter expected error conditions from Sentry alerts
+- **Impact**: Reduced alert noise for expected errors (e.g., 404s, rate limits)
+
+### Monitoring & Observability
+
+#### PR #2197: A/B Testing Metrics Collection Framework
+- **Path**: `handoff/20250928/40_App/orchestrator/`
+- **Change**: Add A/B testing metrics collection and analysis framework
+- **Impact**: Enhanced experiment analysis capabilities
 
 ## Recent Updates (Dec 6 - Dec 7, 2025)
 
