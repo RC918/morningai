@@ -27,36 +27,36 @@ const variantStyles = {
   default: {
     iconBg: 'bg-[var(--neutral-100)]',
     iconText: 'text-[var(--neutral-600)]',
-    activeBg: 'bg-[var(--neutral-50)]',
-    activeBorder: 'border-[var(--neutral-200)]',
+    activeBg: 'bg-neutral-50',
+    activeBorder: 'border-neutral-300',
     activeValue: 'text-[var(--neutral-700)]',
   },
   blue: {
     iconBg: 'bg-[var(--primary-50)]',
     iconText: 'text-[var(--primary-600)]',
-    activeBg: 'bg-[var(--primary-50)]',
-    activeBorder: 'border-[var(--primary-100)]',
+    activeBg: 'bg-primary-50',
+    activeBorder: 'border-primary-500',  // Match session list card styling
     activeValue: 'text-[var(--primary-600)]',
   },
   green: {
     iconBg: 'bg-[var(--success-50)]',
     iconText: 'text-[var(--success-600)]',
-    activeBg: 'bg-[var(--success-50)]',
-    activeBorder: 'border-[var(--success-100)]',
+    activeBg: 'bg-success-50',
+    activeBorder: 'border-success-500',  // Match session list card styling
     activeValue: 'text-[var(--success-600)]',
   },
   yellow: {
     iconBg: 'bg-[var(--warning-50)]',
     iconText: 'text-[var(--warning-600)]',
-    activeBg: 'bg-[var(--warning-50)]',
-    activeBorder: 'border-[var(--warning-100)]',
+    activeBg: 'bg-warning-50',
+    activeBorder: 'border-warning-500',  // Match session list card styling
     activeValue: 'text-[var(--warning-600)]',
   },
   red: {
     iconBg: 'bg-[var(--error-50)]',
     iconText: 'text-[var(--error-600)]',
-    activeBg: 'bg-[var(--error-50)]',
-    activeBorder: 'border-[var(--error-100)]',
+    activeBg: 'bg-error-50',
+    activeBorder: 'border-error-500',  // Match session list card styling
     activeValue: 'text-[var(--error-600)]',
   },
 }
