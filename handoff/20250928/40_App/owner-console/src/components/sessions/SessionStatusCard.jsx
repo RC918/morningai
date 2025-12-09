@@ -11,7 +11,7 @@ import { cn } from '@morningai/shared-ui'
  * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (bottom-left)
  * - Vertical spacing: justify-between for consistent label-to-value distance
  * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
- * - Focus state: 2px ring with accessibility color (var(--a11y-focus-outline-color)), only on keyboard focus
+ * - Focus state: 2px ring with accessibility color (var(--accessibility-focus-outline-color)), only on keyboard focus
  * 
  * @param {Object} props
  * @param {string} props.label - Card label text
@@ -94,7 +94,7 @@ function SessionStatusCard({
           'shadow-md',
         ],
         // Focus state - only visible on keyboard navigation
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--a11y-focus-outline-color)] focus-visible:ring-offset-2',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accessibility-focus-outline-color)] focus-visible:ring-offset-2',
         className
       )}
     >
