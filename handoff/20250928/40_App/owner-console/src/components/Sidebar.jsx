@@ -123,7 +123,7 @@ const Sidebar = ({ user }) => {
           <TooltipContent
             side="right"
             sideOffset={8}
-            className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg"
+            className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
           >
             {t(item.labelKey)}
           </TooltipContent>
@@ -164,30 +164,46 @@ const Sidebar = ({ user }) => {
             </Link>
           )}
           
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCollapsed(!collapsed)}
-                className="min-w-[40px] min-h-[40px] p-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 dark:hover:text-white dark:hover:bg-neutral-700 transition-all duration-200 hover:scale-105 active:scale-95"
-                aria-label={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-                aria-expanded={!collapsed}
+{collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCollapsed(!collapsed)}
+                  className="group h-9 w-9 rounded-lg p-2 text-neutral-500 hover:bg-primary-500/10 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-primary-500/15 dark:hover:text-white transition-colors duration-150"
+                  aria-label={t('sidebar.expand')}
+                  aria-expanded={false}
+                >
+                  <ChevronRight 
+                    className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-all duration-150"
+                    strokeWidth={1.5}
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                sideOffset={8}
+                className="z-50 bg-white text-neutral-900 rounded-md shadow-sm border border-neutral-200 px-2 py-1 text-xs"
               >
-                <ChevronRight 
-                  className={`w-5 h-5 transition-transform duration-300 ${collapsed ? 'rotate-0' : 'rotate-180'}`}
-                  strokeWidth={1.5}
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent
-              side="right"
-              sideOffset={8}
-              className="z-50 px-3 py-2 text-sm font-medium text-white bg-neutral-900 rounded-lg shadow-lg"
+                {t('sidebar.expand')}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCollapsed(!collapsed)}
+              className="group h-9 w-9 rounded-lg p-2 text-neutral-500 hover:bg-primary-500/10 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-primary-500/15 dark:hover:text-white transition-colors duration-150"
+              aria-label={t('sidebar.collapse')}
+              aria-expanded={true}
             >
-              {collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
-            </TooltipContent>
-          </Tooltip>
+              <ChevronRight 
+                className="w-5 h-5 rotate-180 opacity-60 group-hover:opacity-100 transition-all duration-150"
+                strokeWidth={1.5}
+              />
+            </Button>
+          )}
         </div>
       </div>
 
