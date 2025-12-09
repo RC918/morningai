@@ -64,6 +64,7 @@ logger = logging.getLogger(__name__)
 
 _canary_metrics = None
 _phase3_metrics = None
+_rollout_tracker = None
 
 
 def sanitize_redis_mapping(mapping: dict) -> dict:
@@ -386,7 +387,7 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
     """
-    global _canary_metrics
+    global _canary_metrics, _rollout_tracker
     if _canary_metrics is None:
         try:
             from metrics import create_canary_metrics
@@ -396,6 +397,16 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
         except Exception as e:
             logger.warning(f"Failed to initialize canary metrics: {e}")
             _canary_metrics = None
+    
+    if _rollout_tracker is None:
+        try:
+            from rollout_tracker import create_rollout_tracker
+            rollout_tracker_enabled = getattr(settings, 'rollout_tracker_enabled', True)
+            _rollout_tracker = create_rollout_tracker(redis, enabled=rollout_tracker_enabled)
+            logger.info(f"Rollout tracker initialized: enabled={rollout_tracker_enabled}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize rollout tracker: {e}")
+            _rollout_tracker = None
     
     use_langgraph = settings.use_langgraph or False
     use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
@@ -431,6 +442,21 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
                 "use_langgraph": use_langgraph
             }
         )
+    
+    if use_langgraph and _rollout_tracker:
+        try:
+            if not _rollout_tracker.check_circuit_breaker():
+                logger.warning(
+                    "[Routing] Circuit breaker OPEN, forcing simple orchestrator path",
+                    extra={
+                        "operation": "circuit_breaker",
+                        "task_id": task_id,
+                        "circuit_state": _rollout_tracker.get_circuit_breaker_state().state.value
+                    }
+                )
+                use_langgraph = False
+        except Exception as e:
+            logger.warning(f"Failed to check circuit breaker: {e}")
     
     if _canary_metrics:
         try:
@@ -568,6 +594,27 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
             except Exception as e:
                 logger.warning(f"Failed to record execution metrics: {e}")
         
+        if _rollout_tracker:
+            try:
+                elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+                if use_langgraph:
+                    _rollout_tracker.record_langgraph_task(
+                        trace_id=task_id,
+                        success=execution_success,
+                        latency_ms=elapsed_ms,
+                        is_5xx_error=False
+                    )
+                else:
+                    _rollout_tracker.record_simple_task(
+                        trace_id=task_id,
+                        success=execution_success,
+                        latency_ms=elapsed_ms,
+                        is_5xx_error=False
+                    )
+                logger.debug(f"Rollout tracker recorded: mode={'langgraph' if use_langgraph else 'simple'}, latency={elapsed_ms:.2f}ms, success={execution_success}")
+            except Exception as e:
+                logger.warning(f"Failed to record rollout tracker metrics: {e}")
+        
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
                 category='redis',
@@ -619,6 +666,25 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
                 _canary_metrics.incr_counter("planner.error_5xx")
             except Exception as metric_error:
                 logger.warning(f"Failed to record error metric: {metric_error}")
+        
+        if _rollout_tracker:
+            try:
+                if use_langgraph:
+                    _rollout_tracker.record_langgraph_task(
+                        trace_id=task_id,
+                        success=False,
+                        latency_ms=None,
+                        is_5xx_error=True
+                    )
+                else:
+                    _rollout_tracker.record_simple_task(
+                        trace_id=task_id,
+                        success=False,
+                        latency_ms=None,
+                        is_5xx_error=True
+                    )
+            except Exception as tracker_error:
+                logger.warning(f"Failed to record rollout tracker error: {tracker_error}")
         
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
