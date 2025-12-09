@@ -22,6 +22,7 @@ from langgraph_orchestrator import (
     fixer_node,
     reviewer_node,
     decision_node,
+    internal_review_node,
     should_continue_execution,
     should_retry_or_finish,
     should_fix_or_finalize,
@@ -1389,6 +1390,132 @@ class TestPhase3MultiAgentFlow:
         # Verify new fields added
         assert "review_result" in state
         assert "merge_decision" in state
+
+
+class TestInternalReviewNodeFieldValidation:
+    """
+    Tests for Issue #2263: Required field validation in internal_review_node
+
+    These tests verify that internal_review_node properly validates required fields
+    and fails gracefully when they are missing.
+    """
+
+    def test_internal_review_node_skips_non_internal_review_task(self):
+        """Test that internal_review_node skips when task_type is not internal_review"""
+        state = create_test_state(trace_id="test-skip-123")
+        state["task_type"] = "default"
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_mode") is None or result.get("internal_review_mode") is False
+
+    def test_internal_review_node_fails_when_missing_original_pr_number(self):
+        """Test that internal_review_node fails when original_pr_number is missing"""
+        state = create_test_state(trace_id="test-missing-pr-123")
+        state["task_type"] = "internal_review"
+        state["repo"] = "RC918/morningai"
+        # Explicitly remove original_pr_number
+        state.pop("original_pr_number", None)
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_decision") == "escalate"
+        assert result.get("requires_hitl_approval") is True
+        assert "original_pr_number" in result.get("internal_review_error", "")
+        assert result.get("internal_review_result", {}).get("status") == "failed"
+
+    def test_internal_review_node_fails_when_missing_repo(self):
+        """Test that internal_review_node fails when repo is missing"""
+        state = create_test_state(trace_id="test-missing-repo-123")
+        state["task_type"] = "internal_review"
+        state["original_pr_number"] = 123
+        # Explicitly remove repo
+        state.pop("repo", None)
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_decision") == "escalate"
+        assert result.get("requires_hitl_approval") is True
+        assert "repo" in result.get("internal_review_error", "")
+        assert result.get("internal_review_result", {}).get("status") == "failed"
+
+    def test_internal_review_node_fails_when_missing_both_required_fields(self):
+        """Test that internal_review_node fails when both required fields are missing"""
+        state = create_test_state(trace_id="test-missing-both-123")
+        state["task_type"] = "internal_review"
+        # Explicitly remove both required fields
+        state.pop("original_pr_number", None)
+        state.pop("repo", None)
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_decision") == "escalate"
+        assert result.get("requires_hitl_approval") is True
+        assert "original_pr_number" in result.get("internal_review_error", "")
+        assert "repo" in result.get("internal_review_error", "")
+        assert result.get("ai_reviewer_agreement") == "disagree"
+
+    def test_internal_review_node_fails_when_original_pr_number_is_zero(self):
+        """Test that internal_review_node fails when original_pr_number is 0 (falsy)"""
+        state = create_test_state(trace_id="test-zero-pr-123")
+        state["task_type"] = "internal_review"
+        state["original_pr_number"] = 0  # Falsy value
+        state["repo"] = "RC918/morningai"
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_decision") == "escalate"
+        assert result.get("requires_hitl_approval") is True
+        assert "original_pr_number" in result.get("internal_review_error", "")
+
+    def test_internal_review_node_fails_when_repo_is_empty_string(self):
+        """Test that internal_review_node fails when repo is empty string (falsy)"""
+        state = create_test_state(trace_id="test-empty-repo-123")
+        state["task_type"] = "internal_review"
+        state["original_pr_number"] = 123
+        state["repo"] = ""  # Falsy value
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_decision") == "escalate"
+        assert result.get("requires_hitl_approval") is True
+        assert "repo" in result.get("internal_review_error", "")
+
+    def test_internal_review_node_succeeds_with_valid_required_fields(self):
+        """Test that internal_review_node succeeds when all required fields are present"""
+        state = create_test_state(trace_id="test-valid-123")
+        state["task_type"] = "internal_review"
+        state["original_pr_number"] = 123
+        state["repo"] = "RC918/morningai"
+        state["initial_ai_review"] = {"decision": "needs_changes", "severity": "medium"}
+        state["follow_up_summary"] = {"status": "completed", "fix_applied": True}
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_mode") is True
+        # Should not have validation error
+        assert result.get("internal_review_error") is None
+        # Should have a valid decision (not escalate due to missing fields)
+        assert result.get("internal_review_decision") in ["approve", "request_changes", "escalate"]
+
+    def test_internal_review_node_sets_internal_review_mode_on_validation_failure(self):
+        """Test that internal_review_mode is set even when validation fails"""
+        state = create_test_state(trace_id="test-mode-set-123")
+        state["task_type"] = "internal_review"
+        state.pop("original_pr_number", None)
+        state.pop("repo", None)
+
+        result = internal_review_node(state)
+
+        assert result is not None
+        assert result.get("internal_review_mode") is True
 
 
 if __name__ == "__main__":
