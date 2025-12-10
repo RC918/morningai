@@ -310,6 +310,5 @@ BEGIN
 ║  2. Update backend: db_writer.py auto-fetch tenant_id      ║
 ║  3. Create tenant APIs: /api/tenant/*                      ║
 ║  4. Frontend: TenantContext + UI components                ║
-╚════════════════════════════════════════════════════════════╝
-    ';
+╚════════════════════════════════════════════════════════════╝';
 END $$;
