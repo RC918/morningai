@@ -691,6 +691,9 @@ class AutonomousExecutor:
         self.current_execution.tasks_failed += 1
         self.current_execution.errors.append(f"Task {task.task_id}: {last_error}")
 
+        # Issue #2242: Track last failed task for retry command
+        self._last_failed_task = task
+
         logger.error(
             "[AutonomousExecutor] Task %s failed after %d attempts: %s",
             task.task_id, self.max_retries, last_error)
