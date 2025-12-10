@@ -293,15 +293,17 @@ BEGIN
     END IF;
 END $$;
 
-RAISE NOTICE '
+DO $$
+BEGIN
+    RAISE NOTICE '
 ╔════════════════════════════════════════════════════════════╗
 ║  Migration 006: TRUE Tenant Isolation - COMPLETE          ║
 ╠════════════════════════════════════════════════════════════╣
-║  ✅ Old temporary policies removed                         ║
-║  ✅ TRUE tenant isolation policies created                 ║
-║  ✅ Helper functions added                                 ║
-║  ✅ Performance indexes verified                           ║
-║  ✅ RLS enforcement active                                 ║
+║  Old temporary policies removed                            ║
+║  TRUE tenant isolation policies created                    ║
+║  Helper functions added                                    ║
+║  Performance indexes verified                              ║
+║  RLS enforcement active                                    ║
 ╠════════════════════════════════════════════════════════════╣
 ║  Next steps:                                               ║
 ║  1. Test with: migrations/tests/test_phase3_isolation.sql  ║
@@ -309,4 +311,5 @@ RAISE NOTICE '
 ║  3. Create tenant APIs: /api/tenant/*                      ║
 ║  4. Frontend: TenantContext + UI components                ║
 ╚════════════════════════════════════════════════════════════╝
-';
+    ';
+END $$;
