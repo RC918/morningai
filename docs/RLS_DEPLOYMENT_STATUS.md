@@ -143,7 +143,7 @@ CREATE POLICY "users_update_own_tenant" ON agent_tasks
 
 **Time to execute**: ~5-10 minutes
 
-Follow the complete emergency rollback plan in [PRE_DEPLOYMENT_CHECKLIST.md](../migrations/PRE_DEPLOYMENT_CHECKLIST.md#emergency-rollback-plan), which includes:
+Follow the complete emergency rollback plan in [PRE_DEPLOYMENT_CHECKLIST.md](../migrations/PRE_DEPLOYMENT_CHECKLIST.md#-緊急回滾計劃), which includes:
 - Dropping the tenant_id column and related constraints
 - Restoring from backup if necessary
 - Full application restart
@@ -188,5 +188,6 @@ All deployment and verification logs are maintained here as the single source of
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-10 | Fix anchor link to PRE_DEPLOYMENT_CHECKLIST.md emergency rollback section | Devin |
 | 2025-12-10 | Clarify Quick vs Full Rollback procedure, unify execution logs | Devin |
 | 2025-12-10 | Initial document creation | Devin |
