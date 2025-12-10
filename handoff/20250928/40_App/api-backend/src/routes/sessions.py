@@ -583,8 +583,10 @@ def send_command(session_id):
         redis_client = get_redis_client()
 
         commands_key = f"{key}{SESSION_COMMANDS_KEY_SUFFIX}"
-        redis_client.rpush(commands_key, json.dumps(command_entry))
-        redis_client.expire(commands_key, SESSION_TTL_SECONDS)
+        with redis_client.pipeline() as pipe:
+            pipe.rpush(commands_key, json.dumps(command_entry))
+            pipe.expire(commands_key, SESSION_TTL_SECONDS)
+            pipe.execute()
 
         logger.info(
             "Command queued to session %s by %s: type=%s, length=%d, command_id=%s",

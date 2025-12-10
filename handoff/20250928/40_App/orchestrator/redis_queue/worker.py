@@ -1350,12 +1350,12 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
         )
 
         # Issue #2322: Persist session_data back to Redis after command processing
-        # Clear processed commands from the separate Redis List for concurrency safety
-        commands_processed_count = 0
-        if pending_commands:
+        # Use LTRIM to remove only processed commands, preserving any new commands
+        # that arrived between LRANGE and now (fixes race condition vs DELETE)
+        commands_processed_count = len(pending_commands)
+        if commands_processed_count > 0:
             try:
-                redis.delete(commands_key)
-                commands_processed_count = len(pending_commands)
+                redis.ltrim(commands_key, commands_processed_count, -1)
                 logger.info(
                     "[MetaAgent] Processed commands cleared from queue",
                     extra={
