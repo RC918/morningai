@@ -1,0 +1,65 @@
+# Capture Merged PR Workflow
+# Automatically captures PR metadata when a PR is merged to main
+# and appends it to docs/pr-changelog-raw.yaml for later curation.
+#
+# This is Phase 2 of the PR changelog automation system.
+# Phase 1: Manual YAML + generator (docs-changelog.yml)
+# Phase 2: Auto-capture merged PRs to raw feed (this workflow)
+
+name: Capture Merged PR
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  capture-pr:
+    # Only run if the PR was merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Capture PR data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python scripts/capture-merged-pr.py --pr-number ${{ github.event.pull_request.number }}
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet docs/pr-changelog-raw.yaml 2>/dev/null || [ ! -f docs/pr-changelog-raw.yaml ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/pr-changelog-raw.yaml
+          git commit -m "chore(docs): auto-capture PR #${{ github.event.pull_request.number }} to raw feed"
+          git push origin main
