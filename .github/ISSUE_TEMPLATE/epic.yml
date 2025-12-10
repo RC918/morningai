@@ -1,0 +1,110 @@
+name: Epic
+description: Create a new Epic for tracking large initiatives with Phase structure
+title: "[Epic] "
+labels: ["epic"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Epic Template
+        
+        Use this template to create Epics that track large initiatives across multiple phases.
+        Each Epic should have clear Phase structure and link to child Issues.
+
+  - type: textarea
+    id: overview
+    attributes:
+      label: Overview
+      description: Brief description of this Epic's goals and scope
+      placeholder: Describe the overall goal of this Epic...
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: Context and motivation for this Epic
+      placeholder: Why is this Epic needed? What problem does it solve?
+    validations:
+      required: false
+
+  - type: textarea
+    id: phase-0
+    attributes:
+      label: "Phase 0: Foundation"
+      description: Foundation work that other phases depend on
+      value: |
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
+    validations:
+      required: false
+
+  - type: textarea
+    id: phase-1
+    attributes:
+      label: "Phase 1: Core"
+      description: Core components and features
+      value: |
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
+    validations:
+      required: false
+
+  - type: textarea
+    id: phase-2
+    attributes:
+      label: "Phase 2: Integration"
+      description: Integration and migration work
+      value: |
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
+    validations:
+      required: false
+
+  - type: textarea
+    id: phase-3
+    attributes:
+      label: "Phase 3: Governance"
+      description: Documentation, testing, and governance
+      value: |
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
+    validations:
+      required: false
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: External dependencies or blockers
+      placeholder: |
+        List any dependencies:
+        - Dependency 1
+        - Dependency 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: resources
+    attributes:
+      label: Related Resources
+      description: Links to relevant documentation, designs, or references
+      placeholder: |
+        - Figma: https://...
+        - Documentation: https://...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: Overall priority of this Epic
+      options:
+        - P0 - Critical
+        - P1 - High
+        - P2 - Medium
+        - P3 - Low
+    validations:
+      required: true
