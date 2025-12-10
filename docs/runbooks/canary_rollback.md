@@ -320,6 +320,6 @@ After executing this runbook, record the results below. This log serves as an au
 
 | Version | Date | Change | Author |
 |---------|------|--------|--------|
-| v2.0 | 2025-12-10 | Convert to standard SOP format with Prerequisites, Rollback Triggers Matrix, Execution Checklist, Execution Log | Devin |
-| v1.1 | 2025-12-10 | Add reference to Post-Deploy Smoke Test Checklist for standardized verification | Devin |
+| v2.0 | 2025-12-10 | Convert to standard SOP format with Prerequisites, Rollback Triggers Matrix, Execution Checklist, Execution Log | Engineering Team |
+| v1.1 | 2025-12-10 | Add reference to Post-Deploy Smoke Test Checklist for standardized verification | Engineering Team |
 | v1.0 | 2025-11-21 | Initial runbook created as part of canary hardening sprint | Engineering Team |
