@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional
 from .audit_log import AuditLogger
 from .execution_policy import ExecutionPolicy
 from .goal_parser import GoalParser
+from .session_command_processor import SessionCommandProcessor
 from .state_persistence import ExecutionStateManager, create_checkpoint_from_execution
 from .task_planner import SubTask, SubTaskStatus, SubTaskType, TaskPlan, TaskPlanner
 from .visual_verifier import VisualVerifier
@@ -203,6 +204,12 @@ class AutonomousExecutor:
         self.on_task_complete: Optional[Callable[[SubTask, Dict], None]] = None
         self.on_task_fail: Optional[Callable[[SubTask, str], None]] = None
         self.on_approval_required: Optional[Callable[[SubTask], bool]] = None
+
+        # Session command processor for handling user commands (Issue #2242)
+        self.command_processor: Optional[SessionCommandProcessor] = None
+        self._session_data: Optional[Dict[str, Any]] = None
+        self._last_failed_task: Optional[SubTask] = None
+        self._user_context_updates: List[str] = []
 
         logger.info(
             "[AutonomousExecutor] Initialized with max_retries=%d, timeout=%ds, "
@@ -411,6 +418,9 @@ class AutonomousExecutor:
                         )
                     await asyncio.sleep(1)
                     continue
+
+                # Issue #2242: Process pending session commands from Redis
+                await self._process_session_commands(plan)
 
                 # Get next task
                 next_task = plan.get_next_task()
@@ -1387,6 +1397,224 @@ class AutonomousExecutor:
         """Cancel the current execution"""
         self.is_cancelled = True
         logger.info("[AutonomousExecutor] Execution cancelled")
+
+    def set_session_data(self, session_data: Dict[str, Any]) -> None:
+        """
+        Set the session data for command processing.
+
+        Issue #2242: This method should be called to provide the session data
+        from Redis that contains pending commands from SessionCommandInput.
+
+        Args:
+            session_data: Session data dictionary from Redis
+        """
+        self._session_data = session_data
+        logger.info(
+            "[AutonomousExecutor] Session data set, commands count: %d",
+            len(session_data.get("commands", []))
+        )
+
+    def _initialize_command_processor(self) -> None:
+        """
+        Initialize the SessionCommandProcessor with callbacks.
+
+        Issue #2242: Sets up the command processor with callbacks that
+        integrate with the executor's state management.
+        """
+        self.command_processor = SessionCommandProcessor(
+            on_continue=self._handle_continue_command,
+            on_explain=self._handle_explain_command,
+            on_skip=self._handle_skip_command,
+            on_retry=self._handle_retry_command,
+            on_user_command=self._handle_user_command_text,
+        )
+        logger.info("[AutonomousExecutor] Command processor initialized")
+
+    def _handle_continue_command(self) -> None:
+        """
+        Handle 'continue' quick command.
+
+        Issue #2242: Resumes execution if paused, or signals to continue
+        if waiting for approval.
+        """
+        if self.is_paused:
+            self.resume()
+            logger.info("[AutonomousExecutor] Continued from paused state via command")
+        else:
+            logger.info("[AutonomousExecutor] Continue command received (not paused)")
+
+    def _handle_explain_command(self) -> str:
+        """
+        Handle 'explain' quick command.
+
+        Issue #2242: Generates an explanation of the current execution state
+        and writes it to the session observations.
+
+        Returns:
+            Explanation string
+        """
+        explanation_parts = []
+
+        if self.current_execution:
+            explanation_parts.append(
+                f"Execution {self.current_execution.execution_id}: "
+                f"status={self.current_execution.status.value}"
+            )
+
+        if self.current_plan:
+            progress = self.current_plan.get_progress()
+            explanation_parts.append(
+                f"Plan progress: {progress['completed']}/{progress['total']} tasks completed, "
+                f"{progress['pending']} pending, {progress['failed']} failed"
+            )
+
+            # Find current task
+            current_task = None
+            for task in self.current_plan.subtasks:
+                if task.status == SubTaskStatus.IN_PROGRESS:
+                    current_task = task
+                    break
+
+            if current_task:
+                explanation_parts.append(
+                    f"Current task: {current_task.description[:100]}"
+                )
+
+        explanation = "; ".join(explanation_parts) if explanation_parts else "No active execution"
+        logger.info("[AutonomousExecutor] Explain command: %s", explanation)
+
+        # Add to session observations if session_data is available
+        if self._session_data is not None:
+            observations = self._session_data.setdefault("observations", [])
+            observations.append({
+                "type": "explanation",
+                "content": explanation,
+                "timestamp": datetime.now().isoformat(),
+            })
+
+        return explanation
+
+    def _handle_skip_command(self) -> None:
+        """
+        Handle 'skip' quick command.
+
+        Issue #2242: Marks the current task as skipped and moves to the next.
+        """
+        if self.current_plan:
+            for task in self.current_plan.subtasks:
+                if task.status == SubTaskStatus.IN_PROGRESS:
+                    task.status = SubTaskStatus.SKIPPED
+                    if self.current_execution:
+                        self.current_execution.tasks_skipped += 1
+                    logger.info(
+                        "[AutonomousExecutor] Task %s skipped via command",
+                        task.task_id
+                    )
+                    break
+        else:
+            logger.warning("[AutonomousExecutor] Skip command received but no active plan")
+
+    def _handle_retry_command(self) -> None:
+        """
+        Handle 'retry' quick command.
+
+        Issue #2242: Re-executes the last failed task.
+        """
+        if self._last_failed_task:
+            self._last_failed_task.status = SubTaskStatus.PENDING
+            self._last_failed_task.retry_count = 0
+            logger.info(
+                "[AutonomousExecutor] Task %s queued for retry via command",
+                self._last_failed_task.task_id
+            )
+        else:
+            logger.warning("[AutonomousExecutor] Retry command received but no failed task to retry")
+
+    def _handle_user_command_text(self, command_text: str) -> None:
+        """
+        Handle user command (free-form text instruction).
+
+        Issue #2242: Stores the user command for the ProjectEngineerAgent
+        to use as additional context or goal update.
+
+        Args:
+            command_text: The user's instruction text
+        """
+        self._user_context_updates.append(command_text)
+        logger.info(
+            "[AutonomousExecutor] User command received: %s...",
+            command_text[:50]
+        )
+
+        # Add to session observations
+        if self._session_data is not None:
+            observations = self._session_data.setdefault("observations", [])
+            observations.append({
+                "type": "user_command",
+                "content": command_text,
+                "timestamp": datetime.now().isoformat(),
+            })
+
+    async def _process_session_commands(self, plan: TaskPlan) -> None:
+        """
+        Process pending session commands from Redis.
+
+        Issue #2242: This method is called in the main execution loop to
+        check for and process any pending user commands from SessionCommandInput.
+
+        Args:
+            plan: The current TaskPlan being executed
+        """
+        if self._session_data is None:
+            return
+
+        # Initialize command processor if not already done
+        if self.command_processor is None:
+            self._initialize_command_processor()
+
+        # Process pending commands
+        results = self.command_processor.process_pending_commands(self._session_data)
+
+        if results:
+            logger.info(
+                "[AutonomousExecutor] Processed %d session commands",
+                len(results)
+            )
+
+            # Log results to audit log
+            if self.audit_logger:
+                for result in results:
+                    self.audit_logger.log_event(
+                        event_type="session_command_processed",
+                        details={
+                            "command_id": result.command_id,
+                            "action": result.action_taken,
+                            "success": result.success,
+                            "message": result.message,
+                            "error": result.error,
+                        }
+                    )
+
+    def get_user_context_updates(self) -> List[str]:
+        """
+        Get accumulated user context updates from user commands.
+
+        Issue #2242: Returns the list of user command texts that have been
+        received, which can be used by ProjectEngineerAgent as additional context.
+
+        Returns:
+            List of user command texts
+        """
+        return self._user_context_updates.copy()
+
+    def clear_user_context_updates(self) -> None:
+        """
+        Clear accumulated user context updates.
+
+        Issue #2242: Should be called after the updates have been consumed
+        by ProjectEngineerAgent.
+        """
+        self._user_context_updates.clear()
 
     def get_status(self) -> Dict[str, Any]:
         """Get current execution status"""
