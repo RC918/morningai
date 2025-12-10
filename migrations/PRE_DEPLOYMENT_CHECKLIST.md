@@ -369,5 +369,29 @@ ALTER TABLE agent_tasks DROP COLUMN IF EXISTS tenant_id;
 
 ---
 
+## 📝 Execution Log
+
+Record deployment execution here for audit trail. See also [RLS_DEPLOYMENT_STATUS.md](../docs/RLS_DEPLOYMENT_STATUS.md) for comprehensive status tracking.
+
+### Staging Deployment Log
+
+| Date | Migration | Executor | Result | Notes |
+|------|-----------|----------|--------|-------|
+| - | - | - | - | No deployments yet |
+
+### Production Deployment Log
+
+| Date | Migration | Executor | Result | Notes |
+|------|-----------|----------|--------|-------|
+| - | - | - | - | No deployments yet |
+
+### Health Check Verification Log
+
+| Date | Environment | Workflow Run | Result | Notes |
+|------|-------------|--------------|--------|-------|
+| - | - | - | - | No checks run yet |
+
+---
+
 **準備好部署了嗎？** 
 如果所有檢查都是 ✅ PASS，且 Staging 測試成功，即可進行 Production 部署！
