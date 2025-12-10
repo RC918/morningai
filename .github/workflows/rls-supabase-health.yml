@@ -119,10 +119,14 @@ jobs:
             AND policyname LIKE 'true_tenant_isolation%';
           ")
           
-          if [ "$TRUE_ISOLATION_COUNT" -eq 4 ]; then
-            echo "TRUE tenant isolation policies found: $TRUE_ISOLATION_COUNT"
+          # Use -ge 4 for robustness - allows for additional policies in the future
+          if [ "$TRUE_ISOLATION_COUNT" -ge 4 ]; then
+            echo "TRUE tenant isolation policies found: $TRUE_ISOLATION_COUNT (minimum 4 required)"
+          elif [ "$TRUE_ISOLATION_COUNT" -gt 0 ]; then
+            echo "::warning::Partial TRUE tenant isolation policies found ($TRUE_ISOLATION_COUNT of 4 minimum)"
+            echo "This may indicate an incomplete Phase 2 migration."
           else
-            echo "::warning::TRUE tenant isolation policies not found (expected 4, found $TRUE_ISOLATION_COUNT)"
+            echo "::warning::No TRUE tenant isolation policies found (expected at least 4)"
             echo "This may indicate Phase 2 migrations have not been applied yet."
           fi
       
@@ -133,16 +137,34 @@ jobs:
         run: |
           echo "Checking for default tenant..."
           
+          # First verify we can connect to the database
+          if ! psql "$DATABASE_URL" -c "SELECT 1" > /dev/null 2>&1; then
+            echo "::error::Cannot connect to staging database - check SUPABASE_STAGING_DB_URL secret"
+            exit 1
+          fi
+          
+          # Check if tenants table exists
+          TABLE_EXISTS=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = 'tenants';
+          ")
+          
+          if [ "$TABLE_EXISTS" = "0" ]; then
+            echo "::warning::tenants table does not exist - RLS baseline migrations may not be applied"
+            exit 0
+          fi
+          
+          # Check for default tenant
           DEFAULT_TENANT=$(psql "$DATABASE_URL" -t -A -c "
             SELECT COUNT(*) 
             FROM tenants 
             WHERE id = '00000000-0000-0000-0000-000000000001';
-          " 2>/dev/null || echo "0")
+          ")
           
           if [ "$DEFAULT_TENANT" = "1" ]; then
             echo "Default tenant exists"
           else
-            echo "::warning::Default tenant not found - migrations 003+ may not be applied"
+            echo "::warning::Default tenant not found - migration 003 may not be applied yet"
           fi
       
       - name: Check tenant_id column on agent_tasks
@@ -296,10 +318,14 @@ jobs:
             AND policyname LIKE 'true_tenant_isolation%';
           ")
           
-          if [ "$TRUE_ISOLATION_COUNT" -eq 4 ]; then
-            echo "TRUE tenant isolation policies found: $TRUE_ISOLATION_COUNT"
+          # Use -ge 4 for robustness - allows for additional policies in the future
+          if [ "$TRUE_ISOLATION_COUNT" -ge 4 ]; then
+            echo "TRUE tenant isolation policies found: $TRUE_ISOLATION_COUNT (minimum 4 required)"
+          elif [ "$TRUE_ISOLATION_COUNT" -gt 0 ]; then
+            echo "::warning::Partial TRUE tenant isolation policies found ($TRUE_ISOLATION_COUNT of 4 minimum)"
+            echo "This may indicate an incomplete Phase 2 migration."
           else
-            echo "::warning::TRUE tenant isolation policies not found (expected 4, found $TRUE_ISOLATION_COUNT)"
+            echo "::warning::No TRUE tenant isolation policies found (expected at least 4)"
             echo "This may indicate Phase 2 migrations have not been applied yet."
           fi
       
