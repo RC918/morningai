@@ -1345,7 +1345,9 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
                 "tasks_completed": tasks_completed,
                 "tasks_failed": tasks_failed,
                 "pr_url": pr_url,
-                "elapsed_ms": elapsed_ms
+                "elapsed_ms": elapsed_ms,
+                "session_id": session_id,
+                "pending_commands_count": len(pending_commands)
             }
         )
 

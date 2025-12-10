@@ -11,7 +11,7 @@ import logging
 import json
 import uuid
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from flask import Blueprint, jsonify, request
 
@@ -230,7 +230,7 @@ def list_sessions():
                 'filters': {
                     'status': status_filter
                 },
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             })
 
         # Batch fetch all sessions using MGET for better performance
@@ -283,7 +283,7 @@ def list_sessions():
             'filters': {
                 'status': status_filter
             },
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except Exception:
         logger.exception("Failed to list sessions")
@@ -350,7 +350,7 @@ def pause_session(session_id):
             }), 400
 
         session_data['status'] = 'paused'
-        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         session_data['paused_by'] = user_email
 
         redis_client = get_redis_client()
@@ -363,7 +363,7 @@ def pause_session(session_id):
             'session_id': session_id,
             'status': STATUS_MAP.get('paused', 'paused'),
             'paused_by': user_email,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except json.JSONDecodeError:
         # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
@@ -402,7 +402,7 @@ def resume_session(session_id):
             }), 400
 
         session_data['status'] = 'active'
-        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         session_data['resumed_by'] = user_email
 
         redis_client = get_redis_client()
@@ -416,7 +416,7 @@ def resume_session(session_id):
             'session_id': session_id,
             'status': STATUS_MAP.get('active', 'running'),
             'resumed_by': user_email,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except json.JSONDecodeError:
         # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
@@ -461,7 +461,7 @@ def cancel_session(session_id):
             }), 400
 
         session_data['status'] = 'failed'
-        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['updated_at'] = datetime.now(timezone.utc).isoformat()
         session_data['cancelled_by'] = user_email
         if reason:
             session_data['context'] = session_data.get('context', {})
@@ -478,7 +478,7 @@ def cancel_session(session_id):
             'status': STATUS_MAP.get('failed', 'failed'),
             'cancelled_by': user_email,
             'reason': reason,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         })
     except json.JSONDecodeError:
         # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
@@ -568,7 +568,7 @@ def send_command(session_id):
             }), 400
 
         command_id = str(uuid.uuid4())
-        server_timestamp = datetime.utcnow().isoformat()
+        server_timestamp = datetime.now(timezone.utc).isoformat()
 
         command_entry = {
             'command_id': command_id,
@@ -617,5 +617,5 @@ def health_check():
     return jsonify({
         'sessions_available': REDIS_AVAILABLE,
         'status': 'healthy' if REDIS_AVAILABLE else 'degraded',
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now(timezone.utc).isoformat()
     })
