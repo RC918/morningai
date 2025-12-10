@@ -19,6 +19,9 @@ import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -28,11 +31,32 @@ import yaml
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com"
 
+# Maximum number of files to consider when determining primary path
+MAX_FILES_TO_CONSIDER = 10
+
+# Regex pattern for conventional commit format: type(scope): description
+CONVENTIONAL_COMMIT_PATTERN = re.compile(r"^(\w+)(?:\(([^)]+)\))?:")
+
+
+def _parse_conventional_commit(title: str) -> tuple[str | None, str | None]:
+    """Parse conventional commit format from PR title.
+
+    Returns:
+        Tuple of (type, scope) where either can be None if not found.
+
+    Examples:
+        "feat(owner-console): add feature" -> ("feat", "owner-console")
+        "fix: bug fix" -> ("fix", None)
+        "random title" -> (None, None)
+    """
+    match = CONVENTIONAL_COMMIT_PATTERN.match(title)
+    if match:
+        return match.group(1), match.group(2)
+    return None, None
+
 
 def get_pr_data(repo: str, pr_number: int, token: str) -> dict[str, Any]:
     """Fetch PR data from GitHub API."""
-    import urllib.request
-
     url = f"{GITHUB_API_URL}/repos/{repo}/pulls/{pr_number}"
     headers = {
         "Authorization": f"token {token}",
@@ -53,13 +77,10 @@ def extract_category_from_title(title: str) -> str:
         "fix(orchestrator): fix bug" -> "orchestrator"
         "docs: update readme" -> "docs"
     """
-    # Match conventional commit format: type(scope): description
-    match = re.match(r"^(\w+)(?:\(([^)]+)\))?:", title)
-    if match:
-        pr_type = match.group(1)
-        scope = match.group(2)
-        if scope:
-            return scope
+    pr_type, scope = _parse_conventional_commit(title)
+    if scope:
+        return scope
+    if pr_type:
         return pr_type
     return "uncategorized"
 
@@ -71,16 +92,14 @@ def extract_pr_type(title: str) -> str:
         "feat(owner-console): add feature" -> "feat"
         "fix(orchestrator): fix bug" -> "fix"
     """
-    match = re.match(r"^(\w+)(?:\([^)]+\))?:", title)
-    if match:
-        return match.group(1)
+    pr_type, _ = _parse_conventional_commit(title)
+    if pr_type:
+        return pr_type
     return "other"
 
 
 def get_changed_paths(repo: str, pr_number: int, token: str) -> list[str]:
     """Get list of changed file paths from PR."""
-    import urllib.request
-
     url = f"{GITHUB_API_URL}/repos/{repo}/pulls/{pr_number}/files"
     headers = {
         "Authorization": f"token {token}",
@@ -91,7 +110,7 @@ def get_changed_paths(repo: str, pr_number: int, token: str) -> list[str]:
     request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request) as response:
         files = json.loads(response.read().decode())
-        return [f["filename"] for f in files[:10]]  # Limit to first 10 files
+        return [f["filename"] for f in files[:MAX_FILES_TO_CONSIDER]]
 
 
 def load_raw_feed(raw_feed_path: Path) -> dict[str, Any]:
@@ -125,17 +144,33 @@ def pr_exists_in_feed(feed: dict[str, Any], pr_number: int) -> bool:
     return False
 
 
+def _get_primary_path(changed_paths: list[str]) -> str:
+    """Get the most common parent directory from changed paths.
+
+    Uses Counter to find the most frequently occurring parent directory,
+    which provides better signal than just using the first file's directory.
+    """
+    if not changed_paths:
+        return ""
+
+    # Count occurrences of each parent directory
+    parent_dirs = [str(Path(p).parent) for p in changed_paths]
+    counter = Counter(parent_dirs)
+
+    # Return the most common parent directory
+    most_common = counter.most_common(1)
+    if most_common:
+        return most_common[0][0]
+    return ""
+
+
 def create_raw_entry(pr_data: dict[str, Any], changed_paths: list[str]) -> dict[str, Any]:
     """Create a raw feed entry from PR data."""
     title = pr_data["title"]
     labels = [label["name"] for label in pr_data.get("labels", [])]
 
     # Extract primary path (most commonly changed directory)
-    primary_path = ""
-    if changed_paths:
-        # Find common prefix or use first file's directory
-        first_path = changed_paths[0]
-        primary_path = str(Path(first_path).parent)
+    primary_path = _get_primary_path(changed_paths)
 
     return {
         "number": pr_data["number"],
@@ -194,8 +229,11 @@ def main() -> int:
     # Fetch PR data
     try:
         pr_data = get_pr_data(repo, args.pr_number, token)
-    except Exception as e:
-        print(f"Error fetching PR data: {e}")
+    except urllib.error.HTTPError as e:
+        print(f"Error fetching PR data: HTTP {e.code} - {e.reason}")
+        return 1
+    except urllib.error.URLError as e:
+        print(f"Error fetching PR data: {e.reason}")
         return 1
 
     # Check if PR was actually merged
@@ -206,8 +244,11 @@ def main() -> int:
     # Get changed files
     try:
         changed_paths = get_changed_paths(repo, args.pr_number, token)
-    except Exception as e:
-        print(f"Warning: Could not fetch changed files: {e}")
+    except urllib.error.HTTPError as e:
+        print(f"Warning: Could not fetch changed files: HTTP {e.code} - {e.reason}")
+        changed_paths = []
+    except urllib.error.URLError as e:
+        print(f"Warning: Could not fetch changed files: {e.reason}")
         changed_paths = []
 
     # Load existing raw feed

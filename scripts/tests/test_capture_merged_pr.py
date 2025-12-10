@@ -15,6 +15,58 @@ from importlib import import_module
 capture_merged_pr = import_module("capture-merged-pr")
 
 
+class TestParseConventionalCommit:
+    """Tests for _parse_conventional_commit function."""
+
+    def test_parses_type_and_scope(self):
+        """Test parsing type and scope from conventional commit."""
+        pr_type, scope = capture_merged_pr._parse_conventional_commit(
+            "feat(owner-console): add feature"
+        )
+        assert pr_type == "feat"
+        assert scope == "owner-console"
+
+    def test_parses_type_only(self):
+        """Test parsing type when no scope is present."""
+        pr_type, scope = capture_merged_pr._parse_conventional_commit(
+            "docs: update readme"
+        )
+        assert pr_type == "docs"
+        assert scope is None
+
+    def test_returns_none_for_non_conventional(self):
+        """Test that None is returned for non-conventional titles."""
+        pr_type, scope = capture_merged_pr._parse_conventional_commit(
+            "Update something"
+        )
+        assert pr_type is None
+        assert scope is None
+
+
+class TestGetPrimaryPath:
+    """Tests for _get_primary_path function."""
+
+    def test_returns_most_common_parent(self):
+        """Test that most common parent directory is returned."""
+        paths = [
+            "src/components/Button.tsx",
+            "src/components/Input.tsx",
+            "src/utils/helpers.ts",
+        ]
+        result = capture_merged_pr._get_primary_path(paths)
+        assert result == "src/components"
+
+    def test_returns_empty_for_empty_list(self):
+        """Test that empty string is returned for empty list."""
+        result = capture_merged_pr._get_primary_path([])
+        assert result == ""
+
+    def test_handles_single_file(self):
+        """Test handling of single file."""
+        result = capture_merged_pr._get_primary_path(["src/index.ts"])
+        assert result == "src"
+
+
 class TestExtractCategoryFromTitle:
     """Tests for extract_category_from_title function."""
 
