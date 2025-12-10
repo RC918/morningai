@@ -486,6 +486,18 @@ def cancel_session(session_id):
         return jsonify({'error': 'Failed to cancel session'}), 500
 
 
+# Valid command types for session commands
+VALID_COMMAND_TYPES = {'user_command', 'quick_command'}
+
+# Valid quick command IDs - must match frontend SessionCommandInput.jsx QUICK_COMMANDS
+# MAINTENANCE NOTE: When adding new quick commands, update these 3 locations:
+#   1. Backend: VALID_QUICK_COMMAND_IDS (this file)
+#   2. Frontend: QUICK_COMMANDS in SessionCommandInput.jsx
+#   3. Tests: test_sessions_routes.py parametrized test cases
+# Issue #2179 - API endpoint for SessionCommandInput
+VALID_QUICK_COMMAND_IDS = {'continue', 'explain', 'skip', 'retry'}
+
+
 @bp.route('/<session_id>/command', methods=['POST'])
 @jwt_required
 @admin_required
@@ -501,12 +513,16 @@ def send_command(session_id):
     - type: Command type - 'user_command' or 'quick_command' (default: 'user_command')
     - timestamp: Client timestamp (optional)
 
+    Quick Command IDs (when type='quick_command'):
+    - continue: Continue execution
+    - explain: Explain current step
+    - skip: Skip this task
+    - retry: Retry last action
+
     Requires: Owner role
 
     Issue: #2179 - API endpoint for SessionCommandInput
     """
-    VALID_COMMAND_TYPES = {'user_command', 'quick_command'}
-
     try:
         session_data, user_info, key = _get_session_and_user(session_id)
         user_email = user_info['user_email']
@@ -529,6 +545,13 @@ def send_command(session_id):
             return jsonify({
                 'error': 'Invalid command type',
                 'message': f'type must be one of: {", ".join(sorted(VALID_COMMAND_TYPES))}'
+            }), 400
+
+        # Validate quick command IDs - Issue #2179
+        if command_type == 'quick_command' and command not in VALID_QUICK_COMMAND_IDS:
+            return jsonify({
+                'error': 'Invalid quick command',
+                'message': f'quick command must be one of: {", ".join(sorted(VALID_QUICK_COMMAND_IDS))}'
             }), 400
 
         current_status = session_data.get('status', 'active')
