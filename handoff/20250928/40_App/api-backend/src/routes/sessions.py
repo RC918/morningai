@@ -486,7 +486,14 @@ def cancel_session(session_id):
         return jsonify({'error': 'Failed to cancel session'}), 500
 
 
+# Valid command types for session commands
+VALID_COMMAND_TYPES = {'user_command', 'quick_command'}
+
 # Valid quick command IDs - must match frontend SessionCommandInput.jsx QUICK_COMMANDS
+# MAINTENANCE NOTE: When adding new quick commands, update these 3 locations:
+#   1. Backend: VALID_QUICK_COMMAND_IDS (this file)
+#   2. Frontend: QUICK_COMMANDS in SessionCommandInput.jsx
+#   3. Tests: test_sessions_routes.py parametrized test cases
 # Issue #2179 - API endpoint for SessionCommandInput
 VALID_QUICK_COMMAND_IDS = {'continue', 'explain', 'skip', 'retry'}
 
@@ -516,8 +523,6 @@ def send_command(session_id):
 
     Issue: #2179 - API endpoint for SessionCommandInput
     """
-    VALID_COMMAND_TYPES = {'user_command', 'quick_command'}
-
     try:
         session_data, user_info, key = _get_session_and_user(session_id)
         user_email = user_info['user_email']
