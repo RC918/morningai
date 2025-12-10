@@ -371,25 +371,12 @@ ALTER TABLE agent_tasks DROP COLUMN IF EXISTS tenant_id;
 
 ## 📝 Execution Log
 
-Record deployment execution here for audit trail. See also [RLS_DEPLOYMENT_STATUS.md](../docs/RLS_DEPLOYMENT_STATUS.md) for comprehensive status tracking.
+All deployment execution logs are maintained in a single location for consistency and audit trail purposes.
 
-### Staging Deployment Log
-
-| Date | Migration | Executor | Result | Notes |
-|------|-----------|----------|--------|-------|
-| - | - | - | - | No deployments yet |
-
-### Production Deployment Log
-
-| Date | Migration | Executor | Result | Notes |
-|------|-----------|----------|--------|-------|
-| - | - | - | - | No deployments yet |
-
-### Health Check Verification Log
-
-| Date | Environment | Workflow Run | Result | Notes |
-|------|-------------|--------------|--------|-------|
-| - | - | - | - | No checks run yet |
+**See [RLS_DEPLOYMENT_STATUS.md](../docs/RLS_DEPLOYMENT_STATUS.md)** for:
+- Environment deployment status (staging/production)
+- Health check results log
+- Migration application history
 
 ---
 

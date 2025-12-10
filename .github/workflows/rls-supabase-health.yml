@@ -186,7 +186,7 @@ jobs:
           
           ## Next Steps
           
-          If any warnings appeared, review [RLS_DEPLOYMENT_STATUS.md](../blob/main/docs/RLS_DEPLOYMENT_STATUS.md) and apply missing migrations.
+          If any warnings appeared, review [RLS_DEPLOYMENT_STATUS.md](https://github.com/RC918/morningai/blob/main/docs/RLS_DEPLOYMENT_STATUS.md) and apply missing migrations.
           
           ---
           

@@ -110,9 +110,13 @@ This workflow performs read-only checks against staging and production Supabase 
 
 ## Rollback Procedure
 
-If issues occur after deployment, follow the rollback procedures in [PRE_DEPLOYMENT_CHECKLIST.md](../migrations/PRE_DEPLOYMENT_CHECKLIST.md#emergency-rollback-plan).
+If issues occur after deployment, use the tiered rollback approach below. Start with Step 1 and escalate only if needed.
 
-### Quick Rollback (Policy Only)
+### Step 1: Quick Rollback (Policy Only) - First Response
+
+**When to use**: Phase 2 TRUE tenant isolation policies are causing issues (users locked out, permission errors), but the underlying schema (tenant_id column) is fine.
+
+**Time to execute**: ~1 minute
 
 ```sql
 -- Revert to Phase 1 policies (allows all authenticated users)
@@ -131,11 +135,40 @@ CREATE POLICY "users_update_own_tenant" ON agent_tasks
     FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 ```
 
+**After executing**: Verify application is working, then investigate root cause before re-applying Phase 2 policies.
+
+### Step 2: Full Rollback (Schema + Policy) - Escalation
+
+**When to use**: Quick Rollback did not resolve the issue, OR the tenant_id column itself is causing problems.
+
+**Time to execute**: ~5-10 minutes
+
+Follow the complete emergency rollback plan in [PRE_DEPLOYMENT_CHECKLIST.md](../migrations/PRE_DEPLOYMENT_CHECKLIST.md#emergency-rollback-plan), which includes:
+- Dropping the tenant_id column and related constraints
+- Restoring from backup if necessary
+- Full application restart
+
+**Warning**: This is a destructive operation. Only use if Quick Rollback fails and the system is still broken.
+
 ---
 
-## Health Check Results Log
+## Execution Logs
 
-Record health check results here for audit trail:
+All deployment and verification logs are maintained here as the single source of truth.
+
+### Staging Deployment Log
+
+| Date | Migration | Executor | Result | Notes |
+|------|-----------|----------|--------|-------|
+| - | - | - | - | No deployments yet |
+
+### Production Deployment Log
+
+| Date | Migration | Executor | Result | Notes |
+|------|-----------|----------|--------|-------|
+| - | - | - | - | No deployments yet |
+
+### Health Check Results Log
 
 | Date | Environment | Workflow Run | Result | Notes |
 |------|-------------|--------------|--------|-------|
@@ -155,4 +188,5 @@ Record health check results here for audit trail:
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-10 | Clarify Quick vs Full Rollback procedure, unify execution logs | Devin |
 | 2025-12-10 | Initial document creation | Devin |
