@@ -1,0 +1,30 @@
+# PR Changelog Raw Feed - Auto-captured PR Data
+# This file is automatically updated by GitHub Actions when PRs are merged to main.
+# Review entries here and curate them into docs/pr-changelog.yaml.
+#
+# Workflow:
+# 1. PR is merged to main
+# 2. GitHub Action captures PR metadata and appends to this file
+# 3. You review entries and add curated versions to pr-changelog.yaml
+# 4. Mark entries as curated: true after processing
+#
+# Entry schema:
+#   - number: PR number
+#     title: PR title
+#     type: Conventional commit type (feat, fix, refactor, etc.)
+#     scope: Scope from title (owner-console, orchestrator, etc.)
+#     labels: List of GitHub labels
+#     primary_path: Primary changed directory
+#     changed_files_count: Number of files changed
+#     merged_at: ISO timestamp of merge
+#     merged_by: GitHub username who merged
+#     author: PR author username
+#     html_url: Link to PR
+#     body_preview: First 200 chars of PR body
+#     curated: false  # Set to true after adding to pr-changelog.yaml
+
+metadata:
+  description: Auto-captured PR data from GitHub. Review and curate into pr-changelog.yaml.
+  last_updated: null
+
+raw_feed: []
