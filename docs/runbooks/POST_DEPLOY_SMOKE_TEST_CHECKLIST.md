@@ -21,6 +21,21 @@ This checklist provides a unified, ordered set of verification steps to run afte
 
 ---
 
+## Scenario Selector
+
+Use this table to quickly identify which sections are required for your scenario:
+
+| Scenario | Required Sections | Optional Sections |
+|----------|-------------------|-------------------|
+| **General prod deploy** | Section 1, Section 4 | Section 5 |
+| **RLS deploy** | Section 1, Section 2, Section 4 | Section 5 |
+| **RLS quick rollback** | Section 1, Section 2, Section 4 | Section 5 |
+| **RLS full rollback** | Section 1, Section 2, Section 4 | Section 5 |
+| **Canary rollout** | Section 1, Section 3, Section 4 | Section 5 |
+| **Canary rollback** | Section 1, Section 3, Section 4 | Section 5 |
+
+---
+
 ## Verification Matrix
 
 The following matrix classifies all checks by priority and automation status. Use this to quickly identify which checks are mandatory for your scenario.
@@ -114,6 +129,8 @@ curl -sS https://morningai-backend-v2.onrender.com/api/billing/plans | head -c 2
 
 **Status**: [ ] PASS / [ ] FAIL
 
+> **Gating**: If any check in Section 1 fails, **do not proceed**. Initiate rollback per [Rollback Triggers](#rollback-triggers).
+
 ---
 
 ## Section 2: RLS (Row Level Security) Verification [MUST-PASS for RLS changes]
@@ -148,7 +165,7 @@ Run these queries in Supabase SQL Editor:
 SELECT tablename, rowsecurity 
 FROM pg_tables 
 WHERE schemaname = 'public' 
-AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles')
+AND tablename IN ('agent_tasks', 'tenants', 'user_profiles')
 ORDER BY tablename;
 
 -- Expected: All tables show rowsecurity = true
@@ -171,6 +188,8 @@ WHERE proname IN ('get_user_tenant_id', 'current_user_tenant_id');
 
 **Status**: [ ] PASS / [ ] FAIL
 
+> **Gating**: If any RLS check fails, **do not proceed**. Follow [RLS Quick Rollback](../RLS_DEPLOYMENT_STATUS.md#step-1-quick-rollback-policy-only---first-response).
+
 ---
 
 ## Section 3: LangGraph Canary Verification [MUST-PASS for canary changes]
@@ -179,7 +198,7 @@ These checks verify LangGraph canary deployment status. **Must pass for any cana
 
 ### 3.1 Canary Metrics Dashboard
 
-**URL**: `https://api.morningai.app/api/phase7/monitoring/dashboard`
+**URL**: [https://api.morningai.app/api/phase7/monitoring/dashboard](https://api.morningai.app/api/phase7/monitoring/dashboard)
 
 **Check via curl**:
 ```bash
@@ -204,6 +223,8 @@ If you just executed a canary rollback, verify:
 **Reference**: [Canary Rollback Runbook](./canary_rollback.md)
 
 **Status**: [ ] PASS / [ ] FAIL / [ ] N/A (canary not in use)
+
+> **Gating**: If any canary check fails, **do not proceed**. Follow [Canary Rollback Runbook](./canary_rollback.md).
 
 ---
 
@@ -245,6 +266,8 @@ If automated tests are unavailable, perform these manual checks:
    - [ ] Task status updates correctly
 
 **Status**: [ ] PASS / [ ] FAIL
+
+> **Gating**: If core smoke tests fail, **do not proceed**. Initiate rollback per [Rollback Triggers](#rollback-triggers).
 
 ---
 
@@ -371,5 +394,6 @@ After running the checklist, record the results below. This log serves as an aud
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-10 | Add Scenario Selector, gating statements, fix table list, improve URL formatting | Devin |
 | 2025-12-10 | Add Verification Matrix, Rollback Triggers, Execution Log; classify checks as must-pass/optional | Devin |
 | 2025-12-10 | Initial document creation | Devin |
