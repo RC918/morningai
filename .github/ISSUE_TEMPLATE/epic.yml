@@ -35,37 +35,41 @@ body:
       label: "Phase 0: Foundation"
       description: Foundation work that other phases depend on
       value: |
-        - [ ] #issue_number - Description
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
     validations:
       required: false
 
   - type: textarea
     id: phase-1
     attributes:
-      label: "Phase 1: Core Implementation"
+      label: "Phase 1: Core"
       description: Core components and features
       value: |
-        - [ ] #issue_number - Description
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
     validations:
       required: false
 
   - type: textarea
     id: phase-2
     attributes:
-      label: "Phase 2: Integration & Migration"
+      label: "Phase 2: Integration"
       description: Integration and migration work
       value: |
-        - [ ] #issue_number - Description
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
     validations:
       required: false
 
   - type: textarea
     id: phase-3
     attributes:
-      label: "Phase 3: Coverage & Governance"
+      label: "Phase 3: Governance"
       description: Documentation, testing, and governance
       value: |
-        - [ ] #issue_number - Description
+        <!-- Replace <issue-number> with actual issue number, e.g., #1234 -->
+        - [ ] #<issue-number> - Description
     validations:
       required: false
 

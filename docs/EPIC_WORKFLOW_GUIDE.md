@@ -6,6 +6,40 @@ This guide explains how to use the Epic system for tracking large initiatives in
 
 Epics are high-level tracking issues that group related work across multiple phases. Each Epic follows a standardized Phase structure and integrates with GitHub Projects for progress tracking.
 
+## Prerequisites
+
+### gh CLI Installation
+
+This guide uses the GitHub CLI (`gh`). Install it before proceeding:
+
+```bash
+# macOS
+brew install gh
+
+# Ubuntu/Debian
+sudo apt install gh
+
+# Windows
+winget install GitHub.cli
+```
+
+After installation, authenticate:
+
+```bash
+gh auth login
+```
+
+### Required Permissions
+
+To use all features in this guide, you need:
+
+| Permission | Required For |
+|------------|--------------|
+| **Repository write access** | Creating issues, adding labels |
+| **Project write access** | Adding items to project, editing fields |
+
+> **Note**: If you don't have Project write access, ask a project admin to add issues for you, or request access via your team lead.
+
 ## Creating an Epic
 
 ### Using the Epic Template
@@ -18,6 +52,7 @@ Epics are high-level tracking issues that group related work across multiple pha
    - **Priority**: Select P0-P3
 4. Add child issues to each Phase section using task list syntax:
    ```markdown
+   <!-- Replace <issue-number> with actual issue number -->
    - [ ] #1234 - Description of the task
    ```
 
@@ -75,19 +110,41 @@ When creating child issues for an Epic:
 
 ## CLI Commands
 
+All commands use placeholders. Replace them with actual values:
+
+| Placeholder | Description | Example |
+|-------------|-------------|---------|
+| `<project-number>` | GitHub Project number | `1` |
+| `<owner>` | Repository/org owner | `RC918` |
+| `<repo>` | Repository name | `morningai` |
+| `<issue-number>` | Issue number | `2304` |
+
 ```bash
-# Create epic label (already done)
-gh label create epic --color "7057ff" --description "Epic tracking issue"
+# Create epic label (one-time setup)
+gh label create epic --color "7057ff" --description "Epic tracking issue" --repo <owner>/<repo>
+# Example: gh label create epic --color "7057ff" --description "Epic tracking issue" --repo RC918/morningai
 
 # Add issue to project
-gh project item-add 1 --owner RC918 --url https://github.com/RC918/morningai/issues/XXXX
+gh project item-add <project-number> --owner <owner> --url https://github.com/<owner>/<repo>/issues/<issue-number>
+# Example: gh project item-add 1 --owner RC918 --url https://github.com/RC918/morningai/issues/2304
 
 # List project fields
-gh project field-list 1 --owner RC918
+gh project field-list <project-number> --owner <owner>
+# Example: gh project field-list 1 --owner RC918
 
 # View project items
-gh project item-list 1 --owner RC918
+gh project item-list <project-number> --owner <owner>
+# Example: gh project item-list 1 --owner RC918
 ```
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `gh: command not found` | Install gh CLI (see Prerequisites) |
+| `HTTP 403: Must have admin rights` | Request Project write access from admin |
+| `Project not found` | Verify project number with `gh project list --owner <owner>` |
+| `Field not found` | Field may have been renamed; check with `gh project field-list` |
 
 ## Example Epic
 
