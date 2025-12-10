@@ -6,6 +6,9 @@ This runbook provides step-by-step instructions for rolling back the LangGraph c
 
 **Target Time to Rollback:** < 5 minutes
 
+**Related Documents**:
+- [POST_DEPLOY_SMOKE_TEST_CHECKLIST.md](./POST_DEPLOY_SMOKE_TEST_CHECKLIST.md) - Standardized post-rollback verification
+
 ## When to Rollback
 
 Rollback should be initiated when:
@@ -65,6 +68,10 @@ Render will automatically trigger a redeploy when environment variables change.
 **Expected Time:** 1 minute
 
 ### Step 4: Confirm System Stability
+
+**Run Post-Rollback Verification:**
+1. Follow [Post-Deploy Smoke Test Checklist](./POST_DEPLOY_SMOKE_TEST_CHECKLIST.md) - "After LangGraph Canary Rollback" scenario
+2. Verify all checks pass before proceeding
 
 **Monitor for 15 minutes:**
 1. Check error rates return to baseline
@@ -253,4 +260,5 @@ Test rollback procedure in staging before production:
 
 ## Version History
 
+- **v1.1** (2025-12-10): Add reference to Post-Deploy Smoke Test Checklist for standardized verification
 - **v1.0** (2025-11-21): Initial runbook created as part of canary hardening sprint

@@ -5,6 +5,7 @@
 **Related Documents**:
 - [RLS_IMPLEMENTATION_GUIDE.md](./RLS_IMPLEMENTATION_GUIDE.md) - Implementation details
 - [PRE_DEPLOYMENT_CHECKLIST.md](../migrations/PRE_DEPLOYMENT_CHECKLIST.md) - Deployment checklist
+- [POST_DEPLOY_SMOKE_TEST_CHECKLIST.md](./runbooks/POST_DEPLOY_SMOKE_TEST_CHECKLIST.md) - Post-deploy verification
 
 ---
 
@@ -32,24 +33,24 @@ This document tracks the deployment status of RLS (Row Level Security) Phase 2 m
 | Item | Status | Applied By | Date | Notes |
 |------|--------|------------|------|-------|
 | Supabase Project Ref | `dckisglnlemvpvmyvnut` | - | - | Staging instance |
-| Migration 003 | [ ] Pending | - | - | - |
-| Migration 004 | [ ] Pending | - | - | - |
-| Migration 005 | [ ] Pending | - | - | Prerequisite for 006 |
-| Migration 006 | [ ] Pending | - | - | TRUE isolation |
-| RLS Test Suite | [ ] Pending | - | - | test_rls_phase2.sql |
-| Health Check Workflow | [ ] Pending | - | - | rls-supabase-health.yml |
+| Migration 003 | [x] Applied | Ryan | 2025-12-10 | tenant_id column added |
+| Migration 004 | [x] Applied | Ryan | 2025-12-10 | Temporary policies |
+| Migration 005 | [x] Applied | Ryan | 2025-12-10 | user_profiles table |
+| Migration 006 | [x] Applied | Ryan | 2025-12-10 | TRUE isolation policies |
+| RLS Test Suite | [x] Verified | Ryan | 2025-12-10 | 4 policies, 2 functions |
+| Health Check Workflow | [x] Passing | - | 2025-12-10 | rls-supabase-health.yml |
 
 ### Production Environment
 
 | Item | Status | Applied By | Date | Notes |
 |------|--------|------------|------|-------|
-| Supabase Project Ref | TBD | - | - | Production instance |
-| Migration 003 | [ ] Pending | - | - | - |
-| Migration 004 | [ ] Pending | - | - | - |
-| Migration 005 | [ ] Pending | - | - | Prerequisite for 006 |
-| Migration 006 | [ ] Pending | - | - | TRUE isolation |
-| RLS Test Suite | [ ] Pending | - | - | Simplified prod tests |
-| Health Check Workflow | [ ] Pending | - | - | rls-supabase-health.yml |
+| Supabase Project Ref | - | - | - | Production instance |
+| Migration 003 | [x] Applied | Ryan | 2025-12-10 | tenant_id column added |
+| Migration 004 | [x] Applied | Ryan | 2025-12-10 | Temporary policies |
+| Migration 005 | [x] Applied | Ryan | 2025-12-10 | user_profiles table |
+| Migration 006 | [x] Applied | Ryan | 2025-12-10 | TRUE isolation policies |
+| RLS Test Suite | [x] Verified | Ryan | 2025-12-10 | 4 policies, 2 functions |
+| Health Check Workflow | [x] Passing | - | 2025-12-10 | rls-supabase-health.yml |
 
 ---
 
@@ -94,7 +95,8 @@ This workflow performs read-only checks against staging and production Supabase 
    psql "$SUPABASE_STAGING_DB_URL" -f migrations/tests/test_rls_phase2.sql
    ```
 4. Trigger health check workflow manually to verify
-5. Update status table above
+5. **Run [Post-Deploy Smoke Test Checklist](./runbooks/POST_DEPLOY_SMOKE_TEST_CHECKLIST.md)** - Section 2 (RLS Verification)
+6. Update status table above
 
 ### Step 2: Production Deployment
 
@@ -104,7 +106,8 @@ This workflow performs read-only checks against staging and production Supabase 
 4. Run simplified production verification (read-only checks only)
 5. Monitor application logs for 10 minutes
 6. Trigger health check workflow for production
-7. Update status table above
+7. **Run [Post-Deploy Smoke Test Checklist](./runbooks/POST_DEPLOY_SMOKE_TEST_CHECKLIST.md)** - "After RLS Phase 2 Deployment" scenario
+8. Update status table above
 
 ---
 
@@ -135,7 +138,7 @@ CREATE POLICY "users_update_own_tenant" ON agent_tasks
     FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 ```
 
-**After executing**: Verify application is working, then investigate root cause before re-applying Phase 2 policies.
+**After executing**: Run [Post-Deploy Smoke Test Checklist](./runbooks/POST_DEPLOY_SMOKE_TEST_CHECKLIST.md) - "After RLS Quick Rollback" scenario to verify application is working, then investigate root cause before re-applying Phase 2 policies.
 
 ### Step 2: Full Rollback (Schema + Policy) - Escalation
 
@@ -149,6 +152,8 @@ Follow the complete emergency rollback plan in [PRE_DEPLOYMENT_CHECKLIST.md](../
 - Full application restart
 
 **Warning**: This is a destructive operation. Only use if Quick Rollback fails and the system is still broken.
+
+**After executing**: Run [Post-Deploy Smoke Test Checklist](./runbooks/POST_DEPLOY_SMOKE_TEST_CHECKLIST.md) - "After RLS Full Rollback" scenario to verify system recovery.
 
 ---
 
@@ -188,5 +193,6 @@ All deployment and verification logs are maintained here as the single source of
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-10 | Update deployment status (migrations applied), add smoke test checklist references | Devin |
 | 2025-12-10 | Clarify Quick vs Full Rollback procedure, unify execution logs | Devin |
 | 2025-12-10 | Initial document creation | Devin |
