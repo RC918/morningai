@@ -21,9 +21,64 @@ This checklist provides a unified, ordered set of verification steps to run afte
 
 ---
 
-## Section 1: Backend Health Verification
+## Verification Matrix
 
-These checks verify the core backend is operational.
+The following matrix classifies all checks by priority and automation status. Use this to quickly identify which checks are mandatory for your scenario.
+
+| Check | Category | Automation | Trigger | Source |
+|-------|----------|------------|---------|--------|
+| Backend health (`/healthz` + key APIs) | **Must-pass** | Workflow | Every prod deploy | `post-deploy-health-assertions.yml` |
+| Application smoke (`/healthz`, `/api/billing/plans`) | **Must-pass** | Workflow | Every prod deploy | `agent-mvp-smoke.yml` |
+| RLS Supabase health (RLS enabled, policies) | **Must-pass** | Workflow | RLS deploy/rollback | `rls-supabase-health.yml` |
+| LangGraph canary metrics | **Must-pass** (canary) | Manual | Canary rollout/rollback | Canary dashboard |
+| Agent FAQ endpoint | Optional | Workflow | On-demand | `agent-mvp-smoke.yml` |
+| Sentry integration test | Optional | Workflow | On-demand | `agent-mvp-smoke.yml` |
+| Observability scan (Sentry, logs) | Optional | Manual | After major deploy | Sentry, Render |
+| Performance metrics (latency, SLA) | Periodic | Workflow | Hourly | `post-deploy-health-assertions.yml` |
+
+**Legend**:
+- **Must-pass**: Deployment/rollback should not proceed if this fails
+- **Optional**: Recommended but not blocking
+- **Periodic**: Runs on schedule, not per-deploy
+
+---
+
+## Rollback Triggers
+
+The following conditions should trigger immediate rollback consideration. These are quantified thresholds based on existing workflows and runbooks.
+
+### Global Rollback Triggers (Any Deploy)
+
+| Trigger | Threshold | Source | Action |
+|---------|-----------|--------|--------|
+| Health endpoint failure | `/healthz` returns non-200 or `status != "healthy"` | `post-deploy-health-assertions.yml` | P0 - Immediate rollback |
+| Core API failure | `/api/billing/plans` or `/api/governance/status` returns non-200 | `post-deploy-health-assertions.yml` | P0 - Immediate rollback |
+| SLA breach | Success rate < 90% over 10 requests | `post-deploy-health-assertions.yml` | P1 - Investigate, consider rollback |
+
+### RLS-Specific Rollback Triggers
+
+| Trigger | Threshold | Source | Action |
+|---------|-----------|--------|--------|
+| RLS disabled | Any critical table (`agent_tasks`, `tenants`, `user_profiles`) has `rowsecurity = false` | `rls-supabase-health.yml` | P0 - Follow [RLS Quick Rollback](../RLS_DEPLOYMENT_STATUS.md#step-1-quick-rollback-policy-only---first-response) |
+| Missing policies | TRUE tenant isolation policies < 4 | `rls-supabase-health.yml` | P0 - Follow RLS Quick Rollback |
+| Permission errors | Widespread user reports of "permission denied" or data access issues | User reports | P0 - Follow RLS Quick Rollback |
+
+### LangGraph Canary Rollback Triggers
+
+As defined in [Canary Rollback Runbook](./canary_rollback.md):
+
+| Trigger | Threshold | Source | Action |
+|---------|-----------|--------|--------|
+| p95 latency breach | > 2500ms | Canary dashboard | Follow canary rollback |
+| 5xx error rate breach | > 1.0% | Canary dashboard | Follow canary rollback |
+| Planner failure rate breach | > 5.0% | Canary dashboard | Follow canary rollback |
+| SLO compliance | `canary.slo_compliance.all_ok = false` | Canary dashboard | Follow canary rollback |
+
+---
+
+## Section 1: Backend Health Verification [MUST-PASS]
+
+These checks verify the core backend is operational. **All must pass before proceeding.**
 
 ### 1.1 Automated Health Check (GitHub Action)
 
@@ -61,9 +116,9 @@ curl -sS https://morningai-backend-v2.onrender.com/api/billing/plans | head -c 2
 
 ---
 
-## Section 2: RLS (Row Level Security) Verification
+## Section 2: RLS (Row Level Security) Verification [MUST-PASS for RLS changes]
 
-These checks verify RLS is correctly configured on Supabase environments.
+These checks verify RLS is correctly configured on Supabase environments. **Must pass for any RLS-related deployment or rollback.**
 
 ### 2.1 Automated RLS Health Check (GitHub Action)
 
@@ -118,9 +173,9 @@ WHERE proname IN ('get_user_tenant_id', 'current_user_tenant_id');
 
 ---
 
-## Section 3: LangGraph Canary Verification
+## Section 3: LangGraph Canary Verification [MUST-PASS for canary changes]
 
-These checks verify LangGraph canary deployment status.
+These checks verify LangGraph canary deployment status. **Must pass for any canary rollout or rollback.**
 
 ### 3.1 Canary Metrics Dashboard
 
@@ -152,9 +207,9 @@ If you just executed a canary rollback, verify:
 
 ---
 
-## Section 4: Application Smoke Tests
+## Section 4: Application Smoke Tests [MUST-PASS]
 
-These checks verify core application functionality.
+These checks verify core application functionality. **Core endpoints must pass.**
 
 ### 4.1 Automated Smoke Test (GitHub Action)
 
@@ -193,9 +248,9 @@ If automated tests are unavailable, perform these manual checks:
 
 ---
 
-## Section 5: Observability Verification
+## Section 5: Observability Verification [OPTIONAL]
 
-These checks verify monitoring and alerting are operational.
+These checks verify monitoring and alerting are operational. **Recommended after major deployments or incidents.**
 
 ### 5.1 Sentry Integration
 
@@ -270,15 +325,35 @@ Run these sections in order:
 
 ## Escalation Procedure
 
-If any check fails:
+If any **must-pass** check fails:
 
-1. **Document the failure**: Note which check failed and the error message
-2. **Check related runbooks**:
+1. **Do not proceed** with deployment or mark rollback as complete
+2. **Document the failure**: Note which check failed and the error message
+3. **Check rollback triggers**: If threshold is met, initiate appropriate rollback:
    - RLS issues: [RLS Deployment Status](../RLS_DEPLOYMENT_STATUS.md)
    - Canary issues: [Canary Rollback Runbook](./canary_rollback.md)
-3. **Notify stakeholders**: Post in #engineering Slack channel
-4. **Consider rollback**: If the failure is critical, follow the appropriate rollback procedure
+4. **Notify stakeholders**: Post in #engineering Slack channel
 5. **Create incident report**: Document timeline, impact, and resolution
+
+---
+
+## Execution Log
+
+After running the checklist, record the results below. This log serves as an audit trail for deployments and rollbacks.
+
+| Date | Environment(s) | Scenario | Must-pass Result | Optional Run? | Executor / CI Job | Notes / Links |
+|------|----------------|----------|------------------|---------------|-------------------|---------------|
+| 2025-12-10 | staging, prod | RLS Phase 2 deploy | PASS | Yes | Ryan / GH Actions | Initial deployment |
+| - | - | - | - | - | - | - |
+
+**Instructions**: After completing verification, add a row with:
+- **Date**: YYYY-MM-DD format
+- **Environment(s)**: `staging`, `prod`, or `both`
+- **Scenario**: `RLS deploy`, `RLS quick rollback`, `canary rollback`, `general prod deploy`, etc.
+- **Must-pass Result**: `PASS` (all must-pass checks OK) or `FAIL` (any must-pass check failed)
+- **Optional Run?**: `Yes`, `No`, or specific notes (e.g., `Perf only`)
+- **Executor / CI Job**: Person name or GitHub Actions run ID
+- **Notes / Links**: Workflow URLs, incident docs, etc.
 
 ---
 
@@ -296,4 +371,5 @@ If any check fails:
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-10 | Add Verification Matrix, Rollback Triggers, Execution Log; classify checks as must-pass/optional | Devin |
 | 2025-12-10 | Initial document creation | Devin |
