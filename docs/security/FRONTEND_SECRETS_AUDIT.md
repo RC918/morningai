@@ -23,7 +23,7 @@ This audit reviews the environment variables configured in Vercel for MorningAI 
 | Application | Vercel Project | Build Framework |
 |-------------|----------------|-----------------|
 | frontend-dashboard | morningai | Vite |
-| owner-console | (separate project) | Vite |
+| owner-console | morningai-owner-console | Vite |
 
 ### Environment Types
 
@@ -94,6 +94,7 @@ If any of the following variables are present in Vercel frontend projects, they 
 | `ENCRYPTION_MASTER_KEY` | **CRITICAL** | Data encryption key | Render backend env vars |
 | `FLASK_SECRET_KEY` | **CRITICAL** | Backend session secret | Render backend env vars |
 | `TOTP_ENCRYPTION_KEY` | **CRITICAL** | 2FA encryption key | Render backend env vars |
+| `GEMINI_API_KEY` | **CRITICAL** | LLM API key (billing risk) | Render backend env vars |
 
 ### High (Remove Within 24 Hours)
 
@@ -103,7 +104,7 @@ If any of the following variables are present in Vercel frontend projects, they 
 | `UPSTASH_REDIS_REST_TOKEN` | High | Backend Redis token | Render backend env vars |
 | `REDIS_URL` | High | Backend Redis connection | Render backend env vars |
 | `ADMIN_PASSWORD` | High | Admin credentials | Render backend env vars |
-| `GEMINI_API_KEY` | High | LLM API key | Render backend env vars |
+| `GITHUB_TOKEN` | High | GitHub API token | GitHub Actions secrets |
 
 ### Medium (Remove Within 7 Days)
 
@@ -117,7 +118,6 @@ If any of the following variables are present in Vercel frontend projects, they 
 | `SENTRY_PROJECT` | Medium | Sentry project | GitHub Actions secrets |
 | `RENDER_API_KEY` | Medium | Render deployment key | GitHub Actions secrets |
 | `VERCEL_TOKEN` | Medium | Vercel API token | GitHub Actions secrets |
-| `GITHUB_TOKEN` | Medium | GitHub API token | GitHub Actions secrets |
 
 ## Security Recommendations
 
