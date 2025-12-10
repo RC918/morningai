@@ -870,6 +870,46 @@ class TestSendCommandEndpoint:
                 assert 'quick_command' in data['message']
                 assert 'user_command' in data['message']
 
+    def test_send_command_invalid_quick_command_id(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when quick command ID is invalid - Issue #2179"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'invalid_quick_cmd', 'type': 'quick_command'}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'Invalid quick command' in data['error']
+                assert 'continue' in data['message']
+                assert 'explain' in data['message']
+                assert 'skip' in data['message']
+                assert 'retry' in data['message']
+
+    # MAINTENANCE NOTE: When adding new quick commands, update these test cases
+    # to match VALID_QUICK_COMMAND_IDS in sessions.py and QUICK_COMMANDS in SessionCommandInput.jsx
+    @pytest.mark.parametrize("quick_command_id", ['continue', 'explain', 'skip', 'retry'])
+    def test_send_command_valid_quick_command(self, client, auth_headers_admin, mock_redis_client, sample_session_data, quick_command_id):
+        """Test POST /api/sessions/:id/command succeeds with valid quick commands - Issue #2179"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': quick_command_id, 'type': 'quick_command'}
+                )
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['success'] is True
+
     def test_send_command_session_cancelled(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
         """Test POST /api/sessions/:id/command returns 400 when session is cancelled"""
         sample_session_data['status'] = 'cancelled'
