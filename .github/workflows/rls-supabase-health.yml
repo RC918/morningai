@@ -1,0 +1,355 @@
+name: RLS Supabase Health Check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Run daily at 6:00 UTC
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to check'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+          - both
+
+jobs:
+  check-staging:
+    name: Check Staging RLS
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'both' }}
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check staging secrets configured
+        id: check_secrets
+        run: |
+          if [ -z "${{ secrets.SUPABASE_STAGING_DB_URL }}" ]; then
+            echo "staging_configured=false" >> $GITHUB_OUTPUT
+            echo "::warning::SUPABASE_STAGING_DB_URL secret not configured"
+          else
+            echo "staging_configured=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Install PostgreSQL client
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Verify RLS enabled on critical tables
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Checking RLS status on critical tables..."
+          
+          psql "$DATABASE_URL" -t -A -c "
+            SELECT 
+              tablename,
+              CASE WHEN rowsecurity THEN 'ENABLED' ELSE 'DISABLED' END as rls_status
+            FROM pg_tables 
+            WHERE schemaname = 'public' 
+            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles')
+            ORDER BY tablename;
+          " | while IFS='|' read -r table status; do
+            if [ "$status" = "DISABLED" ]; then
+              echo "::error::RLS DISABLED on table: $table"
+              exit 1
+            else
+              echo "RLS $status on $table"
+            fi
+          done
+      
+      - name: Count RLS policies on agent_tasks
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Counting RLS policies on agent_tasks..."
+          
+          POLICY_COUNT=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) 
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename = 'agent_tasks';
+          ")
+          
+          echo "Found $POLICY_COUNT policies on agent_tasks"
+          
+          if [ "$POLICY_COUNT" -lt 4 ]; then
+            echo "::warning::Expected at least 4 policies on agent_tasks, found $POLICY_COUNT"
+          fi
+      
+      - name: List agent_tasks policies
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Listing RLS policies on agent_tasks..."
+          
+          psql "$DATABASE_URL" -c "
+            SELECT 
+              policyname,
+              cmd as operation,
+              roles
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename = 'agent_tasks'
+            ORDER BY policyname;
+          "
+      
+      - name: Check for TRUE tenant isolation policies
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Checking for TRUE tenant isolation policies..."
+          
+          TRUE_ISOLATION_COUNT=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) 
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename = 'agent_tasks'
+            AND policyname LIKE 'true_tenant_isolation%';
+          ")
+          
+          # Use -ge 4 for robustness - allows for additional policies in the future
+          if [ "$TRUE_ISOLATION_COUNT" -ge 4 ]; then
+            echo "TRUE tenant isolation policies found: $TRUE_ISOLATION_COUNT (minimum 4 required)"
+          elif [ "$TRUE_ISOLATION_COUNT" -gt 0 ]; then
+            echo "::warning::Partial TRUE tenant isolation policies found ($TRUE_ISOLATION_COUNT of 4 minimum)"
+            echo "This may indicate an incomplete Phase 2 migration."
+          else
+            echo "::warning::No TRUE tenant isolation policies found (expected at least 4)"
+            echo "This may indicate Phase 2 migrations have not been applied yet."
+          fi
+      
+      - name: Verify default tenant exists
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Checking for default tenant..."
+          
+          # First verify we can connect to the database
+          if ! psql "$DATABASE_URL" -c "SELECT 1" > /dev/null 2>&1; then
+            echo "::error::Cannot connect to staging database - check SUPABASE_STAGING_DB_URL secret"
+            exit 1
+          fi
+          
+          # Check if tenants table exists
+          TABLE_EXISTS=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = 'tenants';
+          ")
+          
+          if [ "$TABLE_EXISTS" = "0" ]; then
+            echo "::warning::tenants table does not exist - RLS baseline migrations may not be applied"
+            exit 0
+          fi
+          
+          # Check for default tenant
+          DEFAULT_TENANT=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) 
+            FROM tenants 
+            WHERE id = '00000000-0000-0000-0000-000000000001';
+          ")
+          
+          if [ "$DEFAULT_TENANT" = "1" ]; then
+            echo "Default tenant exists"
+          else
+            echo "::warning::Default tenant not found - migration 003 may not be applied yet"
+          fi
+      
+      - name: Check tenant_id column on agent_tasks
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Checking for tenant_id column on agent_tasks..."
+          
+          HAS_TENANT_ID=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) 
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'agent_tasks' 
+            AND column_name = 'tenant_id';
+          ")
+          
+          if [ "$HAS_TENANT_ID" = "1" ]; then
+            echo "tenant_id column exists on agent_tasks"
+          else
+            echo "::warning::tenant_id column not found on agent_tasks - migration 003 may not be applied"
+          fi
+      
+      - name: Generate staging summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # RLS Health Check - Staging
+          
+          **Environment**: Staging  
+          **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")  
+          **Triggered by**: ${{ github.event_name }}
+          
+          ## Checks Performed
+          
+          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles)
+          - RLS policy count on agent_tasks
+          - TRUE tenant isolation policies present
+          - Default tenant exists
+          - tenant_id column on agent_tasks
+          
+          ## Next Steps
+          
+          If any warnings appeared, review [RLS_DEPLOYMENT_STATUS.md](https://github.com/RC918/morningai/blob/main/docs/RLS_DEPLOYMENT_STATUS.md) and apply missing migrations.
+          
+          ---
+          
+          *This check runs nightly and can be triggered manually via workflow_dispatch.*
+          EOF
+
+  check-production:
+    name: Check Production RLS
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.environment == 'production' || github.event.inputs.environment == 'both' }}
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check production secrets configured
+        id: check_secrets
+        run: |
+          if [ -z "${{ secrets.SUPABASE_PROD_DB_URL }}" ]; then
+            echo "prod_configured=false" >> $GITHUB_OUTPUT
+            echo "::warning::SUPABASE_PROD_DB_URL secret not configured"
+          else
+            echo "prod_configured=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Install PostgreSQL client
+        if: steps.check_secrets.outputs.prod_configured == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      
+      - name: Verify RLS enabled on critical tables
+        if: steps.check_secrets.outputs.prod_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          echo "Checking RLS status on critical tables..."
+          
+          psql "$DATABASE_URL" -t -A -c "
+            SELECT 
+              tablename,
+              CASE WHEN rowsecurity THEN 'ENABLED' ELSE 'DISABLED' END as rls_status
+            FROM pg_tables 
+            WHERE schemaname = 'public' 
+            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles')
+            ORDER BY tablename;
+          " | while IFS='|' read -r table status; do
+            if [ "$status" = "DISABLED" ]; then
+              echo "::error::RLS DISABLED on table: $table"
+              exit 1
+            else
+              echo "RLS $status on $table"
+            fi
+          done
+      
+      - name: Count RLS policies on agent_tasks
+        if: steps.check_secrets.outputs.prod_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          echo "Counting RLS policies on agent_tasks..."
+          
+          POLICY_COUNT=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) 
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename = 'agent_tasks';
+          ")
+          
+          echo "Found $POLICY_COUNT policies on agent_tasks"
+          
+          if [ "$POLICY_COUNT" -lt 4 ]; then
+            echo "::warning::Expected at least 4 policies on agent_tasks, found $POLICY_COUNT"
+          fi
+      
+      - name: List agent_tasks policies
+        if: steps.check_secrets.outputs.prod_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          echo "Listing RLS policies on agent_tasks..."
+          
+          psql "$DATABASE_URL" -c "
+            SELECT 
+              policyname,
+              cmd as operation,
+              roles
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename = 'agent_tasks'
+            ORDER BY policyname;
+          "
+      
+      - name: Check for TRUE tenant isolation policies
+        if: steps.check_secrets.outputs.prod_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          echo "Checking for TRUE tenant isolation policies..."
+          
+          TRUE_ISOLATION_COUNT=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) 
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename = 'agent_tasks'
+            AND policyname LIKE 'true_tenant_isolation%';
+          ")
+          
+          # Use -ge 4 for robustness - allows for additional policies in the future
+          if [ "$TRUE_ISOLATION_COUNT" -ge 4 ]; then
+            echo "TRUE tenant isolation policies found: $TRUE_ISOLATION_COUNT (minimum 4 required)"
+          elif [ "$TRUE_ISOLATION_COUNT" -gt 0 ]; then
+            echo "::warning::Partial TRUE tenant isolation policies found ($TRUE_ISOLATION_COUNT of 4 minimum)"
+            echo "This may indicate an incomplete Phase 2 migration."
+          else
+            echo "::warning::No TRUE tenant isolation policies found (expected at least 4)"
+            echo "This may indicate Phase 2 migrations have not been applied yet."
+          fi
+      
+      - name: Generate production summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # RLS Health Check - Production
+          
+          **Environment**: Production  
+          **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")  
+          **Triggered by**: ${{ github.event_name }}
+          
+          ## Checks Performed
+          
+          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles)
+          - RLS policy count on agent_tasks
+          - TRUE tenant isolation policies present
+          
+          ## Security Note
+          
+          Production checks are READ-ONLY and do not modify any data.
+          
+          ---
+          
+          *This check can be triggered manually via workflow_dispatch.*
+          EOF
