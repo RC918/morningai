@@ -111,7 +111,10 @@ def generate_environments_section(period_data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def generate_troubleshooting_section(period_data: dict[str, Any]) -> str:
+def generate_troubleshooting_section(
+    period_data: dict[str, Any],
+    relevant_keywords: list[str] | None = None,
+) -> str:
     """Generate changelog section for troubleshooting-monitoring.md format.
 
     Format:
@@ -121,21 +124,28 @@ def generate_troubleshooting_section(period_data: dict[str, Any]) -> str:
 
     #### PR #123: Short title
     - **Path**: `path/to/file`
-    - **Change**: description
-    - **Impact**: impact
-    """
-    lines = [f"## Recent Updates ({period_data['period']})", ""]
+    - **Change**: change description
+    - **Impact**: impact description
 
-    for category in period_data["categories"]:
-        # Only include relevant categories for troubleshooting docs
+    Args:
+        period_data: Period data from YAML
+        relevant_keywords: Keywords to filter categories (from YAML config or default)
+    """
+    # Use provided keywords or fall back to defaults
+    if relevant_keywords is None:
         relevant_keywords = [
             "Backend",
             "Infrastructure",
             "Monitoring",
-            "Phase 7",
+            "Phase",
             "Rollout",
             "Multi-Signal",
         ]
+
+    lines = [f"## Recent Updates ({period_data['period']})", ""]
+
+    for category in period_data["categories"]:
+        # Only include relevant categories for troubleshooting docs
         if not any(kw in category["name"] for kw in relevant_keywords):
             continue
 
@@ -148,7 +158,9 @@ def generate_troubleshooting_section(period_data: dict[str, Any]) -> str:
             lines.append(f"#### PR #{pr['number']}: {short_title}")
             if pr.get("path"):
                 lines.append(f"- **Path**: `{pr['path']}`")
-            lines.append(f"- **Change**: {pr['impact']}")
+            # Use 'change' field if available, otherwise fall back to impact
+            change_text = pr.get("change", pr["impact"])
+            lines.append(f"- **Change**: {change_text}")
             lines.append(f"- **Impact**: {pr['impact']}")
             lines.append("")
 
@@ -158,12 +170,30 @@ def generate_troubleshooting_section(period_data: dict[str, Any]) -> str:
 def find_insertion_point(content: str, doc_type: str) -> tuple[int, int]:
     """Find the insertion point for new changelog section.
 
+    Uses HTML comment markers for reliable insertion points that won't break
+    with year changes. Falls back to regex patterns for backwards compatibility.
+
+    Marker format: <!-- CHANGELOG_INSERT_POINT:{doc_type} -->
+
     Returns (start_index, end_index) where the new section should be inserted.
     If end_index > start_index, the content between them should be replaced.
     """
+    # Primary: Look for HTML comment marker (year-agnostic)
+    marker = f"<!-- CHANGELOG_INSERT_POINT:{doc_type} -->"
+    marker_idx = content.find(marker)
+    if marker_idx != -1:
+        # Insert after the marker and newline
+        insert_point = marker_idx + len(marker)
+        # Skip any trailing newline after marker
+        if insert_point < len(content) and content[insert_point] == "\n":
+            insert_point += 1
+        return insert_point, insert_point
+
+    # Fallback: Use regex patterns for backwards compatibility
+    # Note: These patterns are year-agnostic to work across year boundaries
     if doc_type == "onboarding":
-        # Insert after "### Current Status" section, before existing "Recent Improvements"
-        pattern = r"\*\*Recent Improvements \(Dec \d+ - Dec \d+, 2025\)\*\*:"
+        # Insert before existing "Recent Improvements" section
+        pattern = r"\*\*Recent Improvements \([^)]+\)\*\*:"
         match = re.search(pattern, content)
         if match:
             return match.start(), match.start()
@@ -175,21 +205,21 @@ def find_insertion_point(content: str, doc_type: str) -> tuple[int, int]:
 
     elif doc_type == "project_structure":
         # Insert before existing "Recent PRs" section
-        pattern = r"\*\*Recent PRs \(Dec \d+ - Dec \d+, 2025\)\*\*:"
+        pattern = r"\*\*Recent PRs \([^)]+\)\*\*:"
         match = re.search(pattern, content)
         if match:
             return match.start(), match.start()
 
     elif doc_type == "environments":
         # Insert before existing "近期重要更新" section
-        pattern = r"\*\*近期重要更新\*\* \(2025-\d+-\d+ 至 2025-\d+-\d+\):"
+        pattern = r"\*\*近期重要更新\*\* \([^)]+\):"
         match = re.search(pattern, content)
         if match:
             return match.start(), match.start()
 
     elif doc_type == "troubleshooting":
         # Insert before existing "## Recent Updates" section
-        pattern = r"## Recent Updates \(Dec \d+ - Dec \d+, 2025\)"
+        pattern = r"## Recent Updates \([^)]+\)"
         match = re.search(pattern, content)
         if match:
             return match.start(), match.start()

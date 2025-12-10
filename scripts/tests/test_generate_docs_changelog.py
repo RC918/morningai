@@ -152,6 +152,39 @@ class TestGenerateTroubleshootingSection:
         # "Backend & Infrastructure" SHOULD be included
         assert "### Backend & Infrastructure" in result
 
+    def test_uses_change_field_when_available(self, sample_period_data):
+        """Test that 'change' field is used when available."""
+        # Add a 'change' field to one PR
+        sample_period_data["categories"][1]["prs"][0]["change"] = "Refactored backend API"
+
+        result = generate_docs_changelog.generate_troubleshooting_section(sample_period_data)
+
+        # Should use 'change' field for Change line
+        assert "- **Change**: Refactored backend API" in result
+        # Should still use 'impact' field for Impact line
+        assert "- **Impact**: Added backend feature" in result
+
+    def test_falls_back_to_impact_when_no_change(self, sample_period_data):
+        """Test that 'impact' is used when 'change' is not available."""
+        result = generate_docs_changelog.generate_troubleshooting_section(sample_period_data)
+
+        # Should use 'impact' for both Change and Impact when no 'change' field
+        assert "- **Change**: Added backend feature" in result
+        assert "- **Impact**: Added backend feature" in result
+
+    def test_custom_relevant_keywords(self, sample_period_data):
+        """Test that custom relevant_keywords parameter works."""
+        # Use custom keywords that include "Test"
+        result = generate_docs_changelog.generate_troubleshooting_section(
+            sample_period_data,
+            relevant_keywords=["Test"],
+        )
+
+        # "Test Category" SHOULD now be included
+        assert "### Test Category" in result
+        # "Backend & Infrastructure" should NOT be included (no matching keyword)
+        assert "### Backend & Infrastructure" not in result
+
 
 class TestLoadChangelog:
     """Tests for load_changelog function."""
@@ -209,6 +242,52 @@ Old content.
 
         assert start == -1
         assert end == -1
+
+    def test_html_comment_marker_takes_priority(self):
+        """Test that HTML comment marker is used when present."""
+        content = """
+Some header.
+
+<!-- CHANGELOG_INSERT_POINT:onboarding -->
+
+**Recent Improvements (Dec 1 - Dec 3, 2025)**:
+
+Old content.
+"""
+        start, end = generate_docs_changelog.find_insertion_point(content, "onboarding")
+
+        assert start > 0
+        # Should insert after the marker, not at the regex match
+        assert "<!-- CHANGELOG_INSERT_POINT:onboarding -->" in content[:start]
+
+    def test_year_agnostic_regex_patterns(self):
+        """Test that regex patterns work across different years."""
+        # Test with 2026 date
+        content = """
+Some header.
+
+**Recent PRs (Jan 1 - Jan 5, 2026)**:
+
+Old content.
+"""
+        start, end = generate_docs_changelog.find_insertion_point(content, "project_structure")
+
+        assert start > 0
+        assert content[start:].startswith("**Recent PRs")
+
+    def test_environments_year_agnostic(self):
+        """Test that environments pattern works across years."""
+        content = """
+Some header.
+
+**近期重要更新** (2026-01-01 至 2026-01-05):
+
+Old content.
+"""
+        start, end = generate_docs_changelog.find_insertion_point(content, "environments")
+
+        assert start > 0
+        assert content[start:].startswith("**近期重要更新")
 
 
 class TestUpdateDocument:
