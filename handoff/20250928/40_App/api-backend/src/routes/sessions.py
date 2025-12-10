@@ -32,6 +32,11 @@ bp = Blueprint('sessions', __name__, url_prefix='/api/sessions')
 # Session key pattern used by orchestrator's SessionStore
 SESSION_KEY_PREFIX = "dev_agent:session:"
 
+# Commands queue key pattern for concurrency-safe command processing
+# Commands are stored in a separate Redis List to avoid race conditions
+# between API (adding commands) and Worker (processing commands)
+SESSION_COMMANDS_KEY_SUFFIX = ":commands"
+
 # Session TTL in seconds (24 hours) - Issue #1992
 SESSION_TTL_SECONDS = 86400
 
@@ -575,15 +580,15 @@ def send_command(session_id):
             'server_timestamp': server_timestamp
         }
 
-        session_data.setdefault('commands', []).append(command_entry)
-        session_data['updated_at'] = server_timestamp
-
         redis_client = get_redis_client()
-        redis_client.setex(key, SESSION_TTL_SECONDS, json.dumps(session_data))
+
+        commands_key = f"{key}{SESSION_COMMANDS_KEY_SUFFIX}"
+        redis_client.rpush(commands_key, json.dumps(command_entry))
+        redis_client.expire(commands_key, SESSION_TTL_SECONDS)
 
         logger.info(
-            "Command sent to session %s by %s: type=%s, length=%d",
-            session_id, user_email, command_type, len(command)
+            "Command queued to session %s by %s: type=%s, length=%d, command_id=%s",
+            session_id, user_email, command_type, len(command), command_id
         )
 
         return jsonify({

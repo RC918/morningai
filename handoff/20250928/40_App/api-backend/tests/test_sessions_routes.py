@@ -1004,7 +1004,8 @@ class TestSendCommandEndpoint:
                 assert 'command_id' in data
                 assert 'timestamp' in data
 
-                mock_redis_client.setex.assert_called_once()
+                mock_redis_client.rpush.assert_called_once()
+                mock_redis_client.expire.assert_called_once()
 
     def test_send_command_success_paused_session(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
         """Test POST /api/sessions/:id/command succeeds for paused session"""
@@ -1038,15 +1039,12 @@ class TestSendCommandEndpoint:
 
                 assert response.status_code == 200
 
-                call_args = mock_redis_client.setex.call_args
-                saved_data = json.loads(call_args[0][2])
-                assert saved_data['commands'][0]['type'] == 'user_command'
+                call_args = mock_redis_client.rpush.call_args
+                command_data = json.loads(call_args[0][1])
+                assert command_data['type'] == 'user_command'
 
-    def test_send_command_appends_to_existing_commands(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
-        """Test POST /api/sessions/:id/command appends to existing commands list"""
-        sample_session_data['commands'] = [
-            {'command_id': 'existing-1', 'command': 'previous command'}
-        ]
+    def test_send_command_uses_rpush_for_concurrency_safety(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command uses RPUSH for concurrency-safe command queuing"""
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
@@ -1059,15 +1057,18 @@ class TestSendCommandEndpoint:
 
                 assert response.status_code == 200
 
-                call_args = mock_redis_client.setex.call_args
-                saved_data = json.loads(call_args[0][2])
-                assert len(saved_data['commands']) == 2
-                assert saved_data['commands'][0]['command'] == 'previous command'
-                assert saved_data['commands'][1]['command'] == 'new command'
+                mock_redis_client.rpush.assert_called_once()
+                call_args = mock_redis_client.rpush.call_args
+                commands_key = call_args[0][0]
+                assert commands_key == 'dev_agent:session:test-session-123:commands'
 
-    def test_send_command_updates_timestamp(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
-        """Test POST /api/sessions/:id/command updates session updated_at"""
-        sample_session_data['updated_at'] = '2025-01-01T00:00:00Z'
+                command_data = json.loads(call_args[0][1])
+                assert command_data['command'] == 'new command'
+                assert 'command_id' in command_data
+                assert 'server_timestamp' in command_data
+
+    def test_send_command_sets_ttl_on_commands_key(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command sets TTL on commands key"""
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
@@ -1080,6 +1081,7 @@ class TestSendCommandEndpoint:
 
                 assert response.status_code == 200
 
-                call_args = mock_redis_client.setex.call_args
-                saved_data = json.loads(call_args[0][2])
-                assert saved_data['updated_at'] != '2025-01-01T00:00:00Z'
+                mock_redis_client.expire.assert_called_once()
+                call_args = mock_redis_client.expire.call_args
+                assert call_args[0][0] == 'dev_agent:session:test-session-123:commands'
+                assert call_args[0][1] == 86400
