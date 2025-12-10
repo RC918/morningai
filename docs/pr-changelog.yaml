@@ -1,0 +1,389 @@
+# PR Changelog - Single Source of Truth
+# This file is the canonical source for PR changelog entries across all documentation files.
+# Run `python scripts/generate-docs-changelog.py` to regenerate documentation from this file.
+#
+# Schema:
+#   config:                    # Optional global configuration
+#     troubleshooting_keywords: ["Backend", "Infrastructure", ...]  # Keywords for troubleshooting doc filtering
+#
+#   changelog:
+#     - period: "Date range string (e.g., 'Dec 7 - Dec 9, 2025')"
+#       period_zh: "Chinese date range (e.g., '2025-12-07 至 2025-12-09')"
+#       categories:
+#         - name: "Category name in English"
+#           name_zh: "Category name in Chinese"
+#           prs:
+#             - number: PR number (integer)
+#               title: "PR title"
+#               path: "Primary file path (optional)"
+#               path_note: "Note about path (e.g., 'new file', 'major update')"
+#               change: "What was changed (optional, defaults to impact)"
+#               impact: "Impact/benefit description in English"
+#               impact_zh: "Impact description in Chinese"
+#               merged: "Merge date (YYYY-MM-DD)"
+#               related_issues: [list of related issue numbers]
+#
+# HTML Comment Markers (add to docs for reliable insertion points):
+#   <!-- CHANGELOG_INSERT_POINT:onboarding -->
+#   <!-- CHANGELOG_INSERT_POINT:project_structure -->
+#   <!-- CHANGELOG_INSERT_POINT:environments -->
+#   <!-- CHANGELOG_INSERT_POINT:troubleshooting -->
+
+changelog:
+  - period: "Dec 7 - Dec 9, 2025"
+    period_zh: "2025-12-07 至 2025-12-09"
+    categories:
+      - name: "DeepWiki Integration"
+        name_zh: "DeepWiki 整合"
+        prs:
+          - number: 2156
+            title: "feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor"
+            path: "handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py"
+            impact: "DeepWiki knowledge base integration for enhanced session context"
+            impact_zh: "DeepWiki 知識庫整合，增強 session 上下文"
+            merged: "2025-12-07"
+          - number: 2157
+            title: "feat(orchestrator): integrate DeepWiki with AutonomousExecutor"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Full DeepWiki orchestrator integration"
+            impact_zh: "完整的 DeepWiki orchestrator 整合"
+            merged: "2025-12-07"
+          - number: 2164
+            title: "fix(deepwiki): add retry logic and rate limiting"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Improved reliability with retry logic and rate limiting for DeepWiki API calls"
+            impact_zh: "改善 DeepWiki API 呼叫的可靠性，新增重試邏輯和速率限制"
+            merged: "2025-12-07"
+          - number: 2163
+            title: "feat(api): add DeepWiki API endpoints for knowledge base queries"
+            path: "handoff/20250928/40_App/api-backend/"
+            impact: "New API endpoints for DeepWiki knowledge base queries"
+            impact_zh: "新增 DeepWiki 知識庫查詢 API 端點"
+            merged: "2025-12-07"
+          - number: 2169
+            title: "feat(owner-console): add SessionInsights component for DeepWiki insights"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "UI component for displaying DeepWiki session insights"
+            impact_zh: "顯示 DeepWiki session 洞察的 UI 元件"
+            merged: "2025-12-07"
+
+      - name: "Sessions UI & HITL Optimization"
+        name_zh: "Sessions UI 與 HITL 優化"
+        prs:
+          - number: 2170
+            title: "feat(owner-console): HITL approval UI/UX optimization"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Improved Human-in-the-Loop approval workflow UX"
+            impact_zh: "改善 Human-in-the-Loop 審批工作流程 UX"
+            merged: "2025-12-07"
+          - number: 2173
+            title: "feat(i18n): add SessionInsights translation keys and unit tests"
+            path: "handoff/20250928/40_App/owner-console/src/i18n/"
+            impact: "Internationalization support for SessionInsights component"
+            impact_zh: "SessionInsights 元件的國際化支援"
+            merged: "2025-12-08"
+          - number: 2175
+            title: "feat(owner-console): add SessionCommandInput for interactive session commands"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "New interactive command input for session management"
+            impact_zh: "新增互動式命令輸入用於 session 管理"
+            merged: "2025-12-08"
+          - number: 2182
+            title: "refactor(owner-console): tidy SessionCommandInput constants and props"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Code cleanup and improved prop definitions"
+            impact_zh: "程式碼清理和改善 prop 定義"
+            merged: "2025-12-08"
+          - number: 2188
+            title: "test(owner-console): add unit tests for SessionCommandInput"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Test coverage for SessionCommandInput component"
+            impact_zh: "SessionCommandInput 元件的測試覆蓋"
+            merged: "2025-12-08"
+          - number: 2189
+            title: "feat(owner-console): persist command history with localStorage"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Command history persistence across sessions"
+            impact_zh: "跨 session 的命令歷史持久化"
+            merged: "2025-12-08"
+          - number: 2225
+            title: "fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Fixed Temporal Dead Zone error and improved auto-refresh behavior"
+            impact_zh: "修復 Temporal Dead Zone 錯誤並改善自動刷新行為"
+            merged: "2025-12-08"
+          - number: 2234
+            title: "fix(owner-console): fix console warnings and session card layout issues"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Fixed console warnings and improved session card layout"
+            impact_zh: "修復 console 警告並改善 session 卡片佈局"
+            merged: "2025-12-08"
+          - number: 2279
+            title: "feat(owner-console): add SessionStatusCard component with standardized design spec"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "New standardized SessionStatusCard component for consistent UI"
+            impact_zh: "新增標準化 SessionStatusCard 元件以保持 UI 一致性"
+            merged: "2025-12-09"
+
+      - name: "CSRF Token Management"
+        name_zh: "CSRF Token 管理"
+        prs:
+          - number: 2237
+            title: "fix(owner-console): fix CSRF token sync issue causing 403 errors"
+            path: "handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts"
+            impact: "Fixed CSRF token synchronization preventing 403 errors"
+            impact_zh: "修復 CSRF token 同步問題，防止 403 錯誤"
+            merged: "2025-12-08"
+          - number: 2238
+            title: "refactor(owner-console): unify CSRF token management"
+            path: "handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts"
+            impact: "Unified CSRF token management with Auth and API Client modes"
+            impact_zh: "統一 CSRF token 管理，支援 Auth 和 API Client 模式"
+            merged: "2025-12-08"
+          - number: 2239
+            title: "docs(owner-console): add CSRF token mode selection warning"
+            path: "handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts"
+            impact: "Added documentation warning for CSRF token mode selection"
+            impact_zh: "新增 CSRF token 模式選擇警告文檔"
+            merged: "2025-12-09"
+          - number: 2240
+            title: "docs(owner-console): add warning comment for CSRF token mode selection"
+            path: "handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts"
+            impact: "Follow-up documentation for CSRF token mode selection"
+            impact_zh: "CSRF token 模式選擇的後續文檔"
+            merged: "2025-12-09"
+
+      - name: "AI Reviewer & Comment Triage"
+        name_zh: "AI Reviewer 與 Comment Triage"
+        prs:
+          - number: 2244
+            title: "feat(orchestrator): fix AI Reviewer comment intake mechanism"
+            path: "handoff/20250928/40_App/orchestrator/nodes/review_intake.py"
+            impact: "Fixed AI Reviewer bot whitelist and comment intake mechanism"
+            impact_zh: "修復 AI Reviewer bot 白名單和評論接收機制"
+            merged: "2025-12-09"
+          - number: 2246
+            title: "feat(orchestrator): implement Comment Triage Agent for AI reviewer comments"
+            path: "handoff/20250928/40_App/orchestrator/nodes/comment_triage.py"
+            path_note: "new file"
+            impact: "New Comment Triage Agent for categorizing and prioritizing AI reviewer comments"
+            impact_zh: "新增 Comment Triage Agent 用於分類和優先處理 AI 審查評論"
+            merged: "2025-12-09"
+
+      - name: "Review Follow-up & Internal Reviewer (Phase 7)"
+        name_zh: "Review Follow-up 與 Internal Reviewer (Phase 7)"
+        prs:
+          - number: 2257
+            title: "feat(orchestrator): implement Review Follow-up Mode (Issue #2211)"
+            path: "handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py"
+            path_note: "new file"
+            impact: "New Review Follow-up Mode for tracking and addressing review comments"
+            impact_zh: "新增 Review Follow-up Mode 追蹤和處理審查評論"
+            merged: "2025-12-09"
+            related_issues: [2211]
+          - number: 2262
+            title: "feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)"
+            path: "handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py"
+            path_note: "new file"
+            impact: "Internal Reviewer Agent with re-review capability for quality assurance"
+            impact_zh: "Internal Reviewer Agent 具備重新審查能力"
+            merged: "2025-12-09"
+            related_issues: [2212]
+          - number: 2267
+            title: "refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)"
+            path: "handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py"
+            impact: "Added required field validation for internal review node"
+            impact_zh: "新增 internal review node 的必填欄位驗證"
+            merged: "2025-12-09"
+            related_issues: [2263]
+          - number: 2268
+            title: "feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)"
+            path: "handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py"
+            impact: "Configurable PARTIAL agreement policy for internal reviews"
+            impact_zh: "可配置的 PARTIAL 同意策略用於內部審查"
+            merged: "2025-12-09"
+            related_issues: [2264]
+          - number: 2269
+            title: "docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)"
+            path: "handoff/20250928/40_App/orchestrator/docs/"
+            path_note: "new documentation"
+            impact: "Documentation clarifying node responsibilities"
+            impact_zh: "文檔化節點職責分工"
+            merged: "2025-12-09"
+            related_issues: [2265]
+
+      - name: "Multi-Signal Trigger & Rollout Tracker (Phase 7)"
+        name_zh: "多信號觸發與 Rollout Tracker (Phase 7)"
+        prs:
+          - number: 2275
+            title: "feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)"
+            path: "handoff/20250928/40_App/orchestrator/multi_signal_trigger.py"
+            path_note: "new file"
+            impact: "Multi-signal trigger system for automated workflow initiation"
+            impact_zh: "多信號觸發系統用於自動化工作流程啟動"
+            merged: "2025-12-09"
+            related_issues: [2213]
+          - number: 2278
+            title: "feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)"
+            path: "handoff/20250928/40_App/orchestrator/rollout_tracker.py"
+            path_note: "new file"
+            impact: "LangGraph rollout tracking with metrics and dashboard support"
+            impact_zh: "LangGraph 推出追蹤器，支援指標和儀表板"
+            merged: "2025-12-09"
+            related_issues: [2214]
+          - number: 2284
+            title: "feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)"
+            path: "handoff/20250928/40_App/orchestrator/redis_queue/worker.py"
+            impact: "RolloutTracker integration into worker for production monitoring"
+            impact_zh: "RolloutTracker 整合到 worker 用於生產監控"
+            merged: "2025-12-09"
+            related_issues: [2280]
+          - number: 2288
+            title: "docs: update milestones document with Dec 2025 progress (Issue #2215)"
+            path: "docs/MILESTONES.md"
+            impact: "Updated milestones document with Phase 7 completion status"
+            impact_zh: "更新里程碑文件，Phase 7 完成狀態"
+            merged: "2025-12-09"
+            related_issues: [2215]
+
+      - name: "Owner Console UI Refactoring"
+        name_zh: "Owner Console UI 重構"
+        prs:
+          - number: 2245
+            title: "refactor(owner-console): move settings and logout to user dropdown menu"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Improved navigation UX with user dropdown menu"
+            impact_zh: "改善導航 UX，新增用戶下拉選單"
+            merged: "2025-12-09"
+          - number: 2256
+            title: "refactor(owner-console): DashboardHeader cleanup and testing"
+            path: "handoff/20250928/40_App/owner-console/src/components/DashboardHeader.jsx"
+            impact: "Code cleanup and improved test coverage for DashboardHeader"
+            impact_zh: "程式碼清理和改善 DashboardHeader 測試覆蓋"
+            merged: "2025-12-09"
+          - number: 2261
+            title: "refactor(owner-console): Sidebar UX optimization - single-line items and tooltips"
+            path: "handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx"
+            impact: "Improved Sidebar UX with single-line items and tooltips"
+            impact_zh: "改善 Sidebar UX，單行項目和工具提示"
+            merged: "2025-12-09"
+          - number: 2266
+            title: "refactor(owner-console): implement single-layer Header + Sidebar architecture"
+            path: "handoff/20250928/40_App/owner-console/src/components/"
+            impact: "Simplified Header and Sidebar architecture"
+            impact_zh: "簡化 Header 和 Sidebar 架構"
+            merged: "2025-12-09"
+          - number: 2270
+            title: "fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling"
+            path: "packages/shared-ui/src/components/ui/tooltip.tsx"
+            impact: "Enhanced Tooltip component with customizable arrow styling"
+            impact_zh: "增強 Tooltip 元件，支援自訂箭頭樣式"
+            merged: "2025-12-09"
+
+      - name: "CI/CD & Testing Infrastructure"
+        name_zh: "CI/CD 與測試基礎設施"
+        prs:
+          - number: 2174
+            title: "feat(ci): enable TypeScript Strict Mode baseline tracking for all packages"
+            path: ".github/workflows/"
+            impact: "TypeScript Strict Mode baseline tracking across all packages"
+            impact_zh: "所有套件的 TypeScript Strict Mode 基線追蹤"
+            merged: "2025-12-08"
+          - number: 2183
+            title: "fix(orchestrator): fix failing tests in visual_verification and project_engineer"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Fixed failing tests in visual verification and project engineer modules"
+            impact_zh: "修復 visual verification 和 project engineer 模組的失敗測試"
+            merged: "2025-12-08"
+          - number: 2190
+            title: "fix(orchestrator): increase performance test threshold for planner node"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Adjusted performance test thresholds for planner node"
+            impact_zh: "調整 planner node 的效能測試閾值"
+            merged: "2025-12-08"
+          - number: 2194
+            title: "fix(orchestrator): add rate limit mock to TestExecute tests"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Fixed test flakiness with rate limit mocking"
+            impact_zh: "修復測試不穩定性，新增速率限制 mock"
+            merged: "2025-12-08"
+          - number: 2200
+            title: "test(orchestrator): add comprehensive tests for langgraph_orchestrator.py"
+            path: "handoff/20250928/40_App/orchestrator/tests/"
+            impact: "Comprehensive test coverage for LangGraph orchestrator"
+            impact_zh: "LangGraph orchestrator 的全面測試覆蓋"
+            merged: "2025-12-08"
+          - number: 2233
+            title: "test(api-backend): add comprehensive tests for sentry_integration.py"
+            path: "handoff/20250928/40_App/api-backend/"
+            impact: "Test coverage for Sentry integration module"
+            impact_zh: "Sentry 整合模組的測試覆蓋"
+            merged: "2025-12-08"
+          - number: 2235
+            title: "test(orchestrator): add security rules tests for project_engineer/agent.py"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Security rules test coverage for project engineer agent"
+            impact_zh: "project engineer agent 的安全規則測試覆蓋"
+            merged: "2025-12-08"
+          - number: 2236
+            title: "test(owner-console): add comprehensive tests for LoginPage component"
+            path: "handoff/20250928/40_App/owner-console/src/pages/"
+            impact: "Test coverage for LoginPage component"
+            impact_zh: "LoginPage 元件的測試覆蓋"
+            merged: "2025-12-08"
+
+      - name: "Backend & Infrastructure"
+        name_zh: "Backend 與基礎設施"
+        prs:
+          - number: 2184
+            title: "feat(api-backend): add /api/sessions/{id}/command endpoint"
+            path: "handoff/20250928/40_App/api-backend/"
+            impact: "New API endpoint for session command execution"
+            impact_zh: "新增 session 命令執行 API 端點"
+            merged: "2025-12-08"
+          - number: 2197
+            title: "feat(orchestrator): add A/B testing metrics collection and analysis framework"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "A/B testing metrics framework for experiment analysis"
+            impact_zh: "A/B 測試指標框架用於實驗分析"
+            merged: "2025-12-08"
+          - number: 2204
+            title: "fix: reduce noisy Sentry alerts for expected error conditions"
+            path: "handoff/20250928/40_App/api-backend/"
+            impact: "Reduced Sentry noise by filtering expected errors"
+            impact_zh: "減少預期錯誤的 Sentry 警報噪音"
+            merged: "2025-12-08"
+          - number: 2218
+            title: "feat(orchestrator): complete Wave 1 Phase 7 prerequisites"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Completed Wave 1 prerequisites for Phase 7"
+            impact_zh: "完成 Phase 7 的 Wave 1 先決條件"
+            merged: "2025-12-08"
+          - number: 2224
+            title: "feat(orchestrator): add retry and rate limiting to OutboundNotifier"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Improved reliability for outbound notifications"
+            impact_zh: "改善出站通知的可靠性"
+            merged: "2025-12-08"
+          - number: 2231
+            title: "feat(orchestrator): Wave 3 Failure Learning Enhancement"
+            path: "handoff/20250928/40_App/orchestrator/"
+            impact: "Enhanced failure learning capabilities"
+            impact_zh: "增強失敗學習能力"
+            merged: "2025-12-08"
+          - number: 2232
+            title: "fix(api-backend): add Upstash Redis adapter for scan_iter compatibility"
+            path: "handoff/20250928/40_App/api-backend/"
+            impact: "Fixed Redis scan_iter compatibility for Upstash"
+            impact_zh: "修復 Upstash Redis scan_iter 相容性"
+            merged: "2025-12-08"
+
+      - name: "Documentation"
+        name_zh: "文檔"
+        prs:
+          - number: 2193
+            title: "docs: align documentation with actual implementation"
+            path: "docs/"
+            impact: "Documentation alignment with current implementation"
+            impact_zh: "文檔與當前實作對齊"
+            merged: "2025-12-08"
