@@ -342,6 +342,14 @@ try:
 except ImportError as e:
     logger.warning("DeepWiki API routes not available: %s", e)
 
+# Metrics API for system observability (Epic #2311 Phase 1)
+try:
+    from src.routes.metrics import metrics_bp
+    app.register_blueprint(metrics_bp, url_prefix="/api")
+    logger.info("Metrics API routes enabled")
+except ImportError as e:
+    logger.warning("Metrics API routes not available: %s", e)
+
 from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
 
 app.add_url_rule(
