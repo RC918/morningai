@@ -21,6 +21,178 @@
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
 
+**近期重要更新** (2025-12-07 至 2025-12-09):
+
+*DeepWiki 整合:*
+- **PR #2156**: feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
+  - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
+  - 影響：DeepWiki 知識庫整合，增強 session 上下文
+- **PR #2157**: feat(orchestrator): integrate DeepWiki with AutonomousExecutor
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：完整的 DeepWiki orchestrator 整合
+- **PR #2164**: fix(deepwiki): add retry logic and rate limiting
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：改善 DeepWiki API 呼叫的可靠性，新增重試邏輯和速率限制
+- **PR #2163**: feat(api): add DeepWiki API endpoints for knowledge base queries
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - 影響：新增 DeepWiki 知識庫查詢 API 端點
+- **PR #2169**: feat(owner-console): add SessionInsights component for DeepWiki insights
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：顯示 DeepWiki session 洞察的 UI 元件
+
+*Sessions UI 與 HITL 優化:*
+- **PR #2170**: feat(owner-console): HITL approval UI/UX optimization
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：改善 Human-in-the-Loop 審批工作流程 UX
+- **PR #2173**: feat(i18n): add SessionInsights translation keys and unit tests
+  - Path: `handoff/20250928/40_App/owner-console/src/i18n/`
+  - 影響：SessionInsights 元件的國際化支援
+- **PR #2175**: feat(owner-console): add SessionCommandInput for interactive session commands
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：新增互動式命令輸入用於 session 管理
+- **PR #2182**: refactor(owner-console): tidy SessionCommandInput constants and props
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：程式碼清理和改善 prop 定義
+- **PR #2188**: test(owner-console): add unit tests for SessionCommandInput
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：SessionCommandInput 元件的測試覆蓋
+- **PR #2189**: feat(owner-console): persist command history with localStorage
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：跨 session 的命令歷史持久化
+- **PR #2225**: fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：修復 Temporal Dead Zone 錯誤並改善自動刷新行為
+- **PR #2234**: fix(owner-console): fix console warnings and session card layout issues
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：修復 console 警告並改善 session 卡片佈局
+- **PR #2279**: feat(owner-console): add SessionStatusCard component with standardized design spec
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：新增標準化 SessionStatusCard 元件以保持 UI 一致性
+
+*CSRF Token 管理:*
+- **PR #2237**: fix(owner-console): fix CSRF token sync issue causing 403 errors
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
+  - 影響：修復 CSRF token 同步問題，防止 403 錯誤
+- **PR #2238**: refactor(owner-console): unify CSRF token management
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
+  - 影響：統一 CSRF token 管理，支援 Auth 和 API Client 模式
+- **PR #2239**: docs(owner-console): add CSRF token mode selection warning
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
+  - 影響：新增 CSRF token 模式選擇警告文檔
+- **PR #2240**: docs(owner-console): add warning comment for CSRF token mode selection
+  - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
+  - 影響：CSRF token 模式選擇的後續文檔
+
+*AI Reviewer 與 Comment Triage:*
+- **PR #2244**: feat(orchestrator): fix AI Reviewer comment intake mechanism
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
+  - 影響：修復 AI Reviewer bot 白名單和評論接收機制
+- **PR #2246**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py`
+  - 影響：新增 Comment Triage Agent 用於分類和優先處理 AI 審查評論
+
+*Review Follow-up 與 Internal Reviewer (Phase 7):*
+- **PR #2257**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py`
+  - 影響：新增 Review Follow-up Mode 追蹤和處理審查評論
+- **PR #2262**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
+  - 影響：Internal Reviewer Agent 具備重新審查能力
+- **PR #2267**: refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
+  - 影響：新增 internal review node 的必填欄位驗證
+- **PR #2268**: feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
+  - 影響：可配置的 PARTIAL 同意策略用於內部審查
+- **PR #2269**: docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
+  - Path: `handoff/20250928/40_App/orchestrator/docs/`
+  - 影響：文檔化節點職責分工
+
+*多信號觸發與 Rollout Tracker (Phase 7):*
+- **PR #2275**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+  - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py`
+  - 影響：多信號觸發系統用於自動化工作流程啟動
+- **PR #2278**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+  - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py`
+  - 影響：LangGraph 推出追蹤器，支援指標和儀表板
+- **PR #2284**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+  - 影響：RolloutTracker 整合到 worker 用於生產監控
+- **PR #2288**: docs: update milestones document with Dec 2025 progress (Issue #2215)
+  - Path: `docs/MILESTONES.md`
+  - 影響：更新里程碑文件，Phase 7 完成狀態
+
+*Owner Console UI 重構:*
+- **PR #2245**: refactor(owner-console): move settings and logout to user dropdown menu
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：改善導航 UX，新增用戶下拉選單
+- **PR #2256**: refactor(owner-console): DashboardHeader cleanup and testing
+  - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.jsx`
+  - 影響：程式碼清理和改善 DashboardHeader 測試覆蓋
+- **PR #2261**: refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
+  - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`
+  - 影響：改善 Sidebar UX，單行項目和工具提示
+- **PR #2266**: refactor(owner-console): implement single-layer Header + Sidebar architecture
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - 影響：簡化 Header 和 Sidebar 架構
+- **PR #2270**: fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
+  - Path: `packages/shared-ui/src/components/ui/tooltip.tsx`
+  - 影響：增強 Tooltip 元件，支援自訂箭頭樣式
+
+*CI/CD 與測試基礎設施:*
+- **PR #2174**: feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
+  - Path: `.github/workflows/`
+  - 影響：所有套件的 TypeScript Strict Mode 基線追蹤
+- **PR #2183**: fix(orchestrator): fix failing tests in visual_verification and project_engineer
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：修復 visual verification 和 project engineer 模組的失敗測試
+- **PR #2190**: fix(orchestrator): increase performance test threshold for planner node
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：調整 planner node 的效能測試閾值
+- **PR #2194**: fix(orchestrator): add rate limit mock to TestExecute tests
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：修復測試不穩定性，新增速率限制 mock
+- **PR #2200**: test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
+  - Path: `handoff/20250928/40_App/orchestrator/tests/`
+  - 影響：LangGraph orchestrator 的全面測試覆蓋
+- **PR #2233**: test(api-backend): add comprehensive tests for sentry_integration.py
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - 影響：Sentry 整合模組的測試覆蓋
+- **PR #2235**: test(orchestrator): add security rules tests for project_engineer/agent.py
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：project engineer agent 的安全規則測試覆蓋
+- **PR #2236**: test(owner-console): add comprehensive tests for LoginPage component
+  - Path: `handoff/20250928/40_App/owner-console/src/pages/`
+  - 影響：LoginPage 元件的測試覆蓋
+
+*Backend 與基礎設施:*
+- **PR #2184**: feat(api-backend): add /api/sessions/{id}/command endpoint
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - 影響：新增 session 命令執行 API 端點
+- **PR #2197**: feat(orchestrator): add A/B testing metrics collection and analysis framework
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：A/B 測試指標框架用於實驗分析
+- **PR #2204**: fix: reduce noisy Sentry alerts for expected error conditions
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - 影響：減少預期錯誤的 Sentry 警報噪音
+- **PR #2218**: feat(orchestrator): complete Wave 1 Phase 7 prerequisites
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：完成 Phase 7 的 Wave 1 先決條件
+- **PR #2224**: feat(orchestrator): add retry and rate limiting to OutboundNotifier
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：改善出站通知的可靠性
+- **PR #2231**: feat(orchestrator): Wave 3 Failure Learning Enhancement
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：增強失敗學習能力
+- **PR #2232**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - 影響：修復 Upstash Redis scan_iter 相容性
+
+*文檔:*
+- **PR #2193**: docs: align documentation with actual implementation
+  - Path: `docs/`
+  - 影響：文檔與當前實作對齊
+
 **近期重要更新** (2025-12-08 至 2025-12-09):
 
 *Phase 7: 生態系閉環 (AI Review Closed Loop) 完成:*
