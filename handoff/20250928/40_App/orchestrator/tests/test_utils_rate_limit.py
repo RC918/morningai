@@ -591,6 +591,40 @@ class TestCheckAIReviewerRateLimit:
         assert AI_REVIEWER_RATE_LIMITS['per_repo_per_hour'] == 100
         assert AI_REVIEWER_RATE_LIMITS['per_bot_per_hour'] == 50
 
+    def test_partial_limits_fall_back_to_defaults(self):
+        """Should use AI_REVIEWER_RATE_LIMITS for missing keys in partial limits dict"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        call_count = [0]
+
+        def execute_side_effect():
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return [0, 12]
+            elif call_count[0] == 2:
+                return [0, 5]
+            else:
+                return [0, 5]
+
+        mock_pipeline.execute.side_effect = execute_side_effect
+        mock_redis.pipeline.return_value = mock_pipeline
+
+        partial_limits = {'per_pr_per_hour': 10}
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+                limits=partial_limits,
+            )
+
+            assert result.allowed is False
+            assert result.exceeded_dimension == 'pr'
+            assert result.limit == 10
+
 
 class TestGetAIReviewerRateLimitCounts:
     """Test get_ai_reviewer_rate_limit_counts function"""

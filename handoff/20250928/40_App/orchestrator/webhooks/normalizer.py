@@ -473,35 +473,35 @@ class EventNormalizer:
         Issue: #2210 - Comment Triage Agent 設計與實作
         Issue: #2253 - AI Reviewer Rate Limiting
         """
-        if not event.metadata.get("is_ai_reviewer"):
-            return self.comment_triage_agent.triage(event)
+        is_ai_reviewer = bool(event.metadata.get("is_ai_reviewer"))
 
-        repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
-        pr_id = f"{repo}#{event.resource_id}" if event.resource_id else f"{repo}#unknown"
-        bot_name = event.metadata.get("review_source", "unknown")
+        if is_ai_reviewer:
+            repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+            pr_id = f"{repo}#{event.resource_id}" if event.resource_id else f"{repo}#unknown"
+            bot_name = event.metadata.get("review_source", "unknown")
 
-        rate_limit_result = check_ai_reviewer_rate_limit(
-            pr_id=pr_id,
-            repo=repo,
-            bot_name=bot_name,
-            redis_url=redis_url,
-        )
-
-        if not rate_limit_result.allowed:
-            logger.warning(
-                "[EventNormalizer] AI reviewer comment rate limited",
-                extra={
-                    "operation": "ai_reviewer_rate_limited",
-                    "event_id": event.event_id,
-                    "pr_id": pr_id,
-                    "repo": repo,
-                    "bot_name": bot_name,
-                    "exceeded_dimension": rate_limit_result.exceeded_dimension,
-                    "current_count": rate_limit_result.current_count,
-                    "limit": rate_limit_result.limit,
-                }
+            rate_limit_result = check_ai_reviewer_rate_limit(
+                pr_id=pr_id,
+                repo=repo,
+                bot_name=bot_name,
+                redis_url=redis_url,
             )
-            return None
+
+            if not rate_limit_result.allowed:
+                logger.warning(
+                    "[EventNormalizer] AI reviewer comment rate limited",
+                    extra={
+                        "operation": "ai_reviewer_rate_limited",
+                        "event_id": event.event_id,
+                        "pr_id": pr_id,
+                        "repo": repo,
+                        "bot_name": bot_name,
+                        "exceeded_dimension": rate_limit_result.exceeded_dimension,
+                        "current_count": rate_limit_result.current_count,
+                        "limit": rate_limit_result.limit,
+                    }
+                )
+                return None
 
         return self.comment_triage_agent.triage(event)
 

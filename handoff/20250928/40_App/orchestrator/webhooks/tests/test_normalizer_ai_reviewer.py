@@ -2,14 +2,17 @@
 Tests for EventNormalizer - AI Reviewer Integration
 
 Issue: #2209 - 修復 AI Reviewer 評論接收機制
+Issue: #2253 - AI Reviewer Rate Limiting
 Milestone: Phase 7 - 生態系閉環 (AI Review Closed Loop)
 """
 
 import pytest
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 from ..bot_protocol import WebhookEvent, WebhookEventType, WebhookSource
 from ..normalizer import EventNormalizer
+from ...utils.rate_limit import AIReviewerRateLimitResult
 
 
 @pytest.fixture
@@ -218,3 +221,62 @@ class TestAIReviewerIntegration:
         assert task is not None
         # Security-related tasks should require approval
         assert task.requires_approval is True
+
+
+class TestTriageCommentRateLimiting:
+    """Tests for EventNormalizer.triage_comment with rate limiting (Issue #2253)"""
+
+    def test_triage_comment_returns_none_when_rate_limited(self, event_normalizer):
+        """Test that triage_comment returns None when rate limited"""
+        event = create_mock_event(
+            description="Suggestion: Consider using async/await",
+            metadata={"is_ai_reviewer": True, "review_source": "copilot"},
+            event_type=WebhookEventType.PR_COMMENTED,
+        )
+        event.repo_owner = "owner"
+        event.repo_name = "repo"
+        event.resource_id = "123"
+
+        rate_limit_result = AIReviewerRateLimitResult(
+            allowed=False,
+            exceeded_dimension="pr",
+            current_count=25,
+            limit=20,
+            pr_id="owner/repo#123",
+            repo="owner/repo",
+            bot_name="copilot",
+        )
+
+        from .. import normalizer as normalizer_module
+        with patch.object(
+            normalizer_module,
+            "check_ai_reviewer_rate_limit",
+            return_value=rate_limit_result,
+        ):
+            result = event_normalizer.triage_comment(event)
+            assert result is None
+
+    def test_triage_comment_proceeds_when_ai_reviewer_within_limit(self, event_normalizer):
+        """Test that triage_comment proceeds for AI reviewer when within rate limit"""
+        event = create_mock_event(
+            description="Suggestion: Consider using async/await",
+            metadata={"is_ai_reviewer": True, "review_source": "copilot"},
+            event_type=WebhookEventType.PR_COMMENTED,
+        )
+        event.repo_owner = "owner"
+        event.repo_name = "repo"
+        event.resource_id = "123"
+
+        result = event_normalizer.triage_comment(event)
+        assert result is not None
+
+    def test_triage_comment_skips_rate_limit_for_non_ai_reviewer(self, event_normalizer):
+        """Test that triage_comment skips rate limiting for non-AI reviewer events"""
+        event = create_mock_event(
+            description="Regular comment from human",
+            metadata={},
+            event_type=WebhookEventType.PR_COMMENTED,
+        )
+
+        result = event_normalizer.triage_comment(event)
+        assert result is None

@@ -312,10 +312,15 @@ def check_ai_reviewer_rate_limit(
         window_start = current_time - AI_REVIEWER_RATE_LIMIT_WINDOW
 
         # Define rate limit dimensions
+        # Use AI_REVIEWER_RATE_LIMITS as fallback for partial limits dict
+        pr_limit = limits.get('per_pr_per_hour', AI_REVIEWER_RATE_LIMITS['per_pr_per_hour'])
+        repo_limit = limits.get('per_repo_per_hour', AI_REVIEWER_RATE_LIMITS['per_repo_per_hour'])
+        bot_limit = limits.get('per_bot_per_hour', AI_REVIEWER_RATE_LIMITS['per_bot_per_hour'])
+
         dimensions = [
-            ('pr', f"ai_reviewer:rate:{pr_id}", limits.get('per_pr_per_hour', 20)),
-            ('repo', f"ai_reviewer:rate:repo:{repo}", limits.get('per_repo_per_hour', 100)),
-            ('bot', f"ai_reviewer:rate:bot:{bot_name}", limits.get('per_bot_per_hour', 50)),
+            ('pr', f"ai_reviewer:rate:{pr_id}", pr_limit),
+            ('repo', f"ai_reviewer:rate:repo:{repo}", repo_limit),
+            ('bot', f"ai_reviewer:rate:bot:{bot_name}", bot_limit),
         ]
 
         # Check all dimensions first (before incrementing)
@@ -458,7 +463,16 @@ def get_ai_reviewer_rate_limit_counts(
             r.zremrangebyscore(key, 0, window_start)
             counts['bot'] = r.zcard(key)
 
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning(
+            "[AIReviewerRateLimit] Failed to get rate limit counts",
+            extra={
+                "operation": "ai_reviewer_rate_limit_counts_failed",
+                "pr_id": pr_id,
+                "repo": repo,
+                "bot_name": bot_name,
+                "error_type": type(exc).__name__,
+            }
+        )
 
     return counts
