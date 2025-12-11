@@ -1509,6 +1509,113 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
         raise
 
 
+@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=2, interval=[10, 30]), timeout=JOB_TIMEOUT)
+def run_auto_fix_task(task_data: dict):
+    """
+    Execute an auto-fix task from AI reviewer comments.
+
+    This job processes auto-fix tasks that were enqueued by the webhook handler
+    when CommentTriageAgent determines a comment should be auto-fixed.
+
+    Issue #2252: Implement real auto-fix execution
+
+    Args:
+        task_data: Dictionary containing AutoFixTask data
+
+    Returns:
+        dict: {"success": bool, "task_id": str, "status": str, "message": str, ...}
+    """
+    import time
+    from utils.auto_fix_executor import AutoFixExecutor, AutoFixTask
+
+    start_time = time.time()
+
+    task = AutoFixTask.from_dict(task_data)
+    task_id = task.task_id
+
+    logger.info(
+        "[AutoFix] Starting auto-fix task",
+        extra={
+            "operation": "run_auto_fix_task",
+            "task_id": task_id,
+            "repo": task.repo,
+            "pr_id": task.pr_id,
+            "category": task.triage_result.get("category", "unknown"),
+        }
+    )
+
+    if SENTRY_DSN:
+        sentry_sdk.set_tag("trace_id", task_id)
+        sentry_sdk.set_tag("task_id", task_id)
+        sentry_sdk.set_tag("operation", "auto_fix_task")
+        sentry_sdk.add_breadcrumb(
+            category='task',
+            message='Starting auto-fix task',
+            level='info',
+            data={
+                'task_id': task_id,
+                'repo': task.repo,
+                'pr_id': task.pr_id,
+            }
+        )
+
+    try:
+        executor = AutoFixExecutor(settings=settings, redis_url=redis_url)
+        result = executor.execute(task)
+
+        logger.info(
+            "[AutoFix] Task completed",
+            extra={
+                "operation": "run_auto_fix_task_completed",
+                "task_id": task_id,
+                "success": result.success,
+                "status": result.status.value,
+                "execution_time_ms": result.execution_time_ms,
+            }
+        )
+
+        return {
+            "success": result.success,
+            "task_id": result.task_id,
+            "status": result.status.value,
+            "message": result.message,
+            "pr_url": result.pr_url,
+            "commit_sha": result.commit_sha,
+            "execution_time_ms": result.execution_time_ms,
+            "safety_check_passed": result.safety_check_passed,
+            "canary_selected": result.canary_selected,
+        }
+
+    except Exception as e:
+        execution_time_ms = int((time.time() - start_time) * 1000)
+        error_msg = str(e)
+        logger.error(
+            "[AutoFix] Task failed with exception",
+            extra={
+                "operation": "run_auto_fix_task_error",
+                "task_id": task_id,
+                "error": error_msg,
+                "execution_time_ms": execution_time_ms,
+            },
+            exc_info=True,
+        )
+
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+
+        return {
+            "success": False,
+            "task_id": task_id,
+            "status": "failed",
+            "message": f"Exception: {error_msg}",
+            "pr_url": None,
+            "commit_sha": None,
+            "execution_time_ms": execution_time_ms,
+            "safety_check_passed": False,
+            "canary_selected": False,
+        }
+
+
 vm_cleanup_thread = None
 VM_CLEANUP_INTERVAL = settings.vm_cleanup_interval_seconds
 
