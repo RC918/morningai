@@ -15,7 +15,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from utils.rate_limit import (
     check_pr_rate_limit,
-    get_pr_count_last_hour
+    get_pr_count_last_hour,
+    check_ai_reviewer_rate_limit,
+    get_ai_reviewer_rate_limit_counts,
+    AIReviewerRateLimitResult,
+    AI_REVIEWER_RATE_LIMITS,
 )
 
 
@@ -363,3 +367,304 @@ class TestIntegration:
             mock_redis.incr.return_value = 12
             allowed, count = check_pr_rate_limit('trace-3', max_per_hour=10)
             assert allowed is False
+
+
+class TestAIReviewerRateLimitResult:
+    """Test AIReviewerRateLimitResult dataclass"""
+
+    def test_default_values(self):
+        """Should have correct default values"""
+        result = AIReviewerRateLimitResult(allowed=True)
+        assert result.allowed is True
+        assert result.exceeded_dimension is None
+        assert result.current_count == 0
+        assert result.limit == 0
+        assert result.pr_id is None
+        assert result.repo is None
+        assert result.bot_name is None
+
+    def test_with_all_values(self):
+        """Should store all values correctly"""
+        result = AIReviewerRateLimitResult(
+            allowed=False,
+            exceeded_dimension='pr',
+            current_count=25,
+            limit=20,
+            pr_id='owner/repo#123',
+            repo='owner/repo',
+            bot_name='copilot',
+        )
+        assert result.allowed is False
+        assert result.exceeded_dimension == 'pr'
+        assert result.current_count == 25
+        assert result.limit == 20
+        assert result.pr_id == 'owner/repo#123'
+        assert result.repo == 'owner/repo'
+        assert result.bot_name == 'copilot'
+
+
+class TestCheckAIReviewerRateLimit:
+    """Test check_ai_reviewer_rate_limit function (Issue #2253)"""
+
+    def test_allows_within_all_limits(self):
+        """Should allow when all dimensions are within limits"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute.return_value = [0, 5]
+        mock_redis.pipeline.return_value = mock_pipeline
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+            )
+
+            assert result.allowed is True
+            assert result.exceeded_dimension is None
+            assert result.pr_id == 'owner/repo#123'
+            assert result.repo == 'owner/repo'
+            assert result.bot_name == 'copilot'
+
+    def test_blocks_when_pr_limit_exceeded(self):
+        """Should block when per-PR limit is exceeded"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute.return_value = [0, 25]
+        mock_redis.pipeline.return_value = mock_pipeline
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+            )
+
+            assert result.allowed is False
+            assert result.exceeded_dimension == 'pr'
+            assert result.current_count == 25
+            assert result.limit == 20
+
+    def test_blocks_when_repo_limit_exceeded(self):
+        """Should block when per-repo limit is exceeded"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        call_count = [0]
+
+        def execute_side_effect():
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return [0, 5]
+            else:
+                return [0, 150]
+
+        mock_pipeline.execute.side_effect = execute_side_effect
+        mock_redis.pipeline.return_value = mock_pipeline
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+            )
+
+            assert result.allowed is False
+            assert result.exceeded_dimension == 'repo'
+            assert result.current_count == 150
+            assert result.limit == 100
+
+    def test_blocks_when_bot_limit_exceeded(self):
+        """Should block when per-bot limit is exceeded"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        call_count = [0]
+
+        def execute_side_effect():
+            call_count[0] += 1
+            if call_count[0] <= 2:
+                return [0, 5]
+            else:
+                return [0, 60]
+
+        mock_pipeline.execute.side_effect = execute_side_effect
+        mock_redis.pipeline.return_value = mock_pipeline
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+            )
+
+            assert result.allowed is False
+            assert result.exceeded_dimension == 'bot'
+            assert result.current_count == 60
+            assert result.limit == 50
+
+    def test_uses_custom_limits(self):
+        """Should respect custom limits"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute.return_value = [0, 8]
+        mock_redis.pipeline.return_value = mock_pipeline
+
+        custom_limits = {
+            'per_pr_per_hour': 5,
+            'per_repo_per_hour': 50,
+            'per_bot_per_hour': 25,
+        }
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+                limits=custom_limits,
+            )
+
+            assert result.allowed is False
+            assert result.exceeded_dimension == 'pr'
+            assert result.limit == 5
+
+    def test_uses_redis_url_when_provided(self):
+        """Should use Redis URL when provided"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute.return_value = [0, 5]
+        mock_redis.pipeline.return_value = mock_pipeline
+
+        with patch('redis.Redis.from_url') as mock_from_url:
+            mock_from_url.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+                redis_url='redis://custom:6379/0',
+            )
+
+            assert result.allowed is True
+            mock_from_url.assert_called_once()
+
+    def test_handles_redis_connection_error(self):
+        """Should allow when Redis is unavailable"""
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.side_effect = redis.ConnectionError("Connection refused")
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+            )
+
+            assert result.allowed is True
+
+    def test_handles_unexpected_exception(self):
+        """Should allow on unexpected exception"""
+        mock_redis = MagicMock()
+        mock_redis.pipeline.side_effect = Exception("Unexpected error")
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            result = check_ai_reviewer_rate_limit(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+            )
+
+            assert result.allowed is True
+
+    def test_default_rate_limits(self):
+        """Should have correct default rate limits"""
+        assert AI_REVIEWER_RATE_LIMITS['per_pr_per_hour'] == 20
+        assert AI_REVIEWER_RATE_LIMITS['per_repo_per_hour'] == 100
+        assert AI_REVIEWER_RATE_LIMITS['per_bot_per_hour'] == 50
+
+
+class TestGetAIReviewerRateLimitCounts:
+    """Test get_ai_reviewer_rate_limit_counts function"""
+
+    def test_returns_pr_count(self):
+        """Should return PR count when pr_id provided"""
+        mock_redis = MagicMock()
+        mock_redis.zcard.return_value = 15
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            counts = get_ai_reviewer_rate_limit_counts(pr_id='owner/repo#123')
+
+            assert counts.get('pr') == 15
+
+    def test_returns_repo_count(self):
+        """Should return repo count when repo provided"""
+        mock_redis = MagicMock()
+        mock_redis.zcard.return_value = 75
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            counts = get_ai_reviewer_rate_limit_counts(repo='owner/repo')
+
+            assert counts.get('repo') == 75
+
+    def test_returns_bot_count(self):
+        """Should return bot count when bot_name provided"""
+        mock_redis = MagicMock()
+        mock_redis.zcard.return_value = 30
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            counts = get_ai_reviewer_rate_limit_counts(bot_name='copilot')
+
+            assert counts.get('bot') == 30
+
+    def test_returns_all_counts(self):
+        """Should return all counts when all params provided"""
+        mock_redis = MagicMock()
+        mock_redis.zcard.side_effect = [10, 50, 25]
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            counts = get_ai_reviewer_rate_limit_counts(
+                pr_id='owner/repo#123',
+                repo='owner/repo',
+                bot_name='copilot',
+            )
+
+            assert counts.get('pr') == 10
+            assert counts.get('repo') == 50
+            assert counts.get('bot') == 25
+
+    def test_returns_empty_dict_on_error(self):
+        """Should return empty dict on error"""
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.side_effect = Exception("Error")
+
+            counts = get_ai_reviewer_rate_limit_counts(pr_id='owner/repo#123')
+
+            assert counts == {}
+
+    def test_returns_empty_dict_when_no_params(self):
+        """Should return empty dict when no params provided"""
+        mock_redis = MagicMock()
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            counts = get_ai_reviewer_rate_limit_counts()
+
+            assert counts == {}
