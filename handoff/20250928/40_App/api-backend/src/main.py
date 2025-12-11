@@ -83,19 +83,25 @@ def before_send(event, hint):
     return event
 
 
-def _env_flag(name: str) -> bool:
-    """Check if an environment variable is set to a truthy value."""
-    return os.getenv(name, "").lower() in ("true", "1", "yes")
+def _as_bool(val):
+    """Check if a value is truthy (handles bool, None, and string values)."""
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    s = str(val).strip().lower()
+    return s in ("1", "true", "yes", "on")
 
 
-TESTING = _env_flag("TESTING")
-DISABLE_SENTRY_FOR_TESTS = _env_flag("DISABLE_SENTRY_FOR_TESTS")
+TESTING = _as_bool(os.getenv("TESTING"))
+DISABLE_SENTRY_FOR_TESTS = _as_bool(os.getenv("DISABLE_SENTRY_FOR_TESTS"))
 
 # Determine if Sentry should be disabled (either flag can disable it)
 disable_sentry = DISABLE_SENTRY_FOR_TESTS or TESTING
 
 # Production environment protection: prevent accidentally disabling Sentry in production
-current_env = app_settings.environment or "production"
+# Default to "development" for consistency with other environment defaults in the codebase
+current_env = app_settings.environment or "development"
 if disable_sentry and current_env == "production":
     logger.warning(
         "DISABLE_SENTRY_FOR_TESTS or TESTING is set but environment is production; "
@@ -192,14 +198,6 @@ if not flask_secret:
         raise RuntimeError("FLASK_SECRET_KEY must be set in production environment.")
     flask_secret = "dev-only-fallback-secret-key"
 app.config["SECRET_KEY"] = flask_secret
-
-def _as_bool(val):
-    if isinstance(val, bool):
-        return val
-    if val is None:
-        return False
-    s = str(val).strip().lower()
-    return s in ("1", "true", "yes", "on")
 
 enable_mock = os.getenv("ENABLE_MOCK_USERS")
 if enable_mock is not None:
