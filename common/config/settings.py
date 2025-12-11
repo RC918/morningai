@@ -1147,6 +1147,64 @@ class Settings(BaseSettings):
         description="Enable ProjectEngineerAgent auto-fix mode in fixer_node (Phase 2 Step C Fixer Node)"
     )
 
+    project_engineer_fixer_percent: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+        alias="PROJECT_ENGINEER_FIXER_PERCENT",
+        description="Percentage of tasks to use auto-fix mode (0-100, for canary rollout)"
+    )
+
+    auto_fix_enabled: bool = Field(
+        default=False,
+        alias="AUTO_FIX_ENABLED",
+        description="Master switch for auto-fix execution from AI reviewer comments (Issue #2251)"
+    )
+
+    auto_fix_categories: str = Field(
+        default="style,documentation",
+        alias="AUTO_FIX_CATEGORIES",
+        description="Comma-separated list of categories allowed for auto-fix (style,documentation,bug_fix,refactor)"
+    )
+
+    auto_fix_repos_allowlist: str = Field(
+        default="",
+        alias="AUTO_FIX_REPOS_ALLOWLIST",
+        description="Comma-separated list of repos allowed for auto-fix (empty = all repos)"
+    )
+
+    auto_fix_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        alias="AUTO_FIX_MAX_RETRIES",
+        description="Maximum auto-fix attempts per PR (1-10, default 3)"
+    )
+
+    auto_fix_per_repo_per_hour: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        alias="AUTO_FIX_PER_REPO_PER_HOUR",
+        description="Maximum auto-fix attempts per repo per hour (1-100, default 10)"
+    )
+
+    auto_fix_per_pr_per_hour: int = Field(
+        default=3,
+        ge=1,
+        le=20,
+        alias="AUTO_FIX_PER_PR_PER_HOUR",
+        description="Maximum auto-fix attempts per PR per hour (1-20, default 3)"
+    )
+
+    auto_fix_global_per_hour: int = Field(
+        default=100,
+        ge=1,
+        le=1000,
+        alias="AUTO_FIX_GLOBAL_PER_HOUR",
+        description="Maximum global auto-fix attempts per hour (1-1000, default 100)"
+    )
+
     enable_failure_learning_context: bool = Field(
         default=True,
         alias="ENABLE_FAILURE_LEARNING_CONTEXT",
