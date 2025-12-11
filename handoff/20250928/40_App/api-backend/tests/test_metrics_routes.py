@@ -228,36 +228,25 @@ class TestMetricsHealthEndpoint:
 class TestMetricsRedisUnavailable:
     """Tests for metrics collection when Redis is unavailable"""
 
-    def test_api_metrics_redis_unavailable(self, client):
-        """Test API metrics returns unavailable when Redis fails"""
+    @pytest.mark.parametrize(
+        "section,expect_error_key",
+        [
+            ("api", True),
+            ("rate_limit", False),
+            ("session_commands", False),
+        ],
+    )
+    def test_section_unavailable_when_redis_missing(self, client, section, expect_error_key):
+        """Test metrics sections return unavailable when Redis fails"""
         with patch('src.routes.metrics._get_redis_client', return_value=None):
             with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
                 response = client.get('/api/metrics')
 
                 assert response.status_code == 200
                 data = response.get_json()
-                assert data['api']['available'] is False
-                assert 'error' in data['api']
-
-    def test_rate_limit_metrics_redis_unavailable(self, client):
-        """Test rate limit metrics returns unavailable when Redis fails"""
-        with patch('src.routes.metrics._get_redis_client', return_value=None):
-            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
-                response = client.get('/api/metrics')
-
-                assert response.status_code == 200
-                data = response.get_json()
-                assert data['rate_limit']['available'] is False
-
-    def test_session_metrics_redis_unavailable(self, client):
-        """Test session metrics returns unavailable when Redis fails"""
-        with patch('src.routes.metrics._get_redis_client', return_value=None):
-            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
-                response = client.get('/api/metrics')
-
-                assert response.status_code == 200
-                data = response.get_json()
-                assert data['session_commands']['available'] is False
+                assert data[section]['available'] is False
+                if expect_error_key:
+                    assert 'error' in data[section]
 
 
 class TestWindowParameterValidation:
