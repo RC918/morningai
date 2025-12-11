@@ -189,7 +189,7 @@ def reject_request(request_id):
         user_id = current_user.get('user_id', 'unknown')
         user_email = current_user.get('username', user_id)  # username contains email
 
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         reason = data.get('reason')
 
         success = reject_action_request(request_id, rejected_by=user_email, reason=reason)
