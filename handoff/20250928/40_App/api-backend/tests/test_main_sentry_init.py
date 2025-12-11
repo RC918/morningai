@@ -110,10 +110,14 @@ class TestSentryInitializationLogic:
         monkeypatch.setenv("TESTING", "true")
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("SENTRY_DSN", "https://test@sentry.io/123")
+        # Must disable mock users in production to pass settings validation
+        monkeypatch.setenv("ENABLE_MOCK_USERS", "false")
 
-        # Clear cached modules
+        # Clear cached modules and settings
         for mod in list(sys.modules.keys()):
             if mod.startswith("src.main") or mod == "src.main":
+                del sys.modules[mod]
+            if mod.startswith("common.config"):
                 del sys.modules[mod]
 
         with patch("sentry_sdk.init") as mock_init:
@@ -131,10 +135,14 @@ class TestSentryInitializationLogic:
         monkeypatch.delenv("DISABLE_SENTRY_FOR_TESTS", raising=False)
         monkeypatch.setenv("ENVIRONMENT", "staging")
         monkeypatch.setenv("SENTRY_DSN", "https://test@sentry.io/123")
+        # Must disable mock users in staging to pass settings validation
+        monkeypatch.setenv("ENABLE_MOCK_USERS", "false")
 
-        # Clear cached modules
+        # Clear cached modules and settings
         for mod in list(sys.modules.keys()):
             if mod.startswith("src.main") or mod == "src.main":
+                del sys.modules[mod]
+            if mod.startswith("common.config"):
                 del sys.modules[mod]
 
         with patch("sentry_sdk.init") as mock_init:
