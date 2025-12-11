@@ -29,6 +29,7 @@ from .handlers.jira_handler import JiraWebhookHandler
 from .handlers.linear_handler import LinearWebhookHandler
 from .handlers.slack_handler import SlackWebhookHandler
 from .comment_triage import CommentTriageAgent, CommentTriageResult
+from ..utils.rate_limit import check_ai_reviewer_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -452,37 +453,77 @@ class EventNormalizer:
         return tasks
 
     def triage_comment(
-        self, event: WebhookEvent
+        self, event: WebhookEvent, redis_url: Optional[str] = None
     ) -> Optional[CommentTriageResult]:
         """
-        Triage an AI reviewer comment event.
+        Triage an AI reviewer comment event with rate limiting.
 
-        This method delegates to the CommentTriageAgent to classify the comment,
-        assess risk, and determine if it should be auto-fixed.
+        This method first checks rate limits, then delegates to the
+        CommentTriageAgent to classify the comment, assess risk, and
+        determine if it should be auto-fixed.
 
         Args:
             event: WebhookEvent with is_ai_reviewer=True in metadata
+            redis_url: Optional Redis URL for rate limiting
 
         Returns:
             CommentTriageResult with classification and recommendations,
-            or None if the event is not from an AI reviewer
+            or None if the event is not from an AI reviewer or rate limited
 
         Issue: #2210 - Comment Triage Agent 設計與實作
+        Issue: #2253 - AI Reviewer Rate Limiting
         """
+        is_ai_reviewer = bool(event.metadata.get("is_ai_reviewer"))
+
+        if is_ai_reviewer:
+            repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+            pr_id = f"{repo}#{event.resource_id}" if event.resource_id else f"{repo}#unknown"
+            bot_name = event.metadata.get("review_source", "unknown")
+
+            rate_limit_result = check_ai_reviewer_rate_limit(
+                pr_id=pr_id,
+                repo=repo,
+                bot_name=bot_name,
+                redis_url=redis_url,
+            )
+
+            if not rate_limit_result.allowed:
+                logger.warning(
+                    "[EventNormalizer] AI reviewer comment rate limited",
+                    extra={
+                        "operation": "ai_reviewer_rate_limited",
+                        "event_id": event.event_id,
+                        "pr_id": pr_id,
+                        "repo": repo,
+                        "bot_name": bot_name,
+                        "exceeded_dimension": rate_limit_result.exceeded_dimension,
+                        "current_count": rate_limit_result.current_count,
+                        "limit": rate_limit_result.limit,
+                    }
+                )
+                return None
+
         return self.comment_triage_agent.triage(event)
 
     def batch_triage_comments(
-        self, events: List[WebhookEvent]
+        self, events: List[WebhookEvent], redis_url: Optional[str] = None
     ) -> List[CommentTriageResult]:
         """
-        Triage multiple AI reviewer comment events.
+        Triage multiple AI reviewer comment events with rate limiting.
 
         Args:
             events: List of WebhookEvents
+            redis_url: Optional Redis URL for rate limiting
 
         Returns:
-            List of CommentTriageResults for AI reviewer events
+            List of CommentTriageResults for AI reviewer events (rate limited events excluded)
 
         Issue: #2210 - Comment Triage Agent 設計與實作
+        Issue: #2253 - AI Reviewer Rate Limiting
         """
-        return self.comment_triage_agent.batch_triage(events)
+        results = []
+        for event in events:
+            result = self.triage_comment(event, redis_url=redis_url)
+            if result:
+                results.append(result)
+        return results

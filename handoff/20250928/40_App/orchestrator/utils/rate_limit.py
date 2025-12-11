@@ -1,7 +1,12 @@
 """Rate limiting utilities for Orchestrator PR creation"""
+import logging
 import redis
 import time
-from typing import Optional
+import uuid
+from dataclasses import dataclass
+from typing import Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def check_pr_rate_limit(
@@ -240,3 +245,234 @@ DEFAULT_NOTIFICATION_RATE_LIMITS = {
     "jira": 30,     # Jira has stricter limits
     "slack": 30,    # Slack has per-channel limits, be conservative
 }
+
+
+# =============================================================================
+# AI Reviewer Rate Limiting (Issue #2253)
+# =============================================================================
+
+# Default rate limits for AI reviewer comments
+AI_REVIEWER_RATE_LIMITS = {
+    'per_pr_per_hour': 20,      # Each PR can receive max 20 AI comments/hour
+    'per_repo_per_hour': 100,   # Each repo can receive max 100 AI comments/hour
+    'per_bot_per_hour': 50,     # Each bot can send max 50 comments/hour
+}
+
+# Rate limit window in seconds (1 hour)
+AI_REVIEWER_RATE_LIMIT_WINDOW = 3600
+
+
+@dataclass
+class AIReviewerRateLimitResult:
+    """Result of AI reviewer rate limit check"""
+    allowed: bool
+    exceeded_dimension: Optional[str] = None  # 'pr', 'repo', or 'bot'
+    current_count: int = 0
+    limit: int = 0
+    pr_id: Optional[str] = None
+    repo: Optional[str] = None
+    bot_name: Optional[str] = None
+
+
+def check_ai_reviewer_rate_limit(
+    pr_id: str,
+    repo: str,
+    bot_name: str,
+    limits: Optional[Dict[str, int]] = None,
+    redis_url: Optional[str] = None
+) -> AIReviewerRateLimitResult:
+    """
+    Check if AI reviewer comment processing is rate limited.
+
+    Uses Redis ZSET sliding window algorithm for accurate rate limiting
+    across three dimensions: per-PR, per-repo, and per-bot.
+
+    Issue #2253: Rate limiting for AI reviewer comments.
+
+    Args:
+        pr_id: Pull request identifier (e.g., "owner/repo#123")
+        repo: Repository identifier (e.g., "owner/repo")
+        bot_name: Bot name (e.g., "copilot", "gemini", "coderabbit")
+        limits: Optional custom limits dict, defaults to AI_REVIEWER_RATE_LIMITS
+        redis_url: Redis connection URL (optional, uses localhost if None)
+
+    Returns:
+        AIReviewerRateLimitResult with allowed status and details
+    """
+    if limits is None:
+        limits = AI_REVIEWER_RATE_LIMITS
+
+    try:
+        if redis_url:
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
+        else:
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+        current_time = time.time()
+        window_start = current_time - AI_REVIEWER_RATE_LIMIT_WINDOW
+
+        # Define rate limit dimensions
+        # Use AI_REVIEWER_RATE_LIMITS as fallback for partial limits dict
+        pr_limit = limits.get('per_pr_per_hour', AI_REVIEWER_RATE_LIMITS['per_pr_per_hour'])
+        repo_limit = limits.get('per_repo_per_hour', AI_REVIEWER_RATE_LIMITS['per_repo_per_hour'])
+        bot_limit = limits.get('per_bot_per_hour', AI_REVIEWER_RATE_LIMITS['per_bot_per_hour'])
+
+        dimensions = [
+            ('pr', f"ai_reviewer:rate:{pr_id}", pr_limit),
+            ('repo', f"ai_reviewer:rate:repo:{repo}", repo_limit),
+            ('bot', f"ai_reviewer:rate:bot:{bot_name}", bot_limit),
+        ]
+
+        # Check all dimensions first (before incrementing)
+        for dimension, key, limit in dimensions:
+            # Clean old entries and get current count
+            pipe = r.pipeline()
+            pipe.zremrangebyscore(key, 0, window_start)
+            pipe.zcard(key)
+            results = pipe.execute()
+            current_count = results[1]
+
+            if current_count >= limit:
+                logger.warning(
+                    "[AIReviewerRateLimit] Rate limit exceeded",
+                    extra={
+                        "operation": "ai_reviewer_rate_limit_exceeded",
+                        "dimension": dimension,
+                        "key": key,
+                        "current_count": current_count,
+                        "limit": limit,
+                        "pr_id": pr_id,
+                        "repo": repo,
+                        "bot_name": bot_name,
+                    }
+                )
+                return AIReviewerRateLimitResult(
+                    allowed=False,
+                    exceeded_dimension=dimension,
+                    current_count=current_count,
+                    limit=limit,
+                    pr_id=pr_id,
+                    repo=repo,
+                    bot_name=bot_name,
+                )
+
+        # All checks passed, increment all counters atomically
+        unique_member = f"{time.time_ns()}-{uuid.uuid4()}"
+        pipe = r.pipeline()
+        for _, key, _ in dimensions:
+            pipe.zadd(key, {unique_member: current_time})
+            pipe.expire(key, AI_REVIEWER_RATE_LIMIT_WINDOW + 60)
+        pipe.execute()
+
+        logger.debug(
+            "[AIReviewerRateLimit] Rate limit check passed",
+            extra={
+                "operation": "ai_reviewer_rate_limit_passed",
+                "pr_id": pr_id,
+                "repo": repo,
+                "bot_name": bot_name,
+            }
+        )
+
+        return AIReviewerRateLimitResult(
+            allowed=True,
+            pr_id=pr_id,
+            repo=repo,
+            bot_name=bot_name,
+        )
+
+    except redis.ConnectionError as e:
+        logger.warning(
+            "[AIReviewerRateLimit] Redis unavailable, allowing request",
+            extra={
+                "operation": "ai_reviewer_rate_limit_redis_error",
+                "error": str(e),
+                "pr_id": pr_id,
+                "repo": repo,
+                "bot_name": bot_name,
+            }
+        )
+        return AIReviewerRateLimitResult(
+            allowed=True,
+            pr_id=pr_id,
+            repo=repo,
+            bot_name=bot_name,
+        )
+    except Exception as e:
+        logger.warning(
+            "[AIReviewerRateLimit] Unexpected error, allowing request",
+            extra={
+                "operation": "ai_reviewer_rate_limit_error",
+                "error": str(e),
+                "pr_id": pr_id,
+                "repo": repo,
+                "bot_name": bot_name,
+            }
+        )
+        return AIReviewerRateLimitResult(
+            allowed=True,
+            pr_id=pr_id,
+            repo=repo,
+            bot_name=bot_name,
+        )
+
+
+def get_ai_reviewer_rate_limit_counts(
+    pr_id: Optional[str] = None,
+    repo: Optional[str] = None,
+    bot_name: Optional[str] = None,
+    redis_url: Optional[str] = None
+) -> Dict[str, int]:
+    """
+    Get current AI reviewer rate limit counts for monitoring.
+
+    Issue #2253: Helper function for AI reviewer rate limit monitoring.
+
+    Args:
+        pr_id: Optional PR identifier to check
+        repo: Optional repo identifier to check
+        bot_name: Optional bot name to check
+        redis_url: Redis connection URL (optional)
+
+    Returns:
+        Dict with counts for each specified dimension
+    """
+    counts: Dict[str, int] = {}
+
+    try:
+        if redis_url:
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
+        else:
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+        current_time = time.time()
+        window_start = current_time - AI_REVIEWER_RATE_LIMIT_WINDOW
+
+        if pr_id:
+            key = f"ai_reviewer:rate:{pr_id}"
+            r.zremrangebyscore(key, 0, window_start)
+            counts['pr'] = r.zcard(key)
+
+        if repo:
+            key = f"ai_reviewer:rate:repo:{repo}"
+            r.zremrangebyscore(key, 0, window_start)
+            counts['repo'] = r.zcard(key)
+
+        if bot_name:
+            key = f"ai_reviewer:rate:bot:{bot_name}"
+            r.zremrangebyscore(key, 0, window_start)
+            counts['bot'] = r.zcard(key)
+
+    except Exception as exc:
+        logger.warning(
+            "[AIReviewerRateLimit] Failed to get rate limit counts",
+            extra={
+                "operation": "ai_reviewer_rate_limit_counts_failed",
+                "pr_id": pr_id,
+                "repo": repo,
+                "bot_name": bot_name,
+                "error_type": type(exc).__name__,
+            }
+        )
+
+    return counts
