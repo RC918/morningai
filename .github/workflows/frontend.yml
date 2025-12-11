@@ -132,9 +132,10 @@ jobs:
           retention-days: 30
   
   typecheck-strict:
-    name: TypeScript Strict Mode Progress
+    name: TypeScript Strict Mode Check (Blocking)
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # Changed from continue-on-error: true to blocking check
+    # This enforces TypeScript strict mode compliance
     env:
       FRONTEND_DASHBOARD_BASELINE: 0
       OWNER_CONSOLE_BASELINE: 6
@@ -227,7 +228,7 @@ jobs:
             | owner-console | ${{ env.OC_ERRORS }} | ${{ env.OWNER_CONSOLE_BASELINE }} | ${{ env.OC_ERRORS <= env.OWNER_CONSOLE_BASELINE && '✅' || '⚠️ Regression' }} |
             | shared-ui | ${{ env.SUI_ERRORS }} | ${{ env.SHARED_UI_BASELINE }} | ${{ env.SUI_ERRORS <= env.SHARED_UI_BASELINE && '✅' || '⚠️ Regression' }} |
             
-            This is a non-blocking check to track progress toward full strict mode adoption.
+            **This is now a BLOCKING check.** Regressions in TypeScript strict mode errors will fail CI.
             See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.
             
             📎 [View full report artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

@@ -131,7 +131,7 @@ jobs:
               exit(0)
           
           thresholds = {
-              'api-backend': 74,
+              'api-backend': 80,
               'orchestrator': 50,
           }
           
