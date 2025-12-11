@@ -83,16 +83,40 @@ def before_send(event, hint):
     return event
 
 
-TESTING = os.getenv("TESTING", "").lower() in ("true", "1", "yes")
+def _as_bool(val):
+    """Check if a value is truthy (handles bool, None, and string values)."""
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return False
+    s = str(val).strip().lower()
+    return s in ("1", "true", "yes", "on")
 
-if SENTRY_DSN and SENTRY_DSN.strip() and not TESTING:
+
+TESTING = _as_bool(os.getenv("TESTING"))
+DISABLE_SENTRY_FOR_TESTS = _as_bool(os.getenv("DISABLE_SENTRY_FOR_TESTS"))
+
+# Determine if Sentry should be disabled (either flag can disable it)
+disable_sentry = DISABLE_SENTRY_FOR_TESTS or TESTING
+
+# Production environment protection: prevent accidentally disabling Sentry in production
+# Default to "development" for consistency with other environment defaults in the codebase
+current_env = app_settings.environment or "development"
+if disable_sentry and current_env == "production":
+    logger.warning(
+        "DISABLE_SENTRY_FOR_TESTS or TESTING is set but environment is production; "
+        "Sentry will remain enabled to ensure error tracking in production."
+    )
+    disable_sentry = False
+
+if SENTRY_DSN and SENTRY_DSN.strip() and not disable_sentry:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.flask import FlaskIntegration
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            environment=app_settings.environment or "production",
+            environment=current_env,
             release=f"morningai@{APP_VERSION}",
             integrations=[FlaskIntegration()],
             traces_sample_rate=1.0,
@@ -106,8 +130,11 @@ if SENTRY_DSN and SENTRY_DSN.strip() and not TESTING:
             f"Failed to initialize Sentry: {e}. Continuing without Sentry integration."
         )
         SENTRY_DSN = None
-elif TESTING:
-    logger.info("Sentry disabled in testing environment")
+elif disable_sentry:
+    logger.info(
+        "Sentry disabled in testing environment "
+        "(DISABLE_SENTRY_FOR_TESTS or TESTING flag is set)."
+    )
     SENTRY_DSN = None
 else:
     SENTRY_DSN = None
@@ -171,14 +198,6 @@ if not flask_secret:
         raise RuntimeError("FLASK_SECRET_KEY must be set in production environment.")
     flask_secret = "dev-only-fallback-secret-key"
 app.config["SECRET_KEY"] = flask_secret
-
-def _as_bool(val):
-    if isinstance(val, bool):
-        return val
-    if val is None:
-        return False
-    s = str(val).strip().lower()
-    return s in ("1", "true", "yes", "on")
 
 enable_mock = os.getenv("ENABLE_MOCK_USERS")
 if enable_mock is not None:
