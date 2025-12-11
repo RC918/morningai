@@ -1266,6 +1266,59 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
             **context
         }
 
+        # Issue #2321: Load session_data from Redis for command processing
+        # Session ID can be passed in context, or defaults to task_id for backward compatibility
+        session_id = context.get("session_id", task_id)
+        session_key = f"dev_agent:session:{session_id}"
+        commands_key = f"{session_key}:commands"
+        session_data = None
+        pending_commands = []
+
+        try:
+            session_data_raw = redis.get(session_key)
+            if session_data_raw:
+                session_data = json.loads(session_data_raw)
+
+            pending_commands_raw = redis.lrange(commands_key, 0, -1)
+            if pending_commands_raw:
+                pending_commands = [
+                    json.loads(cmd) for cmd in pending_commands_raw
+                ]
+                if session_data is None:
+                    session_data = {}
+                session_data["commands"] = pending_commands
+
+            if session_data:
+                executor.set_session_data(session_data)
+                logger.info(
+                    "[MetaAgent] Session data loaded for command processing",
+                    extra={
+                        "operation": "run_meta_agent_task",
+                        "task_id": task_id,
+                        "session_id": session_id,
+                        "pending_commands_count": len(pending_commands)
+                    }
+                )
+            else:
+                logger.debug(
+                    "[MetaAgent] No session data found, skipping command processing",
+                    extra={
+                        "operation": "run_meta_agent_task",
+                        "task_id": task_id,
+                        "session_id": session_id
+                    }
+                )
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(
+                "[MetaAgent] Failed to load session data: %s",
+                e,
+                extra={
+                    "operation": "run_meta_agent_task",
+                    "task_id": task_id,
+                    "session_id": session_id
+                }
+            )
+
         # Run the task asynchronously
         async def run_executor():
             return await executor.execute_goal(goal_text, context=execution_context)
@@ -1292,9 +1345,71 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
                 "tasks_completed": tasks_completed,
                 "tasks_failed": tasks_failed,
                 "pr_url": pr_url,
-                "elapsed_ms": elapsed_ms
+                "elapsed_ms": elapsed_ms,
+                "session_id": session_id,
+                "pending_commands_count": len(pending_commands)
             }
         )
+
+        # Issue #2322: Persist session_data back to Redis after command processing
+        # Use LTRIM to remove only processed commands, preserving any new commands
+        # that arrived between LRANGE and now (fixes race condition vs DELETE)
+        commands_processed_count = len(pending_commands)
+        if commands_processed_count > 0:
+            try:
+                redis.ltrim(commands_key, commands_processed_count, -1)
+                logger.info(
+                    "[MetaAgent] Processed commands cleared from queue",
+                    extra={
+                        "operation": "run_meta_agent_task",
+                        "task_id": task_id,
+                        "session_id": session_id,
+                        "commands_processed": commands_processed_count
+                    }
+                )
+            except Exception as cmd_error:
+                logger.warning(
+                    "[MetaAgent] Failed to clear processed commands: %s",
+                    cmd_error,
+                    extra={
+                        "operation": "run_meta_agent_task",
+                        "task_id": task_id,
+                        "session_id": session_id
+                    }
+                )
+
+        # Update session_data with execution results (without commands, they're in separate key)
+        if session_data is not None:
+            try:
+                session_data.pop("commands", None)
+                session_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+                session_data["execution_id"] = execution_id
+                session_data["status"] = status
+                session_data["last_commands_processed"] = commands_processed_count
+
+                existing_ttl = redis.ttl(session_key)
+                ttl_to_use = existing_ttl if existing_ttl > 0 else 86400
+
+                redis.setex(session_key, ttl_to_use, json.dumps(session_data))
+                logger.info(
+                    "[MetaAgent] Session data persisted back to Redis",
+                    extra={
+                        "operation": "run_meta_agent_task",
+                        "task_id": task_id,
+                        "session_id": session_id,
+                        "commands_processed": commands_processed_count
+                    }
+                )
+            except Exception as session_error:
+                logger.warning(
+                    "[MetaAgent] Failed to persist session data: %s",
+                    session_error,
+                    extra={
+                        "operation": "run_meta_agent_task",
+                        "task_id": task_id,
+                        "session_id": session_id
+                    }
+                )
 
         # Update Redis with result
         redis.hset(

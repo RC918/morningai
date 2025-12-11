@@ -870,6 +870,46 @@ class TestSendCommandEndpoint:
                 assert 'quick_command' in data['message']
                 assert 'user_command' in data['message']
 
+    def test_send_command_invalid_quick_command_id(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command returns 400 when quick command ID is invalid - Issue #2179"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': 'invalid_quick_cmd', 'type': 'quick_command'}
+                )
+
+                assert response.status_code == 400
+                data = response.get_json()
+                assert 'error' in data
+                assert 'Invalid quick command' in data['error']
+                assert 'continue' in data['message']
+                assert 'explain' in data['message']
+                assert 'skip' in data['message']
+                assert 'retry' in data['message']
+
+    # MAINTENANCE NOTE: When adding new quick commands, update these test cases
+    # to match VALID_QUICK_COMMAND_IDS in sessions.py and QUICK_COMMANDS in SessionCommandInput.jsx
+    @pytest.mark.parametrize("quick_command_id", ['continue', 'explain', 'skip', 'retry'])
+    def test_send_command_valid_quick_command(self, client, auth_headers_admin, mock_redis_client, sample_session_data, quick_command_id):
+        """Test POST /api/sessions/:id/command succeeds with valid quick commands - Issue #2179"""
+        with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
+            with patch('src.routes.sessions.REDIS_AVAILABLE', True):
+                mock_redis_client.get.return_value = json.dumps(sample_session_data)
+
+                response = client.post(
+                    '/api/sessions/test-session-123/command',
+                    headers=auth_headers_admin,
+                    json={'command': quick_command_id, 'type': 'quick_command'}
+                )
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['success'] is True
+
     def test_send_command_session_cancelled(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
         """Test POST /api/sessions/:id/command returns 400 when session is cancelled"""
         sample_session_data['status'] = 'cancelled'
@@ -945,6 +985,9 @@ class TestSendCommandEndpoint:
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                mock_pipe = MagicMock()
+                mock_redis_client.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+                mock_redis_client.pipeline.return_value.__exit__ = MagicMock(return_value=False)
 
                 response = client.post(
                     '/api/sessions/test-session-123/command',
@@ -964,7 +1007,9 @@ class TestSendCommandEndpoint:
                 assert 'command_id' in data
                 assert 'timestamp' in data
 
-                mock_redis_client.setex.assert_called_once()
+                mock_pipe.rpush.assert_called_once()
+                mock_pipe.expire.assert_called_once()
+                mock_pipe.execute.assert_called_once()
 
     def test_send_command_success_paused_session(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
         """Test POST /api/sessions/:id/command succeeds for paused session"""
@@ -989,6 +1034,9 @@ class TestSendCommandEndpoint:
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                mock_pipe = MagicMock()
+                mock_redis_client.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+                mock_redis_client.pipeline.return_value.__exit__ = MagicMock(return_value=False)
 
                 response = client.post(
                     '/api/sessions/test-session-123/command',
@@ -998,18 +1046,18 @@ class TestSendCommandEndpoint:
 
                 assert response.status_code == 200
 
-                call_args = mock_redis_client.setex.call_args
-                saved_data = json.loads(call_args[0][2])
-                assert saved_data['commands'][0]['type'] == 'user_command'
+                call_args = mock_pipe.rpush.call_args
+                command_data = json.loads(call_args[0][1])
+                assert command_data['type'] == 'user_command'
 
-    def test_send_command_appends_to_existing_commands(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
-        """Test POST /api/sessions/:id/command appends to existing commands list"""
-        sample_session_data['commands'] = [
-            {'command_id': 'existing-1', 'command': 'previous command'}
-        ]
+    def test_send_command_uses_pipeline_for_concurrency_safety(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command uses Redis pipeline for atomic RPUSH+EXPIRE"""
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                mock_pipe = MagicMock()
+                mock_redis_client.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+                mock_redis_client.pipeline.return_value.__exit__ = MagicMock(return_value=False)
 
                 response = client.post(
                     '/api/sessions/test-session-123/command',
@@ -1019,18 +1067,26 @@ class TestSendCommandEndpoint:
 
                 assert response.status_code == 200
 
-                call_args = mock_redis_client.setex.call_args
-                saved_data = json.loads(call_args[0][2])
-                assert len(saved_data['commands']) == 2
-                assert saved_data['commands'][0]['command'] == 'previous command'
-                assert saved_data['commands'][1]['command'] == 'new command'
+                mock_pipe.rpush.assert_called_once()
+                call_args = mock_pipe.rpush.call_args
+                commands_key = call_args[0][0]
+                assert commands_key == 'dev_agent:session:test-session-123:commands'
 
-    def test_send_command_updates_timestamp(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
-        """Test POST /api/sessions/:id/command updates session updated_at"""
-        sample_session_data['updated_at'] = '2025-01-01T00:00:00Z'
+                command_data = json.loads(call_args[0][1])
+                assert command_data['command'] == 'new command'
+                assert 'command_id' in command_data
+                assert 'server_timestamp' in command_data
+
+                mock_pipe.execute.assert_called_once()
+
+    def test_send_command_sets_ttl_on_commands_key(self, client, auth_headers_admin, mock_redis_client, sample_session_data):
+        """Test POST /api/sessions/:id/command sets TTL on commands key via pipeline"""
         with patch('src.routes.sessions.get_redis_client', return_value=mock_redis_client):
             with patch('src.routes.sessions.REDIS_AVAILABLE', True):
                 mock_redis_client.get.return_value = json.dumps(sample_session_data)
+                mock_pipe = MagicMock()
+                mock_redis_client.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+                mock_redis_client.pipeline.return_value.__exit__ = MagicMock(return_value=False)
 
                 response = client.post(
                     '/api/sessions/test-session-123/command',
@@ -1040,6 +1096,7 @@ class TestSendCommandEndpoint:
 
                 assert response.status_code == 200
 
-                call_args = mock_redis_client.setex.call_args
-                saved_data = json.loads(call_args[0][2])
-                assert saved_data['updated_at'] != '2025-01-01T00:00:00Z'
+                mock_pipe.expire.assert_called_once()
+                call_args = mock_pipe.expire.call_args
+                assert call_args[0][0] == 'dev_agent:session:test-session-123:commands'
+                assert call_args[0][1] == 86400

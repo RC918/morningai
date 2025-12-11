@@ -1,77 +1,124 @@
 # Canary Rollback Runbook
 
+**Document ID**: SOP-CANARY-001  
+**Version**: 2.0  
+**Effective Date**: 2025-12-10  
+**Last Review Date**: 2025-12-10  
+**Next Review Date**: 2026-03-10  
+**Document Owner**: Engineering Team  
+**Approver**: CTO
+
+---
+
 ## Overview
 
-This runbook provides step-by-step instructions for rolling back the LangGraph canary deployment in case of issues or SLO breaches.
+This Standard Operating Procedure (SOP) provides step-by-step instructions for rolling back the LangGraph canary deployment in case of issues or SLO breaches.
 
-**Target Time to Rollback:** < 5 minutes
+**Target Time to Rollback:** < 5 minutes (excluding monitoring period)
 
-## When to Rollback
+**Related Documents**:
+- [POST_DEPLOY_SMOKE_TEST_CHECKLIST.md](./POST_DEPLOY_SMOKE_TEST_CHECKLIST.md) - Standardized post-rollback verification
+- [RLS_DEPLOYMENT_STATUS.md](../RLS_DEPLOYMENT_STATUS.md) - RLS deployment and rollback procedures
 
-Rollback should be initiated when:
+---
 
-1. **SLO Breaches**: Canary metrics exceed defined thresholds:
-   - p95 latency > 2500ms (configurable via `CANARY_P95_MS_THRESHOLD`)
-   - 5xx error rate > 1.0% (configurable via `CANARY_5XX_RATE_THRESHOLD`)
-   - Planner failure rate > 5.0% (configurable via `CANARY_FAILURE_RATE_THRESHOLD`)
+## Prerequisites
 
-2. **Manual Decision**: Product/engineering decision to disable canary for any reason
+Before executing this runbook, ensure you have:
 
-3. **Incident Response**: Critical production issues traced to canary deployment
+| Requirement | Description | How to Verify |
+|-------------|-------------|---------------|
+| Render Dashboard Access | Login credentials for https://dashboard.render.com | Can access service list |
+| GitHub Repository Access | Push access to RC918/morningai | Can create branches |
+| Monitoring Dashboard Access | Access to `/api/phase7/monitoring/dashboard` | Can view canary metrics |
+| Slack Access | Member of #engineering and #incidents channels | Can post messages |
 
-## Rollback Procedure
+---
 
-### Step 1: Set Canary Percentage to 0
+## Rollback Triggers Matrix
+
+The following conditions should trigger immediate rollback consideration:
+
+| Trigger | Threshold | Priority | Source | Action |
+|---------|-----------|----------|--------|--------|
+| p95 latency breach | > 2500ms | P0 | `CANARY_P95_MS_THRESHOLD` | Immediate rollback |
+| 5xx error rate breach | > 1.0% | P0 | `CANARY_5XX_RATE_THRESHOLD` | Immediate rollback |
+| Planner failure rate breach | > 5.0% | P0 | `CANARY_FAILURE_RATE_THRESHOLD` | Immediate rollback |
+| SLO compliance failure | `canary.slo_compliance.all_ok = false` | P0 | Monitoring dashboard | Immediate rollback |
+| Manual decision | N/A | P1 | Product/Engineering | Planned rollback |
+| Incident response | Critical issue traced to canary | P0 | Incident report | Immediate rollback |
+
+---
+
+## Rollback Procedure [MUST-PASS]
+
+All steps in this section must pass before the rollback is considered complete.
+
+### Step 1: Set Canary Percentage to 0 [MUST-PASS]
 
 **Render Dashboard:**
-1. Navigate to https://dashboard.render.com
-2. Select the `morningai-agent-worker` service
-3. Go to **Environment** tab
-4. Find `USE_LANGGRAPH_PERCENT` variable
-5. Change value from current (e.g., `1` or `5`) to `0`
-6. Click **Save Changes**
+- [ ] Navigate to https://dashboard.render.com
+- [ ] Select the `morningai-agent-worker` service
+- [ ] Go to **Environment** tab
+- [ ] Find `USE_LANGGRAPH_PERCENT` variable
+- [ ] Change value from current (e.g., `1` or `5`) to `0`
+- [ ] Click **Save Changes**
 
 **Expected Time:** 1 minute
 
-### Step 2: Redeploy Service
+**Status**: [ ] PASS / [ ] FAIL
+
+### Step 2: Redeploy Service [MUST-PASS]
 
 Render will automatically trigger a redeploy when environment variables change.
 
 **Monitor deployment:**
-1. Go to **Events** tab
-2. Wait for "Deploy succeeded" message
-3. Verify new deployment is live
+- [ ] Go to **Events** tab
+- [ ] Wait for "Deploy succeeded" message
+- [ ] Verify new deployment is live
 
 **Expected Time:** 2-3 minutes
 
-### Step 3: Verify Rollback
+**Status**: [ ] PASS / [ ] FAIL
+
+### Step 3: Verify Rollback [MUST-PASS]
 
 **Check Feature Flags:**
-1. View worker logs in Render dashboard
-2. Look for "Feature flags snapshot" log entry on startup
-3. Verify `use_langgraph_percent: 0`
+- [ ] View worker logs in Render dashboard
+- [ ] Look for "Feature flags snapshot" log entry on startup
+- [ ] Verify `use_langgraph_percent: 0`
 
 **Check Routing Decisions:**
-1. Submit a test task via API or Owner Console
-2. Check worker logs for "Using simple orchestrator" message
-3. Verify no "Using LangGraph orchestrator" messages appear
+- [ ] Submit a test task via API or Owner Console
+- [ ] Check worker logs for "Using simple orchestrator" message
+- [ ] Verify no "Using LangGraph orchestrator" messages appear
 
 **Check Monitoring Dashboard:**
-1. Navigate to `/api/phase7/monitoring/dashboard`
-2. Check `canary.flags.use_langgraph_percent` is `0`
-3. Verify `canary.counts.decisions_langgraph` stops incrementing
-4. Verify `canary.counts.decisions_simple` continues incrementing
+- [ ] Navigate to [/api/phase7/monitoring/dashboard](https://api.morningai.app/api/phase7/monitoring/dashboard)
+- [ ] Check `canary.flags.use_langgraph_percent` is `0`
+- [ ] Verify `canary.counts.decisions_langgraph` stops incrementing
+- [ ] Verify `canary.counts.decisions_simple` continues incrementing
 
 **Expected Time:** 1 minute
 
-### Step 4: Confirm System Stability
+**Status**: [ ] PASS / [ ] FAIL
+
+### Step 4: Confirm System Stability [MUST-PASS]
+
+**Run Post-Rollback Verification:**
+- [ ] Follow [Post-Deploy Smoke Test Checklist](./POST_DEPLOY_SMOKE_TEST_CHECKLIST.md) - "After LangGraph Canary Rollback" scenario
+- [ ] Verify all must-pass checks pass before proceeding
 
 **Monitor for 15 minutes:**
-1. Check error rates return to baseline
-2. Verify p95 latency returns to normal
-3. Confirm no new Sentry alerts
+- [ ] Check error rates return to baseline
+- [ ] Verify p95 latency returns to normal
+- [ ] Confirm no new Sentry alerts
 
 **Expected Time:** 15 minutes (monitoring period)
+
+**Status**: [ ] PASS / [ ] FAIL
+
+> **Gating**: If any step above fails, do not mark rollback as complete. Escalate to on-call engineer and try [Alternative Rollback Methods](#alternative-rollback-methods).
 
 ## Alternative Rollback Methods
 
@@ -251,6 +298,28 @@ Test rollback procedure in staging before production:
 
 **Expected Total Time:** < 5 minutes (excluding monitoring period)
 
+## Execution Log
+
+After executing this runbook, record the results below. This log serves as an audit trail for canary rollbacks.
+
+| Date | Trigger | Steps Completed | Result | Executor | Notes / Links |
+|------|---------|-----------------|--------|----------|---------------|
+| - | - | - | - | - | - |
+
+**Instructions**: After completing rollback, add a row with:
+- **Date**: YYYY-MM-DD HH:MM UTC format
+- **Trigger**: `p95_breach`, `error_rate_breach`, `failure_rate_breach`, `manual`, `incident`
+- **Steps Completed**: `1-4` (all steps) or specific steps if alternative method used
+- **Result**: `SUCCESS` or `PARTIAL` (with explanation)
+- **Executor**: Person name or on-call rotation
+- **Notes / Links**: Incident doc, Sentry link, metrics snapshot, etc.
+
+---
+
 ## Version History
 
-- **v1.0** (2025-11-21): Initial runbook created as part of canary hardening sprint
+| Version | Date | Change | Author |
+|---------|------|--------|--------|
+| v2.0 | 2025-12-10 | Convert to standard SOP format with Prerequisites, Rollback Triggers Matrix, Execution Checklist, Execution Log | Engineering Team |
+| v1.1 | 2025-12-10 | Add reference to Post-Deploy Smoke Test Checklist for standardized verification | Engineering Team |
+| v1.0 | 2025-11-21 | Initial runbook created as part of canary hardening sprint | Engineering Team |

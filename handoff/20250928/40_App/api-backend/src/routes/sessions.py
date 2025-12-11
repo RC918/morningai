@@ -11,7 +11,7 @@ import logging
 import json
 import uuid
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from flask import Blueprint, jsonify, request
 
@@ -32,6 +32,11 @@ bp = Blueprint('sessions', __name__, url_prefix='/api/sessions')
 # Session key pattern used by orchestrator's SessionStore
 SESSION_KEY_PREFIX = "dev_agent:session:"
 
+# Commands queue key pattern for concurrency-safe command processing
+# Commands are stored in a separate Redis List to avoid race conditions
+# between API (adding commands) and Worker (processing commands)
+SESSION_COMMANDS_KEY_SUFFIX = ":commands"
+
 # Session TTL in seconds (24 hours) - Issue #1992
 SESSION_TTL_SECONDS = 86400
 
@@ -43,6 +48,11 @@ STATUS_MAP = {
     'failed': 'failed',
     'escalated': 'paused'  # Escalated sessions need human attention
 }
+
+
+def _get_utc_iso_timestamp() -> str:
+    """Return current UTC timestamp in ISO 8601 format."""
+    return datetime.now(timezone.utc).isoformat()
 
 
 def require_redis_available(fn):
@@ -225,7 +235,7 @@ def list_sessions():
                 'filters': {
                     'status': status_filter
                 },
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _get_utc_iso_timestamp()
             })
 
         # Batch fetch all sessions using MGET for better performance
@@ -278,7 +288,7 @@ def list_sessions():
             'filters': {
                 'status': status_filter
             },
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': _get_utc_iso_timestamp()
         })
     except Exception:
         logger.exception("Failed to list sessions")
@@ -345,7 +355,7 @@ def pause_session(session_id):
             }), 400
 
         session_data['status'] = 'paused'
-        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['updated_at'] = _get_utc_iso_timestamp()
         session_data['paused_by'] = user_email
 
         redis_client = get_redis_client()
@@ -358,7 +368,7 @@ def pause_session(session_id):
             'session_id': session_id,
             'status': STATUS_MAP.get('paused', 'paused'),
             'paused_by': user_email,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': _get_utc_iso_timestamp()
         })
     except json.JSONDecodeError:
         # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
@@ -397,7 +407,7 @@ def resume_session(session_id):
             }), 400
 
         session_data['status'] = 'active'
-        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['updated_at'] = _get_utc_iso_timestamp()
         session_data['resumed_by'] = user_email
 
         redis_client = get_redis_client()
@@ -411,7 +421,7 @@ def resume_session(session_id):
             'session_id': session_id,
             'status': STATUS_MAP.get('active', 'running'),
             'resumed_by': user_email,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': _get_utc_iso_timestamp()
         })
     except json.JSONDecodeError:
         # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
@@ -456,7 +466,7 @@ def cancel_session(session_id):
             }), 400
 
         session_data['status'] = 'failed'
-        session_data['updated_at'] = datetime.utcnow().isoformat()
+        session_data['updated_at'] = _get_utc_iso_timestamp()
         session_data['cancelled_by'] = user_email
         if reason:
             session_data['context'] = session_data.get('context', {})
@@ -473,7 +483,7 @@ def cancel_session(session_id):
             'status': STATUS_MAP.get('failed', 'failed'),
             'cancelled_by': user_email,
             'reason': reason,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': _get_utc_iso_timestamp()
         })
     except json.JSONDecodeError:
         # Must be caught before ValueError since JSONDecodeError is a subclass of ValueError
@@ -484,6 +494,18 @@ def cancel_session(session_id):
     except Exception:
         logger.exception("Failed to cancel session")
         return jsonify({'error': 'Failed to cancel session'}), 500
+
+
+# Valid command types for session commands
+VALID_COMMAND_TYPES = {'user_command', 'quick_command'}
+
+# Valid quick command IDs - must match frontend SessionCommandInput.jsx QUICK_COMMANDS
+# MAINTENANCE NOTE: When adding new quick commands, update these 3 locations:
+#   1. Backend: VALID_QUICK_COMMAND_IDS (this file)
+#   2. Frontend: QUICK_COMMANDS in SessionCommandInput.jsx
+#   3. Tests: test_sessions_routes.py parametrized test cases
+# Issue #2179 - API endpoint for SessionCommandInput
+VALID_QUICK_COMMAND_IDS = {'continue', 'explain', 'skip', 'retry'}
 
 
 @bp.route('/<session_id>/command', methods=['POST'])
@@ -501,12 +523,16 @@ def send_command(session_id):
     - type: Command type - 'user_command' or 'quick_command' (default: 'user_command')
     - timestamp: Client timestamp (optional)
 
+    Quick Command IDs (when type='quick_command'):
+    - continue: Continue execution
+    - explain: Explain current step
+    - skip: Skip this task
+    - retry: Retry last action
+
     Requires: Owner role
 
     Issue: #2179 - API endpoint for SessionCommandInput
     """
-    VALID_COMMAND_TYPES = {'user_command', 'quick_command'}
-
     try:
         session_data, user_info, key = _get_session_and_user(session_id)
         user_email = user_info['user_email']
@@ -531,6 +557,13 @@ def send_command(session_id):
                 'message': f'type must be one of: {", ".join(sorted(VALID_COMMAND_TYPES))}'
             }), 400
 
+        # Validate quick command IDs - Issue #2179
+        if command_type == 'quick_command' and command not in VALID_QUICK_COMMAND_IDS:
+            return jsonify({
+                'error': 'Invalid quick command',
+                'message': f'quick command must be one of: {", ".join(sorted(VALID_QUICK_COMMAND_IDS))}'
+            }), 400
+
         current_status = session_data.get('status', 'active')
 
         if current_status in ['completed', 'failed', 'cancelled']:
@@ -540,7 +573,7 @@ def send_command(session_id):
             }), 400
 
         command_id = str(uuid.uuid4())
-        server_timestamp = datetime.utcnow().isoformat()
+        server_timestamp = _get_utc_iso_timestamp()
 
         command_entry = {
             'command_id': command_id,
@@ -552,15 +585,17 @@ def send_command(session_id):
             'server_timestamp': server_timestamp
         }
 
-        session_data.setdefault('commands', []).append(command_entry)
-        session_data['updated_at'] = server_timestamp
-
         redis_client = get_redis_client()
-        redis_client.setex(key, SESSION_TTL_SECONDS, json.dumps(session_data))
+
+        commands_key = f"{key}{SESSION_COMMANDS_KEY_SUFFIX}"
+        with redis_client.pipeline() as pipe:
+            pipe.rpush(commands_key, json.dumps(command_entry))
+            pipe.expire(commands_key, SESSION_TTL_SECONDS)
+            pipe.execute()
 
         logger.info(
-            "Command sent to session %s by %s: type=%s, length=%d",
-            session_id, user_email, command_type, len(command)
+            "Command queued to session %s by %s: type=%s, length=%d, command_id=%s",
+            session_id, user_email, command_type, len(command), command_id
         )
 
         return jsonify({
@@ -587,5 +622,5 @@ def health_check():
     return jsonify({
         'sessions_available': REDIS_AVAILABLE,
         'status': 'healthy' if REDIS_AVAILABLE else 'degraded',
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': _get_utc_iso_timestamp()
     })
