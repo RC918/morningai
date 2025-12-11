@@ -83,16 +83,34 @@ def before_send(event, hint):
     return event
 
 
-TESTING = os.getenv("TESTING", "").lower() in ("true", "1", "yes")
+def _env_flag(name: str) -> bool:
+    """Check if an environment variable is set to a truthy value."""
+    return os.getenv(name, "").lower() in ("true", "1", "yes")
 
-if SENTRY_DSN and SENTRY_DSN.strip() and not TESTING:
+
+TESTING = _env_flag("TESTING")
+DISABLE_SENTRY_FOR_TESTS = _env_flag("DISABLE_SENTRY_FOR_TESTS")
+
+# Determine if Sentry should be disabled (either flag can disable it)
+disable_sentry = DISABLE_SENTRY_FOR_TESTS or TESTING
+
+# Production environment protection: prevent accidentally disabling Sentry in production
+current_env = app_settings.environment or "production"
+if disable_sentry and current_env == "production":
+    logger.warning(
+        "DISABLE_SENTRY_FOR_TESTS or TESTING is set but environment is production; "
+        "Sentry will remain enabled to ensure error tracking in production."
+    )
+    disable_sentry = False
+
+if SENTRY_DSN and SENTRY_DSN.strip() and not disable_sentry:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.flask import FlaskIntegration
 
         sentry_sdk.init(
             dsn=SENTRY_DSN,
-            environment=app_settings.environment or "production",
+            environment=current_env,
             release=f"morningai@{APP_VERSION}",
             integrations=[FlaskIntegration()],
             traces_sample_rate=1.0,
@@ -106,8 +124,11 @@ if SENTRY_DSN and SENTRY_DSN.strip() and not TESTING:
             f"Failed to initialize Sentry: {e}. Continuing without Sentry integration."
         )
         SENTRY_DSN = None
-elif TESTING:
-    logger.info("Sentry disabled in testing environment")
+elif disable_sentry:
+    logger.info(
+        "Sentry disabled in testing environment "
+        "(DISABLE_SENTRY_FOR_TESTS or TESTING flag is set)."
+    )
     SENTRY_DSN = None
 else:
     SENTRY_DSN = None
