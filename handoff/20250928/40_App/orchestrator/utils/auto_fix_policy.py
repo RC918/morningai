@@ -310,10 +310,16 @@ class AutoFixRateLimiter:
                 return redis.Redis.from_url(self.redis_url, decode_responses=True)
             return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
         except Exception as e:
-            logger.warning(
-                "[AutoFixRateLimiter] Failed to connect to Redis: %s",
+            logger.error(
+                "[AutoFixRateLimiter] ALERT: Failed to connect to Redis: %s",
                 str(e),
-                extra={"operation": "auto_fix_rate_limit_redis_error"}
+                extra={
+                    "operation": "auto_fix_rate_limit_redis_error",
+                    "alert_type": "redis_connection_failure",
+                    "component": "AutoFixRateLimiter",
+                    "severity": "high",
+                    "fail_open": True,
+                }
             )
             return None
 
@@ -330,9 +336,17 @@ class AutoFixRateLimiter:
         """
         r = self._get_redis_client()
         if r is None:
-            logger.warning(
-                "[AutoFixRateLimiter] Redis unavailable, allowing request",
-                extra={"operation": "auto_fix_rate_limit_redis_unavailable"}
+            logger.error(
+                "[AutoFixRateLimiter] ALERT: Redis unavailable, allowing request (fail-open)",
+                extra={
+                    "operation": "auto_fix_rate_limit_redis_unavailable",
+                    "alert_type": "redis_unavailable",
+                    "component": "AutoFixRateLimiter",
+                    "severity": "high",
+                    "fail_open": True,
+                    "repo": repo,
+                    "pr_id": pr_id,
+                }
             )
             return AutoFixRateLimitResult(allowed=True, repo=repo, pr_id=pr_id)
 
@@ -435,10 +449,16 @@ class AutoFixLoopProtection:
                 return redis.Redis.from_url(self.redis_url, decode_responses=True)
             return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
         except Exception as e:
-            logger.warning(
-                "[AutoFixLoopProtection] Failed to connect to Redis: %s",
+            logger.error(
+                "[AutoFixLoopProtection] ALERT: Failed to connect to Redis: %s",
                 str(e),
-                extra={"operation": "auto_fix_loop_protection_redis_error"}
+                extra={
+                    "operation": "auto_fix_loop_protection_redis_error",
+                    "alert_type": "redis_connection_failure",
+                    "component": "AutoFixLoopProtection",
+                    "severity": "high",
+                    "fail_open": True,
+                }
             )
             return None
 
@@ -455,9 +475,16 @@ class AutoFixLoopProtection:
         """
         r = self._get_redis_client()
         if r is None:
-            logger.warning(
-                "[AutoFixLoopProtection] Redis unavailable, allowing request",
-                extra={"operation": "auto_fix_loop_protection_redis_unavailable"}
+            logger.error(
+                "[AutoFixLoopProtection] ALERT: Redis unavailable, allowing request (fail-open)",
+                extra={
+                    "operation": "auto_fix_loop_protection_redis_unavailable",
+                    "alert_type": "redis_unavailable",
+                    "component": "AutoFixLoopProtection",
+                    "severity": "high",
+                    "fail_open": True,
+                    "pr_id": pr_id,
+                }
             )
             return True, 0
 
