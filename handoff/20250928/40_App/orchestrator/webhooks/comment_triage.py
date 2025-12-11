@@ -357,16 +357,6 @@ class CommentTriageAgent:
             }
         )
 
-        logger.info(
-            "[CommentTriageAgent] Triaged comment: id=%s, category=%s, "
-            "risk=%s, auto_fix=%s, confidence=%.2f",
-            result.comment_id,
-            result.category.value,
-            result.risk_level.value,
-            result.should_auto_fix,
-            result.confidence,
-        )
-
         return result
 
     def _extract_comment_text(self, event: WebhookEvent) -> str:

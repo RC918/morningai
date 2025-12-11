@@ -257,10 +257,6 @@ class EventNormalizer:
         elif is_ai_reviewer:
             is_actionable_result = True
             actionable_reason = "ai_reviewer_event"
-            logger.info(
-                "[EventNormalizer] AI reviewer event is actionable: source=%s",
-                bot_name,
-            )
 
         else:
             # Check for specific keywords in title/description
