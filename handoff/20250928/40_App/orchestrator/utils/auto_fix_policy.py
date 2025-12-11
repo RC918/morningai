@@ -122,8 +122,6 @@ def get_auto_fix_actors(settings: "Settings" = None) -> set:
         from common.config.settings import settings as global_settings
         settings = global_settings
     actor_names = settings.auto_fix_actor_names
-    if not actor_names:
-        return set()
     return {name.strip().lower() for name in actor_names.split(",") if name.strip()}
 
 
