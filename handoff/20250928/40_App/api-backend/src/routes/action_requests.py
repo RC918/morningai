@@ -142,8 +142,10 @@ def approve_request(request_id):
     Requires: Owner role
     """
     try:
-        user_id = request.jwt_payload.get('sub', 'unknown')
-        user_email = request.jwt_payload.get('email', user_id)
+        # Get user info from current_user set by admin_required decorator
+        current_user = getattr(request, 'current_user', {}) or {}
+        user_id = current_user.get('user_id', 'unknown')
+        user_email = current_user.get('username', user_id)  # username contains email
 
         success = approve_action_request(request_id, approved_by=user_email)
 
@@ -182,8 +184,10 @@ def reject_request(request_id):
     Requires: Owner role
     """
     try:
-        user_id = request.jwt_payload.get('sub', 'unknown')
-        user_email = request.jwt_payload.get('email', user_id)
+        # Get user info from current_user set by admin_required decorator
+        current_user = getattr(request, 'current_user', {}) or {}
+        user_id = current_user.get('user_id', 'unknown')
+        user_email = current_user.get('username', user_id)  # username contains email
 
         data = request.get_json() or {}
         reason = data.get('reason')
