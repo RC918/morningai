@@ -127,7 +127,7 @@ jobs:
           TESTING: true
         run: |
           cd handoff/20250928/40_App/api-backend
-          python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-report=json --cov-fail-under=74 -v
+          python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-report=json --cov-fail-under=80 -v
           echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           python -m coverage report >> $GITHUB_STEP_SUMMARY
@@ -160,7 +160,7 @@ jobs:
             }
             
             const totals = coverage.totals;
-            const threshold = 74;
+            const threshold = 80;
             
             // Helper functions
             const getStatus = (pct) => pct >= threshold ? '✅' : '❌';
@@ -174,7 +174,7 @@ jobs:
             | Covered Lines | ${totals.covered_lines} / ${totals.num_statements} | - |
             | Missing Lines | ${totals.missing_lines} | - |
             
-            **門檻要求**: ${threshold}% 最低標準
+            **門檻要求**: ${threshold}% 最低標準 (已從 74% 提升至 80%)
             
             ${totals.percent_covered >= threshold 
               ? '✅ **覆蓋率門檻已達標！**' 
