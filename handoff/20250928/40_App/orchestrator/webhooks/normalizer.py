@@ -237,43 +237,79 @@ class EventNormalizer:
             True if event should trigger task creation
 
         Issue: #2209 - 修復 AI Reviewer 評論接收機制
+        Issue: #2254 - is_actionable observability
         """
+        is_ai_reviewer = bool(event.metadata.get("is_ai_reviewer"))
+        bot_name = event.metadata.get("review_source", "unknown") if is_ai_reviewer else None
+        repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+        pr_number = event.resource_id or "unknown"
+        matched_keywords: List[str] = []
+        is_actionable_result = False
+        actionable_reason = ""
+
         # Check if event type is in actionable list
         if event.event_type in self.ACTIONABLE_EVENT_TYPES:
-            return True
+            is_actionable_result = True
+            actionable_reason = "event_type_actionable"
 
         # Check if event is from an AI reviewer (always actionable)
         # Issue: #2209 - AI reviewer events should be processed
-        if event.metadata.get("is_ai_reviewer"):
+        elif is_ai_reviewer:
+            is_actionable_result = True
+            actionable_reason = "ai_reviewer_event"
             logger.info(
                 "[EventNormalizer] AI reviewer event is actionable: source=%s",
-                event.metadata.get("review_source"),
+                bot_name,
             )
-            return True
 
-        # Check for specific keywords in title/description
-        text = f"{event.title or ''} {event.description or ''}".lower()
-        action_keywords = [
-            "fix", "implement", "add", "create", "update", "refactor",
-            "修復", "實現", "新增", "建立", "更新", "重構",
-            "@bot", "@agent", "@meta-agent",
-        ]
+        else:
+            # Check for specific keywords in title/description
+            text = f"{event.title or ''} {event.description or ''}".lower()
+            action_keywords = [
+                "fix", "implement", "add", "create", "update", "refactor",
+                "修復", "實現", "新增", "建立", "更新", "重構",
+                "@bot", "@agent", "@meta-agent",
+            ]
 
-        for keyword in action_keywords:
-            if keyword in text:
-                return True
+            for keyword in action_keywords:
+                if keyword in text:
+                    matched_keywords.append(keyword)
+                    is_actionable_result = True
+                    actionable_reason = "action_keyword_match"
+                    break
 
-        # Check for AI reviewer standard phrases
-        # Issue: #2209 - Recognize AI reviewer standard terminology
-        for keyword in self.AI_REVIEWER_KEYWORDS:
-            if keyword in text:
-                logger.debug(
-                    "[EventNormalizer] AI reviewer keyword detected: %s",
-                    keyword,
-                )
-                return True
+            # Check for AI reviewer standard phrases
+            # Issue: #2209 - Recognize AI reviewer standard terminology
+            if not is_actionable_result:
+                for keyword in self.AI_REVIEWER_KEYWORDS:
+                    if keyword in text:
+                        matched_keywords.append(keyword)
+                        is_actionable_result = True
+                        actionable_reason = "ai_reviewer_keyword_match"
+                        logger.debug(
+                            "[EventNormalizer] AI reviewer keyword detected: %s",
+                            keyword,
+                        )
+                        break
 
-        return False
+        # Issue: #2254 - Structured logging for is_actionable observability
+        # Log all AI reviewer comment processing for false positive monitoring
+        if is_ai_reviewer:
+            logger.info(
+                "[EventNormalizer] AI reviewer comment processed",
+                extra={
+                    "operation": "ai_reviewer_is_actionable",
+                    "event_id": event.event_id,
+                    "is_actionable": is_actionable_result,
+                    "bot_name": bot_name,
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "matched_keywords": matched_keywords,
+                    "actionable_reason": actionable_reason,
+                }
+            )
+
+        return is_actionable_result
 
     def extract_task(self, event: WebhookEvent) -> Optional[NormalizedTask]:
         """
