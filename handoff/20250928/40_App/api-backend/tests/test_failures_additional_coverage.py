@@ -97,16 +97,19 @@ class TestHealthCheckEdgeCases:
         assert data['agent_eval_available'] is False
 
     def test_health_check_exception(self, client):
-        """Test health check exception handling"""
+        """Test health check when _get_recorder raises exception - returns 200 with error in components"""
         with patch('src.routes.failures.FAILURE_RECORDER_AVAILABLE', True):
             with patch('src.routes.failures._get_recorder') as mock_get_recorder:
                 mock_get_recorder.side_effect = Exception('Unexpected error')
 
                 response = client.get('/api/failures/health')
 
-                assert response.status_code == 500
+                # The inner try/except catches the exception and returns 200 with redis=unavailable
+                assert response.status_code == 200
                 data = response.get_json()
-                assert 'error' in data
+                assert data['components']['redis'] == 'unavailable'
+                assert 'error' in data['components']
+                assert 'Unexpected error' in data['components']['error']
 
 
 class TestGenerateEvalTask:

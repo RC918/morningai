@@ -200,9 +200,11 @@ class TestApproveRequest:
 
     @patch('src.routes.action_requests.HITL_AVAILABLE', True)
     @patch('src.routes.action_requests.approve_action_request')
-    def test_approve_success(self, mock_approve, client, admin_headers):
+    @patch('src.routes.action_requests.request')
+    def test_approve_success(self, mock_request, mock_approve, client, admin_headers):
         """Test successful approve request"""
         mock_approve.return_value = True
+        mock_request.jwt_payload = {'sub': 'user-123', 'email': 'admin@test.com'}
 
         response = client.post('/api/action-requests/req-123/approve', headers=admin_headers)
 
@@ -214,9 +216,11 @@ class TestApproveRequest:
 
     @patch('src.routes.action_requests.HITL_AVAILABLE', True)
     @patch('src.routes.action_requests.approve_action_request')
-    def test_approve_failed(self, mock_approve, client, admin_headers):
+    @patch('src.routes.action_requests.request')
+    def test_approve_failed(self, mock_request, mock_approve, client, admin_headers):
         """Test approve request failed"""
         mock_approve.return_value = False
+        mock_request.jwt_payload = {'sub': 'user-123', 'email': 'admin@test.com'}
 
         response = client.post('/api/action-requests/req-123/approve', headers=admin_headers)
 
@@ -249,9 +253,12 @@ class TestRejectRequest:
 
     @patch('src.routes.action_requests.HITL_AVAILABLE', True)
     @patch('src.routes.action_requests.reject_action_request')
-    def test_reject_success(self, mock_reject, client, admin_headers):
+    @patch('src.routes.action_requests.request')
+    def test_reject_success(self, mock_request, mock_reject, client, admin_headers):
         """Test successful reject request"""
         mock_reject.return_value = True
+        mock_request.jwt_payload = {'sub': 'user-123', 'email': 'admin@test.com'}
+        mock_request.get_json.return_value = {'reason': 'Too risky'}
 
         response = client.post(
             '/api/action-requests/req-123/reject',
@@ -267,9 +274,12 @@ class TestRejectRequest:
 
     @patch('src.routes.action_requests.HITL_AVAILABLE', True)
     @patch('src.routes.action_requests.reject_action_request')
-    def test_reject_without_reason(self, mock_reject, client, admin_headers):
+    @patch('src.routes.action_requests.request')
+    def test_reject_without_reason(self, mock_request, mock_reject, client, admin_headers):
         """Test reject request without reason"""
         mock_reject.return_value = True
+        mock_request.jwt_payload = {'sub': 'user-123', 'email': 'admin@test.com'}
+        mock_request.get_json.return_value = None
 
         response = client.post('/api/action-requests/req-123/reject', headers=admin_headers)
 
@@ -280,9 +290,12 @@ class TestRejectRequest:
 
     @patch('src.routes.action_requests.HITL_AVAILABLE', True)
     @patch('src.routes.action_requests.reject_action_request')
-    def test_reject_failed(self, mock_reject, client, admin_headers):
+    @patch('src.routes.action_requests.request')
+    def test_reject_failed(self, mock_request, mock_reject, client, admin_headers):
         """Test reject request failed"""
         mock_reject.return_value = False
+        mock_request.jwt_payload = {'sub': 'user-123', 'email': 'admin@test.com'}
+        mock_request.get_json.return_value = None
 
         response = client.post('/api/action-requests/req-123/reject', headers=admin_headers)
 
