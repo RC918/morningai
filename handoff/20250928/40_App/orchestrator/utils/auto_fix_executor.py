@@ -322,21 +322,20 @@ class AutoFixExecutor:
                 canary_selected=True,
             )
 
-    def _check_safety(self, task: AutoFixTask):
+    def _reconstruct_triage_result(self, task: AutoFixTask):
         """
-        Perform safety checks for the task.
+        Reconstruct CommentTriageResult from task's triage_result dict.
 
         Args:
-            task: AutoFixTask to check
+            task: AutoFixTask containing triage_result dict
 
         Returns:
-            AutoFixSafetyCheckResult from auto_fix_policy module
+            CommentTriageResult instance
         """
         from webhooks.comment_triage import CommentTriageResult, CommentCategory, RiskLevel
-        from utils.auto_fix_policy import check_auto_fix_safety
 
         triage_data = task.triage_result
-        triage_result = CommentTriageResult(
+        return CommentTriageResult(
             comment_id=triage_data.get("comment_id", ""),
             source=triage_data.get("source", "unknown"),
             category=CommentCategory(triage_data.get("category", "unknown")),
@@ -349,6 +348,20 @@ class AutoFixExecutor:
             keywords_matched=triage_data.get("keywords_matched", []),
             metadata=triage_data.get("metadata", {}),
         )
+
+    def _check_safety(self, task: AutoFixTask):
+        """
+        Perform safety checks for the task.
+
+        Args:
+            task: AutoFixTask to check
+
+        Returns:
+            AutoFixSafetyCheckResult from auto_fix_policy module
+        """
+        from utils.auto_fix_policy import check_auto_fix_safety
+
+        triage_result = self._reconstruct_triage_result(task)
 
         return check_auto_fix_safety(
             triage_result=triage_result,
@@ -371,22 +384,8 @@ class AutoFixExecutor:
             Dictionary with execution result (pr_url, commit_sha, etc.)
         """
         from webhooks.review_follow_up import ReviewFollowUpService
-        from webhooks.comment_triage import CommentTriageResult, CommentCategory, RiskLevel
 
-        triage_data = task.triage_result
-        triage_result = CommentTriageResult(
-            comment_id=triage_data.get("comment_id", ""),
-            source=triage_data.get("source", "unknown"),
-            category=CommentCategory(triage_data.get("category", "unknown")),
-            risk_level=RiskLevel(triage_data.get("risk_level", "medium")),
-            files_affected=triage_data.get("files_affected", []),
-            lines_affected=triage_data.get("lines_affected", 0),
-            should_auto_fix=triage_data.get("should_auto_fix", False),
-            confidence=triage_data.get("confidence", 0.0),
-            reason=triage_data.get("reason", ""),
-            keywords_matched=triage_data.get("keywords_matched", []),
-            metadata=triage_data.get("metadata", {}),
-        )
+        triage_result = self._reconstruct_triage_result(task)
 
         service = ReviewFollowUpService(github_token=self.settings.github_token)
 

@@ -1525,7 +1525,10 @@ def run_auto_fix_task(task_data: dict):
     Returns:
         dict: {"success": bool, "task_id": str, "status": str, "message": str, ...}
     """
+    import time
     from utils.auto_fix_executor import AutoFixExecutor, AutoFixTask
+
+    start_time = time.time()
 
     task = AutoFixTask.from_dict(task_data)
     task_id = task.task_id
@@ -1584,6 +1587,7 @@ def run_auto_fix_task(task_data: dict):
         }
 
     except Exception as e:
+        execution_time_ms = int((time.time() - start_time) * 1000)
         error_msg = str(e)
         logger.error(
             "[AutoFix] Task failed with exception",
@@ -1591,6 +1595,7 @@ def run_auto_fix_task(task_data: dict):
                 "operation": "run_auto_fix_task_error",
                 "task_id": task_id,
                 "error": error_msg,
+                "execution_time_ms": execution_time_ms,
             },
             exc_info=True,
         )
@@ -1605,7 +1610,7 @@ def run_auto_fix_task(task_data: dict):
             "message": f"Exception: {error_msg}",
             "pr_url": None,
             "commit_sha": None,
-            "execution_time_ms": 0,
+            "execution_time_ms": execution_time_ms,
             "safety_check_passed": False,
             "canary_selected": False,
         }
