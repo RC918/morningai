@@ -43,7 +43,7 @@ def client(app):
 def mock_redis():
     """Create mock Redis client"""
     mock = MagicMock()
-    mock.keys.return_value = []
+    mock.scan_iter.return_value = iter([])
     mock.llen.return_value = 0
     mock.get.return_value = None
     return mock
@@ -104,13 +104,20 @@ class TestMetricsEndpoint:
 
     def test_metrics_with_redis_available(self, client, mock_redis):
         """Test GET /api/metrics with Redis available"""
-        mock_redis.keys.side_effect = [
-            ['rq:queue:default', 'rq:queue:high'],
-            ['rq:failed:1', 'rq:failed:2'],
-            ['rate_limit:user1'],
-            ['session:123:data'],
-            ['session:123:commands'],
-        ]
+        def scan_iter_side_effect(match=''):
+            if match == 'rq:queue:*':
+                return iter(['rq:queue:default', 'rq:queue:high'])
+            elif match == 'rq:failed:*':
+                return iter(['rq:failed:1', 'rq:failed:2'])
+            elif match == 'rate_limit:*':
+                return iter(['rate_limit:user1'])
+            elif match == 'session:*:data':
+                return iter(['session:123:data'])
+            elif match == 'session:*:commands':
+                return iter(['session:123:commands'])
+            return iter([])
+
+        mock_redis.scan_iter.side_effect = scan_iter_side_effect
         mock_redis.llen.side_effect = [5, 3, 2]
 
         with patch('src.routes.metrics._get_redis_client', return_value=mock_redis):
@@ -251,6 +258,50 @@ class TestMetricsRedisUnavailable:
                 assert response.status_code == 200
                 data = response.get_json()
                 assert data['session_commands']['available'] is False
+
+
+class TestWindowParameterValidation:
+    """Tests for window parameter validation"""
+
+    def test_window_invalid_string_uses_default(self, client):
+        """Test invalid window string falls back to default"""
+        with patch('src.routes.metrics._get_redis_client', return_value=None):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics?window=invalid')
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['window_minutes'] == 15
+
+    def test_window_out_of_range_high_uses_default(self, client):
+        """Test window above max range falls back to default"""
+        with patch('src.routes.metrics._get_redis_client', return_value=None):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics?window=1000')
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['window_minutes'] == 15
+
+    def test_window_out_of_range_low_uses_default(self, client):
+        """Test window below min range falls back to default"""
+        with patch('src.routes.metrics._get_redis_client', return_value=None):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics?window=0')
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['window_minutes'] == 15
+
+    def test_window_valid_range_accepted(self, client):
+        """Test valid window values are accepted"""
+        with patch('src.routes.metrics._get_redis_client', return_value=None):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics?window=60')
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['window_minutes'] == 60
 
 
 class TestPrometheusFormatDetails:
