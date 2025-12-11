@@ -83,7 +83,9 @@ def before_send(event, hint):
     return event
 
 
-if SENTRY_DSN and SENTRY_DSN.strip():
+TESTING = os.getenv("TESTING", "").lower() in ("true", "1", "yes")
+
+if SENTRY_DSN and SENTRY_DSN.strip() and not TESTING:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.flask import FlaskIntegration
@@ -104,6 +106,9 @@ if SENTRY_DSN and SENTRY_DSN.strip():
             f"Failed to initialize Sentry: {e}. Continuing without Sentry integration."
         )
         SENTRY_DSN = None
+elif TESTING:
+    logger.info("Sentry disabled in testing environment")
+    SENTRY_DSN = None
 else:
     SENTRY_DSN = None
 
