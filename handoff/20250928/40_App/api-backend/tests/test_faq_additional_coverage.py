@@ -94,7 +94,9 @@ class TestHealthCheck:
         mock_search_tool = MagicMock()
         mock_search_tool.search = AsyncMock(return_value={'success': True})
 
-        with patch('src.routes.faq.FAQSearchTool', return_value=mock_search_tool, create=True):
+        mock_faq_search_class = MagicMock(return_value=mock_search_tool)
+
+        with patch.dict('sys.modules', {'agents': MagicMock(), 'agents.faq_agent': MagicMock(), 'agents.faq_agent.tools': MagicMock(FAQSearchTool=mock_faq_search_class)}):
             response = client.get(
                 '/api/faq/health',
                 headers={'Authorization': f'Bearer {user_token}'}
@@ -114,7 +116,9 @@ class TestHealthCheck:
             mock_search_tool = MagicMock()
             mock_search_tool.search = AsyncMock(return_value={'success': True})
 
-            with patch('src.routes.faq.FAQSearchTool', return_value=mock_search_tool, create=True):
+            mock_faq_search_class = MagicMock(return_value=mock_search_tool)
+
+            with patch.dict('sys.modules', {'agents': MagicMock(), 'agents.faq_agent': MagicMock(), 'agents.faq_agent.tools': MagicMock(FAQSearchTool=mock_faq_search_class)}):
                 response = client.get(
                     '/api/faq/health',
                     headers={'Authorization': f'Bearer {user_token}'}
@@ -133,7 +137,9 @@ class TestHealthCheck:
             'error': 'Database connection failed'
         })
 
-        with patch('src.routes.faq.FAQSearchTool', return_value=mock_search_tool, create=True):
+        mock_faq_search_class = MagicMock(return_value=mock_search_tool)
+
+        with patch.dict('sys.modules', {'agents': MagicMock(), 'agents.faq_agent': MagicMock(), 'agents.faq_agent.tools': MagicMock(FAQSearchTool=mock_faq_search_class)}):
             response = client.get(
                 '/api/faq/health',
                 headers={'Authorization': f'Bearer {user_token}'}
@@ -149,7 +155,9 @@ class TestHealthCheck:
         mock_search_tool = MagicMock()
         mock_search_tool.search = AsyncMock(side_effect=Exception('Connection timeout'))
 
-        with patch('src.routes.faq.FAQSearchTool', return_value=mock_search_tool, create=True):
+        mock_faq_search_class = MagicMock(return_value=mock_search_tool)
+
+        with patch.dict('sys.modules', {'agents': MagicMock(), 'agents.faq_agent': MagicMock(), 'agents.faq_agent.tools': MagicMock(FAQSearchTool=mock_faq_search_class)}):
             response = client.get(
                 '/api/faq/health',
                 headers={'Authorization': f'Bearer {user_token}'}
