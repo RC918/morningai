@@ -314,6 +314,10 @@ class CommentTriageAgent:
             category, risk_level, should_auto_fix, auto_fix_reason, matched_keywords
         )
 
+        # Extract repo and PR info for observability
+        repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+        pr_number = event.resource_id or "unknown"
+
         # Create result
         result = CommentTriageResult(
             comment_id=event.event_id,
@@ -333,14 +337,24 @@ class CommentTriageAgent:
             },
         )
 
+        # Issue: #2248 - Structured logging for comment triage category distribution
+        # Log triage results for category distribution monitoring and weight adjustment
         logger.info(
-            "[CommentTriageAgent] Triaged comment: id=%s, category=%s, "
-            "risk=%s, auto_fix=%s, confidence=%.2f",
-            result.comment_id,
-            result.category.value,
-            result.risk_level.value,
-            result.should_auto_fix,
-            result.confidence,
+            "[CommentTriageAgent] Comment triage completed",
+            extra={
+                "operation": "comment_triage_result",
+                "comment_id": event.event_id,
+                "bot_name": source,
+                "repo": repo,
+                "pr_number": pr_number,
+                "category": category.value,
+                "risk_level": risk_level.value,
+                "confidence": round(confidence, 3),
+                "should_auto_fix": should_auto_fix,
+                "keywords_matched": matched_keywords,
+                "files_affected_count": len(files_affected),
+                "lines_affected": lines_affected,
+            }
         )
 
         return result
