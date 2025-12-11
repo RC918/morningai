@@ -1197,6 +1197,14 @@ class Settings(BaseSettings):
         description="Maximum global auto-fix attempts per hour (1-1000, default 100)"
     )
 
+    auto_fix_canary_percent: int = Field(
+        default=10,
+        ge=0,
+        le=100,
+        alias="AUTO_FIX_CANARY_PERCENT",
+        description="Percentage of eligible auto-fix tasks to execute (0-100, for canary rollout, Issue #2252)"
+    )
+
     enable_failure_learning_context: bool = Field(
         default=True,
         alias="ENABLE_FAILURE_LEARNING_CONTEXT",
