@@ -170,6 +170,28 @@ class Settings(BaseSettings):
         description="Redis connection URL for queue and caching"
     )
 
+    redis_host: str = Field(
+        default="localhost",
+        alias="REDIS_HOST",
+        description="Redis host for fallback connection when REDIS_URL is not set"
+    )
+
+    redis_port: int = Field(
+        default=6379,
+        ge=1,
+        le=65535,
+        alias="REDIS_PORT",
+        description="Redis port for fallback connection when REDIS_URL is not set"
+    )
+
+    redis_db: int = Field(
+        default=0,
+        ge=0,
+        le=15,
+        alias="REDIS_DB",
+        description="Redis database number for fallback connection when REDIS_URL is not set"
+    )
+
     memory_table: str = Field(
         default="memory",
         alias="MEMORY_TABLE",
@@ -1195,6 +1217,12 @@ class Settings(BaseSettings):
         le=1000,
         alias="AUTO_FIX_GLOBAL_PER_HOUR",
         description="Maximum global auto-fix attempts per hour (1-1000, default 100)"
+    )
+
+    auto_fix_actor_names: str = Field(
+        default="morningai-bot,auto-fix-bot,github-actions[bot]",
+        alias="AUTO_FIX_ACTOR_NAMES",
+        description="Comma-separated list of bot actor names for auto-fix loop protection"
     )
 
     enable_failure_learning_context: bool = Field(

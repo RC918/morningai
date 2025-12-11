@@ -108,19 +108,39 @@ def is_auto_fix_commit(commit_message: str) -> bool:
     return AUTO_FIX_COMMIT_MARKER in lower_msg or lower_msg.startswith("auto-fix:")
 
 
-def is_auto_fix_actor(actor_name: str) -> bool:
+def get_auto_fix_actors(settings: "Settings" = None) -> set:
+    """
+    Get the set of auto-fix actor names from settings.
+
+    Args:
+        settings: Application settings. If None, uses global settings.
+
+    Returns:
+        Set of actor names (lowercase)
+    """
+    if settings is None:
+        from common.config.settings import settings as global_settings
+        settings = global_settings
+    actor_names = settings.auto_fix_actor_names
+    if not actor_names:
+        return set()
+    return {name.strip().lower() for name in actor_names.split(",") if name.strip()}
+
+
+def is_auto_fix_actor(actor_name: str, settings: "Settings" = None) -> bool:
     """
     Check if an actor name indicates it's the auto-fix bot.
 
     Args:
         actor_name: The actor/author name to check
+        settings: Application settings. If None, uses global settings.
 
     Returns:
         True if this is the auto-fix bot
     """
     if not actor_name:
         return False
-    auto_fix_actors = {"morningai-bot", "auto-fix-bot", "github-actions[bot]"}
+    auto_fix_actors = get_auto_fix_actors(settings)
     return actor_name.lower() in auto_fix_actors
 
 
@@ -308,7 +328,12 @@ class AutoFixRateLimiter:
         try:
             if self.redis_url:
                 return redis.Redis.from_url(self.redis_url, decode_responses=True)
-            return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            return redis.Redis(
+                host=self.settings.redis_host,
+                port=self.settings.redis_port,
+                db=self.settings.redis_db,
+                decode_responses=True
+            )
         except Exception as e:
             logger.error(
                 "[AutoFixRateLimiter] ALERT: Failed to connect to Redis: %s",
@@ -447,7 +472,12 @@ class AutoFixLoopProtection:
         try:
             if self.redis_url:
                 return redis.Redis.from_url(self.redis_url, decode_responses=True)
-            return redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            return redis.Redis(
+                host=self.settings.redis_host,
+                port=self.settings.redis_port,
+                db=self.settings.redis_db,
+                decode_responses=True
+            )
         except Exception as e:
             logger.error(
                 "[AutoFixLoopProtection] ALERT: Failed to connect to Redis: %s",
