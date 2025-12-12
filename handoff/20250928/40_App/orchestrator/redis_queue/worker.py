@@ -56,6 +56,19 @@ from persistence.db_writer import (
 )
 from common.config.settings import settings
 
+try:
+    from governance.runtime_policy_enforcer import (
+        RuntimePolicyEnforcer,
+        get_runtime_policy_enforcer,
+        EnforcementAction,
+    )
+    _runtime_policy_enforcer = None
+except ImportError:
+    RuntimePolicyEnforcer = None
+    get_runtime_policy_enforcer = None
+    EnforcementAction = None
+    _runtime_policy_enforcer = None
+
 logging.basicConfig(
     level=logging.INFO,
     format='{"timestamp":"%(asctime)s","level":"%(levelname)s","message":"%(message)s","operation":"%(name)s"}'
@@ -70,13 +83,13 @@ _rollout_tracker = None
 def sanitize_redis_mapping(mapping: dict) -> dict:
     """
     Remove None values from Redis mapping to prevent DataError.
-    
+
     Redis commands like hset() require values to be bytes, string, int, or float.
     Passing None causes: redis.exceptions.DataError: Invalid input of type: 'NoneType'
-    
+
     Args:
         mapping: Dictionary with potential None values
-        
+
     Returns:
         Dictionary with None values filtered out
     """
@@ -1197,6 +1210,49 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
 
     start_time_ns = time.monotonic_ns()
 
+    # Epic #2311: Runtime policy enforcement - check cost budget before execution
+    global _runtime_policy_enforcer
+    if get_runtime_policy_enforcer is not None and _runtime_policy_enforcer is None:
+        try:
+            _runtime_policy_enforcer = get_runtime_policy_enforcer()
+        except Exception as e:
+            logger.warning(f"[MetaAgent] Failed to initialize RuntimePolicyEnforcer: {e}")
+
+    if _runtime_policy_enforcer is not None:
+        try:
+            estimated_tokens = 5000
+            cost_check = _runtime_policy_enforcer.check_cost(
+                task_id=task_id,
+                estimated_tokens=estimated_tokens,
+                model="gpt-4",
+                context={"tenant_id": tenant_id, "repo": repo, "goal_text": goal_text[:100]},
+            )
+            if not cost_check.allowed:
+                action = cost_check.action.value if EnforcementAction else "block"
+                if action == "block":
+                    error_msg = f"Runtime policy blocked task: {cost_check.reason}"
+                    logger.error(f"[MetaAgent] {error_msg}", extra=log_data)
+                    return {
+                        "task_id": task_id,
+                        "status": "blocked",
+                        "error": error_msg,
+                        "trace_id": task_id,
+                        "policy_action": action,
+                    }
+                elif action == "require_approval":
+                    logger.warning(
+                        f"[MetaAgent] Task requires approval due to cost policy: {cost_check.reason}",
+                        extra=log_data
+                    )
+                elif action == "degrade_model":
+                    context["suggested_model"] = cost_check.suggested_model
+                    logger.info(
+                        f"[MetaAgent] Cost budget exceeded, using degraded model: {cost_check.suggested_model}",
+                        extra=log_data
+                    )
+        except Exception as e:
+            logger.warning(f"[MetaAgent] Runtime policy check failed (fail-open): {e}")
+
     try:
         # Update Redis status to running
         redis_key = f"agent:task:{task_id}"
@@ -1558,6 +1614,43 @@ def run_auto_fix_task(task_data: dict):
                 'pr_id': task.pr_id,
             }
         )
+
+    # Epic #2311: Runtime policy enforcement - check cost budget before auto-fix
+    global _runtime_policy_enforcer
+    if get_runtime_policy_enforcer is not None and _runtime_policy_enforcer is None:
+        try:
+            _runtime_policy_enforcer = get_runtime_policy_enforcer()
+        except Exception as e:
+            logger.warning(f"[AutoFix] Failed to initialize RuntimePolicyEnforcer: {e}")
+
+    if _runtime_policy_enforcer is not None:
+        try:
+            estimated_tokens = 2000
+            cost_check = _runtime_policy_enforcer.check_cost(
+                task_id=task_id,
+                estimated_tokens=estimated_tokens,
+                model="gpt-4",
+                context={"repo": task.repo, "pr_id": task.pr_id, "category": task.triage_result.get("category", "unknown")},
+            )
+            if not cost_check.allowed:
+                action = cost_check.action.value if EnforcementAction else "block"
+                if action == "block":
+                    error_msg = f"Runtime policy blocked auto-fix: {cost_check.reason}"
+                    logger.error(f"[AutoFix] {error_msg}")
+                    return {
+                        "success": False,
+                        "task_id": task_id,
+                        "status": "blocked",
+                        "message": error_msg,
+                        "pr_url": None,
+                        "commit_sha": None,
+                        "execution_time_ms": int((time.time() - start_time) * 1000),
+                        "safety_check_passed": False,
+                        "canary_selected": False,
+                        "policy_action": action,
+                    }
+        except Exception as e:
+            logger.warning(f"[AutoFix] Runtime policy check failed (fail-open): {e}")
 
     try:
         executor = AutoFixExecutor(settings=settings, redis_url=redis_url)
