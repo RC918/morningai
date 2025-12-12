@@ -1058,6 +1058,43 @@ class TestInitializeSession:
             mcp_endpoint="http://localhost:8080",
         )
 
+    @pytest.fixture
+    def mock_mcp_success(self):
+        """Shared MCP mock that always returns success"""
+        async def _mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            return {"success": True}
+        return _mock_mcp
+
+    @pytest.fixture
+    def mock_shell_for_startup(self):
+        """
+        Shared shell mock for code-server startup tests.
+        Returns a factory that creates mock functions with configurable behavior.
+        """
+        def _create_mock(
+            code_server_running: bool = False,
+            healthz_response: str = "200",
+            commands_list: list = None,
+        ):
+            async def mock_shell(session, command, timeout_seconds=60):
+                if commands_list is not None:
+                    commands_list.append(command)
+                if "pgrep" in command and "curl" in command:
+                    if code_server_running:
+                        return {"success": True, "exit_code": 0, "stdout": "12345", "stderr": ""}
+                    return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
+                if "code-server --bind-addr" in command:
+                    return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+                if "curl" in command and "healthz" in command and "http_code" in command:
+                    return {"success": True, "exit_code": 0, "stdout": healthz_response, "stderr": ""}
+                if "mkdir -p" in command:
+                    return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+                if "base64" in command:
+                    return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            return mock_shell
+        return _create_mock
+
     @pytest.mark.asyncio
     async def test_initialize_session_code_server_already_running(
         self, service, mock_session
@@ -1228,7 +1265,7 @@ class TestInitializeSession:
         result = await service._poll_healthz(mock_session, "127.0.0.1", 8443)
 
         assert result is True
-        assert attempt_count >= 3
+        assert attempt_count == 3
 
     @pytest.mark.asyncio
     async def test_poll_healthz_exhausts_retries(self, service, mock_session):
@@ -1247,25 +1284,15 @@ class TestInitializeSession:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_initialize_session_uses_token_auth(self, service, mock_session):
+    async def test_initialize_session_uses_token_auth(
+        self, service, mock_session, mock_shell_for_startup, mock_mcp_success
+    ):
         """Test initialization uses token-based auth instead of --auth none"""
         commands = []
-
-        async def mock_shell(session, command, timeout_seconds=60):
-            commands.append(command)
-            if "pgrep" in command and "curl" in command:
-                return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
-            if "code-server --bind-addr" in command:
-                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
-            if "curl" in command and "healthz" in command and "http_code" in command:
-                return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
-            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
-
-        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
-            return {"success": True}
-
-        service._execute_shell_command = mock_shell
-        service._execute_mcp_command = mock_mcp
+        service._execute_shell_command = mock_shell_for_startup(
+            code_server_running=False, commands_list=commands
+        )
+        service._execute_mcp_command = mock_mcp_success
 
         await service._initialize_session(mock_session)
 
@@ -1279,25 +1306,15 @@ class TestInitializeSession:
         assert mock_session.metadata.get("code_server_token") is not None
 
     @pytest.mark.asyncio
-    async def test_initialize_session_uses_localhost_binding(self, service, mock_session):
+    async def test_initialize_session_uses_localhost_binding(
+        self, service, mock_session, mock_shell_for_startup, mock_mcp_success
+    ):
         """Test initialization binds to 127.0.0.1 instead of 0.0.0.0"""
         commands = []
-
-        async def mock_shell(session, command, timeout_seconds=60):
-            commands.append(command)
-            if "pgrep" in command and "curl" in command:
-                return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
-            if "code-server --bind-addr" in command:
-                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
-            if "curl" in command and "healthz" in command and "http_code" in command:
-                return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
-            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
-
-        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
-            return {"success": True}
-
-        service._execute_shell_command = mock_shell
-        service._execute_mcp_command = mock_mcp
+        service._execute_shell_command = mock_shell_for_startup(
+            code_server_running=False, commands_list=commands
+        )
+        service._execute_mcp_command = mock_mcp_success
 
         await service._initialize_session(mock_session)
 
