@@ -174,7 +174,7 @@ api-backend/src/routes/
 
 ```
 orchestrator/
-├── langgraph_orchestrator.py   # 主編排器 (134,768 行)
+├── langgraph_orchestrator.py   # 主編排器 (3,676 行)
 ├── graph.py                    # LangGraph 圖定義
 ├── llm_planner_adapter.py      # LLM Planner 適配器
 ├── llm_reviewer_adapter.py     # LLM Reviewer 適配器
@@ -364,7 +364,7 @@ frontend-dashboard/src/
 |------|------|------|
 | 設定類 | common/config/settings.py | 1,790 行 |
 | 環境 Schema | config/env.schema.yaml | 2,231 行 |
-| 主編排器 | orchestrator/langgraph_orchestrator.py | 134,768 行 |
+| 主編排器 | orchestrator/langgraph_orchestrator.py | 3,676 行 |
 | Auto-fix 政策 | orchestrator/utils/auto_fix_policy.py | 724 行 |
 | Metrics 端點 | api-backend/src/routes/metrics.py | 309 行 |
 | RLS 遷移 | migrations/006_update_rls_policies_true_tenant_isolation.sql | 315 行 |

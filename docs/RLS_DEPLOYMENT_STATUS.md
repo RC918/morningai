@@ -175,7 +175,7 @@ All deployment and verification logs are maintained here as the single source of
 |------|-----------|----------|--------|-------|
 | 2025-12-12 | Policy Cleanup | Ryan + Devin | Success | Removed old permissive policies (~12 policies dropped) |
 | 2025-12-12 | Code Deploy | Ryan | Success | 467 commits deployed via Render (commit 26c16705) |
-| 2025-12-12 | Verification | Ryan + Devin | Success | 7 policies verified (4 true_tenant_isolation + service_role + anon_no_access) |
+| 2025-12-12 | Verification | Ryan + Devin | Success | 6 policies verified (4 true_tenant_isolation + service_role + anon_no_access) |
 
 ### Health Check Results Log
 
