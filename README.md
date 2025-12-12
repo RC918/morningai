@@ -24,25 +24,28 @@
 ## Status & Metrics
 
 ![env-diagnose](https://github.com/RC918/morningai/actions/workflows/env-diagnose.yml/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-60%25+-green)
+![Coverage](https://img.shields.io/badge/coverage-59.89%25~74%25-green)
 ![Tests](https://img.shields.io/badge/tests-100%20passed-brightgreen)
 ![Phase](https://img.shields.io/badge/phase-Epic%202311-blue)
 ![Uptime](https://img.shields.io/badge/uptime-90%25-yellow)
 
 **Current State** (as of Dec 2025):
-- **Test Coverage**: 60-74% (Owner Console 59.89%, Orchestrator 70%+, Backend 74%+) → Target: 80% by Q2 2026
+- **Test Coverage**: Owner Console 59.89%, Orchestrator 70%+, Backend 74%+ → Target: 80% by Q2 2026
 - **API Latency (p95)**: ~500ms → Target: <100ms by Q2 2026
 - **Uptime**: 90% → Target: 99.9% by Q2 2026
 - **Agent Capabilities**: LLM Planner + LangGraph Mode active → Target: Full autonomous agents
-- **RLS**: TRUE tenant isolation deployed (Staging & Production)
+
+**Recent Accomplishments** (Dec 2025):
+- 🔒 **RLS Phase 2 Deployed**: TRUE tenant isolation on Staging & Production (Dec 12, 2025)
+- 📊 **467+ Commits Merged**: Major features including DeepWiki integration, Multi-Signal Trigger, LangGraph Rollout Tracker
+- 🧪 **Test Coverage Improved**: From 41% to 59.89%~74%+ across all services
 
 **Strategic Priorities** (Next 6 Months):
-1. ~~🔒 **Security First**: Implement RLS~~ ✅ **COMPLETED** (Dec 2025) - TRUE tenant isolation deployed
-2. 📊 **Observability**: Epic #2311 - Metrics collection, `/metrics` endpoint, Auto-fix governance
-3. 💰 **Commercialization**: Launch Stripe integration, usage tracking, billing
-4. 🤖 **AI Enhancement**: Qwen3 migration evaluation, multi-agent collaboration
-5. 📊 **Production Excellence**: Achieve 99.9% uptime, <100ms latency, 80% test coverage
-6. ✅ **Compliance**: Prepare for SOC2 Type II certification
+1. 📊 **Observability**: Epic #2311 - Metrics collection, `/metrics` endpoint, Auto-fix governance
+2. 💰 **Commercialization**: Launch Stripe integration, usage tracking, billing
+3. 🤖 **AI Enhancement**: Qwen3 migration evaluation, multi-agent collaboration
+4. 📊 **Production Excellence**: Achieve 99.9% uptime, <100ms latency, 80% test coverage
+5. ✅ **Compliance**: Prepare for SOC2 Type II certification
 
 ## 架構概覽
 
