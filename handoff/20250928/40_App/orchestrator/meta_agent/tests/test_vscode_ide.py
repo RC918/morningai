@@ -16,6 +16,8 @@ Tests cover:
 - MCP HTTP client integration
 """
 
+import time
+
 import pytest
 from datetime import datetime
 
@@ -1308,7 +1310,6 @@ class TestInitializeSession:
     @pytest.mark.asyncio
     async def test_poll_healthz_no_initial_delay(self, service, mock_session):
         """Test _poll_healthz runs first attempt immediately without delay (#2355)"""
-        import time
         start_time = time.time()
         call_times = []
 
