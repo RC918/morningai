@@ -1284,6 +1284,50 @@ class TestInitializeSession:
         assert result is False
 
     @pytest.mark.asyncio
+    async def test_poll_healthz_handles_curl_connection_failure(self, service, mock_session):
+        """Test _poll_healthz handles curl connection failures (#2355)"""
+        attempt_count = 0
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            nonlocal attempt_count
+            if "curl" in command and "healthz" in command:
+                attempt_count += 1
+                if attempt_count >= 3:
+                    return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
+                return {"success": False, "exit_code": 7, "stdout": "", "stderr": "Connection refused"}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        service._execute_shell_command = mock_shell
+        service.DEFAULT_STARTUP_RETRY_INTERVAL = 0.01
+
+        result = await service._poll_healthz(mock_session, "127.0.0.1", 8443)
+
+        assert result is True
+        assert attempt_count == 3
+
+    @pytest.mark.asyncio
+    async def test_poll_healthz_no_initial_delay(self, service, mock_session):
+        """Test _poll_healthz runs first attempt immediately without delay (#2355)"""
+        import time
+        start_time = time.time()
+        call_times = []
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            if "curl" in command and "healthz" in command:
+                call_times.append(time.time() - start_time)
+                return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        service._execute_shell_command = mock_shell
+        service.DEFAULT_STARTUP_RETRY_INTERVAL = 1.0
+
+        result = await service._poll_healthz(mock_session, "127.0.0.1", 8443)
+
+        assert result is True
+        assert len(call_times) == 1
+        assert call_times[0] < 0.5
+
+    @pytest.mark.asyncio
     async def test_initialize_session_uses_token_auth(
         self, service, mock_session, mock_shell_for_startup, mock_mcp_success
     ):
