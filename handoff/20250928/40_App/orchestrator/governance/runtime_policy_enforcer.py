@@ -160,17 +160,28 @@ class RuntimePolicyEnforcer:
         """
         Reload runtime policies from settings / configuration source.
 
-        This method resets the lazy-loaded policy components so they will
-        be re-initialized with fresh settings on next access. Thread-safe
-        when used with the global enforcer via _enforcer_lock.
+        This method:
+        1. Reloads global settings via reload_settings()
+        2. Resets PolicyGuard and CostTracker global singletons
+        3. Resets this instance's lazy-loaded references
+
+        Thread-safe when used with the global enforcer via _enforcer_lock.
+        Note: Does NOT overwrite self.settings to preserve custom settings
+        passed during initialization (e.g., in tests).
 
         Use cases:
         - Dynamic configuration updates without restart
         - Testing with different policy configurations
         - Hot-reloading after Owner Console policy changes
         """
-        from common.config.settings import settings as global_settings
-        self.settings = global_settings
+        from common.config.settings import reload_settings
+        import governance.policy_guard as policy_guard_module
+        import governance.cost_tracker as cost_tracker_module
+
+        reload_settings()
+
+        policy_guard_module._policy_guard = None
+        cost_tracker_module._cost_tracker = None
 
         self._policy_guard = None
         self._cost_tracker = None
