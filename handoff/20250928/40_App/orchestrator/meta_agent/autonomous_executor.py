@@ -32,6 +32,17 @@ except ImportError:
     settings = None  # type: ignore[assignment]
 
 try:
+    from governance.runtime_policy_enforcer import (
+        RuntimePolicyEnforcer,
+        get_runtime_policy_enforcer,
+        EnforcementAction,
+    )
+except ImportError:
+    RuntimePolicyEnforcer = None  # type: ignore[assignment,misc]
+    get_runtime_policy_enforcer = None  # type: ignore[assignment,misc]
+    EnforcementAction = None  # type: ignore[assignment,misc]
+
+try:
     from deepwiki.service import get_deepwiki_service, QueryType
 except ImportError:
     get_deepwiki_service = None  # type: ignore[assignment,misc]
@@ -210,6 +221,15 @@ class AutonomousExecutor:
         self._session_data: Optional[Dict[str, Any]] = None
         self._last_failed_task: Optional[SubTask] = None
         self._user_context_updates: List[str] = []
+
+        # Runtime policy enforcer for safety governance (Epic #2311)
+        self._runtime_policy_enforcer: Optional[Any] = None
+        if get_runtime_policy_enforcer is not None:
+            try:
+                self._runtime_policy_enforcer = get_runtime_policy_enforcer()
+            except Exception as e:
+                logger.warning(
+                    "[AutonomousExecutor] Failed to initialize RuntimePolicyEnforcer: %s", e)
 
         logger.info(
             "[AutonomousExecutor] Initialized with max_retries=%d, timeout=%ds, "
@@ -594,6 +614,26 @@ class AutonomousExecutor:
             logger.info(
                 "[AutonomousExecutor] Task %s requires approval due to policy (operations: %s)",
                 task.task_id, [op.value for op in approval_required_ops])
+
+        # Runtime policy enforcement: Check resource access and cost budget (Epic #2311)
+        if self._runtime_policy_enforcer is not None:
+            runtime_check_result = await self._check_runtime_policy(task, task_type_value)
+            if runtime_check_result is not None:
+                if runtime_check_result.get("action") == "block":
+                    error_msg = runtime_check_result.get("reason", "Runtime policy violation")
+                    logger.error("[AutonomousExecutor] Runtime policy blocked task %s: %s", task.task_id, error_msg)
+                    task.status = SubTaskStatus.FAILED
+                    task.error = error_msg
+                    task.completed_at = datetime.now()
+                    if self.current_execution:
+                        self.current_execution.tasks_failed += 1
+                        self.current_execution.errors.append(f"Task {task.task_id}: {error_msg}")
+                    raise PolicyViolationError(error_msg)
+                elif runtime_check_result.get("action") == "require_approval":
+                    task.requires_approval = True
+                    logger.info(
+                        "[AutonomousExecutor] Task %s requires approval due to runtime policy: %s",
+                        task.task_id, runtime_check_result.get("reason"))
 
         # Check if approval is required
         if task.requires_approval:
@@ -1997,3 +2037,137 @@ class AutonomousExecutor:
             logger.warning(
                 "[AutonomousExecutor] Failed to send approval required notification: %s", e
             )
+
+    async def _check_runtime_policy(
+        self,
+        task: SubTask,
+        task_type_value: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check runtime policy for task execution.
+
+        Epic #2311: Runtime policy enforcement for deny writes and cost budgets.
+
+        This method checks:
+        1. Resource access policies (deny writes, network, shell)
+        2. Cost/token budget policies
+
+        Args:
+            task: The SubTask to check
+            task_type_value: String value of task type
+
+        Returns:
+            Dict with action and reason if policy check fails, None if allowed
+        """
+        if self._runtime_policy_enforcer is None:
+            return None
+
+        context = {
+            "task_id": task.task_id,
+            "task_type": task_type_value,
+            "execution_id": self.current_execution.execution_id if self.current_execution else None,
+        }
+
+        write_task_types = {"write_code", "write_test", "documentation"}
+        if task_type_value in write_task_types:
+            target_files = task.outputs.get("target_files", []) if task.outputs else []
+            if not target_files:
+                target_files = [task.description[:100]]
+
+            for target in target_files:
+                check_result = self._runtime_policy_enforcer.check_resource_access(
+                    operation="write",
+                    resource=str(target),
+                    context=context,
+                )
+                if not check_result.allowed:
+                    if self.audit_logger:
+                        self.audit_logger.log_policy_violation(
+                            violation_type="runtime_policy_write_denied",
+                            details=check_result.reason,
+                            task_id=task.task_id,
+                            task_type=task_type_value,
+                        )
+                    return {
+                        "action": check_result.action.value if EnforcementAction else "block",
+                        "reason": check_result.reason,
+                    }
+
+        if task_type_value == "cleanup":
+            check_result = self._runtime_policy_enforcer.check_resource_access(
+                operation="delete",
+                resource=task.description[:100],
+                context=context,
+            )
+            if not check_result.allowed:
+                if self.audit_logger:
+                    self.audit_logger.log_policy_violation(
+                        violation_type="runtime_policy_delete_denied",
+                        details=check_result.reason,
+                        task_id=task.task_id,
+                        task_type=task_type_value,
+                    )
+                return {
+                    "action": check_result.action.value if EnforcementAction else "require_approval",
+                    "reason": check_result.reason,
+                }
+
+        execution_task_types = {"setup_environment", "run_test", "verification"}
+        if task_type_value in execution_task_types:
+            command = task.outputs.get("command", "") if task.outputs else ""
+            if not command:
+                command = task.description[:100]
+
+            check_result = self._runtime_policy_enforcer.check_resource_access(
+                operation="execute",
+                resource=command,
+                context=context,
+            )
+            if not check_result.allowed:
+                if self.audit_logger:
+                    self.audit_logger.log_policy_violation(
+                        violation_type="runtime_policy_execute_denied",
+                        details=check_result.reason,
+                        task_id=task.task_id,
+                        task_type=task_type_value,
+                    )
+                return {
+                    "action": check_result.action.value if EnforcementAction else "block",
+                    "reason": check_result.reason,
+                }
+
+        estimated_tokens = task.outputs.get("estimated_tokens", 1000) if task.outputs else 1000
+        model = task.outputs.get("model", "gpt-4") if task.outputs else "gpt-4"
+
+        cost_result = self._runtime_policy_enforcer.check_cost(
+            task_id=task.task_id,
+            estimated_tokens=estimated_tokens,
+            model=model,
+            context=context,
+        )
+
+        if not cost_result.allowed:
+            if self.audit_logger:
+                self.audit_logger.log_policy_violation(
+                    violation_type="runtime_policy_cost_exceeded",
+                    details=cost_result.reason,
+                    task_id=task.task_id,
+                    task_type=task_type_value,
+                )
+
+            if cost_result.action.value == "degrade_model" if EnforcementAction else False:
+                if task.outputs is None:
+                    task.outputs = {}
+                task.outputs["suggested_model"] = cost_result.suggested_model
+                logger.info(
+                    "[AutonomousExecutor] Cost budget exceeded, suggesting model downgrade to %s",
+                    cost_result.suggested_model,
+                )
+                return None
+
+            return {
+                "action": cost_result.action.value if EnforcementAction else "block",
+                "reason": cost_result.reason,
+            }
+
+        return None
