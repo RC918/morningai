@@ -994,3 +994,147 @@ class TestTruncateErrorMessage:
         assert len(result) == 100 + len("... [truncated]")
         assert result.endswith("... [truncated]")
         assert "sk-secret-key-12345" not in result
+
+
+class TestInitializeSession:
+    """Tests for _initialize_session method (#2243)"""
+
+    @pytest.fixture
+    def service(self):
+        """Create a fresh VSCodeIDEService instance"""
+        return VSCodeIDEService()
+
+    @pytest.fixture
+    def mock_session(self):
+        """Create a mock IDE session"""
+        return IDESession(
+            session_id="ide-test-12345678",
+            vm_id="vm-test-12345678",
+            task_id="task-12345678",
+            status=IDESessionStatus.INITIALIZING,
+            created_at=datetime.now(),
+            workspace_path="/workspace",
+            vscode_endpoint="http://localhost:8443",
+            mcp_endpoint="http://localhost:8080",
+        )
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_code_server_already_running(
+        self, service, mock_session
+    ):
+        """Test initialization when code-server is already running"""
+        shell_call_count = 0
+        mcp_call_count = 0
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            nonlocal shell_call_count
+            shell_call_count += 1
+            return {"success": True, "exit_code": 0, "stdout": "12345", "stderr": ""}
+
+        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            nonlocal mcp_call_count
+            mcp_call_count += 1
+            return {"success": True}
+
+        service._execute_shell_command = mock_shell
+        service._execute_mcp_command = mock_mcp
+
+        await service._initialize_session(mock_session)
+
+        assert mock_session.metadata.get("code_server_url") == "http://localhost:8443"
+        assert "initialized_at" in mock_session.metadata
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_starts_code_server(self, service, mock_session):
+        """Test initialization starts code-server when not running"""
+        call_sequence = []
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            call_sequence.append(command)
+            if "pgrep" in command and "curl" in command:
+                return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
+            if "code-server --bind-addr" in command:
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            if command == "pgrep -f code-server":
+                return {"success": True, "exit_code": 0, "stdout": "12345", "stderr": ""}
+            if "mkdir -p" in command:
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            if "echo" in command:
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            return {"success": True}
+
+        service._execute_shell_command = mock_shell
+        service._execute_mcp_command = mock_mcp
+
+        await service._initialize_session(mock_session)
+
+        assert any("code-server --bind-addr" in cmd for cmd in call_sequence)
+        assert mock_session.metadata.get("code_server_url") == "http://localhost:8443"
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_code_server_fails_to_start(
+        self, service, mock_session
+    ):
+        """Test initialization raises error when code-server fails to start"""
+        async def mock_shell(session, command, timeout_seconds=60):
+            if "pgrep" in command and "curl" in command:
+                return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
+            if "code-server --bind-addr" in command:
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            if command == "pgrep -f code-server":
+                return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            return {"success": True}
+
+        service._execute_shell_command = mock_shell
+        service._execute_mcp_command = mock_mcp
+
+        with pytest.raises(RuntimeError, match="code-server failed to start"):
+            await service._initialize_session(mock_session)
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_workspace_creation_fails(
+        self, service, mock_session
+    ):
+        """Test initialization raises error when workspace creation fails"""
+        async def mock_shell(session, command, timeout_seconds=60):
+            if "pgrep" in command:
+                return {"success": True, "exit_code": 0, "stdout": "12345", "stderr": ""}
+            if "mkdir -p" in command and "/workspace" in command and ".vscode" not in command:
+                return {"success": False, "exit_code": 1, "stdout": "", "stderr": "Permission denied"}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            return {"success": True}
+
+        service._execute_shell_command = mock_shell
+        service._execute_mcp_command = mock_mcp
+
+        with pytest.raises(RuntimeError, match="Failed to create workspace"):
+            await service._initialize_session(mock_session)
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_settings_fallback(self, service, mock_session):
+        """Test initialization uses shell fallback when MCP file/write fails"""
+        shell_commands = []
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            shell_commands.append(command)
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            if endpoint == "file/write":
+                return {"success": False, "error": "MCP unavailable"}
+            return {"success": True}
+
+        service._execute_shell_command = mock_shell
+        service._execute_mcp_command = mock_mcp
+
+        await service._initialize_session(mock_session)
+
+        assert any("echo" in cmd and "settings.json" in cmd for cmd in shell_commands)

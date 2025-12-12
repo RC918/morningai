@@ -410,13 +410,120 @@ class VSCodeIDEService:
         return session
 
     async def _initialize_session(self, session: IDESession) -> None:
-        """Initialize the IDE session (start code-server if needed)"""
-        # In a real implementation, this would:
-        # 1. Check if code-server is running
-        # 2. Start code-server if not running
-        # 3. Configure workspace settings
-        # 4. Install necessary extensions
-        pass
+        """
+        Initialize the IDE session by starting code-server if needed.
+
+        This method:
+        1. Checks if code-server is already running via health check
+        2. Starts code-server if not running
+        3. Ensures workspace directory exists
+        4. Configures basic workspace settings (.vscode/settings.json)
+
+        Args:
+            session: IDE session to initialize
+
+        Raises:
+            RuntimeError: If code-server fails to start or workspace setup fails
+        """
+        session_id = session.session_id[:8]
+        workspace_path = session.workspace_path
+
+        logger.info(
+            "[VSCodeIDEService] Initializing session %s for workspace %s",
+            session_id, workspace_path
+        )
+
+        health_check = await self._execute_shell_command(
+            session,
+            "pgrep -f code-server || curl -s http://127.0.0.1:8443/healthz",
+            timeout_seconds=10,
+        )
+
+        if not health_check.get("success") or health_check.get("exit_code") != 0:
+            logger.info(
+                "[VSCodeIDEService] code-server not running, starting for session %s",
+                session_id
+            )
+            start_result = await self._execute_shell_command(
+                session,
+                f"code-server --bind-addr 0.0.0.0:8443 --auth none {shlex.quote(workspace_path)} &",
+                timeout_seconds=10,
+            )
+
+            if not start_result.get("success"):
+                raise RuntimeError(
+                    f"Failed to start code-server: {start_result.get('stderr', 'Unknown error')}"
+                )
+
+            await asyncio.sleep(2)
+
+            verify_result = await self._execute_shell_command(
+                session,
+                "pgrep -f code-server",
+                timeout_seconds=5,
+            )
+            if not verify_result.get("success") or verify_result.get("exit_code") != 0:
+                raise RuntimeError("code-server failed to start after 2 seconds")
+
+            logger.info(
+                "[VSCodeIDEService] code-server started successfully for session %s",
+                session_id
+            )
+        else:
+            logger.debug(
+                "[VSCodeIDEService] code-server already running for session %s",
+                session_id
+            )
+
+        mkdir_result = await self._execute_shell_command(
+            session,
+            f"mkdir -p {shlex.quote(workspace_path)}",
+            timeout_seconds=10,
+        )
+        if not mkdir_result.get("success"):
+            raise RuntimeError(
+                f"Failed to create workspace directory: {mkdir_result.get('stderr', 'Unknown error')}"
+            )
+
+        vscode_dir = f"{workspace_path}/.vscode"
+        settings_path = f"{vscode_dir}/settings.json"
+        default_settings = '{"editor.formatOnSave": true, "editor.tabSize": 4}'
+
+        await self._execute_shell_command(
+            session,
+            f"mkdir -p {shlex.quote(vscode_dir)}",
+            timeout_seconds=10,
+        )
+
+        settings_result = await self._execute_mcp_command(
+            session,
+            "file/write",
+            {
+                "file_path": settings_path,
+                "content": default_settings,
+            },
+            timeout_seconds=10,
+        )
+
+        if not settings_result.get("success"):
+            fallback_result = await self._execute_shell_command(
+                session,
+                f"echo '{default_settings}' > {shlex.quote(settings_path)}",
+                timeout_seconds=10,
+            )
+            if not fallback_result.get("success"):
+                logger.warning(
+                    "[VSCodeIDEService] Failed to create settings.json for session %s: %s",
+                    session_id, fallback_result.get("stderr", "Unknown error")
+                )
+
+        session.metadata["code_server_url"] = session.vscode_endpoint
+        session.metadata["initialized_at"] = datetime.now().isoformat()
+
+        logger.info(
+            "[VSCodeIDEService] Session %s initialized successfully",
+            session_id
+        )
 
     async def close_session(self, session_id: str) -> bool:
         """
