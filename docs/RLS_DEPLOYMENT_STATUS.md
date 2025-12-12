@@ -1,6 +1,6 @@
 # RLS Phase 2 Deployment Status
 
-**Last Updated**: 2025-12-10  
+**Last Updated**: 2025-12-12  
 **Document Owner**: Engineering Team  
 **Related Documents**:
 - [RLS_IMPLEMENTATION_GUIDE.md](./RLS_IMPLEMENTATION_GUIDE.md) - Implementation details
@@ -165,19 +165,24 @@ All deployment and verification logs are maintained here as the single source of
 
 | Date | Migration | Executor | Result | Notes |
 |------|-----------|----------|--------|-------|
-| - | - | - | - | No deployments yet |
+| 2025-12-12 | Policy Cleanup | Ryan + Devin | Success | Removed old `tenant_*` policies with `qual=true` |
+| 2025-12-12 | Code Deploy | Ryan | Success | 467 commits deployed via Render |
+| 2025-12-12 | Verification | Ryan + Devin | Success | 5 policies verified (4 true_tenant_isolation + service_role) |
 
 ### Production Deployment Log
 
 | Date | Migration | Executor | Result | Notes |
 |------|-----------|----------|--------|-------|
-| - | - | - | - | No deployments yet |
+| 2025-12-12 | Policy Cleanup | Ryan + Devin | Success | Removed old permissive policies (~12 policies dropped) |
+| 2025-12-12 | Code Deploy | Ryan | Success | 467 commits deployed via Render (commit 26c16705) |
+| 2025-12-12 | Verification | Ryan + Devin | Success | 7 policies verified (4 true_tenant_isolation + service_role + anon_no_access) |
 
 ### Health Check Results Log
 
 | Date | Environment | Workflow Run | Result | Notes |
 |------|-------------|--------------|--------|-------|
-| - | - | - | - | No checks run yet |
+| 2025-12-12 | Staging | Manual | Pass | Health checks returning 200, no errors in logs |
+| 2025-12-12 | Production | Manual | Pass | Health checks returning 200, no errors in logs |
 
 ---
 
@@ -193,6 +198,7 @@ All deployment and verification logs are maintained here as the single source of
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-12 | Add deployment logs for Staging and Production policy cleanup and code deploy | Ryan + Devin |
 | 2025-12-10 | Improve emergency rollback link text readability (Gemini suggestion) | Engineering Team |
 | 2025-12-10 | Fix anchor link to PRE_DEPLOYMENT_CHECKLIST.md emergency rollback section | Engineering Team |
 | 2025-12-10 | Update deployment status (migrations applied), add smoke test checklist references | Engineering Team |
