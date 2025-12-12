@@ -1233,6 +1233,22 @@ class Settings(BaseSettings):
         description="Comma-separated list of bot actor names for auto-fix loop protection"
     )
 
+    auto_fix_estimated_tokens: int = Field(
+        default=2000,
+        ge=100,
+        le=50000,
+        alias="AUTO_FIX_ESTIMATED_TOKENS",
+        description="Estimated tokens for auto-fix tasks (Epic #2311 runtime policy enforcement)"
+    )
+
+    meta_agent_estimated_tokens: int = Field(
+        default=5000,
+        ge=100,
+        le=100000,
+        alias="META_AGENT_ESTIMATED_TOKENS",
+        description="Estimated tokens for meta-agent tasks (Epic #2311 runtime policy enforcement)"
+    )
+
     enable_failure_learning_context: bool = Field(
         default=True,
         alias="ENABLE_FAILURE_LEARNING_CONTEXT",

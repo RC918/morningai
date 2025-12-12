@@ -58,16 +58,12 @@ from common.config.settings import settings
 
 try:
     from governance.runtime_policy_enforcer import (
-        RuntimePolicyEnforcer,
         get_runtime_policy_enforcer,
         EnforcementAction,
     )
-    _runtime_policy_enforcer = None
 except ImportError:
-    RuntimePolicyEnforcer = None
     get_runtime_policy_enforcer = None
     EnforcementAction = None
-    _runtime_policy_enforcer = None
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1211,17 +1207,11 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
     start_time_ns = time.monotonic_ns()
 
     # Epic #2311: Runtime policy enforcement - check cost budget before execution
-    global _runtime_policy_enforcer
-    if get_runtime_policy_enforcer is not None and _runtime_policy_enforcer is None:
+    if get_runtime_policy_enforcer is not None:
         try:
-            _runtime_policy_enforcer = get_runtime_policy_enforcer()
-        except Exception as e:
-            logger.warning(f"[MetaAgent] Failed to initialize RuntimePolicyEnforcer: {e}")
-
-    if _runtime_policy_enforcer is not None:
-        try:
-            estimated_tokens = 5000
-            cost_check = _runtime_policy_enforcer.check_cost(
+            enforcer = get_runtime_policy_enforcer()
+            estimated_tokens = settings.meta_agent_estimated_tokens
+            cost_check = enforcer.check_cost(
                 task_id=task_id,
                 estimated_tokens=estimated_tokens,
                 model="gpt-4",
@@ -1251,7 +1241,15 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
                         extra=log_data
                     )
         except Exception as e:
-            logger.warning(f"[MetaAgent] Runtime policy check failed (fail-open): {e}")
+            error_msg = f"Runtime policy check failed (fail-closed): {e}"
+            logger.error(f"[MetaAgent] {error_msg}", extra=log_data)
+            return {
+                "task_id": task_id,
+                "status": "blocked",
+                "error": error_msg,
+                "trace_id": task_id,
+                "policy_action": "block",
+            }
 
     try:
         # Update Redis status to running
@@ -1616,17 +1614,11 @@ def run_auto_fix_task(task_data: dict):
         )
 
     # Epic #2311: Runtime policy enforcement - check cost budget before auto-fix
-    global _runtime_policy_enforcer
-    if get_runtime_policy_enforcer is not None and _runtime_policy_enforcer is None:
+    if get_runtime_policy_enforcer is not None:
         try:
-            _runtime_policy_enforcer = get_runtime_policy_enforcer()
-        except Exception as e:
-            logger.warning(f"[AutoFix] Failed to initialize RuntimePolicyEnforcer: {e}")
-
-    if _runtime_policy_enforcer is not None:
-        try:
-            estimated_tokens = 2000
-            cost_check = _runtime_policy_enforcer.check_cost(
+            enforcer = get_runtime_policy_enforcer()
+            estimated_tokens = settings.auto_fix_estimated_tokens
+            cost_check = enforcer.check_cost(
                 task_id=task_id,
                 estimated_tokens=estimated_tokens,
                 model="gpt-4",
@@ -1650,7 +1642,20 @@ def run_auto_fix_task(task_data: dict):
                         "policy_action": action,
                     }
         except Exception as e:
-            logger.warning(f"[AutoFix] Runtime policy check failed (fail-open): {e}")
+            error_msg = f"Runtime policy check failed (fail-closed): {e}"
+            logger.error(f"[AutoFix] {error_msg}")
+            return {
+                "success": False,
+                "task_id": task_id,
+                "status": "blocked",
+                "message": error_msg,
+                "pr_url": None,
+                "commit_sha": None,
+                "execution_time_ms": int((time.time() - start_time) * 1000),
+                "safety_check_passed": False,
+                "canary_selected": False,
+                "policy_action": "block",
+            }
 
     try:
         executor = AutoFixExecutor(settings=settings, redis_url=redis_url)

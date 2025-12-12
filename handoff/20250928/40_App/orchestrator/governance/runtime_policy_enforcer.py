@@ -19,6 +19,8 @@ Enforcement Points:
 Flow: plan → check policy → approve → execute → check cost → complete
 """
 import logging
+import shlex
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -332,10 +334,11 @@ class RuntimePolicyEnforcer:
         telemetry_event: Dict[str, Any],
     ) -> PolicyCheckResult:
         """Check if shell command execution is allowed"""
-        dangerous_patterns = ["rm -rf", "sudo", "chmod 777", "chown", "> /dev/"]
+        dangerous_substrings = ["rm -rf", "sudo", "chmod 777", "chown", "> /dev/", "mkfs", "dd if="]
+        lower_cmd = command.lower()
 
-        for pattern in dangerous_patterns:
-            if pattern in command.lower():
+        for pattern in dangerous_substrings:
+            if pattern in lower_cmd:
                 telemetry_event["action"] = "block"
                 telemetry_event["dangerous_pattern"] = pattern
                 self._log_policy_check("shell_execution", command, "block", context, f"Dangerous pattern: {pattern}")
@@ -346,6 +349,37 @@ class RuntimePolicyEnforcer:
                     PolicyViolationType.SHELL_EXECUTION,
                     telemetry_event,
                 )
+
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            telemetry_event["action"] = "block"
+            telemetry_event["error"] = "Failed to parse shell command"
+            self._log_policy_check("shell_execution", command, "block", context, "Unparseable command (fail-closed)")
+            self._emit_telemetry(telemetry_event)
+
+            return self._create_blocked_result(
+                "Shell execution blocked: unparseable command (fail-closed)",
+                PolicyViolationType.SHELL_EXECUTION,
+                telemetry_event,
+            )
+
+        if parts:
+            base_cmd = parts[0].lower()
+            if base_cmd == "rm":
+                flags = [p for p in parts[1:] if p.startswith("-")]
+                all_flags = "".join(flags).lower()
+                if "r" in all_flags and "f" in all_flags:
+                    telemetry_event["action"] = "block"
+                    telemetry_event["dangerous_pattern"] = "rm with -r and -f flags"
+                    self._log_policy_check("shell_execution", command, "block", context, "rm with recursive and force flags")
+                    self._emit_telemetry(telemetry_event)
+
+                    return self._create_blocked_result(
+                        "Shell execution blocked: rm with recursive and force flags detected",
+                        PolicyViolationType.SHELL_EXECUTION,
+                        telemetry_event,
+                    )
 
         telemetry_event["action"] = "allow"
         self._log_policy_check("shell_execution", command, "allow", context)
@@ -450,14 +484,15 @@ class RuntimePolicyEnforcer:
                     "task_id": task_id,
                 }
             )
-            telemetry_event["action"] = "allow"
+            telemetry_event["action"] = "block"
             telemetry_event["error"] = str(e)
             self._emit_telemetry(telemetry_event)
 
             return CostCheckResult(
-                allowed=True,
-                action=EnforcementAction.ALLOW,
-                reason=f"Cost check error (fail-open): {e}",
+                allowed=False,
+                action=EnforcementAction.BLOCK,
+                reason=f"Cost check failed (fail-closed): {e}",
+                violation_type=PolicyViolationType.COST_BUDGET_EXCEEDED,
                 telemetry_event=telemetry_event,
             )
 
@@ -801,11 +836,13 @@ class RuntimePolicyEnforcer:
 
 
 _runtime_policy_enforcer: Optional[RuntimePolicyEnforcer] = None
+_enforcer_lock = threading.Lock()
 
 
 def get_runtime_policy_enforcer() -> RuntimePolicyEnforcer:
-    """Get or create global RuntimePolicyEnforcer instance"""
+    """Get or create thread-safe global RuntimePolicyEnforcer instance"""
     global _runtime_policy_enforcer
-    if _runtime_policy_enforcer is None:
-        _runtime_policy_enforcer = RuntimePolicyEnforcer()
-    return _runtime_policy_enforcer
+    with _enforcer_lock:
+        if _runtime_policy_enforcer is None:
+            _runtime_policy_enforcer = RuntimePolicyEnforcer()
+        return _runtime_policy_enforcer
