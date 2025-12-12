@@ -11,12 +11,16 @@ Tests cover:
 5. Goal text building
 """
 
+import pytest
+
 from webhooks.review_follow_up import (
     ReviewFollowUpStatus,
     ReviewFollowUpAction,
     PRContext,
     ReviewFollowUpTask,
     ReviewFollowUpService,
+    determine_hitl_requirement,
+    SENSITIVE_FILE_PATTERNS,
 )
 from webhooks.comment_triage import (
     CommentTriageResult,
@@ -546,3 +550,119 @@ class TestDetermineAction:
 
         action = ReviewFollowUpTask._determine_action(triage_result)
         assert action == ReviewFollowUpAction.MANUAL_REVIEW
+
+
+class TestDetermineHitlRequirement:
+    """
+    Tests for unified determine_hitl_requirement() function.
+
+    Issue #2258: Single source of truth for HITL approval decisions.
+    """
+
+    def test_none_triage_result_requires_approval(self):
+        """Test that None triage_result requires approval"""
+        assert determine_hitl_requirement(None) is True
+
+    def test_high_risk_requires_approval(self):
+        """Test that high risk level requires approval"""
+        triage_result = {"risk_level": "high", "category": "style"}
+        assert determine_hitl_requirement(triage_result) is True
+
+    def test_security_category_requires_approval(self):
+        """Test that security category requires approval"""
+        triage_result = {"risk_level": "low", "category": "security"}
+        assert determine_hitl_requirement(triage_result) is True
+
+    def test_escalate_action_requires_approval(self):
+        """Test that escalate action requires approval"""
+        triage_result = {"risk_level": "low", "category": "style"}
+        assert determine_hitl_requirement(triage_result, action="escalate") is True
+
+    @pytest.mark.parametrize("pattern", SENSITIVE_FILE_PATTERNS)
+    def test_sensitive_file_patterns_require_approval(self, pattern):
+        """Test that sensitive file patterns require approval"""
+        triage_result = {"risk_level": "low", "category": "style"}
+        file_path = f"src/{pattern}_module.py"
+        assert determine_hitl_requirement(triage_result, file_path=file_path) is True
+
+    def test_sensitive_file_case_insensitive(self):
+        """Test that sensitive file pattern matching is case insensitive"""
+        triage_result = {"risk_level": "low", "category": "style"}
+        assert determine_hitl_requirement(
+            triage_result, file_path="src/AUTH_SERVICE.py"
+        ) is True
+        assert determine_hitl_requirement(
+            triage_result, file_path="src/Config.py"
+        ) is True
+
+    def test_auto_fix_high_confidence_no_approval(self):
+        """Test that auto-fix with high confidence doesn't require approval"""
+        triage_result = {
+            "risk_level": "low",
+            "category": "style",
+            "should_auto_fix": True,
+            "confidence": 0.85,
+        }
+        assert determine_hitl_requirement(triage_result, file_path="src/utils.py") is False
+
+    def test_auto_fix_low_confidence_requires_approval(self):
+        """Test that auto-fix with low confidence requires approval"""
+        triage_result = {
+            "risk_level": "low",
+            "category": "style",
+            "should_auto_fix": True,
+            "confidence": 0.7,
+        }
+        assert determine_hitl_requirement(triage_result) is True
+
+    def test_default_requires_approval(self):
+        """Test that default case requires approval"""
+        triage_result = {
+            "risk_level": "low",
+            "category": "refactor",
+            "should_auto_fix": False,
+            "confidence": 0.5,
+        }
+        assert determine_hitl_requirement(triage_result) is True
+
+    def test_empty_file_path_no_sensitive_check(self):
+        """Test that empty file path skips sensitive file check"""
+        triage_result = {
+            "risk_level": "low",
+            "category": "style",
+            "should_auto_fix": True,
+            "confidence": 0.9,
+        }
+        assert determine_hitl_requirement(triage_result, file_path="") is False
+
+    def test_priority_high_risk_over_auto_fix(self):
+        """Test that high risk takes priority over auto-fix"""
+        triage_result = {
+            "risk_level": "high",
+            "category": "style",
+            "should_auto_fix": True,
+            "confidence": 0.95,
+        }
+        assert determine_hitl_requirement(triage_result) is True
+
+    def test_priority_security_over_auto_fix(self):
+        """Test that security category takes priority over auto-fix"""
+        triage_result = {
+            "risk_level": "low",
+            "category": "security",
+            "should_auto_fix": True,
+            "confidence": 0.95,
+        }
+        assert determine_hitl_requirement(triage_result) is True
+
+    def test_priority_sensitive_file_over_auto_fix(self):
+        """Test that sensitive file takes priority over auto-fix"""
+        triage_result = {
+            "risk_level": "low",
+            "category": "style",
+            "should_auto_fix": True,
+            "confidence": 0.95,
+        }
+        assert determine_hitl_requirement(
+            triage_result, file_path="src/auth.py"
+        ) is True
