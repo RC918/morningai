@@ -296,6 +296,11 @@ class TestVSCodeIDEService:
     @pytest.mark.asyncio
     async def test_create_session(self, service):
         """Test creating an IDE session"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         session = await service.create_session(
             vm_id="vm-test-12345678",
             task_id="task-12345678",
@@ -314,6 +319,11 @@ class TestVSCodeIDEService:
     @pytest.mark.asyncio
     async def test_create_session_custom_workspace(self, service):
         """Test creating session with custom workspace"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         session = await service.create_session(
             vm_id="vm-test",
             task_id="task-test",
@@ -326,6 +336,11 @@ class TestVSCodeIDEService:
     @pytest.mark.asyncio
     async def test_close_session(self, service):
         """Test closing an IDE session"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         session = await service.create_session(
             vm_id="vm-test",
             task_id="task-test",
@@ -347,6 +362,11 @@ class TestVSCodeIDEService:
     @pytest.mark.asyncio
     async def test_get_session(self, service):
         """Test getting a session by ID"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         created = await service.create_session(
             vm_id="vm-test",
             task_id="task-test",
@@ -367,6 +387,11 @@ class TestVSCodeIDEService:
     @pytest.mark.asyncio
     async def test_get_session_for_task(self, service):
         """Test getting session by task ID"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         await service.create_session(
             vm_id="vm-test",
             task_id="task-12345678",
@@ -381,6 +406,11 @@ class TestVSCodeIDEService:
     @pytest.mark.asyncio
     async def test_get_session_for_task_closed(self, service):
         """Test that closed sessions are not returned"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         created = await service.create_session(
             vm_id="vm-test",
             task_id="task-12345678",
@@ -815,6 +845,11 @@ class TestSessionStatistics:
     @pytest.mark.asyncio
     async def test_get_active_sessions(self, service):
         """Test getting active sessions"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         await service.create_session(
             vm_id="vm-1",
             task_id="task-1",
@@ -835,6 +870,11 @@ class TestSessionStatistics:
     @pytest.mark.asyncio
     async def test_get_session_stats(self, service):
         """Test getting session statistics"""
+        async def _noop_initialize(session):
+            pass
+
+        service._initialize_session = _noop_initialize
+
         await service.create_session(
             vm_id="vm-1",
             task_id="task-1",
