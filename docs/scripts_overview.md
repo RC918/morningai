@@ -67,7 +67,57 @@ bash scripts/release_main.sh
 
 ---
 
-### 3. `scripts/deploy_prod_and_health.sh`
+### 3. `scripts/rollback_smoke_test.sh`
+**功能**：自動化 curl 命令腳本，用於 rollback 後的驗證測試
+
+**使用時機**：
+- 執行 canary rollback 後驗證系統狀態
+- RLS rollback 後驗證資料庫配置
+- 任何生產環境部署或回滾後的健康檢查
+- 緊急回滾後的快速驗證
+
+**執行方式**：
+```bash
+cd ~/repos/morningai
+
+# 預設：production 環境，所有檢查
+bash scripts/rollback_smoke_test.sh
+
+# 指定環境
+bash scripts/rollback_smoke_test.sh --env staging
+
+# 指定場景
+bash scripts/rollback_smoke_test.sh --scenario backend   # 僅 backend 健康檢查
+bash scripts/rollback_smoke_test.sh --scenario canary    # 僅 canary 指標檢查
+bash scripts/rollback_smoke_test.sh --scenario rls       # 僅 RLS 驗證（需要 SUPABASE_DB_URL）
+
+# 詳細輸出
+bash scripts/rollback_smoke_test.sh --verbose
+```
+
+**涵蓋的檢查**：
+- **Section 1: Backend Health** - `/healthz`、`/api/billing/plans`、`/api/governance/status`
+- **Section 2: RLS Verification** - RLS 啟用狀態、tenant isolation policies、helper functions
+- **Section 3: Canary Verification** - LangGraph canary 指標、SLO compliance、error rates
+- **Section 4: Application Smoke** - 應用程式功能驗證
+
+**環境變數**：
+- `SUPABASE_DB_URL` - RLS 檢查所需的資料庫連線字串
+- `BACKEND_URL` - 覆蓋預設 backend URL
+- `API_URL` - 覆蓋預設 API URL
+
+**安全注意事項**：
+- ✅ **唯讀操作**：僅執行 GET 請求和 SELECT 查詢，不會修改任何資料
+- ⚠️ RLS 檢查需要資料庫連線權限
+- ⚠️ 某些 endpoint 可能需要認證（會顯示 401/403）
+
+**參考文件**：
+- [POST_DEPLOY_SMOKE_TEST_CHECKLIST.md](./runbooks/POST_DEPLOY_SMOKE_TEST_CHECKLIST.md)
+- [canary_rollback.md](./runbooks/canary_rollback.md)
+
+---
+
+### 4. `scripts/deploy_prod_and_health.sh`
 **功能**：觸發生產環境部署相關的工作流並等待健康檢查完成
 
 **使用時機**：
