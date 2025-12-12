@@ -562,6 +562,11 @@ class VSCodeIDEService:
         This replaces the fixed asyncio.sleep(2) with a more reliable polling
         mechanism that waits for code-server to actually be ready (#2351).
 
+        Improvements (#2355):
+        - First attempt runs immediately without delay
+        - Distinguishes between connection failures and HTTP errors
+        - Provides detailed logging for different error types
+
         Args:
             session: IDE session for executing commands
             bind_addr: Address code-server is bound to
@@ -575,7 +580,9 @@ class VSCodeIDEService:
         interval = self.DEFAULT_STARTUP_RETRY_INTERVAL
 
         for attempt in range(1, retries + 1):
-            await asyncio.sleep(interval)
+            # Sleep after first attempt, not before (#2355 optimization)
+            if attempt > 1:
+                await asyncio.sleep(interval)
 
             health_result = await self._execute_shell_command(
                 session,
@@ -583,20 +590,30 @@ class VSCodeIDEService:
                 timeout_seconds=5,
             )
 
-            if health_result.get("success"):
-                stdout = health_result.get("stdout", "").strip()
-                if stdout == "200":
-                    logger.debug(
-                        "[VSCodeIDEService] code-server ready after %d attempt(s) "
-                        "for session %s",
-                        attempt, session_id
-                    )
-                    return True
+            # Check if curl command itself failed (connection refused, timeout, etc.)
+            if not health_result.get("success"):
+                stderr = health_result.get("stderr", "").strip()
+                logger.debug(
+                    "[VSCodeIDEService] curl failed for session %s, attempt %d/%d: %s",
+                    session_id, attempt, retries,
+                    stderr or "connection failed"
+                )
+                continue
 
+            stdout = health_result.get("stdout", "").strip()
+            if stdout == "200":
+                logger.debug(
+                    "[VSCodeIDEService] code-server ready after %d attempt(s) "
+                    "for session %s",
+                    attempt, session_id
+                )
+                return True
+
+            # HTTP response received but not 200
             logger.debug(
-                "[VSCodeIDEService] code-server not ready, attempt %d/%d "
+                "[VSCodeIDEService] code-server returned HTTP %s, attempt %d/%d "
                 "for session %s",
-                attempt, retries, session_id
+                stdout or "unknown", attempt, retries, session_id
             )
 
         logger.warning(
