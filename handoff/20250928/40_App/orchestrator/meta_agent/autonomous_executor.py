@@ -2072,7 +2072,25 @@ class AutonomousExecutor:
         if task_type_value in write_task_types:
             target_files = task.outputs.get("target_files", []) if task.outputs else []
             if not target_files:
-                target_files = [task.description[:100]]
+                logger.warning(
+                    "[AutonomousExecutor] target_files is empty for write task (fail-closed)",
+                    extra={
+                        "operation": "runtime_policy_check",
+                        "task_id": task.task_id,
+                        "task_type": task_type_value,
+                    }
+                )
+                if self.audit_logger:
+                    self.audit_logger.log_policy_violation(
+                        violation_type="runtime_policy_missing_target_files",
+                        details="target_files is empty for write task (configuration error)",
+                        task_id=task.task_id,
+                        task_type=task_type_value,
+                    )
+                return {
+                    "action": "require_approval",
+                    "reason": "Write task missing target_files - requires approval (fail-closed)",
+                }
 
             for target in target_files:
                 check_result = self._runtime_policy_enforcer.check_resource_access(
