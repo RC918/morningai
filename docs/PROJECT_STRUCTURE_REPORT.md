@@ -6,12 +6,22 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 2.2.0  
-**Last Updated**: 2025-12-09  
-**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory) + Phase 4 (Refactor Agent) + VSCode/MCP Integration  
+**Document Version**: 2.3.0  
+**Last Updated**: 2025-12-12  
+**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory) + Phase 4 (Refactor Agent) + VSCode/MCP Integration + Epic #2311 (Observability)  
 **Test Coverage**: 59.89% (Owner Console), 70%+ (Orchestrator), 74%+ (Backend)  
-**Recent Activity**: 440+ commits on main (2025-11-12 至 2025-12-07，快照值截至 2025-12-07)  
-**Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
+**Recent Activity**: 467+ commits on main (2025-11-12 至 2025-12-12，快照值截至 2025-12-12)  
+**Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)  
+**RLS Status**: TRUE tenant isolation deployed (Staging & Production, Dec 12, 2025)
+
+**Recent PRs (Dec 10 - Dec 12, 2025)**:
+
+*RLS & Deployment:*
+- **PR #2336** (Merged): fix(api-backend): make Sentry initialization conditional based on SENTRY_DSN
+  - Path: `handoff/20250928/40_App/api-backend/src/sentry_integration.py`
+- **PR #2339** (Merged): docs: add MorningAI deep analysis report and update RLS deployment status
+  - Path: `docs/MORNINGAI_深度解析報告_2025-12-12.md`, `docs/RLS_DEPLOYMENT_STATUS.md`
+  - RLS TRUE tenant isolation deployed to Staging and Production
 
 **Recent PRs (Dec 7 - Dec 9, 2025)**:
 
