@@ -29,6 +29,7 @@ import asyncio
 import base64
 import json
 import logging
+import secrets
 import shlex
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -279,6 +280,15 @@ class VSCodeIDEService:
     DEFAULT_VSCODE_PORT = 8443
     DEFAULT_MCP_PORT = 8080
 
+    # Default bind address for code-server (#2351 security hardening)
+    # Use 127.0.0.1 instead of 0.0.0.0 to restrict access to localhost only
+    DEFAULT_BIND_ADDRESS = "127.0.0.1"
+
+    # Startup polling configuration (#2351 reliability improvement)
+    # Replace fixed sleep with polling /healthz endpoint
+    DEFAULT_STARTUP_RETRIES = 10
+    DEFAULT_STARTUP_RETRY_INTERVAL = 1  # seconds
+
     # Default VS Code workspace settings (#2243)
     DEFAULT_VSCODE_SETTINGS: Dict[str, Any] = {
         "editor.formatOnSave": True,
@@ -423,9 +433,10 @@ class VSCodeIDEService:
 
         This method:
         1. Checks if code-server is already running via health check
-        2. Starts code-server if not running
-        3. Ensures workspace directory exists
-        4. Configures basic workspace settings (.vscode/settings.json)
+        2. Starts code-server with token auth if not running (#2351 security)
+        3. Polls /healthz endpoint until ready (#2351 reliability)
+        4. Ensures workspace directory exists
+        5. Configures basic workspace settings (.vscode/settings.json)
 
         Args:
             session: IDE session to initialize
@@ -442,9 +453,10 @@ class VSCodeIDEService:
         )
 
         port = self.DEFAULT_VSCODE_PORT
+        bind_addr = self.DEFAULT_BIND_ADDRESS
         health_check = await self._execute_shell_command(
             session,
-            f"pgrep -f code-server || curl -s http://127.0.0.1:{port}/healthz",
+            f"pgrep -f code-server || curl -s http://{bind_addr}:{port}/healthz",
             timeout_seconds=10,
         )
 
@@ -453,9 +465,15 @@ class VSCodeIDEService:
                 "[VSCodeIDEService] code-server not running, starting for session %s",
                 session_id
             )
+
+            auth_token = secrets.token_urlsafe(32)
+            session.metadata["code_server_token"] = auth_token
+
             start_result = await self._execute_shell_command(
                 session,
-                f"code-server --bind-addr 0.0.0.0:{port} --auth none {shlex.quote(workspace_path)} &",
+                f"PASSWORD={shlex.quote(auth_token)} code-server "
+                f"--bind-addr {bind_addr}:{port} --auth password "
+                f"{shlex.quote(workspace_path)} &",
                 timeout_seconds=10,
             )
 
@@ -464,15 +482,12 @@ class VSCodeIDEService:
                     f"Failed to start code-server: {start_result.get('stderr', 'Unknown error')}"
                 )
 
-            await asyncio.sleep(2)
-
-            verify_result = await self._execute_shell_command(
-                session,
-                "pgrep -f code-server",
-                timeout_seconds=5,
-            )
-            if not verify_result.get("success") or verify_result.get("exit_code") != 0:
-                raise RuntimeError("code-server failed to start after 2 seconds")
+            started = await self._poll_healthz(session, bind_addr, port)
+            if not started:
+                raise RuntimeError(
+                    f"code-server failed to start after "
+                    f"{self.DEFAULT_STARTUP_RETRIES} retries"
+                )
 
             logger.info(
                 "[VSCodeIDEService] code-server started successfully for session %s",
@@ -534,6 +549,62 @@ class VSCodeIDEService:
             "[VSCodeIDEService] Session %s initialized successfully",
             session_id
         )
+
+    async def _poll_healthz(
+        self,
+        session: IDESession,
+        bind_addr: str,
+        port: int,
+    ) -> bool:
+        """
+        Poll code-server /healthz endpoint until it responds successfully.
+
+        This replaces the fixed asyncio.sleep(2) with a more reliable polling
+        mechanism that waits for code-server to actually be ready (#2351).
+
+        Args:
+            session: IDE session for executing commands
+            bind_addr: Address code-server is bound to
+            port: Port code-server is listening on
+
+        Returns:
+            True if code-server is ready, False if all retries exhausted
+        """
+        session_id = session.session_id[:8]
+        retries = self.DEFAULT_STARTUP_RETRIES
+        interval = self.DEFAULT_STARTUP_RETRY_INTERVAL
+
+        for attempt in range(1, retries + 1):
+            await asyncio.sleep(interval)
+
+            health_result = await self._execute_shell_command(
+                session,
+                f"curl -s -o /dev/null -w '%{{http_code}}' http://{bind_addr}:{port}/healthz",
+                timeout_seconds=5,
+            )
+
+            if health_result.get("success"):
+                stdout = health_result.get("stdout", "").strip()
+                if stdout == "200":
+                    logger.debug(
+                        "[VSCodeIDEService] code-server ready after %d attempt(s) "
+                        "for session %s",
+                        attempt, session_id
+                    )
+                    return True
+
+            logger.debug(
+                "[VSCodeIDEService] code-server not ready, attempt %d/%d "
+                "for session %s",
+                attempt, retries, session_id
+            )
+
+        logger.warning(
+            "[VSCodeIDEService] code-server failed to become ready after %d "
+            "attempts for session %s",
+            retries, session_id
+        )
+        return False
 
     async def close_session(self, session_id: str) -> bool:
         """
