@@ -25,6 +25,43 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_NAME="$(basename "$0")"
 
+MIN_TENANT_ISOLATION_POLICIES=4
+MIN_HELPER_FUNCTIONS=2
+
+check_dependencies() {
+    local missing=()
+    
+    if ! command -v curl &> /dev/null; then
+        missing+=("curl")
+    fi
+    
+    if ! command -v jq &> /dev/null; then
+        missing+=("jq")
+    fi
+    
+    if ! command -v bc &> /dev/null; then
+        missing+=("bc")
+    fi
+    
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Error: Missing required dependencies: ${missing[*]}"
+        echo "Please install them before running this script."
+        echo ""
+        echo "On Ubuntu/Debian: sudo apt-get install ${missing[*]}"
+        echo "On macOS: brew install ${missing[*]}"
+        exit 2
+    fi
+}
+
+check_rls_dependencies() {
+    if ! command -v psql &> /dev/null; then
+        echo "Warning: psql not found. RLS checks will be skipped."
+        echo "Install PostgreSQL client to enable RLS verification."
+        return 1
+    fi
+    return 0
+}
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -245,6 +282,11 @@ section_rls_verification() {
     echo "========================================"
     echo ""
     
+    if ! check_rls_dependencies; then
+        log_skip "RLS verification - psql not available"
+        return 0
+    fi
+    
     if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
         log_skip "RLS verification - SUPABASE_DB_URL not set"
         log_info "Set SUPABASE_DB_URL to enable RLS checks"
@@ -263,15 +305,19 @@ section_rls_verification() {
         return 1
     }
     
-    local all_rls_enabled=true
+    local rls_failures=0
     while IFS='|' read -r tablename rowsecurity; do
         if [[ "$rowsecurity" == "t" ]]; then
             log_success "RLS enabled on $tablename"
         else
             log_fail "RLS NOT enabled on $tablename"
-            all_rls_enabled=false
+            ((rls_failures++))
         fi
     done <<< "$rls_result"
+    
+    if [[ "$rls_failures" -gt 0 ]]; then
+        log_warn "RLS verification found $rls_failures table(s) without RLS enabled"
+    fi
     
     log_info "Checking TRUE tenant isolation policies..."
     
@@ -282,10 +328,10 @@ section_rls_verification() {
         return 1
     }
     
-    if [[ "$policy_count" -ge 4 ]]; then
-        log_success "TRUE tenant isolation policies: $policy_count (>= 4 required)"
+    if [[ "$policy_count" -ge "$MIN_TENANT_ISOLATION_POLICIES" ]]; then
+        log_success "TRUE tenant isolation policies: $policy_count (>= $MIN_TENANT_ISOLATION_POLICIES required)"
     else
-        log_fail "TRUE tenant isolation policies: $policy_count (< 4, expected >= 4)"
+        log_fail "TRUE tenant isolation policies: $policy_count (< $MIN_TENANT_ISOLATION_POLICIES, expected >= $MIN_TENANT_ISOLATION_POLICIES)"
     fi
     
     log_info "Checking helper functions..."
@@ -297,10 +343,10 @@ section_rls_verification() {
         return 1
     }
     
-    if [[ "$func_count" -ge 2 ]]; then
+    if [[ "$func_count" -ge "$MIN_HELPER_FUNCTIONS" ]]; then
         log_success "Helper functions exist: $func_count"
     else
-        log_warn "Helper functions: $func_count (expected 2)"
+        log_warn "Helper functions: $func_count (expected $MIN_HELPER_FUNCTIONS)"
     fi
 }
 
@@ -373,9 +419,12 @@ section_application_smoke() {
     check_http_status "$backend_url/api/billing/plans" "200" "Billing API" || true
     
     local security_status
-    security_status=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 10 "$backend_url/api/security/reviews/pending" 2>&1) || security_status="000"
+    local curl_exit_code
+    security_status=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 10 "$backend_url/api/security/reviews/pending" 2>/dev/null) && curl_exit_code=0 || curl_exit_code=$?
     
-    if [[ "$security_status" == "401" ]] || [[ "$security_status" == "403" ]] || [[ "$security_status" == "200" ]]; then
+    if [[ "$curl_exit_code" -ne 0 ]]; then
+        log_fail "Security endpoint - Connection failed (curl exit code: $curl_exit_code)"
+    elif [[ "$security_status" == "401" ]] || [[ "$security_status" == "403" ]] || [[ "$security_status" == "200" ]]; then
         log_success "Security endpoint protected (HTTP $security_status)"
     else
         log_fail "Security endpoint unexpected status: HTTP $security_status"
@@ -446,6 +495,8 @@ main() {
                 ;;
         esac
     done
+    
+    check_dependencies
     
     echo "========================================"
     echo "Rollback Smoke Test"
