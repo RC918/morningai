@@ -156,6 +156,33 @@ class RuntimePolicyEnforcer:
         self._policy_guard = None
         self._cost_tracker = None
 
+    def reload_policies(self) -> None:
+        """
+        Reload runtime policies from settings / configuration source.
+
+        This method resets the lazy-loaded policy components so they will
+        be re-initialized with fresh settings on next access. Thread-safe
+        when used with the global enforcer via _enforcer_lock.
+
+        Use cases:
+        - Dynamic configuration updates without restart
+        - Testing with different policy configurations
+        - Hot-reloading after Owner Console policy changes
+        """
+        from common.config.settings import settings as global_settings
+        self.settings = global_settings
+
+        self._policy_guard = None
+        self._cost_tracker = None
+
+        logger.info(
+            "[RuntimePolicyEnforcer] Policies reloaded",
+            extra={
+                "operation": "reload_policies",
+                "cost_exceeded_action": getattr(self.settings, "cost_exceeded_action", "block"),
+            },
+        )
+
     @property
     def policy_guard(self):
         """Lazy-load PolicyGuard"""
@@ -643,6 +670,11 @@ class RuntimePolicyEnforcer:
         """
         Determine action based on budget overage.
 
+        Args:
+            budget_type: Type of budget exceeded ("token" or "usd")
+            current: Current/projected value that exceeded the limit
+            limit: The budget limit that was exceeded
+
         Actions based on settings:
         - block: Stop execution
         - degrade_model: Switch to cheaper model
@@ -650,6 +682,22 @@ class RuntimePolicyEnforcer:
         - fallback: Use fallback mode
         """
         cost_exceeded_action = getattr(self.settings, "cost_exceeded_action", "block")
+
+        overage_ratio: Optional[float] = None
+        if limit > 0:
+            overage_ratio = current / limit
+
+        logger.debug(
+            "[RuntimePolicyEnforcer] Cost budget exceeded, determining action",
+            extra={
+                "operation": "cost_action_decision",
+                "budget_type": budget_type,
+                "current": current,
+                "limit": limit,
+                "overage_ratio": overage_ratio,
+                "configured_action": cost_exceeded_action,
+            },
+        )
 
         if cost_exceeded_action == "degrade":
             return EnforcementAction.DEGRADE_MODEL
@@ -845,4 +893,23 @@ def get_runtime_policy_enforcer() -> RuntimePolicyEnforcer:
     with _enforcer_lock:
         if _runtime_policy_enforcer is None:
             _runtime_policy_enforcer = RuntimePolicyEnforcer()
+        return _runtime_policy_enforcer
+
+
+def reload_runtime_policies() -> RuntimePolicyEnforcer:
+    """
+    Reload runtime policies for the global enforcer instance.
+
+    Thread-safe helper that reloads policies on the global singleton.
+    Creates the enforcer if it doesn't exist yet.
+
+    Returns:
+        The global RuntimePolicyEnforcer instance after reload
+    """
+    global _runtime_policy_enforcer
+    with _enforcer_lock:
+        if _runtime_policy_enforcer is None:
+            _runtime_policy_enforcer = RuntimePolicyEnforcer()
+        else:
+            _runtime_policy_enforcer.reload_policies()
         return _runtime_policy_enforcer
