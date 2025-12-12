@@ -1413,6 +1413,19 @@ class Settings(BaseSettings):
         description="VM provider for Meta Agent: 'local', 'docker', or 'fly' (requires ENABLE_META_AGENT_VM=true)"
     )
 
+    # VSCode IDE CORS / iframe support (#2353)
+    vscode_iframe_allowed_origins: str = Field(
+        default="",
+        alias="VSCODE_IFRAME_ALLOWED_ORIGINS",
+        description="Comma-separated list of origins allowed to embed VSCode IDE in iframe (e.g., 'https://app.morningai.com,https://staging.morningai.com'). Empty means iframe embedding is disabled."
+    )
+
+    vscode_public_base_url: Optional[str] = Field(
+        default=None,
+        alias="VSCODE_PUBLIC_BASE_URL",
+        description="Public base URL for VSCode IDE access (e.g., 'https://ide.morningai.com'). If not set, uses internal localhost URL."
+    )
+
     enable_visual_verification: bool = Field(
         default=False,
         alias="ENABLE_VISUAL_VERIFICATION",

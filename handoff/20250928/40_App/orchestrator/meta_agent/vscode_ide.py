@@ -545,6 +545,11 @@ class VSCodeIDEService:
         session.metadata["code_server_url"] = session.vscode_endpoint
         session.metadata["initialized_at"] = datetime.now().isoformat()
 
+        # Add CORS / iframe configuration to metadata (#2353)
+        cors_config = self.get_cors_config()
+        session.metadata["iframe_allowed_origins"] = cors_config["allowed_origins"]
+        session.metadata["public_url"] = cors_config["public_url"] or session.vscode_endpoint
+
         logger.info(
             "[VSCodeIDEService] Session %s initialized successfully",
             session_id
@@ -1353,6 +1358,66 @@ class VSCodeIDEService:
             "active_sessions": len(self.get_active_sessions()),
             "status_counts": status_counts,
         }
+
+    def get_cors_config(self) -> Dict[str, Any]:
+        """
+        Get CORS / iframe configuration from settings (#2353).
+
+        Returns a dictionary with:
+        - allowed_origins: List of origins allowed to embed IDE in iframe
+        - public_url: Public base URL for IDE access (or None if not configured)
+        - iframe_enabled: Whether iframe embedding is enabled
+
+        Returns:
+            Dict with CORS configuration
+        """
+        try:
+            from common.config.settings import settings
+            origins_str = settings.vscode_iframe_allowed_origins or ""
+            allowed_origins = [
+                o.strip() for o in origins_str.split(",") if o.strip()
+            ]
+            public_url = settings.vscode_public_base_url
+        except ImportError:
+            logger.warning(
+                "[VSCodeIDEService] Could not import settings, using defaults"
+            )
+            allowed_origins = []
+            public_url = None
+
+        return {
+            "allowed_origins": allowed_origins,
+            "public_url": public_url,
+            "iframe_enabled": len(allowed_origins) > 0,
+        }
+
+    def get_cors_headers(self) -> Dict[str, str]:
+        """
+        Get HTTP headers for CORS / iframe support (#2353).
+
+        Returns headers that should be set by the reverse proxy layer
+        when serving IDE content. These headers enable iframe embedding
+        from allowed origins.
+
+        Returns:
+            Dict of HTTP headers to set
+        """
+        config = self.get_cors_config()
+        headers: Dict[str, str] = {}
+
+        if not config["iframe_enabled"]:
+            headers["X-Frame-Options"] = "DENY"
+            return headers
+
+        allowed_origins = config["allowed_origins"]
+
+        frame_ancestors = "'self' " + " ".join(allowed_origins)
+        headers["Content-Security-Policy"] = f"frame-ancestors {frame_ancestors}"
+
+        if len(allowed_origins) == 1:
+            headers["X-Frame-Options"] = f"ALLOW-FROM {allowed_origins[0]}"
+
+        return headers
 
 
 # Global IDE service instance

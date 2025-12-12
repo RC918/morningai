@@ -1369,3 +1369,110 @@ class TestInitializeSession:
         assert startup_cmd is not None
         assert "127.0.0.1:8443" in startup_cmd
         assert "0.0.0.0" not in startup_cmd
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_sets_cors_metadata(
+        self, service, mock_session, mock_shell_for_startup, mock_mcp_success
+    ):
+        """Test initialization sets CORS / iframe metadata (#2353)"""
+        service._execute_shell_command = mock_shell_for_startup(
+            code_server_running=True
+        )
+        service._execute_mcp_command = mock_mcp_success
+
+        await service._initialize_session(mock_session)
+
+        assert "iframe_allowed_origins" in mock_session.metadata
+        assert "public_url" in mock_session.metadata
+        assert mock_session.metadata["public_url"] == mock_session.vscode_endpoint
+
+
+class TestCorsConfig:
+    """Tests for CORS / iframe configuration (#2353)"""
+
+    @pytest.fixture
+    def service(self):
+        return VSCodeIDEService()
+
+    def test_get_cors_config_default_empty(self, service, monkeypatch):
+        """Test get_cors_config returns empty origins by default"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_iframe_allowed_origins", ""
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_public_base_url", None
+        )
+
+        config = service.get_cors_config()
+
+        assert config["allowed_origins"] == []
+        assert config["public_url"] is None
+        assert config["iframe_enabled"] is False
+
+    def test_get_cors_config_with_origins(self, service, monkeypatch):
+        """Test get_cors_config parses comma-separated origins"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_iframe_allowed_origins",
+            "https://app.morningai.com,https://staging.morningai.com"
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_public_base_url",
+            "https://ide.morningai.com"
+        )
+
+        config = service.get_cors_config()
+
+        assert config["allowed_origins"] == [
+            "https://app.morningai.com",
+            "https://staging.morningai.com"
+        ]
+        assert config["public_url"] == "https://ide.morningai.com"
+        assert config["iframe_enabled"] is True
+
+    def test_get_cors_headers_disabled(self, service, monkeypatch):
+        """Test get_cors_headers returns DENY when iframe is disabled"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_iframe_allowed_origins", ""
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_public_base_url", None
+        )
+
+        headers = service.get_cors_headers()
+
+        assert headers["X-Frame-Options"] == "DENY"
+        assert "Content-Security-Policy" not in headers
+
+    def test_get_cors_headers_single_origin(self, service, monkeypatch):
+        """Test get_cors_headers with single origin sets both headers"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_iframe_allowed_origins",
+            "https://app.morningai.com"
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_public_base_url", None
+        )
+
+        headers = service.get_cors_headers()
+
+        assert "Content-Security-Policy" in headers
+        assert "frame-ancestors" in headers["Content-Security-Policy"]
+        assert "https://app.morningai.com" in headers["Content-Security-Policy"]
+        assert headers["X-Frame-Options"] == "ALLOW-FROM https://app.morningai.com"
+
+    def test_get_cors_headers_multiple_origins(self, service, monkeypatch):
+        """Test get_cors_headers with multiple origins only sets CSP"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_iframe_allowed_origins",
+            "https://app.morningai.com,https://staging.morningai.com"
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_public_base_url", None
+        )
+
+        headers = service.get_cors_headers()
+
+        assert "Content-Security-Policy" in headers
+        assert "https://app.morningai.com" in headers["Content-Security-Policy"]
+        assert "https://staging.morningai.com" in headers["Content-Security-Policy"]
+        assert "X-Frame-Options" not in headers
