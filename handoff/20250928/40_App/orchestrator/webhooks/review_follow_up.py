@@ -25,6 +25,57 @@ from .comment_triage import CommentTriageResult, CommentCategory, RiskLevel
 
 logger = logging.getLogger(__name__)
 
+SENSITIVE_FILE_PATTERNS = [
+    "auth", "security", "credential", "password", "secret",
+    "config", "settings", "env", "migration", "schema",
+]
+
+
+def determine_hitl_requirement(
+    triage_result: Optional[Dict[str, Any]],
+    file_path: str = "",
+    action: Optional[str] = None,
+) -> bool:
+    """
+    Unified HITL (Human-in-the-Loop) approval decision logic.
+
+    Issue #2258: Single source of truth for HITL approval decisions.
+    This function consolidates the decision logic previously duplicated in:
+    - ReviewFollowUpService._requires_approval()
+    - langgraph_orchestrator._determine_hitl_requirement()
+
+    Args:
+        triage_result: Result from CommentTriageAgent (dict format)
+        file_path: File path being modified
+        action: Action type (e.g., "escalate", "auto_fix")
+
+    Returns:
+        True if HITL approval is required
+    """
+    if triage_result is None:
+        return True
+
+    if triage_result.get("risk_level") == "high":
+        return True
+
+    if triage_result.get("category") == "security":
+        return True
+
+    if action == "escalate":
+        return True
+
+    if file_path:
+        file_path_lower = file_path.lower()
+        for pattern in SENSITIVE_FILE_PATTERNS:
+            if pattern in file_path_lower:
+                return True
+
+    if (triage_result.get("should_auto_fix", False) and
+            triage_result.get("confidence", 0) >= 0.8):
+        return False
+
+    return True
+
 
 class ReviewFollowUpStatus(Enum):
     """Status of a review follow-up task"""
@@ -552,27 +603,17 @@ class ReviewFollowUpService:
         return " ".join(parts)
 
     def _requires_approval(self, task: ReviewFollowUpTask) -> bool:
-        """Determine if task requires human approval"""
-        # Always require approval for high-risk changes
-        if task.triage_result and task.triage_result.risk_level == RiskLevel.HIGH:
-            return True
+        """
+        Determine if task requires human approval.
 
-        # Require approval for security-related changes
-        if task.triage_result and task.triage_result.category == CommentCategory.SECURITY:
-            return True
-
-        # Require approval for escalated tasks
-        if task.action == ReviewFollowUpAction.ESCALATE:
-            return True
-
-        # Auto-fix tasks with high confidence don't require approval
-        if (task.action == ReviewFollowUpAction.AUTO_FIX and
-                task.triage_result and
-                task.triage_result.confidence >= 0.8):
-            return False
-
-        # Default to requiring approval
-        return True
+        Issue #2258: Delegates to unified determine_hitl_requirement() function.
+        """
+        triage_dict = task.triage_result.to_dict() if task.triage_result else None
+        return determine_hitl_requirement(
+            triage_result=triage_dict,
+            file_path=task.file_path,
+            action=task.action.value if task.action else None,
+        )
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics"""

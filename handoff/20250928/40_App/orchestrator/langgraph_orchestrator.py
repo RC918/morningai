@@ -115,6 +115,7 @@ from agent_eval_integration import (
 )
 from common.config.settings import settings
 from llm_reviewer_adapter import generate_llm_review
+from webhooks.review_follow_up import determine_hitl_requirement
 
 logger = logging.getLogger(__name__)
 
@@ -976,7 +977,8 @@ def _determine_hitl_requirement(triage_result: dict, file_path: str) -> bool:
     """
     Determine if HITL (Human-in-the-Loop) approval is required.
 
-    Issue #2211: HITL approval mechanism for review follow-up.
+    Issue #2258: Delegates to unified determine_hitl_requirement() function
+    in webhooks.review_follow_up module.
 
     Args:
         triage_result: Result from CommentTriageAgent
@@ -985,31 +987,10 @@ def _determine_hitl_requirement(triage_result: dict, file_path: str) -> bool:
     Returns:
         True if HITL approval is required
     """
-    # Always require approval for high-risk changes
-    if triage_result.get("risk_level") == "high":
-        return True
-
-    # Require approval for security-related changes
-    if triage_result.get("category") == "security":
-        return True
-
-    # Require approval for sensitive file patterns
-    sensitive_patterns = [
-        "auth", "security", "credential", "password", "secret",
-        "config", "settings", "env", "migration", "schema",
-    ]
-    file_path_lower = file_path.lower()
-    for pattern in sensitive_patterns:
-        if pattern in file_path_lower:
-            return True
-
-    # Auto-fix with high confidence doesn't require approval
-    if (triage_result.get("should_auto_fix", False) and
-            triage_result.get("confidence", 0) >= 0.8):
-        return False
-
-    # Default to requiring approval for safety
-    return True
+    return determine_hitl_requirement(
+        triage_result=triage_result,
+        file_path=file_path,
+    )
 
 
 def _build_review_follow_up_goal(
