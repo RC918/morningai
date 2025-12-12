@@ -394,6 +394,8 @@ class AuditLogger:
         self,
         violation_type: str,
         details: str,
+        task_id: Optional[str] = None,
+        task_type: Optional[str] = None,
         **kwargs: Any,
     ) -> AuditEvent:
         """Log policy violation event"""
@@ -402,11 +404,13 @@ class AuditLogger:
             event_type=AuditEventType.POLICY_VIOLATION,
             timestamp=datetime.now(),
             execution_id=self.execution_id,
+            task_id=task_id,
             actor=self.actor,
             action="policy_violation",
             details={
                 "violation_type": violation_type,
                 "details": details,
+                "task_type": task_type,
                 **kwargs,
             },
         )
