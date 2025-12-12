@@ -29,7 +29,11 @@ from .handlers.jira_handler import JiraWebhookHandler
 from .handlers.linear_handler import LinearWebhookHandler
 from .handlers.slack_handler import SlackWebhookHandler
 from .comment_triage import CommentTriageAgent, CommentTriageResult
-from ..utils.rate_limit import check_ai_reviewer_rate_limit
+
+try:
+    from ..utils.rate_limit import check_ai_reviewer_rate_limit
+except ImportError:
+    from utils.rate_limit import check_ai_reviewer_rate_limit
 
 logger = logging.getLogger(__name__)
 
