@@ -25,10 +25,10 @@ from .comment_triage import CommentTriageResult, CommentCategory, RiskLevel
 
 logger = logging.getLogger(__name__)
 
-SENSITIVE_FILE_PATTERNS = [
+SENSITIVE_FILE_PATTERNS = (
     "auth", "security", "credential", "password", "secret",
     "config", "settings", "env", "migration", "schema",
-]
+)
 
 
 def determine_hitl_requirement(
