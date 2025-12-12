@@ -26,6 +26,8 @@ Features:
 """
 
 import asyncio
+import base64
+import json
 import logging
 import shlex
 from dataclasses import dataclass, field
@@ -277,6 +279,12 @@ class VSCodeIDEService:
     DEFAULT_VSCODE_PORT = 8443
     DEFAULT_MCP_PORT = 8080
 
+    # Default VS Code workspace settings (#2243)
+    DEFAULT_VSCODE_SETTINGS: Dict[str, Any] = {
+        "editor.formatOnSave": True,
+        "editor.tabSize": 4,
+    }
+
     # Supported formatters by language
     FORMATTERS: Dict[Language, str] = {
         Language.PYTHON: "black",
@@ -433,9 +441,10 @@ class VSCodeIDEService:
             session_id, workspace_path
         )
 
+        port = self.DEFAULT_VSCODE_PORT
         health_check = await self._execute_shell_command(
             session,
-            "pgrep -f code-server || curl -s http://127.0.0.1:8443/healthz",
+            f"pgrep -f code-server || curl -s http://127.0.0.1:{port}/healthz",
             timeout_seconds=10,
         )
 
@@ -446,7 +455,7 @@ class VSCodeIDEService:
             )
             start_result = await self._execute_shell_command(
                 session,
-                f"code-server --bind-addr 0.0.0.0:8443 --auth none {shlex.quote(workspace_path)} &",
+                f"code-server --bind-addr 0.0.0.0:{port} --auth none {shlex.quote(workspace_path)} &",
                 timeout_seconds=10,
             )
 
@@ -487,7 +496,7 @@ class VSCodeIDEService:
 
         vscode_dir = f"{workspace_path}/.vscode"
         settings_path = f"{vscode_dir}/settings.json"
-        default_settings = '{"editor.formatOnSave": true, "editor.tabSize": 4}'
+        settings_json = json.dumps(self.DEFAULT_VSCODE_SETTINGS, separators=(",", ":"))
 
         await self._execute_shell_command(
             session,
@@ -500,15 +509,16 @@ class VSCodeIDEService:
             "file/write",
             {
                 "file_path": settings_path,
-                "content": default_settings,
+                "content": settings_json,
             },
             timeout_seconds=10,
         )
 
         if not settings_result.get("success"):
+            settings_b64 = base64.b64encode(settings_json.encode("utf-8")).decode("ascii")
             fallback_result = await self._execute_shell_command(
                 session,
-                f"echo '{default_settings}' > {shlex.quote(settings_path)}",
+                f"printf '%s' {shlex.quote(settings_b64)} | base64 -d > {shlex.quote(settings_path)}",
                 timeout_seconds=10,
             )
             if not fallback_result.get("success"):

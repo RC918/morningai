@@ -1083,11 +1083,14 @@ class TestInitializeSession:
 
         assert mock_session.metadata.get("code_server_url") == "http://localhost:8443"
         assert "initialized_at" in mock_session.metadata
+        assert shell_call_count >= 3
+        assert mcp_call_count >= 1
 
     @pytest.mark.asyncio
     async def test_initialize_session_starts_code_server(self, service, mock_session):
         """Test initialization starts code-server when not running"""
         call_sequence = []
+        mcp_call_count = 0
 
         async def mock_shell(session, command, timeout_seconds=60):
             call_sequence.append(command)
@@ -1099,11 +1102,13 @@ class TestInitializeSession:
                 return {"success": True, "exit_code": 0, "stdout": "12345", "stderr": ""}
             if "mkdir -p" in command:
                 return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
-            if "echo" in command:
+            if "base64" in command:
                 return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
             return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
 
         async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            nonlocal mcp_call_count
+            mcp_call_count += 1
             return {"success": True}
 
         service._execute_shell_command = mock_shell
@@ -1113,6 +1118,8 @@ class TestInitializeSession:
 
         assert any("code-server --bind-addr" in cmd for cmd in call_sequence)
         assert mock_session.metadata.get("code_server_url") == "http://localhost:8443"
+        assert len(call_sequence) >= 5
+        assert mcp_call_count >= 1
 
     @pytest.mark.asyncio
     async def test_initialize_session_code_server_fails_to_start(
@@ -1177,4 +1184,4 @@ class TestInitializeSession:
 
         await service._initialize_session(mock_session)
 
-        assert any("echo" in cmd and "settings.json" in cmd for cmd in shell_commands)
+        assert any("base64" in cmd and "settings.json" in cmd for cmd in shell_commands)
