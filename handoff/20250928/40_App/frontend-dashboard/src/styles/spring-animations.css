@@ -479,5 +479,5 @@
 }
 
 .dark .focus-spring:focus-visible {
-  outline-color: rgba(var(--color-primary-light-rgb, 96, 165, 250), 0.6);
+  outline-color: rgba(var(--color-primary-light-rgb, 96, 165, 250), var(--focus-opacity-dark, 0.6));
 }

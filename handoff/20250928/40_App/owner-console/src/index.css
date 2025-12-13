@@ -201,6 +201,7 @@
   --hover-shadow-opacity-light: 0.1;
   --glow-opacity: 0.5;
   --glow-opacity-dark: 0.4;
+  --focus-opacity-dark: 0.6;
   /* Hover glow gradient colors */
   --glow-color-1: #007AFF;  /* iOS blue */
   --glow-color-2: #8b5cf6;  /* purple */
