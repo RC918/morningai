@@ -89,8 +89,88 @@ export default { ... }
      - `focus.light`: #0284c7 (secondary focus color for lighter backgrounds)
      - `focus.outline-width`: 3px
      - `focus.outline-offset`: 2px
+     - `focus.outline-color`: #0284c7 (focus outline color)
    - Touch target sizes
    - Reduced motion support
+
+## Accessibility Focus CSS Variables (Issue #2292)
+
+### Overview
+
+The `--a11y-focus-*` CSS variables provide configurable focus indicators for keyboard navigation. These variables are defined in the `@theme` block and used by `accessibility.css` for WCAG AAA compliant focus styles.
+
+### Available Variables
+
+| Variable | Default Value | Description |
+|----------|---------------|-------------|
+| `--a11y-focus-outline-color` | var(--color-focus-light) | Focus outline color |
+| `--a11y-focus-outline-width` | 3px | Focus outline width (AAA compliant) |
+| `--a11y-focus-outline-offset` | 2px | Offset from element edge |
+| `--a11y-focus-primary` | var(--color-focus) | Primary focus color for high contrast |
+| `--a11y-focus-light` | var(--color-focus-light) | Light focus color |
+
+### Usage in CSS
+
+```css
+/* Default usage in accessibility.css */
+*:focus-visible {
+  outline: var(--a11y-focus-outline-width, 3px) solid var(--a11y-focus-outline-color, #0284c7);
+  outline-offset: var(--a11y-focus-outline-offset, 2px);
+}
+```
+
+### Override Examples
+
+#### High Contrast Theme
+
+```css
+/* High contrast theme override */
+:root.high-contrast {
+  --a11y-focus-outline-color: #000000;
+  --a11y-focus-outline-width: 4px;
+  --a11y-focus-outline-offset: 3px;
+  --a11y-focus-primary: #000000;
+  --a11y-focus-light: #000000;
+}
+```
+
+#### Dark Mode Theme
+
+```css
+/* Dark mode override */
+:root.dark {
+  --a11y-focus-outline-color: #38bdf8; /* sky-400 for better visibility on dark */
+  --a11y-focus-primary: #60a5fa;       /* blue-400 */
+  --a11y-focus-light: #38bdf8;         /* sky-400 */
+}
+```
+
+#### Custom Brand Theme
+
+```css
+/* Custom brand focus colors */
+:root.brand-theme {
+  --a11y-focus-outline-color: var(--brand-primary);
+  --a11y-focus-primary: var(--brand-primary);
+  --a11y-focus-light: var(--brand-secondary);
+}
+```
+
+### Browser Compatibility
+
+The `--a11y-focus-*` CSS variables use standard CSS custom properties and `outline` properties, which have excellent browser support:
+
+| Feature | Chrome | Firefox | Safari | Edge |
+|---------|--------|---------|--------|------|
+| CSS Custom Properties | 49+ | 31+ | 9.1+ | 15+ |
+| outline | All | All | All | All |
+| outline-offset | 1+ | 1.5+ | 1.2+ | 15+ |
+| :focus-visible | 86+ | 85+ | 15.4+ | 86+ |
+
+**Notes:**
+- All modern browsers (2020+) fully support these features
+- For older browsers, fallback values are provided in the CSS
+- `:focus-visible` gracefully degrades to `:focus` in unsupported browsers
 
 ## Migration Guide
 
@@ -277,6 +357,16 @@ Both applications successfully:
 - [Design Tokens JSON](../packages/shared-ui/src/tokens.json)
 
 ## Changelog
+
+### 2025-12-13 - Accessibility Focus CSS Variables (Issue #2292)
+- Added `--a11y-focus-*` CSS variables to @theme blocks:
+  - `--a11y-focus-outline-color`: var(--color-focus-light) - Focus outline color
+  - `--a11y-focus-outline-width`: 3px - AAA compliant outline width
+  - `--a11y-focus-outline-offset`: 2px - Offset from element edge
+  - `--a11y-focus-primary`: var(--color-focus) - Primary focus color
+  - `--a11y-focus-light`: var(--color-focus-light) - Light focus color
+- Updated `accessibility.css` to use new CSS variables with fallback values
+- Applied to both frontend-dashboard and owner-console
 
 ### 2025-12-13 - Focus Color Tokens (Issue #2291)
 - Added focus color tokens to `tokens.json`:
