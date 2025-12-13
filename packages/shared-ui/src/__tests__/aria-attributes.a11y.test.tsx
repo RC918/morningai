@@ -17,6 +17,7 @@ import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card'
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert'
+import { Slider } from '../components/ui/slider'
 
 describe('ARIA Attributes Accessibility', () => {
   describe('Button Component ARIA', () => {
@@ -262,6 +263,47 @@ describe('ARIA Attributes Accessibility', () => {
       )
       const button = screen.getByRole('button', { name: 'Custom Label' })
       expect(button).toBeInTheDocument()
+    })
+  })
+
+  describe('Slider Component ARIA', () => {
+    it('should support thumbLabel for single thumb slider', () => {
+      render(<Slider defaultValue={[50]} thumbLabel="Volume" />)
+      const slider = screen.getByRole('slider', { name: 'Volume' })
+      expect(slider).toBeInTheDocument()
+      expect(slider).toHaveAttribute('aria-label', 'Volume')
+    })
+
+    it('should support thumbLabel array for range slider', () => {
+      render(
+        <Slider 
+          defaultValue={[25, 75]} 
+          thumbLabel={['Minimum price', 'Maximum price']} 
+        />
+      )
+      const minSlider = screen.getByRole('slider', { name: 'Minimum price' })
+      const maxSlider = screen.getByRole('slider', { name: 'Maximum price' })
+      expect(minSlider).toBeInTheDocument()
+      expect(maxSlider).toBeInTheDocument()
+    })
+
+    it('should have correct aria-valuemin and aria-valuemax', () => {
+      render(<Slider defaultValue={[50]} min={0} max={100} thumbLabel="Value" />)
+      const slider = screen.getByRole('slider')
+      expect(slider).toHaveAttribute('aria-valuemin', '0')
+      expect(slider).toHaveAttribute('aria-valuemax', '100')
+    })
+
+    it('should have correct aria-valuenow', () => {
+      render(<Slider defaultValue={[75]} thumbLabel="Progress" />)
+      const slider = screen.getByRole('slider')
+      expect(slider).toHaveAttribute('aria-valuenow', '75')
+    })
+
+    it('should support disabled state', () => {
+      render(<Slider defaultValue={[50]} disabled thumbLabel="Disabled slider" />)
+      const slider = screen.getByRole('slider')
+      expect(slider).toHaveAttribute('data-disabled', '')
     })
   })
 
