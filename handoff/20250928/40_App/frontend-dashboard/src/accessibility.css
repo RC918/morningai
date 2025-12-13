@@ -74,11 +74,12 @@
 
 /**
  * Global focus styles with AAA-compliant visibility
+ * Uses accessibility tokens from tokens.json (Issue #2292)
  * 3px outline with 2px offset for maximum visibility
  */
 *:focus-visible {
-  outline: 3px solid var(--color-focus-light, #0284c7);
-  outline-offset: 2px;
+  outline: var(--a11y-focus-outline-width, 3px) solid var(--a11y-focus-outline-color, #0284c7);
+  outline-offset: var(--a11y-focus-outline-offset, 2px);
   border-radius: 4px;
 }
 
@@ -100,8 +101,8 @@ textarea:focus-visible,
 [role="button"]:focus-visible,
 [role="link"]:focus-visible,
 [tabindex]:not([tabindex="-1"]):focus-visible {
-  outline: 3px solid var(--color-focus-light, #0284c7);
-  outline-offset: 2px;
+  outline: var(--a11y-focus-outline-width, 3px) solid var(--a11y-focus-outline-color, #0284c7);
+  outline-offset: var(--a11y-focus-outline-offset, 2px);
   box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.1);
 }
 

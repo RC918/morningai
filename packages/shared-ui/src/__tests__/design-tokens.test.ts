@@ -319,4 +319,87 @@ describe('Design Tokens', () => {
       expect(spacingMdGetToken).toBe(spacingMdCSS)
     })
   })
+
+  /**
+   * Focus Outline Snapshot Tests (Issue #2292)
+   * 
+   * These tests verify that accessibility focus CSS variables are correctly
+   * generated and maintain WCAG AAA compliance. The snapshot approach ensures
+   * no regressions occur when modifying focus styles.
+   */
+  describe('Focus Outline Snapshot Tests (Issue #2292)', () => {
+    it('should generate all required --a11y-focus-* CSS variables', () => {
+      const cssVars = getCSSVariables()
+      
+      // Verify all required focus variables exist
+      const requiredFocusVars = [
+        '--a11y-focus-outline-width',
+        '--a11y-focus-outline-offset',
+        '--a11y-focus-outline-color',
+        '--a11y-focus-primary',
+        '--a11y-focus-light'
+      ]
+      
+      requiredFocusVars.forEach(varName => {
+        expect(cssVars).toHaveProperty(varName)
+      })
+    })
+
+    it('should have WCAG AAA compliant focus outline values (snapshot)', () => {
+      const cssVars = getCSSVariables()
+      
+      // Snapshot of expected focus values for regression testing
+      const focusSnapshot = {
+        '--a11y-focus-outline-width': '3px',      // AAA requires visible outline
+        '--a11y-focus-outline-offset': '2px',     // Offset from element edge
+        '--a11y-focus-outline-color': '#0284c7',  // Sky blue - high contrast
+        '--a11y-focus-primary': '#0051D0',        // Primary blue - 7.12:1 contrast on white
+        '--a11y-focus-light': '#0284c7'           // Sky blue - used in accessibility.css
+      }
+      
+      Object.entries(focusSnapshot).forEach(([varName, expectedValue]) => {
+        expect(cssVars[varName]).toBe(expectedValue)
+      })
+    })
+
+    it('should apply focus CSS variables to DOM elements', () => {
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      
+      applyDesignTokens(container)
+      
+      // Verify focus variables are applied to DOM
+      expect(container.style.getPropertyValue('--a11y-focus-outline-width')).toBe('3px')
+      expect(container.style.getPropertyValue('--a11y-focus-outline-offset')).toBe('2px')
+      expect(container.style.getPropertyValue('--a11y-focus-outline-color')).toBe('#0284c7')
+      expect(container.style.getPropertyValue('--a11y-focus-primary')).toBe('#0051D0')
+      expect(container.style.getPropertyValue('--a11y-focus-light')).toBe('#0284c7')
+    })
+
+    it('should retrieve focus tokens via getToken', () => {
+      // Verify tokens can be accessed via dot notation
+      expect(getToken('accessibility.focus.outline-width')).toBe('3px')
+      expect(getToken('accessibility.focus.outline-offset')).toBe('2px')
+      expect(getToken('accessibility.focus.outline-color')).toBe('#0284c7')
+      expect(getToken('accessibility.focus.primary')).toBe('#0051D0')
+      expect(getToken('accessibility.focus.light')).toBe('#0284c7')
+    })
+
+    it('should maintain focus outline width >= 3px for AAA compliance', () => {
+      const outlineWidth = getToken('accessibility.focus.outline-width')
+      const widthValue = parseInt(outlineWidth, 10)
+      
+      // WCAG AAA requires visible focus indicators
+      // 3px is the minimum recommended for AAA compliance
+      expect(widthValue).toBeGreaterThanOrEqual(3)
+    })
+
+    it('should maintain focus outline offset >= 2px for visibility', () => {
+      const outlineOffset = getToken('accessibility.focus.outline-offset')
+      const offsetValue = parseInt(outlineOffset, 10)
+      
+      // 2px offset ensures focus ring doesn't overlap content
+      expect(offsetValue).toBeGreaterThanOrEqual(2)
+    })
+  })
 })
