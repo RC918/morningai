@@ -323,3 +323,122 @@ class TestPrometheusFormatDetails:
 
                 assert 'text/plain' in response.content_type
                 assert 'version=0.0.4' in response.content_type
+
+
+class TestReviewFollowUpMetrics:
+    """
+    Tests for review follow-up metrics collection.
+
+    Issue #2259: Provides aggregate statistics for ReviewFollowUpService tasks.
+    """
+
+    def test_review_follow_up_metrics_redis_unavailable(self, client):
+        """Test review_follow_up section returns unavailable when Redis fails"""
+        with patch('src.routes.metrics._get_redis_client', return_value=None):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics')
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert 'review_follow_up' in data
+                assert data['review_follow_up']['available'] is False
+
+    def test_review_follow_up_metrics_no_tasks(self, client, mock_redis):
+        """Test review_follow_up metrics when no tasks exist"""
+        mock_redis.scan_iter.return_value = iter([])
+
+        with patch('src.routes.metrics._get_redis_client', return_value=mock_redis):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics')
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['review_follow_up']['available'] is True
+                assert data['review_follow_up']['total_tasks'] == 0
+                assert data['review_follow_up']['summary']['pending'] == 0
+                assert data['review_follow_up']['summary']['completed'] == 0
+                assert data['review_follow_up']['summary']['completion_rate'] == 0.0
+
+    def test_review_follow_up_metrics_with_tasks(self, client, mock_redis):
+        """Test review_follow_up metrics with existing tasks"""
+        import json
+
+        task_data_pending = json.dumps({
+            "task_id": "pr123_comment456",
+            "status": "pending",
+            "action": "auto_fix"
+        })
+        task_data_completed = json.dumps({
+            "task_id": "pr123_comment789",
+            "status": "completed",
+            "action": "manual_review"
+        })
+        task_data_failed = json.dumps({
+            "task_id": "pr124_comment111",
+            "status": "failed",
+            "action": "auto_fix"
+        })
+
+        def scan_iter_side_effect(match=''):
+            if match == 'review_follow_up:task:*':
+                return iter([
+                    'review_follow_up:task:pr123_comment456',
+                    'review_follow_up:task:pr123_comment789',
+                    'review_follow_up:task:pr124_comment111',
+                ])
+            return iter([])
+
+        def get_side_effect(key):
+            if key == 'review_follow_up:task:pr123_comment456':
+                return task_data_pending
+            elif key == 'review_follow_up:task:pr123_comment789':
+                return task_data_completed
+            elif key == 'review_follow_up:task:pr124_comment111':
+                return task_data_failed
+            return None
+
+        mock_redis.scan_iter.side_effect = scan_iter_side_effect
+        mock_redis.get.side_effect = get_side_effect
+
+        with patch('src.routes.metrics._get_redis_client', return_value=mock_redis):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics')
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data['review_follow_up']['available'] is True
+                assert data['review_follow_up']['total_tasks'] == 3
+                assert data['review_follow_up']['status_counts']['pending'] == 1
+                assert data['review_follow_up']['status_counts']['completed'] == 1
+                assert data['review_follow_up']['status_counts']['failed'] == 1
+                assert data['review_follow_up']['action_counts']['auto_fix'] == 2
+                assert data['review_follow_up']['action_counts']['manual_review'] == 1
+                assert data['review_follow_up']['summary']['completion_rate'] == 50.0
+
+    def test_review_follow_up_prometheus_format(self, client, mock_redis):
+        """Test review_follow_up metrics in Prometheus format"""
+        import json
+
+        task_data = json.dumps({
+            "task_id": "pr123_comment456",
+            "status": "completed",
+            "action": "auto_fix"
+        })
+
+        def scan_iter_side_effect(match=''):
+            if match == 'review_follow_up:task:*':
+                return iter(['review_follow_up:task:pr123_comment456'])
+            return iter([])
+
+        mock_redis.scan_iter.side_effect = scan_iter_side_effect
+        mock_redis.get.return_value = task_data
+
+        with patch('src.routes.metrics._get_redis_client', return_value=mock_redis):
+            with patch('src.routes.metrics._get_orchestrator_metrics', return_value=None):
+                response = client.get('/api/metrics?format=prometheus')
+
+                assert response.status_code == 200
+                content = response.data.decode('utf-8')
+                assert 'morningai_review_follow_up_total 1' in content
+                assert 'morningai_review_follow_up_completed 1' in content
+                assert 'morningai_review_follow_up_completion_rate 100' in content

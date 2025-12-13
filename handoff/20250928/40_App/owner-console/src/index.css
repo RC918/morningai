@@ -153,6 +153,10 @@
   --a11y-focus-primary: var(--color-focus);        /* Primary focus color - references base token */
   --a11y-focus-light: var(--color-focus-light);    /* Light focus color - references base token */
 
+  /* ===== Emotional Color & Shadow Tokens (Issue #2393 Phase 2) ===== */
+  /* These tokens are now defined in @morningai/shared-ui/tokens.css */
+  /* See packages/shared-ui/scripts/compile-tokens.js for source */
+
   /* Base tokens for shared-ui components(Switch, Button, Input, etc.) */
   /* These are required for Tailwind v4 to generate bg-primary, bg-input, bg-background utilities */
   /* Format: Complete CSS color values (hsl() or hex) - NOT raw HSL components */
@@ -167,28 +171,28 @@
 /* iotask Semantic Design Tokens */
 :root {
   /* Surface colors */
-  --surface: #ffffff;
-  --surface-muted: #F8FAFB;
+  --surface: var(--color-background, #ffffff);
+  --surface-muted: var(--color-neutral-50, #F8FAFB);
   
   /* Border colors */
-  --border: #E8ECEF;
+  --border: var(--color-neutral-200, #E8ECEF);
   
   /* Text colors */
-  --text-primary: #252631;
-  --text-secondary: #778CA2;
+  --text-primary: var(--color-neutral-800, #252631);
+  --text-secondary: var(--color-neutral-500, #778CA2);
   
   /* Brand colors (primary blue) */
-  --brand-50: #EEF2FF;
-  --brand-100: #E0E7FF;
-  --brand-500: #4D7CFE;
-  --brand-700: #3730A3;
+  --brand-50: var(--color-primary-50, #EEF2FF);
+  --brand-100: var(--color-primary-100, #E0E7FF);
+  --brand-500: var(--color-primary-500, #4D7CFE);
+  --brand-700: var(--color-primary-700, #3730A3);
   
   /* Success colors */
-  --success-50: #EEFBE8;
-  --success-600: #5AB828;
+  --success-50: var(--color-success-50, #EEFBE8);
+  --success-600: var(--color-success-600, #5AB828);
   
   /* Shadow */
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 1px 3px 0 rgb(var(--color-shadow, 0 0 0) / var(--color-shadow-opacity-sm, 0.08)), 0 1px 2px -1px rgb(var(--color-shadow, 0 0 0) / var(--color-shadow-opacity-sm, 0.08));
 }
 
 /* Shadow utility class for SaaS cards */
@@ -196,17 +200,25 @@
   box-shadow: var(--shadow-card);
 }
 
-/* Dark mode semantic tokens */
+/* Dark mode semantic tokens - Baseline (rgba fallback for older browsers) */
 .dark {
-  --surface: #252631;
-  --surface-muted: #1A1A2E;
-  --border: #404040;
-  --text-primary: #F8FAFB;
-  --text-secondary: #98A9BC;
+  --surface: var(--color-neutral-800, #252631);
+  --surface-muted: var(--color-neutral-900, #1A1A2E);
+  --border: var(--color-neutral-700, #404040);
+  --text-primary: var(--color-neutral-50, #F8FAFB);
+  --text-secondary: var(--color-neutral-400, #98A9BC);
   --brand-50: rgba(77, 124, 254, 0.1);
-  --brand-700: #A5B4FC;
+  --brand-700: var(--color-primary-300, #A5B4FC);
   --success-50: rgba(109, 210, 48, 0.1);
-  --success-600: #93DC6E;
+  --success-600: var(--color-success-300, #93DC6E);
+}
+
+/* Dark mode semantic tokens - Progressive enhancement with color-mix() */
+@supports (background-color: color-mix(in srgb, red 50%, transparent)) {
+  .dark {
+    --brand-50: color-mix(in srgb, var(--color-primary-500, #4D7CFE) 10%, transparent);
+    --success-50: color-mix(in srgb, var(--color-success-500, #6DD230) 10%, transparent);
+  }
 }
 
 @import "tailwindcss";
@@ -368,12 +380,12 @@
 
 .hover-lift:hover {
   transform: translateY(-0.8px) scale(1.004);
-  box-shadow: 0 2.4px 4.8px 0 rgb(0 0 0 / 0.12);
+  box-shadow: 0 2.4px 4.8px 0 rgb(var(--color-shadow) / var(--color-shadow-opacity-md, 0.12));
 }
 
 .hover-lift:active {
   transform: translateY(-0.2px) scale(0.996);
-  box-shadow: 0 0.8px 1.6px 0 rgb(0 0 0 / 0.08);
+  box-shadow: 0 0.8px 1.6px 0 rgb(var(--color-shadow) / var(--color-shadow-opacity-sm, 0.08));
 }
 
 /* Button press effect */
@@ -695,26 +707,26 @@
 
 /* Emotional Color Gradients */
 .bg-gradient-joy {
-  background: linear-gradient(135deg, #FF9500 0%, #FFB340 100%);
+  background: linear-gradient(135deg, var(--color-joy, #FF9500) 0%, var(--color-joy-light, #FFB340) 100%);
 }
 
 .bg-gradient-calm {
-  background: linear-gradient(135deg, #5AC8FA 0%, #7DD8FC 100%);
+  background: linear-gradient(135deg, var(--color-calm, #5AC8FA) 0%, var(--color-calm-light, #7DD8FC) 100%);
 }
 
 .bg-gradient-energy {
-  background: linear-gradient(135deg, #FF3B30 0%, #FF6B63 100%);
+  background: linear-gradient(135deg, var(--color-energy, #FF3B30) 0%, var(--color-energy-light, #FF6B63) 100%);
 }
 
 .bg-gradient-growth {
-  background: linear-gradient(135deg, #34C759 0%, #5FD87F 100%);
+  background: linear-gradient(135deg, var(--color-growth, #34C759) 0%, var(--color-growth-light, #5FD87F) 100%);
 }
 
 .bg-gradient-wisdom {
-  background: linear-gradient(135deg, #5856D6 0%, #7B79E8 100%);
+  background: linear-gradient(135deg, var(--color-wisdom, #5856D6) 0%, var(--color-wisdom-light, #7B79E8) 100%);
 }
 
-/* Emotional Color with Opacity */
+/* Emotional Color with Opacity - Baseline (rgba fallback for older browsers) */
 .bg-joy-10 {
   background-color: rgba(255, 149, 0, 0.1);
 }
@@ -755,25 +767,68 @@
   background-color: rgba(88, 86, 214, 0.2);
 }
 
+/* Emotional Color with Opacity - Progressive enhancement with color-mix() */
+@supports (background-color: color-mix(in srgb, red 50%, transparent)) {
+  .bg-joy-10 {
+    background-color: color-mix(in srgb, var(--color-joy, #FF9500) 10%, transparent);
+  }
+
+  .bg-joy-20 {
+    background-color: color-mix(in srgb, var(--color-joy, #FF9500) 20%, transparent);
+  }
+
+  .bg-calm-10 {
+    background-color: color-mix(in srgb, var(--color-calm, #5AC8FA) 10%, transparent);
+  }
+
+  .bg-calm-20 {
+    background-color: color-mix(in srgb, var(--color-calm, #5AC8FA) 20%, transparent);
+  }
+
+  .bg-energy-10 {
+    background-color: color-mix(in srgb, var(--color-energy, #FF3B30) 10%, transparent);
+  }
+
+  .bg-energy-20 {
+    background-color: color-mix(in srgb, var(--color-energy, #FF3B30) 20%, transparent);
+  }
+
+  .bg-growth-10 {
+    background-color: color-mix(in srgb, var(--color-growth, #34C759) 10%, transparent);
+  }
+
+  .bg-growth-20 {
+    background-color: color-mix(in srgb, var(--color-growth, #34C759) 20%, transparent);
+  }
+
+  .bg-wisdom-10 {
+    background-color: color-mix(in srgb, var(--color-wisdom, #5856D6) 10%, transparent);
+  }
+
+  .bg-wisdom-20 {
+    background-color: color-mix(in srgb, var(--color-wisdom, #5856D6) 20%, transparent);
+  }
+}
+
 /* Dark Mode Emotional Colors - Text variants for dark backgrounds */
 .dark .text-joy {
-  color: #FFB340; /* Lighter for dark mode (WCAG AA on dark bg) */
+  color: var(--color-joy-light, #FFB340); /* Lighter for dark mode (WCAG AA on dark bg) */
 }
 
 .dark .text-calm {
-  color: #7DD8FC; /* Lighter for dark mode (WCAG AA on dark bg) */
+  color: var(--color-calm-light, #7DD8FC); /* Lighter for dark mode (WCAG AA on dark bg) */
 }
 
 .dark .text-energy {
-  color: #FF6B63; /* Lighter for dark mode (WCAG AA on dark bg) */
+  color: var(--color-energy-light, #FF6B63); /* Lighter for dark mode (WCAG AA on dark bg) */
 }
 
 .dark .text-growth {
-  color: #5FD87F; /* Lighter for dark mode (WCAG AA on dark bg) */
+  color: var(--color-growth-light, #5FD87F); /* Lighter for dark mode (WCAG AA on dark bg) */
 }
 
 .dark .text-wisdom {
-  color: #7B79E8; /* Lighter for dark mode (WCAG AA on dark bg) */
+  color: var(--color-wisdom-light, #7B79E8); /* Lighter for dark mode (WCAG AA on dark bg) */
 }
 
 /* Accessibility Settings Styles */
@@ -824,17 +879,28 @@
   font-size: 20px;
 }
 
-/* Enhanced Focus Indicators */
+/* Enhanced Focus Indicators - Baseline (rgba fallback for older browsers) */
 [data-focus-indicators="enhanced"] *:focus {
-  outline: 3px solid #3b82f6 !important;
+  outline: 3px solid var(--color-primary-500, #3b82f6) !important;
   outline-offset: 3px !important;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
 }
 
 [data-focus-indicators="enhanced"] *:focus-visible {
-  outline: 3px solid #3b82f6 !important;
+  outline: 3px solid var(--color-primary-500, #3b82f6) !important;
   outline-offset: 3px !important;
   box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Enhanced Focus Indicators - Progressive enhancement with color-mix() */
+@supports (background-color: color-mix(in srgb, red 50%, transparent)) {
+  [data-focus-indicators="enhanced"] *:focus {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-primary-500, #3b82f6) 30%, transparent) !important;
+  }
+
+  [data-focus-indicators="enhanced"] *:focus-visible {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-primary-500, #3b82f6) 30%, transparent) !important;
+  }
 }
 
 /* Remove global writing-mode rules that interfere with Tailwind */
@@ -855,6 +921,6 @@
 
 /* Ensure the handle remains interactive and accessible */
 [data-panel-group] [role="separator"]:focus-visible {
-  outline: 2px solid #0051D0;
+  outline: 2px solid var(--color-focus, #0051D0);
   outline-offset: 2px;
 }
