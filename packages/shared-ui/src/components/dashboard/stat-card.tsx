@@ -89,7 +89,7 @@ function StatCard({
           >
             {React.isValidElement(icon)
               ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
-                  className: "w-[var(--card-icon-kpi-size,24px)] h-[var(--card-icon-kpi-size,24px)]",
+                  className: "w-[var(--card-icon-kpi-size,40px)] h-[var(--card-icon-kpi-size,40px)]",
                 })
               : icon}
           </div>

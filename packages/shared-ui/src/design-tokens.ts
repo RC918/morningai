@@ -158,6 +158,26 @@ export const breakpoints = tokens.breakpoint
 export const accessibility = tokens.accessibility
 
 /**
+ * Card icon archetype specification
+ */
+interface CardIconArchetype {
+  size: string;
+  containerSize: string;
+  shape: string;
+  description: string;
+}
+
+/**
+ * Card component token structure
+ */
+interface CardToken {
+  icon: {
+    kpi: CardIconArchetype;
+    status: CardIconArchetype;
+  };
+}
+
+/**
  * Card component tokens including icon specifications for different archetypes
  * 
  * @example
@@ -165,15 +185,15 @@ export const accessibility = tokens.accessibility
  * // KPI cards (StatCard) - large circular icons for data visualization
  * const kpiIconSize = card.icon.kpi.size // "40px"
  * const kpiContainerSize = card.icon.kpi.containerSize // "40px"
- * const kpiShape = card.icon.kpi.shape // "circle"
+ * const kpiShape = card.icon.kpi.shape // "9999px"
  * 
  * // Status cards (StatusCard) - compact square icons for filtering
  * const statusIconSize = card.icon.status.size // "16px"
  * const statusContainerSize = card.icon.status.containerSize // "28px"
- * const statusShape = card.icon.status.shape // "rounded-lg"
+ * const statusShape = card.icon.status.shape // "8px"
  * ```
  */
-export const card = (tokens as any).card
+export const card = (tokens as { card: CardToken }).card
 
 /**
  * Recursively flatten a nested object into CSS variable format
