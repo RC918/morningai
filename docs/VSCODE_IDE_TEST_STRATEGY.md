@@ -2,6 +2,14 @@
 
 This document describes the testing strategy for `VSCodeIDEService` in the MorningAI orchestrator.
 
+## Related Documentation
+
+This document is part of the MorningAI testing documentation suite. For broader context, see:
+
+- [Testing Best Practices](./TESTING.md) - Overall testing strategy and guidelines
+- [Testing Architecture](./TESTING_ARCHITECTURE.md) - Dual-layer test architecture and CI configuration
+- [Orchestrator Documentation](./orchestrator/) - Orchestrator-specific documentation
+
 ## Overview
 
 The `VSCodeIDEService` class manages IDE sessions for code editing, testing, and debugging. Due to its complexity and external dependencies (code-server, MCP endpoints, shell commands), we employ a layered testing approach that balances test isolation with integration coverage.
@@ -179,6 +187,58 @@ For manual integration testing without containerization:
 
 ## CI Integration
 
+### Current CI Configuration
+
+VSCode IDE tests run as part of the **App Tests** workflow (`.github/workflows/test-apps.yml`). The tests are executed in the `test-orchestrator` job with the following configuration:
+
+**Workflow**: `App Tests` (test-apps.yml)
+**Job**: `test-orchestrator`
+**Trigger**: PRs and pushes to `main` that modify `handoff/20250928/40_App/**`
+
+```yaml
+test-orchestrator:
+  name: Orchestrator Tests
+  runs-on: ubuntu-latest
+  timeout-minutes: 15
+  services:
+    redis:
+      image: redis:alpine
+      ports:
+        - 6379:6379
+  steps:
+    - name: Run Orchestrator tests with coverage
+      working-directory: handoff/20250928/40_App/orchestrator
+      run: |
+        pytest tests/ -v --tb=short --disable-warnings \
+          --cov=. --cov-report=xml --cov-report=json \
+          --cov-report=term-missing --cov-fail-under=50
+      env:
+        PYTHONPATH: >-
+          ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:
+          ${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:
+          ${{ github.workspace }}/handoff/20250928/40_App/api-backend:
+          ${{ github.workspace }}
+        REDIS_URL: redis://localhost:6379/0
+        TESTING: true
+```
+
+### Running VSCode IDE Tests
+
+To run VSCode IDE tests specifically:
+
+```bash
+# Run all VSCode IDE tests
+pytest handoff/20250928/40_App/orchestrator/meta_agent/tests/test_vscode_ide.py -v
+
+# Run specific test class
+pytest handoff/20250928/40_App/orchestrator/meta_agent/tests/test_vscode_ide.py::TestInitializeSession -v
+
+# Run with coverage
+pytest handoff/20250928/40_App/orchestrator/meta_agent/tests/test_vscode_ide.py \
+  --cov=handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide \
+  --cov-report=term-missing -v
+```
+
 ### Test Isolation Check
 
 To prevent accidental environment dependencies, CI should verify:
@@ -191,6 +251,15 @@ To prevent accidental environment dependencies, CI should verify:
       --ignore-glob='**/test_integration_*.py' \
       -v
 ```
+
+### Coverage Requirements
+
+The orchestrator tests (including VSCode IDE tests) must maintain a minimum coverage threshold of **50%**. Coverage reports are automatically posted as PR comments by the CI workflow.
+
+| Module | Threshold | Enforced By |
+|--------|-----------|-------------|
+| Orchestrator (overall) | 50% | `test-apps.yml` |
+| API Backend | 80% | `backend.yml` |
 
 ### Future: Integration Test CI Job
 
@@ -208,6 +277,58 @@ integration-tests:
         RUN_INTEGRATION_TESTS: "1"
       run: pytest -m integration -v
 ```
+
+## OS Differences Matrix
+
+The VSCode IDE service is designed to run in Linux containers. Unit tests mock all shell commands, making them environment-independent. However, for future integration tests and operations, the following OS differences should be considered.
+
+### Environment Assumption
+
+The IDE container assumes a **Linux (Ubuntu)** environment. All shell commands are designed for Linux and may not work correctly on macOS or Windows.
+
+### Shell Command Differences
+
+| Command | Linux Behavior | macOS Behavior | Notes |
+|---------|---------------|----------------|-------|
+| `pgrep -f code-server` | Returns PID if running | Same behavior | Compatible |
+| `curl -s -o /dev/null -w "%{http_code}"` | Returns HTTP status code | Same behavior | Compatible |
+| `top -bn1 -p <pid>` | Returns process stats | Different flags (`-l 1 -pid`) | **Incompatible** |
+| `free -m` | Returns memory in MB | Not available | **Linux only** |
+| `mkdir -p` | Creates directory recursively | Same behavior | Compatible |
+
+### Health Check Differences
+
+The `_poll_healthz` method uses `curl` to check code-server health. This is compatible across Linux and macOS. However, the process detection (`pgrep`) and resource monitoring (`top`, `free`) commands have OS-specific differences.
+
+| Check Type | Linux | macOS | Windows |
+|------------|-------|-------|---------|
+| HTTP health check (curl) | Supported | Supported | Requires WSL |
+| Process detection (pgrep) | Supported | Supported | Not supported |
+| CPU monitoring (top) | Supported | Different flags | Not supported |
+| Memory monitoring (free) | Supported | Not available | Not supported |
+
+### Implications for Testing
+
+Since unit tests mock all shell commands, they are **environment-independent** and can run on any OS. Integration tests, however, should only run on Linux to ensure accurate behavior.
+
+```python
+@pytest.mark.integration
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="Integration tests require Linux environment"
+)
+async def test_real_resource_monitoring():
+    """Integration test for resource monitoring (Linux only)"""
+    pass
+```
+
+### Operations Considerations
+
+For operations teams deploying the IDE service:
+
+1. **Container Environment**: Always use Linux-based containers (e.g., Ubuntu, Debian)
+2. **Local Development**: Use Docker or WSL on non-Linux systems
+3. **CI Environment**: GitHub Actions `ubuntu-latest` runners are recommended
 
 ## Design Decisions
 
@@ -263,9 +384,25 @@ def mock_shell_for_startup(self):
 
 ## References
 
+### Related PRs
+
 - PR #2350: Original `_initialize_session` implementation
 - PR #2354: Initialization hardening
 - PR #2355: Health check improvements
+- PR #2357: CORS / iframe support
+- PR #2358: Extension auto-install
 - PR #2360: Resource monitoring
+- PR #2361: Test strategy documentation and edge case coverage
+
+### Related Issues
+
 - Issue #2352: This test strategy documentation
+- Issue #2353: VSCode IDE hardening (CORS, Extension, Resource monitoring)
 - Epic #2311: Phase 3A orchestrator improvements
+
+### Related Documentation
+
+- [Testing Best Practices](./TESTING.md) - Overall testing strategy, test types, and best practices
+- [Testing Architecture](./TESTING_ARCHITECTURE.md) - Dual-layer test architecture and CI configuration
+- [CI Matrix](./ci_matrix.md) - Complete CI workflow documentation
+- [Orchestrator Documentation](./orchestrator/) - Orchestrator-specific documentation
