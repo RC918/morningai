@@ -124,33 +124,9 @@
   --a11y-focus-primary: var(--color-focus);        /* Primary focus color - references base token */
   --a11y-focus-light: var(--color-focus-light);    /* Light focus color - references base token */
 
-  /* ===== Emotional Color Tokens (Issue #2393 Phase 2) ===== */
-  /* iOS-style emotional colors for UI feedback and branding */
-  /* Joy - Orange */
-  --color-joy: #FF9500;
-  --color-joy-light: #FFB340;
-  --color-joy-text: #CC7700;
-  /* Calm - Light Blue */
-  --color-calm: #5AC8FA;
-  --color-calm-light: #7DD8FC;
-  --color-calm-text: #0077B5;
-  /* Energy - Red */
-  --color-energy: #FF3B30;
-  --color-energy-light: #FF6B63;
-  --color-energy-text: #CC2F26;
-  /* Growth - Green */
-  --color-growth: #34C759;
-  --color-growth-light: #5FD87F;
-  --color-growth-text: #2A9F47;
-  /* Wisdom - Purple */
-  --color-wisdom: #5856D6;
-  --color-wisdom-light: #7B79E8;
-  --color-wisdom-text: #4644AB;
-
-  /* ===== Shadow Color Tokens (Issue #2393 Phase 2) ===== */
-  --color-shadow: 0 0 0;
-  --color-shadow-opacity-sm: 0.08;
-  --color-shadow-opacity-md: 0.12;
+  /* ===== Emotional Color & Shadow Tokens (Issue #2393 Phase 2) ===== */
+  /* These tokens are now defined in @morningai/shared-ui/tokens.css */
+  /* See packages/shared-ui/scripts/compile-tokens.js for source */
 }
 
 @import "tailwindcss";
@@ -658,45 +634,88 @@
   background: linear-gradient(135deg, var(--color-wisdom, #5856D6) 0%, var(--color-wisdom-light, #7B79E8) 100%);
 }
 
-/* Emotional Color with Opacity */
+/* Emotional Color with Opacity - Baseline (rgba fallback for older browsers) */
 .bg-joy-10 {
-  background-color: color-mix(in srgb, var(--color-joy, #FF9500) 10%, transparent);
+  background-color: rgba(255, 149, 0, 0.1);
 }
 
 .bg-joy-20 {
-  background-color: color-mix(in srgb, var(--color-joy, #FF9500) 20%, transparent);
+  background-color: rgba(255, 149, 0, 0.2);
 }
 
 .bg-calm-10 {
-  background-color: color-mix(in srgb, var(--color-calm, #5AC8FA) 10%, transparent);
+  background-color: rgba(90, 200, 250, 0.1);
 }
 
 .bg-calm-20 {
-  background-color: color-mix(in srgb, var(--color-calm, #5AC8FA) 20%, transparent);
+  background-color: rgba(90, 200, 250, 0.2);
 }
 
 .bg-energy-10 {
-  background-color: color-mix(in srgb, var(--color-energy, #FF3B30) 10%, transparent);
+  background-color: rgba(255, 59, 48, 0.1);
 }
 
 .bg-energy-20 {
-  background-color: color-mix(in srgb, var(--color-energy, #FF3B30) 20%, transparent);
+  background-color: rgba(255, 59, 48, 0.2);
 }
 
 .bg-growth-10 {
-  background-color: color-mix(in srgb, var(--color-growth, #34C759) 10%, transparent);
+  background-color: rgba(52, 199, 89, 0.1);
 }
 
 .bg-growth-20 {
-  background-color: color-mix(in srgb, var(--color-growth, #34C759) 20%, transparent);
+  background-color: rgba(52, 199, 89, 0.2);
 }
 
 .bg-wisdom-10 {
-  background-color: color-mix(in srgb, var(--color-wisdom, #5856D6) 10%, transparent);
+  background-color: rgba(88, 86, 214, 0.1);
 }
 
 .bg-wisdom-20 {
-  background-color: color-mix(in srgb, var(--color-wisdom, #5856D6) 20%, transparent);
+  background-color: rgba(88, 86, 214, 0.2);
+}
+
+/* Emotional Color with Opacity - Progressive enhancement with color-mix() */
+@supports (background-color: color-mix(in srgb, red 50%, transparent)) {
+  .bg-joy-10 {
+    background-color: color-mix(in srgb, var(--color-joy, #FF9500) 10%, transparent);
+  }
+
+  .bg-joy-20 {
+    background-color: color-mix(in srgb, var(--color-joy, #FF9500) 20%, transparent);
+  }
+
+  .bg-calm-10 {
+    background-color: color-mix(in srgb, var(--color-calm, #5AC8FA) 10%, transparent);
+  }
+
+  .bg-calm-20 {
+    background-color: color-mix(in srgb, var(--color-calm, #5AC8FA) 20%, transparent);
+  }
+
+  .bg-energy-10 {
+    background-color: color-mix(in srgb, var(--color-energy, #FF3B30) 10%, transparent);
+  }
+
+  .bg-energy-20 {
+    background-color: color-mix(in srgb, var(--color-energy, #FF3B30) 20%, transparent);
+  }
+
+  .bg-growth-10 {
+    background-color: color-mix(in srgb, var(--color-growth, #34C759) 10%, transparent);
+  }
+
+  .bg-growth-20 {
+    background-color: color-mix(in srgb, var(--color-growth, #34C759) 20%, transparent);
+  }
+
+  .bg-wisdom-10 {
+    background-color: color-mix(in srgb, var(--color-wisdom, #5856D6) 10%, transparent);
+  }
+
+  .bg-wisdom-20 {
+    background-color: color-mix(in srgb, var(--color-wisdom, #5856D6) 20%, transparent);
+  }
 }
 
 /* Dark Mode Emotional Colors - Text variants for dark backgrounds */
@@ -768,17 +787,28 @@
   font-size: 20px;
 }
 
-/* Enhanced Focus Indicators */
+/* Enhanced Focus Indicators - Baseline (rgba fallback for older browsers) */
 [data-focus-indicators="enhanced"] *:focus {
   outline: 3px solid var(--color-primary-500, #3b82f6) !important;
   outline-offset: 3px !important;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-primary-500, #3b82f6) 30%, transparent) !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
 }
 
 [data-focus-indicators="enhanced"] *:focus-visible {
   outline: 3px solid var(--color-primary-500, #3b82f6) !important;
   outline-offset: 3px !important;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-primary-500, #3b82f6) 30%, transparent) !important;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Enhanced Focus Indicators - Progressive enhancement with color-mix() */
+@supports (background-color: color-mix(in srgb, red 50%, transparent)) {
+  [data-focus-indicators="enhanced"] *:focus {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-primary-500, #3b82f6) 30%, transparent) !important;
+  }
+
+  [data-focus-indicators="enhanced"] *:focus-visible {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-primary-500, #3b82f6) 30%, transparent) !important;
+  }
 }
 
 /* Remove global writing-mode rules that interfere with Tailwind */
