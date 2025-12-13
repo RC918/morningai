@@ -1426,6 +1426,13 @@ class Settings(BaseSettings):
         description="Public base URL for VSCode IDE access (e.g., 'https://ide.morningai.com'). If not set, uses internal localhost URL."
     )
 
+    # VSCode IDE Extension auto-install (#2353)
+    vscode_default_extensions: str = Field(
+        default="",
+        alias="VSCODE_DEFAULT_EXTENSIONS",
+        description="Comma-separated list of VS Code extension IDs to auto-install for all VSCode IDE sessions (e.g., 'ms-python.python,esbenp.prettier-vscode'). Empty string disables auto-install."
+    )
+
     enable_visual_verification: bool = Field(
         default=False,
         alias="ENABLE_VISUAL_VERIFICATION",

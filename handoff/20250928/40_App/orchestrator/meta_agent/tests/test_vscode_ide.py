@@ -1394,6 +1394,20 @@ class TestCorsConfig:
     def service(self):
         return VSCodeIDEService()
 
+    @pytest.fixture
+    def mock_session(self):
+        """Create a mock IDE session for extension tests"""
+        return IDESession(
+            session_id="ide-test-12345678",
+            vm_id="vm-test-12345678",
+            task_id="task-12345678",
+            status=IDESessionStatus.READY,
+            created_at=datetime.now(),
+            workspace_path="/workspace",
+            vscode_endpoint="http://localhost:8443",
+            mcp_endpoint="http://localhost:8080",
+        )
+
     def test_get_cors_config_default_empty(self, service, monkeypatch):
         """Test get_cors_config returns empty origins by default"""
         monkeypatch.setattr(
@@ -1477,3 +1491,224 @@ class TestCorsConfig:
         )
         assert headers["Content-Security-Policy"] == expected_csp
         assert "X-Frame-Options" not in headers
+
+    def test_get_extension_config_empty(self, service, monkeypatch):
+        """Test get_extension_config returns empty list when no extensions configured"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions", ""
+        )
+
+        config = service.get_extension_config()
+
+        assert config["default_extensions"] == []
+
+    def test_get_extension_config_with_extensions(self, service, monkeypatch):
+        """Test get_extension_config parses comma-separated extension IDs"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python,esbenp.prettier-vscode,dbaeumer.vscode-eslint"
+        )
+
+        config = service.get_extension_config()
+
+        assert config["default_extensions"] == [
+            "ms-python.python",
+            "esbenp.prettier-vscode",
+            "dbaeumer.vscode-eslint"
+        ]
+
+    def test_get_extension_config_trims_whitespace(self, service, monkeypatch):
+        """Test get_extension_config trims whitespace from extension IDs"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            " ms-python.python , esbenp.prettier-vscode "
+        )
+
+        config = service.get_extension_config()
+
+        assert config["default_extensions"] == [
+            "ms-python.python",
+            "esbenp.prettier-vscode"
+        ]
+
+    def test_get_desired_extensions_defaults_only(self, service, mock_session, monkeypatch):
+        """Test _get_desired_extensions returns only defaults when no extras"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python,esbenp.prettier-vscode"
+        )
+
+        desired = service._get_desired_extensions(mock_session)
+
+        assert desired == ["ms-python.python", "esbenp.prettier-vscode"]
+
+    def test_get_desired_extensions_with_extras(self, service, mock_session, monkeypatch):
+        """Test _get_desired_extensions combines defaults with per-task extras"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python"
+        )
+        mock_session.metadata["extra_extensions"] = ["dbaeumer.vscode-eslint"]
+
+        desired = service._get_desired_extensions(mock_session)
+
+        assert desired == ["ms-python.python", "dbaeumer.vscode-eslint"]
+
+    def test_get_desired_extensions_deduplicates(self, service, mock_session, monkeypatch):
+        """Test _get_desired_extensions removes duplicates preserving order"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python,esbenp.prettier-vscode"
+        )
+        mock_session.metadata["extra_extensions"] = [
+            "ms-python.python",
+            "dbaeumer.vscode-eslint"
+        ]
+
+        desired = service._get_desired_extensions(mock_session)
+
+        assert desired == [
+            "ms-python.python",
+            "esbenp.prettier-vscode",
+            "dbaeumer.vscode-eslint"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_ensure_extensions_installed_no_extensions(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test _ensure_extensions_installed does nothing when no extensions configured"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions", ""
+        )
+
+        await service._ensure_extensions_installed(mock_session)
+
+        assert "extensions_desired" not in mock_session.metadata
+
+    @pytest.mark.asyncio
+    async def test_ensure_extensions_installed_all_already_installed(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test _ensure_extensions_installed skips when all extensions installed"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python,esbenp.prettier-vscode"
+        )
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "--list-extensions" in cmd:
+                return {
+                    "success": True,
+                    "stdout": "ms-python.python\nesbenp.prettier-vscode\n",
+                    "stderr": ""
+                }
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        await service._ensure_extensions_installed(mock_session)
+
+        assert mock_session.metadata["extensions_desired"] == [
+            "ms-python.python",
+            "esbenp.prettier-vscode"
+        ]
+        assert set(mock_session.metadata["extensions_installed"]) == {
+            "ms-python.python",
+            "esbenp.prettier-vscode"
+        }
+        assert mock_session.metadata["extensions_failed"] == []
+
+    @pytest.mark.asyncio
+    async def test_ensure_extensions_installed_installs_missing(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test _ensure_extensions_installed installs only missing extensions"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python,esbenp.prettier-vscode,dbaeumer.vscode-eslint"
+        )
+
+        install_calls = []
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "--list-extensions" in cmd:
+                return {
+                    "success": True,
+                    "stdout": "ms-python.python\n",
+                    "stderr": ""
+                }
+            if "--install-extension" in cmd:
+                install_calls.append(cmd)
+                return {"success": True, "stdout": "Installed", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        await service._ensure_extensions_installed(mock_session)
+
+        assert len(install_calls) == 2
+        assert any("esbenp.prettier-vscode" in c for c in install_calls)
+        assert any("dbaeumer.vscode-eslint" in c for c in install_calls)
+        assert mock_session.metadata["extensions_installed"] == [
+            "ms-python.python",
+            "esbenp.prettier-vscode",
+            "dbaeumer.vscode-eslint"
+        ]
+        assert mock_session.metadata["extensions_failed"] == []
+
+    @pytest.mark.asyncio
+    async def test_ensure_extensions_installed_handles_failures(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test _ensure_extensions_installed logs failures but doesn't raise"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python,invalid.extension"
+        )
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "--list-extensions" in cmd:
+                return {"success": True, "stdout": "", "stderr": ""}
+            if "--install-extension" in cmd:
+                if "invalid.extension" in cmd:
+                    return {
+                        "success": False,
+                        "stdout": "",
+                        "stderr": "Extension not found"
+                    }
+                return {"success": True, "stdout": "Installed", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        await service._ensure_extensions_installed(mock_session)
+
+        assert mock_session.metadata["extensions_installed"] == ["ms-python.python"]
+        assert mock_session.metadata["extensions_failed"] == ["invalid.extension"]
+
+    @pytest.mark.asyncio
+    async def test_ensure_extensions_installed_list_failure(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test _ensure_extensions_installed handles list command failure"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_default_extensions",
+            "ms-python.python"
+        )
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "--list-extensions" in cmd:
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": "code-server not found"
+                }
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        await service._ensure_extensions_installed(mock_session)
+
+        assert mock_session.metadata["extensions_error"] == "Failed to list extensions"
+        assert "extensions_installed" not in mock_session.metadata
