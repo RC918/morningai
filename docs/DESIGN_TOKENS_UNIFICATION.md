@@ -84,7 +84,11 @@ export default { ... }
 
 8. **Accessibility**
    - WCAG AAA contrast ratios
-   - Focus styles
+   - Focus styles:
+     - `focus.primary`: #0051D0 (primary focus outline for interactive elements)
+     - `focus.light`: #0284c7 (secondary focus color for lighter backgrounds)
+     - `focus.outline-width`: 3px
+     - `focus.outline-offset`: 2px
    - Touch target sizes
    - Reduced motion support
 
@@ -273,6 +277,14 @@ Both applications successfully:
 - [Design Tokens JSON](../packages/shared-ui/src/tokens.json)
 
 ## Changelog
+
+### 2025-12-13 - Focus Color Tokens (Issue #2291)
+- Added focus color tokens to `tokens.json`:
+  - `accessibility.focus.primary`: #0051D0 (primary blue, 7.12:1 contrast on white)
+  - `accessibility.focus.light`: #0284c7 (sky blue, used in accessibility.css)
+- Added CSS variables `--color-focus` and `--color-focus-light` to @theme blocks
+- Replaced hardcoded focus colors in accessibility.css with CSS variable references
+- All CSS variables include fallback values for backward compatibility
 
 ### 2025-11-07 - Initial Unification
 - Created centralized `design-tokens.ts` module in `@morningai/shared-ui`

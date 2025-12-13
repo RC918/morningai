@@ -135,6 +135,14 @@
   --color-cyan-800: #008290;
   --color-cyan-900: #00616E;
 
+  /* ===== Focus Colors ===== */
+  /* Used for keyboard navigation focus indicators (Tab key navigation) */
+  /* --color-focus: Primary focus outline color for interactive elements */
+  /* --color-focus-light: Secondary focus color for lighter backgrounds */
+  /* WCAG 2.1 Level AA requires 3:1 contrast ratio for focus indicators */
+  --color-focus: #0051D0;        /* Primary blue - 7.12:1 contrast on white */
+  --color-focus-light: #0284c7;  /* Sky blue - used in accessibility.css */
+
   /* Base tokens for shared-ui components (Switch, Button, Input, etc.) */
   /* These are required for Tailwind v4 to generate bg-primary, bg-input, bg-background utilities */
   /* Format: Complete CSS color values (hsl() or hex) - NOT raw HSL components */
@@ -219,7 +227,7 @@
 /* WCAG 2.1 AA Focus Management */
 /* Enhanced focus indicators for keyboard navigation */
 *:focus-visible {
-  outline: 2px solid #0051D0;
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -240,7 +248,7 @@
 /* High contrast focus for buttons */
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid #0051D0;
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -384,7 +392,7 @@ a:focus-visible {
 
 /* Focus ring with spring animation */
 .focus-ring-spring:focus-visible {
-  outline: 2px solid #0051D0;
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
   animation: spring-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }

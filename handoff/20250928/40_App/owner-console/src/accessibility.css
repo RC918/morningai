@@ -20,23 +20,23 @@
  * Use these for all text content on white backgrounds
  */
 .text-primary-aaa {
-  color: #005A9C; /* 7.12:1 contrast ratio */
+  color: var(--color-a11y-primary, #005A9C); /* 7.12:1 contrast ratio */
 }
 
 .text-success-aaa {
-  color: #0D5C3D; /* 7.05:1 contrast ratio */
+  color: var(--color-a11y-success, #0D5C3D); /* 7.05:1 contrast ratio */
 }
 
 .text-error-aaa {
-  color: #A91C1C; /* 7.32:1 contrast ratio */
+  color: var(--color-a11y-error, #A91C1C); /* 7.32:1 contrast ratio */
 }
 
 .text-warning-aaa {
-  color: #92400E; /* 7.18:1 contrast ratio */
+  color: var(--color-a11y-warning, #92400E); /* 7.18:1 contrast ratio */
 }
 
 .text-info-aaa {
-  color: #005A9C; /* 7.12:1 contrast ratio */
+  color: var(--color-a11y-info, #005A9C); /* 7.12:1 contrast ratio */
 }
 
 /**
@@ -44,28 +44,28 @@
  * Ensures text remains readable on colored backgrounds
  */
 .bg-primary-aaa {
-  background-color: #005A9C;
-  color: #FFFFFF; /* 7.12:1 contrast ratio */
+  background-color: var(--color-a11y-primary, #005A9C);
+  color: var(--color-background-surface, #FFFFFF); /* 7.12:1 contrast ratio */
 }
 
 .bg-success-aaa {
-  background-color: #0D5C3D;
-  color: #FFFFFF; /* 7.05:1 contrast ratio */
+  background-color: var(--color-a11y-success, #0D5C3D);
+  color: var(--color-background-surface, #FFFFFF); /* 7.05:1 contrast ratio */
 }
 
 .bg-error-aaa {
-  background-color: #A91C1C;
-  color: #FFFFFF; /* 7.32:1 contrast ratio */
+  background-color: var(--color-a11y-error, #A91C1C);
+  color: var(--color-background-surface, #FFFFFF); /* 7.32:1 contrast ratio */
 }
 
 .bg-warning-aaa {
-  background-color: #92400E;
-  color: #FFFFFF; /* 7.18:1 contrast ratio */
+  background-color: var(--color-a11y-warning, #92400E);
+  color: var(--color-background-surface, #FFFFFF); /* 7.18:1 contrast ratio */
 }
 
 .bg-info-aaa {
-  background-color: #005A9C;
-  color: #FFFFFF; /* 7.12:1 contrast ratio */
+  background-color: var(--color-a11y-info, #005A9C);
+  color: var(--color-background-surface, #FFFFFF); /* 7.12:1 contrast ratio */
 }
 
 /* ============================================
@@ -77,7 +77,7 @@
  * 3px outline with 2px offset for maximum visibility
  */
 *:focus-visible {
-  outline: 3px solid #0284c7;
+  outline: 3px solid var(--color-focus-light, #0284c7);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -100,7 +100,7 @@ textarea:focus-visible,
 [role="button"]:focus-visible,
 [role="link"]:focus-visible,
 [tabindex]:not([tabindex="-1"]):focus-visible {
-  outline: 3px solid #0284c7;
+  outline: 3px solid var(--color-focus-light, #0284c7);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.1);
 }
@@ -154,7 +154,7 @@ textarea:focus-visible,
   position: absolute;
   top: -40px;
   left: 0;
-  background: #0284c7;
+  background: var(--color-focus-light, #0284c7);
   color: white;
   padding: 8px 16px;
   text-decoration: none;
@@ -298,7 +298,7 @@ select,
  * More prominent for keyboard users
  */
 .keyboard-focus:focus-visible {
-  outline: 4px solid #0284c7;
+  outline: 4px solid var(--color-focus-light, #0284c7);
   outline-offset: 3px;
   box-shadow: 0 0 0 6px rgba(2, 132, 199, 0.15);
 }
@@ -346,14 +346,14 @@ select,
   padding: 12px 16px;
   border-radius: 8px;
   background: rgba(2, 132, 199, 0.1);
-  border-left: 4px solid #0284c7;
+  border-left: 4px solid var(--color-focus-light, #0284c7);
 }
 
 [role="alert"] {
   padding: 12px 16px;
   border-radius: 8px;
   background: rgba(185, 28, 28, 0.1);
-  border-left: 4px solid #B91C1C;
+  border-left: 4px solid var(--color-error-700, #B91C1C);
   font-weight: 600;
 }
 
@@ -431,7 +431,7 @@ body {
  */
 .required::after {
   content: ' *';
-  color: #B91C1C;
+  color: var(--color-error-700, #B91C1C);
   font-weight: bold;
 }
 
@@ -439,7 +439,7 @@ body {
  * Error message styling
  */
 .error-message {
-  color: #B91C1C;
+  color: var(--color-error-700, #B91C1C);
   font-size: 0.875rem;
   margin-top: 0.25rem;
   display: flex;
@@ -456,12 +456,12 @@ body {
  * Form field with error
  */
 .field-error {
-  border-color: #B91C1C;
+  border-color: var(--color-error-700, #B91C1C);
   border-width: 2px;
 }
 
 .field-error:focus {
-  outline-color: #B91C1C;
+  outline-color: var(--color-error-700, #B91C1C);
   box-shadow: 0 0 0 4px rgba(185, 28, 28, 0.1);
 }
 
@@ -517,7 +517,7 @@ body {
  */
 [role="tooltip"] {
   position: absolute;
-  background: #1f2937;
+  background: var(--color-neutral-800, #1f2937);
   color: white;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
@@ -544,7 +544,7 @@ body {
   width: 2rem;
   height: 2rem;
   border: 3px solid rgba(0, 0, 0, 0.1);
-  border-top-color: #0284c7;
+  border-top-color: var(--color-focus-light, #0284c7);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -558,8 +558,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .loading-spinner {
     animation: none;
-    border-top-color: #0284c7;
-    border-right-color: #0284c7;
+    border-top-color: var(--color-focus-light, #0284c7);
+    border-right-color: var(--color-focus-light, #0284c7);
   }
 }
 
@@ -576,7 +576,7 @@ body {
 
 .progress-bar-fill {
   height: 100%;
-  background: #0284c7;
+  background: var(--color-focus-light, #0284c7);
   transition: width 0.3s ease;
 }
 
