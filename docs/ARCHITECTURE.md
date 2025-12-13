@@ -29,7 +29,7 @@ MorningAI is evolving from an MVP to a **world-class autonomous AI agent orchest
 ┌─────────────────────────────────────────────────────────────────┐
 │                      API Backend Layer                           │
 ├─────────────────────────────────────────────────────────────────┤
-│  FastAPI Backend (Render)                                        │
+│  Flask Backend (Render)                                          │
 │  - JWT Authentication + RBAC                                     │
 │  - Multi-tenant RLS enforcement                                  │
 │  - RESTful API endpoints                                         │
@@ -141,7 +141,7 @@ MorningAI is evolving from an MVP to a **world-class autonomous AI agent orchest
 - **Governance**: Cost tracking, reputation scoring, rate limiting
 
 **Tech Stack**:
-- FastAPI (Python)
+- Flask (Python)
 - Supabase PostgreSQL (with RLS)
 - Upstash Redis (caching + queues)
 - Deployed on Render
