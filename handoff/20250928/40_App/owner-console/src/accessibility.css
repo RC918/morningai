@@ -155,7 +155,7 @@ textarea:focus-visible,
   top: -40px;
   left: 0;
   background: var(--color-focus-light, #0284c7);
-  color: white;
+  color: var(--color-background-surface, #FFFFFF); /* White text on colored background */
   padding: 8px 16px;
   text-decoration: none;
   border-radius: 0 0 4px 0;
@@ -518,7 +518,7 @@ body {
 [role="tooltip"] {
   position: absolute;
   background: var(--color-neutral-800, #1f2937);
-  color: white;
+  color: var(--color-background-surface, #FFFFFF); /* White text on dark background */
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
   font-size: 0.875rem;
