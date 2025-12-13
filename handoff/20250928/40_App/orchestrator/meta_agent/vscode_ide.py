@@ -1647,7 +1647,7 @@ class VSCodeIDEService:
 
         cpu_result = await self._execute_shell_command(
             session,
-            "top -bn1 | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1",
+            "top -bn1 | awk '/Cpu\\(s\\)/{for(i=1;i<=NF;i++)if($i~/id/){gsub(/[^0-9.]/,\"\",$i);print 100-$i}}'",
             timeout_seconds=10,
         )
         if cpu_result.get("success") and cpu_result.get("stdout"):
@@ -1655,14 +1655,14 @@ class VSCodeIDEService:
                 cpu_str = cpu_result["stdout"].strip()
                 metrics["cpu_percent"] = float(cpu_str)
             except (ValueError, TypeError):
-                logger.debug(
+                logger.warning(
                     "[VSCodeIDEService] Failed to parse CPU usage for session %s",
                     session_id
                 )
 
         mem_result = await self._execute_shell_command(
             session,
-            "free -m | awk 'NR==2{printf \"%s %s %.1f\", $3, $2, $3*100/$2}'",
+            "free -m | awk 'NR==2{t=$2;a=$7;u=t-a;if(t>0)printf \"%s %s %.1f\",u,t,u*100/t}'",
             timeout_seconds=10,
         )
         if mem_result.get("success") and mem_result.get("stdout"):
@@ -1673,7 +1673,7 @@ class VSCodeIDEService:
                     metrics["memory_total_mb"] = int(parts[1])
                     metrics["memory_percent"] = float(parts[2])
             except (ValueError, TypeError, IndexError):
-                logger.debug(
+                logger.warning(
                     "[VSCodeIDEService] Failed to parse memory usage for session %s",
                     session_id
                 )
