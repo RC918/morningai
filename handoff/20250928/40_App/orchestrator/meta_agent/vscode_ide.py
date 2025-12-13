@@ -550,6 +550,9 @@ class VSCodeIDEService:
         session.metadata["iframe_allowed_origins"] = cors_config["allowed_origins"]
         session.metadata["public_url"] = cors_config["public_url"] or session.vscode_endpoint
 
+        # Auto-install extensions (#2353)
+        await self._ensure_extensions_installed(session)
+
         logger.info(
             "[VSCodeIDEService] Session %s initialized successfully",
             session_id
@@ -1418,6 +1421,164 @@ class VSCodeIDEService:
             headers["X-Frame-Options"] = f"ALLOW-FROM {allowed_origins[0]}"
 
         return headers
+
+    def get_extension_config(self) -> Dict[str, Any]:
+        """
+        Get Extension auto-install configuration from settings (#2353).
+
+        Returns a dictionary with:
+        - default_extensions: List of extension IDs to auto-install
+
+        Returns:
+            Dict with extension configuration
+        """
+        try:
+            from common.config.settings import settings
+            extensions_str = settings.vscode_default_extensions or ""
+            default_extensions = [
+                e.strip() for e in extensions_str.split(",") if e.strip()
+            ]
+        except ImportError:
+            logger.warning(
+                "[VSCodeIDEService] Could not import settings for extensions, "
+                "using defaults"
+            )
+            default_extensions = []
+
+        return {
+            "default_extensions": default_extensions,
+        }
+
+    def _get_desired_extensions(self, session: IDESession) -> List[str]:
+        """
+        Get the list of extensions to install for a session (#2353).
+
+        Combines default extensions from settings with any per-task
+        extra extensions from session metadata.
+
+        Args:
+            session: IDE session
+
+        Returns:
+            List of extension IDs to install (deduplicated, order preserved)
+        """
+        config = self.get_extension_config()
+        default_exts = config["default_extensions"]
+        extra_exts = session.metadata.get("extra_extensions") or []
+        combined = default_exts + list(extra_exts)
+        return list(dict.fromkeys(combined))
+
+    async def _ensure_extensions_installed(self, session: IDESession) -> None:
+        """
+        Ensure desired extensions are installed for the session (#2353).
+
+        This method:
+        1. Gets the list of desired extensions (defaults + per-task extras)
+        2. Lists currently installed extensions
+        3. Installs any missing extensions
+        4. Records installation status in session metadata
+
+        Extension installation is best-effort and non-blocking; failures
+        are logged but don't prevent session initialization.
+
+        Args:
+            session: IDE session to install extensions for
+        """
+        session_id = session.session_id[:8]
+        desired = self._get_desired_extensions(session)
+
+        if not desired:
+            logger.debug(
+                "[VSCodeIDEService] No extensions to install for session %s",
+                session_id
+            )
+            return
+
+        list_cmd = "code-server --list-extensions"
+        result = await self._execute_shell_command(
+            session, list_cmd, timeout_seconds=15
+        )
+
+        if not result.get("success"):
+            logger.warning(
+                "[VSCodeIDEService] Failed to list extensions for session %s: %s",
+                session_id,
+                result.get("stderr", "Unknown error"),
+            )
+            session.metadata["extensions_error"] = "Failed to list extensions"
+            return
+
+        installed = {
+            line.strip()
+            for line in (result.get("stdout") or "").splitlines()
+            if line.strip()
+        }
+        to_install = [ext for ext in desired if ext not in installed]
+
+        if not to_install:
+            logger.debug(
+                "[VSCodeIDEService] All %d extensions already installed for "
+                "session %s",
+                len(desired),
+                session_id
+            )
+            session.metadata["extensions_desired"] = desired
+            session.metadata["extensions_installed"] = list(installed & set(desired))
+            session.metadata["extensions_failed"] = []
+            return
+
+        logger.info(
+            "[VSCodeIDEService] Installing %d extensions for session %s: %s",
+            len(to_install),
+            session_id,
+            to_install
+        )
+
+        installed_exts = []
+        failed_exts = []
+
+        for ext in to_install:
+            cmd = f"code-server --install-extension {shlex.quote(ext)}"
+            install_res = await self._execute_shell_command(
+                session, cmd, timeout_seconds=60
+            )
+
+            if install_res.get("success"):
+                installed_exts.append(ext)
+                logger.debug(
+                    "[VSCodeIDEService] Installed extension %s for session %s",
+                    ext,
+                    session_id
+                )
+            else:
+                failed_exts.append(ext)
+                logger.warning(
+                    "[VSCodeIDEService] Failed to install extension %s for "
+                    "session %s: %s",
+                    ext,
+                    session_id,
+                    install_res.get("stderr", "Unknown error"),
+                )
+
+        session.metadata["extensions_desired"] = desired
+        session.metadata["extensions_installed"] = installed_exts
+        session.metadata["extensions_failed"] = failed_exts
+
+        if failed_exts:
+            logger.warning(
+                "[VSCodeIDEService] %d/%d extensions failed to install for "
+                "session %s",
+                len(failed_exts),
+                len(to_install),
+                session_id
+            )
+        else:
+            logger.info(
+                "[VSCodeIDEService] All %d extensions installed successfully for "
+                "session %s",
+                len(to_install),
+                session_id
+            )
 
 
 # Global IDE service instance
