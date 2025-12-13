@@ -1051,6 +1051,13 @@ def test_with_env_var(monkeypatch):
 
 ## 相關資源
 
+### 內部文檔
+
+- [Testing Architecture](./TESTING_ARCHITECTURE.md) - 雙層測試架構和 CI 配置
+- [VSCode IDE Test Strategy](./VSCODE_IDE_TEST_STRATEGY.md) - IDE 服務的測試架構和 mock 策略
+
+### 外部文檔
+
 - [pytest 官方文檔](https://docs.pytest.org/)
 - [unittest.mock 文檔](https://docs.python.org/3/library/unittest.mock.html)
 - [pytest-cov 文檔](https://pytest-cov.readthedocs.io/)

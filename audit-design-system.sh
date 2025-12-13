@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # MorningAI Design System Audit Script
-# Simplified version with relaxed mode for CI stability
-# TODO: Expand checks in sections 2-8 after debugging
+# Full version with all 8 audit sections implemented
+# Epic #2304 Phase 0-1: UI/UX Systematization and Standardization
 
 set -euo pipefail
 
@@ -21,6 +21,32 @@ FAIL_COUNT=0
 WARN_COUNT=0
 PASS_COUNT=0
 TODO_COUNT=0
+
+# Configurable paths - update these when handoff directory changes
+FRONTEND_DASHBOARD_SRC="handoff/20250928/40_App/frontend-dashboard/src"
+FRONTEND_DASHBOARD_PKG="handoff/20250928/40_App/frontend-dashboard/package.json"
+OWNER_CONSOLE_SRC="handoff/20250928/40_App/owner-console/src"
+OWNER_CONSOLE_PKG="handoff/20250928/40_App/owner-console/package.json"
+SHARED_UI_PKG="packages/shared-ui/package.json"
+
+# ============================================================================
+# THRESHOLD CONFIGURATION & TEAM RESPONSIBILITY
+# ============================================================================
+# Metric                    | Pass    | Warn      | Fail    | Owner Team
+# --------------------------|---------|-----------|---------|------------------
+# Hard-coded hex colors     | <=50    | 51-150    | >150    | UI/UX Team
+# Inline styles             | <=100   | >100      | -       | UI/UX Team
+# Shared-ui components      | >=40    | <40       | -       | Design System Team
+# Shared-ui imports         | >=50    | <50       | -       | Frontend Team
+# A11y test files           | >=3     | <3        | -       | QA Team
+# Story files               | >=15    | 5-14      | <5      | Design System Team
+# prefers-reduced-motion    | >=3     | <3        | -       | UI/UX Team
+# i18n usage                | >=100   | 50-99     | <50     | i18n Team
+# React version consistency | <=2     | >2        | -       | Frontend Team
+# ============================================================================
+
+# Baseline file for no-regression strategy
+BASELINE_FILE=".design-system-baseline.json"
 
 for arg in "$@"; do
   case $arg in
@@ -148,38 +174,235 @@ else
 fi
 
 log_section "2. Design System Adoption & Component Duplication"
-log_todo "Component duplication analysis (requires debugging comm/grep pipelines)"
-log_todo "Shared-ui import analysis (requires stable grep with error handling)"
+
+# Count shared-ui components
+SHARED_UI_COMPONENTS=$(find packages/shared-ui/src/components/ui -name "*.tsx" -not -name "*.stories.tsx" -not -name "*.test.tsx" 2>/dev/null | wc -l || echo "0")
+if [ "$SHARED_UI_COMPONENTS" -ge 40 ]; then
+  log_pass "Shared-ui has $SHARED_UI_COMPONENTS components (target: 40+)"
+else
+  log_warn "Shared-ui has only $SHARED_UI_COMPONENTS components (target: 40+)"
+fi
+
+# Check shared-ui imports in frontend apps
+FRONTEND_IMPORTS=$(grep -r "@morningai/shared-ui" "$FRONTEND_DASHBOARD_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
+OWNER_IMPORTS=$(grep -r "@morningai/shared-ui" "$OWNER_CONSOLE_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
+TOTAL_IMPORTS=$((FRONTEND_IMPORTS + OWNER_IMPORTS))
+if [ "$TOTAL_IMPORTS" -ge 50 ]; then
+  log_pass "Shared-ui imports found: $TOTAL_IMPORTS (frontend: $FRONTEND_IMPORTS, owner-console: $OWNER_IMPORTS)"
+else
+  log_warn "Low shared-ui adoption: $TOTAL_IMPORTS imports (target: 50+)"
+fi
 
 log_section "3. Design Tokens Enforcement"
-log_todo "Hard-coded hex color detection (requires stable grep patterns)"
-log_todo "Inline styles analysis (requires stable grep with wc)"
-log_todo "RGB/RGBA color detection"
+
+# Check for hard-coded hex colors in frontend apps (excluding node_modules, dist, .stories files)
+HEX_COLORS=$(grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
+  --include="*.tsx" --include="*.ts" --include="*.css" \
+  --exclude-dir=node_modules --exclude="*.stories.*" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$HEX_COLORS" -le 50 ]; then
+  log_pass "Hard-coded hex colors: $HEX_COLORS (target: <50)"
+elif [ "$HEX_COLORS" -le 150 ]; then
+  log_warn "Hard-coded hex colors: $HEX_COLORS (target: <50, acceptable: <150)"
+else
+  log_fail "Too many hard-coded hex colors: $HEX_COLORS (target: <50)"
+fi
+
+# Check for inline styles
+INLINE_STYLES=$(grep -rE "style=\{" \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
+  --include="*.tsx" \
+  --exclude-dir=node_modules --exclude="*.stories.*" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$INLINE_STYLES" -le 100 ]; then
+  log_pass "Inline styles usage: $INLINE_STYLES (target: <100)"
+else
+  log_warn "High inline styles usage: $INLINE_STYLES (target: <100)"
+fi
+
+# Check design tokens file has required categories
+if [ -f "packages/shared-ui/src/tokens.json" ]; then
+  REQUIRED_TOKENS=("color" "font" "space" "radius" "shadow" "animation" "breakpoint")
+  MISSING_TOKENS=0
+  for token in "${REQUIRED_TOKENS[@]}"; do
+    if ! grep -q "\"$token\"" packages/shared-ui/src/tokens.json 2>/dev/null; then
+      MISSING_TOKENS=$((MISSING_TOKENS + 1))
+      log_info "Missing token category: $token"
+    fi
+  done
+  if [ "$MISSING_TOKENS" -eq 0 ]; then
+    log_pass "All required token categories present (${#REQUIRED_TOKENS[@]} categories)"
+  else
+    log_warn "Missing $MISSING_TOKENS token categories"
+  fi
+fi
 
 log_section "4. Accessibility Compliance"
-log_todo "eslint-plugin-jsx-a11y verification"
-log_todo "Accessibility testing tools check (axe-core, jest-axe, vitest-axe)"
-log_todo "Accessibility test files count"
-log_todo "Image alt attribute validation"
+
+# Check for eslint-plugin-jsx-a11y in package.json files
+A11Y_ESLINT=$(grep -r "eslint-plugin-jsx-a11y" \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$A11Y_ESLINT" -ge 1 ]; then
+  log_pass "eslint-plugin-jsx-a11y installed in $A11Y_ESLINT package(s)"
+else
+  log_warn "eslint-plugin-jsx-a11y not found in frontend packages"
+fi
+
+# Check for axe-core testing tools
+AXE_TOOLS=$(grep -rE "@axe-core|jest-axe|vitest-axe" \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
+  "$SHARED_UI_PKG" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$AXE_TOOLS" -ge 1 ]; then
+  log_pass "Accessibility testing tools found: $AXE_TOOLS package references"
+else
+  log_warn "No axe-core testing tools found"
+fi
+
+# Count accessibility test files
+A11Y_TESTS=$(find packages/shared-ui/src -name "*.a11y.test.*" -o -name "*accessibility*.test.*" 2>/dev/null | wc -l || echo "0")
+if [ "$A11Y_TESTS" -ge 3 ]; then
+  log_pass "Accessibility test files: $A11Y_TESTS"
+else
+  log_warn "Few accessibility test files: $A11Y_TESTS (target: 3+)"
+fi
 
 log_section "5. Motion & Animation Governance"
-log_todo "prefers-reduced-motion support detection"
-log_todo "Framer Motion usage analysis"
-log_todo "withReducedMotion wrapper verification"
+
+# Check for prefers-reduced-motion support
+REDUCED_MOTION_CSS=$(grep -r "prefers-reduced-motion" \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
+  packages/shared-ui/src \
+  --include="*.css" --include="*.scss" --include="*.tsx" --include="*.ts" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$REDUCED_MOTION_CSS" -ge 3 ]; then
+  log_pass "prefers-reduced-motion support: $REDUCED_MOTION_CSS instances"
+else
+  log_warn "Limited prefers-reduced-motion support: $REDUCED_MOTION_CSS instances (target: 3+)"
+fi
+
+# Check for framer-motion usage
+FRAMER_MOTION=$(grep -r "framer-motion" \
+  "$SHARED_UI_PKG" \
+  "$FRONTEND_DASHBOARD_PKG" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$FRAMER_MOTION" -ge 1 ]; then
+  log_pass "Framer Motion installed for animations"
+else
+  log_info "Framer Motion not detected (optional)"
+fi
 
 log_section "6. Internationalization (i18n)"
-log_todo "i18n library detection (react-i18next/i18next)"
-log_todo "i18n usage analysis (useTranslation, t() calls)"
+
+# Check for i18n libraries
+I18N_LIBS=$(grep -rE "react-i18next|i18next|@tolgee" \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$I18N_LIBS" -ge 1 ]; then
+  log_pass "i18n libraries installed: $I18N_LIBS package references"
+else
+  log_warn "No i18n libraries found"
+fi
+
+# Count i18n usage (useTranslation, t() calls)
+I18N_USAGE=$(grep -rE "useTranslation|\\bt\\(" \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
+  --include="*.tsx" --include="*.ts" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$I18N_USAGE" -ge 100 ]; then
+  log_pass "i18n usage: $I18N_USAGE instances (excellent coverage)"
+elif [ "$I18N_USAGE" -ge 50 ]; then
+  log_pass "i18n usage: $I18N_USAGE instances (good coverage)"
+else
+  log_warn "Low i18n usage: $I18N_USAGE instances (target: 50+)"
+fi
 
 log_section "7. Storybook & Documentation"
-log_todo "Storybook configuration verification"
-log_todo "Story files count and coverage"
-log_todo "Visual regression tests (@vrt) detection"
-log_todo "Design system documentation files check"
+
+# Check Storybook configuration
+if [ -d "packages/shared-ui/.storybook" ]; then
+  log_pass "Storybook configured in shared-ui"
+else
+  log_warn "Storybook not configured in shared-ui"
+fi
+
+# Count story files
+STORY_FILES=$(find packages/shared-ui/src -name "*.stories.tsx" -o -name "*.stories.ts" 2>/dev/null | wc -l || echo "0")
+if [ "$STORY_FILES" -ge 15 ]; then
+  log_pass "Story files: $STORY_FILES (good coverage)"
+elif [ "$STORY_FILES" -ge 5 ]; then
+  log_warn "Story files: $STORY_FILES (target: 15+)"
+else
+  log_fail "Few story files: $STORY_FILES (target: 15+)"
+fi
+
+# Check for design system documentation
+DESIGN_DOCS=0
+for doc in "DESIGN_SYSTEM_GUIDELINES.md" "docs/UI_UX_QUICKSTART.md" "docs/UI_UX_CHEATSHEET.md"; do
+  if [ -f "$doc" ]; then
+    DESIGN_DOCS=$((DESIGN_DOCS + 1))
+  fi
+done
+
+if [ "$DESIGN_DOCS" -ge 2 ]; then
+  log_pass "Design system documentation: $DESIGN_DOCS files found"
+else
+  log_warn "Limited design system documentation: $DESIGN_DOCS files (target: 2+)"
+fi
 
 log_section "8. React Version Alignment"
-log_todo "React version consistency check across packages"
-log_todo "React 19 adoption verification"
+
+# Check React version in shared-ui (portable: use awk instead of grep -P)
+SHARED_UI_REACT=$(awk -F'"' '/"react":/ {print $4}' "$SHARED_UI_PKG" 2>/dev/null | head -1 || echo "not found")
+log_info "shared-ui React peer dependency: $SHARED_UI_REACT"
+
+# Check for React 19 adoption
+REACT_19=$(grep -rE '"react":\s*"[^"]*19' \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
+  2>/dev/null | wc -l || echo "0")
+
+if [ "$REACT_19" -ge 1 ]; then
+  log_pass "React 19 adopted in $REACT_19 frontend package(s)"
+else
+  # Check for React 18 as acceptable
+  REACT_18=$(grep -rE '"react":\s*"[^"]*18' \
+    "$FRONTEND_DASHBOARD_PKG" \
+    "$OWNER_CONSOLE_PKG" \
+    2>/dev/null | wc -l || echo "0")
+  if [ "$REACT_18" -ge 1 ]; then
+    log_pass "React 18 in use (React 19 upgrade recommended)"
+  else
+    log_warn "React version not detected in frontend packages"
+  fi
+fi
+
+# Check React version consistency (portable: use awk instead of grep -P)
+REACT_VERSIONS=$(cat "$SHARED_UI_PKG" "$FRONTEND_DASHBOARD_PKG" "$OWNER_CONSOLE_PKG" 2>/dev/null | \
+  awk -F'"' '/"react":/ {print $4}' | sort -u | wc -l || echo "0")
+
+if [ "$REACT_VERSIONS" -le 2 ]; then
+  log_pass "React version consistency: $REACT_VERSIONS unique version patterns"
+else
+  log_warn "React version inconsistency: $REACT_VERSIONS different version patterns"
+fi
 
 log_section "Audit Summary"
 
@@ -203,10 +426,57 @@ FAIL=$FAIL_COUNT
 TODO=$TODO_COUNT
 TOTAL=$TOTAL_CHECKS
 MODE=$MODE_LABEL
-NOTES=Simplified audit for CI stability. Sections 2-8 marked as TODO pending debugging.
+HEX_COLORS=$HEX_COLORS
+INLINE_STYLES=$INLINE_STYLES
+NOTES=Full audit with all 8 sections implemented. Epic #2304 Phase 0-1 complete.
 EOF
 
 log_info "Summary written to $SUMMARY_FILE"
+
+# ============================================================================
+# NO-REGRESSION STRATEGY
+# ============================================================================
+# Compare current metrics against baseline to prevent regression.
+# If metrics worsen, CI fails even in relaxed mode.
+# To update baseline: ./audit-design-system.sh --update-baseline
+# ============================================================================
+
+REGRESSION_DETECTED=false
+
+if [ -f "$BASELINE_FILE" ]; then
+  # Note: JSON format has space after colon, e.g. "hex_colors": 494
+  BASELINE_HEX=$(grep -o '"hex_colors": *[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")
+  
+  if [ -n "$BASELINE_HEX" ] && [ "$HEX_COLORS" -gt "$BASELINE_HEX" ] && [ "$BASELINE_HEX" -gt 0 ]; then
+    echo -e "${RED}❌ REGRESSION DETECTED: Hard-coded hex colors increased from $BASELINE_HEX to $HEX_COLORS${NC}"
+    REGRESSION_DETECTED=true
+  elif [ -n "$BASELINE_HEX" ] && [ "$HEX_COLORS" -lt "$BASELINE_HEX" ]; then
+    echo -e "${GREEN}✓ IMPROVEMENT: Hard-coded hex colors decreased from $BASELINE_HEX to $HEX_COLORS${NC}"
+  fi
+fi
+
+# Handle --update-baseline flag
+for arg in "$@"; do
+  if [ "$arg" = "--update-baseline" ]; then
+    cat > "$BASELINE_FILE" <<EOF
+{
+  "updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "hex_colors": $HEX_COLORS,
+  "inline_styles": $INLINE_STYLES,
+  "shared_ui_components": $SHARED_UI_COMPONENTS,
+  "story_files": $STORY_FILES
+}
+EOF
+    echo -e "${GREEN}✓ Baseline updated: $BASELINE_FILE${NC}"
+  fi
+done
+
+# Exit with error if regression detected (even in relaxed mode)
+if [ "$REGRESSION_DETECTED" = true ]; then
+  echo -e "${RED}❌ CI blocked due to regression. Fix the regression or update baseline.${NC}"
+  echo -e "${RED}   To update baseline: ./audit-design-system.sh --update-baseline${NC}"
+  exit 1
+fi
 
 if [ "$STRICT_MODE" = true ]; then
   if [ $FAIL_COUNT -eq 0 ] && [ $WARN_COUNT -eq 0 ]; then

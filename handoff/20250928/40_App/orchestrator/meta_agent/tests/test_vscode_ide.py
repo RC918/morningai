@@ -1387,6 +1387,151 @@ class TestInitializeSession:
         assert "public_url" in mock_session.metadata
         assert mock_session.metadata["public_url"] == mock_session.vscode_endpoint
 
+    @pytest.mark.asyncio
+    async def test_poll_healthz_success_on_first_attempt(self, service, mock_session):
+        """Test _poll_healthz returns True when curl returns 200 (#2352 edge case)"""
+        async def mock_shell(session, command, timeout_seconds=60):
+            if "curl" in command and "healthz" in command:
+                return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        service._execute_shell_command = mock_shell
+        service.DEFAULT_STARTUP_RETRY_INTERVAL = 0.01
+
+        result = await service._poll_healthz(mock_session, "127.0.0.1", 8443)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_poll_healthz_unexpected_stderr(self, service, mock_session):
+        """Test _poll_healthz handles unexpected stderr output (#2352 edge case)"""
+        async def mock_shell(session, command, timeout_seconds=60):
+            if "curl" in command and "healthz" in command:
+                return {
+                    "success": True,
+                    "exit_code": 0,
+                    "stdout": "200",
+                    "stderr": "Warning: some unexpected warning message"
+                }
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        service._execute_shell_command = mock_shell
+        service.DEFAULT_STARTUP_RETRY_INTERVAL = 0.01
+
+        result = await service._poll_healthz(mock_session, "127.0.0.1", 8443)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_poll_healthz_empty_stdout(self, service, mock_session):
+        """Test _poll_healthz handles empty stdout (#2352 edge case)"""
+        attempt_count = 0
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            nonlocal attempt_count
+            if "curl" in command and "healthz" in command:
+                attempt_count += 1
+                if attempt_count >= 3:
+                    return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        service._execute_shell_command = mock_shell
+        service.DEFAULT_STARTUP_RETRY_INTERVAL = 0.01
+
+        result = await service._poll_healthz(mock_session, "127.0.0.1", 8443)
+
+        assert result is True
+        assert attempt_count == 3
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_settings_shell_partial_failure(
+        self, service, mock_session
+    ):
+        """Test initialization handles shell fallback partial failure (#2352 edge case)"""
+        base64_attempt_count = 0
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            nonlocal base64_attempt_count
+            if "pgrep" in command:
+                return {"success": True, "exit_code": 0, "stdout": "12345", "stderr": ""}
+            if "base64" in command and "settings.json" in command:
+                base64_attempt_count += 1
+                return {"success": False, "exit_code": 1, "stdout": "", "stderr": "Permission denied"}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            if endpoint == "file/write":
+                return {"success": False, "error": "MCP unavailable"}
+            return {"success": True}
+
+        service._execute_shell_command = mock_shell
+        service._execute_mcp_command = mock_mcp
+
+        await service._initialize_session(mock_session)
+
+        assert base64_attempt_count >= 1
+        assert mock_session.metadata.get("code_server_url") == "http://localhost:8443"
+
+    @pytest.mark.asyncio
+    async def test_collect_resource_usage_parse_failure(self, service, mock_session):
+        """Test _collect_resource_usage handles parse failure (#2352 edge case)"""
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "top -bn1" in cmd:
+                return {"success": True, "stdout": "invalid_cpu_data", "stderr": ""}
+            if "free -m" in cmd:
+                return {"success": True, "stdout": "invalid memory data", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        service._execute_shell_command = mock_shell
+
+        metrics = await service._collect_resource_usage(mock_session)
+
+        assert metrics["cpu_percent"] is None
+        assert metrics["memory_percent"] is None
+        assert metrics["memory_used_mb"] is None
+        assert metrics["memory_total_mb"] is None
+        assert "collected_at" in metrics
+
+    @pytest.mark.asyncio
+    async def test_initialize_session_call_counts(
+        self, service, mock_session, mock_mcp_success
+    ):
+        """Test initialization makes expected number of calls (#2352 call count)"""
+        shell_call_count = 0
+        mcp_call_count = 0
+        healthz_call_count = 0
+
+        async def mock_shell(session, command, timeout_seconds=60):
+            nonlocal shell_call_count, healthz_call_count
+            shell_call_count += 1
+            if "pgrep" in command and "curl" in command:
+                return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
+            if "code-server --bind-addr" in command:
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            if "curl" in command and "healthz" in command:
+                healthz_call_count += 1
+                return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
+            if "mkdir -p" in command:
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            if "base64" in command:
+                return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+            return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
+
+        async def mock_mcp(session, endpoint, payload, timeout_seconds=30):
+            nonlocal mcp_call_count
+            mcp_call_count += 1
+            return {"success": True}
+
+        service._execute_shell_command = mock_shell
+        service._execute_mcp_command = mock_mcp
+
+        await service._initialize_session(mock_session)
+
+        assert shell_call_count >= 5, f"Expected at least 5 shell calls, got {shell_call_count}"
+        assert mcp_call_count >= 1, f"Expected at least 1 MCP call, got {mcp_call_count}"
+        assert healthz_call_count >= 1, f"Expected at least 1 healthz call, got {healthz_call_count}"
+
 
 class TestCorsConfig:
     """Tests for CORS / iframe configuration (#2353)"""
