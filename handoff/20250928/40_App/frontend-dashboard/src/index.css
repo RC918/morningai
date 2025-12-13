@@ -151,6 +151,12 @@
   --border-opacity-popover-dark: 0.12;
   /* Overlay opacity */
   --overlay-opacity: 0.4;
+  /* Glass/Frost effect opacity levels */
+  --glass-bg-opacity: 0.1;
+  --glass-border-opacity: 0.2;
+  --frost-bg-opacity: 0.05;
+  /* Loading shimmer opacity */
+  --shimmer-opacity: 0.2;
 }
 
 @import "tailwindcss";
