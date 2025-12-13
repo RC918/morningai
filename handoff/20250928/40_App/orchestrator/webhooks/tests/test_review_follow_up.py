@@ -269,9 +269,11 @@ class TestReviewFollowUpService:
     """Tests for ReviewFollowUpService"""
 
     def test_service_initialization(self):
-        """Test service initialization"""
+        """Test service initialization with default repository"""
         service = ReviewFollowUpService()
-        assert service._tasks == {}
+        # Issue #2259: Now uses repository instead of _tasks dict
+        from webhooks.task_repository import InMemoryTaskRepository
+        assert isinstance(service._repository, InMemoryTaskRepository)
 
     def test_service_initialization_with_token(self):
         """Test service initialization with GitHub token"""
@@ -303,11 +305,12 @@ class TestReviewFollowUpService:
             comment_body="Use consistent naming",
         )
 
-        assert task.task_id.startswith("review-followup-")
+        # Issue #2259: Task ID is now deterministic (pr{pr_number}_comment{comment_id})
+        assert task.task_id == "pr456_commentcomment-123"
         assert task.original_pr_number == 456
         assert task.action == ReviewFollowUpAction.AUTO_FIX
 
-        # Task should be stored in service
+        # Task should be stored in repository
         assert service.get_task(task.task_id) == task
 
     def test_get_task_not_found(self):
@@ -666,3 +669,165 @@ class TestDetermineHitlRequirement:
         assert determine_hitl_requirement(
             triage_result, file_path="src/auth.py"
         ) is True
+
+
+class TestTaskRepository:
+    """
+    Tests for Task Repository abstraction layer.
+
+    Issue #2259: Task Storage Migration to Redis/DB
+    """
+
+    def test_generate_task_id(self):
+        """Test deterministic task ID generation"""
+        from webhooks.task_repository import generate_task_id
+
+        task_id = generate_task_id(123, "comment-456")
+        assert task_id == "pr123_commentcomment-456"
+
+        task_id2 = generate_task_id(123, "comment-456")
+        assert task_id == task_id2
+
+    def test_in_memory_repository_save_and_get(self):
+        """Test InMemoryTaskRepository save and get operations"""
+        from webhooks.task_repository import InMemoryTaskRepository
+
+        repo = InMemoryTaskRepository()
+
+        task = ReviewFollowUpTask(
+            task_id="test-task-123",
+            original_pr_number=456,
+            repo="RC918/morningai",
+            branch="feature/test",
+            comment_url="https://github.com/...",
+            comment_body="Test comment",
+        )
+
+        assert repo.save(task) is True
+        retrieved = repo.get("test-task-123")
+        assert retrieved is not None
+        assert retrieved.task_id == "test-task-123"
+        assert retrieved.original_pr_number == 456
+
+    def test_in_memory_repository_delete(self):
+        """Test InMemoryTaskRepository delete operation"""
+        from webhooks.task_repository import InMemoryTaskRepository
+
+        repo = InMemoryTaskRepository()
+
+        task = ReviewFollowUpTask(
+            task_id="test-task-123",
+            original_pr_number=456,
+            repo="RC918/morningai",
+            branch="feature/test",
+            comment_url="https://github.com/...",
+            comment_body="Test comment",
+        )
+
+        repo.save(task)
+        assert repo.exists("test-task-123") is True
+
+        assert repo.delete("test-task-123") is True
+        assert repo.exists("test-task-123") is False
+        assert repo.get("test-task-123") is None
+
+    def test_in_memory_repository_list_all(self):
+        """Test InMemoryTaskRepository list_all operation"""
+        from webhooks.task_repository import InMemoryTaskRepository
+
+        repo = InMemoryTaskRepository()
+
+        for i in range(3):
+            task = ReviewFollowUpTask(
+                task_id=f"test-task-{i}",
+                original_pr_number=100 + i,
+                repo="RC918/morningai",
+                branch="feature/test",
+                comment_url=f"https://github.com/.../{i}",
+                comment_body=f"Test comment {i}",
+            )
+            repo.save(task)
+
+        all_tasks = repo.list_all()
+        assert len(all_tasks) == 3
+        assert repo.count() == 3
+
+    def test_in_memory_repository_get_nonexistent(self):
+        """Test InMemoryTaskRepository get for non-existent task"""
+        from webhooks.task_repository import InMemoryTaskRepository
+
+        repo = InMemoryTaskRepository()
+        assert repo.get("nonexistent") is None
+
+    def test_in_memory_repository_delete_nonexistent(self):
+        """Test InMemoryTaskRepository delete for non-existent task"""
+        from webhooks.task_repository import InMemoryTaskRepository
+
+        repo = InMemoryTaskRepository()
+        assert repo.delete("nonexistent") is False
+
+    def test_get_task_repository_default(self):
+        """Test get_task_repository factory with default backend"""
+        from webhooks.task_repository import (
+            get_task_repository,
+            InMemoryTaskRepository,
+        )
+
+        repo = get_task_repository()
+        assert isinstance(repo, InMemoryTaskRepository)
+
+    def test_get_task_repository_in_memory_explicit(self):
+        """Test get_task_repository factory with explicit in_memory backend"""
+        from webhooks.task_repository import (
+            get_task_repository,
+            InMemoryTaskRepository,
+        )
+
+        repo = get_task_repository(backend="in_memory")
+        assert isinstance(repo, InMemoryTaskRepository)
+
+    def test_service_with_custom_repository(self):
+        """Test ReviewFollowUpService with custom repository"""
+        from webhooks.task_repository import InMemoryTaskRepository
+
+        custom_repo = InMemoryTaskRepository()
+        service = ReviewFollowUpService(repository=custom_repo)
+
+        assert service._repository is custom_repo
+
+    def test_service_idempotent_task_creation(self):
+        """Test that creating the same task twice returns existing task"""
+        service = ReviewFollowUpService()
+
+        triage_result = CommentTriageResult(
+            comment_id="comment-123",
+            source="gemini-code-assist",
+            category=CommentCategory.STYLE,
+            risk_level=RiskLevel.LOW,
+            should_auto_fix=True,
+            confidence=0.9,
+            reason="Style issue",
+            files_affected=["src/utils.py"],
+            lines_affected=5,
+        )
+
+        task1 = service.create_task(
+            triage_result=triage_result,
+            pr_number=456,
+            repo="RC918/morningai",
+            branch="feature/test",
+            comment_url="https://github.com/...",
+            comment_body="Use consistent naming",
+        )
+
+        task2 = service.create_task(
+            triage_result=triage_result,
+            pr_number=456,
+            repo="RC918/morningai",
+            branch="feature/test",
+            comment_url="https://github.com/...",
+            comment_body="Use consistent naming",
+        )
+
+        assert task1.task_id == task2.task_id
+        assert service._repository.count() == 1

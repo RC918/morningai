@@ -78,6 +78,33 @@ class CommentTriageResult:
             "metadata": self.metadata,
         }
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CommentTriageResult":
+        """
+        Create CommentTriageResult from dictionary.
+
+        Issue #2259: Added for Redis task repository deserialization.
+
+        Args:
+            data: Dictionary with triage result fields
+
+        Returns:
+            CommentTriageResult instance
+        """
+        return cls(
+            comment_id=data.get("comment_id", ""),
+            source=data.get("source", "unknown"),
+            category=CommentCategory(data.get("category", "unknown")),
+            risk_level=RiskLevel(data.get("risk_level", "low")),
+            files_affected=data.get("files_affected", []),
+            lines_affected=data.get("lines_affected", 0),
+            should_auto_fix=data.get("should_auto_fix", False),
+            confidence=data.get("confidence", 0.0),
+            reason=data.get("reason", ""),
+            keywords_matched=data.get("keywords_matched", []),
+            metadata=data.get("metadata", {}),
+        )
+
 
 class CommentTriageAgent:
     """
