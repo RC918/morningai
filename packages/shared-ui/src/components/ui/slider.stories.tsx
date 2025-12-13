@@ -39,7 +39,7 @@ export const Default: Story = {
     max: 100,
     step: 1,
     className: 'w-[300px]',
-    'aria-label': 'Default slider',
+    thumbLabel: 'Default slider',
   },
 }
 
@@ -80,7 +80,7 @@ export const Disabled: Story = {
     step: 1,
     disabled: true,
     className: 'w-[300px]',
-    'aria-label': 'Disabled slider',
+    thumbLabel: 'Disabled slider',
   },
 }
 
@@ -91,7 +91,7 @@ export const CustomStep: Story = {
         <Label>Step: 10</Label>
         <span className="text-sm text-muted-foreground">50</span>
       </div>
-      <Slider defaultValue={[50]} max={100} step={10} aria-label="Custom step slider" />
+      <Slider defaultValue={[50]} max={100} step={10} thumbLabel="Custom step slider" />
     </div>
   ),
 }
@@ -103,7 +103,7 @@ export const SmallRange: Story = {
         <Label>Rating (1-5)</Label>
         <span className="text-sm text-muted-foreground">3</span>
       </div>
-      <Slider defaultValue={[3]} min={1} max={5} step={1} aria-label="Rating slider" />
+      <Slider defaultValue={[3]} min={1} max={5} step={1} thumbLabel="Rating slider" />
     </div>
   ),
 }
@@ -113,19 +113,19 @@ export const AllVariants: Story = {
     <div className="flex flex-col gap-8 w-[300px]">
       <div className="grid gap-2">
         <Label>Default</Label>
-        <Slider defaultValue={[50]} max={100} step={1} aria-label="Default slider" />
+        <Slider defaultValue={[50]} max={100} step={1} thumbLabel="Default slider" />
       </div>
       <div className="grid gap-2">
         <Label>Range Selection</Label>
-        <Slider defaultValue={[25, 75]} max={100} step={1} aria-label="Range selection slider" />
+        <Slider defaultValue={[25, 75]} max={100} step={1} thumbLabel={['Range minimum', 'Range maximum']} />
       </div>
       <div className="grid gap-2">
         <Label>Disabled</Label>
-        <Slider defaultValue={[50]} max={100} step={1} disabled aria-label="Disabled slider" />
+        <Slider defaultValue={[50]} max={100} step={1} disabled thumbLabel="Disabled slider" />
       </div>
       <div className="grid gap-2">
         <Label>Custom Step (25)</Label>
-        <Slider defaultValue={[50]} max={100} step={25} aria-label="Custom step slider" />
+        <Slider defaultValue={[50]} max={100} step={25} thumbLabel="Custom step slider" />
       </div>
     </div>
   ),
