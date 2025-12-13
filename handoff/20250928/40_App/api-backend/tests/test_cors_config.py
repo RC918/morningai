@@ -208,6 +208,30 @@ class TestCORSConfigurationIntegration:
             assert all(origin.startswith("http") for origin in origins_list)
 
 
+def _import_fresh_main(monkeypatch, **env):
+    """Helper to import main.py with fresh environment variables.
+
+    This is necessary because cors_debug_enabled is computed at import time.
+    We need to:
+    1. Set env vars
+    2. Remove src.main from sys.modules
+    3. Delete the main attribute from src package (prevents stale attribute)
+    4. Use importlib.import_module for a clean import
+    """
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+    # Ensure src package exists
+    import src
+    # Remove src.main from sys.modules
+    sys.modules.pop("src.main", None)
+    # Critical: delete stale attribute from src package
+    if hasattr(src, "main"):
+        delattr(src, "main")
+
+    return importlib.import_module("src.main")
+
+
 class TestCORSDebugSanitization:
     """Test CORS_DEBUG logging sanitization behavior.
 
@@ -216,43 +240,21 @@ class TestCORSDebugSanitization:
     - Logs do NOT contain raw origin URLs or allowlist contents
     """
 
-    @pytest.fixture
-    def setup_cors_debug_env(self, monkeypatch):
-        """Set up environment for CORS_DEBUG testing.
-
-        Must set env vars BEFORE importing main.py because cors_debug_enabled
-        is computed at import time.
-        """
-        # Set environment variables before import
-        monkeypatch.setenv("ENVIRONMENT", "staging")
-        monkeypatch.setenv("CORS_DEBUG", "true")
-        monkeypatch.setenv("LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("CORS_ORIGINS", "https://allowed-origin.com,https://another-allowed.com")
-
-        # Remove src.main from sys.modules to force reimport with new env vars
-        modules_to_remove = [key for key in sys.modules.keys() if 'src.main' in key]
-        for mod in modules_to_remove:
-            del sys.modules[mod]
-
-        yield
-
-        # Cleanup: remove the module again after test
-        modules_to_remove = [key for key in sys.modules.keys() if 'src.main' in key]
-        for mod in modules_to_remove:
-            del sys.modules[mod]
-
-    def test_cors_debug_logs_contain_only_safe_fields(self, setup_cors_debug_env, caplog):
+    def test_cors_debug_logs_contain_only_safe_fields(self, monkeypatch, caplog):
         """Test that CORS debug logs only contain sanitized safe fields.
 
         Safe fields: origin_present, in_allowlist, is_preview, allowlist_count
         """
         caplog.set_level(logging.DEBUG)
 
-        # Import main after env vars are set
-        from src import main
-
-        # Force reload to pick up new env vars
-        importlib.reload(main)
+        # Import main with fresh env vars
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com,https://another-allowed.com"
+        )
 
         # Get the Flask app and test client
         app = main.app
@@ -281,7 +283,7 @@ class TestCORSDebugSanitization:
             for field in safe_fields:
                 assert field in log_text, f"Expected safe field '{field}' in CORS debug logs"
 
-    def test_cors_debug_logs_do_not_contain_raw_values(self, setup_cors_debug_env, caplog):
+    def test_cors_debug_logs_do_not_contain_raw_values(self, monkeypatch, caplog):
         """Test that CORS debug logs do NOT contain raw origin URLs or allowlist contents.
 
         This is critical for security - we should never log:
@@ -290,11 +292,14 @@ class TestCORSDebugSanitization:
         """
         caplog.set_level(logging.DEBUG)
 
-        # Import main after env vars are set
-        from src import main
-
-        # Force reload to pick up new env vars
-        importlib.reload(main)
+        # Import main with fresh env vars
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com,https://another-allowed.com"
+        )
 
         # Get the Flask app and test client
         app = main.app
@@ -330,44 +335,30 @@ class TestCORSDebugSanitization:
         """
         caplog.set_level(logging.DEBUG)
 
-        # Set production environment with CORS_DEBUG=true
-        monkeypatch.setenv("ENVIRONMENT", "production")
-        monkeypatch.setenv("CORS_DEBUG", "true")
-        monkeypatch.setenv("LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("CORS_ORIGINS", "https://allowed-origin.com")
+        # Import main with production env vars
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="production",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com"
+        )
 
-        # Remove src.main from sys.modules to force reimport
-        modules_to_remove = [key for key in sys.modules.keys() if 'src.main' in key]
-        for mod in modules_to_remove:
-            del sys.modules[mod]
+        # Verify cors_debug_enabled is False in production
+        assert main.cors_debug_enabled is False, \
+            "cors_debug_enabled should be False in production"
 
-        try:
-            # Import main after env vars are set
-            from src import main
+        # Get the Flask app and test client
+        app = main.app
+        client = app.test_client()
 
-            # Force reload to pick up new env vars
-            importlib.reload(main)
+        # Clear any logs
+        caplog.clear()
 
-            # Verify cors_debug_enabled is False in production
-            assert main.cors_debug_enabled is False, \
-                "cors_debug_enabled should be False in production"
+        # Make a request
+        client.get("/health", headers={"Origin": "https://test.com"})
 
-            # Get the Flask app and test client
-            app = main.app
-            client = app.test_client()
-
-            # Clear any logs
-            caplog.clear()
-
-            # Make a request
-            client.get("/health", headers={"Origin": "https://test.com"})
-
-            # In production, no CORS DEBUG logs should appear
-            log_text = caplog.text
-            assert "[CORS DEBUG]" not in log_text, \
-                "CORS DEBUG logs should NOT appear in production environment"
-        finally:
-            # Cleanup
-            modules_to_remove = [key for key in sys.modules.keys() if 'src.main' in key]
-            for mod in modules_to_remove:
-                del sys.modules[mod]
+        # In production, no CORS DEBUG logs should appear
+        log_text = caplog.text
+        assert "[CORS DEBUG]" not in log_text, \
+            "CORS DEBUG logs should NOT appear in production environment"
