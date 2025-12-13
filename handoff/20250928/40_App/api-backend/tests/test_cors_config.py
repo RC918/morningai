@@ -213,13 +213,23 @@ def _import_fresh_main(monkeypatch, **env):
 
     This is necessary because cors_debug_enabled is computed at import time.
     We need to:
-    1. Set env vars
-    2. Remove src.main from sys.modules
-    3. Delete the main attribute from src package (prevents stale attribute)
-    4. Use importlib.import_module for a clean import
+    1. Set env vars (including ENABLE_MOCK_USERS=false for non-development)
+    2. Reset the Settings singleton to pick up new env vars
+    3. Remove src.main from sys.modules
+    4. Delete the main attribute from src package (prevents stale attribute)
+    5. Use importlib.import_module for a clean import
     """
+    # For staging/production, ENABLE_MOCK_USERS must be false per Settings validator
+    environment = env.get("ENVIRONMENT", "development")
+    if environment in ("staging", "production"):
+        monkeypatch.setenv("ENABLE_MOCK_USERS", "false")
+
     for k, v in env.items():
         monkeypatch.setenv(k, v)
+
+    # Reset the Settings singleton to pick up new env vars
+    from common.config.settings import reload_settings
+    reload_settings()
 
     # Ensure src package exists
     import src
