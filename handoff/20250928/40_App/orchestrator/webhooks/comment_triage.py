@@ -248,8 +248,41 @@ class CommentTriageAgent:
         r"\.md$", r"\.txt$", r"\.json$", r"\.yaml$", r"\.yml$",
     ]
 
+    # Issue: #2249 - Configurable confidence normalization max score
+    # This value is used to normalize category match scores to 0-1 range
+    # Higher values result in lower confidence scores for the same keyword matches
+    CONFIDENCE_MAX_SCORE: float = 5.0
+
+    # Issue: #2250 - Extensionless files that should be recognized in file path patterns
+    # These are common configuration and build files without extensions
+    # Using tuple for immutability
+    EXTENSIONLESS_FILES = (
+        "Dockerfile",
+        "Makefile",
+        "Jenkinsfile",
+        "Vagrantfile",
+        "LICENSE",
+        "README",
+        "CHANGELOG",
+        "CONTRIBUTING",
+        "Gemfile",
+        "Rakefile",
+        "Procfile",
+        "Brewfile",
+        "Containerfile",
+        "Earthfile",
+        "Justfile",
+        "Taskfile",
+    )
+
     def __init__(self):
         """Initialize the Comment Triage Agent"""
+        # Pre-compile extensionless file regex pattern for better performance
+        extensionless_pattern = r'(?:^|[\s`"\'/])(' + '|'.join(
+            rf'(?:[a-zA-Z0-9_\-./]*/?)?{re.escape(f)}'
+            for f in self.EXTENSIONLESS_FILES
+        ) + r')(?:[\s`"\'/]|$)'
+        self._extensionless_regex = re.compile(extensionless_pattern)
         logger.info("[CommentTriageAgent] Initialized")
 
     def triage(self, event: WebhookEvent) -> Optional[CommentTriageResult]:
@@ -411,8 +444,9 @@ class CommentTriageAgent:
         matched_keywords = category_keywords[best_category]
 
         # Calculate confidence based on score and number of matches
-        # Normalize score to 0-1 range (assuming max reasonable score is ~5)
-        confidence = min(best_score / 5.0, 1.0)
+        # Normalize score to 0-1 range using configurable max score
+        # Issue: #2249 - Use CONFIDENCE_MAX_SCORE constant instead of hardcoded value
+        confidence = min(best_score / self.CONFIDENCE_MAX_SCORE, 1.0)
 
         return best_category, confidence, matched_keywords
 
@@ -437,7 +471,7 @@ class CommentTriageAgent:
                 pass
 
         # Extract file paths mentioned in comment text
-        # Look for common file path patterns
+        # Look for common file path patterns (files with extensions)
         file_patterns = [
             r'`([a-zA-Z0-9_\-./]+\.[a-zA-Z0-9]+)`',  # `path/to/file.ext`
             r'"([a-zA-Z0-9_\-./]+\.[a-zA-Z0-9]+)"',  # "path/to/file.ext"
@@ -448,6 +482,11 @@ class CommentTriageAgent:
         for pattern in file_patterns:
             matches = re.findall(pattern, comment_text)
             files.extend(matches)
+
+        # Issue: #2250 - Extract extensionless files (Dockerfile, Makefile, etc.)
+        # Use pre-compiled regex pattern for better performance
+        extensionless_matches = self._extensionless_regex.findall(comment_text)
+        files.extend(extensionless_matches)
 
         # Deduplicate while preserving order (using dict.fromkeys for efficiency)
         return list(dict.fromkeys(files))
