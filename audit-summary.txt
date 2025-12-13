@@ -4,4 +4,6 @@ FAIL=1
 TODO=0
 TOTAL=24
 MODE=relaxed
+HEX_COLORS=494
+INLINE_STYLES=49
 NOTES=Full audit with all 8 sections implemented. Epic #2304 Phase 0-1 complete.

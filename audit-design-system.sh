@@ -29,6 +29,25 @@ OWNER_CONSOLE_SRC="handoff/20250928/40_App/owner-console/src"
 OWNER_CONSOLE_PKG="handoff/20250928/40_App/owner-console/package.json"
 SHARED_UI_PKG="packages/shared-ui/package.json"
 
+# ============================================================================
+# THRESHOLD CONFIGURATION & TEAM RESPONSIBILITY
+# ============================================================================
+# Metric                    | Pass    | Warn      | Fail    | Owner Team
+# --------------------------|---------|-----------|---------|------------------
+# Hard-coded hex colors     | <=50    | 51-150    | >150    | UI/UX Team
+# Inline styles             | <=100   | >100      | -       | UI/UX Team
+# Shared-ui components      | >=40    | <40       | -       | Design System Team
+# Shared-ui imports         | >=50    | <50       | -       | Frontend Team
+# A11y test files           | >=3     | <3        | -       | QA Team
+# Story files               | >=15    | 5-14      | <5      | Design System Team
+# prefers-reduced-motion    | >=3     | <3        | -       | UI/UX Team
+# i18n usage                | >=100   | 50-99     | <50     | i18n Team
+# React version consistency | <=2     | >2        | -       | Frontend Team
+# ============================================================================
+
+# Baseline file for no-regression strategy
+BASELINE_FILE=".design-system-baseline.json"
+
 for arg in "$@"; do
   case $arg in
     --ci)
@@ -407,10 +426,56 @@ FAIL=$FAIL_COUNT
 TODO=$TODO_COUNT
 TOTAL=$TOTAL_CHECKS
 MODE=$MODE_LABEL
+HEX_COLORS=$HEX_COLORS
+INLINE_STYLES=$INLINE_STYLES
 NOTES=Full audit with all 8 sections implemented. Epic #2304 Phase 0-1 complete.
 EOF
 
 log_info "Summary written to $SUMMARY_FILE"
+
+# ============================================================================
+# NO-REGRESSION STRATEGY
+# ============================================================================
+# Compare current metrics against baseline to prevent regression.
+# If metrics worsen, CI fails even in relaxed mode.
+# To update baseline: ./audit-design-system.sh --update-baseline
+# ============================================================================
+
+REGRESSION_DETECTED=false
+
+if [ -f "$BASELINE_FILE" ]; then
+  BASELINE_HEX=$(grep -o '"hex_colors":[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")
+  
+  if [ "$HEX_COLORS" -gt "$BASELINE_HEX" ] && [ "$BASELINE_HEX" -gt 0 ]; then
+    echo -e "${RED}❌ REGRESSION DETECTED: Hard-coded hex colors increased from $BASELINE_HEX to $HEX_COLORS${NC}"
+    REGRESSION_DETECTED=true
+  elif [ "$HEX_COLORS" -lt "$BASELINE_HEX" ]; then
+    echo -e "${GREEN}✓ IMPROVEMENT: Hard-coded hex colors decreased from $BASELINE_HEX to $HEX_COLORS${NC}"
+  fi
+fi
+
+# Handle --update-baseline flag
+for arg in "$@"; do
+  if [ "$arg" = "--update-baseline" ]; then
+    cat > "$BASELINE_FILE" <<EOF
+{
+  "updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "hex_colors": $HEX_COLORS,
+  "inline_styles": $INLINE_STYLES,
+  "shared_ui_components": $SHARED_UI_COMPONENTS,
+  "story_files": $STORY_FILES
+}
+EOF
+    echo -e "${GREEN}✓ Baseline updated: $BASELINE_FILE${NC}"
+  fi
+done
+
+# Exit with error if regression detected (even in relaxed mode)
+if [ "$REGRESSION_DETECTED" = true ]; then
+  echo -e "${RED}❌ CI blocked due to regression. Fix the regression or update baseline.${NC}"
+  echo -e "${RED}   To update baseline: ./audit-design-system.sh --update-baseline${NC}"
+  exit 1
+fi
 
 if [ "$STRICT_MODE" = true ]; then
   if [ $FAIL_COUNT -eq 0 ] && [ $WARN_COUNT -eq 0 ]; then
