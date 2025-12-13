@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify, request, Response
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
+
+from flask import Blueprint, jsonify, request, Response
 
 DEFAULT_WINDOW_MINUTES = 15
 MIN_WINDOW_MINUTES = 1
@@ -102,6 +104,62 @@ def _collect_session_command_metrics(window_minutes: int = 15) -> Dict[str, Any]
         }
     except Exception as e:
         logger.warning(f"Failed to collect session command metrics: {e}")
+        return {"available": False, "error": str(e)}
+
+
+def _collect_review_follow_up_metrics(window_minutes: int = 15) -> Dict[str, Any]:
+    """
+    Collect review follow-up task metrics from Redis.
+
+    Issue #2259: Provides aggregate statistics for ReviewFollowUpService tasks
+    without requiring DB backend for historical queries.
+    """
+    redis_client = _get_redis_client()
+    if not redis_client:
+        return {"available": False, "error": "Redis unavailable"}
+
+    try:
+        total_tasks = 0
+        status_counts: Dict[str, int] = {}
+        action_counts: Dict[str, int] = {}
+
+        key_prefix = "review_follow_up:task:*"
+        for key in redis_client.scan_iter(match=key_prefix):
+            total_tasks += 1
+            try:
+                data = redis_client.get(key)
+                if data:
+                    task_data = json.loads(data)
+                    status = task_data.get("status", "unknown")
+                    status_counts[status] = status_counts.get(status, 0) + 1
+
+                    action = task_data.get("action", "unknown")
+                    action_counts[action] = action_counts.get(action, 0) + 1
+            except (json.JSONDecodeError, TypeError):
+                status_counts["parse_error"] = status_counts.get("parse_error", 0) + 1
+
+        completed = status_counts.get("completed", 0)
+        failed = status_counts.get("failed", 0)
+        pending = status_counts.get("pending", 0)
+        total_resolved = completed + failed
+
+        return {
+            "available": True,
+            "total_tasks": total_tasks,
+            "status_counts": status_counts,
+            "action_counts": action_counts,
+            "summary": {
+                "pending": pending,
+                "completed": completed,
+                "failed": failed,
+                "completion_rate": (
+                    round(completed / total_resolved * 100, 1)
+                    if total_resolved > 0 else 0.0
+                ),
+            },
+        }
+    except Exception as e:
+        logger.warning(f"Failed to collect review follow-up metrics: {e}")
         return {"available": False, "error": str(e)}
 
 
@@ -217,6 +275,43 @@ def _format_prometheus_metrics(metrics: Dict[str, Any]) -> str:
                 )
                 lines.append("")
 
+    review_follow_up = metrics.get("review_follow_up", {})
+    if review_follow_up.get("available"):
+        summary = review_follow_up.get("summary", {})
+
+        lines.append("# HELP morningai_review_follow_up_total Total review follow-up tasks")
+        lines.append("# TYPE morningai_review_follow_up_total gauge")
+        lines.append(
+            f"morningai_review_follow_up_total {review_follow_up.get('total_tasks', 0)}"
+        )
+        lines.append("")
+
+        lines.append("# HELP morningai_review_follow_up_pending Pending review follow-up tasks")
+        lines.append("# TYPE morningai_review_follow_up_pending gauge")
+        lines.append(f"morningai_review_follow_up_pending {summary.get('pending', 0)}")
+        lines.append("")
+
+        lines.append(
+            "# HELP morningai_review_follow_up_completed Completed review follow-up tasks"
+        )
+        lines.append("# TYPE morningai_review_follow_up_completed gauge")
+        lines.append(f"morningai_review_follow_up_completed {summary.get('completed', 0)}")
+        lines.append("")
+
+        lines.append("# HELP morningai_review_follow_up_failed Failed review follow-up tasks")
+        lines.append("# TYPE morningai_review_follow_up_failed gauge")
+        lines.append(f"morningai_review_follow_up_failed {summary.get('failed', 0)}")
+        lines.append("")
+
+        lines.append(
+            "# HELP morningai_review_follow_up_completion_rate Review follow-up completion rate"
+        )
+        lines.append("# TYPE morningai_review_follow_up_completion_rate gauge")
+        lines.append(
+            f"morningai_review_follow_up_completion_rate {summary.get('completion_rate', 0)}"
+        )
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -261,6 +356,7 @@ def get_metrics():
         "api": _collect_api_metrics(window_minutes),
         "rate_limit": _collect_rate_limit_metrics(window_minutes),
         "session_commands": _collect_session_command_metrics(window_minutes),
+        "review_follow_up": _collect_review_follow_up_metrics(window_minutes),
     }
 
     if orchestrator_metrics:
