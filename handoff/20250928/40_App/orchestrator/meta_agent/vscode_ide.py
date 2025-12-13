@@ -1411,8 +1411,8 @@ class VSCodeIDEService:
 
         allowed_origins = config["allowed_origins"]
 
-        frame_ancestors = "'self' " + " ".join(allowed_origins)
-        headers["Content-Security-Policy"] = f"frame-ancestors {frame_ancestors}"
+        origins_str = " ".join(allowed_origins)
+        headers["Content-Security-Policy"] = f"frame-ancestors 'self' {origins_str}"
 
         if len(allowed_origins) == 1:
             headers["X-Frame-Options"] = f"ALLOW-FROM {allowed_origins[0]}"

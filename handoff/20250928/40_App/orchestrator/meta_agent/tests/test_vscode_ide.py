@@ -1455,9 +1455,8 @@ class TestCorsConfig:
 
         headers = service.get_cors_headers()
 
-        assert "Content-Security-Policy" in headers
-        assert "frame-ancestors" in headers["Content-Security-Policy"]
-        assert "https://app.morningai.com" in headers["Content-Security-Policy"]
+        expected_csp = "frame-ancestors 'self' https://app.morningai.com"
+        assert headers["Content-Security-Policy"] == expected_csp
         assert headers["X-Frame-Options"] == "ALLOW-FROM https://app.morningai.com"
 
     def test_get_cors_headers_multiple_origins(self, service, monkeypatch):
@@ -1472,7 +1471,9 @@ class TestCorsConfig:
 
         headers = service.get_cors_headers()
 
-        assert "Content-Security-Policy" in headers
-        assert "https://app.morningai.com" in headers["Content-Security-Policy"]
-        assert "https://staging.morningai.com" in headers["Content-Security-Policy"]
+        expected_csp = (
+            "frame-ancestors 'self' "
+            "https://app.morningai.com https://staging.morningai.com"
+        )
+        assert headers["Content-Security-Policy"] == expected_csp
         assert "X-Frame-Options" not in headers
