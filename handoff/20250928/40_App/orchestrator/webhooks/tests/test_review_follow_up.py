@@ -831,3 +831,160 @@ class TestTaskRepository:
 
         assert task1.task_id == task2.task_id
         assert service._repository.count() == 1
+
+
+class TestRedisTaskRepository:
+    """
+    Tests for Redis Task Repository with mocked Redis client.
+
+    Issue #2259: Phase B - Redis Integration with Feature Flag Control
+    """
+
+    def test_redis_repository_save_and_get(self):
+        """Test RedisTaskRepository save and get with mock client"""
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import RedisTaskRepository
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = None
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+
+        task = ReviewFollowUpTask(
+            task_id="test-task-redis",
+            original_pr_number=789,
+            repo="RC918/morningai",
+            branch="feature/redis",
+            comment_url="https://github.com/...",
+            comment_body="Redis test comment",
+        )
+
+        result = repo.save(task)
+        assert result is True
+        mock_client.setex.assert_called_once()
+
+    def test_redis_repository_get_existing(self):
+        """Test RedisTaskRepository get for existing task"""
+        import json
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import RedisTaskRepository
+        from datetime import datetime
+
+        mock_client = MagicMock()
+        task_data = {
+            "task_id": "test-task-redis",
+            "task_type": "review_follow_up",
+            "original_pr_number": 789,
+            "repo": "RC918/morningai",
+            "branch": "feature/redis",
+            "comment_url": "https://github.com/...",
+            "comment_body": "Redis test comment",
+            "file_path": "",
+            "line_number": 0,
+            "triage_result": None,
+            "pr_context": None,
+            "status": "pending",
+            "action": "manual_review",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "result": None,
+            "error": None,
+            "metadata": {},
+        }
+        mock_client.get.return_value = json.dumps(task_data)
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        retrieved = repo.get("test-task-redis")
+
+        assert retrieved is not None
+        assert retrieved.task_id == "test-task-redis"
+        assert retrieved.original_pr_number == 789
+
+    def test_redis_repository_delete(self):
+        """Test RedisTaskRepository delete operation"""
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import RedisTaskRepository
+
+        mock_client = MagicMock()
+        mock_client.delete.return_value = 1
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        result = repo.delete("test-task-redis")
+
+        assert result is True
+        mock_client.delete.assert_called_once()
+
+    def test_redis_repository_exists(self):
+        """Test RedisTaskRepository exists operation"""
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import RedisTaskRepository
+
+        mock_client = MagicMock()
+        mock_client.exists.return_value = 1
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        result = repo.exists("test-task-redis")
+
+        assert result is True
+        mock_client.exists.assert_called_once()
+
+    def test_redis_repository_ttl_configuration(self):
+        """Test RedisTaskRepository TTL configuration"""
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import RedisTaskRepository
+
+        mock_client = MagicMock()
+        custom_ttl = 7 * 24 * 60 * 60  # 7 days
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=custom_ttl)
+        assert repo._ttl == custom_ttl
+
+    def test_redis_repository_default_ttl(self):
+        """Test RedisTaskRepository default TTL (30 days)"""
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import RedisTaskRepository
+
+        mock_client = MagicMock()
+        repo = RedisTaskRepository(redis_client=mock_client)
+
+        expected_ttl = 30 * 24 * 60 * 60  # 30 days
+        assert repo._ttl == expected_ttl
+
+    def test_get_task_repository_redis_backend(self):
+        """Test get_task_repository factory with redis backend"""
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import (
+            get_task_repository,
+            RedisTaskRepository,
+        )
+
+        mock_client = MagicMock()
+        repo = get_task_repository(backend="redis", redis_client=mock_client)
+
+        assert isinstance(repo, RedisTaskRepository)
+
+    def test_redis_repository_key_prefix(self):
+        """Test RedisTaskRepository uses correct key prefix"""
+        from unittest.mock import MagicMock
+        from webhooks.task_repository import RedisTaskRepository
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = None
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        repo.get("test-task-123")
+
+        expected_key = "review_follow_up:task:test-task-123"
+        mock_client.get.assert_called_with(expected_key)
+
+    def test_redis_repository_connection_failure_graceful(self):
+        """Test RedisTaskRepository handles connection failure gracefully"""
+        from webhooks.task_repository import RedisTaskRepository
+
+        repo = RedisTaskRepository(redis_client=None, ttl_seconds=86400)
+
+        assert repo.get("test-task") is None
+        assert repo.delete("test-task") is False
+        assert repo.exists("test-task") is False
+        assert repo.count() == 0
+        assert repo.list_all() == []
