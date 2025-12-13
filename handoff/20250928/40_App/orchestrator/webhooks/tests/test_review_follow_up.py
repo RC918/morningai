@@ -11,6 +11,9 @@ Tests cover:
 5. Goal text building
 """
 
+import json
+from unittest.mock import MagicMock
+
 import pytest
 
 from webhooks.review_follow_up import (
@@ -26,6 +29,12 @@ from webhooks.comment_triage import (
     CommentTriageResult,
     CommentCategory,
     RiskLevel,
+)
+from webhooks.task_repository import (
+    generate_task_id,
+    InMemoryTaskRepository,
+    RedisTaskRepository,
+    get_task_repository,
 )
 
 
@@ -680,8 +689,6 @@ class TestTaskRepository:
 
     def test_generate_task_id(self):
         """Test deterministic task ID generation"""
-        from webhooks.task_repository import generate_task_id
-
         task_id = generate_task_id(123, "comment-456")
         assert task_id == "pr123_commentcomment-456"
 
@@ -690,8 +697,6 @@ class TestTaskRepository:
 
     def test_in_memory_repository_save_and_get(self):
         """Test InMemoryTaskRepository save and get operations"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
 
         task = ReviewFollowUpTask(
@@ -711,8 +716,6 @@ class TestTaskRepository:
 
     def test_in_memory_repository_delete(self):
         """Test InMemoryTaskRepository delete operation"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
 
         task = ReviewFollowUpTask(
@@ -733,8 +736,6 @@ class TestTaskRepository:
 
     def test_in_memory_repository_list_all(self):
         """Test InMemoryTaskRepository list_all operation"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
 
         for i in range(3):
@@ -754,42 +755,26 @@ class TestTaskRepository:
 
     def test_in_memory_repository_get_nonexistent(self):
         """Test InMemoryTaskRepository get for non-existent task"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
         assert repo.get("nonexistent") is None
 
     def test_in_memory_repository_delete_nonexistent(self):
         """Test InMemoryTaskRepository delete for non-existent task"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
         assert repo.delete("nonexistent") is False
 
     def test_get_task_repository_default(self):
         """Test get_task_repository factory with default backend"""
-        from webhooks.task_repository import (
-            get_task_repository,
-            InMemoryTaskRepository,
-        )
-
         repo = get_task_repository()
         assert isinstance(repo, InMemoryTaskRepository)
 
     def test_get_task_repository_in_memory_explicit(self):
         """Test get_task_repository factory with explicit in_memory backend"""
-        from webhooks.task_repository import (
-            get_task_repository,
-            InMemoryTaskRepository,
-        )
-
         repo = get_task_repository(backend="in_memory")
         assert isinstance(repo, InMemoryTaskRepository)
 
     def test_service_with_custom_repository(self):
         """Test ReviewFollowUpService with custom repository"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         custom_repo = InMemoryTaskRepository()
         service = ReviewFollowUpService(repository=custom_repo)
 
@@ -831,3 +816,132 @@ class TestTaskRepository:
 
         assert task1.task_id == task2.task_id
         assert service._repository.count() == 1
+
+
+FIXED_DATETIME_STR = "2025-01-15T10:30:00"
+
+
+class TestRedisTaskRepository:
+    """
+    Tests for Redis Task Repository with mocked Redis client.
+
+    Issue #2259: Phase B - Redis Integration with Feature Flag Control
+    """
+
+    def test_redis_repository_save_and_get(self):
+        """Test RedisTaskRepository save and get with mock client"""
+        mock_client = MagicMock()
+        mock_client.get.return_value = None
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+
+        task = ReviewFollowUpTask(
+            task_id="test-task-redis",
+            original_pr_number=789,
+            repo="RC918/morningai",
+            branch="feature/redis",
+            comment_url="https://github.com/...",
+            comment_body="Redis test comment",
+        )
+
+        result = repo.save(task)
+        assert result is True
+        mock_client.setex.assert_called_once()
+
+    def test_redis_repository_get_existing(self):
+        """Test RedisTaskRepository get for existing task"""
+        mock_client = MagicMock()
+        task_data = {
+            "task_id": "test-task-redis",
+            "task_type": "review_follow_up",
+            "original_pr_number": 789,
+            "repo": "RC918/morningai",
+            "branch": "feature/redis",
+            "comment_url": "https://github.com/...",
+            "comment_body": "Redis test comment",
+            "file_path": "",
+            "line_number": 0,
+            "triage_result": None,
+            "pr_context": None,
+            "status": "pending",
+            "action": "manual_review",
+            "created_at": FIXED_DATETIME_STR,
+            "updated_at": FIXED_DATETIME_STR,
+            "result": None,
+            "error": None,
+            "metadata": {},
+        }
+        mock_client.get.return_value = json.dumps(task_data)
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        retrieved = repo.get("test-task-redis")
+
+        assert retrieved is not None
+        assert retrieved.task_id == "test-task-redis"
+        assert retrieved.original_pr_number == 789
+
+    def test_redis_repository_delete(self):
+        """Test RedisTaskRepository delete operation"""
+        mock_client = MagicMock()
+        mock_client.delete.return_value = 1
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        result = repo.delete("test-task-redis")
+
+        assert result is True
+        mock_client.delete.assert_called_once()
+
+    def test_redis_repository_exists(self):
+        """Test RedisTaskRepository exists operation"""
+        mock_client = MagicMock()
+        mock_client.exists.return_value = 1
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        result = repo.exists("test-task-redis")
+
+        assert result is True
+        mock_client.exists.assert_called_once()
+
+    def test_redis_repository_ttl_configuration(self):
+        """Test RedisTaskRepository TTL configuration"""
+        mock_client = MagicMock()
+        custom_ttl = 7 * 24 * 60 * 60  # 7 days
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=custom_ttl)
+        assert repo._ttl == custom_ttl
+
+    def test_redis_repository_default_ttl(self):
+        """Test RedisTaskRepository default TTL (30 days)"""
+        mock_client = MagicMock()
+        repo = RedisTaskRepository(redis_client=mock_client)
+
+        expected_ttl = 30 * 24 * 60 * 60  # 30 days
+        assert repo._ttl == expected_ttl
+
+    def test_get_task_repository_redis_backend(self):
+        """Test get_task_repository factory with redis backend"""
+        mock_client = MagicMock()
+        repo = get_task_repository(backend="redis", redis_client=mock_client)
+
+        assert isinstance(repo, RedisTaskRepository)
+
+    def test_redis_repository_key_prefix(self):
+        """Test RedisTaskRepository uses correct key prefix"""
+        mock_client = MagicMock()
+        mock_client.get.return_value = None
+
+        repo = RedisTaskRepository(redis_client=mock_client, ttl_seconds=86400)
+        repo.get("test-task-123")
+
+        expected_key = "review_follow_up:task:test-task-123"
+        mock_client.get.assert_called_with(expected_key)
+
+    def test_redis_repository_connection_failure_graceful(self):
+        """Test RedisTaskRepository handles connection failure gracefully"""
+        repo = RedisTaskRepository(redis_client=None, ttl_seconds=86400)
+
+        assert repo.get("test-task") is None
+        assert repo.delete("test-task") is False
+        assert repo.exists("test-task") is False
+        assert repo.count() == 0
+        assert repo.list_all() == []
