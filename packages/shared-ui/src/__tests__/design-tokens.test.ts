@@ -169,13 +169,18 @@ describe('Design Tokens', () => {
       expect(cssVars1).toEqual(cssVars2)
     })
 
-    it('should generate exactly 171 CSS variables (backward compatibility)', () => {
+    it('should generate exactly 179 CSS variables (backward compatibility)', () => {
       const cssVars = getCSSVariables()
       
       // This assertion ensures we maintain the exact same number of CSS variables
       // Updated from 148 to 169 after adding iotask accent colors (pink, cyan)
       // Updated from 169 to 171 after adding accessibility focus.primary/light tokens (Issue #2291)
-      expect(Object.keys(cssVars).length).toBe(171)
+      // Updated from 171 to 179 after adding card.icon KPI/Status archetype tokens (Issue #2294)
+      expect(Object.keys(cssVars).length).toBe(179)
+      
+      // Verify card icon tokens are included
+      expect(cssVars['--card-icon-kpi-size']).toBeDefined()
+      expect(cssVars['--card-icon-status-size']).toBeDefined()
     })
   })
 
