@@ -1433,6 +1433,31 @@ class Settings(BaseSettings):
         description="Comma-separated list of VS Code extension IDs to auto-install for all VSCode IDE sessions (e.g., 'ms-python.python,esbenp.prettier-vscode'). Empty string disables auto-install."
     )
 
+    # VSCode IDE Resource monitoring (#2353)
+    vscode_session_idle_timeout: int = Field(
+        default=1800,
+        alias="VSCODE_SESSION_IDLE_TIMEOUT",
+        description="IDE session idle timeout in seconds. Sessions inactive for this duration will be marked for cleanup. Default is 30 minutes (1800 seconds)."
+    )
+
+    vscode_session_cpu_limit_percent: int = Field(
+        default=80,
+        alias="VSCODE_SESSION_CPU_LIMIT_PERCENT",
+        description="CPU usage threshold percentage for IDE session overload protection. When exceeded, new sessions may be rejected."
+    )
+
+    vscode_session_memory_limit_percent: int = Field(
+        default=85,
+        alias="VSCODE_SESSION_MEMORY_LIMIT_PERCENT",
+        description="Memory usage threshold percentage for IDE session overload protection. When exceeded, new sessions may be rejected."
+    )
+
+    vscode_max_sessions: int = Field(
+        default=10,
+        alias="VSCODE_MAX_SESSIONS",
+        description="Maximum number of concurrent IDE sessions allowed. Set to 0 for unlimited."
+    )
+
     enable_visual_verification: bool = Field(
         default=False,
         alias="ENABLE_VISUAL_VERIFICATION",
