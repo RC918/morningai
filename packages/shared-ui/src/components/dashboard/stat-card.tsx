@@ -81,11 +81,17 @@ function StatCard({
         {icon && (
           <div
             className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full ml-3 shrink-0",
+              "flex items-center justify-center ml-3 shrink-0",
+              "h-[var(--card-icon-kpi-containerSize,40px)] w-[var(--card-icon-kpi-containerSize,40px)]",
+              "rounded-[var(--card-icon-kpi-shape,9999px)]",
               variantStyles[variant]
             )}
           >
-            {icon}
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+                  className: "w-[var(--card-icon-kpi-size,24px)] h-[var(--card-icon-kpi-size,24px)]",
+                })
+              : icon}
           </div>
         )}
       </div>

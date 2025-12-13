@@ -80,7 +80,11 @@ const statusCardVariants = cva(
 );
 
 const iconContainerVariants = cva(
-  "flex h-7 w-7 items-center justify-center rounded-lg shrink-0",
+  [
+    "flex items-center justify-center shrink-0",
+    "h-[var(--card-icon-status-containerSize,28px)] w-[var(--card-icon-status-containerSize,28px)]",
+    "rounded-[var(--card-icon-status-shape,8px)]",
+  ],
   {
     variants: {
       variant: {
@@ -239,7 +243,7 @@ function StatusCard({
         <div className={iconContainerVariants({ variant, isActive })}>
           {icon && React.isValidElement(icon)
             ? React.cloneElement(icon as React.ReactElement<{ className?: string; "aria-hidden"?: string }>, {
-                className: "w-4 h-4",
+                className: "w-[var(--card-icon-status-size,16px)] h-[var(--card-icon-status-size,16px)]",
                 "aria-hidden": "true",
               })
             : icon}
