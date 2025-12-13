@@ -289,21 +289,31 @@ describe('ARIA Attributes Accessibility', () => {
 
     it('should have correct aria-valuemin and aria-valuemax', () => {
       render(<Slider defaultValue={[50]} min={0} max={100} thumbLabel="Value" />)
-      const slider = screen.getByRole('slider')
+      const slider = screen.getByRole('slider', { name: 'Value' })
       expect(slider).toHaveAttribute('aria-valuemin', '0')
       expect(slider).toHaveAttribute('aria-valuemax', '100')
     })
 
     it('should have correct aria-valuenow', () => {
       render(<Slider defaultValue={[75]} thumbLabel="Progress" />)
-      const slider = screen.getByRole('slider')
+      const slider = screen.getByRole('slider', { name: 'Progress' })
       expect(slider).toHaveAttribute('aria-valuenow', '75')
     })
 
     it('should support disabled state', () => {
       render(<Slider defaultValue={[50]} disabled thumbLabel="Disabled slider" />)
-      const slider = screen.getByRole('slider')
+      const slider = screen.getByRole('slider', { name: 'Disabled slider' })
       expect(slider).toHaveAttribute('data-disabled', '')
+    })
+
+    it('should provide fallback label when thumbLabel array is shorter than thumb count', () => {
+      render(<Slider defaultValue={[25, 50, 75]} thumbLabel={['First']} />)
+      const firstSlider = screen.getByRole('slider', { name: 'First' })
+      const secondSlider = screen.getByRole('slider', { name: 'Slider thumb 2' })
+      const thirdSlider = screen.getByRole('slider', { name: 'Slider thumb 3' })
+      expect(firstSlider).toBeInTheDocument()
+      expect(secondSlider).toBeInTheDocument()
+      expect(thirdSlider).toBeInTheDocument()
     })
   })
 
