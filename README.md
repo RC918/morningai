@@ -47,6 +47,31 @@
 4. 📊 **Production Excellence**: Achieve 99.9% uptime, <100ms latency, 80% test coverage
 5. ✅ **Compliance**: Prepare for SOC2 Type II certification
 
+## Design System Audit
+
+MorningAI 整合了自動化設計系統審計，確保 UI/UX 一致性和品質。
+
+**CI/CD 整合**：
+- `design-system-audit.yml`: 每個 PR 和 main 分支自動執行審計
+- `shared-ui-coverage.yml`: 60% 覆蓋率門檻
+- `enforce-shared-ui.yml`: 強制使用 `@morningai/shared-ui` 元件
+
+**執行審計**：
+```bash
+# 寬鬆模式 (CI 預設)
+./audit-design-system.sh --relaxed
+
+# 嚴格模式 (本地開發)
+./audit-design-system.sh --strict
+
+# 更新基線 (防止回歸)
+./audit-design-system.sh --update-baseline
+```
+
+**當前健康指標** (Dec 2025): 22/24 通過, 1 警告, 1 失敗
+
+詳細指南：[DESIGN_SYSTEM_GUIDELINES.md](DESIGN_SYSTEM_GUIDELINES.md)
+
 ## 架構概覽
 
 MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割：
