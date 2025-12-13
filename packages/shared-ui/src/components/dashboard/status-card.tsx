@@ -90,9 +90,21 @@ const iconContainerVariants = cva(
         yellow: "bg-[var(--warning-50)] text-[var(--warning-600)]",
         red: "bg-[var(--error-50)] text-[var(--error-600)]",
       },
+      isActive: {
+        true: "",
+        false: "",
+      },
     },
+    compoundVariants: [
+      { variant: "default", isActive: true, className: "bg-[var(--neutral-200)]" },
+      { variant: "blue", isActive: true, className: "bg-[var(--primary-100)]" },
+      { variant: "green", isActive: true, className: "bg-[var(--success-100)]" },
+      { variant: "yellow", isActive: true, className: "bg-[var(--warning-100)]" },
+      { variant: "red", isActive: true, className: "bg-[var(--error-100)]" },
+    ],
     defaultVariants: {
       variant: "default",
+      isActive: false,
     },
   }
 );
@@ -138,10 +150,6 @@ const valueVariants = cva(
         variant: "red",
         isActive: true,
         className: "text-[var(--error-600)]",
-      },
-      {
-        isActive: false,
-        className: "text-[var(--text-primary)]",
       },
     ],
     defaultVariants: {
@@ -228,7 +236,7 @@ function StatusCard({
         <span className="text-xs font-medium text-[var(--text-secondary)]">
           {label}
         </span>
-        <div className={iconContainerVariants({ variant })}>
+        <div className={iconContainerVariants({ variant, isActive })}>
           {icon && React.isValidElement(icon)
             ? React.cloneElement(icon as React.ReactElement<{ className?: string; "aria-hidden"?: string }>, {
                 className: "w-4 h-4",
