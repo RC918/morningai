@@ -31,21 +31,46 @@ logger = logging.getLogger(__name__)
 
 # AI Reviewer bot whitelist - these bots should NOT be filtered out
 # Issue: #2209 - 修復 AI Reviewer 評論接收機制
+# Issue: #2255 - Verified bot login names with documentation sources
+#
+# Verification sources:
+# - GitHub Copilot: https://github.com/apps/github-copilot
+# - Gemini Code Assist: https://github.com/apps/gemini-code-assist
+# - CodeRabbit: https://github.com/apps/coderabbitai
+# - Sourcery: https://github.com/apps/sourcery-ai
+# - Devin: https://github.com/apps/devin-ai-integration
+#
+# Note: Bot login names follow the pattern "{app-slug}[bot]" where app-slug
+# is the URL slug from the GitHub App's installation page.
 AI_REVIEWER_BOTS: Dict[str, str] = {
-    # GitHub Copilot / OpenAI Codex
+    # GitHub Copilot - Official GitHub AI assistant
+    # Source: https://github.com/apps/github-copilot
     "github-copilot[bot]": "copilot",
+    # Legacy/alternative Copilot bot name (for backwards compatibility)
     "copilot[bot]": "copilot",
-    # ChatGPT Codex (OpenAI)
+
+    # OpenAI Codex - ChatGPT code assistant integration
+    # Note: These are hypothetical names based on common patterns
+    # Actual bot names should be verified when integrations are available
     "openai-codex[bot]": "codex",
     "chatgpt-codex-connector[bot]": "codex",
-    # Google Gemini Code Assist
+
+    # Google Gemini Code Assist - Google's AI code reviewer
+    # Source: https://github.com/apps/gemini-code-assist
     "gemini-code-assist[bot]": "gemini",
+    # Alternative Gemini bot name (for potential future variations)
     "google-gemini[bot]": "gemini",
-    # CodeRabbit
+
+    # CodeRabbit - AI-powered code review tool
+    # Source: https://github.com/apps/coderabbitai
     "coderabbitai[bot]": "coderabbit",
-    # Sourcery
+
+    # Sourcery - AI code quality tool
+    # Source: https://github.com/apps/sourcery-ai
     "sourcery-ai[bot]": "sourcery",
-    # Devin
+
+    # Devin - Cognition AI's autonomous coding agent
+    # Source: https://github.com/apps/devin-ai-integration
     "devin-ai-integration[bot]": "devin",
 }
 
