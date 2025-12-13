@@ -788,6 +788,19 @@ class Settings(BaseSettings):
         description="TTL in seconds for Redis checkpointer entries (default: 24 hours). Set to 0 for no expiration."
     )
 
+    # Issue #2259: Review Follow-up Task Storage Settings
+    review_follow_up_store_backend: str = Field(
+        default="in_memory",
+        alias="REVIEW_FOLLOW_UP_STORE_BACKEND",
+        description="Backend for review follow-up task storage: 'in_memory' (default) or 'redis'. Use 'redis' for multi-worker consistency and restart durability."
+    )
+
+    review_follow_up_task_ttl: int = Field(
+        default=2592000,  # 30 days in seconds
+        alias="REVIEW_FOLLOW_UP_TASK_TTL",
+        description="TTL in seconds for review follow-up tasks in Redis (default: 2592000 = 30 days). Only applies when using Redis backend."
+    )
+
     rq_max_jobs: int = Field(
         default=0,
         alias="RQ_MAX_JOBS",

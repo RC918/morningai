@@ -19,9 +19,12 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .comment_triage import CommentTriageResult, CommentCategory, RiskLevel
+
+if TYPE_CHECKING:
+    from .task_repository import ReviewFollowUpTaskRepository
 
 logger = logging.getLogger(__name__)
 
@@ -286,19 +289,35 @@ class ReviewFollowUpService:
     2. Fetches PR context (diff, files, comments)
     3. Determines appropriate action
     4. Coordinates with orchestrator for execution
+
+    Issue #2259: Task storage now uses pluggable repository backend
+    (in-memory or Redis) controlled by REVIEW_FOLLOW_UP_STORE_BACKEND.
     """
 
-    def __init__(self, github_token: Optional[str] = None):
+    def __init__(
+        self,
+        github_token: Optional[str] = None,
+        repository: Optional["ReviewFollowUpTaskRepository"] = None,
+    ):
         """
         Initialize the ReviewFollowUpService.
 
         Args:
             github_token: GitHub API token for fetching PR context
+            repository: Optional task repository (defaults to factory-created)
+
+        Issue #2259: Added repository parameter for pluggable storage backend.
         """
         self._github_token = github_token
-        self._tasks: Dict[str, ReviewFollowUpTask] = {}
 
-        logger.info("[ReviewFollowUpService] Initialized")
+        # Use provided repository or create from factory
+        if repository is not None:
+            self._repository = repository
+        else:
+            from .task_repository import get_task_repository
+            self._repository = get_task_repository()
+
+        logger.info("[ReviewFollowUpService] Initialized with %s", type(self._repository).__name__)
 
     def create_task(
         self,
@@ -314,6 +333,9 @@ class ReviewFollowUpService:
         """
         Create a new review follow-up task.
 
+        Issue #2259: Now uses deterministic task ID for idempotency and
+        pluggable repository backend for storage.
+
         Args:
             triage_result: Result from CommentTriageAgent
             pr_number: Original PR number
@@ -325,10 +347,23 @@ class ReviewFollowUpService:
             line_number: Line number mentioned in comment
 
         Returns:
-            Created ReviewFollowUpTask
+            Created ReviewFollowUpTask (or existing task if already exists)
         """
-        import uuid
-        task_id = f"review-followup-{uuid.uuid4().hex[:8]}"
+        from .task_repository import generate_task_id
+
+        # Generate deterministic task ID for idempotency
+        # Issue #2259: Changed from random UUID to pr{pr_number}_comment{comment_id}
+        comment_id = triage_result.comment_id if triage_result else "unknown"
+        task_id = generate_task_id(pr_number, comment_id)
+
+        # Check if task already exists (idempotency)
+        existing_task = self._repository.get(task_id)
+        if existing_task is not None:
+            logger.info(
+                "[ReviewFollowUpService] Task already exists: id=%s, returning existing",
+                task_id,
+            )
+            return existing_task
 
         task = ReviewFollowUpTask.from_triage_result(
             task_id=task_id,
@@ -342,7 +377,8 @@ class ReviewFollowUpService:
             line_number=line_number,
         )
 
-        self._tasks[task_id] = task
+        # Save to repository
+        self._repository.save(task)
 
         logger.info(
             "[ReviewFollowUpService] Created task: id=%s, pr=%d, action=%s",
@@ -354,8 +390,12 @@ class ReviewFollowUpService:
         return task
 
     def get_task(self, task_id: str) -> Optional[ReviewFollowUpTask]:
-        """Get a task by ID"""
-        return self._tasks.get(task_id)
+        """
+        Get a task by ID.
+
+        Issue #2259: Now uses pluggable repository backend.
+        """
+        return self._repository.get(task_id)
 
     def fetch_pr_context(self, task: ReviewFollowUpTask) -> Optional[PRContext]:
         """
@@ -616,11 +656,15 @@ class ReviewFollowUpService:
         )
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get service statistics"""
+        """
+        Get service statistics.
+
+        Issue #2259: Now uses pluggable repository backend.
+        """
         status_counts: Dict[str, int] = {}
         action_counts: Dict[str, int] = {}
 
-        for task in self._tasks.values():
+        for task in self._repository.list_all():
             status = task.status.value
             status_counts[status] = status_counts.get(status, 0) + 1
 
@@ -628,7 +672,7 @@ class ReviewFollowUpService:
             action_counts[action] = action_counts.get(action, 0) + 1
 
         return {
-            "total_tasks": len(self._tasks),
+            "total_tasks": self._repository.count(),
             "status_counts": status_counts,
             "action_counts": action_counts,
         }
