@@ -11,6 +11,9 @@ Tests cover:
 5. Goal text building
 """
 
+import json
+from unittest.mock import MagicMock
+
 import pytest
 
 from webhooks.review_follow_up import (
@@ -26,6 +29,12 @@ from webhooks.comment_triage import (
     CommentTriageResult,
     CommentCategory,
     RiskLevel,
+)
+from webhooks.task_repository import (
+    generate_task_id,
+    InMemoryTaskRepository,
+    RedisTaskRepository,
+    get_task_repository,
 )
 
 
@@ -680,8 +689,6 @@ class TestTaskRepository:
 
     def test_generate_task_id(self):
         """Test deterministic task ID generation"""
-        from webhooks.task_repository import generate_task_id
-
         task_id = generate_task_id(123, "comment-456")
         assert task_id == "pr123_commentcomment-456"
 
@@ -690,8 +697,6 @@ class TestTaskRepository:
 
     def test_in_memory_repository_save_and_get(self):
         """Test InMemoryTaskRepository save and get operations"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
 
         task = ReviewFollowUpTask(
@@ -711,8 +716,6 @@ class TestTaskRepository:
 
     def test_in_memory_repository_delete(self):
         """Test InMemoryTaskRepository delete operation"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
 
         task = ReviewFollowUpTask(
@@ -733,8 +736,6 @@ class TestTaskRepository:
 
     def test_in_memory_repository_list_all(self):
         """Test InMemoryTaskRepository list_all operation"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
 
         for i in range(3):
@@ -754,42 +755,26 @@ class TestTaskRepository:
 
     def test_in_memory_repository_get_nonexistent(self):
         """Test InMemoryTaskRepository get for non-existent task"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
         assert repo.get("nonexistent") is None
 
     def test_in_memory_repository_delete_nonexistent(self):
         """Test InMemoryTaskRepository delete for non-existent task"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         repo = InMemoryTaskRepository()
         assert repo.delete("nonexistent") is False
 
     def test_get_task_repository_default(self):
         """Test get_task_repository factory with default backend"""
-        from webhooks.task_repository import (
-            get_task_repository,
-            InMemoryTaskRepository,
-        )
-
         repo = get_task_repository()
         assert isinstance(repo, InMemoryTaskRepository)
 
     def test_get_task_repository_in_memory_explicit(self):
         """Test get_task_repository factory with explicit in_memory backend"""
-        from webhooks.task_repository import (
-            get_task_repository,
-            InMemoryTaskRepository,
-        )
-
         repo = get_task_repository(backend="in_memory")
         assert isinstance(repo, InMemoryTaskRepository)
 
     def test_service_with_custom_repository(self):
         """Test ReviewFollowUpService with custom repository"""
-        from webhooks.task_repository import InMemoryTaskRepository
-
         custom_repo = InMemoryTaskRepository()
         service = ReviewFollowUpService(repository=custom_repo)
 
@@ -833,6 +818,9 @@ class TestTaskRepository:
         assert service._repository.count() == 1
 
 
+FIXED_DATETIME_STR = "2025-01-15T10:30:00"
+
+
 class TestRedisTaskRepository:
     """
     Tests for Redis Task Repository with mocked Redis client.
@@ -842,9 +830,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_save_and_get(self):
         """Test RedisTaskRepository save and get with mock client"""
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import RedisTaskRepository
-
         mock_client = MagicMock()
         mock_client.get.return_value = None
 
@@ -865,11 +850,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_get_existing(self):
         """Test RedisTaskRepository get for existing task"""
-        import json
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import RedisTaskRepository
-        from datetime import datetime
-
         mock_client = MagicMock()
         task_data = {
             "task_id": "test-task-redis",
@@ -885,8 +865,8 @@ class TestRedisTaskRepository:
             "pr_context": None,
             "status": "pending",
             "action": "manual_review",
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "created_at": FIXED_DATETIME_STR,
+            "updated_at": FIXED_DATETIME_STR,
             "result": None,
             "error": None,
             "metadata": {},
@@ -902,9 +882,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_delete(self):
         """Test RedisTaskRepository delete operation"""
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import RedisTaskRepository
-
         mock_client = MagicMock()
         mock_client.delete.return_value = 1
 
@@ -916,9 +893,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_exists(self):
         """Test RedisTaskRepository exists operation"""
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import RedisTaskRepository
-
         mock_client = MagicMock()
         mock_client.exists.return_value = 1
 
@@ -930,9 +904,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_ttl_configuration(self):
         """Test RedisTaskRepository TTL configuration"""
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import RedisTaskRepository
-
         mock_client = MagicMock()
         custom_ttl = 7 * 24 * 60 * 60  # 7 days
 
@@ -941,9 +912,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_default_ttl(self):
         """Test RedisTaskRepository default TTL (30 days)"""
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import RedisTaskRepository
-
         mock_client = MagicMock()
         repo = RedisTaskRepository(redis_client=mock_client)
 
@@ -952,12 +920,6 @@ class TestRedisTaskRepository:
 
     def test_get_task_repository_redis_backend(self):
         """Test get_task_repository factory with redis backend"""
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import (
-            get_task_repository,
-            RedisTaskRepository,
-        )
-
         mock_client = MagicMock()
         repo = get_task_repository(backend="redis", redis_client=mock_client)
 
@@ -965,9 +927,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_key_prefix(self):
         """Test RedisTaskRepository uses correct key prefix"""
-        from unittest.mock import MagicMock
-        from webhooks.task_repository import RedisTaskRepository
-
         mock_client = MagicMock()
         mock_client.get.return_value = None
 
@@ -979,8 +938,6 @@ class TestRedisTaskRepository:
 
     def test_redis_repository_connection_failure_graceful(self):
         """Test RedisTaskRepository handles connection failure gracefully"""
-        from webhooks.task_repository import RedisTaskRepository
-
         repo = RedisTaskRepository(redis_client=None, ttl_seconds=86400)
 
         assert repo.get("test-task") is None
