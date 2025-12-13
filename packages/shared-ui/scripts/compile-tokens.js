@@ -213,6 +213,36 @@ function generateEmotionalColorAliases() {
 `;
 }
 
+/**
+ * Generate Animation & Interaction Tokens (Issue #2393 Phase 4)
+ * RGB values and opacity levels for animations and interactions
+ */
+function generateAnimationInteractionTokens() {
+  return `
+/* ===== Animation & Interaction Tokens (Issue #2393 Phase 4) ===== */
+/* RGB values for color-mix and rgba() usage in animations */
+:root {
+  --color-primary-rgb: 59, 130, 246;       /* #3b82f6 - primary blue */
+  --color-primary-light-rgb: 96, 165, 250; /* #60a5fa - lighter blue for dark mode */
+  --color-brand-rgb: 0, 81, 208;           /* #0051D0 - brand blue */
+  /* Skeleton loading colors */
+  --skeleton-color-base-rgb: 229, 231, 235;    /* #e5e7eb - gray-200 */
+  --skeleton-color-highlight-rgb: 243, 244, 246; /* #f3f4f6 - gray-100 */
+  /* Interaction opacity levels */
+  --ripple-opacity: 0.5;
+  --hover-shadow-opacity: 0.15;
+  --hover-shadow-opacity-light: 0.1;
+  --glow-opacity: 0.5;
+  --glow-opacity-dark: 0.4;
+  --focus-opacity-dark: 0.6;
+  /* Hover glow gradient colors */
+  --glow-color-1: #007AFF;  /* iOS blue */
+  --glow-color-2: #8b5cf6;  /* purple */
+  --glow-color-3: #ec4899;  /* pink */
+}
+`;
+}
+
 function compile() {
   console.log('🎨 Compiling design tokens...');
   
@@ -221,10 +251,12 @@ function compile() {
 
   const cssVariables = `:root {\n${generateCSSVariables(tokens)}}\n`;
   const emotionalAliases = generateEmotionalColorAliases();
+  const animationTokens = generateAnimationInteractionTokens();
   fs.mkdirSync(path.dirname(OUTPUT_CSS_PATH), { recursive: true });
-  fs.writeFileSync(OUTPUT_CSS_PATH, cssVariables + emotionalAliases);
+  fs.writeFileSync(OUTPUT_CSS_PATH, cssVariables + emotionalAliases + animationTokens);
   console.log(`✓ Generated CSS variables: ${OUTPUT_CSS_PATH}`);
   console.log(`✓ Generated emotional color aliases`);
+  console.log(`✓ Generated animation & interaction tokens`);
 
   const tailwindConfig = generateTailwindConfig(tokens);
   const tailwindConfigPath = path.join(__dirname, '../dist/tailwind.config.snippet.json');
