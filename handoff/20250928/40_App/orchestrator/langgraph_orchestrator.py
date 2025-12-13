@@ -3088,41 +3088,38 @@ def create_orchestrator_graph(entry_point: str = "planner"):
     return app
 
 
-def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
+def _create_base_initial_state(
+    goal: str,
+    trace_id: str,
+    repo: str,
+    branch: str = "",
+    task_type: str = "default",
+) -> dict:
     """
-    Run the LangGraph orchestrator workflow
+    Create base initial state for orchestrator workflows.
+
+    Issue #2260: Extract common initial_state initialization helper
+
+    This helper function creates the base initial state dictionary that is
+    shared across all orchestrator entry points (run_orchestrator,
+    run_review_follow_up_orchestrator, run_internal_review_orchestrator).
 
     Args:
         goal: User's goal/question
-        repo: GitHub repository (owner/repo format)
         trace_id: Unique identifier for this task
+        repo: GitHub repository (owner/repo format)
+        branch: Git branch name (default: "")
+        task_type: Type of task (default, review_follow_up, internal_review)
 
     Returns:
-        dict: Final result containing pr_url, ci_state, status, etc.
+        dict: Base initial state dictionary with all common fields initialized
     """
-    start_time = time.time()
-    metrics = _get_metrics()
-
-    logger.info("Starting LangGraph orchestrator", extra={
-        "operation": "run_orchestrator",
-        "trace_id": trace_id,
-        "goal": goal[:50],
-        "repo": repo
-    })
-
-    metrics.record_workflow_start(trace_id, goal)
-
-    agent_eval = _get_agent_eval()
-    agent_eval.start_workflow_metrics(trace_id, goal)
-
-    app = create_orchestrator_graph()
-
-    initial_state = {
+    return {
         "messages": [HumanMessage(content=goal)],
         "goal": goal,
         "trace_id": trace_id,
         "repo": repo,
-        "branch": "",
+        "branch": branch,
         "plan": [],
         "current_step": 0,
         "pr_url": "",
@@ -3159,7 +3156,6 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "evaluation_result": {},
         "evaluation_health_status": "unknown",
         "evaluation_has_regression": False,
-        # Phase 3 PR-3 (#1815): PM Agent + Ops Agent initial state
         "pm_advisory": {},
         "pm_sub_tasks": [],
         "pm_confidence_score": 0.0,
@@ -3168,8 +3164,7 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "ops_health_status": "unknown",
         "ops_risk": "info",
         "ops_recommended_actions": [],
-        # Phase 7 Issue #2211: Review Follow-up Mode initial state
-        "task_type": "default",
+        "task_type": task_type,
         "original_pr_number": 0,
         "comment_url": "",
         "comment_body": "",
@@ -3180,6 +3175,44 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         "review_follow_up_action": "",
         "requires_hitl_approval": False,
     }
+
+
+def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
+    """
+    Run the LangGraph orchestrator workflow
+
+    Args:
+        goal: User's goal/question
+        repo: GitHub repository (owner/repo format)
+        trace_id: Unique identifier for this task
+
+    Returns:
+        dict: Final result containing pr_url, ci_state, status, etc.
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    logger.info("Starting LangGraph orchestrator", extra={
+        "operation": "run_orchestrator",
+        "trace_id": trace_id,
+        "goal": goal[:50],
+        "repo": repo
+    })
+
+    metrics.record_workflow_start(trace_id, goal)
+
+    agent_eval = _get_agent_eval()
+    agent_eval.start_workflow_metrics(trace_id, goal)
+
+    app = create_orchestrator_graph()
+
+    # Issue #2260: Use helper to create base initial state
+    initial_state = _create_base_initial_state(
+        goal=goal,
+        trace_id=trace_id,
+        repo=repo,
+        task_type="default",
+    )
 
     config = {"configurable": {"thread_id": trace_id}}
 
@@ -3302,59 +3335,16 @@ def run_review_follow_up_orchestrator(
     # Create graph with review_intake as entry point
     app = create_orchestrator_graph(entry_point="review_intake")
 
-    # Build initial state with review follow-up data
-    initial_state = {
-        "messages": [HumanMessage(content=goal)],
-        "goal": goal,
-        "trace_id": trace_id,
-        "repo": repo,
-        "branch": review_task.get("branch", ""),
-        "plan": [],
-        "current_step": 0,
-        "pr_url": "",
-        "pr_number": 0,
-        "ci_state": "pending",
-        "ci_checks": {},
-        "error": None,
-        "retry_count": 0,
-        "final_result": {},
-        "review_result": {},
-        "review_comments": [],
-        "review_severity": "none",
-        "merge_decision": "pending",
-        "code_quality_score": 100,
-        "security_advisory": {},
-        "security_risk": "info",
-        "security_findings": [],
-        "security_is_safe": True,
-        "governance_advisory": {},
-        "governance_risk": "info",
-        "governance_findings": [],
-        "governance_is_compliant": True,
-        "cost_advisory": {},
-        "cost_risk": "info",
-        "cost_within_budget": True,
-        "permission_advisory": {},
-        "permission_risk": "info",
-        "permission_granted": True,
-        "reputation_advisory": {},
-        "reputation_score": 100,
-        "reputation_level": "trusted",
-        "policy_blocked": False,
-        "policy_block_reason": "",
-        "evaluation_result": {},
-        "evaluation_health_status": "unknown",
-        "evaluation_has_regression": False,
-        "pm_advisory": {},
-        "pm_sub_tasks": [],
-        "pm_confidence_score": 0.0,
-        "pm_risk": "info",
-        "ops_advisory": {},
-        "ops_health_status": "unknown",
-        "ops_risk": "info",
-        "ops_recommended_actions": [],
-        # Phase 7 Issue #2211: Review Follow-up Mode specific state
-        "task_type": "review_follow_up",
+    # Issue #2260: Use helper to create base initial state
+    initial_state = _create_base_initial_state(
+        goal=goal,
+        trace_id=trace_id,
+        repo=repo,
+        branch=review_task.get("branch", ""),
+        task_type="review_follow_up",
+    )
+    # Add review follow-up specific fields
+    initial_state.update({
         "original_pr_number": original_pr_number,
         "comment_url": review_task.get("comment_url", ""),
         "comment_body": comment_body,
@@ -3364,7 +3354,7 @@ def run_review_follow_up_orchestrator(
         "pr_context": review_task.get("pr_context", {}),
         "review_follow_up_action": review_task.get("review_follow_up_action", ""),
         "requires_hitl_approval": review_task.get("requires_approval", False),
-    }
+    })
 
     config = {"configurable": {"thread_id": trace_id}}
 
@@ -3498,57 +3488,21 @@ def run_internal_review_orchestrator(
 
     app = create_orchestrator_graph(entry_point="internal_review")
 
-    initial_state = {
-        "messages": [HumanMessage(content=goal)],
-        "goal": goal,
-        "trace_id": trace_id,
-        "repo": repo,
-        "branch": internal_review_task.get("branch", ""),
-        "plan": [],
-        "current_step": 0,
+    # Issue #2260: Use helper to create base initial state
+    initial_state = _create_base_initial_state(
+        goal=goal,
+        trace_id=trace_id,
+        repo=repo,
+        branch=internal_review_task.get("branch", ""),
+        task_type="internal_review",
+    )
+    # Override fields with task-specific values
+    initial_state.update({
         "pr_url": internal_review_task.get("pr_url", ""),
         "pr_number": internal_review_task.get("pr_number", 0),
         "ci_state": internal_review_task.get("ci_state", "unknown"),
         "ci_checks": internal_review_task.get("ci_checks", {}),
-        "error": None,
-        "retry_count": 0,
-        "final_result": {},
-        "review_result": {},
-        "review_comments": [],
-        "review_severity": "none",
-        "merge_decision": "pending",
         "code_quality_score": internal_review_task.get("code_quality_score", 100),
-        "security_advisory": {},
-        "security_risk": "info",
-        "security_findings": [],
-        "security_is_safe": True,
-        "governance_advisory": {},
-        "governance_risk": "info",
-        "governance_findings": [],
-        "governance_is_compliant": True,
-        "cost_advisory": {},
-        "cost_risk": "info",
-        "cost_within_budget": True,
-        "permission_advisory": {},
-        "permission_risk": "info",
-        "permission_granted": True,
-        "reputation_advisory": {},
-        "reputation_score": 100,
-        "reputation_level": "trusted",
-        "policy_blocked": False,
-        "policy_block_reason": "",
-        "evaluation_result": {},
-        "evaluation_health_status": "unknown",
-        "evaluation_has_regression": False,
-        "pm_advisory": {},
-        "pm_sub_tasks": [],
-        "pm_confidence_score": 0.0,
-        "pm_risk": "info",
-        "ops_advisory": {},
-        "ops_health_status": "unknown",
-        "ops_risk": "info",
-        "ops_recommended_actions": [],
-        "task_type": "internal_review",
         "original_pr_number": original_pr_number,
         "comment_url": internal_review_task.get("comment_url", ""),
         "comment_body": comment_body,
@@ -3556,15 +3510,15 @@ def run_internal_review_orchestrator(
         "review_line_number": internal_review_task.get("line_number", 0),
         "triage_result": internal_review_task.get("triage_result", {}),
         "pr_context": internal_review_task.get("pr_context", {}),
-        "review_follow_up_action": "",
         "requires_hitl_approval": internal_review_task.get("requires_approval", False),
+        # Internal review specific fields
         "internal_review_mode": True,
         "initial_ai_review": internal_review_task.get("initial_ai_review", {}),
         "follow_up_summary": internal_review_task.get("follow_up_summary", {}),
         "internal_review_result": {},
         "internal_review_decision": "",
         "ai_reviewer_agreement": "",
-    }
+    })
 
     config = {"configurable": {"thread_id": trace_id}}
 
