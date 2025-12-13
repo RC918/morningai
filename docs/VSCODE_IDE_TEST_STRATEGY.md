@@ -74,9 +74,9 @@ This ensures tests can run in any CI environment without special setup.
 | All retries exhausted | `test_poll_healthz_exhausts_retries` | Covered |
 | curl connection failure | `test_poll_healthz_handles_curl_connection_failure` | Covered |
 | No initial delay | `test_poll_healthz_no_initial_delay` | Covered |
-| curl success but pgrep fails | `test_poll_healthz_curl_success_pgrep_fails` | **NEW** |
-| Unexpected stderr output | `test_poll_healthz_unexpected_stderr` | **NEW** |
-| Empty stdout handling | `test_poll_healthz_empty_stdout` | **NEW** |
+| curl returns 200 immediately | `test_poll_healthz_success_on_first_attempt` | Covered |
+| Unexpected stderr output | `test_poll_healthz_unexpected_stderr` | Covered |
+| Empty stdout handling | `test_poll_healthz_empty_stdout` | Covered |
 
 ### Settings Configuration Edge Cases
 
@@ -84,7 +84,7 @@ This ensures tests can run in any CI environment without special setup.
 |----------|------|--------|
 | MCP write success | `test_initialize_session_starts_code_server` | Covered |
 | MCP write failure (shell fallback) | `test_initialize_session_settings_fallback` | Covered |
-| Shell fallback partial failure | `test_initialize_session_settings_shell_partial_failure` | **NEW** |
+| Shell fallback partial failure | `test_initialize_session_settings_shell_partial_failure` | Covered |
 
 ### Resource Monitoring Edge Cases
 
@@ -92,7 +92,7 @@ This ensures tests can run in any CI environment without special setup.
 |----------|------|--------|
 | CPU/memory collection success | `test_collect_resource_usage_success` | Covered |
 | Command failure | `test_collect_resource_usage_command_failure` | Covered |
-| Parse failure (invalid format) | `test_collect_resource_usage_parse_failure` | **NEW** |
+| Parse failure (invalid format) | `test_collect_resource_usage_parse_failure` | Covered |
 
 ## Call Count Assertions
 
@@ -108,8 +108,8 @@ assert healthz_call_count >= 1  # At least one health check
 
 | Operation | Minimum Calls | Rationale |
 |-----------|---------------|-----------|
-| Shell commands (startup) | 3 | pgrep, code-server start, healthz |
-| Shell commands (running) | 2 | pgrep, mkdir |
+| Shell commands (startup) | 5 | pgrep, code-server start, healthz, mkdir, settings |
+| Shell commands (running) | 3 | pgrep, mkdir, settings |
 | MCP commands | 1 | settings.json write |
 | Health checks | 1 | Verify server is ready |
 

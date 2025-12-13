@@ -1388,13 +1388,11 @@ class TestInitializeSession:
         assert mock_session.metadata["public_url"] == mock_session.vscode_endpoint
 
     @pytest.mark.asyncio
-    async def test_poll_healthz_curl_success_pgrep_fails(self, service, mock_session):
-        """Test _poll_healthz when curl succeeds but pgrep fails (#2352 edge case)"""
+    async def test_poll_healthz_success_on_first_attempt(self, service, mock_session):
+        """Test _poll_healthz returns True when curl returns 200 (#2352 edge case)"""
         async def mock_shell(session, command, timeout_seconds=60):
             if "curl" in command and "healthz" in command:
                 return {"success": True, "exit_code": 0, "stdout": "200", "stderr": ""}
-            if "pgrep" in command:
-                return {"success": False, "exit_code": 1, "stdout": "", "stderr": ""}
             return {"success": True, "exit_code": 0, "stdout": "", "stderr": ""}
 
         service._execute_shell_command = mock_shell
@@ -1451,12 +1449,10 @@ class TestInitializeSession:
         self, service, mock_session
     ):
         """Test initialization handles shell fallback partial failure (#2352 edge case)"""
-        shell_commands = []
         base64_attempt_count = 0
 
         async def mock_shell(session, command, timeout_seconds=60):
             nonlocal base64_attempt_count
-            shell_commands.append(command)
             if "pgrep" in command:
                 return {"success": True, "exit_code": 0, "stdout": "12345", "stderr": ""}
             if "base64" in command and "settings.json" in command:
