@@ -424,6 +424,7 @@ def test_jwt_secret():
 - **RFC #619**: Testing Architecture Strategy
 - **P3 測試覆蓋率總結**: [docs/P3_TEST_COVERAGE_SUMMARY.md](./P3_TEST_COVERAGE_SUMMARY.md)
 - **後端測試 README**: [handoff/.../api-backend/tests/README.md](../handoff/20250928/40_App/api-backend/tests/README.md)
+- **VSCode IDE 測試策略**: [docs/VSCODE_IDE_TEST_STRATEGY.md](./VSCODE_IDE_TEST_STRATEGY.md) - IDE 服務的測試架構和 mock 策略
 - **pytest Documentation**: https://docs.pytest.org/
 - **Flask Testing**: https://flask.palletsprojects.com/en/latest/testing/
 - **Coverage.py**: https://coverage.readthedocs.io/
