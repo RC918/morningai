@@ -550,6 +550,9 @@ class VSCodeIDEService:
         session.metadata["iframe_allowed_origins"] = cors_config["allowed_origins"]
         session.metadata["public_url"] = cors_config["public_url"] or session.vscode_endpoint
 
+        # Auto-install extensions (#2353)
+        await self._ensure_extensions_installed(session)
+
         logger.info(
             "[VSCodeIDEService] Session %s initialized successfully",
             session_id
@@ -1418,6 +1421,439 @@ class VSCodeIDEService:
             headers["X-Frame-Options"] = f"ALLOW-FROM {allowed_origins[0]}"
 
         return headers
+
+    def get_extension_config(self) -> Dict[str, Any]:
+        """
+        Get Extension auto-install configuration from settings (#2353).
+
+        Returns a dictionary with:
+        - default_extensions: List of extension IDs to auto-install
+
+        Returns:
+            Dict with extension configuration
+        """
+        try:
+            from common.config.settings import settings
+            extensions_str = settings.vscode_default_extensions or ""
+            default_extensions = [
+                e.strip() for e in extensions_str.split(",") if e.strip()
+            ]
+        except ImportError:
+            logger.warning(
+                "[VSCodeIDEService] Could not import settings for extensions, "
+                "using defaults"
+            )
+            default_extensions = []
+
+        return {
+            "default_extensions": default_extensions,
+        }
+
+    def _get_desired_extensions(self, session: IDESession) -> List[str]:
+        """
+        Get the list of extensions to install for a session (#2353).
+
+        Combines default extensions from settings with any per-task
+        extra extensions from session metadata.
+
+        Args:
+            session: IDE session
+
+        Returns:
+            List of extension IDs to install (deduplicated, order preserved)
+        """
+        config = self.get_extension_config()
+        default_exts = config["default_extensions"]
+        extra_exts = session.metadata.get("extra_extensions") or []
+        combined = default_exts + list(extra_exts)
+        return list(dict.fromkeys(combined))
+
+    async def _ensure_extensions_installed(self, session: IDESession) -> None:
+        """
+        Ensure desired extensions are installed for the session (#2353).
+
+        This method:
+        1. Gets the list of desired extensions (defaults + per-task extras)
+        2. Lists currently installed extensions
+        3. Installs any missing extensions
+        4. Records installation status in session metadata
+
+        Extension installation is best-effort and non-blocking; failures
+        are logged but don't prevent session initialization.
+
+        Args:
+            session: IDE session to install extensions for
+        """
+        session_id = session.session_id[:8]
+        desired = self._get_desired_extensions(session)
+
+        if not desired:
+            logger.debug(
+                "[VSCodeIDEService] No extensions to install for session %s",
+                session_id
+            )
+            return
+
+        list_cmd = "code-server --list-extensions"
+        result = await self._execute_shell_command(
+            session, list_cmd, timeout_seconds=15
+        )
+
+        if not result.get("success"):
+            logger.warning(
+                "[VSCodeIDEService] Failed to list extensions for session %s: %s",
+                session_id,
+                result.get("stderr", "Unknown error"),
+            )
+            session.metadata["extensions_error"] = "Failed to list extensions"
+            return
+
+        installed = {
+            line.strip()
+            for line in (result.get("stdout") or "").splitlines()
+            if line.strip()
+        }
+        to_install = [ext for ext in desired if ext not in installed]
+
+        if not to_install:
+            logger.debug(
+                "[VSCodeIDEService] All %d extensions already installed for "
+                "session %s",
+                len(desired),
+                session_id
+            )
+            session.metadata["extensions_desired"] = desired
+            session.metadata["extensions_installed"] = list(installed & set(desired))
+            session.metadata["extensions_failed"] = []
+            return
+
+        logger.info(
+            "[VSCodeIDEService] Installing %d extensions for session %s: %s",
+            len(to_install),
+            session_id,
+            to_install
+        )
+
+        installed_exts = []
+        failed_exts = []
+
+        for ext in to_install:
+            cmd = f"code-server --install-extension {shlex.quote(ext)}"
+            install_res = await self._execute_shell_command(
+                session, cmd, timeout_seconds=60
+            )
+
+            if install_res.get("success"):
+                installed_exts.append(ext)
+                logger.debug(
+                    "[VSCodeIDEService] Installed extension %s for session %s",
+                    ext,
+                    session_id
+                )
+            else:
+                failed_exts.append(ext)
+                logger.warning(
+                    "[VSCodeIDEService] Failed to install extension %s for "
+                    "session %s: %s",
+                    ext,
+                    session_id,
+                    install_res.get("stderr", "Unknown error"),
+                )
+
+        session.metadata["extensions_desired"] = desired
+        all_installed_desired = [
+            ext for ext in desired if ext in installed or ext in installed_exts
+        ]
+        session.metadata["extensions_installed"] = all_installed_desired
+        session.metadata["extensions_failed"] = failed_exts
+
+        if failed_exts:
+            logger.warning(
+                "[VSCodeIDEService] %d/%d extensions failed to install for "
+                "session %s",
+                len(failed_exts),
+                len(to_install),
+                session_id
+            )
+        else:
+            logger.info(
+                "[VSCodeIDEService] All %d extensions installed successfully for "
+                "session %s",
+                len(to_install),
+                session_id
+            )
+
+    def get_resource_limits(self) -> Dict[str, Any]:
+        """
+        Get resource limit configuration for IDE sessions.
+
+        Returns configuration values for:
+        - idle_timeout: Session idle timeout in seconds
+        - cpu_limit_percent: CPU usage threshold for overload protection
+        - memory_limit_percent: Memory usage threshold for overload protection
+        - max_sessions: Maximum concurrent sessions allowed
+
+        Returns:
+            Dict with resource limit configuration
+        """
+        try:
+            from common.config.settings import settings
+            return {
+                "idle_timeout": settings.vscode_session_idle_timeout,
+                "cpu_limit_percent": settings.vscode_session_cpu_limit_percent,
+                "memory_limit_percent": settings.vscode_session_memory_limit_percent,
+                "max_sessions": settings.vscode_max_sessions,
+            }
+        except ImportError:
+            logger.warning(
+                "[VSCodeIDEService] settings module not available, using defaults"
+            )
+            return {
+                "idle_timeout": 1800,
+                "cpu_limit_percent": 80,
+                "memory_limit_percent": 85,
+                "max_sessions": 10,
+            }
+
+    async def _collect_resource_usage(
+        self,
+        session: IDESession,
+    ) -> Dict[str, Any]:
+        """
+        Collect current resource usage metrics for the IDE session's VM.
+
+        Uses shell commands to gather CPU and memory usage statistics.
+        This is a best-effort operation; failures return empty metrics.
+
+        Args:
+            session: IDE session to collect metrics for
+
+        Returns:
+            Dict with resource usage metrics:
+            - cpu_percent: Current CPU usage percentage (0-100)
+            - memory_percent: Current memory usage percentage (0-100)
+            - memory_used_mb: Memory used in MB
+            - memory_total_mb: Total memory in MB
+            - collected_at: ISO timestamp of collection
+        """
+        session_id = session.session_id[:8]
+        metrics: Dict[str, Any] = {
+            "cpu_percent": None,
+            "memory_percent": None,
+            "memory_used_mb": None,
+            "memory_total_mb": None,
+            "collected_at": datetime.now().isoformat(),
+        }
+
+        cpu_result = await self._execute_shell_command(
+            session,
+            "top -bn1 | awk '/Cpu\\(s\\)/{for(i=1;i<=NF;i++)if($i~/id/){gsub(/[^0-9.]/,\"\",$i);print 100-$i}}'",
+            timeout_seconds=10,
+        )
+        if cpu_result.get("success") and cpu_result.get("stdout"):
+            try:
+                cpu_str = cpu_result["stdout"].strip()
+                metrics["cpu_percent"] = float(cpu_str)
+            except (ValueError, TypeError):
+                logger.warning(
+                    "[VSCodeIDEService] Failed to parse CPU usage for session %s",
+                    session_id
+                )
+
+        mem_result = await self._execute_shell_command(
+            session,
+            "free -m | awk 'NR==2{t=$2;a=$7;u=t-a;if(t>0)printf \"%s %s %.1f\",u,t,u*100/t}'",
+            timeout_seconds=10,
+        )
+        if mem_result.get("success") and mem_result.get("stdout"):
+            try:
+                parts = mem_result["stdout"].strip().split()
+                if len(parts) >= 3:
+                    metrics["memory_used_mb"] = int(parts[0])
+                    metrics["memory_total_mb"] = int(parts[1])
+                    metrics["memory_percent"] = float(parts[2])
+            except (ValueError, TypeError, IndexError):
+                logger.warning(
+                    "[VSCodeIDEService] Failed to parse memory usage for session %s",
+                    session_id
+                )
+
+        return metrics
+
+    async def check_resource_overload(
+        self,
+        session: Optional[IDESession] = None,
+    ) -> Dict[str, Any]:
+        """
+        Check if system resources are overloaded for IDE sessions.
+
+        This method checks:
+        1. Current session count against max_sessions limit
+        2. CPU usage against cpu_limit_percent threshold
+        3. Memory usage against memory_limit_percent threshold
+
+        Args:
+            session: Optional IDE session to collect metrics from.
+                     If None, only session count is checked.
+
+        Returns:
+            Dict with overload status:
+            - is_overloaded: True if any limit is exceeded
+            - reasons: List of reasons for overload
+            - metrics: Current resource metrics
+            - limits: Configured resource limits
+            - can_create_session: True if new session can be created
+        """
+        limits = self.get_resource_limits()
+        result: Dict[str, Any] = {
+            "is_overloaded": False,
+            "reasons": [],
+            "metrics": {},
+            "limits": limits,
+            "can_create_session": True,
+        }
+
+        active_sessions = self.get_active_sessions()
+        active_count = len(active_sessions)
+        result["metrics"]["active_sessions"] = active_count
+
+        max_sessions = limits["max_sessions"]
+        if max_sessions > 0 and active_count >= max_sessions:
+            result["is_overloaded"] = True
+            result["can_create_session"] = False
+            result["reasons"].append(
+                f"Session limit reached: {active_count}/{max_sessions}"
+            )
+            logger.warning(
+                "[VSCodeIDEService] Session limit reached: %d/%d",
+                active_count, max_sessions
+            )
+
+        if session is not None:
+            resource_metrics = await self._collect_resource_usage(session)
+            result["metrics"].update(resource_metrics)
+
+            cpu_percent = resource_metrics.get("cpu_percent")
+            if cpu_percent is not None:
+                cpu_limit = limits["cpu_limit_percent"]
+                if cpu_percent >= cpu_limit:
+                    result["is_overloaded"] = True
+                    result["can_create_session"] = False
+                    result["reasons"].append(
+                        f"CPU overloaded: {cpu_percent:.1f}% >= {cpu_limit}%"
+                    )
+                    logger.warning(
+                        "[VSCodeIDEService] CPU overloaded: %.1f%% >= %d%%",
+                        cpu_percent, cpu_limit
+                    )
+
+            memory_percent = resource_metrics.get("memory_percent")
+            if memory_percent is not None:
+                memory_limit = limits["memory_limit_percent"]
+                if memory_percent >= memory_limit:
+                    result["is_overloaded"] = True
+                    result["can_create_session"] = False
+                    result["reasons"].append(
+                        f"Memory overloaded: {memory_percent:.1f}% >= {memory_limit}%"
+                    )
+                    logger.warning(
+                        "[VSCodeIDEService] Memory overloaded: %.1f%% >= %d%%",
+                        memory_percent, memory_limit
+                    )
+
+        return result
+
+    async def get_idle_sessions(self) -> List[IDESession]:
+        """
+        Get list of sessions that have exceeded the idle timeout.
+
+        Returns:
+            List of IDESession objects that are idle and eligible for cleanup
+        """
+        limits = self.get_resource_limits()
+        idle_timeout = limits["idle_timeout"]
+
+        if idle_timeout <= 0:
+            return []
+
+        idle_sessions: List[IDESession] = []
+        now = datetime.now()
+
+        async with self._lock:
+            for session in self._sessions.values():
+                if session.status in (IDESessionStatus.CLOSED, IDESessionStatus.ERROR):
+                    continue
+
+                last_activity = session.last_activity or session.created_at
+                idle_seconds = (now - last_activity).total_seconds()
+
+                if idle_seconds >= idle_timeout:
+                    idle_sessions.append(session)
+                    logger.info(
+                        "[VSCodeIDEService] Session %s idle for %.0f seconds "
+                        "(timeout: %d)",
+                        session.session_id[:8], idle_seconds, idle_timeout
+                    )
+
+        return idle_sessions
+
+    async def update_session_activity(self, session_id: str) -> bool:
+        """
+        Update the last_activity timestamp for a session.
+
+        This should be called when the session is actively used to prevent
+        idle timeout cleanup.
+
+        Args:
+            session_id: ID of the session to update
+
+        Returns:
+            True if session was found and updated, False otherwise
+        """
+        async with self._lock:
+            session = self._sessions.get(session_id)
+            if session is None:
+                return False
+
+            session.last_activity = datetime.now()
+            return True
+
+    async def collect_session_metrics(
+        self,
+        session_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Collect and store resource metrics for a specific session.
+
+        This method collects metrics and stores them in session.metadata
+        for observability integration.
+
+        Args:
+            session_id: ID of the session to collect metrics for
+
+        Returns:
+            Dict with collected metrics, or None if session not found
+        """
+        session = await self.get_session(session_id)
+        if session is None:
+            return None
+
+        metrics = await self._collect_resource_usage(session)
+
+        session.metadata["resource_metrics"] = metrics
+        session.metadata["resource_metrics_collected_at"] = metrics["collected_at"]
+
+        overload_status = await self.check_resource_overload(session)
+        session.metadata["resource_overload_status"] = {
+            "is_overloaded": overload_status["is_overloaded"],
+            "reasons": overload_status["reasons"],
+        }
+
+        return {
+            "session_id": session_id,
+            "metrics": metrics,
+            "overload_status": overload_status,
+        }
 
 
 # Global IDE service instance
