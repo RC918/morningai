@@ -156,6 +156,10 @@ describe('Design Tokens', () => {
       
       expect(cssVars).toHaveProperty('--a11y-color-primary-text')
       expect(cssVars).toHaveProperty('--a11y-focus-outline-width')
+      
+      // Focus color tokens added for Issue #2291 (Design Token source unification)
+      expect(cssVars['--a11y-focus-primary']).toBe('#0051D0')
+      expect(cssVars['--a11y-focus-light']).toBe('#0284c7')
     })
 
     it('should return consistent results on multiple calls', () => {
@@ -165,12 +169,13 @@ describe('Design Tokens', () => {
       expect(cssVars1).toEqual(cssVars2)
     })
 
-    it('should generate exactly 169 CSS variables (backward compatibility)', () => {
+    it('should generate exactly 171 CSS variables (backward compatibility)', () => {
       const cssVars = getCSSVariables()
       
       // This assertion ensures we maintain the exact same number of CSS variables
       // Updated from 148 to 169 after adding iotask accent colors (pink, cyan)
-      expect(Object.keys(cssVars).length).toBe(169)
+      // Updated from 169 to 171 after adding accessibility focus.primary/light tokens (Issue #2291)
+      expect(Object.keys(cssVars).length).toBe(171)
     })
   })
 
