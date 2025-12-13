@@ -31,6 +31,7 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   args: {
     placeholder: 'Type your message here.',
+    'aria-label': 'Message input',
   },
 }
 
@@ -59,12 +60,14 @@ export const Disabled: Story = {
   args: {
     placeholder: 'This textarea is disabled.',
     disabled: true,
+    'aria-label': 'Disabled textarea',
   },
 }
 
 export const WithDefaultValue: Story = {
   args: {
     defaultValue: 'This is some default text that appears in the textarea.',
+    'aria-label': 'Textarea with default value',
   },
 }
 
