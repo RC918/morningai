@@ -7,7 +7,8 @@ import { cn } from '@morningai/shared-ui'
  * Design Specification (Unified Status Card Standard):
  * - Fixed dimensions: min-w-[140px] h-24 (96px) for consistent visual alignment
  * - Internal padding: px-4 py-3 (16px horizontal, 12px vertical)
- * - Icon container: 28x28px (h-7 w-7) with rounded-lg, positioned top-right
+ * - Icon container: 32x32px (uses --card-icon-kpi-containerSize CSS variable) with rounded-full, positioned top-right
+ * - Icon size: 16x16px (uses --card-icon-kpi-size CSS variable)
  * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (bottom-left)
  * - Vertical spacing: justify-between for consistent label-to-value distance
  * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
@@ -116,13 +117,15 @@ function SessionStatusCard({
         </span>
         <div
           className={cn(
-            'flex h-7 w-7 items-center justify-center rounded-lg shrink-0',
+            'flex items-center justify-center shrink-0',
+            'size-[var(--card-icon-kpi-containerSize,32px)]',
+            'rounded-[var(--card-icon-kpi-shape,9999px)]',
             styles.iconBg,
             styles.iconText
           )}
         >
           {icon && cloneElement(icon, { 
-            className: 'w-4 h-4',
+            className: 'size-[var(--card-icon-kpi-size,16px)]',
             'aria-hidden': 'true'
           })}
         </div>

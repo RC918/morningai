@@ -12,7 +12,8 @@ import {
   AlertDescription, 
   AlertTitle, 
   Skeleton,
-  Progress
+  Progress,
+  StatCard
 } from '@morningai/shared-ui'
 import { 
   Activity, 
@@ -202,87 +203,46 @@ const FailureExperimentDashboard = () => {
       {/* Summary Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Failures */}
-        <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 py-4 pb-2">
-            <CardTitle className="text-sm font-medium text-[var(--text-secondary)]">
-              {t('failureExperiment.metrics.totalFailures', 'Total Failures')}
-            </CardTitle>
-            <div className="w-8 h-8 rounded-full bg-error-10 flex items-center justify-center">
-              <XCircle className="h-4 w-4 text-error" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="text-2xl font-bold text-error">
-              {failureSummary?.total_failures ?? 0}
-            </div>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {t('failureExperiment.metrics.last24h', 'Last 24 hours')}
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          label={t('failureExperiment.metrics.totalFailures', 'Total Failures')}
+          value={String(failureSummary?.total_failures ?? 0)}
+          icon={<XCircle />}
+          variant="red"
+          deltaLabel={t('failureExperiment.metrics.last24h', 'Last 24 hours')}
+          deltaPositive={true}
+        />
 
         {/* Success Rate */}
-        <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 py-4 pb-2">
-            <CardTitle className="text-sm font-medium text-[var(--text-secondary)]">
-              {t('failureExperiment.metrics.successRate', 'Success Rate')}
-            </CardTitle>
-            <div className="w-8 h-8 rounded-full bg-growth-10 flex items-center justify-center">
-              <CheckCircle2 className="h-4 w-4 text-growth" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="text-2xl font-bold text-growth">
-              {evalMetrics?.success_rate ? formatPercentage(evalMetrics.success_rate) : '95.2%'}
-            </div>
-            <p className="text-xs text-growth flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              {t('failureExperiment.metrics.improving', '+2.1% from last week')}
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          label={t('failureExperiment.metrics.successRate', 'Success Rate')}
+          value={evalMetrics?.success_rate ? formatPercentage(evalMetrics.success_rate) : '95.2%'}
+          icon={<CheckCircle2 />}
+          variant="green"
+          deltaLabel={t('failureExperiment.metrics.improving', '+2.1% from last week')}
+          deltaPositive={true}
+        />
 
         {/* Active Experiments */}
-        <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 py-4 pb-2">
-            <CardTitle className="text-sm font-medium text-[var(--text-secondary)]">
-              {t('failureExperiment.metrics.activeExperiments', 'Active Experiments')}
-            </CardTitle>
-            <div className="w-8 h-8 rounded-full bg-wisdom-10 flex items-center justify-center">
-              <Beaker className="h-4 w-4 text-wisdom" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="text-2xl font-bold text-wisdom">
-              {experimentSummary?.active_experiments?.length ?? 0}
-            </div>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {t('failureExperiment.metrics.ofTotal', 'of {{total}} total', { 
-                total: experimentSummary?.total_experiments ?? 0 
-              })}
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          label={t('failureExperiment.metrics.activeExperiments', 'Active Experiments')}
+          value={String(experimentSummary?.active_experiments?.length ?? 0)}
+          icon={<Beaker />}
+          variant="purple"
+          deltaLabel={t('failureExperiment.metrics.ofTotal', 'of {{total}} total', { 
+            total: experimentSummary?.total_experiments ?? 0 
+          })}
+          deltaPositive={true}
+        />
 
         {/* Avg Fixer Iterations */}
-        <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5 py-4 pb-2">
-            <CardTitle className="text-sm font-medium text-[var(--text-secondary)]">
-              {t('failureExperiment.metrics.avgFixerIterations', 'Avg Fixer Iterations')}
-            </CardTitle>
-            <div className="w-8 h-8 rounded-full bg-calm-10 flex items-center justify-center">
-              <Repeat className="h-4 w-4 text-calm" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="text-2xl font-bold text-calm">
-              {evalMetrics?.fixer_metrics?.avg_iterations?.toFixed(1) ?? '1.8'}
-            </div>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {t('failureExperiment.metrics.perWorkflow', 'per workflow')}
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          label={t('failureExperiment.metrics.avgFixerIterations', 'Avg Fixer Iterations')}
+          value={evalMetrics?.fixer_metrics?.avg_iterations?.toFixed(1) ?? '1.8'}
+          icon={<Repeat />}
+          variant="blue"
+          deltaLabel={t('failureExperiment.metrics.perWorkflow', 'per workflow')}
+          deltaPositive={true}
+        />
       </div>
 
       {/* Charts Row */}
