@@ -1651,6 +1651,7 @@ class TestCorsConfig:
         assert any("esbenp.prettier-vscode" in c for c in install_calls)
         assert any("dbaeumer.vscode-eslint" in c for c in install_calls)
         assert mock_session.metadata["extensions_installed"] == [
+            "ms-python.python",
             "esbenp.prettier-vscode",
             "dbaeumer.vscode-eslint"
         ]

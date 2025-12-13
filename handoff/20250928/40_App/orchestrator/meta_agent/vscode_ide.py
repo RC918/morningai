@@ -1561,7 +1561,10 @@ class VSCodeIDEService:
                 )
 
         session.metadata["extensions_desired"] = desired
-        session.metadata["extensions_installed"] = installed_exts
+        all_installed_desired = [
+            ext for ext in desired if ext in installed or ext in installed_exts
+        ]
+        session.metadata["extensions_installed"] = all_installed_desired
         session.metadata["extensions_failed"] = failed_exts
 
         if failed_exts:
