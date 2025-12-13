@@ -13,7 +13,8 @@ from orchestrator.langgraph_orchestrator import (
     finalizer_node,
     should_continue_execution,
     should_retry_or_finish,
-    create_orchestrator_graph
+    create_orchestrator_graph,
+    _create_base_initial_state,
 )
 
 
@@ -268,6 +269,127 @@ class TestCreateOrchestratorGraph:
 
         assert graph is not None
         # Graph should be compiled and ready to use
+
+
+class TestCreateBaseInitialState:
+    """
+    Test _create_base_initial_state helper function.
+
+    Issue #2260: Extract common initial_state initialization helper
+    """
+
+    def test_create_base_initial_state_default(self):
+        """Test helper creates state with default task_type"""
+        state = _create_base_initial_state(
+            goal="Test goal",
+            trace_id="test-trace-123",
+            repo="RC918/morningai",
+        )
+
+        assert state["goal"] == "Test goal"
+        assert state["trace_id"] == "test-trace-123"
+        assert state["repo"] == "RC918/morningai"
+        assert state["branch"] == ""
+        assert state["task_type"] == "default"
+        assert state["current_step"] == 0
+        assert state["ci_state"] == "pending"
+        assert state["code_quality_score"] == 100
+        assert state["security_is_safe"] is True
+        assert state["governance_is_compliant"] is True
+        assert state["policy_blocked"] is False
+        assert len(state["messages"]) == 1
+
+    def test_create_base_initial_state_with_branch(self):
+        """Test helper creates state with custom branch"""
+        state = _create_base_initial_state(
+            goal="Fix bug",
+            trace_id="test-456",
+            repo="RC918/morningai",
+            branch="feature/test-branch",
+        )
+
+        assert state["branch"] == "feature/test-branch"
+        assert state["goal"] == "Fix bug"
+
+    def test_create_base_initial_state_review_follow_up(self):
+        """Test helper creates state for review_follow_up task type"""
+        state = _create_base_initial_state(
+            goal="Address review comment",
+            trace_id="test-789",
+            repo="RC918/morningai",
+            branch="fix/review-comment",
+            task_type="review_follow_up",
+        )
+
+        assert state["task_type"] == "review_follow_up"
+        assert state["branch"] == "fix/review-comment"
+        assert state["original_pr_number"] == 0
+        assert state["comment_url"] == ""
+        assert state["requires_hitl_approval"] is False
+
+    def test_create_base_initial_state_internal_review(self):
+        """Test helper creates state for internal_review task type"""
+        state = _create_base_initial_state(
+            goal="Re-review AI assessment",
+            trace_id="test-internal-123",
+            repo="RC918/morningai",
+            task_type="internal_review",
+        )
+
+        assert state["task_type"] == "internal_review"
+        assert state["ci_state"] == "pending"
+        assert state["code_quality_score"] == 100
+
+    def test_create_base_initial_state_all_fields_present(self):
+        """Test helper creates state with all required AgentState fields"""
+        state = _create_base_initial_state(
+            goal="Test all fields",
+            trace_id="test-all",
+            repo="RC918/morningai",
+        )
+
+        required_fields = [
+            "messages", "goal", "trace_id", "repo", "branch",
+            "plan", "current_step", "pr_url", "pr_number",
+            "ci_state", "ci_checks", "error", "retry_count", "final_result",
+            "review_result", "review_comments", "review_severity",
+            "merge_decision", "code_quality_score",
+            "security_advisory", "security_risk", "security_findings", "security_is_safe",
+            "governance_advisory", "governance_risk", "governance_findings", "governance_is_compliant",
+            "cost_advisory", "cost_risk", "cost_within_budget",
+            "permission_advisory", "permission_risk", "permission_granted",
+            "reputation_advisory", "reputation_score", "reputation_level",
+            "policy_blocked", "policy_block_reason",
+            "evaluation_result", "evaluation_health_status", "evaluation_has_regression",
+            "pm_advisory", "pm_sub_tasks", "pm_confidence_score", "pm_risk",
+            "ops_advisory", "ops_health_status", "ops_risk", "ops_recommended_actions",
+            "task_type", "original_pr_number", "comment_url", "comment_body",
+            "review_file_path", "review_line_number", "triage_result", "pr_context",
+            "review_follow_up_action", "requires_hitl_approval",
+        ]
+
+        for field in required_fields:
+            assert field in state, f"Missing field: {field}"
+
+    def test_create_base_initial_state_can_be_updated(self):
+        """Test helper state can be updated with task-specific fields"""
+        state = _create_base_initial_state(
+            goal="Test update",
+            trace_id="test-update",
+            repo="RC918/morningai",
+            task_type="review_follow_up",
+        )
+
+        state.update({
+            "original_pr_number": 123,
+            "comment_url": "https://github.com/RC918/morningai/pull/123#comment-1",
+            "comment_body": "Please fix this issue",
+        })
+
+        assert state["original_pr_number"] == 123
+        assert state["comment_url"] == "https://github.com/RC918/morningai/pull/123#comment-1"
+        assert state["comment_body"] == "Please fix this issue"
+        assert state["task_type"] == "review_follow_up"
 
 
 if __name__ == "__main__":
