@@ -22,6 +22,13 @@ WARN_COUNT=0
 PASS_COUNT=0
 TODO_COUNT=0
 
+# Configurable paths - update these when handoff directory changes
+FRONTEND_DASHBOARD_SRC="handoff/20250928/40_App/frontend-dashboard/src"
+FRONTEND_DASHBOARD_PKG="handoff/20250928/40_App/frontend-dashboard/package.json"
+OWNER_CONSOLE_SRC="handoff/20250928/40_App/owner-console/src"
+OWNER_CONSOLE_PKG="handoff/20250928/40_App/owner-console/package.json"
+SHARED_UI_PKG="packages/shared-ui/package.json"
+
 for arg in "$@"; do
   case $arg in
     --ci)
@@ -158,8 +165,8 @@ else
 fi
 
 # Check shared-ui imports in frontend apps
-FRONTEND_IMPORTS=$(grep -r "@morningai/shared-ui" handoff/20250928/40_App/frontend-dashboard/src --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
-OWNER_IMPORTS=$(grep -r "@morningai/shared-ui" handoff/20250928/40_App/owner-console/src --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
+FRONTEND_IMPORTS=$(grep -r "@morningai/shared-ui" "$FRONTEND_DASHBOARD_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
+OWNER_IMPORTS=$(grep -r "@morningai/shared-ui" "$OWNER_CONSOLE_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
 TOTAL_IMPORTS=$((FRONTEND_IMPORTS + OWNER_IMPORTS))
 if [ "$TOTAL_IMPORTS" -ge 50 ]; then
   log_pass "Shared-ui imports found: $TOTAL_IMPORTS (frontend: $FRONTEND_IMPORTS, owner-console: $OWNER_IMPORTS)"
@@ -171,10 +178,11 @@ log_section "3. Design Tokens Enforcement"
 
 # Check for hard-coded hex colors in frontend apps (excluding node_modules, dist, .stories files)
 HEX_COLORS=$(grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" \
-  handoff/20250928/40_App/frontend-dashboard/src \
-  handoff/20250928/40_App/owner-console/src \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
   --include="*.tsx" --include="*.ts" --include="*.css" \
-  2>/dev/null | grep -v "node_modules" | grep -v ".stories." | wc -l || echo "0")
+  --exclude-dir=node_modules --exclude="*.stories.*" \
+  2>/dev/null | wc -l || echo "0")
 
 if [ "$HEX_COLORS" -le 50 ]; then
   log_pass "Hard-coded hex colors: $HEX_COLORS (target: <50)"
@@ -186,10 +194,11 @@ fi
 
 # Check for inline styles
 INLINE_STYLES=$(grep -rE "style=\{" \
-  handoff/20250928/40_App/frontend-dashboard/src \
-  handoff/20250928/40_App/owner-console/src \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
   --include="*.tsx" \
-  2>/dev/null | grep -v "node_modules" | grep -v ".stories." | wc -l || echo "0")
+  --exclude-dir=node_modules --exclude="*.stories.*" \
+  2>/dev/null | wc -l || echo "0")
 
 if [ "$INLINE_STYLES" -le 100 ]; then
   log_pass "Inline styles usage: $INLINE_STYLES (target: <100)"
@@ -218,8 +227,8 @@ log_section "4. Accessibility Compliance"
 
 # Check for eslint-plugin-jsx-a11y in package.json files
 A11Y_ESLINT=$(grep -r "eslint-plugin-jsx-a11y" \
-  handoff/20250928/40_App/frontend-dashboard/package.json \
-  handoff/20250928/40_App/owner-console/package.json \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
   2>/dev/null | wc -l || echo "0")
 
 if [ "$A11Y_ESLINT" -ge 1 ]; then
@@ -230,9 +239,9 @@ fi
 
 # Check for axe-core testing tools
 AXE_TOOLS=$(grep -rE "@axe-core|jest-axe|vitest-axe" \
-  handoff/20250928/40_App/frontend-dashboard/package.json \
-  handoff/20250928/40_App/owner-console/package.json \
-  packages/shared-ui/package.json \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
+  "$SHARED_UI_PKG" \
   2>/dev/null | wc -l || echo "0")
 
 if [ "$AXE_TOOLS" -ge 1 ]; then
@@ -253,8 +262,8 @@ log_section "5. Motion & Animation Governance"
 
 # Check for prefers-reduced-motion support
 REDUCED_MOTION_CSS=$(grep -r "prefers-reduced-motion" \
-  handoff/20250928/40_App/frontend-dashboard/src \
-  handoff/20250928/40_App/owner-console/src \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
   packages/shared-ui/src \
   --include="*.css" --include="*.scss" --include="*.tsx" --include="*.ts" \
   2>/dev/null | wc -l || echo "0")
@@ -267,8 +276,8 @@ fi
 
 # Check for framer-motion usage
 FRAMER_MOTION=$(grep -r "framer-motion" \
-  packages/shared-ui/package.json \
-  handoff/20250928/40_App/frontend-dashboard/package.json \
+  "$SHARED_UI_PKG" \
+  "$FRONTEND_DASHBOARD_PKG" \
   2>/dev/null | wc -l || echo "0")
 
 if [ "$FRAMER_MOTION" -ge 1 ]; then
@@ -281,8 +290,8 @@ log_section "6. Internationalization (i18n)"
 
 # Check for i18n libraries
 I18N_LIBS=$(grep -rE "react-i18next|i18next|@tolgee" \
-  handoff/20250928/40_App/frontend-dashboard/package.json \
-  handoff/20250928/40_App/owner-console/package.json \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
   2>/dev/null | wc -l || echo "0")
 
 if [ "$I18N_LIBS" -ge 1 ]; then
@@ -293,8 +302,8 @@ fi
 
 # Count i18n usage (useTranslation, t() calls)
 I18N_USAGE=$(grep -rE "useTranslation|\\bt\\(" \
-  handoff/20250928/40_App/frontend-dashboard/src \
-  handoff/20250928/40_App/owner-console/src \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
   --include="*.tsx" --include="*.ts" \
   2>/dev/null | wc -l || echo "0")
 
@@ -341,14 +350,14 @@ fi
 
 log_section "8. React Version Alignment"
 
-# Check React version in shared-ui
-SHARED_UI_REACT=$(grep -oP '"react":\s*"\K[^"]+' packages/shared-ui/package.json 2>/dev/null || echo "not found")
+# Check React version in shared-ui (portable: use awk instead of grep -P)
+SHARED_UI_REACT=$(awk -F'"' '/"react":/ {print $4}' "$SHARED_UI_PKG" 2>/dev/null | head -1 || echo "not found")
 log_info "shared-ui React peer dependency: $SHARED_UI_REACT"
 
 # Check for React 19 adoption
 REACT_19=$(grep -rE '"react":\s*"[^"]*19' \
-  handoff/20250928/40_App/frontend-dashboard/package.json \
-  handoff/20250928/40_App/owner-console/package.json \
+  "$FRONTEND_DASHBOARD_PKG" \
+  "$OWNER_CONSOLE_PKG" \
   2>/dev/null | wc -l || echo "0")
 
 if [ "$REACT_19" -ge 1 ]; then
@@ -356,8 +365,8 @@ if [ "$REACT_19" -ge 1 ]; then
 else
   # Check for React 18 as acceptable
   REACT_18=$(grep -rE '"react":\s*"[^"]*18' \
-    handoff/20250928/40_App/frontend-dashboard/package.json \
-    handoff/20250928/40_App/owner-console/package.json \
+    "$FRONTEND_DASHBOARD_PKG" \
+    "$OWNER_CONSOLE_PKG" \
     2>/dev/null | wc -l || echo "0")
   if [ "$REACT_18" -ge 1 ]; then
     log_pass "React 18 in use (React 19 upgrade recommended)"
@@ -366,12 +375,9 @@ else
   fi
 fi
 
-# Check React version consistency
-REACT_VERSIONS=$(grep -ohP '"react":\s*"\K[^"]+' \
-  packages/shared-ui/package.json \
-  handoff/20250928/40_App/frontend-dashboard/package.json \
-  handoff/20250928/40_App/owner-console/package.json \
-  2>/dev/null | sort -u | wc -l || echo "0")
+# Check React version consistency (portable: use awk instead of grep -P)
+REACT_VERSIONS=$(cat "$SHARED_UI_PKG" "$FRONTEND_DASHBOARD_PKG" "$OWNER_CONSOLE_PKG" 2>/dev/null | \
+  awk -F'"' '/"react":/ {print $4}' | sort -u | wc -l || echo "0")
 
 if [ "$REACT_VERSIONS" -le 2 ]; then
   log_pass "React version consistency: $REACT_VERSIONS unique version patterns"
