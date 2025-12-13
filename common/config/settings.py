@@ -796,7 +796,7 @@ class Settings(BaseSettings):
     )
 
     review_follow_up_task_ttl: int = Field(
-        default=2592000,  # 30 days in seconds
+        default=30 * 24 * 60 * 60,  # 30 days in seconds
         alias="REVIEW_FOLLOW_UP_TASK_TTL",
         description="TTL in seconds for review follow-up tasks in Redis (default: 2592000 = 30 days). Only applies when using Redis backend."
     )

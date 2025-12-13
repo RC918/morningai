@@ -17,7 +17,7 @@ Design decisions:
 import json
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
@@ -323,9 +323,9 @@ class RedisTaskRepository(ReviewFollowUpTaskRepository):
                     task_dict["triage_result"]
                 )
 
-            # Parse datetime strings
-            created_at = datetime.fromisoformat(task_dict.get("created_at", datetime.now(timezone.utc).isoformat()))
-            updated_at = datetime.fromisoformat(task_dict.get("updated_at", datetime.now(timezone.utc).isoformat()))
+            # Parse datetime strings (fail-fast: require created_at/updated_at)
+            created_at = datetime.fromisoformat(task_dict["created_at"])
+            updated_at = datetime.fromisoformat(task_dict["updated_at"])
 
             return ReviewFollowUpTask(
                 task_id=task_dict["task_id"],
@@ -556,20 +556,17 @@ def get_task_repository(
     Returns:
         ReviewFollowUpTaskRepository instance
     """
-    import os
+    from common.config.settings import settings
 
     if backend is None:
-        backend = os.getenv("REVIEW_FOLLOW_UP_STORE_BACKEND", "in_memory")
+        backend = settings.review_follow_up_store_backend
 
     backend = backend.lower()
 
     if backend == "redis":
         # Get TTL from settings if not provided
         if ttl_seconds is None:
-            ttl_seconds = int(os.getenv(
-                "REVIEW_FOLLOW_UP_TASK_TTL",
-                str(RedisTaskRepository.DEFAULT_TTL_SECONDS)
-            ))
+            ttl_seconds = settings.review_follow_up_task_ttl
 
         repo = RedisTaskRepository(
             redis_client=redis_client,
