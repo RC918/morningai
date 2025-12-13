@@ -645,6 +645,11 @@ class TestMetricsLatencyConsistency:
         # Assert the value is correct
         assert canary_latency == expected_elapsed_ms, \
             f"Expected {expected_elapsed_ms}ms, got {canary_latency}ms"
+        
+        # Verify monotonic_ns was called exactly twice (start_time_ns + elapsed_ms calculation)
+        # This ensures elapsed_ms is calculated once, not separately for each metrics block
+        assert mock_monotonic_ns.call_count == 2, \
+            f"Expected 2 monotonic_ns calls, got {mock_monotonic_ns.call_count}"
     
     @patch('redis_queue.worker.redis')
     @patch('redis_queue.worker._rollout_tracker')
@@ -682,6 +687,10 @@ class TestMetricsLatencyConsistency:
         
         assert rollout_latency == expected_elapsed_ms, \
             f"Expected {expected_elapsed_ms}ms, got {rollout_latency}ms"
+        
+        # Verify monotonic_ns was called exactly twice (start_time_ns + elapsed_ms calculation)
+        assert mock_monotonic_ns.call_count == 2, \
+            f"Expected 2 monotonic_ns calls, got {mock_monotonic_ns.call_count}"
     
     @patch('redis_queue.worker.redis')
     @patch('redis_queue.worker._rollout_tracker')
@@ -727,3 +736,7 @@ class TestMetricsLatencyConsistency:
         
         assert rollout_latency == expected_elapsed_ms, \
             f"Expected {expected_elapsed_ms}ms, got {rollout_latency}ms"
+        
+        # Verify monotonic_ns was called exactly twice (start_time_ns + elapsed_ms calculation)
+        assert mock_monotonic_ns.call_count == 2, \
+            f"Expected 2 monotonic_ns calls, got {mock_monotonic_ns.call_count}"

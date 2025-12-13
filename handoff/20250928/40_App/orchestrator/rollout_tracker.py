@@ -344,10 +344,15 @@ class RolloutTracker:
             latency_ms: Orchestrator worker execution duration in milliseconds.
                 This measures the time from when the worker starts processing the task
                 (after dequeuing from Redis) to when orchestration completes.
-                NOTE: This is NOT end-to-end user time, which would include:
-                - Queue wait time (time spent waiting in Redis queue)
-                - Upstream API latency (external service calls)
-                - Network round-trip time
+                
+                INCLUDES: All time spent inside the worker, including outbound API calls
+                made by the orchestrator itself (LLM providers, GitHub API, etc.).
+                
+                EXCLUDES:
+                - Queue wait time before the job is picked up (enqueue -> dequeue)
+                - Downstream time after the worker finishes (client/UI round-trip,
+                  notifications, CI completion)
+                
                 See Issue #2286 for the refactoring that ensures this value is
                 calculated once and shared between _canary_metrics and _rollout_tracker.
             is_5xx_error: Whether this was a 5xx error
@@ -402,10 +407,15 @@ class RolloutTracker:
             latency_ms: Orchestrator worker execution duration in milliseconds.
                 This measures the time from when the worker starts processing the task
                 (after dequeuing from Redis) to when orchestration completes.
-                NOTE: This is NOT end-to-end user time, which would include:
-                - Queue wait time (time spent waiting in Redis queue)
-                - Upstream API latency (external service calls)
-                - Network round-trip time
+                
+                INCLUDES: All time spent inside the worker, including outbound API calls
+                made by the orchestrator itself (LLM providers, GitHub API, etc.).
+                
+                EXCLUDES:
+                - Queue wait time before the job is picked up (enqueue -> dequeue)
+                - Downstream time after the worker finishes (client/UI round-trip,
+                  notifications, CI completion)
+                
                 See Issue #2286 for the refactoring that ensures this value is
                 calculated once and shared between _canary_metrics and _rollout_tracker.
             is_5xx_error: Whether this was a 5xx error
