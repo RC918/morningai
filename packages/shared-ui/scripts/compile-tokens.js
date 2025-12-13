@@ -176,6 +176,43 @@ export default tokens;
   return ts;
 }
 
+/**
+ * Generate Emotional Color Aliases (Issue #2393 Phase 2)
+ * Maps iOS-style emotional colors to existing design tokens
+ */
+function generateEmotionalColorAliases() {
+  return `
+/* ===== Emotional Color Aliases (Issue #2393 Phase 2) ===== */
+/* iOS-style emotional colors mapped to design tokens */
+/* Joy - Orange */
+:root {
+  --color-joy: #FF9500;
+  --color-joy-light: #FFB340;
+  --color-joy-text: #CC7700;
+  /* Calm - Light Blue */
+  --color-calm: #5AC8FA;
+  --color-calm-light: #7DD8FC;
+  --color-calm-text: #0077B5;
+  /* Energy - Red */
+  --color-energy: #FF3B30;
+  --color-energy-light: #FF6B63;
+  --color-energy-text: #CC2F26;
+  /* Growth - Green */
+  --color-growth: #34C759;
+  --color-growth-light: #5FD87F;
+  --color-growth-text: #2A9F47;
+  /* Wisdom - Purple */
+  --color-wisdom: #5856D6;
+  --color-wisdom-light: #7B79E8;
+  --color-wisdom-text: #4644AB;
+  /* Shadow Color Tokens */
+  --color-shadow: 0 0 0;
+  --color-shadow-opacity-sm: 0.08;
+  --color-shadow-opacity-md: 0.12;
+}
+`;
+}
+
 function compile() {
   console.log('🎨 Compiling design tokens...');
   
@@ -183,9 +220,11 @@ function compile() {
   console.log('✓ Loaded tokens.json');
 
   const cssVariables = `:root {\n${generateCSSVariables(tokens)}}\n`;
+  const emotionalAliases = generateEmotionalColorAliases();
   fs.mkdirSync(path.dirname(OUTPUT_CSS_PATH), { recursive: true });
-  fs.writeFileSync(OUTPUT_CSS_PATH, cssVariables);
+  fs.writeFileSync(OUTPUT_CSS_PATH, cssVariables + emotionalAliases);
   console.log(`✓ Generated CSS variables: ${OUTPUT_CSS_PATH}`);
+  console.log(`✓ Generated emotional color aliases`);
 
   const tailwindConfig = generateTailwindConfig(tokens);
   const tailwindConfigPath = path.join(__dirname, '../dist/tailwind.config.snippet.json');
