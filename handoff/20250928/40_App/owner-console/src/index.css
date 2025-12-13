@@ -146,11 +146,12 @@
   /* ===== Accessibility Focus Tokens (Issue #2292) ===== */
   /* These tokens are sourced from tokens.json accessibility.focus section */
   /* Used by accessibility.css for WCAG AAA compliant focus indicators */
-  --a11y-focus-outline-color: #0284c7;  /* Focus outline color - sky blue */
+  /* Override these variables to customize focus styles for themes (e.g., high contrast, dark mode) */
+  --a11y-focus-outline-color: var(--color-focus-light);  /* Focus outline color - references base token */
   --a11y-focus-outline-width: 3px;      /* AAA level requires visible outline */
   --a11y-focus-outline-offset: 2px;     /* Offset from element edge */
-  --a11y-focus-primary: #0051D0;        /* Primary focus color - high contrast blue */
-  --a11y-focus-light: #0284c7;          /* Light focus color - sky blue */
+  --a11y-focus-primary: var(--color-focus);        /* Primary focus color - references base token */
+  --a11y-focus-light: var(--color-focus-light);    /* Light focus color - references base token */
 
   /* Base tokens for shared-ui components(Switch, Button, Input, etc.) */
   /* These are required for Tailwind v4 to generate bg-primary, bg-input, bg-background utilities */
