@@ -113,6 +113,15 @@
   /* WCAG 2.1 Level AA requires 3:1 contrast ratio for focus indicators */
   --color-focus: #0051D0;        /* Primary blue - 7.12:1 contrast on white */
   --color-focus-light: #0284c7;  /* Sky blue - used in accessibility.css */
+
+  /* ===== Accessibility Focus Tokens (Issue #2292) ===== */
+  /* These tokens are sourced from tokens.json accessibility.focus section */
+  /* Used by accessibility.css for WCAG AAA compliant focus indicators */
+  --a11y-focus-outline-color: #0284c7;  /* Focus outline color - sky blue */
+  --a11y-focus-outline-width: 3px;      /* AAA level requires visible outline */
+  --a11y-focus-outline-offset: 2px;     /* Offset from element edge */
+  --a11y-focus-primary: #0051D0;        /* Primary focus color - high contrast blue */
+  --a11y-focus-light: #0284c7;          /* Light focus color - sky blue */
 }
 
 @import "tailwindcss";
