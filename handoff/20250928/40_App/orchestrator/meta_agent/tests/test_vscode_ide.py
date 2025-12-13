@@ -16,10 +16,11 @@ Tests cover:
 - MCP HTTP client integration
 """
 
+import asyncio
 import time
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from meta_agent.vscode_ide import (
     FileContent,
@@ -1712,3 +1713,438 @@ class TestCorsConfig:
 
         assert mock_session.metadata["extensions_error"] == "Failed to list extensions"
         assert "extensions_installed" not in mock_session.metadata
+
+
+class TestResourceMonitoring:
+    """Tests for resource monitoring functionality (#2353)"""
+
+    @pytest.fixture
+    def service(self):
+        return VSCodeIDEService()
+
+    @pytest.fixture
+    def mock_session(self):
+        return IDESession(
+            session_id="test-session-123",
+            vm_id="vm-456",
+            task_id="task-789",
+            status=IDESessionStatus.READY,
+            created_at=datetime.now(),
+            workspace_path="/workspace",
+            vscode_endpoint="http://localhost:8443",
+            mcp_endpoint="http://localhost:8080",
+            metadata={},
+        )
+
+    def test_get_resource_limits_defaults(self, service, monkeypatch):
+        """Test get_resource_limits returns default values"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            1800
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        limits = service.get_resource_limits()
+
+        assert limits["idle_timeout"] == 1800
+        assert limits["cpu_limit_percent"] == 80
+        assert limits["memory_limit_percent"] == 85
+        assert limits["max_sessions"] == 10
+
+    def test_get_resource_limits_custom_values(self, service, monkeypatch):
+        """Test get_resource_limits with custom configuration"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            3600
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            90
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            95
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            5
+        )
+
+        limits = service.get_resource_limits()
+
+        assert limits["idle_timeout"] == 3600
+        assert limits["cpu_limit_percent"] == 90
+        assert limits["memory_limit_percent"] == 95
+        assert limits["max_sessions"] == 5
+
+    @pytest.mark.asyncio
+    async def test_collect_resource_usage_success(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test _collect_resource_usage collects CPU and memory metrics"""
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "top -bn1" in cmd:
+                return {"success": True, "stdout": "25.5", "stderr": ""}
+            if "free -m" in cmd:
+                return {"success": True, "stdout": "4096 8192 50.0", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        metrics = await service._collect_resource_usage(mock_session)
+
+        assert metrics["cpu_percent"] == 25.5
+        assert metrics["memory_used_mb"] == 4096
+        assert metrics["memory_total_mb"] == 8192
+        assert metrics["memory_percent"] == 50.0
+        assert "collected_at" in metrics
+
+    @pytest.mark.asyncio
+    async def test_collect_resource_usage_command_failure(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test _collect_resource_usage handles command failures gracefully"""
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            return {"success": False, "stdout": "", "stderr": "command not found"}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        metrics = await service._collect_resource_usage(mock_session)
+
+        assert metrics["cpu_percent"] is None
+        assert metrics["memory_percent"] is None
+        assert metrics["memory_used_mb"] is None
+        assert metrics["memory_total_mb"] is None
+        assert "collected_at" in metrics
+
+    @pytest.mark.asyncio
+    async def test_check_resource_overload_no_overload(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test check_resource_overload when resources are within limits"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            1800
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "top -bn1" in cmd:
+                return {"success": True, "stdout": "25.5", "stderr": ""}
+            if "free -m" in cmd:
+                return {"success": True, "stdout": "4096 8192 50.0", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        result = await service.check_resource_overload(mock_session)
+
+        assert result["is_overloaded"] is False
+        assert result["can_create_session"] is True
+        assert len(result["reasons"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_check_resource_overload_cpu_exceeded(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test check_resource_overload when CPU limit is exceeded"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            1800
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "top -bn1" in cmd:
+                return {"success": True, "stdout": "95.0", "stderr": ""}
+            if "free -m" in cmd:
+                return {"success": True, "stdout": "4096 8192 50.0", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        result = await service.check_resource_overload(mock_session)
+
+        assert result["is_overloaded"] is True
+        assert result["can_create_session"] is False
+        assert any("CPU overloaded" in r for r in result["reasons"])
+
+    @pytest.mark.asyncio
+    async def test_check_resource_overload_memory_exceeded(
+        self, service, mock_session, monkeypatch
+    ):
+        """Test check_resource_overload when memory limit is exceeded"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            1800
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "top -bn1" in cmd:
+                return {"success": True, "stdout": "25.5", "stderr": ""}
+            if "free -m" in cmd:
+                return {"success": True, "stdout": "7500 8192 91.5", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        result = await service.check_resource_overload(mock_session)
+
+        assert result["is_overloaded"] is True
+        assert result["can_create_session"] is False
+        assert any("Memory overloaded" in r for r in result["reasons"])
+
+    @pytest.mark.asyncio
+    async def test_check_resource_overload_session_limit(
+        self, service, monkeypatch
+    ):
+        """Test check_resource_overload when session limit is reached"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            1800
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            2
+        )
+
+        async def _noop_initialize(session):
+            pass
+
+        monkeypatch.setattr(service, "_initialize_session", _noop_initialize)
+
+        await service.create_session("vm-1", "task-1", "http://localhost:8080")
+        await service.create_session("vm-2", "task-2", "http://localhost:8080")
+
+        result = await service.check_resource_overload()
+
+        assert result["is_overloaded"] is True
+        assert result["can_create_session"] is False
+        assert any("Session limit reached" in r for r in result["reasons"])
+
+    @pytest.mark.asyncio
+    async def test_get_idle_sessions_returns_idle(self, service, monkeypatch):
+        """Test get_idle_sessions returns sessions that exceeded idle timeout"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            60
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        async def _noop_initialize(session):
+            pass
+
+        monkeypatch.setattr(service, "_initialize_session", _noop_initialize)
+
+        session = await service.create_session("vm-1", "task-1", "http://localhost:8080")
+        session.last_activity = datetime.now() - timedelta(seconds=120)
+
+        idle_sessions = await service.get_idle_sessions()
+
+        assert len(idle_sessions) == 1
+        assert idle_sessions[0].session_id == session.session_id
+
+    @pytest.mark.asyncio
+    async def test_get_idle_sessions_excludes_active(self, service, monkeypatch):
+        """Test get_idle_sessions excludes recently active sessions"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            60
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        async def _noop_initialize(session):
+            pass
+
+        monkeypatch.setattr(service, "_initialize_session", _noop_initialize)
+
+        session = await service.create_session("vm-1", "task-1", "http://localhost:8080")
+        session.last_activity = datetime.now()
+
+        idle_sessions = await service.get_idle_sessions()
+
+        assert len(idle_sessions) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_idle_sessions_disabled(self, service, monkeypatch):
+        """Test get_idle_sessions returns empty when timeout is disabled"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            0
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        async def _noop_initialize(session):
+            pass
+
+        monkeypatch.setattr(service, "_initialize_session", _noop_initialize)
+
+        session = await service.create_session("vm-1", "task-1", "http://localhost:8080")
+        session.last_activity = datetime.now() - timedelta(hours=24)
+
+        idle_sessions = await service.get_idle_sessions()
+
+        assert len(idle_sessions) == 0
+
+    @pytest.mark.asyncio
+    async def test_update_session_activity_success(self, service, monkeypatch):
+        """Test update_session_activity updates timestamp"""
+        async def _noop_initialize(session):
+            pass
+
+        monkeypatch.setattr(service, "_initialize_session", _noop_initialize)
+
+        session = await service.create_session("vm-1", "task-1", "http://localhost:8080")
+        old_activity = session.last_activity
+
+        await asyncio.sleep(0.01)
+        result = await service.update_session_activity(session.session_id)
+
+        assert result is True
+        assert session.last_activity > old_activity
+
+    @pytest.mark.asyncio
+    async def test_update_session_activity_not_found(self, service):
+        """Test update_session_activity returns False for unknown session"""
+        result = await service.update_session_activity("nonexistent-session")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_collect_session_metrics_success(
+        self, service, monkeypatch
+    ):
+        """Test collect_session_metrics collects and stores metrics"""
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_idle_timeout",
+            1800
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_cpu_limit_percent",
+            80
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_session_memory_limit_percent",
+            85
+        )
+        monkeypatch.setattr(
+            "common.config.settings.settings.vscode_max_sessions",
+            10
+        )
+
+        async def _noop_initialize(session):
+            pass
+
+        monkeypatch.setattr(service, "_initialize_session", _noop_initialize)
+
+        async def mock_shell(session, cmd, timeout_seconds=30):
+            if "top -bn1" in cmd:
+                return {"success": True, "stdout": "25.5", "stderr": ""}
+            if "free -m" in cmd:
+                return {"success": True, "stdout": "4096 8192 50.0", "stderr": ""}
+            return {"success": True, "stdout": "", "stderr": ""}
+
+        monkeypatch.setattr(service, "_execute_shell_command", mock_shell)
+
+        session = await service.create_session("vm-1", "task-1", "http://localhost:8080")
+        result = await service.collect_session_metrics(session.session_id)
+
+        assert result is not None
+        assert result["session_id"] == session.session_id
+        assert result["metrics"]["cpu_percent"] == 25.5
+        assert result["metrics"]["memory_percent"] == 50.0
+        assert "resource_metrics" in session.metadata
+        assert "resource_overload_status" in session.metadata
+
+    @pytest.mark.asyncio
+    async def test_collect_session_metrics_not_found(self, service):
+        """Test collect_session_metrics returns None for unknown session"""
+        result = await service.collect_session_metrics("nonexistent-session")
+
+        assert result is None
