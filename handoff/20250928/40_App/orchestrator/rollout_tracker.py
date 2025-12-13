@@ -341,7 +341,15 @@ class RolloutTracker:
         Args:
             trace_id: Unique trace identifier
             success: Whether the task succeeded
-            latency_ms: Task latency in milliseconds
+            latency_ms: Orchestrator worker execution duration in milliseconds.
+                This measures the time from when the worker starts processing the task
+                (after dequeuing from Redis) to when orchestration completes.
+                NOTE: This is NOT end-to-end user time, which would include:
+                - Queue wait time (time spent waiting in Redis queue)
+                - Upstream API latency (external service calls)
+                - Network round-trip time
+                See Issue #2286 for the refactoring that ensures this value is
+                calculated once and shared between _canary_metrics and _rollout_tracker.
             is_5xx_error: Whether this was a 5xx error
         """
         if not self.enabled:
@@ -391,7 +399,15 @@ class RolloutTracker:
         Args:
             trace_id: Unique trace identifier
             success: Whether the task succeeded
-            latency_ms: Task latency in milliseconds
+            latency_ms: Orchestrator worker execution duration in milliseconds.
+                This measures the time from when the worker starts processing the task
+                (after dequeuing from Redis) to when orchestration completes.
+                NOTE: This is NOT end-to-end user time, which would include:
+                - Queue wait time (time spent waiting in Redis queue)
+                - Upstream API latency (external service calls)
+                - Network round-trip time
+                See Issue #2286 for the refactoring that ensures this value is
+                calculated once and shared between _canary_metrics and _rollout_tracker.
             is_5xx_error: Whether this was a 5xx error
         """
         if not self.enabled:

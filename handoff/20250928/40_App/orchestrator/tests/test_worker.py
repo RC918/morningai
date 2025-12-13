@@ -571,3 +571,159 @@ class TestWorkerConfiguration:
     def test_shutdown_event_initialized(self):
         """Test shutdown_event is a threading.Event"""
         assert isinstance(shutdown_event, threading.Event)
+
+
+class TestMetricsLatencyConsistency:
+    """Test that elapsed_ms is calculated once and shared between metrics (Issue #2286)
+    
+    This test class verifies that the refactored elapsed_ms calculation provides
+    the same latency value to both _canary_metrics and _rollout_tracker, ensuring
+    consistent metrics reporting across different tracking systems.
+    """
+    
+    @patch('redis_queue.worker.redis')
+    @patch('redis_queue.worker._rollout_tracker')
+    @patch('redis_queue.worker._canary_metrics')
+    @patch('langgraph_orchestrator.run_orchestrator')
+    @patch('redis_queue.worker.time.monotonic_ns')
+    @patch('redis_queue.worker.settings')
+    def test_elapsed_ms_same_for_canary_and_rollout_tracker(
+        self, mock_settings, mock_monotonic_ns, mock_run_orch, 
+        mock_canary_metrics, mock_rollout_tracker, mock_redis
+    ):
+        """Test that _canary_metrics and _rollout_tracker receive the same elapsed_ms value
+        
+        This test verifies Issue #2286: elapsed_ms should be calculated once and
+        shared between both metrics systems, not calculated separately.
+        """
+        # Setup: Use deterministic time values
+        # start_time_ns will be 1_000_000_000 (1 second in ns)
+        # end_time_ns will be 1_500_000_000 (1.5 seconds in ns)
+        # Expected elapsed_ms = (1_500_000_000 - 1_000_000_000) / 1_000_000 = 500.0 ms
+        start_ns = 1_000_000_000
+        end_ns = 1_500_000_000
+        expected_elapsed_ms = 500.0
+        
+        # monotonic_ns is called twice: once for start_time_ns, once for elapsed_ms calculation
+        mock_monotonic_ns.side_effect = [start_ns, end_ns]
+        
+        # Enable LangGraph mode to trigger both metrics blocks
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 100
+        mock_settings.canary_alerting_enabled = False
+        
+        # Setup mock orchestrator response
+        mock_run_orch.return_value = {
+            "pr_url": "https://github.com/pr/test",
+            "ci_state": "success",
+            "trace_id": "trace-test"
+        }
+        
+        # Setup mock metrics objects
+        mock_canary_metrics.observe_latency_ms = Mock()
+        mock_canary_metrics.incr_counter = Mock()
+        mock_canary_metrics.get_canary_summary = Mock()
+        mock_rollout_tracker.record_langgraph_task = Mock()
+        mock_rollout_tracker.check_circuit_breaker = Mock(return_value=True)
+        
+        # Execute
+        task_id = "test-metrics-consistency"
+        run_orchestrator_task(task_id, "Test", "owner/repo", task_type="general")
+        
+        # Verify _canary_metrics received the correct elapsed_ms
+        mock_canary_metrics.observe_latency_ms.assert_called_once()
+        canary_latency = mock_canary_metrics.observe_latency_ms.call_args[0][0]
+        
+        # Verify _rollout_tracker received the correct elapsed_ms
+        mock_rollout_tracker.record_langgraph_task.assert_called_once()
+        rollout_latency = mock_rollout_tracker.record_langgraph_task.call_args[1]['latency_ms']
+        
+        # Assert both received the same value
+        assert canary_latency == rollout_latency, \
+            f"Latency mismatch: canary={canary_latency}, rollout={rollout_latency}"
+        
+        # Assert the value is correct
+        assert canary_latency == expected_elapsed_ms, \
+            f"Expected {expected_elapsed_ms}ms, got {canary_latency}ms"
+    
+    @patch('redis_queue.worker.redis')
+    @patch('redis_queue.worker._rollout_tracker')
+    @patch('redis_queue.worker._canary_metrics', None)
+    @patch('graph.execute')
+    @patch('redis_queue.worker.time.monotonic_ns')
+    @patch('redis_queue.worker.settings')
+    def test_rollout_tracker_receives_elapsed_ms_in_simple_mode(
+        self, mock_settings, mock_monotonic_ns, mock_execute,
+        mock_rollout_tracker, mock_redis
+    ):
+        """Test _rollout_tracker receives elapsed_ms when using simple mode (non-LangGraph)
+        
+        This covers the branch where use_langgraph is False but _rollout_tracker is enabled.
+        """
+        start_ns = 2_000_000_000
+        end_ns = 2_250_000_000
+        expected_elapsed_ms = 250.0
+        
+        mock_monotonic_ns.side_effect = [start_ns, end_ns]
+        
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 0
+        
+        mock_execute.return_value = ("https://github.com/pr/simple", "success", "trace-simple")
+        
+        mock_rollout_tracker.record_simple_task = Mock()
+        mock_rollout_tracker.check_circuit_breaker = Mock(return_value=True)
+        
+        task_id = "test-simple-mode-latency"
+        run_orchestrator_task(task_id, "Test", "owner/repo", task_type="faq")
+        
+        mock_rollout_tracker.record_simple_task.assert_called_once()
+        rollout_latency = mock_rollout_tracker.record_simple_task.call_args[1]['latency_ms']
+        
+        assert rollout_latency == expected_elapsed_ms, \
+            f"Expected {expected_elapsed_ms}ms, got {rollout_latency}ms"
+    
+    @patch('redis_queue.worker.redis')
+    @patch('redis_queue.worker._rollout_tracker')
+    @patch('redis_queue.worker._canary_metrics')
+    @patch('langgraph_orchestrator.run_orchestrator')
+    @patch('redis_queue.worker.time.monotonic_ns')
+    @patch('redis_queue.worker.settings')
+    def test_metrics_continue_when_canary_metrics_fails(
+        self, mock_settings, mock_monotonic_ns, mock_run_orch,
+        mock_canary_metrics, mock_rollout_tracker, mock_redis
+    ):
+        """Test _rollout_tracker still records when _canary_metrics raises exception
+        
+        This covers the exception handling branch in the _canary_metrics block.
+        """
+        start_ns = 3_000_000_000
+        end_ns = 3_100_000_000
+        expected_elapsed_ms = 100.0
+        
+        mock_monotonic_ns.side_effect = [start_ns, end_ns]
+        
+        mock_settings.use_langgraph = False
+        mock_settings.use_langgraph_percent = 100
+        mock_settings.canary_alerting_enabled = False
+        
+        mock_run_orch.return_value = {
+            "pr_url": "https://github.com/pr/test",
+            "ci_state": "success",
+            "trace_id": "trace-test"
+        }
+        
+        # Make canary_metrics raise an exception
+        mock_canary_metrics.observe_latency_ms = Mock(side_effect=Exception("Canary metrics error"))
+        mock_rollout_tracker.record_langgraph_task = Mock()
+        mock_rollout_tracker.check_circuit_breaker = Mock(return_value=True)
+        
+        task_id = "test-canary-failure"
+        run_orchestrator_task(task_id, "Test", "owner/repo", task_type="general")
+        
+        # Verify _rollout_tracker was still called despite canary failure
+        mock_rollout_tracker.record_langgraph_task.assert_called_once()
+        rollout_latency = mock_rollout_tracker.record_langgraph_task.call_args[1]['latency_ms']
+        
+        assert rollout_latency == expected_elapsed_ms, \
+            f"Expected {expected_elapsed_ms}ms, got {rollout_latency}ms"
