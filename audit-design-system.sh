@@ -444,12 +444,13 @@ log_info "Summary written to $SUMMARY_FILE"
 REGRESSION_DETECTED=false
 
 if [ -f "$BASELINE_FILE" ]; then
-  BASELINE_HEX=$(grep -o '"hex_colors":[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")
+  # Note: JSON format has space after colon, e.g. "hex_colors": 494
+  BASELINE_HEX=$(grep -o '"hex_colors": *[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")
   
-  if [ "$HEX_COLORS" -gt "$BASELINE_HEX" ] && [ "$BASELINE_HEX" -gt 0 ]; then
+  if [ -n "$BASELINE_HEX" ] && [ "$HEX_COLORS" -gt "$BASELINE_HEX" ] && [ "$BASELINE_HEX" -gt 0 ]; then
     echo -e "${RED}❌ REGRESSION DETECTED: Hard-coded hex colors increased from $BASELINE_HEX to $HEX_COLORS${NC}"
     REGRESSION_DETECTED=true
-  elif [ "$HEX_COLORS" -lt "$BASELINE_HEX" ]; then
+  elif [ -n "$BASELINE_HEX" ] && [ "$HEX_COLORS" -lt "$BASELINE_HEX" ]; then
     echo -e "${GREEN}✓ IMPROVEMENT: Hard-coded hex colors decreased from $BASELINE_HEX to $HEX_COLORS${NC}"
   fi
 fi
