@@ -70,7 +70,6 @@ function meetsContrastLevel(
 describe('Color Contrast Accessibility', () => {
   describe('WCAG AAA Text Contrast (7:1)', () => {
     const whiteBackground = '#FFFFFF'
-    const darkBackground = '#000000'
     
     it('should have AAA compliant primary text color', () => {
       const primaryText = tokens.accessibility['wcag-aaa'].colors['primary-text']
@@ -141,7 +140,6 @@ describe('Color Contrast Accessibility', () => {
 
   describe('Primary Color Palette Contrast', () => {
     const whiteBackground = '#FFFFFF'
-    const darkBackground = '#1E1B4B' // primary-900
     
     it('should have AA compliant primary-500 on white', () => {
       const primary500 = tokens.color.primary['500']

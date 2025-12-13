@@ -113,10 +113,10 @@ describe('ARIA Attributes Accessibility', () => {
   })
 
   describe('Badge Component ARIA', () => {
-    it('should render with appropriate semantics', () => {
-      render(<Badge>New</Badge>)
-      const badge = screen.getByText('New')
-      expect(badge).toBeInTheDocument()
+    it('should have status role when conveying information', () => {
+      render(<Badge role="status">New</Badge>)
+      const badge = screen.getByRole('status')
+      expect(badge).toHaveTextContent('New')
     })
 
     it('should support aria-label for status badges', () => {
@@ -127,7 +127,7 @@ describe('ARIA Attributes Accessibility', () => {
   })
 
   describe('Card Component ARIA', () => {
-    it('should have appropriate structure', () => {
+    it('should have appropriate structure with accessible content', () => {
       render(
         <Card>
           <CardHeader>
@@ -138,7 +138,9 @@ describe('ARIA Attributes Accessibility', () => {
         </Card>
       )
       
-      expect(screen.getByText('Card Title')).toBeInTheDocument()
+      const title = screen.getByText('Card Title')
+      expect(title).toBeInTheDocument()
+      expect(title).toHaveAttribute('data-slot', 'card-title')
       expect(screen.getByText('Card description')).toBeInTheDocument()
       expect(screen.getByText('Card content')).toBeInTheDocument()
     })
