@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify, request, Response
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
+
+from flask import Blueprint, jsonify, request, Response
 
 DEFAULT_WINDOW_MINUTES = 15
 MIN_WINDOW_MINUTES = 1
@@ -117,8 +119,6 @@ def _collect_review_follow_up_metrics(window_minutes: int = 15) -> Dict[str, Any
         return {"available": False, "error": "Redis unavailable"}
 
     try:
-        import json
-
         total_tasks = 0
         status_counts: Dict[str, int] = {}
         action_counts: Dict[str, int] = {}
