@@ -255,7 +255,8 @@ class CommentTriageAgent:
 
     # Issue: #2250 - Extensionless files that should be recognized in file path patterns
     # These are common configuration and build files without extensions
-    EXTENSIONLESS_FILES = [
+    # Using tuple for immutability
+    EXTENSIONLESS_FILES = (
         "Dockerfile",
         "Makefile",
         "Jenkinsfile",
@@ -272,10 +273,16 @@ class CommentTriageAgent:
         "Earthfile",
         "Justfile",
         "Taskfile",
-    ]
+    )
 
     def __init__(self):
         """Initialize the Comment Triage Agent"""
+        # Pre-compile extensionless file regex pattern for better performance
+        extensionless_pattern = r'(?:^|[\s`"\'/])(' + '|'.join(
+            rf'(?:[a-zA-Z0-9_\-./]*/?)?{re.escape(f)}'
+            for f in self.EXTENSIONLESS_FILES
+        ) + r')(?:[\s`"\'/]|$)'
+        self._extensionless_regex = re.compile(extensionless_pattern)
         logger.info("[CommentTriageAgent] Initialized")
 
     def triage(self, event: WebhookEvent) -> Optional[CommentTriageResult]:
@@ -477,12 +484,8 @@ class CommentTriageAgent:
             files.extend(matches)
 
         # Issue: #2250 - Extract extensionless files (Dockerfile, Makefile, etc.)
-        # Build regex pattern for extensionless files
-        extensionless_pattern = r'(?:^|[\s`"\'/])(' + '|'.join(
-            rf'(?:[a-zA-Z0-9_\-./]*/?)?{re.escape(f)}'
-            for f in self.EXTENSIONLESS_FILES
-        ) + r')(?:[\s`"\'/]|$)'
-        extensionless_matches = re.findall(extensionless_pattern, comment_text)
+        # Use pre-compiled regex pattern for better performance
+        extensionless_matches = self._extensionless_regex.findall(comment_text)
         files.extend(extensionless_matches)
 
         # Deduplicate while preserving order (using dict.fromkeys for efficiency)
