@@ -224,13 +224,10 @@
 
 /* Removed duplicate @theme block that was overriding the correct --space-* tokens defined above */
 
-/* WCAG 2.1 AA Focus Management */
-/* Enhanced focus indicators for keyboard navigation */
-*:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
+/* WCAG 2.1 AAA Focus Management */
+/* NOTE: Global *:focus-visible is defined in accessibility.css with 3px outline (AAA level) */
+/* Do NOT add duplicate *:focus-visible rules here - they would override the AAA-compliant styles */
+/* See: accessibility.css lines 79-83 for the canonical focus-visible definition */
 
 /* Skip to content link - only visible on focus */
 .sr-only:not(:focus):not(:active) {
@@ -245,24 +242,17 @@
   border-width: 0;
 }
 
-/* High contrast focus for buttons */
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
+/* High contrast focus for buttons - handled by accessibility.css */
+/* NOTE: button:focus-visible and a:focus-visible are defined in accessibility.css */
+/* with 3px outline (AAA level) - see lines 95-106 */
 
 /* Focus within for containers */
 *:focus-within {
   /* Container has focused element */
 }
 
-/* Keyboard navigation hint */
-@media (prefers-reduced-motion: no-preference) {
-  *:focus-visible {
-    transition: outline-offset 0.2s ease;
-  }
-}
+/* Keyboard navigation hint - transition handled by accessibility.css */
+/* NOTE: Removed duplicate *:focus-visible transition to avoid overriding AAA styles */
 
 /* Dark mode overrides */
 .dark {
