@@ -10,7 +10,7 @@
  * @module keyboard-navigation.a11y.test
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
@@ -205,8 +205,7 @@ describe('Focus Management', () => {
       expect(document.activeElement).toBe(button)
       
       rerender(<Button>Click me</Button>)
-      // Note: Focus may or may not be maintained depending on implementation
-      // This test documents the expected behavior
+      expect(document.activeElement).toBe(button)
     })
   })
 
