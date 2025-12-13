@@ -157,6 +157,36 @@
   /* These tokens are now defined in @morningai/shared-ui/tokens.css */
   /* See packages/shared-ui/scripts/compile-tokens.js for source */
 
+  /* ===== Material System Tokens (Issue #2393 Phase 3) ===== */
+  /* Base colors for iOS-style material effects */
+  --color-material-light: 255, 255, 255;  /* RGB values for white */
+  --color-material-dark: 0, 0, 0;         /* RGB values for black */
+  /* Material opacity levels */
+  --material-opacity-ultra-thin: 0.5;
+  --material-opacity-thin: 0.6;
+  --material-opacity-regular: 0.7;
+  --material-opacity-thick: 0.8;
+  --material-opacity-chrome: 0.9;
+  --material-opacity-fallback: 0.95;
+  /* Shadow opacity levels */
+  --shadow-opacity-1: 0.04;
+  --shadow-opacity-2: 0.06;
+  --shadow-opacity-3: 0.08;
+  --shadow-opacity-4: 0.10;
+  --shadow-opacity-5: 0.12;
+  /* Border opacity levels */
+  --border-opacity-light: 0.18;
+  --border-opacity-dark: 0.08;
+  --border-opacity-popover-dark: 0.12;
+  /* Overlay opacity */
+  --overlay-opacity: 0.4;
+  /* Glass/Frost effect opacity levels */
+  --glass-bg-opacity: 0.1;
+  --glass-border-opacity: 0.2;
+  --frost-bg-opacity: 0.05;
+  /* Loading shimmer opacity */
+  --shimmer-opacity: 0.2;
+
   /* Base tokens for shared-ui components(Switch, Button, Input, etc.) */
   /* These are required for Tailwind v4 to generate bg-primary, bg-input, bg-background utilities */
   /* Format: Complete CSS color values (hsl() or hex) - NOT raw HSL components */
