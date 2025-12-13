@@ -1423,10 +1423,15 @@ input, select, textarea {
 
 ## 設計系統健康狀態 (Design System Health)
 
-### Epic #2304 Phase 0-1 實施狀態
+### 基於 Epic #2304 的設計系統健康里程碑
+
+> **注意**: 本節描述的是「設計系統健康度 roadmap」，不等同於 [GitHub issue #2304](https://github.com/RC918/morningai/issues/2304) 上的 Phase 0-2 backlog 分解。實際 Epic 結構以 GitHub issue 為準：
+> - **Phase 0**: 引擎強化（基礎層）- #2291, #2292
+> - **Phase 1**: 卡片 Archetype 組件 - #2293, #2294, #2295, #2296
+> - **Phase 2**: 應用層收斂 - #2297, #2298, #2299
 
 **實施日期**: 2025-12-13  
-**狀態**: 已完成
+**狀態**: Phase 0 已完成，Phase 1 進行中
 
 #### 自動化審計系統
 
@@ -1469,7 +1474,9 @@ input, select, textarea {
 ./audit-design-system.sh --strict
 ```
 
-### 後續改進項目 (Phase 2-3)
+### 後續改進項目（設計系統健康度 roadmap）
+
+> **注意**: 以下項目為設計系統健康度改進目標，與 Epic #2304 的 Phase 結構無關。
 
 1. **減少硬編碼顏色**: 目標從 494 處降至 50 處以下
 2. **增加可訪問性測試**: 目標 3+ 個專用測試文件

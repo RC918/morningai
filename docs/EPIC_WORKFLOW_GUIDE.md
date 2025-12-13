@@ -149,10 +149,15 @@ gh project item-list <project-number> --owner <owner>
 ## Example Epic
 
 See [#2304 - UI/UX 系統化標準化計畫](https://github.com/RC918/morningai/issues/2304) for a complete example of an Epic with:
-- 4 phases (Phase 0-3)
-- 12 child issues
+- 3 phases (Phase 0-2)
+- 9 child issues
 - Clear acceptance criteria per phase
 - Dependencies documented
+
+> **Note**: Not all Epics need to follow the 4-phase template exactly. Epic #2304 uses 3 phases tailored to its specific scope:
+> - **Phase 0**: Engine Enhancement (Foundation Layer)
+> - **Phase 1**: Card Archetype Components
+> - **Phase 2**: Application Layer Convergence
 
 ## Future Enhancements
 
