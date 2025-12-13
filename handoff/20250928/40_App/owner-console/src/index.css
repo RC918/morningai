@@ -135,9 +135,13 @@
   --color-cyan-800: #008290;
   --color-cyan-900: #00616E;
 
-  /* Focus colors - for accessibility focus indicators */
-  --color-focus: #0051D0;
-  --color-focus-light: #0284c7;
+  /* ===== Focus Colors ===== */
+  /* Used for keyboard navigation focus indicators (Tab key navigation) */
+  /* --color-focus: Primary focus outline color for interactive elements */
+  /* --color-focus-light: Secondary focus color for lighter backgrounds */
+  /* WCAG 2.1 Level AA requires 3:1 contrast ratio for focus indicators */
+  --color-focus: #0051D0;        /* Primary blue - 7.12:1 contrast on white */
+  --color-focus-light: #0284c7;  /* Sky blue - used in accessibility.css */
 
   /* Base tokens for shared-ui components (Switch, Button, Input, etc.) */
   /* These are required for Tailwind v4 to generate bg-primary, bg-input, bg-background utilities */
