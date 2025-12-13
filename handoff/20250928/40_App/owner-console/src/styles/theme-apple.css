@@ -223,9 +223,3 @@
   box-shadow: var(--surface-light-shadow, 0 4px 8px 0 rgb(0 0 0 / 0.08));
   border-radius: 12px;
 }
-
-.dark .apple-surface-light {
-  background-color: var(--surface-light-bg, rgba(255, 255, 255, 0.96));
-  color: var(--surface-light-text, #111827);
-  border: 1px solid var(--surface-light-border, rgba(255, 255, 255, 0.18));
-}
