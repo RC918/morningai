@@ -213,7 +213,11 @@ test-orchestrator:
           --cov=. --cov-report=xml --cov-report=json \
           --cov-report=term-missing --cov-fail-under=50
       env:
-        PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:...
+        PYTHONPATH: >-
+          ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:
+          ${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:
+          ${{ github.workspace }}/handoff/20250928/40_App/api-backend:
+          ${{ github.workspace }}
         REDIS_URL: redis://localhost:6379/0
         TESTING: true
 ```
