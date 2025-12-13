@@ -732,14 +732,15 @@ Dashboard 卡片組件的 icon 規格分為兩種 archetype，定義於 `tokens.
 **用途**: 數據指標展示卡片，強調數值視覺化
 
 **規格**:
-- Icon 大小: `40px` (CSS: `var(--card-icon-kpi-size)`)
-- 容器大小: `40px` (CSS: `var(--card-icon-kpi-containerSize)`)
+- Icon 大小: `16px` (CSS: `var(--card-icon-kpi-size)`)
+- 容器大小: `32px` (CSS: `var(--card-icon-kpi-containerSize)`)
 - 形狀: `circle` (圓形)
 
 **使用場景**:
 - 總覽頁面的 KPI 指標
 - 數據儀表板的統計數字
 - 需要強調數值的卡片
+- 故障實驗頁面的統計卡片
 
 **範例**:
 ```jsx
