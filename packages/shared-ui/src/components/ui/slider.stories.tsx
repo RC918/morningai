@@ -1,3 +1,4 @@
+import * as React from 'react'
 import type { Meta, StoryObj } from '@storybook/react'
 import { Slider } from './slider'
 import { Label } from './label'
@@ -43,27 +44,33 @@ export const Default: Story = {
 }
 
 export const WithLabel: Story = {
-  render: () => (
-    <div className="grid gap-4 w-[300px]">
-      <div className="flex items-center justify-between">
-        <Label htmlFor="volume">Volume</Label>
-        <span className="text-sm text-muted-foreground">50%</span>
+  render: () => {
+    const [value, setValue] = React.useState([50])
+    return (
+      <div className="grid gap-4 w-[300px]">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="volume">Volume</Label>
+          <span className="text-sm text-muted-foreground">{value[0]}%</span>
+        </div>
+        <Slider id="volume" value={value} onValueChange={setValue} max={100} step={1} thumbLabel="Volume" />
       </div>
-      <Slider id="volume" defaultValue={[50]} max={100} step={1} />
-    </div>
-  ),
+    )
+  },
 }
 
 export const Range: Story = {
-  render: () => (
-    <div className="grid gap-4 w-[300px]">
-      <div className="flex items-center justify-between">
-        <Label>Price Range</Label>
-        <span className="text-sm text-muted-foreground">$25 - $75</span>
+  render: () => {
+    const [value, setValue] = React.useState([25, 75])
+    return (
+      <div className="grid gap-4 w-[300px]">
+        <div className="flex items-center justify-between">
+          <Label>Price Range</Label>
+          <span className="text-sm text-muted-foreground">${value[0]} - ${value[1]}</span>
+        </div>
+        <Slider value={value} onValueChange={setValue} max={100} step={1} thumbLabel={['Minimum price', 'Maximum price']} />
       </div>
-      <Slider defaultValue={[25, 75]} max={100} step={1} aria-label="Price range slider" />
-    </div>
-  ),
+    )
+  },
 }
 
 export const Disabled: Story = {

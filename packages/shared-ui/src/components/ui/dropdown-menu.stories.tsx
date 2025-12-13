@@ -1,3 +1,4 @@
+import * as React from 'react'
 import type { Meta, StoryObj } from '@storybook/react'
 import {
   Cloud,
@@ -165,6 +166,10 @@ export const WithSubMenu: Story = {
 
 export const WithCheckboxItems: Story = {
   render: function CheckboxExample() {
+    const [showStatusBar, setShowStatusBar] = React.useState(true)
+    const [showActivityBar, setShowActivityBar] = React.useState(true)
+    const [showPanel, setShowPanel] = React.useState(false)
+
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -173,13 +178,22 @@ export const WithCheckboxItems: Story = {
         <DropdownMenuContent className="w-56">
           <DropdownMenuLabel>Appearance</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuCheckboxItem checked>
+          <DropdownMenuCheckboxItem
+            checked={showStatusBar}
+            onCheckedChange={setShowStatusBar}
+          >
             Status Bar
           </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem checked>
+          <DropdownMenuCheckboxItem
+            checked={showActivityBar}
+            onCheckedChange={setShowActivityBar}
+          >
             Activity Bar
           </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={showPanel}
+            onCheckedChange={setShowPanel}
+          >
             Panel
           </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
@@ -190,6 +204,8 @@ export const WithCheckboxItems: Story = {
 
 export const WithRadioItems: Story = {
   render: function RadioExample() {
+    const [position, setPosition] = React.useState('bottom')
+
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -198,7 +214,7 @@ export const WithRadioItems: Story = {
         <DropdownMenuContent className="w-56">
           <DropdownMenuLabel>Panel Position</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup value="bottom">
+          <DropdownMenuRadioGroup value={position} onValueChange={setPosition}>
             <DropdownMenuRadioItem value="top">Top</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="bottom">Bottom</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="right">Right</DropdownMenuRadioItem>

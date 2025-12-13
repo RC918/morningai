@@ -205,7 +205,7 @@ export const ColorPicker: Story = {
             {['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'gray', 'black', 'white'].map((color) => (
               <button
                 key={color}
-                className={`size-8 rounded-md border ${color === 'white' ? 'bg-white' : color === 'black' ? 'bg-black' : `bg-${color}-500`}`}
+                className="size-8 rounded-md border"
                 style={{ backgroundColor: color }}
               />
             ))}
