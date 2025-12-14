@@ -13,6 +13,9 @@
 - [測試覆蓋率](#測試覆蓋率)
 - [CI/CD 整合](#cicd-整合)
 - [常見問題](#常見問題)
+- [Route-Map Regression Guard](#route-map-regression-guard)
+- [Settings Reload Fixture](#settings-reload-fixture)
+- [Parallel Test Isolation](#parallel-test-isolation)
 
 ## 測試策略概覽
 
@@ -1049,6 +1052,189 @@ def test_with_env_var(monkeypatch):
     assert result == expected
 ```
 
+## Route-Map Regression Guard
+
+Route-map regression guard 是 Phase 0 穩定性護欄的一部分，用於防止重構時意外改變 URL 路由。
+
+### 運作原理
+
+測試會比對當前 Flask app 的路由與 baseline JSON 檔案（`tests/baselines/route_map_baseline.json`），確保路由沒有意外變更。
+
+### Temp File 解析方案
+
+由於 Flask app 初始化時會輸出 log messages 和 warnings（如 Redis TLS 警告），直接從 stdout/stderr 解析 JSON 會失敗。因此採用 **temp file 方案**：
+
+```python
+# 1. 建立 temp file
+with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    temp_path = f.name
+
+# 2. Subprocess 寫入 temp file（透過 env var 傳遞路徑，避免 Windows 相容性問題）
+env['ROUTE_MAP_OUTPUT_FILE'] = temp_path
+script = '''
+import os, json
+output_path = os.environ['ROUTE_MAP_OUTPUT_FILE']
+routes = [...]  # 生成路由
+with open(output_path, "w") as f:
+    json.dump(routes, f)
+'''
+
+# 3. 父進程讀取 temp file
+with open(temp_path, 'r') as f:
+    routes = json.load(f)
+
+# 4. 清理 temp file（捕捉 OSError 避免 race condition）
+try:
+    os.unlink(temp_path)
+except OSError:
+    pass
+```
+
+**優點**：
+- 完全免疫 stdout/stderr 污染
+- 不需要 regex 解析
+- Debug 更容易（可直接查看 temp file）
+- Windows 相容（使用 env var 傳遞路徑）
+
+### 更新 Baseline 流程
+
+當路由有意變更時，需要更新 baseline：
+
+```bash
+# 從 repo root 執行
+export PYTHONPATH="$PWD:$PWD/handoff/20250928/40_App/api-backend/src:$PWD/handoff/20250928/40_App/orchestrator"
+cd handoff/20250928/40_App/api-backend
+python -c "
+import os, sys, json
+os.environ['TESTING'] = 'true'
+os.environ['ENVIRONMENT'] = 'development'
+os.environ['ENABLE_MOCK_USERS'] = 'true'
+os.environ['ENABLE_ORCHESTRATOR'] = 'false'
+from src.main import app
+routes = sorted([(r.rule, sorted(list(r.methods - {'HEAD', 'OPTIONS'}))) for r in app.url_map.iter_rules() if r.rule != '/static/<path:filename>'])
+with open('tests/baselines/route_map_baseline.json', 'w') as f:
+    json.dump(routes, f, indent=2)
+"
+```
+
+**注意**：Baseline 是高摩擦護欄，更新前請確認變更是有意的。
+
+### 執行測試
+
+```bash
+cd handoff/20250928/40_App/api-backend
+pytest tests/test_route_map.py -v
+```
+
+---
+
+## Settings Reload Fixture
+
+Settings reload fixture 是 Phase 0 穩定性護欄的一部分，用於防止跨測試污染。
+
+### 為何需要清除 Cache
+
+Settings 模組使用全域變數 `_settings_instance` 快取設定實例，以避免重複讀取環境變數。但這會導致問題：
+
+1. **測試 A** 修改環境變數（如 `JWT_SECRET_KEY`）
+2. Settings 模組重新載入並快取新設定
+3. **測試 B** 執行時，仍使用測試 A 的設定
+4. 測試 B 可能因為錯誤的設定而失敗或產生誤判
+
+### 解決方案
+
+在每個測試後清除 settings cache：
+
+```python
+# tests/conftest.py
+@pytest.fixture(autouse=True)
+def reset_settings_after_test():
+    """Reset settings cache after each test to prevent cross-test pollution."""
+    yield
+    # 清除 cache（不重新驗證，避免測試設定的無效 env values 導致 ValidationError）
+    try:
+        import common.config.settings as settings_module
+        settings_module._settings_instance = None
+    except (ImportError, AttributeError):
+        pass
+```
+
+**為何不使用 `reload_settings()`**：
+- `reload_settings()` 會建立新的 Settings 實例並驗證
+- 測試可能設定無效的 env values（如 `ENVIRONMENT='test'`）
+- 這些無效值會導致 ValidationError
+- 直接設定 `_settings_instance = None` 只清除 cache，不觸發驗證
+
+### 適用情境
+
+- 測試修改環境變數（使用 `monkeypatch.setenv`）
+- 測試不同的設定組合
+- 確保測試隔離性
+
+---
+
+## Parallel Test Isolation
+
+當使用 CI matrix 或多執行緒執行測試時，需要確保測試之間不會互相干擾。
+
+### Subprocess 隔離
+
+Route-map 測試使用 subprocess 生成路由，確保 env vars 在隔離環境中生效：
+
+```python
+# 每個 subprocess 有獨立的 Python 進程和環境變數
+result = subprocess.run(
+    [sys.executable, '-c', script],
+    env=env,  # 獨立的環境變數
+    capture_output=True
+)
+```
+
+### Temp File 隔離
+
+每個測試使用獨立的 temp file，避免多個測試同時執行時發生衝突：
+
+```python
+# 使用 NamedTemporaryFile 自動生成唯一檔名
+with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    temp_path = f.name  # 唯一的檔案路徑
+```
+
+### 多 Instance Integration Test
+
+`TestRouteMapSubprocessRobustness::test_parallel_subprocess_isolation` 測試驗證多個平行 subprocess 不會互相干擾：
+
+```python
+def test_parallel_subprocess_isolation(self):
+    """Test that multiple parallel subprocess calls don't interfere."""
+    import concurrent.futures
+    
+    def run_subprocess(index):
+        # 每個 subprocess 使用獨立的 temp file
+        with tempfile.NamedTemporaryFile(...) as f:
+            temp_path = f.name
+        # ... 執行 subprocess 並返回結果
+    
+    # 同時執行 3 個 subprocess
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(run_subprocess, i) for i in range(3)]
+        results = [f.result() for f in futures]
+    
+    # 驗證每個 subprocess 返回正確的結果
+    for i, (routes, error) in enumerate(results):
+        assert routes == [[f"/route-{i}", ["GET"]]]
+```
+
+### CI Matrix 建議
+
+若 CI 使用 matrix 策略執行多個 route-map jobs，建議：
+
+1. 確保每個 job 使用獨立的 temp 目錄
+2. 避免共享全域狀態
+3. 使用 `pytest-xdist` 時，確保 fixtures 正確處理並行執行
+
+---
+
 ## 相關資源
 
 ### 內部文檔
@@ -1072,5 +1258,5 @@ def test_with_env_var(monkeypatch):
 
 ---
 
-**最後更新**: 2025-10-23  
+**最後更新**: 2025-12-14  
 **維護者**: MorningAI Engineering Team
