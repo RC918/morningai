@@ -438,6 +438,45 @@ CREATE POLICY owner_access ON strategies
 - **Task Queue**: Redis Queue (RQ)
 - **Deployment**: Render
 
+### Blueprint Registration Architecture
+
+The Flask backend uses a centralized blueprint registration system located in `src/routes/__init__.py`.
+
+**Key Function**: `register_blueprints(app, backend_services_available=False)`
+
+**Registration Flow**:
+```
+main.py
+  └── register_blueprints(app, BACKEND_SERVICES_AVAILABLE)
+        ├── Core Blueprints (always registered)
+        │   └── user, auth, auth_enhanced, auth_2fa, dashboard, totp, billing
+        │   └── agent_registry, tenant, vectors, governance, admin, failures, experiments, ai_policies
+        ├── Conditional: Orchestrator Blueprints (ENABLE_ORCHESTRATOR=true)
+        │   └── agent, agent_evaluation, faq
+        ├── Optional Blueprints (try/except for graceful degradation)
+        │   └── action_requests, sessions, webhooks, deepwiki, metrics
+        └── Conditional: Mock API (backend_services_available=True)
+            └── mock_api
+```
+
+**Configuration Flags**:
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `ENABLE_ORCHESTRATOR` | `true` | Enables agent/orchestrator routes |
+| `backend_services_available` | Computed | Enables mock_api blueprint |
+
+**Design Principles**:
+1. **Lazy Imports**: All blueprint imports are inside `register_blueprints()` to avoid circular dependencies
+2. **Order Preservation**: Registration order matches original main.py for consistency
+3. **Graceful Degradation**: Optional blueprints use try/except to handle missing dependencies
+4. **Move-Only Refactoring**: No behavior changes from original main.py implementation
+
+**Testing**:
+- Route-map guard ensures 184 routes remain unchanged
+- Blueprint contract tests verify all expected blueprints are registered
+- Import contract tests ensure backward compatibility
+
 ### AI/ML
 - **LLM**: OpenAI GPT-4 (primary), GPT-3.5 (fallback)
 - **Orchestration**: LangGraph + LangChain
