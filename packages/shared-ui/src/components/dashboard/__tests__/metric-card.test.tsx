@@ -102,23 +102,30 @@ describe("MetricCard", () => {
 
   describe("progress bar", () => {
     it("renders progress bar when progress is provided", () => {
-      render(<MetricCard title="CPU Usage" value={67} progress={67} />);
-      expect(screen.getByRole("progressbar")).toBeInTheDocument();
+      const { container } = render(<MetricCard title="CPU Usage" value={67} progress={67} />);
+      const progress = container.querySelector('[data-slot="progress"]');
+      expect(progress).not.toBeNull();
+      expect(progress!.closest('[aria-hidden="true"]')).not.toBeNull();
     });
 
     it("does not render progress bar when progress is not provided", () => {
-      render(<MetricCard title="Metric" value={50} />);
-      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+      const { container } = render(<MetricCard title="Metric" value={50} />);
+      const progress = container.querySelector('[data-slot="progress"]');
+      expect(progress).toBeNull();
     });
 
     it("renders progress bar with value 0", () => {
-      render(<MetricCard title="Empty" value={0} progress={0} />);
-      expect(screen.getByRole("progressbar")).toBeInTheDocument();
+      const { container } = render(<MetricCard title="Empty" value={0} progress={0} />);
+      const progress = container.querySelector('[data-slot="progress"]');
+      expect(progress).not.toBeNull();
+      expect(progress!.closest('[aria-hidden="true"]')).not.toBeNull();
     });
 
     it("renders progress bar with value 100", () => {
-      render(<MetricCard title="Full" value={100} progress={100} />);
-      expect(screen.getByRole("progressbar")).toBeInTheDocument();
+      const { container } = render(<MetricCard title="Full" value={100} progress={100} />);
+      const progress = container.querySelector('[data-slot="progress"]');
+      expect(progress).not.toBeNull();
+      expect(progress!.closest('[aria-hidden="true"]')).not.toBeNull();
     });
   });
 
@@ -254,7 +261,7 @@ describe("MetricCard", () => {
 
   describe("complete card rendering", () => {
     it("renders all elements together", () => {
-      render(
+      const { container } = render(
         <MetricCard
           title="CPU Usage"
           value={67.5}
@@ -273,7 +280,9 @@ describe("MetricCard", () => {
       expect(screen.getByTestId("cpu-icon")).toBeInTheDocument();
       expect(screen.getByLabelText("Trending up")).toBeInTheDocument();
       expect(screen.getByText("Current utilization")).toBeInTheDocument();
-      expect(screen.getByRole("progressbar")).toBeInTheDocument();
+      const progress = container.querySelector('[data-slot="progress"]');
+      expect(progress).not.toBeNull();
+      expect(progress!.closest('[aria-hidden="true"]')).not.toBeNull();
     });
   });
 
