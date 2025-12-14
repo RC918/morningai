@@ -373,3 +373,218 @@ class TestCORSDebugSanitization:
         log_text = caplog.text
         assert "[CORS DEBUG]" not in log_text, \
             "CORS DEBUG logs should NOT appear in production environment"
+
+
+class TestCORSPreflightAndExposeHeaders:
+    """Test CORS preflight (OPTIONS) handling and Access-Control-Expose-Headers.
+
+    These tests verify that:
+    1. OPTIONS preflight requests return 204 status code
+    2. Preflight responses include all required CORS headers
+    3. Access-Control-Expose-Headers includes rate limit headers
+    """
+
+    def test_options_preflight_returns_204(self, monkeypatch, caplog):
+        """Test that OPTIONS preflight requests return 204 No Content status.
+
+        Preflight requests should:
+        - Return 204 status code
+        - Include Access-Control-Allow-Origin
+        - Include Access-Control-Allow-Methods
+        - Include Access-Control-Allow-Headers
+        - Include Access-Control-Allow-Credentials
+        """
+        caplog.set_level(logging.DEBUG)
+
+        # Import main with staging env vars
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com"
+        )
+
+        app = main.app
+        client = app.test_client()
+
+        # Send OPTIONS preflight request
+        test_origin = "https://allowed-origin.com"
+        response = client.options(
+            "/health",
+            headers={
+                "Origin": test_origin,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "Content-Type, Authorization"
+            }
+        )
+
+        # Verify 204 status code
+        assert response.status_code == 204, \
+            f"OPTIONS preflight should return 204, got {response.status_code}"
+
+        # Verify CORS headers are present
+        assert response.headers.get("Access-Control-Allow-Origin") == test_origin, \
+            "Access-Control-Allow-Origin should match the request origin"
+        assert response.headers.get("Access-Control-Allow-Credentials") == "true", \
+            "Access-Control-Allow-Credentials should be 'true'"
+        assert "POST" in response.headers.get("Access-Control-Allow-Methods", ""), \
+            "Access-Control-Allow-Methods should include POST"
+        assert "Content-Type" in response.headers.get("Access-Control-Allow-Headers", ""), \
+            "Access-Control-Allow-Headers should include Content-Type"
+
+    def test_options_preflight_for_vercel_preview(self, monkeypatch, caplog):
+        """Test that OPTIONS preflight works for Vercel preview URLs in staging."""
+        caplog.set_level(logging.DEBUG)
+
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com"
+        )
+
+        app = main.app
+        client = app.test_client()
+
+        # Send OPTIONS preflight from Vercel preview URL
+        vercel_origin = "https://my-app-abc123.vercel.app"
+        response = client.options(
+            "/health",
+            headers={
+                "Origin": vercel_origin,
+                "Access-Control-Request-Method": "GET"
+            }
+        )
+
+        # Verify 204 status code for Vercel preview
+        assert response.status_code == 204, \
+            f"OPTIONS preflight for Vercel preview should return 204, got {response.status_code}"
+        assert response.headers.get("Access-Control-Allow-Origin") == vercel_origin, \
+            "Access-Control-Allow-Origin should match Vercel preview origin"
+
+    def test_options_preflight_blocked_for_disallowed_origin(self, monkeypatch, caplog):
+        """Test that OPTIONS preflight does not add CORS headers for disallowed origins."""
+        caplog.set_level(logging.DEBUG)
+
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com"
+        )
+
+        app = main.app
+        client = app.test_client()
+
+        # Send OPTIONS preflight from disallowed origin
+        disallowed_origin = "https://malicious-site.com"
+        response = client.options(
+            "/health",
+            headers={
+                "Origin": disallowed_origin,
+                "Access-Control-Request-Method": "POST"
+            }
+        )
+
+        # CORS headers should NOT be set for disallowed origins
+        assert response.headers.get("Access-Control-Allow-Origin") is None, \
+            "Access-Control-Allow-Origin should NOT be set for disallowed origins"
+
+    def test_expose_headers_includes_rate_limit_headers(self, monkeypatch, caplog):
+        """Test that Access-Control-Expose-Headers includes X-RateLimit-* headers.
+
+        The exposed headers should include:
+        - Content-Type
+        - Authorization
+        - X-RateLimit-Limit
+        - X-RateLimit-Remaining
+        - X-RateLimit-Reset
+        """
+        caplog.set_level(logging.DEBUG)
+
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com"
+        )
+
+        app = main.app
+        client = app.test_client()
+
+        # Make a regular GET request
+        test_origin = "https://allowed-origin.com"
+        response = client.get("/health", headers={"Origin": test_origin})
+
+        # Verify Access-Control-Expose-Headers is present
+        expose_headers = response.headers.get("Access-Control-Expose-Headers", "")
+        assert expose_headers, "Access-Control-Expose-Headers should be present"
+
+        # Verify all required headers are exposed
+        required_headers = [
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "X-RateLimit-Reset"
+        ]
+        for header in required_headers:
+            assert header in expose_headers, \
+                f"Access-Control-Expose-Headers should include {header}"
+
+    def test_expose_headers_not_set_for_disallowed_origin(self, monkeypatch, caplog):
+        """Test that Access-Control-Expose-Headers is NOT set for disallowed origins."""
+        caplog.set_level(logging.DEBUG)
+
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com"
+        )
+
+        app = main.app
+        client = app.test_client()
+
+        # Make request from disallowed origin
+        disallowed_origin = "https://malicious-site.com"
+        response = client.get("/health", headers={"Origin": disallowed_origin})
+
+        # Verify Access-Control-Expose-Headers is NOT present
+        assert response.headers.get("Access-Control-Expose-Headers") is None, \
+            "Access-Control-Expose-Headers should NOT be set for disallowed origins"
+
+    def test_cors_headers_complete_for_allowed_origin(self, monkeypatch, caplog):
+        """Test that all CORS headers are correctly set for allowed origins.
+
+        This is a comprehensive test to verify the single authority source
+        provides all necessary CORS headers.
+        """
+        caplog.set_level(logging.DEBUG)
+
+        main = _import_fresh_main(
+            monkeypatch,
+            ENVIRONMENT="staging",
+            CORS_DEBUG="true",
+            LOG_LEVEL="DEBUG",
+            CORS_ORIGINS="https://allowed-origin.com"
+        )
+
+        app = main.app
+        client = app.test_client()
+
+        test_origin = "https://allowed-origin.com"
+        response = client.get("/health", headers={"Origin": test_origin})
+
+        # Verify all CORS headers are present and correct
+        assert response.headers.get("Access-Control-Allow-Origin") == test_origin
+        assert response.headers.get("Access-Control-Allow-Credentials") == "true"
+        assert "GET" in response.headers.get("Access-Control-Allow-Methods", "")
+        assert "POST" in response.headers.get("Access-Control-Allow-Methods", "")
+        assert "Content-Type" in response.headers.get("Access-Control-Allow-Headers", "")
+        assert "Authorization" in response.headers.get("Access-Control-Allow-Headers", "")
+        assert "X-RateLimit-Limit" in response.headers.get("Access-Control-Expose-Headers", "")
+        assert response.headers.get("Vary") == "Origin"
