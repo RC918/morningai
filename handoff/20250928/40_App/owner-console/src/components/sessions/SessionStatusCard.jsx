@@ -115,7 +115,7 @@ function SessionStatusCard({
           {label}
         </span>
         {icon && cloneElement(icon, { 
-          className: cn('size-5 shrink-0', styles.iconText),
+          className: cn('size-5 shrink-0 ml-2', styles.iconText),
           'aria-hidden': 'true'
         })}
       </div>
