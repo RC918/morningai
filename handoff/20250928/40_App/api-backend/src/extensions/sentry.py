@@ -15,6 +15,10 @@ See: docs/PHASE1_MAIN_PY_REFACTORING_PLAN.md - Patch Canonical Target
 """
 
 import logging
+import os
+
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +77,6 @@ def init_sentry(app_settings, _as_bool_func):
         >>> from src.utils.helpers import _as_bool
         >>> sentry_dsn = init_sentry(app_settings, _as_bool)
     """
-    import os
-    
     sentry_dsn = app_settings.sentry_dsn
     app_version = app_settings.app_version or "8.0.0"
     
@@ -96,9 +98,6 @@ def init_sentry(app_settings, _as_bool_func):
     
     if sentry_dsn and sentry_dsn.strip() and not disable_sentry:
         try:
-            import sentry_sdk
-            from sentry_sdk.integrations.flask import FlaskIntegration
-            
             sentry_sdk.init(
                 dsn=sentry_dsn,
                 environment=current_env,
