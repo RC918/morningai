@@ -1008,6 +1008,99 @@ pytest handoff/20250928/40_App/api-backend/tests/test_cors_config.py -v
 - [Vercel Deployment Strategy](../deployment/VERCEL_DEPLOYMENT_STRATEGY.md)
 - [Vercel Environment Variables](../deployment/VERCEL_ENVIRONMENT_VARIABLES.md)
 
+## CORS Middleware Configuration
+
+### Architecture Overview
+
+The CORS middleware is implemented in `src/middleware/cors.py` and registered via wrapper functions in `src/main.py`. This architecture ensures backward compatibility and correct test patching behavior.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Request Flow                                 │
+│                                                                  │
+│  1. Request arrives at Flask app                                │
+│  2. @app.after_request triggers _cors_after_request()           │
+│  3. _cors_after_request() calls add_cors_headers() wrapper      │
+│  4. Wrapper uses closure variables to call implementation       │
+│  5. Implementation in src/middleware/cors.py processes request  │
+│  6. Response headers are set and returned                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Closure Variables and Restart Requirements
+
+The CORS middleware uses closure variables that are captured at application startup:
+
+```python
+# These values are captured at startup and used by wrapper functions
+cors_origins = (app_settings.cors_origins or "...").split(",")
+cors_debug_enabled = _as_bool(os.getenv("CORS_DEBUG")) and not app_settings.is_production
+```
+
+**Important**: CORS configuration is read at startup time. Changes to environment variables require a service restart to take effect.
+
+| Variable | Captured At | Runtime Update | Restart Required |
+|----------|-------------|----------------|------------------|
+| `CORS_ORIGINS` | Startup | No | Yes |
+| `CORS_DEBUG` | Startup | No | Yes |
+| `ENVIRONMENT` | Startup | No | Yes |
+
+### Multi-Worker Behavior
+
+In Gunicorn multi-worker deployments, each worker is an independent process that initializes its own CORS configuration:
+
+- Each worker captures closure variables independently at startup
+- No cross-worker race conditions (separate processes)
+- Single-worker multi-threaded: closure variables are read-only, thread-safe
+- Configuration changes require restarting all workers
+
+### Configurable Items
+
+| Item | Environment Variable | Default | Description |
+|------|---------------------|---------|-------------|
+| Allowed Origins | `CORS_ORIGINS` | `http://localhost:5173,http://localhost:5174` | Comma-separated list of allowed origins |
+| Debug Logging | `CORS_DEBUG` | `false` | Enable CORS debug logs (non-production only) |
+| Environment | `ENVIRONMENT` | `production` | Controls Vercel preview URL gating |
+
+### Vercel Preview Gating
+
+The middleware automatically allows `*.vercel.app` origins in non-production environments:
+
+| Environment | Vercel Preview URLs | Behavior |
+|-------------|---------------------|----------|
+| `development` | Allowed | Regex match `^https://.*\.vercel\.app$` |
+| `staging` | Allowed | Regex match `^https://.*\.vercel\.app$` |
+| `production` | Blocked | Security: prevents preview URL access |
+
+To adjust Vercel preview gating:
+1. Set `ENVIRONMENT` to control automatic gating
+2. Or explicitly add preview URLs to `CORS_ORIGINS` (not recommended for production)
+
+### Blueprint-Level CORS
+
+Currently, CORS is handled at the application level via `@app.after_request`. If you need blueprint-specific CORS rules:
+
+1. Register blueprint-specific `@blueprint.after_request` handlers
+2. Note: Flask executes after_request handlers in LIFO order
+3. Ensure your blueprint handler runs after the global CORS handler if you need to override headers
+
+### Patching in Tests
+
+Tests should patch CORS functions via `src.main`, not `src.middleware.cors`:
+
+```python
+# Correct: patch the wrapper in src.main
+@patch('src.main.is_vercel_preview')
+def test_cors_behavior(mock_preview):
+    mock_preview.return_value = True
+    # ...
+
+# Incorrect: patching src.middleware.cors won't affect request handling
+@patch('src.middleware.cors.is_vercel_preview')  # Won't work!
+def test_cors_behavior(mock_preview):
+    # ...
+```
+
 ## Owner Console Feature Flags
 
 ### VITE_FEATURE_OWNER_CONSOLE_API
