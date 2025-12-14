@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch } from '@morningai/shared-ui'
-import { Settings, Save, ChevronRight } from 'lucide-react'
+import { SettingsCard, Switch } from '@morningai/shared-ui'
+import { Settings, Save, ChevronRight, Shield } from 'lucide-react'
 import { AppleInput } from '@/components/apple/apple-input'
 import { AppleButton } from '@/components/apple/apple-button'
 import { AppleSelect, SelectItem } from '@/components/apple/apple-select'
@@ -18,12 +18,13 @@ const PlatformSettings = () => {
         <p className="text-sm text-[var(--text-secondary)] mt-1">{t('settings.subtitle')}</p>
       </div>
 
-      <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-        <CardHeader className="px-5 py-4">
-          <CardTitle className="text-base font-semibold text-[var(--text-primary)]">{t('settings.general.title')}</CardTitle>
-          <CardDescription className="text-sm text-[var(--text-secondary)]">{t('settings.general.subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 p-5 pt-0">
+      <SettingsCard
+        title={t('settings.general.title')}
+        description={t('settings.general.subtitle')}
+        icon={<Settings />}
+        variant="default"
+      >
+        <div className="space-y-4">
           <AppleInput
             id="platform-name"
             type="text"
@@ -44,15 +45,16 @@ const PlatformSettings = () => {
             <Save className="w-4 h-4 mr-2" />
             {t('settings.general.saveChanges')}
           </AppleButton>
-        </CardContent>
-      </Card>
+        </div>
+      </SettingsCard>
 
-      <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-        <CardHeader className="px-5 py-4">
-          <CardTitle className="text-base font-semibold text-[var(--text-primary)]">{t('settings.security.title')}</CardTitle>
-          <CardDescription className="text-sm text-[var(--text-secondary)]">{t('settings.security.subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 p-5 pt-0">
+      <SettingsCard
+        title={t('settings.security.title')}
+        description={t('settings.security.subtitle')}
+        icon={<Shield />}
+        variant="blue"
+      >
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-[var(--text-primary)]">{t('settings.security.requireMFA')}</p>
@@ -71,35 +73,30 @@ const PlatformSettings = () => {
               <SelectItem value="4hours">{t('settings.security.4hours')}</SelectItem>
             </AppleSelect>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </SettingsCard>
 
-      <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-        <CardHeader className="px-5 py-4">
-          <CardTitle className="text-base font-semibold text-[var(--text-primary)]">
-            {t('settings.2fa.card.title')}
-          </CardTitle>
-          <CardDescription className="text-sm text-[var(--text-secondary)]">
-            {t('settings.2fa.card.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-5 pt-0">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-[var(--text-primary)]">{t('settings.2fa.card.manage')}</p>
-              <p className="text-xs text-[var(--text-secondary)]">
-                {t('settings.2fa.card.manageDescription')}
-              </p>
-            </div>
-            <Link to="/settings/2fa">
-              <AppleButton variant="outline" className="flex items-center gap-2">
-                {t('settings.2fa.card.manageButton')}
-                <ChevronRight className="w-4 h-4" />
-              </AppleButton>
-            </Link>
+      <SettingsCard
+        title={t('settings.2fa.card.title')}
+        description={t('settings.2fa.card.description')}
+        icon={<Shield />}
+        variant="default"
+      >
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-[var(--text-primary)]">{t('settings.2fa.card.manage')}</p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              {t('settings.2fa.card.manageDescription')}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <Link to="/settings/2fa">
+            <AppleButton variant="outline" className="flex items-center gap-2">
+              {t('settings.2fa.card.manageButton')}
+              <ChevronRight className="w-4 h-4" />
+            </AppleButton>
+          </Link>
+        </div>
+      </SettingsCard>
     </div>
   )
 }
