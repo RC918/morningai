@@ -31,24 +31,8 @@ elif not os.path.exists(app_dir):
         f"App directory does not exist: {app_dir}. Orchestrator features may not work."
     )
 
-from src.routes.billing import bp as billing_bp
-from src.routes.tenant import bp as tenant_bp
-from src.routes.vectors import bp as vectors_bp
-from src.routes.governance import bp as governance_bp, admin_bp as admin_agents_bp
-from src.routes.agent_registry import bp as agent_registry_bp
-from src.routes.admin import bp as admin_bp
-from src.routes.failures import bp as failures_bp
-from src.routes.experiments import bp as experiments_bp
-from src.routes.ai_policies import bp as ai_policies_bp
-
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
-from src.routes.user import user_bp
-from src.routes.auth import auth_bp
-from src.routes.auth_enhanced import auth_enhanced_bp
-from src.routes.auth_2fa import auth_2fa_bp
-from src.routes.dashboard import dashboard_bp
-from src.routes.totp import totp_bp
 from src.middleware.auth_middleware import (
     jwt_required,
     admin_required,
@@ -274,88 +258,10 @@ if SECURITY_AVAILABLE:
     security_manager = SecurityManager(security_config)
     app.security_manager = security_manager
 
-app.register_blueprint(user_bp, url_prefix="/api")
-app.register_blueprint(auth_bp, url_prefix="/api/auth")
-app.register_blueprint(auth_enhanced_bp, url_prefix="/api/auth/v2")
-app.register_blueprint(auth_2fa_bp)
-app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
-app.register_blueprint(totp_bp, url_prefix="/api/auth/v2/totp")
-app.register_blueprint(billing_bp)
-
-if os.getenv('ENABLE_ORCHESTRATOR', 'true').lower() in ('true', '1', 'yes', 'on'):
-    from src.routes.agent import bp as agent_bp
-    from src.routes.agent_evaluation import bp as agent_evaluation_bp
-    from src.routes.faq import bp as faq_bp
-    app.register_blueprint(agent_bp)
-    app.register_blueprint(agent_evaluation_bp)
-    app.register_blueprint(faq_bp)
-    logger.info("✅ Orchestrator/agent routes enabled")
-else:
-    logger.info("⚠️ Orchestrator/agent routes disabled (ENABLE_ORCHESTRATOR=false)")
-
-app.register_blueprint(agent_registry_bp)
-app.register_blueprint(tenant_bp)
-app.register_blueprint(vectors_bp)
-app.register_blueprint(governance_bp)
-app.register_blueprint(admin_bp)
-app.register_blueprint(admin_agents_bp)
-app.register_blueprint(failures_bp)
-app.register_blueprint(experiments_bp)
-app.register_blueprint(ai_policies_bp)
-
-try:
-    from src.routes.action_requests import bp as action_requests_bp
-    app.register_blueprint(action_requests_bp)
-    logger.info("HITL action requests routes enabled")
-except ImportError as e:
-    logger.warning("HITL action requests routes not available: %s", e)
-
-# Sessions API for agent session monitoring (Owner Console)
-try:
-    from src.routes.sessions import bp as sessions_bp
-    app.register_blueprint(sessions_bp)
-    logger.info("Sessions API routes enabled")
-except ImportError as e:
-    logger.warning("Sessions API routes not available: %s", e)
-
-# Webhook routes for external service integration (GitHub, Jira, Slack)
-try:
-    from src.routes.webhooks import bp as webhooks_bp
-    app.register_blueprint(webhooks_bp)
-    logger.info("Webhook routes enabled")
-except ImportError as e:
-    logger.warning("Webhook routes not available: %s", e)
-
-# DeepWiki API for knowledge base queries (Issue #2158)
-try:
-    from src.routes.deepwiki import bp as deepwiki_bp
-    app.register_blueprint(deepwiki_bp)
-    logger.info("DeepWiki API routes enabled")
-except ImportError as e:
-    logger.warning("DeepWiki API routes not available: %s", e)
-
-# Metrics API for system observability (Epic #2311 Phase 1)
-try:
-    from src.routes.metrics import metrics_bp
-    app.register_blueprint(metrics_bp, url_prefix="/api")
-    logger.info("Metrics API routes enabled")
-except ImportError as e:
-    logger.warning("Metrics API routes not available: %s", e)
-
-from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
-
-app.add_url_rule(
-    "/api/phase7/monitoring/dashboard",
-    view_func=monitoring_dashboard_handler,
-    methods=["GET"],
-    endpoint="phase7_monitoring_dashboard",
-)
-
-if BACKEND_SERVICES_AVAILABLE:
-    try:
-        app.register_blueprint(mock_api)
-    except NameError:
-        pass
+# Register all blueprints (Phase 1 refactoring: PR1c)
+# Blueprint registration moved to src/routes/__init__.py
+from src.routes import register_blueprints  # noqa: E402
+register_blueprints(app, backend_services_available=BACKEND_SERVICES_AVAILABLE)
 
 
 @app.errorhandler(Exception)
