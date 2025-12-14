@@ -1671,9 +1671,12 @@ Phase 2 audit 腳本使用以下 regex 來偵測 shared-ui card 元件使用：
 - **路徑支援**：支援空白/Unicode 路徑；極端情境如檔名含換行符不保證
 
 **Race Condition 注意事項**：
-- 腳本輸出檔案（如 `.bundle-size-baseline.json`）使用固定路徑
-- 若在 CI 中平行執行多個 job 且共享 workspace，可能發生覆蓋
-- 建議：使用 `--output <path>` 指定不同輸出路徑，或確保 job 隔離
+- `--save-baseline` 預設寫入 `.bundle-size-baseline.json`
+- 若在 CI 中同一 workspace 平行執行多個 job，可能發生檔案覆蓋
+- 緩解方式：
+  - 使用 `--compare <custom-path> --save-baseline` 指定不同輸出路徑
+  - 或確保每個 job 在獨立 workspace 執行（GitHub Actions 預設行為）
+- 注意：`phase2_audit.sh` 僅輸出到 stdout，不涉及寫檔 race condition
 
 ### 後續改進項目（設計系統健康度 roadmap）
 
