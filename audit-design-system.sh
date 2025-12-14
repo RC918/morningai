@@ -32,6 +32,31 @@
 
 set -euo pipefail
 
+# ============================================================================
+# GNU GREP RUNTIME CHECK
+# ============================================================================
+# This script requires GNU grep. Check early and fail fast with helpful message.
+# ============================================================================
+check_gnu_grep() {
+  local grep_version
+  grep_version=$(grep --version 2>/dev/null || true)
+  if [[ "$grep_version" != *"GNU grep"* ]]; then
+    echo "ERROR: This script requires GNU grep, but detected non-GNU grep." >&2
+    echo "" >&2
+    echo "On macOS, install GNU grep via Homebrew:" >&2
+    echo "  brew install grep" >&2
+    echo "" >&2
+    echo "Then either:" >&2
+    echo "  1. Use 'ggrep' instead of 'grep', or" >&2
+    echo "  2. Add GNU grep to PATH:" >&2
+    echo "     export PATH=\"/opt/homebrew/opt/grep/libexec/gnubin:\$PATH\"" >&2
+    echo "" >&2
+    exit 1
+  fi
+}
+
+check_gnu_grep
+
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
@@ -150,23 +175,32 @@ count_matches() {
   #   -o: Print only matching parts (each match on its own line)
   #   -h: Suppress filename prefixes
   # Then count the resulting lines (= number of matches)
-  LC_ALL=C grep -rEoh "$pattern" "${paths[@]}" \
+  #
+  # Note: We use { grep || true; } to handle grep exit 1 (no matches) gracefully
+  # under pipefail, avoiding double output from "| wc -l || echo 0" pattern.
+  { LC_ALL=C grep -rEoh "$pattern" "${paths[@]}" \
     --include="*.tsx" --include="*.ts" --include="*.css" \
     --exclude-dir=node_modules --exclude="*.stories.*" \
-    2>/dev/null | wc -l || echo "0"
+    2>/dev/null || true; } | wc -l
 }
 
 # Count hex colors in var() fallback position (after comma)
 # Two-stage approach: first extract var() with fallback, then count hex within
+#
+# Hex pattern: Strictly 3 or 6 hex digits (not 4 or 5)
+# Pattern: #[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})? matches #RGB or #RRGGBB
 count_fallback_hex() {
   local paths=("$@")
   
-  # Stage 1: Extract var() expressions that contain a fallback hex
+  # Stage 1: Extract var() expressions that contain a fallback hex (3 or 6 digits)
   # Stage 2: Extract just the hex colors from those matches
-  LC_ALL=C grep -rEoh "var\([^)]*,[[:space:]]*#[0-9A-Fa-f]{3,6}" "${paths[@]}" \
+  #
+  # Note: We use { grep || true; } to handle grep exit 1 (no matches) gracefully
+  # under pipefail, avoiding double output from "| wc -l || echo 0" pattern.
+  { LC_ALL=C grep -rEoh "var\([^)]*,[[:space:]]*#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?" "${paths[@]}" \
     --include="*.tsx" --include="*.ts" --include="*.css" \
     --exclude-dir=node_modules --exclude="*.stories.*" \
-    2>/dev/null | grep -Eo "#[0-9A-Fa-f]{3,6}" | wc -l || echo "0"
+    2>/dev/null || true; } | { grep -Eo "#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?" || true; } | wc -l
 }
 
 if [ ! -f "package.json" ] || [ ! -f "pnpm-workspace.yaml" ]; then
@@ -240,7 +274,7 @@ fi
 log_section "2. Design System Adoption & Component Duplication"
 
 # Count shared-ui components
-SHARED_UI_COMPONENTS=$(find packages/shared-ui/src/components/ui -name "*.tsx" -not -name "*.stories.tsx" -not -name "*.test.tsx" 2>/dev/null | wc -l || echo "0")
+SHARED_UI_COMPONENTS=$({ find packages/shared-ui/src/components/ui -name "*.tsx" -not -name "*.stories.tsx" -not -name "*.test.tsx" 2>/dev/null || true; } | wc -l)
 if [ "$SHARED_UI_COMPONENTS" -ge 40 ]; then
   log_pass "Shared-ui has $SHARED_UI_COMPONENTS components (target: 40+)"
 else
@@ -248,8 +282,8 @@ else
 fi
 
 # Check shared-ui imports in frontend apps
-FRONTEND_IMPORTS=$(grep -r "@morningai/shared-ui" "$FRONTEND_DASHBOARD_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
-OWNER_IMPORTS=$(grep -r "@morningai/shared-ui" "$OWNER_CONSOLE_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null | wc -l || echo "0")
+FRONTEND_IMPORTS=$({ grep -r "@morningai/shared-ui" "$FRONTEND_DASHBOARD_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null || true; } | wc -l)
+OWNER_IMPORTS=$({ grep -r "@morningai/shared-ui" "$OWNER_CONSOLE_SRC" --include="*.tsx" --include="*.ts" 2>/dev/null || true; } | wc -l)
 TOTAL_IMPORTS=$((FRONTEND_IMPORTS + OWNER_IMPORTS))
 if [ "$TOTAL_IMPORTS" -ge 50 ]; then
   log_pass "Shared-ui imports found: $TOTAL_IMPORTS (frontend: $FRONTEND_IMPORTS, owner-console: $OWNER_IMPORTS)"
@@ -269,7 +303,9 @@ log_section "3. Design Tokens Enforcement"
 # Note: We avoid \b word boundary as it's not portable in POSIX ERE
 
 # Count ALL hex colors (total occurrences, not lines)
-HEX_COLORS_TOTAL=$(count_matches "#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3}" \
+# Hex pattern: Strictly 3 or 6 hex digits (not 4 or 5)
+# Using #[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})? to match #RGB or #RRGGBB
+HEX_COLORS_TOTAL=$(count_matches "#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?" \
   "$FRONTEND_DASHBOARD_SRC" \
   "$OWNER_CONSOLE_SRC")
 
@@ -293,12 +329,12 @@ else
 fi
 
 # Check for inline styles
-INLINE_STYLES=$(grep -rE "style=\{" \
+INLINE_STYLES=$({ grep -rE "style=\{" \
   "$FRONTEND_DASHBOARD_SRC" \
   "$OWNER_CONSOLE_SRC" \
   --include="*.tsx" \
   --exclude-dir=node_modules --exclude="*.stories.*" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$INLINE_STYLES" -le 100 ]; then
   log_pass "Inline styles usage: $INLINE_STYLES (target: <100)"
@@ -326,10 +362,10 @@ fi
 log_section "4. Accessibility Compliance"
 
 # Check for eslint-plugin-jsx-a11y in package.json files
-A11Y_ESLINT=$(grep -r "eslint-plugin-jsx-a11y" \
+A11Y_ESLINT=$({ grep -r "eslint-plugin-jsx-a11y" \
   "$FRONTEND_DASHBOARD_PKG" \
   "$OWNER_CONSOLE_PKG" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$A11Y_ESLINT" -ge 1 ]; then
   log_pass "eslint-plugin-jsx-a11y installed in $A11Y_ESLINT package(s)"
@@ -338,11 +374,11 @@ else
 fi
 
 # Check for axe-core testing tools
-AXE_TOOLS=$(grep -rE "@axe-core|jest-axe|vitest-axe" \
+AXE_TOOLS=$({ grep -rE "@axe-core|jest-axe|vitest-axe" \
   "$FRONTEND_DASHBOARD_PKG" \
   "$OWNER_CONSOLE_PKG" \
   "$SHARED_UI_PKG" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$AXE_TOOLS" -ge 1 ]; then
   log_pass "Accessibility testing tools found: $AXE_TOOLS package references"
@@ -351,7 +387,7 @@ else
 fi
 
 # Count accessibility test files
-A11Y_TESTS=$(find packages/shared-ui/src -name "*.a11y.test.*" -o -name "*accessibility*.test.*" 2>/dev/null | wc -l || echo "0")
+A11Y_TESTS=$({ find packages/shared-ui/src -name "*.a11y.test.*" -o -name "*accessibility*.test.*" 2>/dev/null || true; } | wc -l)
 if [ "$A11Y_TESTS" -ge 3 ]; then
   log_pass "Accessibility test files: $A11Y_TESTS"
 else
@@ -361,12 +397,12 @@ fi
 log_section "5. Motion & Animation Governance"
 
 # Check for prefers-reduced-motion support
-REDUCED_MOTION_CSS=$(grep -r "prefers-reduced-motion" \
+REDUCED_MOTION_CSS=$({ grep -r "prefers-reduced-motion" \
   "$FRONTEND_DASHBOARD_SRC" \
   "$OWNER_CONSOLE_SRC" \
   packages/shared-ui/src \
   --include="*.css" --include="*.scss" --include="*.tsx" --include="*.ts" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$REDUCED_MOTION_CSS" -ge 3 ]; then
   log_pass "prefers-reduced-motion support: $REDUCED_MOTION_CSS instances"
@@ -375,10 +411,10 @@ else
 fi
 
 # Check for framer-motion usage
-FRAMER_MOTION=$(grep -r "framer-motion" \
+FRAMER_MOTION=$({ grep -r "framer-motion" \
   "$SHARED_UI_PKG" \
   "$FRONTEND_DASHBOARD_PKG" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$FRAMER_MOTION" -ge 1 ]; then
   log_pass "Framer Motion installed for animations"
@@ -389,10 +425,10 @@ fi
 log_section "6. Internationalization (i18n)"
 
 # Check for i18n libraries
-I18N_LIBS=$(grep -rE "react-i18next|i18next|@tolgee" \
+I18N_LIBS=$({ grep -rE "react-i18next|i18next|@tolgee" \
   "$FRONTEND_DASHBOARD_PKG" \
   "$OWNER_CONSOLE_PKG" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$I18N_LIBS" -ge 1 ]; then
   log_pass "i18n libraries installed: $I18N_LIBS package references"
@@ -401,11 +437,11 @@ else
 fi
 
 # Count i18n usage (useTranslation, t() calls)
-I18N_USAGE=$(grep -rE "useTranslation|\\bt\\(" \
+I18N_USAGE=$({ grep -rE "useTranslation|\\bt\\(" \
   "$FRONTEND_DASHBOARD_SRC" \
   "$OWNER_CONSOLE_SRC" \
   --include="*.tsx" --include="*.ts" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$I18N_USAGE" -ge 100 ]; then
   log_pass "i18n usage: $I18N_USAGE instances (excellent coverage)"
@@ -425,7 +461,7 @@ else
 fi
 
 # Count story files
-STORY_FILES=$(find packages/shared-ui/src -name "*.stories.tsx" -o -name "*.stories.ts" 2>/dev/null | wc -l || echo "0")
+STORY_FILES=$({ find packages/shared-ui/src -name "*.stories.tsx" -o -name "*.stories.ts" 2>/dev/null || true; } | wc -l)
 if [ "$STORY_FILES" -ge 15 ]; then
   log_pass "Story files: $STORY_FILES (good coverage)"
 elif [ "$STORY_FILES" -ge 5 ]; then
@@ -455,19 +491,19 @@ SHARED_UI_REACT=$(awk -F'"' '/"react":/ {print $4}' "$SHARED_UI_PKG" 2>/dev/null
 log_info "shared-ui React peer dependency: $SHARED_UI_REACT"
 
 # Check for React 19 adoption
-REACT_19=$(grep -rE '"react":\s*"[^"]*19' \
+REACT_19=$({ grep -rE '"react":\s*"[^"]*19' \
   "$FRONTEND_DASHBOARD_PKG" \
   "$OWNER_CONSOLE_PKG" \
-  2>/dev/null | wc -l || echo "0")
+  2>/dev/null || true; } | wc -l)
 
 if [ "$REACT_19" -ge 1 ]; then
   log_pass "React 19 adopted in $REACT_19 frontend package(s)"
 else
   # Check for React 18 as acceptable
-  REACT_18=$(grep -rE '"react":\s*"[^"]*18' \
+  REACT_18=$({ grep -rE '"react":\s*"[^"]*18' \
     "$FRONTEND_DASHBOARD_PKG" \
     "$OWNER_CONSOLE_PKG" \
-    2>/dev/null | wc -l || echo "0")
+    2>/dev/null || true; } | wc -l)
   if [ "$REACT_18" -ge 1 ]; then
     log_pass "React 18 in use (React 19 upgrade recommended)"
   else
@@ -476,8 +512,8 @@ else
 fi
 
 # Check React version consistency (portable: use awk instead of grep -P)
-REACT_VERSIONS=$(cat "$SHARED_UI_PKG" "$FRONTEND_DASHBOARD_PKG" "$OWNER_CONSOLE_PKG" 2>/dev/null | \
-  awk -F'"' '/"react":/ {print $4}' | sort -u | wc -l || echo "0")
+REACT_VERSIONS=$({ cat "$SHARED_UI_PKG" "$FRONTEND_DASHBOARD_PKG" "$OWNER_CONSOLE_PKG" 2>/dev/null || true; } | \
+  awk -F'"' '/"react":/ {print $4}' | sort -u | wc -l)
 
 if [ "$REACT_VERSIONS" -le 2 ]; then
   log_pass "React version consistency: $REACT_VERSIONS unique version patterns"
@@ -528,11 +564,22 @@ log_info "Summary written to $SUMMARY_FILE"
 REGRESSION_DETECTED=false
 
 if [ -f "$BASELINE_FILE" ]; then
+  # Parse baseline JSON - prefer jq if available, fallback to grep
   # Check for new format first (hex_colors_raw), fall back to old format (hex_colors)
-  BASELINE_HEX_RAW=$(grep -o '"hex_colors_raw": *[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "")
-  if [ -z "$BASELINE_HEX_RAW" ]; then
-    # Fall back to old format for backward compatibility
-    BASELINE_HEX_RAW=$(grep -o '"hex_colors": *[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")
+  if command -v jq &> /dev/null; then
+    # Use jq for reliable JSON parsing
+    BASELINE_HEX_RAW=$(jq -r '.hex_colors_raw // empty' "$BASELINE_FILE" 2>/dev/null || true)
+    if [ -z "$BASELINE_HEX_RAW" ]; then
+      # Fall back to old format for backward compatibility
+      BASELINE_HEX_RAW=$(jq -r '.hex_colors // 0' "$BASELINE_FILE" 2>/dev/null || echo "0")
+    fi
+  else
+    # Fallback to grep-based parsing (less reliable but works without jq)
+    BASELINE_HEX_RAW=$({ grep -o '"hex_colors_raw": *[0-9]*' "$BASELINE_FILE" 2>/dev/null || true; } | { grep -o '[0-9]*' || true; })
+    if [ -z "$BASELINE_HEX_RAW" ]; then
+      # Fall back to old format for backward compatibility
+      BASELINE_HEX_RAW=$({ grep -o '"hex_colors": *[0-9]*' "$BASELINE_FILE" 2>/dev/null || true; } | { grep -o '[0-9]*' || echo "0"; })
+    fi
   fi
   
   # Regression guard now uses RAW hex colors (excluding var() fallbacks)
