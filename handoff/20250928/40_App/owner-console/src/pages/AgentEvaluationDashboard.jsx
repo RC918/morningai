@@ -185,20 +185,24 @@ const AgentEvaluationDashboard = () => {
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {METRICS_CONFIG.map(({ key, labelKey, defaultLabel, Icon }) => {
-            const metricValue = metrics.metrics[key]
-            const targetValue = metrics.targets[key]
-            const isOnTarget = metricValue >= targetValue
+            const metricValue = metrics.metrics?.[key]
+            const targetValue = metrics.targets?.[key]
+
+            const hasMetricValue = hasData && typeof metricValue === 'number'
+            const hasTargetValue = hasData && typeof targetValue === 'number'
+
+            const isOnTarget = hasMetricValue && hasTargetValue && metricValue >= targetValue
 
             return (
               <StatCard
                 key={key}
                 label={t(labelKey, defaultLabel)}
-                value={hasData ? formatPercentage(metricValue) : t('common.na', 'N/A')}
+                value={hasMetricValue ? formatPercentage(metricValue) : t('common.na', 'N/A')}
                 icon={<Icon />}
-                variant={hasData && isOnTarget ? 'green' : hasData ? 'red' : 'default'}
-                deltaLabel={hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(targetValue)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
+                variant={hasMetricValue && hasTargetValue ? (isOnTarget ? 'green' : 'red') : 'default'}
+                deltaLabel={hasTargetValue ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(targetValue)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
                 deltaPositive="neutral"
-                badge={hasData ? (isOnTarget ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')) : undefined}
+                badge={hasMetricValue && hasTargetValue ? (isOnTarget ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')) : undefined}
               />
             )
           })}
