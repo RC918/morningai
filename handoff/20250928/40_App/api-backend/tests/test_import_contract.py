@@ -20,12 +20,14 @@ class TestImportContract:
     """
     
     # Public symbols that MUST remain importable from src.main
+    # NOTE: before_send is NOT included because it cannot be re-exported
+    # (Sentry SDK holds direct reference to the function in original module)
+    # See: docs/PHASE1_MAIN_PY_REFACTORING_PLAN.md - Patch Canonical Target 規範
     PUBLIC_SYMBOLS = [
         'app',                      # Flask app instance
         '_as_bool',                 # Helper function
         'is_vercel_preview',        # CORS helper
         'add_cors_headers',         # CORS middleware
-        'before_send',              # Sentry hook
         'get_health_payload',       # Health check helper
         'handle_exception',         # Error handler
         'BACKEND_SERVICES_AVAILABLE',  # Feature flag
@@ -75,11 +77,6 @@ class TestImportContract:
         """Verify add_cors_headers is a callable function."""
         from src.main import add_cors_headers
         assert callable(add_cors_headers)
-    
-    def test_before_send_is_callable(self):
-        """Verify before_send is a callable function."""
-        from src.main import before_send
-        assert callable(before_send)
     
     def test_get_health_payload_is_callable(self):
         """Verify get_health_payload is a callable function."""
