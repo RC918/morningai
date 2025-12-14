@@ -24,6 +24,33 @@ import {
 import { getAgentEvaluationResults, getAgentEvaluationMetrics } from '@/lib/agent-evaluation-api'
 import { AppleButton } from '@/components/apple/apple-button'
 
+const METRICS_CONFIG = [
+  {
+    key: 'planner_accuracy',
+    labelKey: 'agentEvaluation.metrics.plannerAccuracy',
+    defaultLabel: 'Planner Accuracy',
+    Icon: Target,
+  },
+  {
+    key: 'self_healing_rate',
+    labelKey: 'agentEvaluation.metrics.selfHealingRate',
+    defaultLabel: 'Self-Healing Rate',
+    Icon: Activity,
+  },
+  {
+    key: 'completion_rate',
+    labelKey: 'agentEvaluation.metrics.completionRate',
+    defaultLabel: 'Completion Rate',
+    Icon: CheckCircle2,
+  },
+  {
+    key: 'ci_pass_rate',
+    labelKey: 'agentEvaluation.metrics.ciPassRate',
+    defaultLabel: 'CI Pass Rate',
+    Icon: TrendingUp,
+  },
+]
+
 const AgentEvaluationDashboard = () => {
   const { t, i18n } = useTranslation()
   const [loading, setLoading] = useState(true)
@@ -157,49 +184,24 @@ const AgentEvaluationDashboard = () => {
       {/* Metrics Cards */}
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Planner Accuracy */}
-          <StatCard
-            label={t('agentEvaluation.metrics.plannerAccuracy', 'Planner Accuracy')}
-            value={hasData ? formatPercentage(metrics.metrics.planner_accuracy) : t('common.na', 'N/A')}
-            icon={<Target />}
-            variant={hasData && metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? 'green' : hasData ? 'red' : 'default'}
-            deltaLabel={hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.planner_accuracy)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
-            deltaPositive="neutral"
-            badge={hasData ? (metrics.metrics.planner_accuracy >= metrics.targets.planner_accuracy ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')) : undefined}
-          />
+          {METRICS_CONFIG.map(({ key, labelKey, defaultLabel, Icon }) => {
+            const metricValue = metrics.metrics[key]
+            const targetValue = metrics.targets[key]
+            const isOnTarget = metricValue >= targetValue
 
-          {/* Self-Healing Rate */}
-          <StatCard
-            label={t('agentEvaluation.metrics.selfHealingRate', 'Self-Healing Rate')}
-            value={hasData ? formatPercentage(metrics.metrics.self_healing_rate) : t('common.na', 'N/A')}
-            icon={<Activity />}
-            variant={hasData && metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? 'green' : hasData ? 'red' : 'default'}
-            deltaLabel={hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.self_healing_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
-            deltaPositive="neutral"
-            badge={hasData ? (metrics.metrics.self_healing_rate >= metrics.targets.self_healing_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')) : undefined}
-          />
-
-          {/* Completion Rate */}
-          <StatCard
-            label={t('agentEvaluation.metrics.completionRate', 'Completion Rate')}
-            value={hasData ? formatPercentage(metrics.metrics.completion_rate) : t('common.na', 'N/A')}
-            icon={<CheckCircle2 />}
-            variant={hasData && metrics.metrics.completion_rate >= metrics.targets.completion_rate ? 'green' : hasData ? 'red' : 'default'}
-            deltaLabel={hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.completion_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
-            deltaPositive="neutral"
-            badge={hasData ? (metrics.metrics.completion_rate >= metrics.targets.completion_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')) : undefined}
-          />
-
-          {/* CI Pass Rate */}
-          <StatCard
-            label={t('agentEvaluation.metrics.ciPassRate', 'CI Pass Rate')}
-            value={hasData ? formatPercentage(metrics.metrics.ci_pass_rate) : t('common.na', 'N/A')}
-            icon={<TrendingUp />}
-            variant={hasData && metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? 'green' : hasData ? 'red' : 'default'}
-            deltaLabel={hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(metrics.targets.ci_pass_rate)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
-            deltaPositive="neutral"
-            badge={hasData ? (metrics.metrics.ci_pass_rate >= metrics.targets.ci_pass_rate ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')) : undefined}
-          />
+            return (
+              <StatCard
+                key={key}
+                label={t(labelKey, defaultLabel)}
+                value={hasData ? formatPercentage(metricValue) : t('common.na', 'N/A')}
+                icon={<Icon />}
+                variant={hasData && isOnTarget ? 'green' : hasData ? 'red' : 'default'}
+                deltaLabel={hasData ? `${t('agentEvaluation.target', 'Target')}: ${formatPercentage(targetValue)}` : t('monitoring.noMetricsData', 'No metrics available yet')}
+                deltaPositive="neutral"
+                badge={hasData ? (isOnTarget ? t('agentEvaluation.onTarget', 'On Target') : t('agentEvaluation.belowTarget', 'Below Target')) : undefined}
+              />
+            )
+          })}
         </div>
       )}
 
