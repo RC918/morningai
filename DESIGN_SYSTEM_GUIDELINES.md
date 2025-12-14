@@ -723,6 +723,75 @@ body {
 - 設定面板
 - 資訊展示
 
+### 卡片 Icon Archetype (Card Icon Tokens)
+
+Dashboard 卡片組件的 icon 規格分為兩種 archetype，定義於 `tokens.json` 的 `card.icon` section：
+
+#### KPI Archetype (StatCard)
+
+**用途**: 數據指標展示卡片，強調數值視覺化
+
+**規格**:
+- Icon 大小: `40px` (CSS: `var(--card-icon-kpi-size)`)
+- 容器大小: `40px` (CSS: `var(--card-icon-kpi-containerSize)`)
+- 形狀: `circle` (圓形)
+
+**使用場景**:
+- 總覽頁面的 KPI 指標
+- 數據儀表板的統計數字
+- 需要強調數值的卡片
+
+**範例**:
+```jsx
+import { StatCard } from "@morningai/shared-ui";
+import { Users } from "lucide-react";
+
+<StatCard
+  label="總用戶數"
+  value="1,234"
+  icon={<Users />}
+  variant="blue"
+/>
+```
+
+#### Status Archetype (StatusCard)
+
+**用途**: 狀態篩選卡片，用於互動式過濾
+
+**規格**:
+- Icon 大小: `16px` (CSS: `var(--card-icon-status-size)`)
+- 容器大小: `28px` (CSS: `var(--card-icon-status-containerSize)`)
+- 形狀: `rounded-lg` (圓角方形)
+
+**使用場景**:
+- 狀態篩選器（如：全部/進行中/已完成/失敗）
+- 分類標籤卡片
+- 需要互動選擇的過濾器
+
+**範例**:
+```jsx
+import { StatusCard } from "@morningai/shared-ui";
+import { Clock, CheckCircle } from "lucide-react";
+
+<StatusCard
+  label="進行中"
+  value="42"
+  icon={<Clock />}
+  variant="blue"
+  isActive={activeFilter === "in_progress"}
+  onClick={() => setActiveFilter("in_progress")}
+/>
+```
+
+#### 選擇指南
+
+| 情境 | 推薦 Archetype | 原因 |
+|------|---------------|------|
+| 顯示 KPI 數據 | KPI (StatCard) | 大圓形 icon 強調數值重要性 |
+| 狀態篩選器 | Status (StatusCard) | 緊湊設計適合多個並排 |
+| 數據儀表板 | KPI (StatCard) | 視覺層次清晰 |
+| 互動式過濾 | Status (StatusCard) | 支援 active 狀態和點擊 |
+
 ### 輸入框 (Input)
 
 **基礎輸入**:

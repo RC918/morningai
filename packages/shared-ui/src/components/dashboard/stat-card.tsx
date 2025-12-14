@@ -4,13 +4,13 @@ import { cn } from "../../utils";
 
 type StatCardVariant = "default" | "blue" | "green" | "yellow" | "red" | "purple";
 
-const variantStyles: Record<StatCardVariant, string> = {
-  default: "bg-[var(--neutral-100)] text-[var(--neutral-600)]",
-  blue: "bg-[var(--primary-50)] text-[var(--primary-600)]",
-  green: "bg-[var(--success-50)] text-[var(--success-600)]",
-  yellow: "bg-[var(--warning-50)] text-[var(--warning-600)]",
-  red: "bg-[var(--error-50)] text-[var(--error-600)]",
-  purple: "bg-[var(--color-accent-50)] text-[var(--color-accent-600)]",
+const variantIconColors: Record<StatCardVariant, string> = {
+  default: "text-[var(--neutral-600)]",
+  blue: "text-[var(--primary-600)]",
+  green: "text-[var(--success-600)]",
+  yellow: "text-[var(--warning-600)]",
+  red: "text-[var(--error-600)]",
+  purple: "text-[var(--color-accent-600)]",
 };
 
 interface StatCardProps {
@@ -24,9 +24,9 @@ interface StatCardProps {
   icon?: React.ReactNode;
   /** Delta/change label (e.g., "+5.10%", "-2 this month") */
   deltaLabel?: string;
-  /** Whether the delta represents a positive/good change (green) or a negative/bad change (red). Defaults to true. */
-  deltaPositive?: boolean;
-  /** Color variant for the icon background */
+  /** Whether the delta represents a positive/good change (green), negative/bad change (red), or neutral info (secondary text). Defaults to true. */
+  deltaPositive?: boolean | "neutral";
+  /** Color variant for the icon */
   variant?: StatCardVariant;
 }
 
@@ -69,9 +69,11 @@ function StatCard({
             <div
               className={cn(
                 "mt-1 text-xs",
-                deltaPositive
-                  ? "text-[var(--success-600)]"
-                  : "text-[var(--error-600)]"
+                deltaPositive === "neutral"
+                  ? "text-[var(--text-secondary)]"
+                  : deltaPositive
+                    ? "text-[var(--success-600)]"
+                    : "text-[var(--error-600)]"
               )}
             >
               {displayDelta}
@@ -79,13 +81,12 @@ function StatCard({
           )}
         </div>
         {icon && (
-          <div
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full ml-3 shrink-0",
-              variantStyles[variant]
-            )}
-          >
-            {icon}
+          <div className="ml-3 shrink-0">
+            {React.isValidElement(icon)
+              ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
+                  className: cn("size-5", variantIconColors[variant]),
+                })
+              : icon}
           </div>
         )}
       </div>

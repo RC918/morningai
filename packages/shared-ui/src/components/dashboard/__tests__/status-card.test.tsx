@@ -255,7 +255,7 @@ describe("StatusCard", () => {
   });
 
   describe("icon rendering", () => {
-    it("renders icon with correct size classes", () => {
+    it("renders icon with correct size classes using design tokens", () => {
       const { container } = render(
         <StatusCard
           label="Card with Icon"
@@ -263,7 +263,8 @@ describe("StatusCard", () => {
           icon={<Activity data-testid="test-icon" />}
         />
       );
-      const iconContainer = container.querySelector(".h-7.w-7");
+      // Icon container uses CSS variable tokens: --card-icon-status-containerSize
+      const iconContainer = container.querySelector('[class*="h-[var(--card-icon-status-containerSize"]');
       expect(iconContainer).toBeInTheDocument();
     });
   });

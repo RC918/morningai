@@ -51,6 +51,14 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       
+      - name: Verify PyJWT installation
+        run: |
+          # Assert that we have PyJWT (not jwt) installed
+          python -c "import jwt; assert hasattr(jwt, 'decode'), 'Wrong jwt package installed - need PyJWT, not jwt'"
+          # Fail if the wrong jwt package is installed
+          pip list | grep -E '^jwt ' && echo "ERROR: Wrong jwt package detected" && exit 1 || true
+          echo "PyJWT verification passed"
+      
       - name: Run API Backend tests (development mode)
         working-directory: handoff/20250928/40_App/api-backend
         run: |

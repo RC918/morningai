@@ -76,6 +76,8 @@ export type TokenPath =
   | `accessibility.focus.${'outline-width' | 'outline-offset' | 'outline-color'}`
   | `accessibility.touch-target.min-size`
   | `accessibility.animation.reduced-motion-duration`
+  | `card.icon.kpi.${'size' | 'containerSize' | 'shape' | 'description'}`
+  | `card.icon.status.${'size' | 'containerSize' | 'shape' | 'description'}`
   | string
 
 /**
@@ -154,6 +156,44 @@ export const breakpoints = tokens.breakpoint
  * Accessibility tokens including WCAG AAA colors and focus styles
  */
 export const accessibility = tokens.accessibility
+
+/**
+ * Card icon archetype specification
+ */
+interface CardIconArchetype {
+  size: string;
+  containerSize: string;
+  shape: string;
+  description: string;
+}
+
+/**
+ * Card component token structure
+ */
+interface CardToken {
+  icon: {
+    kpi: CardIconArchetype;
+    status: CardIconArchetype;
+  };
+}
+
+/**
+ * Card component tokens including icon specifications for different archetypes
+ * 
+ * @example
+ * ```ts
+ * // KPI cards (StatCard) - large circular icons for data visualization
+ * const kpiIconSize = card.icon.kpi.size // "40px"
+ * const kpiContainerSize = card.icon.kpi.containerSize // "40px"
+ * const kpiShape = card.icon.kpi.shape // "9999px"
+ * 
+ * // Status cards (StatusCard) - compact square icons for filtering
+ * const statusIconSize = card.icon.status.size // "16px"
+ * const statusContainerSize = card.icon.status.containerSize // "28px"
+ * const statusShape = card.icon.status.shape // "8px"
+ * ```
+ */
+export const card = (tokens as { card: CardToken }).card
 
 /**
  * Recursively flatten a nested object into CSS variable format
@@ -244,6 +284,11 @@ export const getCSSVariables = (): Record<string, string> => {
     Object.assign(cssVars, flattenTokens(accessibility.focus, 'a11y-focus'))
   }
   
+  // Process card tokens (icon specifications for different archetypes)
+  if (card?.icon) {
+    Object.assign(cssVars, flattenTokens(card.icon, 'card-icon'))
+  }
+  
   return cssVars
 }
 
@@ -303,6 +348,7 @@ export default {
   animations,
   breakpoints,
   accessibility,
+  card,
   getCSSVariables,
   applyDesignTokens,
   
