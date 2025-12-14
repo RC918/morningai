@@ -16,6 +16,7 @@
 #   ./scripts/measure-bundle-size.sh owner-console      # Measure specific app
 #   ./scripts/measure-bundle-size.sh --compare <file>   # Compare with baseline
 #   ./scripts/measure-bundle-size.sh --save-baseline    # Save current as baseline
+#   ./scripts/measure-bundle-size.sh --output <file>    # Specify output file for baseline
 #   ./scripts/measure-bundle-size.sh --json             # Output JSON format
 #   ./scripts/measure-bundle-size.sh --help             # Show help
 #
@@ -82,6 +83,7 @@ USAGE:
 OPTIONS:
   --compare <file>    Compare results with baseline file
   --save-baseline     Save current results as baseline
+  --output <file>     Specify output file for baseline (default: .bundle-size-baseline.json)
   --json              Output in JSON format
   --help              Show this help message
 
@@ -98,6 +100,9 @@ EXAMPLES:
 
   # Save baseline
   ./scripts/measure-bundle-size.sh --save-baseline
+
+  # Save baseline to custom path (useful for CI race condition avoidance)
+  ./scripts/measure-bundle-size.sh --save-baseline --output /tmp/my-baseline.json
 
   # Compare with baseline
   ./scripts/measure-bundle-size.sh --compare .bundle-size-baseline.json
@@ -122,11 +127,16 @@ parse_vite_output() {
     if [[ "$line" =~ \.$file_type[[:space:]] ]] && [[ "$line" =~ gzip:[[:space:]]*([0-9.]+)[[:space:]]*kB ]]; then
       local size="${BASH_REMATCH[1]}"
       # Convert to integer (multiply by 100 for precision, then divide later)
+      # Use bc if available, otherwise use awk as fallback
       local size_int
-      size_int=$(echo "$size * 100" | bc | cut -d. -f1)
-      total=$((total + size_int))
-      if [[ "$size_int" -gt "$largest" ]]; then
-        largest="$size_int"
+      if command -v bc &> /dev/null; then
+        size_int=$(echo "$size * 100" | bc | cut -d. -f1)
+      else
+        size_int=$(awk "BEGIN {printf \"%.0f\", $size * 100}")
+      fi
+      total=$((total + ${size_int:-0}))
+      if (( ${size_int:-0} > largest )); then
+        largest=${size_int:-0}
       fi
     fi
   done <<< "$build_output"
@@ -140,6 +150,50 @@ parse_vite_output() {
   else
     total_kb=$(awk "BEGIN {printf \"%.1f\", $total / 100}")
     largest_kb=$(awk "BEGIN {printf \"%.1f\", $largest / 100}")
+  fi
+  
+  echo "$total_kb $largest_kb"
+}
+
+# Direct gzip calculation fallback
+# Used when Vite output parsing fails or returns 0
+# This directly measures gzip size of files in dist/assets
+calculate_gzip_sizes_direct() {
+  local dist_path="$1"
+  local file_type="$2"  # "js" or "css"
+  
+  local total=0
+  local largest=0
+  
+  if [[ ! -d "$dist_path/assets" ]]; then
+    echo "0 0"
+    return
+  fi
+  
+  # Find all files of the specified type and calculate gzip size
+  while IFS= read -r -d '' file; do
+    if [[ -f "$file" ]]; then
+      # Calculate gzip size in bytes
+      # Use { gzip || true; } to prevent pipefail from terminating script on gzip failure
+      local current_size
+      current_size=$({ gzip -c "$file" 2>/dev/null || true; } | wc -c)
+      # Use default value 0 if current_size is empty (gzip failed completely)
+      total=$((total + ${current_size:-0}))
+      if (( ${current_size:-0} > largest )); then
+        largest=${current_size:-0}
+      fi
+    fi
+  done < <(find "$dist_path/assets" -name "*.$file_type" -print0 2>/dev/null)
+  
+  # Convert bytes to KB with one decimal
+  local total_kb
+  local largest_kb
+  if command -v bc &> /dev/null; then
+    total_kb=$(echo "scale=1; $total / 1024" | bc)
+    largest_kb=$(echo "scale=1; $largest / 1024" | bc)
+  else
+    total_kb=$(awk "BEGIN {printf \"%.1f\", $total / 1024}")
+    largest_kb=$(awk "BEGIN {printf \"%.1f\", $largest / 1024}")
   fi
   
   echo "$total_kb $largest_kb"
@@ -167,15 +221,18 @@ build_app() {
 }
 
 # Measure bundle size for an app
+# Uses Vite output parsing with fallback to direct gzip calculation
 measure_app() {
   local app="$1"
+  local app_path="${APP_PATHS[$app]}"
+  local dist_path="$app_path/dist"
   
   echo "Building $app..." >&2
   
   local build_output
   build_output=$(build_app "$app") || return 1
   
-  # Parse JS sizes
+  # Parse JS sizes from Vite output
   local js_result
   js_result=$(parse_vite_output "$build_output" "js")
   local js_total
@@ -183,11 +240,27 @@ measure_app() {
   local js_largest
   js_largest=$(echo "$js_result" | cut -d' ' -f2)
   
-  # Parse CSS sizes
+  # Parse CSS sizes from Vite output
   local css_result
   css_result=$(parse_vite_output "$build_output" "css")
   local css_total
   css_total=$(echo "$css_result" | cut -d' ' -f1)
+  
+  # Fallback to direct gzip calculation if Vite output parsing failed
+  # This handles cases where Vite output format changes or gzip info is missing
+  # Regex covers all zero formats: "0", ".0", "0.0" (from bc or awk)
+  if [[ "$js_total" =~ ^(0|\.0|0\.0)$ ]] || [[ -z "$js_total" ]]; then
+    echo "Warning: Vite output parsing failed for JS, using direct gzip calculation" >&2
+    js_result=$(calculate_gzip_sizes_direct "$dist_path" "js")
+    js_total=$(echo "$js_result" | cut -d' ' -f1)
+    js_largest=$(echo "$js_result" | cut -d' ' -f2)
+  fi
+  
+  if [[ "$css_total" =~ ^(0|\.0|0\.0)$ ]] || [[ -z "$css_total" ]]; then
+    echo "Warning: Vite output parsing failed for CSS, using direct gzip calculation" >&2
+    css_result=$(calculate_gzip_sizes_direct "$dist_path" "css")
+    css_total=$(echo "$css_result" | cut -d' ' -f1)
+  fi
   
   echo "$js_total $css_total $js_largest"
 }
@@ -368,6 +441,10 @@ while [[ $# -gt 0 ]]; do
     --save-baseline)
       SAVE_BASELINE=true
       shift
+      ;;
+    --output)
+      BASELINE_FILE="$2"
+      shift 2
       ;;
     --json)
       OUTPUT_FORMAT="json"

@@ -98,6 +98,46 @@
 - [ ] 如使用設計 tokens，我已從 `@morningai/shared-ui` 匯入而非硬編碼
 - [ ] 不適用 - 此 PR 不包含 UI 元件變更
 
+## Phase 2 Audit Checklist (Epic #2304)
+
+<!-- 
+如果此 PR 是 Phase 2 設計系統遷移的一部分，請填寫以下資訊。
+執行 audit 腳本：./scripts/phase2_audit.sh
+執行 bundle size 量測：./scripts/measure-bundle-size.sh
+-->
+
+### Audit Delta Report
+
+<!-- 請貼上 audit 結果的變化（Before/After） -->
+
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Shared-UI Cards | | | |
+| Legacy Cards | | | |
+| Adoption Rate | | | |
+| Raw Hex Colors | | | |
+| Inline Styles | | | |
+
+### Bundle Size Report
+
+<!-- 請貼上 bundle size 量測結果 -->
+
+| App | JS (gzip) | CSS (gzip) | Largest Chunk | Status |
+|-----|-----------|------------|---------------|--------|
+| owner-console | | | | |
+| frontend-dashboard | | | | |
+
+### Phase 2 Verification Checklist
+
+- [ ] `./scripts/phase2_audit.sh` 已執行並記錄結果
+- [ ] `./scripts/measure-bundle-size.sh` 已執行並記錄結果
+- [ ] Shared-UI adoption rate 不低於 baseline
+- [ ] Raw hex colors 數量不增加
+- [ ] Inline styles 數量不增加
+- [ ] Bundle size 增量在閾值內（JS: +50KB, CSS: +10KB）
+- [ ] 視覺回歸測試通過（Vercel Preview 截圖）
+- [ ] 不適用 - 此 PR 不是 Phase 2 遷移的一部分
+
 ### Shared-UI Import 合規性（強制 - Stage 3: 完全強制執行）
 
 <!-- ⚠️ 此檢查現在會阻擋 PR 合併。違規的 PR 無法合併，直到問題解決。 -->
