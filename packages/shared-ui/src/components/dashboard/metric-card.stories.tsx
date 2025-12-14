@@ -243,3 +243,43 @@ export const DashboardExample: Story = {
     </div>
   ),
 };
+
+export const WithI18n: Story = {
+  name: "With i18n (Chinese)",
+  render: () => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <MetricCard
+        title="成功率"
+        value={99.5}
+        unit="%"
+        icon={<Activity />}
+        trend="up"
+        trendLabels={{ up: "上升中", down: "下降中", stable: "穩定" }}
+        trendAriaLabels={{ up: "趨勢上升", down: "趨勢下降", stable: "穩定" }}
+        description="過去 24 小時"
+        variant="green"
+      />
+      <MetricCard
+        title="錯誤率"
+        value={2.3}
+        unit="%"
+        icon={<Zap />}
+        trend="down"
+        trendLabels={{ up: "上升中", down: "下降中", stable: "穩定" }}
+        trendAriaLabels={{ up: "趨勢上升", down: "趨勢下降", stable: "穩定" }}
+        description="較昨日下降"
+        variant="red"
+      />
+      <MetricCard
+        title="活躍用戶"
+        value={1250}
+        icon={<Users />}
+        trend="stable"
+        trendLabels={{ up: "上升中", down: "下降中", stable: "穩定" }}
+        trendAriaLabels={{ up: "趨勢上升", down: "趨勢下降", stable: "穩定" }}
+        description="目前在線"
+        variant="blue"
+      />
+    </div>
+  ),
+};

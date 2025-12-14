@@ -22,6 +22,24 @@ const trendColors = {
   stable: "text-[var(--neutral-500)]",
 };
 
+const defaultTrendLabels = {
+  up: "Increasing",
+  down: "Decreasing",
+  stable: "Stable",
+};
+
+const defaultTrendAriaLabels = {
+  up: "Trending up",
+  down: "Trending down",
+  stable: "Stable",
+};
+
+interface TrendLabels {
+  up?: string;
+  down?: string;
+  stable?: string;
+}
+
 interface MetricCardProps {
   /** Card title/label */
   title: string;
@@ -33,6 +51,10 @@ interface MetricCardProps {
   icon?: React.ReactNode;
   /** Trend direction indicator */
   trend?: "up" | "down" | "stable";
+  /** Custom trend labels for i18n (e.g., { up: "上升中", down: "下降中", stable: "穩定" }) */
+  trendLabels?: TrendLabels;
+  /** Custom trend aria labels for i18n (e.g., { up: "趨勢上升", down: "趨勢下降", stable: "穩定" }) */
+  trendAriaLabels?: TrendLabels;
   /** Description text below the value */
   description?: string;
   /** Progress value (0-100) for optional progress bar */
@@ -49,44 +71,35 @@ function MetricCard({
   unit,
   icon,
   trend,
+  trendLabels,
+  trendAriaLabels,
   description,
   progress,
   variant = "default",
   className,
 }: MetricCardProps) {
-  const getTrendIcon = () => {
+  const trendData = React.useMemo(() => {
     if (!trend) return null;
     
     const iconClass = cn("size-4", trendColors[trend]);
+    const label = trendLabels?.[trend] ?? defaultTrendLabels[trend];
+    const ariaLabel = trendAriaLabels?.[trend] ?? defaultTrendAriaLabels[trend];
     
-    switch (trend) {
-      case "up":
-        return <TrendingUp className={iconClass} aria-label="Trending up" />;
-      case "down":
-        return <TrendingDown className={iconClass} aria-label="Trending down" />;
-      case "stable":
-        return <Minus className={iconClass} aria-label="Stable" />;
-      default:
-        return null;
-    }
-  };
+    const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
+    
+    return {
+      icon: <TrendIcon className={iconClass} aria-label={ariaLabel} />,
+      label,
+      colorClass: trendColors[trend],
+    };
+  }, [trend, trendLabels, trendAriaLabels]);
 
-  const getTrendLabel = () => {
-    switch (trend) {
-      case "up":
-        return "Increasing";
-      case "down":
-        return "Decreasing";
-      case "stable":
-        return "Stable";
-      default:
-        return null;
-    }
-  };
-
-  const formattedValue = typeof value === "number" 
-    ? Number.isInteger(value) ? value.toString() : value.toFixed(2)
-    : value;
+  const formattedValue = React.useMemo(() => 
+    typeof value === "number" 
+      ? Number.isInteger(value) ? value.toString() : value.toFixed(2)
+      : value,
+    [value]
+  );
 
   return (
     <Card className={cn("shadow-card", className)}>
@@ -116,11 +129,11 @@ function MetricCard({
           </p>
         )}
         
-        {trend && (
+        {trendData && (
           <div className="mt-2 flex items-center gap-1">
-            {getTrendIcon()}
-            <span className={cn("text-xs", trendColors[trend])}>
-              {getTrendLabel()}
+            {trendData.icon}
+            <span className={cn("text-xs", trendData.colorClass)}>
+              {trendData.label}
             </span>
           </div>
         )}
@@ -136,4 +149,4 @@ function MetricCard({
 }
 
 export { MetricCard };
-export type { MetricCardProps, MetricCardVariant };
+export type { MetricCardProps, MetricCardVariant, TrendLabels };

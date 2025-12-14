@@ -298,4 +298,42 @@ describe("MetricCard", () => {
       expect(screen.getByLabelText("Trending up")).toBeInTheDocument();
     });
   });
+
+  describe("i18n support", () => {
+    it("renders custom trend labels when provided", () => {
+      render(
+        <MetricCard
+          title="成功率"
+          value={99}
+          trend="up"
+          trendLabels={{ up: "上升中", down: "下降中", stable: "穩定" }}
+        />
+      );
+      expect(screen.getByText("上升中")).toBeInTheDocument();
+    });
+
+    it("renders custom trend aria labels when provided", () => {
+      render(
+        <MetricCard
+          title="成功率"
+          value={99}
+          trend="up"
+          trendAriaLabels={{ up: "趨勢上升", down: "趨勢下降", stable: "穩定" }}
+        />
+      );
+      expect(screen.getByLabelText("趨勢上升")).toBeInTheDocument();
+    });
+
+    it("falls back to default labels when custom labels not provided for specific trend", () => {
+      render(
+        <MetricCard
+          title="Rate"
+          value={99}
+          trend="down"
+          trendLabels={{ up: "上升中" }}
+        />
+      );
+      expect(screen.getByText("Decreasing")).toBeInTheDocument();
+    });
+  });
 });
