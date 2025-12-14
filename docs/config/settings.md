@@ -847,23 +847,56 @@ To set `CORS_ORIGINS` in Render.com:
 4. Click **Save Changes**
 5. Render.com will automatically redeploy (2-3 minutes)
 
+### CORS_DEBUG Environment Variable
+
+The `CORS_DEBUG` environment variable controls whether CORS debug logging is enabled. This is useful for troubleshooting CORS issues in development and staging environments.
+
+**Name**: `CORS_DEBUG`  
+**Type**: `boolean`  
+**Default**: `false`  
+**Security Level**: Public
+
+#### Gate Behavior
+
+`CORS_DEBUG` is force-disabled in production environments for security reasons:
+
+```python
+cors_debug_enabled = _as_bool(os.getenv("CORS_DEBUG")) and not app_settings.is_production
+```
+
+To see CORS debug logs, you must satisfy **both** conditions:
+1. `CORS_DEBUG=true` (explicitly enabled)
+2. `LOG_LEVEL=DEBUG` (logging level set to DEBUG)
+
+**Environment Behavior**:
+- **Production**: CORS debug logs are **never** emitted, regardless of `CORS_DEBUG` setting
+- **Staging/Development**: CORS debug logs are emitted only when `CORS_DEBUG=true` AND `LOG_LEVEL=DEBUG`
+
+#### Sanitized Output
+
+CORS debug logs are sanitized to prevent information leakage. They only output:
+- Boolean status flags (`origin_present`, `in_allowlist`, `is_preview`)
+- Counts (`allowlist_count`)
+- Environment name
+
+They **never** output:
+- Raw origin URLs
+- Complete allowlist contents
+- Environment variable values
+
 ### Verification
 
-After deploying with `CORS_ORIGINS` configured, check the startup logs to verify the environment variable was loaded correctly:
+After deploying with `CORS_ORIGINS` configured and `CORS_DEBUG=true` + `LOG_LEVEL=DEBUG`, check the startup logs:
 
 ```
-[CORS DEBUG] Startup: ENVIRONMENT='staging', CORS_ORIGINS='http://localhost:5173,http://localhost:5174,https://app.example.com'
-[CORS DEBUG] Startup: app_settings.environment='staging', app_settings.cors_origins='http://localhost:5173,http://localhost:5174,https://app.example.com'
-[CORS DEBUG] Startup: Parsed cors_origins list=['http://localhost:5173', 'http://localhost:5174', 'https://app.example.com']
+[CORS DEBUG] Startup: env=staging, allowlist_count=3
 ```
 
-When a request is made from an allowed origin, you should see:
+When a request is made, you should see sanitized logs:
 
 ```
-[CORS DEBUG] add_cors_headers: method=GET, path=/api/auth/v2/csrf, origin='https://app.example.com'
-[CORS DEBUG] add_cors_headers: cors_origins=['http://localhost:5173', 'http://localhost:5174', 'https://app.example.com']
-[CORS DEBUG] add_cors_headers: in_allowlist=True, is_preview=False
-[CORS DEBUG] add_cors_headers: ADDING CORS headers for origin='https://app.example.com'
+[CORS DEBUG] add_cors_headers: origin_present=True, in_allowlist=True, is_preview=False, allowlist_count=3
+[CORS DEBUG] add_cors_headers: headers_added=True
 ```
 
 ### Troubleshooting
@@ -892,8 +925,8 @@ cors_origins: str = Field(
 
 **Diagnosis**: Check backend startup logs for:
 ```
-[CORS DEBUG] Startup: ENVIRONMENT='staging', ...
-[CORS DEBUG] is_vercel_preview: env='production'  # ← Should be 'staging'!
+[CORS DEBUG] Startup: env=staging, allowlist_count=3
+[CORS DEBUG] is_vercel_preview: blocked_by_production=True  # ← Should not appear in staging!
 ```
 
 If `env='production'` when `ENVIRONMENT=staging` is set, the alias is missing.
@@ -924,10 +957,9 @@ flask_env: Literal["development", "staging", "production"] = Field(
 **Symptom**: Browser shows "Access to fetch at '...' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present"
 
 **Diagnosis**:
-1. Check backend logs for `[CORS DEBUG]` lines
-2. Verify `origin` value matches an entry in `cors_origins` list (exact match required, including protocol and no trailing slash)
-3. Check `in_allowlist` and `is_preview` values
-4. Verify `ADDING CORS headers` log appears
+1. Check backend logs for `[CORS DEBUG]` lines (requires `CORS_DEBUG=true` and `LOG_LEVEL=DEBUG`)
+2. Verify `in_allowlist=True` or `is_preview=True` in the logs
+3. Verify `headers_added=True` log appears
 
 **Common Causes**:
 - Origin URL has trailing slash (e.g., `https://app.example.com/` vs `https://app.example.com`)
@@ -940,9 +972,9 @@ flask_env: Literal["development", "staging", "production"] = Field(
 **Symptom**: Vercel preview URLs show CORS errors even though `ENVIRONMENT=staging`.
 
 **Diagnosis**:
-1. Check backend logs for `[CORS DEBUG] is_vercel_preview: env='...'`
-2. Verify `env` is `'staging'` not `'production'`
-3. Check regex match result: `[CORS DEBUG] is_vercel_preview: regex match=True`
+1. Check backend logs for `[CORS DEBUG] is_vercel_preview:` lines (requires `CORS_DEBUG=true` and `LOG_LEVEL=DEBUG`)
+2. Verify `blocked_by_production=True` does NOT appear (indicates production environment)
+3. Check `is_vercel_pattern=True` appears for Vercel preview URLs
 
 **Solution**: Ensure `ENVIRONMENT=staging` is set in Render.com and backend has redeployed with the latest code.
 
