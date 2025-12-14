@@ -44,17 +44,17 @@ export const WithContent: Story = {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Email Notifications</p>
+            <p id="email-notifications-label" className="text-sm font-medium">Email Notifications</p>
             <p className="text-xs text-gray-500">Receive updates via email</p>
           </div>
-          <input type="checkbox" defaultChecked className="h-4 w-4" />
+          <input type="checkbox" defaultChecked className="h-4 w-4" aria-labelledby="email-notifications-label" />
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Push Notifications</p>
+            <p id="push-notifications-label" className="text-sm font-medium">Push Notifications</p>
             <p className="text-xs text-gray-500">Receive push notifications</p>
           </div>
-          <input type="checkbox" className="h-4 w-4" />
+          <input type="checkbox" className="h-4 w-4" aria-labelledby="push-notifications-label" />
         </div>
       </div>
     ),
@@ -80,10 +80,10 @@ export const SecuritySettings: Story = {
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Session Timeout</p>
+            <p id="session-timeout-label" className="text-sm font-medium">Session Timeout</p>
             <p className="text-xs text-gray-500">Auto-logout after inactivity</p>
           </div>
-          <select className="px-2 py-1 text-sm border rounded-md">
+          <select className="px-2 py-1 text-sm border rounded-md" aria-labelledby="session-timeout-label">
             <option>30 minutes</option>
             <option>1 hour</option>
             <option>4 hours</option>
@@ -104,10 +104,10 @@ export const PrivacySettings: Story = {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Profile Visibility</p>
+            <p id="profile-visibility-label" className="text-sm font-medium">Profile Visibility</p>
             <p className="text-xs text-gray-500">Who can see your profile</p>
           </div>
-          <select className="px-2 py-1 text-sm border rounded-md">
+          <select className="px-2 py-1 text-sm border rounded-md" aria-labelledby="profile-visibility-label">
             <option>Public</option>
             <option>Private</option>
             <option>Team Only</option>
@@ -124,8 +124,8 @@ export const WithoutDescription: Story = {
     icon: <Settings />,
     children: (
       <div className="flex items-center justify-between">
-        <span className="text-sm">Dark Mode</span>
-        <input type="checkbox" className="h-4 w-4" />
+        <span id="dark-mode-label" className="text-sm">Dark Mode</span>
+        <input type="checkbox" className="h-4 w-4" aria-labelledby="dark-mode-label" />
       </div>
     ),
   },
@@ -138,8 +138,9 @@ export const WithoutIcon: Story = {
     children: (
       <div className="space-y-3">
         <div>
-          <label className="text-sm font-medium">Display Name</label>
+          <label htmlFor="display-name" className="text-sm font-medium">Display Name</label>
           <input
+            id="display-name"
             type="text"
             defaultValue="John Doe"
             className="mt-1 w-full px-3 py-2 border rounded-md text-sm"
@@ -232,16 +233,18 @@ export const SettingsPageExample: Story = {
       >
         <div className="space-y-3">
           <div>
-            <label className="text-sm font-medium">Username</label>
+            <label htmlFor="profile-username" className="text-sm font-medium">Username</label>
             <input
+              id="profile-username"
               type="text"
               defaultValue="johndoe"
               className="mt-1 w-full px-3 py-2 border rounded-md text-sm"
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Email</label>
+            <label htmlFor="profile-email" className="text-sm font-medium">Email</label>
             <input
+              id="profile-email"
               type="email"
               defaultValue="john@example.com"
               className="mt-1 w-full px-3 py-2 border rounded-md text-sm"
@@ -275,12 +278,12 @@ export const SettingsPageExample: Story = {
       >
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm">Email notifications</span>
-            <input type="checkbox" defaultChecked className="h-4 w-4" />
+            <span id="page-email-notifications-label" className="text-sm">Email notifications</span>
+            <input type="checkbox" defaultChecked className="h-4 w-4" aria-labelledby="page-email-notifications-label" />
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm">Push notifications</span>
-            <input type="checkbox" className="h-4 w-4" />
+            <span id="page-push-notifications-label" className="text-sm">Push notifications</span>
+            <input type="checkbox" className="h-4 w-4" aria-labelledby="page-push-notifications-label" />
           </div>
         </div>
       </SettingsCard>
