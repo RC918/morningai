@@ -431,7 +431,7 @@ CREATE POLICY owner_access ON strategies
 - **Deployment**: Vercel
 
 ### Backend
-- **Framework**: FastAPI (Python)
+- **Framework**: Flask (Python)
 - **Authentication**: JWT + RBAC
 - **Database**: Supabase PostgreSQL + pgvector
 - **Cache**: Upstash Redis
@@ -463,16 +463,43 @@ CREATE POLICY owner_access ON strategies
 
 ## Directory Structure
 
+### Dual Orchestrator Architecture
+
+The repository contains **two orchestrator directories** with distinct responsibilities:
+
+| Directory | Role | Framework | Deployment |
+|-----------|------|-----------|------------|
+| `orchestrator/` (root) | **API Layer** (Producer) | FastAPI | Render (morningai-orchestrator-api) |
+| `handoff/20250928/40_App/orchestrator/` | **Worker Layer** (Consumer) | RQ + LangGraph | Render (morningai-agent-worker) |
+
+**Producer-Consumer Pattern**:
+1. **API Orchestrator** (`orchestrator/`): Receives HTTP task submissions, validates requests, enqueues to Redis
+2. **Worker Orchestrator** (`handoff/.../orchestrator/`): Polls Redis queue, executes tasks via LangGraph 12-node workflow
+
+See [ADR-005: Dual Orchestrator Architecture](adr/005-dual-orchestrator-architecture.md) for design rationale.
+
+### Main Directory Tree
+
 ```
 morningai/
+├── orchestrator/                # API Orchestrator (FastAPI - task submission)
+│   ├── api/                     # FastAPI routes and auth
+│   ├── schemas/                 # Pydantic task schemas
+│   └── task_queue/              # Redis queue client
 ├── handoff/20250928/40_App/
 │   ├── frontend-dashboard/      # Tenant Dashboard (Vite + React)
 │   ├── owner-console/           # Owner Console (Vite + React)
-│   ├── api-backend/             # FastAPI Backend
-│   └── orchestrator/            # LangGraph Orchestrator
-│       ├── graph.py             # FAQ generation pipeline
-│       ├── langgraph_orchestrator.py  # Stateful workflow
+│   ├── api-backend/             # Flask Backend (main API gateway)
+│   └── orchestrator/            # Worker Orchestrator (RQ + LangGraph)
+│       ├── graph.py             # Shared core executor
+│       ├── langgraph_orchestrator.py  # Stateful 12-node workflow
+│       ├── redis_queue/worker.py      # RQ worker with dual-mode routing
 │       └── governance/          # Cost tracking + Reputation
+├── common/
+│   └── config/
+│       └── settings.py          # Pydantic settings (shared across components)
+├── config/
+│   └── env.schema.yaml          # Single source of truth for env vars
 ├── agents/
 │   ├── dev_agent/               # Dev Agent Sandbox (Fly.io)
 │   └── ops_agent/               # Ops Agent Sandbox (Fly.io)
