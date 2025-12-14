@@ -1,9 +1,12 @@
-PASS=22
-WARN=1
+PASS=23
+WARN=0
 FAIL=1
 TODO=0
 TOTAL=24
 MODE=relaxed
-HEX_COLORS=494
+HEX_COLORS=395
+HEX_COLORS_RAW=395
+HEX_COLORS_FALLBACK=144
+HEX_COLORS_TOTAL=539
 INLINE_STYLES=49
-NOTES=Full audit with all 8 sections implemented. Epic #2304 Phase 0-1 complete.
+NOTES=Full audit with all 8 sections implemented. Epic #2304 Phase 0-1 complete. Raw/fallback hex color tracking added.

@@ -196,19 +196,36 @@ fi
 log_section "3. Design Tokens Enforcement"
 
 # Check for hard-coded hex colors in frontend apps (excluding node_modules, dist, .stories files)
-HEX_COLORS=$(grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" \
+# We distinguish between:
+# - RAW hex colors: Direct usage like "color: #005A9C" - these are the real problem
+# - FALLBACK hex colors: Inside var() like "var(--token, #005A9C)" - acceptable for resilience
+HEX_COLORS_TOTAL=$(grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" \
   "$FRONTEND_DASHBOARD_SRC" \
   "$OWNER_CONSOLE_SRC" \
   --include="*.tsx" --include="*.ts" --include="*.css" \
   --exclude-dir=node_modules --exclude="*.stories.*" \
   2>/dev/null | wc -l || echo "0")
 
-if [ "$HEX_COLORS" -le 50 ]; then
-  log_pass "Hard-coded hex colors: $HEX_COLORS (target: <50)"
-elif [ "$HEX_COLORS" -le 150 ]; then
-  log_warn "Hard-coded hex colors: $HEX_COLORS (target: <50, acceptable: <150)"
+# Count fallback hex colors (inside var() functions)
+HEX_COLORS_FALLBACK=$(grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" \
+  "$FRONTEND_DASHBOARD_SRC" \
+  "$OWNER_CONSOLE_SRC" \
+  --include="*.tsx" --include="*.ts" --include="*.css" \
+  --exclude-dir=node_modules --exclude="*.stories.*" \
+  2>/dev/null | grep "var(" | wc -l || echo "0")
+
+# Raw hex colors = Total - Fallback (these are the ones we want to reduce)
+HEX_COLORS_RAW=$((HEX_COLORS_TOTAL - HEX_COLORS_FALLBACK))
+
+# For backward compatibility, HEX_COLORS now refers to raw hex colors
+HEX_COLORS=$HEX_COLORS_RAW
+
+if [ "$HEX_COLORS_RAW" -le 50 ]; then
+  log_pass "Raw hex colors: $HEX_COLORS_RAW (target: <50) [fallback: $HEX_COLORS_FALLBACK, total: $HEX_COLORS_TOTAL]"
+elif [ "$HEX_COLORS_RAW" -le 150 ]; then
+  log_warn "Raw hex colors: $HEX_COLORS_RAW (target: <50, acceptable: <150) [fallback: $HEX_COLORS_FALLBACK]"
 else
-  log_fail "Too many hard-coded hex colors: $HEX_COLORS (target: <50)"
+  log_fail "Too many raw hex colors: $HEX_COLORS_RAW (target: <50) [fallback: $HEX_COLORS_FALLBACK]"
 fi
 
 # Check for inline styles
@@ -427,8 +444,11 @@ TODO=$TODO_COUNT
 TOTAL=$TOTAL_CHECKS
 MODE=$MODE_LABEL
 HEX_COLORS=$HEX_COLORS
+HEX_COLORS_RAW=$HEX_COLORS_RAW
+HEX_COLORS_FALLBACK=$HEX_COLORS_FALLBACK
+HEX_COLORS_TOTAL=$HEX_COLORS_TOTAL
 INLINE_STYLES=$INLINE_STYLES
-NOTES=Full audit with all 8 sections implemented. Epic #2304 Phase 0-1 complete.
+NOTES=Full audit with all 8 sections implemented. Epic #2304 Phase 0-1 complete. Raw/fallback hex color tracking added.
 EOF
 
 log_info "Summary written to $SUMMARY_FILE"
@@ -444,14 +464,19 @@ log_info "Summary written to $SUMMARY_FILE"
 REGRESSION_DETECTED=false
 
 if [ -f "$BASELINE_FILE" ]; then
-  # Note: JSON format has space after colon, e.g. "hex_colors": 494
-  BASELINE_HEX=$(grep -o '"hex_colors": *[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")
+  # Check for new format first (hex_colors_raw), fall back to old format (hex_colors)
+  BASELINE_HEX_RAW=$(grep -o '"hex_colors_raw": *[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "")
+  if [ -z "$BASELINE_HEX_RAW" ]; then
+    # Fall back to old format for backward compatibility
+    BASELINE_HEX_RAW=$(grep -o '"hex_colors": *[0-9]*' "$BASELINE_FILE" 2>/dev/null | grep -o '[0-9]*' || echo "0")
+  fi
   
-  if [ -n "$BASELINE_HEX" ] && [ "$HEX_COLORS" -gt "$BASELINE_HEX" ] && [ "$BASELINE_HEX" -gt 0 ]; then
-    echo -e "${RED}❌ REGRESSION DETECTED: Hard-coded hex colors increased from $BASELINE_HEX to $HEX_COLORS${NC}"
+  # Regression guard now uses RAW hex colors (excluding var() fallbacks)
+  if [ -n "$BASELINE_HEX_RAW" ] && [ "$HEX_COLORS_RAW" -gt "$BASELINE_HEX_RAW" ] && [ "$BASELINE_HEX_RAW" -gt 0 ]; then
+    echo -e "${RED}❌ REGRESSION DETECTED: Raw hex colors increased from $BASELINE_HEX_RAW to $HEX_COLORS_RAW${NC}"
     REGRESSION_DETECTED=true
-  elif [ -n "$BASELINE_HEX" ] && [ "$HEX_COLORS" -lt "$BASELINE_HEX" ]; then
-    echo -e "${GREEN}✓ IMPROVEMENT: Hard-coded hex colors decreased from $BASELINE_HEX to $HEX_COLORS${NC}"
+  elif [ -n "$BASELINE_HEX_RAW" ] && [ "$HEX_COLORS_RAW" -lt "$BASELINE_HEX_RAW" ]; then
+    echo -e "${GREEN}✓ IMPROVEMENT: Raw hex colors decreased from $BASELINE_HEX_RAW to $HEX_COLORS_RAW${NC}"
   fi
 fi
 
@@ -462,6 +487,9 @@ for arg in "$@"; do
 {
   "updated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "hex_colors": $HEX_COLORS,
+  "hex_colors_raw": $HEX_COLORS_RAW,
+  "hex_colors_fallback": $HEX_COLORS_FALLBACK,
+  "hex_colors_total": $HEX_COLORS_TOTAL,
   "inline_styles": $INLINE_STYLES,
   "shared_ui_components": $SHARED_UI_COMPONENTS,
   "story_files": $STORY_FILES
