@@ -122,11 +122,16 @@ parse_vite_output() {
     if [[ "$line" =~ \.$file_type[[:space:]] ]] && [[ "$line" =~ gzip:[[:space:]]*([0-9.]+)[[:space:]]*kB ]]; then
       local size="${BASH_REMATCH[1]}"
       # Convert to integer (multiply by 100 for precision, then divide later)
+      # Use bc if available, otherwise use awk as fallback
       local size_int
-      size_int=$(echo "$size * 100" | bc | cut -d. -f1)
-      total=$((total + size_int))
-      if [[ "$size_int" -gt "$largest" ]]; then
-        largest="$size_int"
+      if command -v bc &> /dev/null; then
+        size_int=$(echo "$size * 100" | bc | cut -d. -f1)
+      else
+        size_int=$(awk "BEGIN {printf \"%.0f\", $size * 100}")
+      fi
+      total=$((total + ${size_int:-0}))
+      if (( ${size_int:-0} > largest )); then
+        largest=${size_int:-0}
       fi
     fi
   done <<< "$build_output"
@@ -164,11 +169,13 @@ calculate_gzip_sizes_direct() {
   while IFS= read -r -d '' file; do
     if [[ -f "$file" ]]; then
       # Calculate gzip size in bytes
-      local gzip_size
-      gzip_size=$(gzip -c "$file" 2>/dev/null | wc -c)
-      total=$((total + gzip_size))
-      if [[ "$gzip_size" -gt "$largest" ]]; then
-        largest="$gzip_size"
+      # Use { gzip || true; } to prevent pipefail from terminating script on gzip failure
+      local current_size
+      current_size=$({ gzip -c "$file" 2>/dev/null || true; } | wc -c)
+      # Use default value 0 if current_size is empty (gzip failed completely)
+      total=$((total + ${current_size:-0}))
+      if (( ${current_size:-0} > largest )); then
+        largest=${current_size:-0}
       fi
     fi
   done < <(find "$dist_path/assets" -name "*.$file_type" -print0 2>/dev/null)
@@ -236,14 +243,15 @@ measure_app() {
   
   # Fallback to direct gzip calculation if Vite output parsing failed
   # This handles cases where Vite output format changes or gzip info is missing
-  if [[ "$js_total" == "0" ]] || [[ "$js_total" == ".0" ]] || [[ -z "$js_total" ]]; then
+  # Regex covers all zero formats: "0", ".0", "0.0" (from bc or awk)
+  if [[ "$js_total" =~ ^(0|\.0|0\.0)$ ]] || [[ -z "$js_total" ]]; then
     echo "Warning: Vite output parsing failed for JS, using direct gzip calculation" >&2
     js_result=$(calculate_gzip_sizes_direct "$dist_path" "js")
     js_total=$(echo "$js_result" | cut -d' ' -f1)
     js_largest=$(echo "$js_result" | cut -d' ' -f2)
   fi
   
-  if [[ "$css_total" == "0" ]] || [[ "$css_total" == ".0" ]] || [[ -z "$css_total" ]]; then
+  if [[ "$css_total" =~ ^(0|\.0|0\.0)$ ]] || [[ -z "$css_total" ]]; then
     echo "Warning: Vite output parsing failed for CSS, using direct gzip calculation" >&2
     css_result=$(calculate_gzip_sizes_direct "$dist_path" "css")
     css_total=$(echo "$css_result" | cut -d' ' -f1)
