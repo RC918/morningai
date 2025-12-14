@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { cn } from "../../utils";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "../ui/card";
 
 type SettingsCardVariant = "default" | "blue" | "green" | "yellow" | "red" | "purple";
 
@@ -48,18 +48,22 @@ function SettingsCard({
       )}
     >
       <CardHeader className="px-5 py-4">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold text-[var(--text-primary)]">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-[var(--text-primary)]">
           {icon && (
             <span className="shrink-0">
               {React.isValidElement(icon)
                 ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, {
-                    className: cn("size-5", variantIconColors[variant]),
+                    className: cn(
+                      "size-5",
+                      variantIconColors[variant],
+                      (icon as React.ReactElement<{ className?: string }>).props.className
+                    ),
                   })
                 : icon}
             </span>
           )}
           {title}
-        </CardTitle>
+        </h3>
         {description && (
           <CardDescription className="text-sm text-[var(--text-secondary)]">
             {description}

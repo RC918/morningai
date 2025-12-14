@@ -158,6 +158,21 @@ describe("SettingsCard", () => {
     });
   });
 
+  describe("icon className preservation", () => {
+    it("preserves and merges icon's original className", () => {
+      render(
+        <SettingsCard
+          title="Icon with class"
+          icon={<Settings data-testid="icon" className="extra-class" />}
+        />
+      );
+      const icon = screen.getByTestId("icon");
+      expect(icon).toHaveClass("extra-class");
+      expect(icon).toHaveClass("size-5");
+      expect(icon).toHaveClass("text-[var(--neutral-600)]");
+    });
+  });
+
   describe("complete card rendering", () => {
     it("renders all elements together", () => {
       render(
@@ -182,10 +197,10 @@ describe("SettingsCard", () => {
   });
 
   describe("accessibility", () => {
-    it("renders title in CardTitle component", () => {
+    it("renders title in h3 element for better accessibility", () => {
       render(<SettingsCard title="Accessible Title" />);
       const title = screen.getByText("Accessible Title");
-      expect(title.tagName.toLowerCase()).toBe("div");
+      expect(title.tagName.toLowerCase()).toBe("h3");
     });
 
     it("renders description in CardDescription component", () => {

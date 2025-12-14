@@ -74,7 +74,7 @@ export const SecuritySettings: Story = {
             <p className="text-sm font-medium">Two-Factor Authentication</p>
             <p className="text-xs text-gray-500">Add an extra layer of security</p>
           </div>
-          <button className="px-3 py-1 text-sm bg-green-500 text-white rounded-md">
+          <button className="px-3 py-1 text-sm bg-[var(--success-500)] text-white rounded-md">
             Enable
           </button>
         </div>
@@ -146,7 +146,7 @@ export const WithoutIcon: Story = {
             className="mt-1 w-full px-3 py-2 border rounded-md text-sm"
           />
         </div>
-        <button className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md">
+        <button className="px-4 py-2 text-sm bg-[var(--primary-500)] text-white rounded-md">
           Save Changes
         </button>
       </div>
