@@ -553,9 +553,11 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
             pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
             execution_success = bool(pr_url)  # Success if PR was created
         
+        # Calculate elapsed_ms once for both _canary_metrics and _rollout_tracker (Issue #2286)
+        elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
+        
         if _canary_metrics and use_langgraph:
             try:
-                elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
                 _canary_metrics.observe_latency_ms(elapsed_ms)
                 
                 if execution_success:
@@ -605,7 +607,6 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
         
         if _rollout_tracker:
             try:
-                elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
                 if use_langgraph:
                     _rollout_tracker.record_langgraph_task(
                         trace_id=task_id,
