@@ -263,29 +263,12 @@ if SECURITY_AVAILABLE:
 from src.routes import register_blueprints  # noqa: E402
 register_blueprints(app, backend_services_available=BACKEND_SERVICES_AVAILABLE)
 
-
-@app.errorhandler(Exception)
-def handle_exception(e):
-    """Global exception handler to capture unhandled errors in Sentry"""
-    if hasattr(e, "code"):
-        return jsonify({"error": str(e)}), e.code
-
-    logger.exception("Unhandled exception", extra={"error": str(e)})
-
-    if SENTRY_DSN:
-        sentry_sdk.capture_exception(e)
-
-    return (
-        jsonify(
-            {
-                "error": {
-                    "code": "internal_server_error",
-                    "message": "An unexpected error occurred",
-                }
-            }
-        ),
-        500,
-    )
+# Register error handlers (Phase 1 refactoring: PR1d)
+# Error handlers moved to src/middleware/error_handlers.py
+# Pass SENTRY_DSN (already processed by TESTING/DISABLE_SENTRY_FOR_TESTS logic above)
+from src.middleware.error_handlers import register_error_handlers  # noqa: E402
+from src.middleware.error_handlers import handle_exception  # noqa: E402, F401
+register_error_handlers(app, sentry_dsn=SENTRY_DSN)
 
 
 def get_health_payload():
