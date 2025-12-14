@@ -5,3 +5,4 @@ export * from "./timeline-list";
 export * from "./system-status-list";
 export * from "./progress-track";
 export * from "./metric-card";
+export * from "./settings-card";
