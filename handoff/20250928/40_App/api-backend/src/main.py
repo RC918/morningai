@@ -82,14 +82,10 @@ def before_send(event, hint):
     return event
 
 
-def _as_bool(val):
-    """Check if a value is truthy (handles bool, None, and string values)."""
-    if isinstance(val, bool):
-        return val
-    if val is None:
-        return False
-    s = str(val).strip().lower()
-    return s in ("1", "true", "yes", "on")
+# Import _as_bool from utils module (Phase 1 refactoring: PR1a)
+# Re-exported at module level for backward compatibility
+# Tests should patch via 'src.main._as_bool' (not 'src.utils.helpers._as_bool')
+from src.utils.helpers import _as_bool  # noqa: E402
 
 
 TESTING = _as_bool(os.getenv("TESTING"))
