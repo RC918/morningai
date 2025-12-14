@@ -103,6 +103,39 @@ export function MyButton() {
 
 如誤用廢棄目錄，CI 會自動阻止 PR 合併。
 
+### Phase 2 PR 要求（Epic #2304）
+
+Phase 2 設計系統遷移 PR 必須遵循以下流程：
+
+#### 必要步驟
+
+1. **執行 Audit 腳本**：
+   ```bash
+   ./scripts/phase2_audit.sh
+   # 或針對特定檔案
+   ./scripts/phase2_audit.sh --file <target_file>
+   ```
+
+2. **執行 Bundle Size 量測**：
+   ```bash
+   ./scripts/measure-bundle-size.sh
+   ```
+
+3. **填寫 PR Template**：使用 `PR_PHASE2_TEMPLATE.md` 或 PR template 中的 Phase 2 Audit Checklist
+
+#### 相關文件
+
+- 📋 [PR_PHASE2_TEMPLATE.md](PR_PHASE2_TEMPLATE.md) - Phase 2 PR 範本（含範例填寫）
+- 📚 [DESIGN_SYSTEM_GUIDELINES.md](DESIGN_SYSTEM_GUIDELINES.md) - 設計系統指南
+  - 「Phase 2 Audit Scripts 技術文檔」章節：Namespace JSX 解析規則、Bundle Size Fallback 計算方式
+- 🎯 [Epic #2304](https://github.com/RC918/morningai/issues/2304) - Phase 2 拆分計畫
+
+#### 腳本依賴
+
+- **Bash 4+**：macOS 預設 Bash 3.2，需使用 `brew install bash`
+- **bc**：可選，若無則使用 awk fallback
+- **gzip**：系統 CLI
+
 ## API 變更流程
 
 變更 API 或資料欄位（OpenAPI/DB）時：

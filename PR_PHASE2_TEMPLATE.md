@@ -24,8 +24,11 @@
 
 ### Before
 
-```
+```bash
+# 執行 audit 腳本取得 baseline
 ./scripts/phase2_audit.sh --file [target_file]
+# 或執行整體 audit
+./scripts/phase2_audit.sh
 ```
 
 | Metric | Value |
@@ -56,6 +59,41 @@
 | Legacy Cards | X | X | -X | PASS |
 | Raw Hex | X | X | 0 | PASS |
 | Inline Styles | X | X | 0 | PASS |
+
+<details>
+<summary>📋 範例填寫（可刪除）</summary>
+
+**Before**:
+```
+=== File: src/components/2fa/TwoFAStatusCard.jsx ===
+Shared-UI Cards: 0
+Legacy Cards: 1 (TwoFAStatusCard)
+Unknown Cards: 0
+Adoption: 0%
+Raw Hex: 2
+Inline Styles: 1
+```
+
+**After**:
+```
+=== File: src/components/2fa/TwoFAStatusCard.jsx ===
+Shared-UI Cards: 4 (SettingsCard)
+Legacy Cards: 0
+Unknown Cards: 0
+Adoption: 100%
+Raw Hex: 0
+Inline Styles: 0
+```
+
+**Delta Summary**:
+| Metric | Before | After | Delta | Status |
+|--------|--------|-------|-------|--------|
+| Shared-UI Cards | 0 | 4 | +4 | PASS |
+| Legacy Cards | 1 | 0 | -1 | PASS |
+| Raw Hex | 2 | 0 | -2 | PASS |
+| Inline Styles | 1 | 0 | -1 | PASS |
+
+</details>
 
 ---
 

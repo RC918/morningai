@@ -1628,6 +1628,53 @@ export PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
 ./audit-design-system.sh --strict
 ```
 
+### Phase 2 Audit Scripts 技術文檔
+
+#### Namespace JSX 解析規則
+
+Phase 2 audit 腳本使用以下 regex 來偵測 shared-ui card 元件使用：
+
+**Direct JSX Pattern**: `<${card}([^a-zA-Z0-9]|$)`
+- 匹配：`<StatCard>`, `<StatCard />`, `<StatCard className=...`
+- 不匹配：`StatCard`（非 JSX context）
+
+**Namespace JSX Pattern**: `<[A-Za-z0-9_]+\.${card}([^a-zA-Z0-9]|$)`
+- 匹配：`<SharedUI.StatCard>`, `<UI.StatusCard />`
+- 不匹配：`Foo.StatusCard`（非 JSX context，缺少 `<`）
+- 不匹配：`<Foo$Bar.Card>`（`$` 不在 pattern 中）
+- 不匹配：`<Foo.Bar.Card>`（多層 namespace 不支援）
+
+**已知限制**：
+1. 不支援含 `$` 的 identifier（如 `<Foo$Bar.Card>`）
+2. 不支援多層 namespace（如 `<Foo.Bar.Card>`）
+3. 若 repo 使用上述 pattern，需擴充 regex
+
+#### Bundle Size Fallback 計算方式
+
+`scripts/measure-bundle-size.sh` 提供兩種 bundle size 計算方式：
+
+**Primary: Vite Output Parsing**
+- 解析 Vite build 輸出中的 `gzip: XX.XX kB` 資訊
+- 優點：快速、準確（Vite 內建計算）
+- 限制：依賴 Vite 輸出格式，若格式變更會失敗
+
+**Fallback: Direct Gzip Calculation**
+- 直接對 `dist/assets/*.js` 和 `dist/assets/*.css` 執行 `gzip -c | wc -c`
+- 觸發條件：Vite parsing 結果為零值（`0`, `.0`, `0.0`）或空值
+- 優點：不依賴 Vite 輸出格式
+- 限制：較慢（需實際壓縮每個檔案）
+
+**依賴與相容性**：
+- **Bash 4+**：使用 associative array，macOS 預設 Bash 3.2 需使用 `brew install bash`
+- **gzip**：系統 CLI，非 Node zlib
+- **bc**：可選，若無則使用 awk fallback
+- **路徑支援**：支援空白/Unicode 路徑；極端情境如檔名含換行符不保證
+
+**Race Condition 注意事項**：
+- 腳本輸出檔案（如 `.bundle-size-baseline.json`）使用固定路徑
+- 若在 CI 中平行執行多個 job 且共享 workspace，可能發生覆蓋
+- 建議：使用 `--output <path>` 指定不同輸出路徑，或確保 job 隔離
+
 ### 後續改進項目（設計系統健康度 roadmap）
 
 > **注意**: 以下項目為設計系統健康度改進目標，與 Epic #2304 的 Phase 結構無關。
