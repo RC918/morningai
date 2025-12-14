@@ -59,9 +59,9 @@ def register_blueprints(app, backend_services_available=False):
         app.register_blueprint(agent_bp)
         app.register_blueprint(agent_evaluation_bp)
         app.register_blueprint(faq_bp)
-        logger.info("Orchestrator/agent routes enabled")
+        logger.info("\u2705 Orchestrator/agent routes enabled")
     else:
-        logger.info("Orchestrator/agent routes disabled (ENABLE_ORCHESTRATOR=false)")
+        logger.info("\u26a0\ufe0f Orchestrator/agent routes disabled (ENABLE_ORCHESTRATOR=false)")
 
     # More core blueprints
     app.register_blueprint(agent_registry_bp)
@@ -124,11 +124,10 @@ def register_blueprints(app, backend_services_available=False):
     )
 
     # Mock API for backend services (conditional)
+    # Only import mock_api - other services are already imported in main.py
+    # when BACKEND_SERVICES_AVAILABLE is True
     if backend_services_available:
         try:
-            from src.services.monitoring_dashboard import monitoring_dashboard
-            from src.services.report_generator import report_generator
-            from src.utils.env_schema_validator import validate_environment
             from src.routes.mock_api import mock_api
             app.register_blueprint(mock_api)
         except (ImportError, NameError):

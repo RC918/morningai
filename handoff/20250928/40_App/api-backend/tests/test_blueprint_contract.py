@@ -113,3 +113,100 @@ class TestBlueprintContract:
             for bp_name in phase456_blueprints:
                 assert bp_name in registered_names, \
                     f"Blueprint '{bp_name}' should be registered when PHASE_456_AVAILABLE=True"
+
+
+class TestRegisterBlueprintsEdgeCases:
+    """Test register_blueprints function with different configurations.
+    
+    These tests verify that the blueprint registration function handles
+    various environment configurations correctly without raising exceptions.
+    
+    Part of PR1c edge case testing as requested by CTO review.
+    """
+    
+    def test_register_blueprints_does_not_raise_with_default_config(self):
+        """Verify register_blueprints doesn't raise with default configuration."""
+        from flask import Flask
+        from src.routes import register_blueprints
+        
+        app = Flask(__name__)
+        # Should not raise any exception
+        register_blueprints(app, backend_services_available=False)
+        
+        # Should have at least core blueprints registered
+        assert len(app.blueprints) >= 16, \
+            f"Expected at least 16 core blueprints, got {len(app.blueprints)}"
+    
+    def test_register_blueprints_with_backend_services_false(self):
+        """Verify register_blueprints works when backend_services_available=False."""
+        from flask import Flask
+        from src.routes import register_blueprints
+        
+        app = Flask(__name__)
+        register_blueprints(app, backend_services_available=False)
+        
+        # mock_api should NOT be registered
+        assert 'mock_api' not in app.blueprints, \
+            "mock_api should not be registered when backend_services_available=False"
+    
+    def test_register_blueprints_with_backend_services_true(self):
+        """Verify register_blueprints works when backend_services_available=True."""
+        from flask import Flask
+        from src.routes import register_blueprints
+        
+        app = Flask(__name__)
+        # This may or may not register mock_api depending on whether the module exists
+        # The key is that it should not raise an exception
+        register_blueprints(app, backend_services_available=True)
+        
+        # Should have at least core blueprints registered
+        assert len(app.blueprints) >= 16, \
+            f"Expected at least 16 core blueprints, got {len(app.blueprints)}"
+    
+    def test_register_blueprints_orchestrator_disabled(self, monkeypatch):
+        """Verify register_blueprints works when ENABLE_ORCHESTRATOR=false."""
+        from flask import Flask
+        from src.routes import register_blueprints
+        
+        monkeypatch.setenv('ENABLE_ORCHESTRATOR', 'false')
+        
+        app = Flask(__name__)
+        register_blueprints(app, backend_services_available=False)
+        
+        # Orchestrator blueprints should NOT be registered
+        orchestrator_blueprints = ['agent', 'agent_evaluation', 'faq']
+        for bp_name in orchestrator_blueprints:
+            assert bp_name not in app.blueprints, \
+                f"Blueprint '{bp_name}' should not be registered when ENABLE_ORCHESTRATOR=false"
+    
+    def test_register_blueprints_orchestrator_enabled(self, monkeypatch):
+        """Verify register_blueprints works when ENABLE_ORCHESTRATOR=true."""
+        from flask import Flask
+        from src.routes import register_blueprints
+        
+        monkeypatch.setenv('ENABLE_ORCHESTRATOR', 'true')
+        
+        app = Flask(__name__)
+        register_blueprints(app, backend_services_available=False)
+        
+        # Orchestrator blueprints should be registered
+        orchestrator_blueprints = ['agent', 'agent_evaluation', 'faq']
+        for bp_name in orchestrator_blueprints:
+            assert bp_name in app.blueprints, \
+                f"Blueprint '{bp_name}' should be registered when ENABLE_ORCHESTRATOR=true"
+    
+    def test_register_blueprints_idempotent_on_fresh_app(self):
+        """Verify register_blueprints can be called on a fresh Flask app."""
+        from flask import Flask
+        from src.routes import register_blueprints
+        
+        # Create two separate apps and register blueprints on each
+        app1 = Flask(__name__)
+        app2 = Flask(__name__)
+        
+        register_blueprints(app1, backend_services_available=False)
+        register_blueprints(app2, backend_services_available=False)
+        
+        # Both apps should have the same blueprints registered
+        assert set(app1.blueprints.keys()) == set(app2.blueprints.keys()), \
+            "Blueprint registration should be consistent across fresh apps"
