@@ -31,9 +31,14 @@ class TestRouteMapRegression:
     def current_routes(self):
         """Get current routes from Flask app."""
         # Set test environment before importing app
+        # These must match the environment used to generate the baseline
         os.environ['TESTING'] = 'true'
         os.environ['ENVIRONMENT'] = 'development'
         os.environ['ENABLE_MOCK_USERS'] = 'true'
+        # Disable orchestrator routes for baseline comparison
+        # These routes depend on optional dependencies (faq_agent, etc.) that
+        # may not be available in all environments (e.g., CI)
+        os.environ['ENABLE_ORCHESTRATOR'] = 'false'
         
         from src.main import app
         
@@ -60,18 +65,18 @@ class TestRouteMapRegression:
         
         If this test fails after intentional route changes:
         1. Review the changes to ensure they're intentional
-        2. Update the baseline by running:
+        2. Update the baseline by running (from repo root):
+           export PYTHONPATH="$PWD:$PWD/handoff/20250928/40_App/api-backend/src:$PWD/handoff/20250928/40_App/orchestrator"
+           cd handoff/20250928/40_App/api-backend
            python -c "
            import os, sys, json
-           sys.path.insert(0, 'handoff/20250928/40_App/api-backend/src')
-           sys.path.insert(0, 'handoff/20250928/40_App/api-backend')
-           sys.path.insert(0, '.')
            os.environ['TESTING'] = 'true'
            os.environ['ENVIRONMENT'] = 'development'
            os.environ['ENABLE_MOCK_USERS'] = 'true'
+           os.environ['ENABLE_ORCHESTRATOR'] = 'false'
            from src.main import app
            routes = sorted([(r.rule, sorted(list(r.methods - {'HEAD', 'OPTIONS'}))) for r in app.url_map.iter_rules() if r.rule != '/static/<path:filename>'])
-           with open('handoff/20250928/40_App/api-backend/tests/baselines/route_map_baseline.json', 'w') as f:
+           with open('tests/baselines/route_map_baseline.json', 'w') as f:
                json.dump(routes, f, indent=2)
            "
         """

@@ -68,18 +68,24 @@ def reset_settings_after_test():
     
     Part of PR0 (#2375) - Phase 0 stability guards.
     
+    Note: We clear the cache WITHOUT re-validating because tests may have set
+    invalid env values (e.g., ENVIRONMENT='test') that would fail validation.
+    The next test that needs settings will trigger a fresh load with its own env.
+    
     Example usage in tests:
         def test_custom_setting(monkeypatch):
             monkeypatch.setenv('JWT_SECRET_KEY', 'test-key')
-            # Settings will be reloaded after this test completes
+            # Settings cache will be cleared after this test completes
     """
     yield
-    # Reset settings cache after test completes
+    # Clear settings cache after test completes (without re-validating)
     try:
-        from common.config.settings import reload_settings
-        reload_settings()
-    except ImportError:
-        # Settings module not available in this test context
+        import common.config.settings as settings_module
+        # Clear the cached instance without creating a new one
+        # This avoids validation errors from invalid test env values
+        settings_module._settings_instance = None
+    except (ImportError, AttributeError):
+        # Settings module not available or doesn't have _settings_instance
         pass
 
 

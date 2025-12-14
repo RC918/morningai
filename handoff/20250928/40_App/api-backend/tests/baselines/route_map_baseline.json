@@ -114,60 +114,6 @@
     ]
   ],
   [
-    "/api/agent-evaluation/health",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/agent-evaluation/metrics",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/agent-evaluation/results",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/agent/debug/queue",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/agent/faq",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/agent/faq",
-    [
-      "POST"
-    ]
-  ],
-  [
-    "/api/agent/project-engineer/task",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/agent/project-engineer/task",
-    [
-      "POST"
-    ]
-  ],
-  [
-    "/api/agent/tasks/<task_id>",
-    [
-      "GET"
-    ]
-  ],
-  [
     "/api/ai-policies",
     [
       "GET"
@@ -586,54 +532,6 @@
   ],
   [
     "/api/failures/summary",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/faq",
-    [
-      "POST"
-    ]
-  ],
-  [
-    "/api/faq/<faq_id>",
-    [
-      "DELETE"
-    ]
-  ],
-  [
-    "/api/faq/<faq_id>",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/faq/<faq_id>",
-    [
-      "PUT"
-    ]
-  ],
-  [
-    "/api/faq/categories",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/faq/health",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/faq/search",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/faq/stats",
     [
       "GET"
     ]
