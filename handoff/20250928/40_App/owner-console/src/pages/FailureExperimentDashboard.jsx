@@ -209,7 +209,7 @@ const FailureExperimentDashboard = () => {
           icon={<XCircle />}
           variant="red"
           deltaLabel={t('failureExperiment.metrics.last24h', 'Last 24 hours')}
-          deltaPositive={true}
+          deltaPositive="neutral"
         />
 
         {/* Success Rate */}
@@ -231,7 +231,7 @@ const FailureExperimentDashboard = () => {
           deltaLabel={t('failureExperiment.metrics.ofTotal', 'of {{total}} total', { 
             total: experimentSummary?.total_experiments ?? 0 
           })}
-          deltaPositive={true}
+          deltaPositive="neutral"
         />
 
         {/* Avg Fixer Iterations */}
@@ -241,7 +241,7 @@ const FailureExperimentDashboard = () => {
           icon={<Repeat />}
           variant="blue"
           deltaLabel={t('failureExperiment.metrics.perWorkflow', 'per workflow')}
-          deltaPositive={true}
+          deltaPositive="neutral"
         />
       </div>
 

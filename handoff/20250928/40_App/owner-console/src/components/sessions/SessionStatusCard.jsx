@@ -7,8 +7,7 @@ import { cn } from '@morningai/shared-ui'
  * Design Specification (Unified Status Card Standard):
  * - Fixed dimensions: min-w-[140px] h-24 (96px) for consistent visual alignment
  * - Internal padding: px-4 py-3 (16px horizontal, 12px vertical)
- * - Icon container: 32x32px (uses --card-icon-kpi-containerSize CSS variable) with rounded-full, positioned top-right
- * - Icon size: 16x16px (uses --card-icon-kpi-size CSS variable)
+ * - Icon: 20x20px (size-5), no background container, positioned top-right
  * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (bottom-left)
  * - Vertical spacing: justify-between for consistent label-to-value distance
  * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
@@ -18,7 +17,7 @@ import { cn } from '@morningai/shared-ui'
  * @param {string} props.label - Card label text
  * @param {string|number} props.value - Numeric value to display
  * @param {React.ReactElement} props.icon - Icon element (will be cloned with consistent sizing)
- * @param {'default'|'blue'|'green'|'yellow'|'red'} props.variant - Color variant for icon background
+ * @param {'default'|'blue'|'green'|'yellow'|'red'} props.variant - Color variant for icon
  * @param {boolean} props.isActive - Whether this card is currently selected
  * @param {Function} props.onClick - Click handler
  * @param {string} [props.className] - Additional className for the wrapper
@@ -115,20 +114,10 @@ function SessionStatusCard({
         <span className="text-xs font-medium text-[var(--text-secondary)]">
           {label}
         </span>
-        <div
-          className={cn(
-            'flex items-center justify-center shrink-0',
-            'size-[var(--card-icon-kpi-containerSize,32px)]',
-            'rounded-[var(--card-icon-kpi-shape,9999px)]',
-            styles.iconBg,
-            styles.iconText
-          )}
-        >
-          {icon && cloneElement(icon, { 
-            className: 'size-[var(--card-icon-kpi-size,16px)]',
-            'aria-hidden': 'true'
-          })}
-        </div>
+        {icon && cloneElement(icon, { 
+          className: cn('size-5 shrink-0', styles.iconText),
+          'aria-hidden': 'true'
+        })}
       </div>
         
       {/* Bottom row: Value */}
