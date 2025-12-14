@@ -341,7 +341,20 @@ class RolloutTracker:
         Args:
             trace_id: Unique trace identifier
             success: Whether the task succeeded
-            latency_ms: Task latency in milliseconds
+            latency_ms: Orchestrator worker execution duration in milliseconds.
+                This measures the time from when the worker starts processing the task
+                (after dequeuing from Redis) to when orchestration completes.
+                
+                INCLUDES: All time spent inside the worker, including outbound API calls
+                made by the orchestrator itself (LLM providers, GitHub API, etc.).
+                
+                EXCLUDES:
+                - Queue wait time before the job is picked up (enqueue -> dequeue)
+                - Downstream time after the worker finishes (client/UI round-trip,
+                  notifications, CI completion)
+                
+                See Issue #2286 for the refactoring that ensures this value is
+                calculated once and shared between _canary_metrics and _rollout_tracker.
             is_5xx_error: Whether this was a 5xx error
         """
         if not self.enabled:
@@ -391,7 +404,20 @@ class RolloutTracker:
         Args:
             trace_id: Unique trace identifier
             success: Whether the task succeeded
-            latency_ms: Task latency in milliseconds
+            latency_ms: Orchestrator worker execution duration in milliseconds.
+                This measures the time from when the worker starts processing the task
+                (after dequeuing from Redis) to when orchestration completes.
+                
+                INCLUDES: All time spent inside the worker, including outbound API calls
+                made by the orchestrator itself (LLM providers, GitHub API, etc.).
+                
+                EXCLUDES:
+                - Queue wait time before the job is picked up (enqueue -> dequeue)
+                - Downstream time after the worker finishes (client/UI round-trip,
+                  notifications, CI completion)
+                
+                See Issue #2286 for the refactoring that ensures this value is
+                calculated once and shared between _canary_metrics and _rollout_tracker.
             is_5xx_error: Whether this was a 5xx error
         """
         if not self.enabled:
