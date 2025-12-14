@@ -54,7 +54,6 @@ from src.middleware.auth_middleware import (
     admin_required,
     analyst_required,
 )
-from flask_cors import CORS
 from common.config.settings import get_settings
 import sys
 import os
@@ -246,7 +245,17 @@ def is_vercel_preview(origin):
 
 @app.after_request
 def add_cors_headers(response):
-    """Add CORS headers for allowed origins including Vercel preview URLs"""
+    """Add CORS headers for allowed origins including Vercel preview URLs.
+
+    This is the single authority source for CORS handling in the application.
+    Flask-CORS has been removed to avoid dual-mechanism conflicts.
+
+    Handles:
+    - Static origins from CORS_ORIGINS environment variable
+    - Dynamic Vercel preview URLs (*.vercel.app) in staging/development
+    - OPTIONS preflight requests with 204 status code
+    - Access-Control-Expose-Headers for rate limit headers
+    """
     origin = request.headers.get("Origin")
 
     in_allowlist = origin in cors_origins
@@ -271,29 +280,22 @@ def add_cors_headers(response):
         response.headers["Access-Control-Allow-Methods"] = (
             "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         )
+        response.headers["Access-Control-Expose-Headers"] = (
+            "Content-Type, Authorization, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset"
+        )
         response.headers["Vary"] = "Origin"
+
+        # Handle OPTIONS preflight requests with 204 No Content
+        if request.method == "OPTIONS":
+            response.status_code = 204
+            if cors_debug_enabled:
+                logging.debug("[CORS DEBUG] add_cors_headers: preflight_response=204")
     else:
         if cors_debug_enabled:
             logging.debug("[CORS DEBUG] add_cors_headers: headers_added=False")
 
     return response
 
-
-cors_config = {
-    "origins": cors_origins,
-    "supports_credentials": True,
-    "allow_headers": ["Content-Type", "Authorization", "X-Request-ID", "X-CSRF-Token"],
-    "expose_headers": [
-        "Content-Type",
-        "Authorization",
-        "X-RateLimit-Limit",
-        "X-RateLimit-Remaining",
-        "X-RateLimit-Reset",
-    ],
-    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-}
-
-CORS(app, resources={r"/*": cors_config})
 
 if SECURITY_AVAILABLE:
     # MASTER_KEY fallback removed - deadline 2025-11-30 passed
