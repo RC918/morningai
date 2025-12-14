@@ -103,9 +103,13 @@ class TestDatetimeSerialization:
         metrics: dict
     
     def test_serialize_naive_datetime(self):
-        """Test serialization of naive datetime"""
-        from src.main import generate_report
+        """Test serialization of naive datetime
         
+        Note: This test validates the serialize_datetime logic used in generate_report.
+        With App Factory Pattern (PR1.5), generate_report is defined inside
+        _register_inline_routes and is not directly importable. The test validates
+        the serialization logic directly without importing the route handler.
+        """
         naive_dt = datetime.datetime(2025, 10, 24, 12, 0, 0)
         report_data = self.MockReportData(
             title="Test Report",
