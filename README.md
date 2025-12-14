@@ -307,6 +307,60 @@ pip install -r requirements.txt  # pytest, flake8, python-dotenv
 
 ---
 
+## 開發環境設置 (Development Environment Setup)
+
+MorningAI 提供自動化腳本來設置開發環境，確保依賴正確安裝。
+
+### 快速開始
+
+```bash
+# 執行開發環境設置腳本
+./scripts/setup-dev.sh
+```
+
+此腳本會自動：
+1. 建立 Python 虛擬環境 (`.venv`)
+2. 安裝所有必要依賴
+3. 處理 PyJWT/jwt 套件衝突
+4. 驗證安裝正確性
+
+### PyJWT vs jwt 套件衝突
+
+Python 有兩個名為 `jwt` 的套件：
+- **PyJWT** (`PyJWT>=2.8.0`): 正確的套件，提供 `jwt.decode()` 等功能
+- **jwt** (`jwt 1.x`): 錯誤的套件，會覆蓋 PyJWT 的 import
+
+如果遇到 `AttributeError: module 'jwt' has no attribute 'decode'`，表示安裝了錯誤的套件：
+
+```bash
+# 修復方法
+pip uninstall jwt
+pip install PyJWT
+```
+
+### 手動設置
+
+如果不使用腳本，請按以下步驟操作：
+
+```bash
+# 1. 建立虛擬環境
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 2. 移除錯誤的 jwt 套件（如果存在）
+pip uninstall -y jwt || true
+
+# 3. 安裝依賴
+pip install -r handoff/20250928/40_App/api-backend/requirements.txt
+pip install -r handoff/20250928/40_App/orchestrator/requirements.txt
+pip install -e handoff/20250928/40_App/orchestrator
+
+# 4. 驗證 PyJWT 安裝
+python -c "import jwt; assert hasattr(jwt, 'decode'), 'Wrong jwt package'"
+```
+
+---
+
 ## Configuration Flags
 
 MorningAI 使用環境變數進行配置。完整的配置說明請參考：
