@@ -1546,8 +1546,9 @@ input, select, textarea {
 # Total hex colors（所有 hex 色碼）
 grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" src/ --include="*.css" --include="*.tsx"
 
-# Fallback hex colors（在 var() 內的 hex）
-grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" src/ --include="*.css" --include="*.tsx" | grep "var("
+# Fallback hex colors（在 var() fallback 位置，逗號後的 hex）
+# Pattern: var(--token, #hex) - 精確匹配 CSS 變數 fallback
+grep -rE "var\([^)]*,[[:space:]]*#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?" src/ --include="*.css" --include="*.tsx"
 
 # Raw hex colors = Total - Fallback
 ```

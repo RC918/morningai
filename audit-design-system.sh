@@ -206,13 +206,15 @@ HEX_COLORS_TOTAL=$(grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" \
   --exclude-dir=node_modules --exclude="*.stories.*" \
   2>/dev/null | wc -l || echo "0")
 
-# Count fallback hex colors (inside var() functions)
-HEX_COLORS_FALLBACK=$(grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" \
+# Count fallback hex colors (specifically in var() fallback position, after comma)
+# Pattern: var(--token, #hex) - matches hex colors that are CSS variable fallbacks
+# Using [[:space:]]* for POSIX compatibility instead of \s
+HEX_COLORS_FALLBACK=$(grep -rE "var\([^)]*,[[:space:]]*#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?" \
   "$FRONTEND_DASHBOARD_SRC" \
   "$OWNER_CONSOLE_SRC" \
   --include="*.tsx" --include="*.ts" --include="*.css" \
   --exclude-dir=node_modules --exclude="*.stories.*" \
-  2>/dev/null | grep "var(" | wc -l || echo "0")
+  2>/dev/null | wc -l || echo "0")
 
 # Raw hex colors = Total - Fallback (these are the ones we want to reduce)
 HEX_COLORS_RAW=$((HEX_COLORS_TOTAL - HEX_COLORS_FALLBACK))
