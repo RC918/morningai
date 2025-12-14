@@ -172,17 +172,22 @@ class TestStaticFileServing:
         
         assert response.status_code in [200, 404]
     
-    @patch('os.path.exists')
-    def test_serve_no_static_folder(self, mock_exists, app):
-        """Test serve function when static folder is None"""
-        from src.main import serve
+    def test_serve_no_static_folder(self, app, client):
+        """Test serve function when static folder is None
         
-        with app.app_context():
+        Note: With App Factory Pattern (PR1.5), the serve function is now
+        defined inside _register_inline_routes and is not directly importable.
+        This test uses the Flask test client to verify the behavior.
+        """
+        original_static_folder = app.static_folder
+        try:
             app.static_folder = None
-            response, status_code = serve('')
+            response = client.get('/')
             
-            assert status_code == 404
-            assert "not configured" in response
+            assert response.status_code == 404
+            assert b"not configured" in response.data
+        finally:
+            app.static_folder = original_static_folder
 
 
 class TestDashboardEndpoints:
