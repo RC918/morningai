@@ -473,8 +473,11 @@ class TestMainAppFeatureFlags:
             assert 'error' in payload['database']
 
     def test_before_send_filters_400_errors(self):
-        """Test before_send filters 400 errors"""
-        from src.main import before_send
+        """Test before_send filters 400 errors
+        
+        NOTE: before_send is now in src/extensions/sentry.py (Phase 1 refactoring: PR1f)
+        """
+        from src.extensions.sentry import before_send
 
         class MockException:
             code = 400
@@ -486,8 +489,11 @@ class TestMainAppFeatureFlags:
         assert result is None
 
     def test_before_send_filters_404_errors(self):
-        """Test before_send filters 404 errors"""
-        from src.main import before_send
+        """Test before_send filters 404 errors
+        
+        NOTE: before_send is now in src/extensions/sentry.py (Phase 1 refactoring: PR1f)
+        """
+        from src.extensions.sentry import before_send
 
         class MockException:
             code = 404
@@ -499,8 +505,11 @@ class TestMainAppFeatureFlags:
         assert result is None
 
     def test_before_send_passes_500_errors(self):
-        """Test before_send passes through 500 errors"""
-        from src.main import before_send
+        """Test before_send passes through 500 errors
+        
+        NOTE: before_send is now in src/extensions/sentry.py (Phase 1 refactoring: PR1f)
+        """
+        from src.extensions.sentry import before_send
 
         class MockException:
             code = 500
@@ -512,8 +521,11 @@ class TestMainAppFeatureFlags:
         assert result == event
 
     def test_before_send_filters_status_code_400(self):
-        """Test before_send filters events with status_code 400"""
-        from src.main import before_send
+        """Test before_send filters events with status_code 400
+        
+        NOTE: before_send is now in src/extensions/sentry.py (Phase 1 refactoring: PR1f)
+        """
+        from src.extensions.sentry import before_send
 
         event = {'request': {'status_code': 400}}
         hint = {}
@@ -522,8 +534,11 @@ class TestMainAppFeatureFlags:
         assert result is None
 
     def test_before_send_passes_normal_events(self):
-        """Test before_send passes normal events"""
-        from src.main import before_send
+        """Test before_send passes normal events
+        
+        NOTE: before_send is now in src/extensions/sentry.py (Phase 1 refactoring: PR1f)
+        """
+        from src.extensions.sentry import before_send
 
         event = {'request': {'status_code': 200}}
         hint = {}
