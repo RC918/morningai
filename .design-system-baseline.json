@@ -1,7 +1,11 @@
 {
-  "updated": "2025-12-13T06:43:46Z",
-  "hex_colors": 494,
+  "updated": "2025-12-14T11:02:09Z",
+  "hex_colors": 450,
+  "hex_colors_raw": 450,
+  "hex_colors_fallback": 156,
+  "hex_colors_total": 606,
   "inline_styles": 49,
   "shared_ui_components": 54,
-  "story_files": 21
+  "story_files": 34,
+  "counting_method": "match-based"
 }
