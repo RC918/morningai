@@ -290,6 +290,21 @@ def add_cors_headers(response):
             response.status_code = 204
             if cors_debug_enabled:
                 logging.debug("[CORS DEBUG] add_cors_headers: preflight_response=204")
+    elif request.method == "OPTIONS" and not origin:
+        # Fallback for OPTIONS requests without Origin header (non-browser clients, testing)
+        # This maintains backward compatibility with Flask-CORS behavior.
+        # Note: Real browser preflight requests always include Origin header.
+        # Using "*" without credentials is spec-compliant for this edge case.
+        if cors_debug_enabled:
+            logging.debug("[CORS DEBUG] add_cors_headers: fallback_options_no_origin=True")
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Content-Type, Authorization, X-Request-ID, X-CSRF-Token"
+        )
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+        )
+        response.status_code = 204
     else:
         if cors_debug_enabled:
             logging.debug("[CORS DEBUG] add_cors_headers: headers_added=False")
