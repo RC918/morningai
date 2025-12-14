@@ -126,7 +126,7 @@ function MetricCard({
         )}
         
         {typeof progress === "number" && (
-          <div className="mt-3">
+          <div className="mt-3" aria-hidden="true">
             <Progress value={progress} className="h-1.5" />
           </div>
         )}
