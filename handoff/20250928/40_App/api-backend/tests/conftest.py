@@ -53,6 +53,36 @@ def disable_sentry_in_tests(monkeypatch):
     monkeypatch.setenv("TESTING", "true")
 
 
+@pytest.fixture(autouse=True)
+def reset_settings_after_test():
+    """
+    Reset settings cache after each test to prevent cross-test pollution.
+    
+    This fixture runs automatically for all tests (autouse=True) and ensures
+    that any settings modifications made during a test don't leak to other tests.
+    
+    Why this is needed:
+    - Tests may modify environment variables to test different configurations
+    - The settings module caches its instance for performance
+    - Without reset, a test modifying JWT_SECRET_KEY could affect subsequent tests
+    
+    Part of PR0 (#2375) - Phase 0 stability guards.
+    
+    Example usage in tests:
+        def test_custom_setting(monkeypatch):
+            monkeypatch.setenv('JWT_SECRET_KEY', 'test-key')
+            # Settings will be reloaded after this test completes
+    """
+    yield
+    # Reset settings cache after test completes
+    try:
+        from common.config.settings import reload_settings
+        reload_settings()
+    except ImportError:
+        # Settings module not available in this test context
+        pass
+
+
 # Legacy fixtures (maintained for backward compatibility)
 # These will be deprecated in RFC #619 Phase 2
 @pytest.fixture
