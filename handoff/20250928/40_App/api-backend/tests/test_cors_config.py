@@ -283,15 +283,16 @@ class TestCORSDebugSanitization:
         # Safe fields that SHOULD appear in logs
         safe_fields = ["origin_present=", "in_allowlist=", "is_preview=", "allowlist_count="]
 
-        # If CORS_DEBUG is enabled and we're not in production, we should see these fields
-        # Note: The logs may or may not appear depending on the exact flow
-        # The key assertion is that if CORS DEBUG logs appear, they are sanitized
+        # CORS_DEBUG is enabled and we're not in production, so we MUST see debug logs
+        # This assertion ensures the test doesn't silently pass if no logs are emitted
+        assert "[CORS DEBUG]" in log_text, (
+            "CORS debug logs should be emitted when CORS_DEBUG=true and not in production. "
+            "If this fails, check that the /health endpoint triggers add_cors_headers middleware."
+        )
 
-        # Check for CORS DEBUG marker in logs
-        if "[CORS DEBUG]" in log_text:
-            # Verify safe fields are present
-            for field in safe_fields:
-                assert field in log_text, f"Expected safe field '{field}' in CORS debug logs"
+        # Verify all safe fields are present in the logs
+        for field in safe_fields:
+            assert field in log_text, f"Expected safe field '{field}' in CORS debug logs"
 
     def test_cors_debug_logs_do_not_contain_raw_values(self, monkeypatch, caplog):
         """Test that CORS debug logs do NOT contain raw origin URLs or allowlist contents.
