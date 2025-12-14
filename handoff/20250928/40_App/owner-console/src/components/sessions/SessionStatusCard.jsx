@@ -4,12 +4,14 @@ import { cn } from '@morningai/shared-ui'
 /**
  * SessionStatusCard - Standardized status filter card for Agent Sessions page
  * 
- * Design Specification (Unified Status Card Standard):
+ * Design Specification (Unified Status Card Standard - matches StatCard layout):
  * - Fixed dimensions: min-w-[140px] h-24 (96px) for consistent visual alignment
  * - Internal padding: px-4 py-3 (16px horizontal, 12px vertical)
- * - Icon container: 28x28px (h-7 w-7) with rounded-lg, positioned top-right
- * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (bottom-left)
- * - Vertical spacing: justify-between for consistent label-to-value distance
+ * - Two-row layout:
+ *   - Row 1: Label (text-xs font-medium)
+ *   - Row 2: Value + Icon in same flex row (items-center for horizontal alignment)
+ * - Icon: 20x20px (size-5), no background container, ml-3 (12px) spacing from value
+ * - Typography: label text-xs font-medium, value text-2xl font-semibold
  * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
  * - Focus state: 2px ring with accessibility color (var(--accessibility-focus-outline-color)), only on keyboard focus
  * 
@@ -17,7 +19,7 @@ import { cn } from '@morningai/shared-ui'
  * @param {string} props.label - Card label text
  * @param {string|number} props.value - Numeric value to display
  * @param {React.ReactElement} props.icon - Icon element (will be cloned with consistent sizing)
- * @param {'default'|'blue'|'green'|'yellow'|'red'} props.variant - Color variant for icon background
+ * @param {'default'|'blue'|'green'|'yellow'|'red'} props.variant - Color variant for icon
  * @param {boolean} props.isActive - Whether this card is currently selected
  * @param {Function} props.onClick - Click handler
  * @param {string} [props.className] - Additional className for the wrapper
@@ -81,7 +83,6 @@ function SessionStatusCard({
         // Fixed dimensions for all cards - ensures visual consistency
         'relative min-w-[140px] h-24 w-full',
         'text-left rounded-xl border px-4 py-3',
-        'flex flex-col justify-between',
         'transition-all duration-150',
         // Default state
         'border-[var(--border)] bg-[var(--surface)] shadow-sm',
@@ -109,35 +110,28 @@ function SessionStatusCard({
         />
       )}
       
-      {/* Top row: Label + Icon */}
-      <div className="flex items-center justify-between">
+      {/* Two-row layout: Label on top, Value + Icon in bottom row */}
+      <div className="flex h-full flex-col justify-between">
+        {/* Row 1: Label */}
         <span className="text-xs font-medium text-[var(--text-secondary)]">
           {label}
         </span>
-        <div
-          className={cn(
-            'flex h-7 w-7 items-center justify-center rounded-lg shrink-0',
-            styles.iconBg,
-            styles.iconText
-          )}
-        >
+
+        {/* Row 2: Value + Icon (horizontally aligned) */}
+        <div className="flex items-center justify-between">
+          <span
+            className={cn(
+              'text-2xl font-semibold transition-colors duration-150',
+              isActive ? styles.activeValue : 'text-[var(--text-primary)]'
+            )}
+          >
+            {value}
+          </span>
           {icon && cloneElement(icon, { 
-            className: 'w-4 h-4',
+            className: cn('size-5 shrink-0 ml-3', styles.iconText),
             'aria-hidden': 'true'
           })}
         </div>
-      </div>
-        
-      {/* Bottom row: Value */}
-      <div className="flex items-baseline">
-        <span
-          className={cn(
-            'text-2xl font-semibold transition-colors duration-150',
-            isActive ? styles.activeValue : 'text-[var(--text-primary)]'
-          )}
-        >
-          {value}
-        </span>
       </div>
     </button>
   )
