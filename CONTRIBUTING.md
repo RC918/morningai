@@ -929,6 +929,392 @@ python scripts/test_migration_data_insertion.py
 - **[Onboarding Guide](docs/ONBOARDING_GUIDE.md)** - 包含 Alembic 設置說明
 - **PR #1107**: https://github.com/RC918/morningai/pull/1107 - Alembic 實作參考
 
+## Database Module 使用指南
+
+### 模組概覽
+
+MorningAI 使用 SQLAlchemy 2.0 + Alembic 進行資料庫操作。主要模組位於：
+
+```
+handoff/20250928/40_App/api-backend/src/
+├── models/                    # SQLAlchemy 模型定義
+│   ├── base.py               # Base 類別和共用 mixin
+│   ├── agent_registry_db.py  # Agent 相關模型
+│   └── ...
+├── database/                  # 資料庫連線和 session 管理
+│   ├── connection.py         # 連線池配置
+│   └── session.py            # Session 工廠
+└── repositories/              # 資料存取層
+    └── ...
+```
+
+### 連線配置
+
+```python
+# 使用環境變數配置
+from src.database.connection import get_engine, get_session
+
+# 取得 engine（連線池）
+engine = get_engine()
+
+# 取得 session（建議使用 context manager）
+with get_session() as session:
+    result = session.query(AgentDB).filter_by(status='active').all()
+```
+
+### Session 管理最佳實踐
+
+```python
+# ✅ 正確做法 - 使用 context manager
+from src.database.session import get_session
+
+def get_active_agents():
+    with get_session() as session:
+        return session.query(AgentDB).filter_by(status='active').all()
+
+# ❌ 錯誤做法 - 手動管理 session
+def get_active_agents():
+    session = Session()
+    try:
+        return session.query(AgentDB).filter_by(status='active').all()
+    finally:
+        session.close()  # 容易忘記
+```
+
+### 交易管理
+
+```python
+# 自動 commit/rollback
+with get_session() as session:
+    agent = AgentDB(name='new_agent', type=AgentTypeDB.DEV_AGENT)
+    session.add(agent)
+    # 離開 context 時自動 commit
+    # 如果發生例外，自動 rollback
+```
+
+## Retry/Backoff 配置指南
+
+### 概覽
+
+MorningAI 使用 `tenacity` 庫進行重試邏輯，配置位於 `src/utils/retry_config.py`。
+
+### 預設配置
+
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+# 標準重試配置
+STANDARD_RETRY = {
+    'stop': stop_after_attempt(3),           # 最多重試 3 次
+    'wait': wait_exponential(
+        multiplier=1,                         # 基礎等待時間 1 秒
+        min=1,                                # 最小等待 1 秒
+        max=10                                # 最大等待 10 秒
+    ),
+    'retry': retry_if_exception_type((
+        ConnectionError,
+        TimeoutError,
+    )),
+}
+
+# 資料庫操作重試配置
+DB_RETRY = {
+    'stop': stop_after_attempt(5),           # 最多重試 5 次
+    'wait': wait_exponential(
+        multiplier=0.5,
+        min=0.5,
+        max=30
+    ),
+    'retry': retry_if_exception_type((
+        OperationalError,
+        InterfaceError,
+    )),
+}
+```
+
+### 使用範例
+
+```python
+from tenacity import retry
+from src.utils.retry_config import STANDARD_RETRY, DB_RETRY
+
+@retry(**STANDARD_RETRY)
+def call_external_api():
+    response = requests.get('https://api.example.com/data')
+    response.raise_for_status()
+    return response.json()
+
+@retry(**DB_RETRY)
+def save_to_database(data):
+    with get_session() as session:
+        session.add(data)
+```
+
+### 自訂重試配置
+
+```python
+from tenacity import retry, stop_after_attempt, wait_fixed
+
+# 固定等待時間
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(2)  # 每次等待 2 秒
+)
+def my_function():
+    pass
+
+# 帶回調的重試
+@retry(
+    stop=stop_after_attempt(3),
+    before_sleep=lambda retry_state: logger.warning(
+        f"Retry attempt {retry_state.attempt_number}"
+    )
+)
+def my_function_with_logging():
+    pass
+```
+
+## Redis 驗證指南
+
+### 連線驗證
+
+```python
+import redis
+import os
+
+def validate_redis_connection():
+    """驗證 Redis 連線是否正常"""
+    redis_url = os.environ.get('REDIS_URL')
+    if not redis_url:
+        raise ValueError("REDIS_URL environment variable not set")
+    
+    try:
+        client = redis.from_url(redis_url)
+        # PING 測試
+        response = client.ping()
+        if not response:
+            raise ConnectionError("Redis PING failed")
+        
+        # 寫入/讀取測試
+        test_key = '_health_check_'
+        client.set(test_key, 'ok', ex=10)
+        value = client.get(test_key)
+        if value != b'ok':
+            raise ValueError("Redis read/write test failed")
+        
+        client.delete(test_key)
+        return True
+    except redis.ConnectionError as e:
+        raise ConnectionError(f"Cannot connect to Redis: {e}")
+```
+
+### 常見問題排查
+
+| 問題 | 可能原因 | 解決方案 |
+|------|---------|---------|
+| `ConnectionRefusedError` | Redis 服務未啟動 | 啟動 Redis: `redis-server` |
+| `AuthenticationError` | 密碼錯誤 | 檢查 REDIS_URL 中的密碼 |
+| `TimeoutError` | 網路問題或 Redis 過載 | 檢查網路連線，增加 timeout |
+| `ResponseError: NOAUTH` | 需要認證但未提供 | 在 REDIS_URL 中加入密碼 |
+
+### 環境變數格式
+
+```bash
+# 本地開發（無密碼）
+REDIS_URL=redis://localhost:6379/0
+
+# 生產環境（有密碼）
+REDIS_URL=redis://:password@redis-host:6379/0
+
+# 帶 SSL
+REDIS_URL=rediss://:password@redis-host:6379/0
+```
+
+## 並行安全測試指南
+
+### 多進程同時初始化測試
+
+當多個進程同時啟動並嘗試初始化共享資源時，可能發生 race condition。以下是測試方法：
+
+```python
+# tests/integration/test_concurrent_init.py
+import pytest
+import multiprocessing
+import time
+from src.database.connection import get_engine
+
+def init_database_connection(result_queue, process_id):
+    """模擬進程初始化資料庫連線"""
+    try:
+        engine = get_engine()
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        result_queue.put((process_id, 'success', None))
+    except Exception as e:
+        result_queue.put((process_id, 'error', str(e)))
+
+def test_concurrent_database_init():
+    """測試多進程同時初始化資料庫連線"""
+    num_processes = 10
+    result_queue = multiprocessing.Queue()
+    processes = []
+    
+    # 同時啟動多個進程
+    for i in range(num_processes):
+        p = multiprocessing.Process(
+            target=init_database_connection,
+            args=(result_queue, i)
+        )
+        processes.append(p)
+    
+    # 同時啟動所有進程
+    for p in processes:
+        p.start()
+    
+    # 等待所有進程完成
+    for p in processes:
+        p.join(timeout=30)
+    
+    # 收集結果
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+    
+    # 驗證所有進程都成功
+    errors = [r for r in results if r[1] == 'error']
+    assert len(errors) == 0, f"Concurrent init errors: {errors}"
+    assert len(results) == num_processes
+```
+
+### Redis 並行寫入測試
+
+```python
+def test_concurrent_redis_writes():
+    """測試多進程同時寫入 Redis"""
+    import redis
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    client = redis.from_url(os.environ['REDIS_URL'])
+    num_writes = 100
+    
+    def write_to_redis(key_suffix):
+        key = f"test_concurrent_{key_suffix}"
+        client.set(key, f"value_{key_suffix}", ex=60)
+        return client.get(key) == f"value_{key_suffix}".encode()
+    
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = [executor.submit(write_to_redis, i) for i in range(num_writes)]
+        results = [f.result() for f in as_completed(futures)]
+    
+    assert all(results), "Some concurrent writes failed"
+```
+
+## 測試環境 Cleanup 指南
+
+### Test DB Teardown Safety Net
+
+確保測試資料庫在測試後正確清理，防止測試污染：
+
+```python
+# tests/conftest.py
+import pytest
+from sqlalchemy import create_engine, text
+from src.database.connection import get_engine
+
+@pytest.fixture(scope='session', autouse=True)
+def setup_test_database():
+    """Session-level fixture 確保測試資料庫設置和清理"""
+    # Setup: 創建測試資料庫
+    engine = get_engine()
+    
+    yield engine
+    
+    # Teardown: 清理所有測試資料
+    with engine.connect() as conn:
+        # 取得所有表格
+        tables = conn.execute(text(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+        )).fetchall()
+        
+        # 清空所有表格（保留 schema）
+        for (table,) in tables:
+            if not table.startswith('alembic'):
+                conn.execute(text(f'TRUNCATE TABLE "{table}" CASCADE'))
+        conn.commit()
+
+@pytest.fixture(autouse=True)
+def cleanup_after_each_test(request):
+    """每個測試後清理"""
+    yield
+    
+    # 測試後清理特定資料
+    from src.database.session import get_session
+    with get_session() as session:
+        # 清理測試創建的資料
+        session.execute(text("DELETE FROM agents WHERE name LIKE 'test_%'"))
+        session.commit()
+```
+
+### 隔離測試資料
+
+```python
+# tests/fixtures/database.py
+import pytest
+from src.database.session import get_session
+
+@pytest.fixture
+def isolated_db_session():
+    """提供隔離的資料庫 session，測試後自動 rollback"""
+    with get_session() as session:
+        # 開始 savepoint
+        session.begin_nested()
+        
+        yield session
+        
+        # 測試後 rollback 到 savepoint
+        session.rollback()
+
+# 使用範例
+def test_create_agent(isolated_db_session):
+    agent = AgentDB(name='test_agent', type=AgentTypeDB.DEV_AGENT)
+    isolated_db_session.add(agent)
+    isolated_db_session.flush()
+    
+    assert agent.id is not None
+    # 測試結束後，這個 agent 會被自動 rollback
+```
+
+### 清理檢查清單
+
+測試環境清理時，確保：
+
+- [ ] 所有測試表格已清空（除了 alembic_version）
+- [ ] Redis 測試 keys 已刪除（使用 `test_*` prefix）
+- [ ] 臨時檔案已刪除
+- [ ] Mock 已還原
+- [ ] 環境變數已還原
+
+### 故障安全機制
+
+```python
+# tests/conftest.py
+import atexit
+
+def emergency_cleanup():
+    """程式異常終止時的緊急清理"""
+    try:
+        from src.database.connection import get_engine
+        engine = get_engine()
+        with engine.connect() as conn:
+            conn.execute(text("DELETE FROM agents WHERE name LIKE 'test_%'"))
+            conn.commit()
+    except Exception:
+        pass  # 忽略清理錯誤
+
+# 註冊緊急清理
+atexit.register(emergency_cleanup)
+```
+
 ---
 
 ## 驗收標準
