@@ -4,12 +4,12 @@ import { cn } from '@morningai/shared-ui'
 /**
  * SessionStatusCard - Standardized status filter card for Agent Sessions page
  * 
- * Design Specification (Unified Status Card Standard):
+ * Design Specification (Unified Status Card Standard - matches StatCard layout):
  * - Fixed dimensions: min-w-[140px] h-24 (96px) for consistent visual alignment
  * - Internal padding: px-4 py-3 (16px horizontal, 12px vertical)
- * - Icon: 20x20px (size-5), no background container, positioned top-right
- * - Typography: label text-xs font-medium (top-left), value text-2xl font-semibold (bottom-left)
- * - Vertical spacing: justify-between for consistent label-to-value distance
+ * - Layout: Label top-left, Value bottom-left, Icon right (vertically centered)
+ * - Icon: 20x20px (size-5), no background container
+ * - Typography: label text-xs font-medium, value text-2xl font-semibold
  * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
  * - Focus state: 2px ring with accessibility color (var(--accessibility-focus-outline-color)), only on keyboard focus
  * 
@@ -81,7 +81,6 @@ function SessionStatusCard({
         // Fixed dimensions for all cards - ensures visual consistency
         'relative min-w-[140px] h-24 w-full',
         'text-left rounded-xl border px-4 py-3',
-        'flex flex-col justify-between',
         'transition-all duration-150',
         // Default state
         'border-[var(--border)] bg-[var(--surface)] shadow-sm',
@@ -109,27 +108,27 @@ function SessionStatusCard({
         />
       )}
       
-      {/* Top row: Label + Icon */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[var(--text-secondary)]">
-          {label}
-        </span>
+      {/* Main content: Label + Value on left, Icon on right */}
+      <div className="flex items-center justify-between h-full">
+        <div className="flex flex-col justify-between h-full">
+          {/* Label */}
+          <span className="text-xs font-medium text-[var(--text-secondary)]">
+            {label}
+          </span>
+          {/* Value */}
+          <span
+            className={cn(
+              'text-2xl font-semibold transition-colors duration-150',
+              isActive ? styles.activeValue : 'text-[var(--text-primary)]'
+            )}
+          >
+            {value}
+          </span>
+        </div>
         {icon && cloneElement(icon, { 
-          className: cn('size-5 shrink-0 ml-2', styles.iconText),
+          className: cn('size-5 shrink-0 ml-3', styles.iconText),
           'aria-hidden': 'true'
         })}
-      </div>
-        
-      {/* Bottom row: Value */}
-      <div className="flex items-baseline">
-        <span
-          className={cn(
-            'text-2xl font-semibold transition-colors duration-150',
-            isActive ? styles.activeValue : 'text-[var(--text-primary)]'
-          )}
-        >
-          {value}
-        </span>
       </div>
     </button>
   )
