@@ -44,6 +44,9 @@ class TestRouteMapRegression:
         
         Routes are written to a temp file to avoid stdout/stderr pollution
         from warnings and log messages (e.g., Redis TLS warnings).
+        
+        The temp file path is passed via env var (not string interpolation)
+        for Windows compatibility.
         """
         # Create temp file for routes output
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -51,7 +54,8 @@ class TestRouteMapRegression:
         
         try:
             # Script to run in subprocess - writes routes to temp file
-            script = f'''
+            # Temp path is passed via ROUTE_MAP_OUTPUT_FILE env var for Windows compatibility
+            script = '''
 import os, json
 os.environ['TESTING'] = 'true'
 os.environ['ENVIRONMENT'] = 'development'
@@ -59,11 +63,12 @@ os.environ['ENABLE_MOCK_USERS'] = 'true'
 os.environ['ENABLE_ORCHESTRATOR'] = 'false'
 from src.main import app
 routes = sorted([
-    (r.rule, sorted(list(r.methods - {{'HEAD', 'OPTIONS'}})))
+    (r.rule, sorted(list(r.methods - {'HEAD', 'OPTIONS'})))
     for r in app.url_map.iter_rules()
     if r.rule != '/static/<path:filename>'
 ])
-with open("{temp_path}", "w") as f:
+output_path = os.environ['ROUTE_MAP_OUTPUT_FILE']
+with open(output_path, "w") as f:
     json.dump(routes, f)
 '''
             # Get paths for PYTHONPATH
@@ -73,6 +78,7 @@ with open("{temp_path}", "w") as f:
             
             env = os.environ.copy()
             env['PYTHONPATH'] = f"{repo_root}:{api_backend_dir / 'src'}:{orchestrator_dir}"
+            env['ROUTE_MAP_OUTPUT_FILE'] = temp_path
             
             result = subprocess.run(
                 [sys.executable, '-c', script],
@@ -89,9 +95,11 @@ with open("{temp_path}", "w") as f:
             with open(temp_path, 'r') as f:
                 return json.load(f)
         finally:
-            # Clean up temp file
-            if os.path.exists(temp_path):
+            # Clean up temp file (catch OSError to avoid race conditions)
+            try:
                 os.unlink(temp_path)
+            except OSError:
+                pass
 
     def test_route_map_unchanged(self, baseline_routes, current_routes):
         """
@@ -233,3 +241,162 @@ with open("{temp_path}", "w") as f:
                     continue  # /api itself is fine
                 # This is informational, not a failure
                 # Some legacy routes may not follow this convention
+
+
+class TestRouteMapSubprocessRobustness:
+    """Test suite for subprocess-based route generation robustness."""
+
+    def test_subprocess_stderr_noise_does_not_affect_parsing(self):
+        """
+        Test that stderr noise (warnings, logs) doesn't affect route parsing.
+        
+        The temp file approach should be immune to stdout/stderr pollution.
+        """
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            temp_path = f.name
+        
+        try:
+            # Script that outputs noise to stderr but still writes valid JSON to file
+            script = '''
+import os, sys, json
+# Simulate stderr noise (warnings, logs)
+sys.stderr.write("WARNING: This is a fake warning\\n")
+sys.stderr.write("INFO: Loading modules...\\n")
+print("Some stdout noise")
+# Write valid JSON to temp file
+output_path = os.environ['ROUTE_MAP_OUTPUT_FILE']
+routes = [["/test", ["GET"]], ["/api/test", ["POST"]]]
+with open(output_path, "w") as f:
+    json.dump(routes, f)
+'''
+            env = os.environ.copy()
+            env['ROUTE_MAP_OUTPUT_FILE'] = temp_path
+            
+            result = subprocess.run(
+                [sys.executable, '-c', script],
+                capture_output=True,
+                text=True,
+                env=env
+            )
+            
+            assert result.returncode == 0, f"Script failed: {result.stderr}"
+            
+            # Verify we can still parse the JSON from temp file
+            with open(temp_path, 'r') as f:
+                routes = json.load(f)
+            
+            assert routes == [["/test", ["GET"]], ["/api/test", ["POST"]]]
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+
+    def test_parallel_subprocess_isolation(self):
+        """
+        Test that multiple parallel subprocess calls don't interfere with each other.
+        
+        Each subprocess should write to its own temp file.
+        """
+        import concurrent.futures
+        
+        def run_subprocess(index):
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                temp_path = f.name
+            
+            try:
+                script = f'''
+import os, json
+output_path = os.environ['ROUTE_MAP_OUTPUT_FILE']
+routes = [["/route-{index}", ["GET"]]]
+with open(output_path, "w") as f:
+    json.dump(routes, f)
+'''
+                env = os.environ.copy()
+                env['ROUTE_MAP_OUTPUT_FILE'] = temp_path
+                
+                result = subprocess.run(
+                    [sys.executable, '-c', script.format(index=index)],
+                    capture_output=True,
+                    text=True,
+                    env=env
+                )
+                
+                if result.returncode != 0:
+                    return None, f"Failed: {result.stderr}"
+                
+                with open(temp_path, 'r') as f:
+                    return json.load(f), None
+            finally:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+        
+        # Run 3 parallel subprocess calls
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(run_subprocess, i) for i in range(3)]
+            results = [f.result() for f in futures]
+        
+        # Verify each subprocess returned its own unique route
+        for i, (routes, error) in enumerate(results):
+            assert error is None, f"Subprocess {i} failed: {error}"
+            assert routes == [[f"/route-{i}", ["GET"]]], f"Subprocess {i} returned wrong routes: {routes}"
+
+    def test_temp_file_deleted_after_read(self):
+        """
+        Test that temp file is properly deleted after reading.
+        """
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            temp_path = f.name
+        
+        # Write some data
+        with open(temp_path, 'w') as f:
+            json.dump([["/test", ["GET"]]], f)
+        
+        # Read and delete
+        try:
+            with open(temp_path, 'r') as f:
+                routes = json.load(f)
+            assert routes == [["/test", ["GET"]]]
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+        
+        # Verify file is deleted
+        assert not os.path.exists(temp_path), f"Temp file should be deleted: {temp_path}"
+
+    def test_subprocess_failure_handling(self):
+        """
+        Test that subprocess failures are properly detected and reported.
+        """
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            temp_path = f.name
+        
+        try:
+            # Script that fails with non-zero exit code
+            script = '''
+import sys
+sys.stderr.write("Error: Something went wrong\\n")
+sys.exit(1)
+'''
+            env = os.environ.copy()
+            env['ROUTE_MAP_OUTPUT_FILE'] = temp_path
+            
+            result = subprocess.run(
+                [sys.executable, '-c', script],
+                capture_output=True,
+                text=True,
+                env=env
+            )
+            
+            # Verify failure is detected
+            assert result.returncode != 0, "Script should have failed"
+            assert "Error: Something went wrong" in result.stderr
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
