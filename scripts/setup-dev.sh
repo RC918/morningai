@@ -62,11 +62,20 @@ if [ -f "handoff/20250928/40_App/orchestrator/setup.py" ] || [ -f "handoff/20250
     pip install -e handoff/20250928/40_App/orchestrator
 fi
 
+# IMPORTANT: Fix dirty environment where jwt 1.x and PyJWT coexist
+# When both packages are installed, uninstalling jwt can leave PyJWT in a broken
+# namespace package state. Force-reinstalling PyJWT after all installs ensures
+# the jwt module is properly restored.
+echo ""
+echo "=== Fixing PyJWT Installation (dirty environment repair) ==="
+pip uninstall -y jwt 2>/dev/null || true
+pip install --force-reinstall PyJWT
+
 # Verify PyJWT installation
 echo ""
 echo "=== Verifying PyJWT Installation ==="
 python -c "import jwt; assert hasattr(jwt, 'decode'), 'Wrong jwt package installed - need PyJWT, not jwt'"
-if pip list | grep -E '^jwt ' > /dev/null 2>&1; then
+if pip list | grep -qE '^jwt[[:space:]]'; then
     echo "ERROR: Wrong jwt package detected!"
     echo "The 'jwt' package (1.x) is installed instead of 'PyJWT' (2.x)"
     echo "Please run: pip uninstall jwt && pip install PyJWT"

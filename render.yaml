@@ -30,11 +30,11 @@ services:
       pip install --upgrade pip &&
       pip uninstall -y jwt || true &&
       pip install -r requirements.txt &&
-      python -c "import jwt; assert hasattr(jwt, 'decode'), 'Wrong jwt package'" &&
       cd ../orchestrator &&
       pip uninstall -y jwt || true &&
       pip install -r requirements.txt &&
-      pip install -e .
+      pip install -e . &&
+      python -c "import jwt; assert hasattr(jwt, 'decode'), 'Wrong jwt package'"
     startCommand: cd handoff/20250928/40_App/api-backend && gunicorn -c gunicorn.conf.py src.main:app
     healthCheckPath: /health
     envVars:
