@@ -252,6 +252,94 @@ To view monitoring history:
 
 **Estimated Usage**: ~8,640 workflow runs per month (every 5 minutes) = ~43 minutes of GitHub Actions time
 
+## CORS Debug Scenarios
+
+When troubleshooting CORS issues, you can enable CORS debug logging to see detailed decision information.
+
+### Enabling CORS Debug Logs
+
+```bash
+# In .env or environment variables
+CORS_DEBUG=true
+LOG_LEVEL=DEBUG
+```
+
+> **Important**: `CORS_DEBUG` is force-disabled in production environments for security. It only works in staging/development.
+
+### Log Output Examples
+
+When enabled, each request will output sanitized CORS decision information:
+
+```
+[CORS DEBUG] add_cors_headers: origin_present=True, in_allowlist=True, is_preview=False, allowlist_count=5
+[CORS DEBUG] add_cors_headers: headers_added=True
+```
+
+### Sanitized Fields
+
+| Field | Description |
+|-------|-------------|
+| `origin_present` | Whether the request includes an Origin header |
+| `in_allowlist` | Whether the origin is in the CORS_ORIGINS allowlist |
+| `is_preview` | Whether the origin matches Vercel preview pattern |
+| `allowlist_count` | Number of origins in the allowlist (not the actual values) |
+| `headers_added` | Whether CORS headers were added to the response |
+
+### Common Troubleshooting Scenarios
+
+#### Scenario 1: CORS Error in Browser
+
+**Symptom**: Browser shows "Access to fetch has been blocked by CORS policy"
+
+**Diagnosis**:
+1. Enable CORS debug logs (`CORS_DEBUG=true`, `LOG_LEVEL=DEBUG`)
+2. Check backend logs for `[CORS DEBUG]` lines
+3. Verify `in_allowlist=True` or `is_preview=True`
+4. Verify `headers_added=True`
+
+**Common Causes**:
+- Origin URL has trailing slash (e.g., `https://app.example.com/` vs `https://app.example.com`)
+- Protocol mismatch (`http://` vs `https://`)
+- Origin not in `CORS_ORIGINS` environment variable
+
+#### Scenario 2: Vercel Preview Not Working
+
+**Symptom**: Vercel preview URLs show CORS errors in staging
+
+**Diagnosis**:
+1. Check `is_preview=True` appears in logs
+2. Verify `blocked_by_production=True` does NOT appear
+
+**Solution**: Ensure `ENVIRONMENT=staging` is set (not `production`)
+
+#### Scenario 3: No CORS Debug Logs Appearing
+
+**Symptom**: No `[CORS DEBUG]` lines in logs despite `CORS_DEBUG=true`
+
+**Possible Causes**:
+1. `LOG_LEVEL` is not set to `DEBUG`
+2. Running in production environment (force-disabled)
+3. Request doesn't include Origin header
+
+### Using curl for Verification
+
+```bash
+# Check CORS headers for allowed origin
+curl -I -H "Origin: https://your-domain.com" http://localhost:5000/health
+
+# Check preflight OPTIONS request
+curl -X OPTIONS -H "Origin: https://your-domain.com" \
+     -H "Access-Control-Request-Method: POST" \
+     http://localhost:5000/api/endpoint
+```
+
+### Related Documentation
+
+- [CORS Configuration](config/settings.md#cors-configuration) - Full CORS settings documentation
+- [Environment Variables](../config/env.schema.yaml) - CORS_DEBUG and CORS_ORIGINS definitions
+
+---
+
 ## Related Documentation
 
 - [API Usage Guide](../orchestrator/API_USAGE.md)
