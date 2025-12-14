@@ -210,110 +210,14 @@ cors_origins = [origin.strip() for origin in cors_origins]
 # Enable with CORS_DEBUG=true for local/staging troubleshooting only
 cors_debug_enabled = _as_bool(os.getenv("CORS_DEBUG")) and not app_settings.is_production
 
-if cors_debug_enabled:
-    # Sanitized startup log: only counts and environment name, no raw values
-    logging.debug(f"[CORS DEBUG] Startup: env={app_settings.environment}, allowlist_count={len(cors_origins)}")
+# Setup CORS middleware (Phase 1 refactoring: PR1b)
+# CORS functions moved to src/middleware/cors.py
+from src.middleware.cors import setup_cors  # noqa: E402
+from src.middleware.cors import is_vercel_preview, add_cors_headers  # noqa: E402,F401 (re-export)
 
-
-def is_vercel_preview(origin):
-    """
-    Check if origin is a Vercel preview URL.
-    Allows Vercel preview origins in staging and development environments.
-    Blocks them in production for security.
-    """
-    if not origin:
-        if cors_debug_enabled:
-            logging.debug("[CORS DEBUG] is_vercel_preview: origin_present=False")
-        return False
-
-    env = (app_settings.environment or "").lower()
-
-    if env == "production":
-        if cors_debug_enabled:
-            logging.debug("[CORS DEBUG] is_vercel_preview: blocked_by_production=True")
-        return False
-
-    matches = bool(re.match(r"^https://.*\.vercel\.app$", origin))
-    if cors_debug_enabled:
-        logging.debug(f"[CORS DEBUG] is_vercel_preview: is_vercel_pattern={matches}")
-    return matches
-
-
-@app.after_request
-def add_cors_headers(response):
-    """Add CORS headers for allowed origins including Vercel preview URLs.
-
-    This is the single authority source for CORS handling in the application.
-    Flask-CORS has been removed to avoid dual-mechanism conflicts.
-
-    Handles:
-    - Static origins from CORS_ORIGINS environment variable
-    - Dynamic Vercel preview URLs (*.vercel.app) in staging/development
-    - OPTIONS preflight requests with 204 status code
-    - Access-Control-Expose-Headers for rate limit headers
-    """
-    origin = request.headers.get("Origin")
-
-    in_allowlist = origin in cors_origins
-    is_preview = is_vercel_preview(origin)
-
-    if cors_debug_enabled:
-        # Sanitized log: only status flags, no raw values
-        logging.debug(
-            f"[CORS DEBUG] add_cors_headers: origin_present={bool(origin)}, "
-            f"in_allowlist={in_allowlist}, is_preview={is_preview}, "
-            f"allowlist_count={len(cors_origins)}"
-        )
-
-    if in_allowlist or is_preview:
-        if cors_debug_enabled:
-            logging.debug("[CORS DEBUG] add_cors_headers: headers_added=True")
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Headers"] = (
-            "Content-Type, Authorization, X-Request-ID, X-CSRF-Token"
-        )
-        response.headers["Access-Control-Allow-Methods"] = (
-            "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        )
-        response.headers["Access-Control-Expose-Headers"] = (
-            "Content-Type, Authorization, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset"
-        )
-        # Merge Vary header instead of overwriting
-        existing_vary = response.headers.get("Vary", "")
-        if existing_vary:
-            if "Origin" not in existing_vary:
-                response.headers["Vary"] = f"{existing_vary}, Origin"
-        else:
-            response.headers["Vary"] = "Origin"
-
-        # Handle OPTIONS preflight requests with 204 No Content
-        if request.method == "OPTIONS":
-            response.status_code = 204
-            response.set_data(b"")  # Clear response body for 204
-            if cors_debug_enabled:
-                logging.debug("[CORS DEBUG] add_cors_headers: preflight_response=204")
-    elif request.method == "OPTIONS" and not origin:
-        # Fallback for OPTIONS requests without Origin header (non-browser clients, testing)
-        # This maintains backward compatibility with Flask-CORS behavior.
-        # Note: Real browser preflight requests always include Origin header.
-        # Using "*" without credentials is spec-compliant for this edge case.
-        if cors_debug_enabled:
-            logging.debug("[CORS DEBUG] add_cors_headers: fallback_options_no_origin=True")
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = (
-            "Content-Type, Authorization, X-Request-ID, X-CSRF-Token"
-        )
-        response.headers["Access-Control-Allow-Methods"] = (
-            "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        )
-        response.status_code = 204
-        response.set_data(b"")  # Clear response body for 204
-    else:
-        if cors_debug_enabled:
-            logging.debug("[CORS DEBUG] add_cors_headers: headers_added=False")
-
-    return response
+# Register CORS after_request handler
+# The setup_cors function returns the registered handler (named add_cors_headers internally)
+setup_cors(app, cors_origins, app_settings.environment, cors_debug_enabled)
 
 
 if SECURITY_AVAILABLE:
