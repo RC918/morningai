@@ -264,9 +264,9 @@ def validate_rate_limit_redis(): ...
 
 **main.py 變更**：
 ```python
-from src.extensions.database import configure_database, init_database
+from src.extensions.database import configure_database, init_database_with_retry
 configure_database(app)
-init_database(app)
+init_database_with_retry(app)
 ```
 
 **驗收條件**：
@@ -453,7 +453,7 @@ from src.extensions.sentry import before_send
 | `_as_bool` | `src.utils.helpers` | `src.main._as_bool` | 透過 re-export，測試仍 patch `src.main` |
 | `is_vercel_preview` | `src.middleware.cors` | `src.main.is_vercel_preview` | 透過 re-export |
 | `add_cors_headers` | `src.middleware.cors` | `src.main.add_cors_headers` | 透過 re-export |
-| `before_send` | `src.extensions.sentry` | `src.main.before_send` | 透過 re-export |
+| `before_send` | `src.extensions.sentry` | `src.extensions.sentry.before_send` | **不可 re-export**，Sentry SDK 持有原模組參考 |
 | `get_health_payload` | `src.main`（暫不搬移） | `src.main.get_health_payload` | 保留原位 |
 | `handle_exception` | `src.middleware.error_handlers` | `src.main.handle_exception` | 透過 re-export |
 | `BACKEND_SERVICES_AVAILABLE` | `src.main`（保留） | `src.main.BACKEND_SERVICES_AVAILABLE` | 不搬移 |
@@ -468,7 +468,9 @@ from src.extensions.sentry import before_send
    # These symbols are patched by tests via 'src.main.{symbol}'
    from src.utils.helpers import _as_bool  # noqa: F401
    from src.middleware.cors import is_vercel_preview, add_cors_headers  # noqa: F401
-   from src.extensions.sentry import before_send  # noqa: F401
+   from src.middleware.error_handlers import handle_exception  # noqa: F401
+   # NOTE: before_send 不可 re-export，因為 Sentry SDK 持有原模組參考
+   # 測試需 patch 'src.extensions.sentry.before_send'
    ```
 
 2. **測試不需修改 patch target**：
@@ -516,13 +518,20 @@ sentry_sdk.init(
 )
 ```
 
-**風險**：如果 `before_send` 被搬移到 `src.extensions.sentry`，但 Sentry init 時傳入的是搬移後的函式參考，則 re-export 不影響 Sentry 行為。
+**重要**：`before_send` **不可使用 re-export 策略**。原因：
+1. Sentry SDK 在 `init()` 時持有 `before_send` 函式的直接參考
+2. 當 `init_sentry()` 在 `src/extensions/sentry.py` 內呼叫時，SDK 持有的是該模組內的函式參考
+3. 即使在 `src.main` re-export `before_send`，patch `src.main.before_send` 也無法影響 Sentry 行為
+
+**正確做法**：
+- 測試需 patch `src.extensions.sentry.before_send`（定義位置）
+- 不要在 `src.main` re-export `before_send`
 
 **驗證方式**：
 ```python
 def test_sentry_before_send_hook_works():
     """Verify Sentry before_send hook is correctly configured."""
-    from src.main import before_send
+    from src.extensions.sentry import before_send
     # 模擬 Sentry event
     event = {'exception': {'values': [{'type': 'TestError'}]}}
     hint = {}
@@ -593,4 +602,4 @@ def test_sentry_before_send_hook_works():
 
 ---
 
-最後更新：2025-12-14（含 CTO 審閱補充）
+最後更新：2025-12-14（含 CTO 審閱補充 + Gemini Review 修正）
