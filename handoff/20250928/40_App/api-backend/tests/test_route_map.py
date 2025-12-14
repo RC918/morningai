@@ -8,12 +8,14 @@ Part of PR0 (#2375) - Phase 0 stability guards.
 
 Note: This test uses subprocess to generate routes in isolation, ensuring
 that env vars take effect regardless of what other tests have imported.
-This prevents test order dependencies that could cause flaky failures.
+Routes are written to a temp file to avoid stdout/stderr pollution from
+warnings and log messages.
 """
 import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -39,56 +41,57 @@ class TestRouteMapRegression:
         
         Uses subprocess to ensure env vars take effect regardless of what
         other tests have imported. This prevents test order dependencies.
+        
+        Routes are written to a temp file to avoid stdout/stderr pollution
+        from warnings and log messages (e.g., Redis TLS warnings).
         """
-        # Script to run in subprocess - generates routes JSON
-        # Uses stderr for JSON output to avoid log messages in stdout
-        script = '''
-import os, sys, json
-import logging
-# Suppress all logging to avoid polluting output
-logging.disable(logging.CRITICAL)
+        # Create temp file for routes output
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            temp_path = f.name
+        
+        try:
+            # Script to run in subprocess - writes routes to temp file
+            script = f'''
+import os, json
 os.environ['TESTING'] = 'true'
 os.environ['ENVIRONMENT'] = 'development'
 os.environ['ENABLE_MOCK_USERS'] = 'true'
 os.environ['ENABLE_ORCHESTRATOR'] = 'false'
 from src.main import app
 routes = sorted([
-    (r.rule, sorted(list(r.methods - {'HEAD', 'OPTIONS'})))
+    (r.rule, sorted(list(r.methods - {{'HEAD', 'OPTIONS'}})))
     for r in app.url_map.iter_rules()
     if r.rule != '/static/<path:filename>'
 ])
-# Output JSON to stderr to avoid log messages in stdout
-sys.stderr.write(json.dumps(routes))
+with open("{temp_path}", "w") as f:
+    json.dump(routes, f)
 '''
-        # Get paths for PYTHONPATH
-        api_backend_dir = Path(__file__).resolve().parent.parent
-        repo_root = api_backend_dir.parent.parent.parent.parent
-        orchestrator_dir = repo_root / 'handoff' / '20250928' / '40_App' / 'orchestrator'
-        
-        env = os.environ.copy()
-        env['PYTHONPATH'] = f"{repo_root}:{api_backend_dir / 'src'}:{orchestrator_dir}"
-        
-        result = subprocess.run(
-            [sys.executable, '-c', script],
-            cwd=str(api_backend_dir),
-            capture_output=True,
-            text=True,
-            env=env
-        )
-        
-        if result.returncode != 0:
-            pytest.fail(f"Failed to get routes from subprocess:\nstdout: {result.stdout}\nstderr: {result.stderr}")
-        
-        # Parse JSON from stderr (stdout may have log messages)
-        try:
-            return json.loads(result.stderr)
-        except json.JSONDecodeError:
-            # Fallback: try to extract JSON from stdout (find first '[')
-            stdout = result.stdout
-            json_start = stdout.find('[')
-            if json_start >= 0:
-                return json.loads(stdout[json_start:])
-            pytest.fail(f"Could not parse routes JSON:\nstdout: {stdout}\nstderr: {result.stderr}")
+            # Get paths for PYTHONPATH
+            api_backend_dir = Path(__file__).resolve().parent.parent
+            repo_root = api_backend_dir.parent.parent.parent.parent
+            orchestrator_dir = repo_root / 'handoff' / '20250928' / '40_App' / 'orchestrator'
+            
+            env = os.environ.copy()
+            env['PYTHONPATH'] = f"{repo_root}:{api_backend_dir / 'src'}:{orchestrator_dir}"
+            
+            result = subprocess.run(
+                [sys.executable, '-c', script],
+                cwd=str(api_backend_dir),
+                capture_output=True,
+                text=True,
+                env=env
+            )
+            
+            if result.returncode != 0:
+                pytest.fail(f"Failed to get routes from subprocess:\nstdout: {result.stdout}\nstderr: {result.stderr}")
+            
+            # Read routes from temp file
+            with open(temp_path, 'r') as f:
+                return json.load(f)
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
 
     def test_route_map_unchanged(self, baseline_routes, current_routes):
         """
