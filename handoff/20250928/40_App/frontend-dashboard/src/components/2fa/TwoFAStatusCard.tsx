@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui';
-import { Badge } from '@morningai/shared-ui';
-import { AppleButton } from '@/components/ui/apple-button';
+import { SettingsCard, Badge, Button } from '@morningai/shared-ui';
 import { Shield, CheckCircle2, AlertCircle, Key } from 'lucide-react';
 import { getTwoFAStatus } from '@/lib/2fa-api';
 import type { TwoFAStatusResponse } from '@/types/2fa';
@@ -44,142 +42,123 @@ export function TwoFAStatusCard({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            {t('settings.2fa.title')}
-          </CardTitle>
-          <CardDescription>{t('settings.2fa.loading')}</CardDescription>
-        </CardHeader>
-      </Card>
+      <SettingsCard
+        title={t('settings.2fa.title')}
+        description={t('settings.2fa.loading')}
+        icon={<Shield />}
+        variant="blue"
+      />
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            {t('settings.2fa.title')}
-          </CardTitle>
-          <CardDescription className="text-destructive flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {error}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <SettingsCard
+        title={t('settings.2fa.title')}
+        description={error}
+        icon={<Shield />}
+        variant="red"
+      />
     );
   }
 
   if (status?.feature_disabled) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            {t('settings.2fa.title')}
-          </CardTitle>
-          <CardDescription>
-            {t('settings.2fa.subtitle')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-start gap-3 p-4 bg-info-50 dark:bg-info-900/20 rounded-lg border border-info-200 dark:border-info-800">
-            <AlertCircle className="w-5 h-5 text-info-600 dark:text-info-400 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="font-medium text-info-900 dark:text-info-100">
-                {t('settings.2fa.featureDisabled.title')}
-              </p>
-              <p className="text-sm text-info-800 dark:text-info-200">
-                {t('settings.2fa.featureDisabled.description')}
-              </p>
-            </div>
+      <SettingsCard
+        title={t('settings.2fa.title')}
+        description={t('settings.2fa.subtitle')}
+        icon={<Shield />}
+        variant="default"
+      >
+        <div className="flex items-start p-4 bg-[var(--info-50)] rounded-lg border border-[var(--info-200)]">
+          <AlertCircle className="w-5 h-5 text-[var(--info-600)] flex-shrink-0 mr-3" />
+          <div className="space-y-1">
+            <p className="font-medium text-[var(--info-900)]">
+              {t('settings.2fa.featureDisabled.title')}
+            </p>
+            <p className="text-sm text-[var(--info-800)]">
+              {t('settings.2fa.featureDisabled.description')}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </SettingsCard>
     );
   }
 
   const isEnabled = status?.enabled ?? false;
 
   return (
-    <Card data-testid="2fa-status-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="w-5 h-5" />
-          {t('settings.2fa.title')}
-        </CardTitle>
-        <CardDescription>
-          {t('settings.2fa.cardDescription')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <SettingsCard
+      title={t('settings.2fa.title')}
+      description={t('settings.2fa.cardDescription')}
+      icon={<Shield />}
+      variant={isEnabled ? 'green' : 'default'}
+    >
+      <div className="space-y-4" data-testid="2fa-status-card">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-medium">{t('settings.2fa.status.label')}</span>
+              <span className="font-medium text-[var(--text-primary)]">{t('settings.2fa.status.label')}</span>
               {isEnabled ? (
-                <Badge data-testid="2fa-status" variant="default" className="bg-success-500 flex items-center gap-1">
+                <Badge data-testid="2fa-status" variant="default" className="bg-[var(--success-500)] flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   {t('settings.2fa.status.enabled')}
                 </Badge>
               ) : (
-                <Badge data-testid="2fa-status" variant="outline" className="text-neutral-600">
+                <Badge data-testid="2fa-status" variant="outline" className="text-[var(--text-secondary)]">
                   {t('settings.2fa.status.disabled')}
                 </Badge>
               )}
             </div>
             {isEnabled && status?.verified_at && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {t('settings.2fa.status.enabledOn', { date: new Date(status.verified_at).toLocaleDateString() })}
               </p>
             )}
           </div>
           {!isEnabled ? (
-            <AppleButton onClick={onSetupClick} size="sm">
+            <Button onClick={onSetupClick} size="sm">
               {t('settings.2fa.actions.enable')}
-            </AppleButton>
+            </Button>
           ) : (
-            <AppleButton onClick={onDisableClick} variant="destructive" size="sm">
+            <Button onClick={onDisableClick} variant="destructive" size="sm">
               {t('settings.2fa.actions.disable')}
-            </AppleButton>
+            </Button>
           )}
         </div>
 
         {isEnabled && (
-          <div className="pt-4 border-t space-y-3">
+          <div className="pt-4 border-t border-[var(--border)] space-y-3">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <Key className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t('settings.2fa.backupCodes.title')}</span>
+                  <Key className="w-4 h-4 text-[var(--text-secondary)]" />
+                  <span className="text-sm font-medium text-[var(--text-primary)]">{t('settings.2fa.backupCodes.title')}</span>
                 </div>
-                <p className="text-xs text-muted-foreground" data-testid="backup-codes-remaining">
+                <p className="text-xs text-[var(--text-secondary)]" data-testid="backup-codes-remaining">
                   {t('settings.2fa.backupCodes.remaining', { count: status?.backup_codes_remaining ?? 0 })}
                 </p>
               </div>
-              <AppleButton
+              <Button
                 onClick={onRegenerateClick}
                 variant="outline"
                 size="sm"
                 disabled={(status?.backup_codes_remaining ?? 0) > 4}
               >
                 {t('settings.2fa.actions.regenerate')}
-              </AppleButton>
+              </Button>
             </div>
             {(status?.backup_codes_remaining ?? 0) <= 2 && (
-              <div className="flex items-start gap-2 p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
-                <AlertCircle className="w-4 h-4 text-warning-600 dark:text-warning-500 mt-0.5" />
-                <p className="text-xs text-warning-800 dark:text-warning-200">
+              <div className="flex items-start gap-2 p-3 bg-[var(--warning-50)] rounded-lg">
+                <AlertCircle className="w-4 h-4 text-[var(--warning-600)]" />
+                <p className="text-xs text-[var(--warning-800)]">
                   {t('settings.2fa.backupCodes.lowWarning', { count: status?.backup_codes_remaining ?? 0 })}
                 </p>
               </div>
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsCard>
   );
 }
