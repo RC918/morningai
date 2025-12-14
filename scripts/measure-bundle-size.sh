@@ -145,6 +145,48 @@ parse_vite_output() {
   echo "$total_kb $largest_kb"
 }
 
+# Direct gzip calculation fallback
+# Used when Vite output parsing fails or returns 0
+# This directly measures gzip size of files in dist/assets
+calculate_gzip_sizes_direct() {
+  local dist_path="$1"
+  local file_type="$2"  # "js" or "css"
+  
+  local total=0
+  local largest=0
+  
+  if [[ ! -d "$dist_path/assets" ]]; then
+    echo "0 0"
+    return
+  fi
+  
+  # Find all files of the specified type and calculate gzip size
+  while IFS= read -r -d '' file; do
+    if [[ -f "$file" ]]; then
+      # Calculate gzip size in bytes
+      local gzip_size
+      gzip_size=$(gzip -c "$file" 2>/dev/null | wc -c)
+      total=$((total + gzip_size))
+      if [[ "$gzip_size" -gt "$largest" ]]; then
+        largest="$gzip_size"
+      fi
+    fi
+  done < <(find "$dist_path/assets" -name "*.$file_type" -print0 2>/dev/null)
+  
+  # Convert bytes to KB with one decimal
+  local total_kb
+  local largest_kb
+  if command -v bc &> /dev/null; then
+    total_kb=$(echo "scale=1; $total / 1024" | bc)
+    largest_kb=$(echo "scale=1; $largest / 1024" | bc)
+  else
+    total_kb=$(awk "BEGIN {printf \"%.1f\", $total / 1024}")
+    largest_kb=$(awk "BEGIN {printf \"%.1f\", $largest / 1024}")
+  fi
+  
+  echo "$total_kb $largest_kb"
+}
+
 # Build an app and capture output
 build_app() {
   local app="$1"
@@ -167,15 +209,18 @@ build_app() {
 }
 
 # Measure bundle size for an app
+# Uses Vite output parsing with fallback to direct gzip calculation
 measure_app() {
   local app="$1"
+  local app_path="${APP_PATHS[$app]}"
+  local dist_path="$app_path/dist"
   
   echo "Building $app..." >&2
   
   local build_output
   build_output=$(build_app "$app") || return 1
   
-  # Parse JS sizes
+  # Parse JS sizes from Vite output
   local js_result
   js_result=$(parse_vite_output "$build_output" "js")
   local js_total
@@ -183,11 +228,26 @@ measure_app() {
   local js_largest
   js_largest=$(echo "$js_result" | cut -d' ' -f2)
   
-  # Parse CSS sizes
+  # Parse CSS sizes from Vite output
   local css_result
   css_result=$(parse_vite_output "$build_output" "css")
   local css_total
   css_total=$(echo "$css_result" | cut -d' ' -f1)
+  
+  # Fallback to direct gzip calculation if Vite output parsing failed
+  # This handles cases where Vite output format changes or gzip info is missing
+  if [[ "$js_total" == "0" ]] || [[ "$js_total" == ".0" ]] || [[ -z "$js_total" ]]; then
+    echo "Warning: Vite output parsing failed for JS, using direct gzip calculation" >&2
+    js_result=$(calculate_gzip_sizes_direct "$dist_path" "js")
+    js_total=$(echo "$js_result" | cut -d' ' -f1)
+    js_largest=$(echo "$js_result" | cut -d' ' -f2)
+  fi
+  
+  if [[ "$css_total" == "0" ]] || [[ "$css_total" == ".0" ]] || [[ -z "$css_total" ]]; then
+    echo "Warning: Vite output parsing failed for CSS, using direct gzip calculation" >&2
+    css_result=$(calculate_gzip_sizes_direct "$dist_path" "css")
+    css_total=$(echo "$css_result" | cut -d' ' -f1)
+  fi
   
   echo "$js_total $css_total $js_largest"
 }
