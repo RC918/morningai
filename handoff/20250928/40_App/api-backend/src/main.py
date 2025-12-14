@@ -265,9 +265,10 @@ register_blueprints(app, backend_services_available=BACKEND_SERVICES_AVAILABLE)
 
 # Register error handlers (Phase 1 refactoring: PR1d)
 # Error handlers moved to src/middleware/error_handlers.py
+# Pass SENTRY_DSN (already processed by TESTING/DISABLE_SENTRY_FOR_TESTS logic above)
 from src.middleware.error_handlers import register_error_handlers  # noqa: E402
 from src.middleware.error_handlers import handle_exception  # noqa: E402, F401
-register_error_handlers(app)
+register_error_handlers(app, sentry_dsn=SENTRY_DSN)
 
 
 def get_health_payload():

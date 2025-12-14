@@ -188,60 +188,98 @@ class TestErrorHandlerCustomCodeAttribute:
 
 
 class TestErrorHandlerSentryIntegration:
-    """Test error handler Sentry integration."""
+    """Test error handler Sentry integration.
+    
+    These tests verify that Sentry DSN is properly passed via register_error_handlers()
+    and respects the TESTING/DISABLE_SENTRY_FOR_TESTS logic in main.py.
+    """
     
     def test_sentry_capture_called_when_dsn_set(self):
-        """Verify sentry_sdk.capture_exception is called when SENTRY_DSN is set."""
-        with patch('src.middleware.error_handlers.SENTRY_DSN', 'https://fake@sentry.io/123'):
-            with patch('sentry_sdk.capture_exception') as mock_capture:
-                from src.middleware.error_handlers import handle_exception
-                from flask import Flask
+        """Verify sentry_sdk.capture_exception is called when sentry_dsn is passed."""
+        from src.middleware.error_handlers import register_error_handlers
+        
+        app = Flask(__name__)
+        # Pass sentry_dsn via register_error_handlers (simulates production with DSN)
+        register_error_handlers(app, sentry_dsn='https://fake@sentry.io/123')
+        
+        @app.route('/test-sentry')
+        def raise_error():
+            raise Exception("Test error for Sentry")
+        
+        with patch('sentry_sdk.capture_exception') as mock_capture:
+            with app.test_client() as client:
+                response = client.get('/test-sentry')
                 
-                app = Flask(__name__)
-                
-                with app.app_context():
-                    # Call handle_exception directly with a test exception
-                    test_exception = Exception("Test error")
-                    response, status_code = handle_exception(test_exception)
-                    
-                    # Verify Sentry was called
-                    mock_capture.assert_called_once_with(test_exception)
-                    assert status_code == 500
+                # Verify Sentry was called
+                mock_capture.assert_called_once()
+                assert response.status_code == 500
     
     def test_sentry_not_called_when_dsn_not_set(self):
-        """Verify sentry_sdk.capture_exception is NOT called when SENTRY_DSN is not set."""
-        with patch('src.middleware.error_handlers.SENTRY_DSN', None):
-            with patch('sentry_sdk.capture_exception') as mock_capture:
-                from src.middleware.error_handlers import handle_exception
-                from flask import Flask
+        """Verify sentry_sdk.capture_exception is NOT called when sentry_dsn is None.
+        
+        This simulates the TESTING/DISABLE_SENTRY_FOR_TESTS scenario where main.py
+        passes None to disable Sentry in test environments.
+        """
+        from src.middleware.error_handlers import register_error_handlers
+        
+        app = Flask(__name__)
+        # Pass sentry_dsn=None (simulates TESTING=true or DISABLE_SENTRY_FOR_TESTS=true)
+        register_error_handlers(app, sentry_dsn=None)
+        
+        @app.route('/test-no-sentry')
+        def raise_error():
+            raise Exception("Test error without Sentry")
+        
+        with patch('sentry_sdk.capture_exception') as mock_capture:
+            with app.test_client() as client:
+                response = client.get('/test-no-sentry')
                 
-                app = Flask(__name__)
-                
-                with app.app_context():
-                    test_exception = Exception("Test error")
-                    response, status_code = handle_exception(test_exception)
-                    
-                    # Verify Sentry was NOT called
-                    mock_capture.assert_not_called()
-                    assert status_code == 500
+                # Verify Sentry was NOT called
+                mock_capture.assert_not_called()
+                assert response.status_code == 500
     
     def test_sentry_not_called_for_http_exceptions(self):
         """Verify sentry_sdk.capture_exception is NOT called for HTTPExceptions with .code."""
-        with patch('src.middleware.error_handlers.SENTRY_DSN', 'https://fake@sentry.io/123'):
-            with patch('sentry_sdk.capture_exception') as mock_capture:
-                from src.middleware.error_handlers import handle_exception
-                from flask import Flask
+        from src.middleware.error_handlers import register_error_handlers
+        
+        app = Flask(__name__)
+        # Even with DSN set, HTTPExceptions should not trigger Sentry
+        register_error_handlers(app, sentry_dsn='https://fake@sentry.io/123')
+        
+        @app.route('/test-http-exception')
+        def raise_bad_request():
+            raise BadRequest("Bad request")
+        
+        with patch('sentry_sdk.capture_exception') as mock_capture:
+            with app.test_client() as client:
+                response = client.get('/test-http-exception')
                 
-                app = Flask(__name__)
-                
-                with app.app_context():
-                    # HTTPException has .code attribute, should return early
-                    http_exception = BadRequest("Bad request")
-                    response, status_code = handle_exception(http_exception)
-                    
-                    # Verify Sentry was NOT called (early return for .code exceptions)
-                    mock_capture.assert_not_called()
-                    assert status_code == 400
+                # Verify Sentry was NOT called (early return for .code exceptions)
+                mock_capture.assert_not_called()
+                assert response.status_code == 400
+    
+    def test_sentry_dsn_stored_in_app_extensions(self):
+        """Verify sentry_dsn is stored in app.extensions for per-app storage."""
+        from src.middleware.error_handlers import register_error_handlers
+        
+        app = Flask(__name__)
+        test_dsn = 'https://test@sentry.io/456'
+        register_error_handlers(app, sentry_dsn=test_dsn)
+        
+        # Verify DSN is stored in app.extensions
+        assert 'morningai' in app.extensions
+        assert app.extensions['morningai']['sentry_dsn'] == test_dsn
+    
+    def test_sentry_dsn_none_stored_in_app_extensions(self):
+        """Verify sentry_dsn=None is properly stored (for TESTING mode)."""
+        from src.middleware.error_handlers import register_error_handlers
+        
+        app = Flask(__name__)
+        register_error_handlers(app, sentry_dsn=None)
+        
+        # Verify None is stored in app.extensions
+        assert 'morningai' in app.extensions
+        assert app.extensions['morningai']['sentry_dsn'] is None
 
 
 class TestErrorHandlerResponseFormat:
