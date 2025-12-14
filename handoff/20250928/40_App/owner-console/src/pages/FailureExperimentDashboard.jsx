@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle, 
   Badge, 
   Button, 
   Alert, 
@@ -13,7 +8,8 @@ import {
   AlertTitle, 
   Skeleton,
   Progress,
-  StatCard
+  StatCard,
+  SectionCard
 } from '@morningai/shared-ui'
 import { 
   Activity, 
@@ -121,43 +117,31 @@ const FailureExperimentDashboard = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-              <CardHeader className="px-5 py-4">
-                <Skeleton className="h-6 w-32" />
-              </CardHeader>
-              <CardContent className="p-5 pt-0">
-                <Skeleton className="h-8 w-20 mb-2" />
-                <Skeleton className="h-4 w-24" />
-              </CardContent>
-            </Card>
+            <div key={i} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+              <Skeleton className="h-6 w-32 mb-4" />
+              <Skeleton className="h-8 w-20 mb-2" />
+              <Skeleton className="h-4 w-24" />
+            </div>
           ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-            <CardHeader className="px-5 py-4">
-              <Skeleton className="h-6 w-48" />
-            </CardHeader>
-            <CardContent className="p-5 pt-0">
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-            <CardHeader className="px-5 py-4">
-              <Skeleton className="h-6 w-48" />
-            </CardHeader>
-            <CardContent className="p-5 pt-0">
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-5">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -248,101 +232,81 @@ const FailureExperimentDashboard = () => {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Failure Types */}
-        <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <CardHeader className="px-5 py-4">
-            <CardTitle className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-              <PieChart className="w-5 h-5" />
-              {t('failureExperiment.charts.topFailureTypes', 'Top Failure Types')}
-            </CardTitle>
-            <CardDescription className="text-sm text-[var(--text-secondary)]">
-              {t('failureExperiment.charts.topFailureTypesDesc', 'Distribution of error types in failed workflows')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-5 pt-0">
-            {failureSummary?.by_error_type ? (
-              <div className="space-y-4">
-                {Object.entries(failureSummary.by_error_type).slice(0, 5).map(([type, count]) => {
-                  const total = Object.values(failureSummary.by_error_type).reduce((a, b) => a + b, 0)
-                  const percentage = total > 0 ? (count / total) * 100 : 0
-                  return (
-                    <div key={type} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge className={getErrorTypeColor(type)}>{type}</Badge>
-                        </div>
-                        <span className="text-sm font-medium text-[var(--text-primary)]">{count}</span>
+        <SectionCard
+          title={t('failureExperiment.charts.topFailureTypes', 'Top Failure Types')}
+          subtitle={t('failureExperiment.charts.topFailureTypesDesc', 'Distribution of error types in failed workflows')}
+          icon={<PieChart className="w-5 h-5" />}
+        >
+          {failureSummary?.by_error_type ? (
+            <div className="space-y-4">
+              {Object.entries(failureSummary.by_error_type).slice(0, 5).map(([type, count]) => {
+                const total = Object.values(failureSummary.by_error_type).reduce((a, b) => a + b, 0)
+                const percentage = total > 0 ? (count / total) * 100 : 0
+                return (
+                  <div key={type} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className={getErrorTypeColor(type)}>{type}</Badge>
                       </div>
-                      <Progress value={percentage} className="h-2" />
+                      <span className="text-sm font-medium text-[var(--text-primary)]">{count}</span>
                     </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="py-8 text-center">
-                <PieChart className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
-                <p className="text-[var(--text-secondary)]">
-                  {t('failureExperiment.charts.noFailureData', 'No failure data available')}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <Progress value={percentage} className="h-2" />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="py-8 text-center">
+              <PieChart className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
+              <p className="text-[var(--text-secondary)]">
+                {t('failureExperiment.charts.noFailureData', 'No failure data available')}
+              </p>
+            </div>
+          )}
+        </SectionCard>
 
         {/* Fixer Retry Distribution */}
-        <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <CardHeader className="px-5 py-4">
-            <CardTitle className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              {t('failureExperiment.charts.fixerRetryDist', 'Fixer Retry Distribution')}
-            </CardTitle>
-            <CardDescription className="text-sm text-[var(--text-secondary)]">
-              {t('failureExperiment.charts.fixerRetryDistDesc', 'Number of fixer iterations per workflow')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-5 pt-0">
-            {evalMetrics?.fixer_metrics ? (
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map((iteration) => {
-                  const count = evalMetrics.fixer_metrics[`iteration_${iteration}`] || Math.floor(Math.random() * 50)
-                  const maxCount = 100
-                  const percentage = (count / maxCount) * 100
-                  return (
-                    <div key={iteration} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-[var(--text-primary)]">
-                          {t('failureExperiment.charts.iteration', 'Iteration {{n}}', { n: iteration })}
-                        </span>
-                        <span className="text-sm font-medium text-[var(--text-primary)]">{count}</span>
-                      </div>
-                      <Progress value={percentage} className="h-2" />
+        <SectionCard
+          title={t('failureExperiment.charts.fixerRetryDist', 'Fixer Retry Distribution')}
+          subtitle={t('failureExperiment.charts.fixerRetryDistDesc', 'Number of fixer iterations per workflow')}
+          icon={<BarChart3 className="w-5 h-5" />}
+        >
+          {evalMetrics?.fixer_metrics ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((iteration) => {
+                const count = evalMetrics.fixer_metrics[`iteration_${iteration}`] || Math.floor(Math.random() * 50)
+                const maxCount = 100
+                const percentage = (count / maxCount) * 100
+                return (
+                  <div key={iteration} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-primary)]">
+                        {t('failureExperiment.charts.iteration', 'Iteration {{n}}', { n: iteration })}
+                      </span>
+                      <span className="text-sm font-medium text-[var(--text-primary)]">{count}</span>
                     </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="py-8 text-center">
-                <BarChart3 className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
-                <p className="text-[var(--text-secondary)]">
-                  {t('failureExperiment.charts.noFixerData', 'No fixer metrics available')}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <Progress value={percentage} className="h-2" />
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="py-8 text-center">
+              <BarChart3 className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
+              <p className="text-[var(--text-secondary)]">
+                {t('failureExperiment.charts.noFixerData', 'No fixer metrics available')}
+              </p>
+            </div>
+          )}
+        </SectionCard>
       </div>
 
       {/* Experiment Comparison */}
-      <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-        <CardHeader className="px-5 py-4">
-          <CardTitle className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-            <Beaker className="w-5 h-5" />
-            {t('failureExperiment.charts.experimentComparison', 'Experiment Comparison')}
-          </CardTitle>
-          <CardDescription className="text-sm text-[var(--text-secondary)]">
-            {t('failureExperiment.charts.experimentComparisonDesc', 'Control vs Treatment performance metrics')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-5 pt-0">
+      <SectionCard
+        title={t('failureExperiment.charts.experimentComparison', 'Experiment Comparison')}
+        subtitle={t('failureExperiment.charts.experimentComparisonDesc', 'Control vs Treatment performance metrics')}
+        icon={<Beaker className="w-5 h-5" />}
+      >
           {experimentComparison?.comparisons?.length > 0 ? (
             <div className="space-y-6">
               {experimentComparison.comparisons.map((exp) => (
@@ -416,65 +380,57 @@ const FailureExperimentDashboard = () => {
               </p>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </SectionCard>
 
       {/* Recent Failures */}
-      <Card className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-        <CardHeader className="px-5 py-4">
-          <CardTitle className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-            <Activity className="w-5 h-5" />
-            {t('failureExperiment.charts.recentFailures', 'Recent Failures')}
-          </CardTitle>
-          <CardDescription className="text-sm text-[var(--text-secondary)]">
-            {t('failureExperiment.charts.recentFailuresDesc', 'Latest workflow failures for investigation')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-5 pt-0">
-          {failures.length > 0 ? (
-            <div className="space-y-3">
-              {failures.slice(0, 5).map((failure, index) => (
-                <div 
-                  key={failure.id || index} 
-                  className="flex items-center justify-between p-3 bg-[var(--surface-secondary)] rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <XCircle className="w-5 h-5 text-error" />
-                    <div>
-                      <p className="font-medium text-sm text-[var(--text-primary)] truncate max-w-md">
-                        {failure.goal?.substring(0, 60) || failure.error_type || 'Unknown error'}
-                        {failure.goal?.length > 60 ? '...' : ''}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge className={getErrorTypeColor(failure.error_type)}>
-                          {failure.error_type || 'unknown'}
-                        </Badge>
-                        <span className="text-xs text-[var(--text-secondary)] flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {failure.created_at ? new Date(failure.created_at).toLocaleString() : 'N/A'}
-                        </span>
-                      </div>
+      <SectionCard
+        title={t('failureExperiment.charts.recentFailures', 'Recent Failures')}
+        subtitle={t('failureExperiment.charts.recentFailuresDesc', 'Latest workflow failures for investigation')}
+        icon={<Activity className="w-5 h-5" />}
+      >
+        {failures.length > 0 ? (
+          <div className="space-y-3">
+            {failures.slice(0, 5).map((failure, index) => (
+              <div 
+                key={failure.id || index} 
+                className="flex items-center justify-between p-3 bg-[var(--surface-secondary)] rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <XCircle className="w-5 h-5 text-error" />
+                  <div>
+                    <p className="font-medium text-sm text-[var(--text-primary)] truncate max-w-md">
+                      {failure.goal?.substring(0, 60) || failure.error_type || 'Unknown error'}
+                      {failure.goal?.length > 60 ? '...' : ''}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge className={getErrorTypeColor(failure.error_type)}>
+                        {failure.error_type || 'unknown'}
+                      </Badge>
+                      <span className="text-xs text-[var(--text-secondary)] flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {failure.created_at ? new Date(failure.created_at).toLocaleString() : 'N/A'}
+                      </span>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    {t('common.view', 'View')}
-                  </Button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-8 text-center">
-              <CheckCircle2 className="w-12 h-12 text-growth mx-auto mb-4" />
-              <p className="text-[var(--text-secondary)]">
-                {t('failureExperiment.charts.noRecentFailures', 'No recent failures')}
-              </p>
-              <p className="text-sm text-growth mt-2">
-                {t('failureExperiment.charts.allWorkflowsSuccessful', 'All workflows completed successfully')}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <Button variant="ghost" size="sm">
+                  {t('common.view', 'View')}
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-8 text-center">
+            <CheckCircle2 className="w-12 h-12 text-growth mx-auto mb-4" />
+            <p className="text-[var(--text-secondary)]">
+              {t('failureExperiment.charts.noRecentFailures', 'No recent failures')}
+            </p>
+            <p className="text-sm text-growth mt-2">
+              {t('failureExperiment.charts.allWorkflowsSuccessful', 'All workflows completed successfully')}
+            </p>
+          </div>
+        )}
+      </SectionCard>
     </div>
   )
 }

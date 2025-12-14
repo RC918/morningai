@@ -5,6 +5,7 @@ import { cn } from "../../utils";
 interface SectionCardProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   subtitle?: string;
+  icon?: React.ReactNode;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -13,6 +14,7 @@ interface SectionCardProps extends React.HTMLAttributes<HTMLDivElement> {
 function SectionCard({
   title,
   subtitle,
+  icon,
   action,
   children,
   className,
@@ -27,15 +29,20 @@ function SectionCard({
       {...props}
     >
       <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            {title}
-          </h2>
-          {subtitle && (
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              {subtitle}
-            </p>
+        <div className="flex items-center gap-2">
+          {icon && (
+            <span className="text-[var(--text-secondary)]">{icon}</span>
           )}
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                {subtitle}
+              </p>
+            )}
+          </div>
         </div>
         {action && <div className="text-xs">{action}</div>}
       </div>
