@@ -49,74 +49,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SENTRY_DSN = app_settings.sentry_dsn
-APP_VERSION = app_settings.app_version or "8.0.0"
-
-
-def before_send(event, hint):
-    """Filter out 400/404 errors to reduce noise"""
-    if "exc_info" in hint:
-        exc_type, exc_value, tb = hint["exc_info"]
-        if hasattr(exc_value, "code") and exc_value.code in [400, 404]:
-            return None
-
-    if event.get("request", {}).get("status_code") in [400, 404]:
-        return None
-
-    return event
-
-
 # Import _as_bool from utils module (Phase 1 refactoring: PR1a)
 # Re-exported at module level for backward compatibility
 # Tests should patch via 'src.main._as_bool' (not 'src.utils.helpers._as_bool')
 from src.utils.helpers import _as_bool  # noqa: E402
 
+# Sentry initialization (Phase 1 refactoring: PR1f)
+# Sentry setup moved to src/extensions/sentry.py
+# NOTE: before_send is NOT re-exported because Sentry SDK holds direct reference
+# Tests must patch 'src.extensions.sentry.before_send' (not 'src.main.before_send')
+from src.extensions.sentry import init_sentry  # noqa: E402
 
-TESTING = _as_bool(os.getenv("TESTING"))
-DISABLE_SENTRY_FOR_TESTS = _as_bool(os.getenv("DISABLE_SENTRY_FOR_TESTS"))
-
-# Determine if Sentry should be disabled (either flag can disable it)
-disable_sentry = DISABLE_SENTRY_FOR_TESTS or TESTING
-
-# Production environment protection: prevent accidentally disabling Sentry in production
-# Default to "development" for consistency with other environment defaults in the codebase
-current_env = app_settings.environment or "development"
-if disable_sentry and current_env == "production":
-    logger.warning(
-        "DISABLE_SENTRY_FOR_TESTS or TESTING is set but environment is production; "
-        "Sentry will remain enabled to ensure error tracking in production."
-    )
-    disable_sentry = False
-
-if SENTRY_DSN and SENTRY_DSN.strip() and not disable_sentry:
-    try:
-        import sentry_sdk
-        from sentry_sdk.integrations.flask import FlaskIntegration
-
-        sentry_sdk.init(
-            dsn=SENTRY_DSN,
-            environment=current_env,
-            release=f"morningai@{APP_VERSION}",
-            integrations=[FlaskIntegration()],
-            traces_sample_rate=1.0,
-            before_send=before_send,
-        )
-        logger.info(
-            f"Sentry initialized successfully with release morningai@{APP_VERSION}"
-        )
-    except Exception as e:
-        logger.warning(
-            f"Failed to initialize Sentry: {e}. Continuing without Sentry integration."
-        )
-        SENTRY_DSN = None
-elif disable_sentry:
-    logger.info(
-        "Sentry disabled in testing environment "
-        "(DISABLE_SENTRY_FOR_TESTS or TESTING flag is set)."
-    )
-    SENTRY_DSN = None
-else:
-    SENTRY_DSN = None
+SENTRY_DSN = init_sentry(app_settings, _as_bool)
 
 try:
     from security_manager import SecurityManager
