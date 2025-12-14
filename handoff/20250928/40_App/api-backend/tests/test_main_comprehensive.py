@@ -325,11 +325,15 @@ class TestDashboardLayouts:
 
 
 class TestBeforeSend:
-    """Test Sentry before_send filter"""
+    """Test Sentry before_send filter
+    
+    NOTE: before_send is now in src/extensions/sentry.py (Phase 1 refactoring: PR1f)
+    Tests must import from src.extensions.sentry, NOT src.main
+    """
     
     def test_before_send_filters_400(self):
         """Test before_send filters out 400 errors"""
-        from src.main import before_send
+        from src.extensions.sentry import before_send
         
         event = {'request': {'status_code': 400}}
         hint = {}
@@ -339,7 +343,7 @@ class TestBeforeSend:
     
     def test_before_send_filters_404(self):
         """Test before_send filters out 404 errors"""
-        from src.main import before_send
+        from src.extensions.sentry import before_send
         
         event = {'request': {'status_code': 404}}
         hint = {}
@@ -349,7 +353,7 @@ class TestBeforeSend:
     
     def test_before_send_allows_500(self):
         """Test before_send allows 500 errors"""
-        from src.main import before_send
+        from src.extensions.sentry import before_send
         
         event = {'request': {'status_code': 500}}
         hint = {}
@@ -359,7 +363,7 @@ class TestBeforeSend:
     
     def test_before_send_with_exc_info(self):
         """Test before_send with exception info"""
-        from src.main import before_send
+        from src.extensions.sentry import before_send
         
         error = Exception("Test error")
         error.code = 404
