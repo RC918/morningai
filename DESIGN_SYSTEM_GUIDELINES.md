@@ -1520,9 +1520,72 @@ input, select, textarea {
 #### 當前健康指標
 
 ```
-✓ PASSED:   22 / 24 檢查項目
-⚠ WARNINGS:  1 / 24 (可訪問性測試文件不足)
-✗ FAILED:    1 / 24 (硬編碼顏色過多: 494 處)
+✓ PASSED:   23 / 24 檢查項目
+⚠ WARNINGS:  0 / 24
+✗ FAILED:    1 / 24 (Raw hex colors: 395，目標 <50)
+```
+
+#### Raw Hex vs Fallback Hex 計算規則
+
+設計系統審計腳本區分兩種類型的 hex color 使用：
+
+**Raw Hex Colors（直接使用）**：
+- 定義：直接在 CSS/TSX 中使用的硬編碼顏色，如 `color: #005A9C`
+- 問題：繞過 design token 系統，難以維護主題一致性
+- 目標：減少至 50 處以下
+- Regression Guard：**會阻擋** raw hex 數量增加
+
+**Fallback Hex Colors（CSS 變數 fallback）**：
+- 定義：在 CSS 變數 fallback 中使用的顏色，如 `color: var(--color-primary, #005A9C)`
+- 用途：提供韌性，當 CSS 變數未定義時仍能正常顯示
+- 目標：允許存在，但應追蹤趨勢
+- Regression Guard：**不會阻擋** fallback hex 數量增加
+
+**計算方式**：
+```bash
+# Total hex colors（所有 hex 色碼）
+grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" src/ --include="*.css" --include="*.tsx"
+
+# Fallback hex colors（在 var() 內的 hex）
+grep -rE "#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b" src/ --include="*.css" --include="*.tsx" | grep "var("
+
+# Raw hex colors = Total - Fallback
+```
+
+**Baseline 格式**（`.design-system-baseline.json`）：
+```json
+{
+  "hex_colors": 395,        // Raw hex（用於 regression guard）
+  "hex_colors_raw": 395,    // 同上，明確標示
+  "hex_colors_fallback": 144, // Fallback hex（追蹤用）
+  "hex_colors_total": 539   // 總計
+}
+```
+
+**已知限制**：
+- 多行 `var()` 語法可能導致誤判
+- 同一行同時有 raw hex 和 var() fallback 時，整行被計為 fallback
+- 審計針對 source code，不檢查 build 產物
+
+#### Build Pipeline 一致性要求
+
+為確保 fallback hex 在 production 環境正常運作，build pipeline **不得**將 `var(--token, #fallback)` 展開為單純的 `#fallback`。
+
+**當前配置**（已驗證安全）：
+- Vite + @vitejs/plugin-react：不轉換 CSS 變數
+- @tailwindcss/vite：不轉換 CSS 變數
+- 無 postcss-custom-properties、postcss-preset-env、cssnano 等變數展開插件
+
+**禁止使用的插件**：
+- `postcss-custom-properties`（會展開 CSS 變數）
+- `postcss-preset-env` 的 custom properties 功能
+- 任何會將 `var()` fallback 提取為獨立值的 CSS optimizer
+
+**驗證方式**：
+```bash
+# 檢查 build 產物是否保留 var() fallback
+pnpm build
+grep -r "var(--" dist/assets/*.css | head -5
 ```
 
 #### CI/CD 整合
@@ -1547,9 +1610,9 @@ input, select, textarea {
 
 > **注意**: 以下項目為設計系統健康度改進目標，與 Epic #2304 的 Phase 結構無關。
 
-1. **減少硬編碼顏色**: 目標從 494 處降至 50 處以下
-2. **增加可訪問性測試**: 目標 3+ 個專用測試文件
-3. **Storybook 覆蓋率**: 目標從 40% 提升至 80%
+1. **減少 Raw Hex Colors**: 目標從 395 處降至 50 處以下（已從 488 改善至 395）
+2. **增加可訪問性測試**: ✅ 已達成 3+ 個專用測試文件
+3. **Storybook 覆蓋率**: 目標從 40% 提升至 80%（目前 34 個 story files）
 4. **視覺回歸測試 (VRT)**: 建立自動化視覺測試
 
 ---
