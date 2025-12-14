@@ -1520,10 +1520,95 @@ input, select, textarea {
 #### 當前健康指標
 
 ```
-✓ PASSED:   22 / 24 檢查項目
-⚠ WARNINGS:  1 / 24 (可訪問性測試文件不足)
-✗ FAILED:    1 / 24 (硬編碼顏色過多: 494 處)
+✓ PASSED:   23 / 24 檢查項目
+⚠ WARNINGS:  0 / 24
+✗ FAILED:    1 / 24 (Raw hex colors: 450，目標 <50)
 ```
+
+#### Raw Hex vs Fallback Hex 計算規則
+
+設計系統審計腳本區分兩種類型的 hex color 使用：
+
+**Raw Hex Colors（直接使用）**：
+- 定義：直接在 CSS/TSX 中使用的硬編碼顏色，如 `color: #005A9C`
+- 問題：繞過 design token 系統，難以維護主題一致性
+- 目標：減少至 50 處以下
+- Regression Guard：**會阻擋** raw hex 數量增加
+
+**Fallback Hex Colors（CSS 變數 fallback）**：
+- 定義：在 CSS 變數 fallback 中使用的顏色，如 `color: var(--color-primary, #005A9C)`
+- 用途：提供韌性，當 CSS 變數未定義時仍能正常顯示
+- 目標：允許存在，但應追蹤趨勢
+- Regression Guard：**不會阻擋** fallback hex 數量增加
+
+#### 計算方式（Match-Based Counting #2440）
+
+審計腳本使用 **match-based counting**（計算實際匹配數）而非 line-based counting（計算行數），以正確處理同一行有多個 hex colors 的情況。
+
+```bash
+# Total hex colors（所有 hex 色碼 - 計算實際匹配數）
+grep -rEoh "#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3}" src/ --include="*.css" --include="*.tsx" | wc -l
+
+# Fallback hex colors（在 var() fallback 位置）
+# 兩階段：先提取 var() 表達式，再計算其中的 hex
+grep -rEoh "var\([^)]*,[[:space:]]*#[0-9A-Fa-f]{3,6}" src/ --include="*.css" --include="*.tsx" | \
+  grep -Eo "#[0-9A-Fa-f]{3,6}" | wc -l
+
+# Raw hex colors = Total - Fallback
+```
+
+**注意**：Match-based counting 的數值會比 line-based counting 高，因為它正確計算了同一行的多個 hex colors。
+
+**Baseline 格式**（`.design-system-baseline.json`）：
+```json
+{
+  "hex_colors": 450,          // Raw hex（用於 regression guard）
+  "hex_colors_raw": 450,      // 同上，明確標示
+  "hex_colors_fallback": 156, // Fallback hex（追蹤用）
+  "hex_colors_total": 606,    // 總計
+  "counting_method": "match-based"
+}
+```
+
+#### 跨平台相容性說明（#2441）
+
+審計腳本需要 **GNU grep**（非 BSD grep），因為使用了以下 GNU-only 功能：
+- `--include`, `--exclude`, `--exclude-dir` 標誌
+- `-o` (print only matching) 與 `-h` (suppress filename) 組合
+
+**在 macOS 上執行**：
+```bash
+# 安裝 GNU grep
+brew install grep
+
+# 方法 1：使用 ggrep
+ggrep -rEoh "pattern" ...
+
+# 方法 2：將 GNU grep 加入 PATH
+export PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
+./audit-design-system.sh --relaxed
+```
+
+**CI 環境**：Ubuntu（預設使用 GNU grep）
+
+**Regex 可攜性**：
+- 使用 `[[:space:]]` 而非 `\s`（POSIX 相容）
+- 避免 `\b` word boundary（在 POSIX ERE 中不可攜）
+- 使用 `[0-9A-Fa-f]` 而非 `\h` 或 `[:xdigit:]`
+
+#### Build Pipeline 一致性要求
+
+為確保 fallback hex 在 production 環境正常運作，build pipeline **不得**將 `var(--token, #fallback)` 展開為單純的 `#fallback`。
+
+**當前配置**（已驗證安全）：
+- Vite + @vitejs/plugin-react：不轉換 CSS 變數
+- @tailwindcss/vite：不轉換 CSS 變數
+- 無 postcss-custom-properties、postcss-preset-env、cssnano 等變數展開插件
+
+**禁止使用的插件**：
+- `postcss-custom-properties`（會展開 CSS 變數）
+- `postcss-preset-env` 的 custom properties 功能
+- 任何會將 `var()` fallback 提取為獨立值的 CSS optimizer
 
 #### CI/CD 整合
 
@@ -1547,9 +1632,9 @@ input, select, textarea {
 
 > **注意**: 以下項目為設計系統健康度改進目標，與 Epic #2304 的 Phase 結構無關。
 
-1. **減少硬編碼顏色**: 目標從 494 處降至 50 處以下
-2. **增加可訪問性測試**: 目標 3+ 個專用測試文件
-3. **Storybook 覆蓋率**: 目標從 40% 提升至 80%
+1. **減少 Raw Hex Colors**: 目標從 450 處降至 50 處以下（使用 match-based counting）
+2. **增加可訪問性測試**: ✅ 已達成 3+ 個專用測試文件
+3. **Storybook 覆蓋率**: 目標從 40% 提升至 80%（目前 34 個 story files）
 4. **視覺回歸測試 (VRT)**: 建立自動化視覺測試
 
 ---
