@@ -307,6 +307,38 @@ pip install -r requirements.txt  # pytest, flake8, python-dotenv
 
 ---
 
+## Configuration Flags
+
+MorningAI 使用環境變數進行配置。完整的配置說明請參考：
+
+- **[Configuration Settings](docs/config/settings.md)** - 所有環境變數說明與使用指南
+- **[Environment Schema](config/env.schema.yaml)** - 環境變數定義（CI 驗證）
+
+### 常用配置
+
+| 變數 | 說明 | 預設值 |
+|------|------|--------|
+| `ENVIRONMENT` | 執行環境 (development/staging/production) | production |
+| `LOG_LEVEL` | 日誌等級 (DEBUG/INFO/WARNING/ERROR) | INFO |
+| `CORS_DEBUG` | CORS 除錯日誌（非 production 才生效） | false |
+| `CORS_ORIGINS` | CORS 允許的來源（逗號分隔） | http://localhost:5173,http://localhost:5174 |
+
+### CORS Debug 模式
+
+在 staging/development 環境中，可啟用 CORS debug 日誌來排查跨域問題：
+
+```bash
+# 在 .env 設定
+CORS_DEBUG=true
+LOG_LEVEL=DEBUG
+```
+
+> **注意**：`CORS_DEBUG` 在 production 環境永遠不生效（強制關閉），以防止資訊洩露。
+
+詳細說明請參考 [CORS Configuration](docs/config/settings.md#cors-configuration)。
+
+---
+
 ## LHCI 資訊模式（非阻塞）
 
 MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊模式」（非阻塞信號蒐集階段）。
