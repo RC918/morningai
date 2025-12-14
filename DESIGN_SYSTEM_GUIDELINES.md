@@ -1674,7 +1674,7 @@ Phase 2 audit 腳本使用以下 regex 來偵測 shared-ui card 元件使用：
 - `--save-baseline` 預設寫入 `.bundle-size-baseline.json`
 - 若在 CI 中同一 workspace 平行執行多個 job，可能發生檔案覆蓋
 - 緩解方式：
-  - 使用 `--compare <custom-path> --save-baseline` 指定不同輸出路徑
+  - 使用 `--output <path>` 指定不同輸出路徑（如 `--save-baseline --output /tmp/job-$CI_JOB_ID.json`）
   - 或確保每個 job 在獨立 workspace 執行（GitHub Actions 預設行為）
 - 注意：`phase2_audit.sh` 僅輸出到 stdout，不涉及寫檔 race condition
 

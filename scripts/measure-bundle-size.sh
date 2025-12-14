@@ -16,6 +16,7 @@
 #   ./scripts/measure-bundle-size.sh owner-console      # Measure specific app
 #   ./scripts/measure-bundle-size.sh --compare <file>   # Compare with baseline
 #   ./scripts/measure-bundle-size.sh --save-baseline    # Save current as baseline
+#   ./scripts/measure-bundle-size.sh --output <file>    # Specify output file for baseline
 #   ./scripts/measure-bundle-size.sh --json             # Output JSON format
 #   ./scripts/measure-bundle-size.sh --help             # Show help
 #
@@ -82,6 +83,7 @@ USAGE:
 OPTIONS:
   --compare <file>    Compare results with baseline file
   --save-baseline     Save current results as baseline
+  --output <file>     Specify output file for baseline (default: .bundle-size-baseline.json)
   --json              Output in JSON format
   --help              Show this help message
 
@@ -98,6 +100,9 @@ EXAMPLES:
 
   # Save baseline
   ./scripts/measure-bundle-size.sh --save-baseline
+
+  # Save baseline to custom path (useful for CI race condition avoidance)
+  ./scripts/measure-bundle-size.sh --save-baseline --output /tmp/my-baseline.json
 
   # Compare with baseline
   ./scripts/measure-bundle-size.sh --compare .bundle-size-baseline.json
@@ -436,6 +441,10 @@ while [[ $# -gt 0 ]]; do
     --save-baseline)
       SAVE_BASELINE=true
       shift
+      ;;
+    --output)
+      BASELINE_FILE="$2"
+      shift 2
       ;;
     --json)
       OUTPUT_FORMAT="json"
