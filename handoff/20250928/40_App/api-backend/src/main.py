@@ -283,11 +283,18 @@ def add_cors_headers(response):
         response.headers["Access-Control-Expose-Headers"] = (
             "Content-Type, Authorization, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset"
         )
-        response.headers["Vary"] = "Origin"
+        # Merge Vary header instead of overwriting
+        existing_vary = response.headers.get("Vary", "")
+        if existing_vary:
+            if "Origin" not in existing_vary:
+                response.headers["Vary"] = f"{existing_vary}, Origin"
+        else:
+            response.headers["Vary"] = "Origin"
 
         # Handle OPTIONS preflight requests with 204 No Content
         if request.method == "OPTIONS":
             response.status_code = 204
+            response.set_data(b"")  # Clear response body for 204
             if cors_debug_enabled:
                 logging.debug("[CORS DEBUG] add_cors_headers: preflight_response=204")
     elif request.method == "OPTIONS" and not origin:
@@ -305,6 +312,7 @@ def add_cors_headers(response):
             "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         )
         response.status_code = 204
+        response.set_data(b"")  # Clear response body for 204
     else:
         if cors_debug_enabled:
             logging.debug("[CORS DEBUG] add_cors_headers: headers_added=False")
