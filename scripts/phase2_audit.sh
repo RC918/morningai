@@ -200,6 +200,7 @@ count_pattern_in_dir() {
 
 # Count shared-ui card JSX usage
 # Handles both direct JSX (<StatCard>) and namespace JSX (<SharedUI.StatCard>)
+# Note: Namespace pattern requires JSX context (<Namespace.Card) to avoid false positives
 count_shared_ui_cards() {
   local target="$1"
   local total=0
@@ -210,17 +211,18 @@ count_shared_ui_cards() {
       # Direct JSX: <StatCard followed by space, newline, >, or /
       local direct
       direct=$(count_pattern "<${card}([^a-zA-Z0-9]|$)" "$target")
-      # Namespace JSX: <SharedUI.StatCard or similar patterns
+      # Namespace JSX: <Namespace.StatCard (requires < before namespace)
+      # Pattern: <[A-Za-z0-9_]+\.StatCard followed by non-alphanumeric or EOL
       local namespace
-      namespace=$(count_pattern "\\.${card}([^a-zA-Z0-9]|$)" "$target")
+      namespace=$(count_pattern "<[A-Za-z0-9_]+\\.${card}([^a-zA-Z0-9]|$)" "$target")
       count=$((direct + namespace))
     else
       # Direct JSX
       local direct
       direct=$(count_pattern_in_dir "<${card}([^a-zA-Z0-9]|$)" "$target")
-      # Namespace JSX
+      # Namespace JSX: <Namespace.StatCard
       local namespace
-      namespace=$(count_pattern_in_dir "\\.${card}([^a-zA-Z0-9]|$)" "$target")
+      namespace=$(count_pattern_in_dir "<[A-Za-z0-9_]+\\.${card}([^a-zA-Z0-9]|$)" "$target")
       count=$((direct + namespace))
     fi
     total=$((total + count))
@@ -240,13 +242,13 @@ count_shared_ui_cards_breakdown() {
       local direct
       direct=$(count_pattern "<${card}([^a-zA-Z0-9]|$)" "$target")
       local namespace
-      namespace=$(count_pattern "\\.${card}([^a-zA-Z0-9]|$)" "$target")
+      namespace=$(count_pattern "<[A-Za-z0-9_]+\\.${card}([^a-zA-Z0-9]|$)" "$target")
       count=$((direct + namespace))
     else
       local direct
       direct=$(count_pattern_in_dir "<${card}([^a-zA-Z0-9]|$)" "$target")
       local namespace
-      namespace=$(count_pattern_in_dir "\\.${card}([^a-zA-Z0-9]|$)" "$target")
+      namespace=$(count_pattern_in_dir "<[A-Za-z0-9_]+\\.${card}([^a-zA-Z0-9]|$)" "$target")
       count=$((direct + namespace))
     fi
     if [[ -n "$result" ]]; then
