@@ -211,13 +211,50 @@ cors_origins = [origin.strip() for origin in cors_origins]
 cors_debug_enabled = _as_bool(os.getenv("CORS_DEBUG")) and not app_settings.is_production
 
 # Setup CORS middleware (Phase 1 refactoring: PR1b)
-# CORS functions moved to src/middleware/cors.py
-from src.middleware.cors import setup_cors  # noqa: E402
-from src.middleware.cors import is_vercel_preview, add_cors_headers  # noqa: E402,F401 (re-export)
+# CORS implementation moved to src/middleware/cors.py
+from src.middleware.cors import (  # noqa: E402
+    is_vercel_preview as _is_vercel_preview_impl,
+    add_cors_headers as _add_cors_headers_impl,
+)
 
-# Register CORS after_request handler
-# The setup_cors function returns the registered handler (named add_cors_headers internally)
-setup_cors(app, cors_origins, app_settings.environment, cors_debug_enabled)
+
+# Wrapper functions to maintain backward-compatible signatures
+# These use closure variables (cors_origins, cors_debug_enabled, app_settings.environment)
+# Tests should patch via 'src.main.is_vercel_preview' (not 'src.middleware.cors.*')
+def is_vercel_preview(origin):
+    """Check if origin is a Vercel preview URL.
+
+    Allows Vercel preview origins in staging and development environments.
+    Blocks them in production for security.
+
+    This is a wrapper that maintains the original function signature for backward compatibility.
+    The implementation is in src/middleware/cors.py.
+    """
+    return _is_vercel_preview_impl(origin, app_settings.environment, cors_debug_enabled)
+
+
+def add_cors_headers(response):
+    """Add CORS headers for allowed origins including Vercel preview URLs.
+
+    This is the single authority source for CORS handling in the application.
+    Flask-CORS has been removed to avoid dual-mechanism conflicts.
+
+    This is a wrapper that maintains the original function signature for backward compatibility.
+    The implementation is in src/middleware/cors.py.
+    """
+    return _add_cors_headers_impl(response, cors_origins, app_settings.environment, cors_debug_enabled)
+
+
+# Register CORS after_request handler using the wrapper function
+# This ensures patches to 'src.main.add_cors_headers' affect the actual request handling
+@app.after_request
+def _cors_after_request(response):
+    return add_cors_headers(response)
+
+
+# Log CORS startup info if debug enabled
+if cors_debug_enabled:
+    logging.debug(f"[CORS DEBUG] Startup: env={app_settings.environment}, allowlist_count={len(cors_origins)}")
 
 
 if SECURITY_AVAILABLE:
