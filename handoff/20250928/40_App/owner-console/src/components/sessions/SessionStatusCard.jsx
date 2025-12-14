@@ -7,8 +7,10 @@ import { cn } from '@morningai/shared-ui'
  * Design Specification (Unified Status Card Standard - matches StatCard layout):
  * - Fixed dimensions: min-w-[140px] h-24 (96px) for consistent visual alignment
  * - Internal padding: px-4 py-3 (16px horizontal, 12px vertical)
- * - Layout: Label top-left, Value bottom-left, Icon right (vertically centered)
- * - Icon: 20x20px (size-5), no background container
+ * - Two-row layout:
+ *   - Row 1: Label (text-xs font-medium)
+ *   - Row 2: Value + Icon in same flex row (items-center for horizontal alignment)
+ * - Icon: 20x20px (size-5), no background container, ml-3 (12px) spacing from value
  * - Typography: label text-xs font-medium, value text-2xl font-semibold
  * - Active state: light tinted background + subtle shadow + 2px left highlight (internal, no external ring)
  * - Focus state: 2px ring with accessibility color (var(--accessibility-focus-outline-color)), only on keyboard focus
@@ -108,14 +110,15 @@ function SessionStatusCard({
         />
       )}
       
-      {/* Main content: Label + Value on left, Icon on right */}
-      <div className="flex items-center justify-between h-full">
-        <div className="flex flex-col justify-between h-full">
-          {/* Label */}
-          <span className="text-xs font-medium text-[var(--text-secondary)]">
-            {label}
-          </span>
-          {/* Value */}
+      {/* Two-row layout: Label on top, Value + Icon in bottom row */}
+      <div className="flex h-full flex-col justify-between">
+        {/* Row 1: Label */}
+        <span className="text-xs font-medium text-[var(--text-secondary)]">
+          {label}
+        </span>
+
+        {/* Row 2: Value + Icon (horizontally aligned) */}
+        <div className="flex items-center justify-between">
           <span
             className={cn(
               'text-2xl font-semibold transition-colors duration-150',
@@ -124,11 +127,11 @@ function SessionStatusCard({
           >
             {value}
           </span>
+          {icon && cloneElement(icon, { 
+            className: cn('size-5 shrink-0 ml-3', styles.iconText),
+            'aria-hidden': 'true'
+          })}
         </div>
-        {icon && cloneElement(icon, { 
-          className: cn('size-5 shrink-0 ml-3', styles.iconText),
-          'aria-hidden': 'true'
-        })}
       </div>
     </button>
   )
