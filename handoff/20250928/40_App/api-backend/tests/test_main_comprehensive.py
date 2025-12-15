@@ -150,13 +150,17 @@ class TestErrorHandlers:
 
 
 class TestStaticFileServing:
-    """Test static file serving"""
+    """Test static file serving
     
-    @patch('os.path.exists')
-    @patch('src.main.send_from_directory')
-    def test_serve_existing_file(self, mock_send, mock_exists, client):
+    Note: Static file serving was moved from src.main to src/routes/health_static.py
+    in Phase 1.6d. Tests now patch the correct module location.
+    """
+    
+    @patch('os.path.isfile')
+    @patch('src.routes.health_static.send_from_directory')
+    def test_serve_existing_file(self, mock_send, mock_isfile, client):
         """Test serving existing static file"""
-        mock_exists.return_value = True
+        mock_isfile.return_value = True
         mock_send.return_value = "file content"
         
         response = client.get('/assets/logo.png')

@@ -31,7 +31,7 @@ elif not os.path.exists(app_dir):
         f"App directory does not exist: {app_dir}. Orchestrator features may not work."
     )
 
-from flask import Flask, send_from_directory, jsonify, request, send_file, Response
+from flask import Flask, jsonify
 from src.models.user import db
 # Note: jwt_required, admin_required, analyst_required moved to phase456 blueprint (PR1.6a)
 from common.config.settings import get_settings
@@ -352,9 +352,6 @@ def create_app(config=None):
     # Register error handlers
     register_error_handlers(flask_app, sentry_dsn=SENTRY_DSN)
 
-    # Register inline routes
-    _register_inline_routes(flask_app)
-
     # Database configuration and initialization
     configure_database(flask_app, app_settings, db)
     initialize_database(flask_app, db, app_settings)
@@ -362,52 +359,12 @@ def create_app(config=None):
     return flask_app
 
 
-def _register_inline_routes(flask_app):
-    """Register all inline routes on the Flask app.
-
-    NOTE: All inline routes have been moved to blueprint modules in Phase 1.6.
-    This function is kept for backward compatibility and documentation.
-
-    Phase 1.6 Completion:
-    - PR1.6a: Phase 4-6 routes moved to src/routes/phase456.py
-    - PR1.6b: Phase 7 routes moved to src/routes/phase7.py
-    - PR1.6c: Dashboard/Reports/Settings routes moved to src/routes/dashboard_reports.py
-    - PR1.6d: Health/Static routes moved to src/routes/health_static.py
-
-    Args:
-        flask_app: The Flask application instance.
-    """
-    # NOTE: Phase 7 routes moved to src/routes/phase7.py (PR1.6b)
-    # - /api/phase7/status
-    # - /api/phase7/approvals/pending
-    # - /api/phase7/approvals/history
-    # - /api/phase7/beta/candidates
-    # - /api/phase7/growth/metrics
-    # - /api/phase7/ops/metrics
-    # - /api/phase7/monitoring/dashboard
-    # - /api/phase7/monitoring/metrics
-    # - /api/phase7/monitoring/alerts
-    # - /api/phase7/environment/validate
-    # - /api/phase7/resilience/metrics
-
-    # NOTE: Dashboard/Reports/Settings routes moved to src/routes/dashboard_reports.py (PR1.6c)
-    # - /api/dashboard/layouts (GET, POST)
-    # - /api/dashboard/widgets/available (GET)
-    # - /api/dashboard/data (GET, POST)
-    # - /api/dashboard/widgets (GET)
-    # - /api/reports/generate (POST)
-    # - /api/reports/templates (GET)
-    # - /api/reports/history (GET)
-    # - /api/settings (GET, POST)
-
-    # NOTE: Health/Static routes moved to src/routes/health_static.py (PR1.6d)
-    # - /health (GET, HEAD)
-    # - /healthz (GET, HEAD)
-    # - /api/health (GET, HEAD)
-    # - /api/healthz (GET, HEAD)
-    # - / (GET)
-    # - /<path:path> (GET)
-    pass
+# Phase 1.6 Route Modularization Complete:
+# All inline routes have been moved to dedicated blueprint modules:
+# - PR1.6a: Phase 4-6 routes → src/routes/phase456.py
+# - PR1.6b: Phase 7 routes → src/routes/phase7.py
+# - PR1.6c: Dashboard/Reports/Settings routes → src/routes/dashboard_reports.py
+# - PR1.6d: Health/Static routes → src/routes/health_static.py
 
 
 # Create the Flask application using the factory function
