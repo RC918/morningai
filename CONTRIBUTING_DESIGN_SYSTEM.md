@@ -12,6 +12,7 @@
 - [Code Review Checklist](#code-review-checklist)
 - [CI 檢查](#ci-檢查)
 - [廢棄組件處理](#廢棄組件處理)
+- [#2303 驗收標準覆蓋矩陣](#2303-驗收標準覆蓋矩陣)
 
 ## Token 管理
 
@@ -29,6 +30,7 @@
 
 ### Token 使用規範
 
+<!-- 示意範例：展示正確與錯誤用法對比，非完整可執行程式碼 -->
 ```tsx
 // ✅ 好的做法 - 使用 CSS 變數
 <div className="bg-[var(--color-primary-600)] p-[var(--space-md)]">
@@ -130,6 +132,7 @@
 2. 保留業務邏輯在應用層
 3. 建立 adapter 模式連接兩者
 
+<!-- 示意範例：展示 Adapter 模式的結構，實際實作需依組件需求調整 -->
 ```tsx
 // packages/shared-ui/src/components/ui/apple-modal-base.tsx
 // 純視覺組件，無業務邏輯，接收 onConfirm 作為 prop 但不處理業務邏輯
@@ -177,6 +180,7 @@ export function AppleModal({ onConfirm, ...props }) {
 
 ### 卡片使用範例
 
+<!-- ✅ 可複製範例：包含完整 imports，可直接使用 -->
 ```tsx
 import { 
   StatCard, 
@@ -290,6 +294,7 @@ import { DollarSign, Shield } from 'lucide-react'
 2. 在 CONTRIBUTING_DESIGN_SYSTEM.md 中記錄
 3. 設定移除時間表
 
+<!-- 示意範例：展示 @deprecated 標記格式 -->
 ```tsx
 /**
  * @deprecated 請使用 @morningai/shared-ui 的 StatCard
@@ -304,7 +309,63 @@ export function LegacyStatCard() {
 
 | 組件 | 位置 | 替代方案 | 移除時間 |
 |------|------|----------|----------|
-| `LegacyCard` | owner-console | 依使用情境選擇 `Card` (通用容器) 或對應的卡片 Archetype (如 `StatCard`, `SettingsCard`) | Phase 3 完成後 |
+| `LegacyCard` | owner-console | 依使用情境選擇（見下方 Decision Flow） | Phase 3 完成後 |
+
+### LegacyCard 替換 Decision Flow
+
+遷移 `LegacyCard` 時，依以下流程選擇替代方案：
+
+```
+1. 卡片是否只是純容器（無特定語意）？
+   └── 是 → 使用 `Card`（通用容器）
+
+2. 是否用於展示 KPI / 數據統計？
+   └── 是 → 使用 `StatCard`
+   └── 典型場景：總收入、用戶數、轉換率
+
+3. 是否用於狀態篩選 / 切換？
+   └── 是 → 使用 `StatusCard`
+   └── 典型場景：任務狀態篩選、標籤切換
+
+4. 是否用於設定面板 / 配置項？
+   └── 是 → 使用 `SettingsCard`
+   └── 典型場景：2FA 設定、通知偏好、API 金鑰
+
+5. 是否用於區塊分組 / 標題容器？
+   └── 是 → 使用 `SectionCard`
+   └── 典型場景：Dashboard 區塊、表單分組
+
+6. 都不符合？
+   └── 提 Issue 評估是否需要新增 Archetype
+   └── 或擴展現有 shared-ui 組件
+```
+
+**典型場景對照表**：
+
+| Archetype | 典型場景 | 常見 Anti-pattern |
+|-----------|----------|-------------------|
+| `Card` | 純容器、自訂內容 | 用於 KPI 展示（應用 StatCard） |
+| `StatCard` | 總收入、用戶數、轉換率 | 加入互動按鈕（應用 SettingsCard） |
+| `StatusCard` | 任務狀態篩選、標籤切換 | 展示詳細數據（應用 StatCard） |
+| `SettingsCard` | 2FA 設定、通知偏好 | 純展示無動作（應用 StatCard） |
+| `SectionCard` | Dashboard 區塊、表單分組 | 單一 KPI 展示（應用 StatCard） |
+
+## #2303 驗收標準覆蓋矩陣
+
+本文檔對應 [Issue #2303](https://github.com/RC918/morningai/issues/2303) 的驗收標準：
+
+| 驗收標準 | 文檔位置 | 執行方式 | 狀態 |
+|----------|----------|----------|------|
+| 建立 `CONTRIBUTING_DESIGN_SYSTEM.md` | 根目錄 | Manual | ✅ |
+| PR template 新增設計系統 checklist | `.github/pull_request_template.md` | Manual | ✅ |
+| CI 檢查 token 同步狀態 | `token-sync-check.yml` | **CI（結構驗證）** | ✅ |
+| 標記舊組件為 deprecated | [廢棄組件處理](#廢棄組件處理) | Manual（文檔記錄） | ✅ |
+| Apple 組件歸屬規則章節 | [Apple 組件規則](#apple-組件規則) | Manual | ✅ |
+| Apple 組件 Code Review checklist | [Code Review Checklist](#code-review-checklist) | Manual | ✅ |
+
+**備註**：
+- Token 同步 CI 目前驗證 `tokens.json` 結構完整性（必要 categories、accessibility tokens）
+- 完整的 CSS 變數同步驗證將在後續 Issue 中實作
 
 ## 相關文檔
 
