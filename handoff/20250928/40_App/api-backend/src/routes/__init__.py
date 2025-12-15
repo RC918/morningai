@@ -122,15 +122,6 @@ def register_blueprints(
     except ImportError as e:
         logger.warning("Metrics API routes not available: %s", e)
 
-    # Phase 7 monitoring dashboard URL rule
-    from src.routes.dashboard import get_dashboard_data as monitoring_dashboard_handler
-    app.add_url_rule(
-        "/api/phase7/monitoring/dashboard",
-        view_func=monitoring_dashboard_handler,
-        methods=["GET"],
-        endpoint="phase7_monitoring_dashboard",
-    )
-
     # Mock API for backend services (conditional)
     # Only import mock_api - other services are already imported in main.py
     # when BACKEND_SERVICES_AVAILABLE is True
@@ -148,3 +139,18 @@ def register_blueprints(
     init_phase456_routes(phase_456_available, phase_456_api_funcs or {})
     app.register_blueprint(phase456_bp)
     logger.info(f"Phase 4-6 routes registered: available={phase_456_available}")
+
+    # Phase 7 API routes (PR1.6b)
+    # Routes for Phase 7: Performance, Growth & Beta Introduction
+    # Includes HITL approvals, monitoring, resilience metrics, environment validation
+    from src.routes.phase7 import bp as phase7_bp, init_phase7_routes
+    init_phase7_routes(backend_services_available)
+    app.register_blueprint(phase7_bp)
+    logger.info(f"Phase 7 routes registered: backend_services_available={backend_services_available}")
+
+    # Dashboard/Reports/Settings routes (PR1.6c)
+    # Routes for dashboard layouts, widgets, reports, and user settings
+    from src.routes.dashboard_reports import bp as dashboard_reports_bp, init_dashboard_reports_routes
+    init_dashboard_reports_routes(backend_services_available)
+    app.register_blueprint(dashboard_reports_bp)
+    logger.info(f"Dashboard/Reports routes registered: backend_services_available={backend_services_available}")
