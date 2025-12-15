@@ -17,7 +17,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import * as Sentry from '@sentry/react'
-import { SectionCard, Skeleton } from '@morningai/shared-ui'
+import { SectionCard, StatCard, Skeleton } from '@morningai/shared-ui'
 import { validateMetricsData, sanitizeMetricsData, safeGet, isValidMetricValue } from '../utils/metricsValidation'
 
 /**
@@ -200,38 +200,36 @@ export default function UXMetrics() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.totalPRs')}</h3>
-          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">{metrics.total_prs}</p>
-        </div>
+        <StatCard
+          label={t('uxMetrics.totalPRs')}
+          value={String(metrics.total_prs)}
+          variant="default"
+        />
 
         {metrics.summary.lighthouse && (
           <>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-              <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.avgFCP')}</h3>
-              <p className={`text-2xl font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.fcp_avg, metrics.thresholds.lighthouse.fcp)}`}>
-                {formatValue(metrics.summary.lighthouse.fcp_avg, 'ms')}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}</p>
-            </div>
+            <StatCard
+              label={t('uxMetrics.avgFCP')}
+              value={formatValue(metrics.summary.lighthouse.fcp_avg, 'ms')}
+              subtitle={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}
+              variant={metrics.summary.lighthouse.fcp_avg <= metrics.thresholds.lighthouse.fcp ? 'green' : 'red'}
+            />
 
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-              <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.avgLCP')}</h3>
-              <p className={`text-2xl font-bold mt-2 ${getStatusColor(metrics.summary.lighthouse.lcp_avg, metrics.thresholds.lighthouse.lcp)}`}>
-                {formatValue(metrics.summary.lighthouse.lcp_avg, 'ms')}
-              </p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}</p>
-            </div>
+            <StatCard
+              label={t('uxMetrics.avgLCP')}
+              value={formatValue(metrics.summary.lighthouse.lcp_avg, 'ms')}
+              subtitle={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}
+              variant={metrics.summary.lighthouse.lcp_avg <= metrics.thresholds.lighthouse.lcp ? 'green' : 'red'}
+            />
           </>
         )}
 
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card p-6">
-          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase">{t('uxMetrics.i18nCoverage')}</h3>
-          <p className="text-2xl font-bold text-[var(--text-primary)] mt-2">
-            {metrics.summary.apps['frontend-dashboard'].i18n_available}/{metrics.total_prs}
-          </p>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">{t('uxMetrics.prsWithData')}</p>
-        </div>
+        <StatCard
+          label={t('uxMetrics.i18nCoverage')}
+          value={`${metrics.summary.apps['frontend-dashboard'].i18n_available}/${metrics.total_prs}`}
+          subtitle={t('uxMetrics.prsWithData')}
+          variant="default"
+        />
       </div>
 
       {/* Thresholds Reference */}
