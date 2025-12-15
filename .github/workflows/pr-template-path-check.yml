@@ -1,7 +1,8 @@
 # PR Template Path Validation CI
 # Issue: #2514
-# Purpose: Validate that relative paths in PR template point to existing files
+# Purpose: Validate that relative paths in PR templates point to existing files
 # Docs: CONTRIBUTING_DESIGN_SYSTEM.md
+# Script: scripts/validate-pr-template-paths.mjs
 
 name: Validate PR Template Paths
 
@@ -9,16 +10,41 @@ on:
   push:
     paths:
       - '.github/pull_request_template.md'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - 'PULL_REQUEST_TEMPLATE.md'
+      - 'pull_request_template.md'
       - '.github/workflows/pr-template-path-check.yml'
+      - 'scripts/validate-pr-template-paths.mjs'
+      - 'scripts/tests/validate-pr-template-paths.test.mjs'
   pull_request:
     paths:
       - '.github/pull_request_template.md'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - 'PULL_REQUEST_TEMPLATE.md'
+      - 'pull_request_template.md'
       - '.github/workflows/pr-template-path-check.yml'
+      - 'scripts/validate-pr-template-paths.mjs'
+      - 'scripts/tests/validate-pr-template-paths.test.mjs'
 
 permissions:
   contents: read
 
 jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run unit tests
+        run: node --test scripts/tests/validate-pr-template-paths.test.mjs
+
   validate-paths:
     name: Validate PR Template Paths
     runs-on: ubuntu-latest
@@ -26,68 +52,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate relative paths in PR template
-        run: |
-          echo "=== Validating relative paths in PR template ==="
-          
-          TEMPLATE_FILE=".github/pull_request_template.md"
-          
-          if [ ! -f "$TEMPLATE_FILE" ]; then
-            echo "ERROR: PR template not found at $TEMPLATE_FILE"
-            exit 1
-          fi
-          
-          # Extract relative paths from markdown links: [text](../path) or [text](./path)
-          # Remove anchor fragments (#...) from paths for file existence check
-          PATHS=$(grep -oE '\]\(\.\./[^)]+\)|\]\(\./[^)]+\)' "$TEMPLATE_FILE" | \
-                  sed 's/^\](//' | sed 's/)$//' | \
-                  sed 's/#.*//' | \
-                  sort -u || true)
-          
-          if [ -z "$PATHS" ]; then
-            echo "No relative paths found in PR template"
-            exit 0
-          fi
-          
-          echo "Found relative paths to validate:"
-          echo "$PATHS" | while read -r path; do
-            echo "  - $path"
-          done
-          echo ""
-          
-          # Validate each path (relative to .github/ directory)
-          FINAL_ERRORS=0
-          TOTAL=0
-          
-          cd .github
-          
-          while read -r path; do
-            if [ -z "$path" ]; then
-              continue
-            fi
-            
-            TOTAL=$((TOTAL + 1))
-            
-            # Check if file exists
-            if [ -e "$path" ]; then
-              echo "OK: $path"
-            else
-              echo "ERROR: Invalid path: $path"
-              echo "  Expected location: .github/$path"
-              FINAL_ERRORS=$((FINAL_ERRORS + 1))
-            fi
-          done <<< "$PATHS"
-          
-          echo ""
-          echo "=== Summary ==="
-          echo "Total paths checked: $TOTAL"
-          echo "Invalid paths: $FINAL_ERRORS"
-          
-          if [ "$FINAL_ERRORS" -gt 0 ]; then
-            echo ""
-            echo "Please fix the invalid paths in $TEMPLATE_FILE"
-            echo "Paths should be relative to the .github/ directory"
-            exit 1
-          fi
-          
-          echo "All paths are valid!"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate PR template paths
+        run: node scripts/validate-pr-template-paths.mjs
