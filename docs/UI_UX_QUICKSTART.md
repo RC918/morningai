@@ -2,7 +2,7 @@
 
 **目標讀者**: 新加入團隊的設計師、前端工程師、產品經理  
 **閱讀時間**: 5 分鐘  
-**最後更新**: 2025-10-25
+**最後更新**: 2025-12-15
 
 ---
 
@@ -48,9 +48,10 @@ cat docs/UI_UX_ISSUE_STATUS.md
 #### 💻 前端工程師
 
 **你需要的資源**:
-- [組件庫](handoff/20250928/40_App/frontend-dashboard/src/components/ui/) - 77 個現成組件
+- [Shared UI 組件庫](packages/shared-ui/) - 62+ 個現成組件（含 8 個 Dashboard 卡片 Archetypes）
 - [Storybook 文檔](#啟動-storybook) - 互動式組件預覽
 - [快速參考卡](docs/UI_UX_CHEATSHEET.md) - 常用命令與路徑
+- [Shared UI 使用指南](docs/shared-ui-guide.md) - 完整使用說明
 
 **你的工作流程**:
 1. 查找現有組件（避免重複造輪子）
@@ -70,14 +71,17 @@ cat docs/UI_UX_ISSUE_STATUS.md
 #### 啟動 Storybook
 
 ```bash
-# 進入前端目錄
-cd handoff/20250928/40_App/frontend-dashboard
-
-# 安裝依賴（首次運行）
+# 首次執行：在 repo root 安裝依賴
 pnpm install
 
-# 啟動 Storybook
-pnpm storybook
+# 方法 1: 啟動 shared-ui Storybook（推薦）
+cd packages/shared-ui && pnpm storybook
+
+# 方法 2: 啟動 owner-console Storybook
+cd handoff/20250928/40_App/owner-console && pnpm storybook
+
+# 方法 3: 啟動 frontend-dashboard Storybook
+cd handoff/20250928/40_App/frontend-dashboard && pnpm storybook
 ```
 
 瀏覽器會自動打開 `http://localhost:6006`，你可以看到所有組件的互動式文檔。
