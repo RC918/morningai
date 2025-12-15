@@ -377,6 +377,7 @@ def get_pending_security_reviews():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(main.api_get_pending_reviews())
+        loop.close()
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
