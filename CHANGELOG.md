@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Phase 1 main.py Refactoring Complete** (PR #2447-#2500)
+  - **Phase 1.6: Route Modularization** - Moved all inline routes from main.py to dedicated blueprint modules:
+    - PR1.6a: Phase 4-6 routes → `src/routes/phase456.py` (20+ endpoints)
+    - PR1.6b: Phase 7 routes → `src/routes/phase7.py` (~15 endpoints)
+    - PR1.6c: Dashboard/Reports/Settings routes → `src/routes/dashboard_reports.py` (~10 endpoints)
+    - PR1.6d: Health/Static routes → `src/routes/health_static.py` (health checks + SPA fallback)
+  - **Phase 1.7: Cleanup** - Removed empty `_register_inline_routes()` function and unused Flask imports
+  - **Result**: main.py reduced from 1677 to 398 lines (-76%)
+  - **Security Fix**: Path traversal vulnerability in static file serving fixed using `werkzeug.utils.safe_join`
+  - **Documentation**: Route modularization documented in `docs/PHASE1_MAIN_PY_REFACTORING_PLAN.md`
+  - **Test Coverage**: 184 routes baseline maintained, 28+ contract tests added
+
 ### Added
 - **Python Scripts CI Workflow** - Comprehensive CI checks for Python scripts to prevent syntax errors
   - `python-scripts-ci.yml`: New workflow with 3 jobs (syntax-check, monitor-tests, integration-check)
