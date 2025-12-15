@@ -19,6 +19,7 @@
 | **設計系統指南** | `DESIGN_SYSTEM_GUIDELINES.md` |
 | **Shared UI 使用指南** | `docs/shared-ui-guide.md` |
 | **完整資源指南** | `docs/UI_UX_RESOURCES.md` |
+| **Issue 狀態追蹤** | `docs/UI_UX_ISSUE_STATUS.md` |
 
 ---
 
@@ -27,6 +28,9 @@
 ### Storybook
 
 ```bash
+# 首次執行：在 repo root 安裝依賴
+pnpm install
+
 # 啟動 shared-ui Storybook（推薦）
 cd packages/shared-ui && pnpm storybook
 

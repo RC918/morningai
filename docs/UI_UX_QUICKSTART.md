@@ -71,6 +71,9 @@ cat docs/UI_UX_ISSUE_STATUS.md
 #### 啟動 Storybook
 
 ```bash
+# 首次執行：在 repo root 安裝依賴
+pnpm install
+
 # 方法 1: 啟動 shared-ui Storybook（推薦）
 cd packages/shared-ui && pnpm storybook
 
