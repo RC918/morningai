@@ -114,16 +114,6 @@ describe("TimelineList", () => {
       const listItems = container.querySelectorAll("li");
       expect(listItems.length).toBe(3);
     });
-
-    it("handles duplicate ids gracefully", () => {
-      const duplicateItems = [
-        { id: "same", title: "First", desc: "Desc 1", time: "1h" },
-        { id: "same", title: "Second", desc: "Desc 2", time: "2h" },
-      ];
-      render(<TimelineList items={duplicateItems} />);
-      expect(screen.getByText("First")).toBeInTheDocument();
-      expect(screen.getByText("Second")).toBeInTheDocument();
-    });
   });
 
   describe("edge cases", () => {

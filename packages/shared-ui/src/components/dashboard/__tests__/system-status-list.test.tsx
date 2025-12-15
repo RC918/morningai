@@ -212,11 +212,18 @@ describe("SystemStatusList", () => {
     });
 
     it("handles empty strings", () => {
-      render(
+      const { container } = render(
         <SystemStatusList items={[{ service: "", status: "", latency: "" }]} />
       );
-      const { container } = render(<SystemStatusList items={[]} />);
-      expect(container.firstChild).toBeInTheDocument();
+      // Verify one item row is rendered
+      const itemRows = container.querySelectorAll(
+        ".flex.items-center.justify-between.rounded-lg"
+      );
+      expect(itemRows.length).toBe(1);
+      // Verify the status badge exists with empty text
+      const statusBadge = container.querySelector(".rounded-full.px-2");
+      expect(statusBadge).toBeInTheDocument();
+      expect(statusBadge).toHaveTextContent("");
     });
 
     it("handles special characters in content", () => {

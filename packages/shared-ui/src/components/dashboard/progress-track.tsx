@@ -16,24 +16,27 @@ interface ProgressTrackProps {
 function ProgressTrack({ items, className }: ProgressTrackProps) {
   return (
     <div className={cn("space-y-5", className)}>
-      {items.map((item) => (
-        <div key={item.label} className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--text-primary)]">
-              {item.label}
-            </span>
-            <span className="text-xs text-[var(--text-secondary)]">
-              {item.value}%
-            </span>
+      {items.map((item) => {
+        const clampedValue = Math.min(100, Math.max(0, item.value));
+        return (
+          <div key={item.label} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--text-primary)]">
+                {item.label}
+              </span>
+              <span className="text-xs text-[var(--text-secondary)]">
+                {clampedValue}%
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-muted)]">
+              <div
+                className="h-full rounded-full bg-[var(--brand-500)]"
+                style={{ width: `${clampedValue}%` }}
+              />
+            </div>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-muted)]">
-            <div
-              className="h-full rounded-full bg-[var(--brand-500)]"
-              style={{ width: `${item.value}%` }}
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

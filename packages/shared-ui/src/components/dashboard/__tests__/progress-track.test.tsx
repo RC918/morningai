@@ -131,24 +131,26 @@ describe("ProgressTrack", () => {
       expect(screen.getByText("33.33%")).toBeInTheDocument();
     });
 
-    it("handles values greater than 100", () => {
+    it("clamps values greater than 100 to 100%", () => {
       const { container } = render(
         <ProgressTrack items={[{ label: "Over", value: 150 }]} />
       );
       const progressBar = container.querySelector(
         ".bg-\\[var\\(--brand-500\\)\\]"
       );
-      expect(progressBar).toHaveStyle({ width: "150%" });
+      expect(progressBar).toHaveStyle({ width: "100%" });
+      expect(screen.getByText("100%")).toBeInTheDocument();
     });
 
-    it("handles negative values", () => {
+    it("clamps negative values to 0%", () => {
       const { container } = render(
         <ProgressTrack items={[{ label: "Negative", value: -10 }]} />
       );
       const progressBar = container.querySelector(
         ".bg-\\[var\\(--brand-500\\)\\]"
       );
-      expect(progressBar).toHaveStyle({ width: "-10%" });
+      expect(progressBar).toHaveStyle({ width: "0%" });
+      expect(screen.getByText("0%")).toBeInTheDocument();
     });
 
     it("handles long labels", () => {
