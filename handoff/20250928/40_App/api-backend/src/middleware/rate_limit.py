@@ -80,10 +80,16 @@ def get_rate_limit_redis():
             if retry_attempts < REDIS_MAX_RETRIES:
                 delay = REDIS_RETRY_DELAY * retry_attempts
                 next_retry_deadline = now_after + delay
-                logger.warning(f"⚠️ Rate limit Redis connection failed (attempt {retry_attempts}/{REDIS_MAX_RETRIES}), will retry in {delay}s: {error_msg}")
+                logger.warning(
+                    f"Rate limit Redis failed (attempt {retry_attempts}/{REDIS_MAX_RETRIES}), "
+                    f"retry in {delay}s: {error_msg}"
+                )
             else:
                 next_retry_deadline = now_after + REDIS_LONG_COOLDOWN
-                logger.warning(f"⚠️ Rate limit Redis unavailable after {REDIS_MAX_RETRIES} retries, will retry in {REDIS_LONG_COOLDOWN}s: {error_msg}")
+                logger.warning(
+                    f"Rate limit Redis unavailable after {REDIS_MAX_RETRIES} retries, "
+                    f"retry in {REDIS_LONG_COOLDOWN}s: {error_msg}"
+                )
     
     return redis_client
 
@@ -188,7 +194,8 @@ def rate_limit(f):
                 response = jsonify({
                     "error": {
                         "code": "rate_limit_exceeded",
-                        "message": f"Rate limit exceeded. Maximum {rate_limit_requests} requests per {RATE_LIMIT_WINDOW} seconds."
+                        "message": f"Rate limit exceeded. Max {rate_limit_requests} "
+                                   f"requests per {RATE_LIMIT_WINDOW} seconds."
                     }
                 })
                 response.status_code = 429

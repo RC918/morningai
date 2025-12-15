@@ -137,7 +137,7 @@ def validate_and_consume_preauth_token(token: str) -> Optional[Dict]:
         email = data.get('email')
         
         if not user_id or not email:
-            logger.error(f"Invalid pre-auth token data structure")
+            logger.error("Invalid pre-auth token data structure")
             return None
         
         logger.info(f"Pre-auth token consumed for user {user_id}", extra={

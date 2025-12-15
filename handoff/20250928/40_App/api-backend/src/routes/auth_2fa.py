@@ -16,7 +16,6 @@ Security:
 - TOTP secrets encrypted at rest
 """
 
-import os
 import logging
 from flask import Blueprint, request, jsonify, make_response
 from supabase import create_client

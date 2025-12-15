@@ -37,11 +37,7 @@ except Exception as e:
 try:
     from orchestrator.experiment_metrics import (
         get_metrics_collector,
-        get_experiment_analyzer,
-        MetricsCollector,
-        ExperimentAnalyzer,
-        ExperimentType,
-        MetricType
+        get_experiment_analyzer
     )
     EXPERIMENT_METRICS_AVAILABLE = True
 except Exception as e:
@@ -306,7 +302,11 @@ def get_experiment_comparison():
             'timestamp': datetime.utcnow().isoformat(),
             'metrics_source': metrics_source,
             'metrics_period_days': days,
-            'note': 'Metrics aggregated from planner_events table.' if metrics_source == "planner_events" else 'No metrics data available yet. Metrics will populate as experiments run.'
+            'note': (
+                'Metrics aggregated from planner_events table.'
+                if metrics_source == "planner_events"
+                else 'No metrics data available yet. Metrics will populate as experiments run.'
+            )
         })
     except Exception as e:
         logger.error(f"Failed to get experiment comparison: {e}")

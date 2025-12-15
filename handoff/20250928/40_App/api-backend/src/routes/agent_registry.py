@@ -6,22 +6,19 @@ Feature Flag: MVP_AGENT_REGISTRY
 
 Implements OpenAPI spec: agent-registry-v1.yaml
 """
-import os
 import uuid
 import logging
 from datetime import datetime
-from typing import Optional
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
-from sqlalchemy import or_
 from src.middleware.auth_middleware import jwt_required, roles_required
 from src.middleware.rate_limit import rate_limit
 from src.models.agent_registry import (
-    Agent, AgentRegistrationRequest, AgentUpdateRequest,
+    AgentRegistrationRequest, AgentUpdateRequest,
     AgentHealth, AgentHealthReport, AgentListResponse,
-    Task, TaskCreationRequest, TaskUpdateRequest, TaskListResponse,
-    AgentType, AgentStatus, PermissionLevel, TaskStatus,
-    Pagination, AgentStatistics
+    TaskCreationRequest, TaskUpdateRequest, TaskListResponse,
+    AgentStatus, TaskStatus,
+    Pagination
 )
 from src.models.agent_registry_db import (
     AgentDB, TaskDB, AgentTypeDB, AgentStatusDB, 
@@ -65,7 +62,9 @@ def list_agents():
         if page < 1:
             return jsonify({"error": {"code": "invalid_parameter", "message": "page must be >= 1"}}), 400
         if page_size < 1 or page_size > 100:
-            return jsonify({"error": {"code": "invalid_parameter", "message": "page_size must be between 1 and 100"}}), 400
+            return jsonify({
+                "error": {"code": "invalid_parameter", "message": "page_size must be between 1 and 100"}
+            }), 400
         
         query = AgentDB.query
         
@@ -74,21 +73,33 @@ def list_agents():
                 agent_type = AgentTypeDB(agent_type_filter)
                 query = query.filter(AgentDB.agent_type == agent_type)
             except ValueError:
-                return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid agent_type: {agent_type_filter}"}}), 400
+                return jsonify({
+                    "error": {
+                        "code": "invalid_parameter",
+                        "message": f"Invalid agent_type: {agent_type_filter}"
+                    }
+                }), 400
         
         if status_filter:
             try:
                 status = AgentStatusDB(status_filter)
                 query = query.filter(AgentDB.status == status)
             except ValueError:
-                return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid status: {status_filter}"}}), 400
+                return jsonify({
+                    "error": {"code": "invalid_parameter", "message": f"Invalid status: {status_filter}"}
+                }), 400
         
         if permission_level_filter:
             try:
                 permission_level = PermissionLevelDB(permission_level_filter)
                 query = query.filter(AgentDB.permission_level == permission_level)
             except ValueError:
-                return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid permission_level: {permission_level_filter}"}}), 400
+                return jsonify({
+                    "error": {
+                        "code": "invalid_parameter",
+                        "message": f"Invalid permission_level: {permission_level_filter}"
+                    }
+                }), 400
         
         total_items = query.count()
         total_pages = (total_items + page_size - 1) // page_size
@@ -360,7 +371,9 @@ def list_tasks():
         if page < 1:
             return jsonify({"error": {"code": "invalid_parameter", "message": "page must be >= 1"}}), 400
         if page_size < 1 or page_size > 100:
-            return jsonify({"error": {"code": "invalid_parameter", "message": "page_size must be between 1 and 100"}}), 400
+            return jsonify({
+                "error": {"code": "invalid_parameter", "message": "page_size must be between 1 and 100"}
+            }), 400
         
         query = TaskDB.query
         
@@ -369,7 +382,9 @@ def list_tasks():
                 status = TaskStatusDB(status_filter)
                 query = query.filter(TaskDB.status == status)
             except ValueError:
-                return jsonify({"error": {"code": "invalid_parameter", "message": f"Invalid status: {status_filter}"}}), 400
+                return jsonify({
+                    "error": {"code": "invalid_parameter", "message": f"Invalid status: {status_filter}"}
+                }), 400
         
         if agent_id_filter:
             query = query.filter(TaskDB.agent_id == agent_id_filter)

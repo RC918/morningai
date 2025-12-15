@@ -1,12 +1,11 @@
 """Admin API - System monitoring and management endpoints for Owner Console"""
-import os
 import psutil
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, admin_required
 from src.models.agent_registry_db import TaskDB, AgentDB, TaskStatusDB, db
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_
 from common.config.settings import settings
 import logging
 
@@ -292,7 +291,7 @@ def get_agent_execution_logs():
             except ValueError:
                 return jsonify({
                     'error': 'Invalid status parameter',
-                    'message': f'status must be one of: queued, assigned, running, completed, failed, cancelled'
+                    'message': 'status must be one of: queued, assigned, running, completed, failed, cancelled'
                 }), 400
         
         if agent_id_filter:
@@ -306,7 +305,8 @@ def get_agent_execution_logs():
             except ValueError:
                 return jsonify({
                     'error': 'Invalid agent_type parameter',
-                    'message': f'agent_type must be one of: dev_agent, ops_agent, pm_agent, growth_strategist, meta_agent'
+                    'message': 'agent_type must be one of: dev_agent, ops_agent, '
+                               'pm_agent, growth_strategist, meta_agent'
                 }), 400
         
         if tenant_id_filter:

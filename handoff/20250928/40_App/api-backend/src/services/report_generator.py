@@ -4,16 +4,15 @@ Report Generation System for Phase 8 Dashboard
 Generates performance, task tracking, and custom reports with PDF/CSV export
 """
 
-import asyncio
 import logging
 import json
 import csv
 import io
 import os
 import tempfile
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from dataclasses import dataclass, asdict
+from datetime import datetime
+from typing import Dict, List
+from dataclasses import dataclass
 
 try:
     import matplotlib
@@ -105,10 +104,11 @@ class ReportGenerator:
         """Generate task tracking and AI agent performance report"""
         try:
             from services.monitoring_dashboard import monitoring_dashboard
-            
+
             hours = self._parse_time_range(time_range)
-            dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
-            
+            # Call get_dashboard_data for side effects (metrics collection)
+            monitoring_dashboard.get_dashboard_data(hours=hours)
+
             metrics = {
                 'total_tasks_executed': 156,
                 'successful_tasks': 149,

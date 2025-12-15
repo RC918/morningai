@@ -17,6 +17,37 @@ permissions:
   pull-requests: write
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    # Lint is now blocking - all lint errors have been fixed
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ruff
+        run: pip install ruff
+      - name: Run Ruff linter
+        run: |
+          echo "### Ruff Lint Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Run Ruff and capture statistics
+          ruff check handoff/20250928/40_App/api-backend/src --statistics || true
+          echo "" >> $GITHUB_STEP_SUMMARY
+          # Run with GitHub output format for annotations
+          if ruff check handoff/20250928/40_App/api-backend/src --output-format=github 2>&1; then
+            echo "✅ **Ruff lint passed - no errors found**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Ruff found lint issues** (see annotations above)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`ruff check handoff/20250928/40_App/api-backend/src --fix\` to auto-fix issues." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📋 See [Issue #2502](https://github.com/RC918/morningai/issues/2502) for lint cleanup plan." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
   validate-env-schema:
     runs-on: ubuntu-latest
     steps:
@@ -95,7 +126,7 @@ jobs:
           EOF
   
   test:
-    needs: [validate-env-schema, validate-openapi-spec]
+    needs: [lint, validate-env-schema, validate-openapi-spec]
     runs-on: ubuntu-latest
     services:
       redis:
