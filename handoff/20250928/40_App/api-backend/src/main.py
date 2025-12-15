@@ -33,11 +33,7 @@ elif not os.path.exists(app_dir):
 
 from flask import Flask, send_from_directory, jsonify, request, send_file, Response
 from src.models.user import db
-from src.middleware.auth_middleware import (
-    jwt_required,
-    admin_required,
-    analyst_required,
-)
+# Note: jwt_required, admin_required, analyst_required moved to phase456 blueprint (PR1.6a)
 from common.config.settings import get_settings
 import sys
 import os
@@ -322,8 +318,36 @@ def create_app(config=None):
         security_manager = SecurityManager(security_config)
         flask_app.security_manager = security_manager
 
+    # Build Phase 4-6 API functions dictionary for blueprint initialization (PR1.6a)
+    phase_456_api_funcs = {}
+    if PHASE_456_AVAILABLE:
+        phase_456_api_funcs = {
+            "api_meta_agent_ooda_cycle": api_meta_agent_ooda_cycle,
+            "api_create_langgraph_workflow": api_create_langgraph_workflow,
+            "api_execute_workflow": api_execute_workflow,
+            "api_governance_status": api_governance_status,
+            "api_create_governance_policy": api_create_governance_policy,
+            "api_create_quicksight_dashboard": api_create_quicksight_dashboard,
+            "api_get_dashboard_insights": api_get_dashboard_insights,
+            "api_generate_automated_report": api_generate_automated_report,
+            "api_create_referral_program": api_create_referral_program,
+            "api_get_referral_analytics": api_get_referral_analytics,
+            "api_generate_marketing_content": api_generate_marketing_content,
+            "api_get_business_intelligence": api_get_business_intelligence,
+            "api_evaluate_access_request": api_evaluate_access_request,
+            "api_review_security_event": api_review_security_event,
+            "api_submit_hitl_review": api_submit_hitl_review,
+            "api_get_pending_reviews": api_get_pending_reviews,
+            "api_perform_security_audit": api_perform_security_audit,
+        }
+
     # Register blueprints
-    register_blueprints(flask_app, backend_services_available=BACKEND_SERVICES_AVAILABLE)
+    register_blueprints(
+        flask_app,
+        backend_services_available=BACKEND_SERVICES_AVAILABLE,
+        phase_456_available=PHASE_456_AVAILABLE,
+        phase_456_api_funcs=phase_456_api_funcs,
+    )
 
     # Register error handlers
     register_error_handlers(flask_app, sentry_dsn=SENTRY_DSN)
@@ -842,322 +866,6 @@ def _register_inline_routes(flask_app):
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-
-
-    @flask_app.route("/api/meta-agent/ooda-cycle", methods=["POST"])
-    def meta_agent_ooda_cycle():
-        """启动 OODA 循环"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_meta_agent_ooda_cycle())
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/langgraph/workflows", methods=["POST"])
-    def create_langgraph_workflow():
-        """创建 LangGraph 工作流"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_create_langgraph_workflow(request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/langgraph/workflows/<workflow_id>/execute", methods=["POST"])
-    def execute_workflow(workflow_id):
-        """执行工作流"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_execute_workflow(workflow_id, request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/governance/status", methods=["GET"])
-    def governance_status():
-        """获取治理状态"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_governance_status())
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/governance/policies", methods=["POST"])
-    def create_governance_policy():
-        """创建治理政策"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_create_governance_policy(request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/quicksight/dashboards", methods=["POST"])
-    def create_quicksight_dashboard():
-        """创建 QuickSight 仪表板"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_create_quicksight_dashboard(request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/quicksight/dashboards/<dashboard_id>/insights", methods=["GET"])
-    def get_dashboard_insights(dashboard_id):
-        """获取仪表板洞察"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_get_dashboard_insights(dashboard_id))
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/reports/automated", methods=["POST"])
-    def generate_automated_report():
-        """生成自动化报告"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_generate_automated_report(request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-
-    @flask_app.route("/api/growth/referral-programs", methods=["POST"])
-    def create_referral_program():
-        """创建推荐计划"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_create_referral_program(request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/growth/referral-programs/<program_id>/analytics", methods=["GET"])
-    def get_referral_analytics(program_id):
-        """获取推荐分析"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_get_referral_analytics(program_id))
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/growth/content/generate", methods=["POST"])
-    def generate_marketing_content():
-        """生成营销内容"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_generate_marketing_content(request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/business-intelligence/summary", methods=["GET"])
-    def get_business_intelligence():
-        """获取商业智能摘要"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_get_business_intelligence())
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/security/access/evaluate", methods=["GET", "POST"])
-    @flask_app.route("/api/security/access-requests/evaluate", methods=["GET", "POST"])
-    @admin_required
-    def evaluate_access_request():
-        """评估访问请求"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(
-                api_evaluate_access_request(request.json or {})
-            )
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/security/events/review", methods=["POST"])
-    @analyst_required
-    def review_security_event():
-        """审查安全事件"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_review_security_event(request.json or {}))
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/security/hitl/submit", methods=["POST"])
-    @analyst_required
-    def submit_hitl_review():
-        """提交人工审查"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            data = request.json or {}
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_submit_hitl_review(data))
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/security/hitl/pending", methods=["GET"])
-    @analyst_required
-    def get_pending_reviews():
-        """获取待审查项目"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_get_pending_reviews())
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/security/audit", methods=["GET", "POST"])
-    @flask_app.route("/api/security/audit/perform", methods=["GET", "POST"])
-    @admin_required
-    def perform_security_audit():
-        """执行安全审计"""
-        if not PHASE_456_AVAILABLE:
-            return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-        try:
-            import asyncio
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_perform_security_audit(request.json or {}))
-            loop.close()
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    @flask_app.route("/api/security/reviews/pending", methods=["GET"])
-    @analyst_required
-    def get_pending_security_reviews():
-        """Get pending security reviews"""
-        try:
-            if not PHASE_456_AVAILABLE:
-                return jsonify({"error": "Phase 4-6 APIs not available"}), 503
-
-            from phase6_security_governance_api import api_get_pending_reviews
-
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(api_get_pending_reviews())
-            return jsonify(result)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
 
     @flask_app.route("/api/dashboard/widgets", methods=["GET"])
     def get_dashboard_widgets():
