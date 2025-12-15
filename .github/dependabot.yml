@@ -32,7 +32,6 @@ updates:
     labels:
       - "dependencies"
       - "python"
-    # Only allow security updates by default, manual review for others
     open-pull-requests-limit: 5
 
   # npm dependencies for owner-console
@@ -66,3 +65,11 @@ updates:
       - "dependencies"
       - "npm"
     open-pull-requests-limit: 5
+    # Group minor/patch updates together
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

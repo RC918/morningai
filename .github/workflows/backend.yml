@@ -32,14 +32,18 @@ jobs:
         with:
           version: ${{ env.RUFF_VERSION }}
           args: "check handoff/20250928/40_App/api-backend/src --output-format=github"
-      - name: Show Ruff version
-        run: echo "Ruff version: ${{ env.RUFF_VERSION }}"
+      - name: Show Ruff version (actual)
+        run: ruff --version
+      - name: Show Ruff statistics
+        if: always()
+        run: ruff check handoff/20250928/40_App/api-backend/src --statistics || true
       - name: Generate lint summary
         if: always()
         run: |
+          ACTUAL_VERSION=$(ruff --version)
           echo "### Ruff Lint Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Ruff Version**: ${{ env.RUFF_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Ruff Version**: ${ACTUAL_VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ job.status }}" == "success" ]; then
             echo "✅ **Ruff lint passed - no errors found**" >> $GITHUB_STEP_SUMMARY
