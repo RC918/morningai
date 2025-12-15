@@ -431,6 +431,9 @@ ignore = []  # 所有規則都啟用
 # 安裝指定版本的 Ruff（與 CI 一致）
 pip install ruff==0.8.6
 
+# 驗證安裝
+ruff --version  # 應顯示 ruff 0.8.6
+
 # 檢查所有錯誤
 ruff check handoff/20250928/40_App/api-backend/src
 
@@ -440,6 +443,12 @@ ruff check handoff/20250928/40_App/api-backend/src --fix
 # 顯示統計資訊
 ruff check handoff/20250928/40_App/api-backend/src --statistics
 ```
+
+**常見問題排查**：
+
+- 若 `ruff: command not found`，請確認已啟用 venv 或使用 `python -m ruff`
+- 確認路徑：`which ruff` 應在你的 venv 內（如 `.venv/bin/ruff`）
+- 若版本不符，可能是全域安裝覆蓋了 venv 版本，建議使用 `python -m pip install ruff==0.8.6`
 
 ### CI 整合
 

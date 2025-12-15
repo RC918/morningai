@@ -22,7 +22,8 @@ updates:
           - "minor"
           - "patch"
 
-  # Python dependencies for api-backend
+  # Python dependencies for api-backend (FastAPI 後端，對應 requirements.txt)
+  # 路徑說明：若目錄結構調整，需同步更新此處
   - package-ecosystem: "pip"
     directory: "/handoff/20250928/40_App/api-backend"
     schedule:
@@ -34,7 +35,8 @@ updates:
       - "python"
     open-pull-requests-limit: 5
 
-  # npm dependencies for owner-console
+  # npm dependencies for owner-console (店家後台前端)
+  # 路徑說明：若目錄結構調整，需同步更新此處
   - package-ecosystem: "npm"
     directory: "/handoff/20250928/40_App/owner-console"
     schedule:
@@ -54,7 +56,8 @@ updates:
           - "minor"
           - "patch"
 
-  # npm dependencies for shared-ui
+  # npm dependencies for shared-ui (共用 UI 元件庫)
+  # 路徑說明：若目錄結構調整，需同步更新此處
   - package-ecosystem: "npm"
     directory: "/packages/shared-ui"
     schedule:
