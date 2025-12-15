@@ -1712,9 +1712,42 @@ Phase 2 audit 腳本使用以下 regex 來偵測 shared-ui card 元件使用：
 
 ---
 
-**文件版本**: 1.1  
-**最後更新**: 2025-12-13  
-**下次審查**: 2026-01-13  
+## Carve-out 規則
+
+### frontend-dashboard Carve-out (2025-12-15)
+
+**原因**：frontend-dashboard 預計重建，Phase 2-4 標記為 Deferred
+
+**規則**：
+
+1. **不新增 legacy/unknown cards**
+   - 在 frontend-dashboard 重建前，所有新 card 元件必須使用 `@morningai/shared-ui`
+   - 禁止新增 `TwoFAStatusCard`、`SessionStatusCard` 等 legacy card 元件
+   - 禁止新增自製 card 容器（`rounded-xl border shadow-card` 等模式）
+
+2. **優先使用 shared-ui**
+   - 所有新改動優先使用 `@morningai/shared-ui` 的 card archetypes
+   - 可用元件：`StatCard`、`StatusCard`、`MetricCard`、`SettingsCard`、`SectionCard`
+
+3. **CI Gate 例外**
+   - 若 adoption enforcement 變為 blocking，frontend-dashboard 需明確 carve-out
+   - 在 CI 配置中加入 `frontend-dashboard` 目錄例外
+
+**相關 Issue**：
+- Epic #2304 - UI/UX 系統化標準化計畫
+- #2494 - frontend-dashboard 重建時的設計系統整合
+
+**驗證方式**：
+```bash
+# 檢查 frontend-dashboard 是否有新增 legacy cards
+scripts/phase2_audit.sh --file handoff/20250928/40_App/frontend-dashboard/src/
+```
+
+---
+
+**文件版本**: 1.2  
+**最後更新**: 2025-12-15  
+**下次審查**: 2026-01-15  
 **維護團隊**: UI/UX策略長 + 設計團隊
 
 ---
