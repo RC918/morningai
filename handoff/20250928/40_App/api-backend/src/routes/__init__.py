@@ -147,3 +147,10 @@ def register_blueprints(
     init_phase7_routes(backend_services_available)
     app.register_blueprint(phase7_bp)
     logger.info(f"Phase 7 routes registered: backend_services_available={backend_services_available}")
+
+    # Dashboard/Reports/Settings routes (PR1.6c)
+    # Routes for dashboard layouts, widgets, reports, and user settings
+    from src.routes.dashboard_reports import bp as dashboard_reports_bp, init_dashboard_reports_routes
+    init_dashboard_reports_routes(backend_services_available)
+    app.register_blueprint(dashboard_reports_bp)
+    logger.info(f"Dashboard/Reports routes registered: backend_services_available={backend_services_available}")
