@@ -228,19 +228,13 @@ def get_ops_metrics():
 
 @bp.route("/api/phase7/monitoring/dashboard")
 def get_monitoring_dashboard():
-    """Get monitoring dashboard data"""
-    try:
-        if not _get_backend_services_available():
-            return jsonify({"error": "Backend services not available"}), 500
+    """Get monitoring dashboard data.
 
-        monitoring_dashboard = _get_monitoring_dashboard()
-        hours = int(request.args.get("hours", 1))
-        dashboard_data = monitoring_dashboard.get_dashboard_data(hours=hours)
-
-        return jsonify(dashboard_data)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    This route delegates to src.routes.dashboard.get_dashboard_data() to maintain
+    the expected response schema and 503 dual-failure behavior for tests.
+    """
+    from src.routes.dashboard import get_dashboard_data
+    return get_dashboard_data()
 
 
 @bp.route("/api/phase7/monitoring/metrics")
