@@ -17,16 +17,13 @@ Security:
 
 import os
 import logging
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from datetime import datetime
 from flask import Blueprint, request, jsonify, make_response
-from werkzeug.security import check_password_hash
 from supabase import create_client
 
 from ..services.auth_service import (
     get_user_by_id,
     authenticate_user,
-    FEATURE_2FA_PREAUTH,
     COOKIE_SECURE,
     COOKIE_SAMESITE
 )
@@ -99,7 +96,6 @@ def is_2fa_feature_enabled() -> bool:
         True if FEATURE_2FA_ENABLED is set to 'true' (case-insensitive), False otherwise
         False if running in Flask test mode (TESTING=True) unless forced
     """
-    import os
     from common.config.settings import settings
     
     try:
@@ -487,7 +483,10 @@ def get_totp_status():
         
         user_2fa_record = user_2fa.data[0]
         
-        backup_codes = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
+        backup_codes = (
+            supabase.table('totp_backup_codes')
+            .select('*').eq('user_id', user_id).eq('used', False).execute()
+        )
         
         return jsonify({
             'enabled': user_2fa_record.get('enabled', False),
@@ -553,19 +552,26 @@ def verify_backup_code_for_login(user_id: str, backup_code: str) -> tuple[bool, 
         supabase_key = get_settings().supabase_service_role_key
         supabase = create_client(supabase_url, supabase_key)
         
-        backup_codes = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
+        backup_codes = (
+            supabase.table('totp_backup_codes')
+            .select('*').eq('user_id', user_id).eq('used', False).execute()
+        )
         
         if not backup_codes.data:
             return False, 0
         
         for code_record in backup_codes.data:
             if get_backup_manager().verify_backup_code(backup_code, code_record['code_hash']):
-                supabase.table('totp_backup_codes').update({
-                    'used': True,
-                    'used_at': datetime.utcnow().isoformat()
-                }).eq('user_id', user_id).eq('code_hash', code_record['code_hash']).execute()
+                (
+                    supabase.table('totp_backup_codes')
+                    .update({'used': True, 'used_at': datetime.utcnow().isoformat()})
+                    .eq('user_id', user_id).eq('code_hash', code_record['code_hash']).execute()
+                )
                 
-                remaining = supabase.table('totp_backup_codes').select('*').eq('user_id', user_id).eq('used', False).execute()
+                remaining = (
+                    supabase.table('totp_backup_codes')
+                    .select('*').eq('user_id', user_id).eq('used', False).execute()
+                )
                 remaining_count = len(remaining.data) if remaining.data else 0
                 
                 logger.info(f"Backup code used for user {user_id}, {remaining_count} codes remaining")

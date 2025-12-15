@@ -2,7 +2,6 @@ import os
 import json
 import uuid
 import logging
-import ssl
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError
@@ -10,7 +9,7 @@ from redis.retry import Retry
 from redis.backoff import ExponentialBackoff
 from rq import Queue
 from rq.serializers import JSONSerializer
-from src.middleware.auth_middleware import analyst_required, jwt_required, roles_required
+from src.middleware.auth_middleware import jwt_required, roles_required
 from src.utils.redis_config import get_secure_redis_url
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from redis_queue.worker import run_orchestrator_task, run_project_engineer_task
@@ -264,7 +263,8 @@ def faq_method_not_allowed():
     """Return 405 for GET requests to prevent misuse"""
     return jsonify({
         "error": "Method Not Allowed",
-        "message": "This endpoint only accepts POST requests. Please use POST with a JSON body containing 'question' field."
+        "message": "This endpoint only accepts POST requests. "
+                   "Please use POST with a JSON body containing 'question' field."
     }), 405, {"Allow": "POST"}
 
 @bp.route("/faq", methods=["POST"])
@@ -367,7 +367,7 @@ def create_faq_task():
             "status": "queued"
         }), 202
     except RedisConnectionError as e:
-        logger.error(f"Redis connection failed for task creation", extra={
+        logger.error("Redis connection failed for task creation", extra={
             "op": "faq",
             "error": str(e),
             "task_id": task_id if 'task_id' in locals() else None,
@@ -382,7 +382,11 @@ def create_faq_task():
                 category='redis',
                 message='Redis connection failed during task creation',
                 level='error',
-                data={'task_id': task_id if 'task_id' in locals() else None, 'trace_id': task_id if 'task_id' in locals() else None, 'question': question}
+                data={
+                    'task_id': task_id if 'task_id' in locals() else None,
+                    'trace_id': task_id if 'task_id' in locals() else None,
+                    'question': question
+                }
             )
             sentry_sdk.capture_exception(e)
         
@@ -418,7 +422,8 @@ def project_engineer_task_method_not_allowed():
     """Return 405 for GET requests to prevent misuse"""
     return jsonify({
         "error": "Method Not Allowed",
-        "message": "This endpoint only accepts POST requests. Please use POST with a JSON body containing 'description' field."
+        "message": "This endpoint only accepts POST requests. "
+                   "Please use POST with a JSON body containing 'description' field."
     }), 405, {"Allow": "POST"}
 
 
@@ -556,7 +561,7 @@ def create_project_engineer_task():
             "mode": mode
         }), 202
     except RedisConnectionError as e:
-        logger.error(f"Redis connection failed for ProjectEngineer task creation", extra={
+        logger.error("Redis connection failed for ProjectEngineer task creation", extra={
             "op": "project_engineer",
             "error": str(e),
             "task_id": task_id if 'task_id' in locals() else None,

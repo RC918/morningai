@@ -114,7 +114,7 @@ class I18n:
                 return 'en-US'
             
             return self.default_locale
-        except:
+        except Exception:
             return self.default_locale
     
     @lru_cache(maxsize=1000)

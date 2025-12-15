@@ -13,10 +13,9 @@ Security:
 - Time skew tolerance: ±1 period (30 seconds)
 """
 
-import os
 import secrets
 import string
-from typing import List, Tuple, Optional
+from typing import List, Optional
 from datetime import datetime, timedelta
 import io
 import base64
@@ -54,7 +53,8 @@ class TOTPManager:
             if not encryption_key:
                 raise ValueError(
                     "TOTP_ENCRYPTION_KEY environment variable not set. "
-                    "Generate one with: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+                    "Generate one with: python -c "
+                    "'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
                 )
         
         self.fernet = Fernet(encryption_key.encode() if isinstance(encryption_key, str) else encryption_key)

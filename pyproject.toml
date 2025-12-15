@@ -37,10 +37,9 @@ select = [
 ]
 
 # Ignore rules matching existing .flake8 config
+# Note: E501 and E402 moved to per-file-ignores for stricter enforcement (gemini-code-assist recommendation)
 ignore = [
     "E203",  # Whitespace before ':'
-    "E402",  # Module level import not at top of file (due to sys.path manipulation in main.py)
-    "E501",  # Line too long (handled separately or by formatter)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -49,3 +48,10 @@ ignore = [
 # Allow long lines in migrations and tests
 "*/migrations/*.py" = ["E501"]
 "*/tests/*.py" = ["E501"]
+# Allow module level import not at top of file in main.py (due to sys.path manipulation)
+# Allow unused imports in main.py (availability check pattern)
+"handoff/20250928/40_App/api-backend/src/main.py" = ["E402", "F401"]
+# Allow unused imports in report_generator.py (matplotlib/pandas availability check)
+"handoff/20250928/40_App/api-backend/src/services/report_generator.py" = ["F401"]
+# Allow module level import not at top of file in governance.py (due to sys.path manipulation)
+"handoff/20250928/40_App/api-backend/src/routes/governance.py" = ["E402"]

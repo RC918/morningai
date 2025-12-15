@@ -2,7 +2,6 @@ import os
 import json
 import hashlib
 import logging
-import ssl
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from redis import Redis, ConnectionError as RedisConnectionError

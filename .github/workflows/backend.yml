@@ -19,9 +19,8 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    # Note: Currently non-blocking while existing lint issues are being addressed
-    # Change continue-on-error to false once Issue #2502 is resolved
-    continue-on-error: true
+    # Lint is now blocking - all lint errors have been fixed
+    continue-on-error: false
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python

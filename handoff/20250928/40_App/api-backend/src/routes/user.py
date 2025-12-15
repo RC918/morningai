@@ -2,7 +2,6 @@ from flask import Blueprint, jsonify, request
 from src.models.user import User, db
 from src.middleware.auth_middleware import jwt_required
 import json
-import os
 import logging
 from common.config.settings import get_settings
 
@@ -144,12 +143,12 @@ def update_user_preferences():
                 current_prefs = {}
             
             current_prefs.update(data)
-            
-            update_response = client.table("user_profiles") \
+
+            client.table("user_profiles") \
                 .update({"preferences": json.dumps(current_prefs)}) \
                 .eq("id", user_id) \
                 .execute()
-            
+
             return jsonify(current_prefs)
         except Exception as e:
             return jsonify({"error": str(e)}), 500

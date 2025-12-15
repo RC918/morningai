@@ -2,8 +2,7 @@
 """Environment Schema Validator for Phase 8 Backend"""
 
 import os
-from typing import Dict, Any, Optional
-from common.config.settings import settings
+from typing import Dict, Any
 
 REQUIRED_ENV_VARS = {
     'DATABASE_URL': str,
@@ -27,13 +26,15 @@ def validate_environment() -> Dict[str, Any]:
         value = os.environ.get(var_name)
         if not value:
             errors.append(f"Missing required environment variable: {var_name}")
-        elif var_type == str and not isinstance(value, str):
+        elif var_type is str and not isinstance(value, str):
             errors.append(f"Invalid type for {var_name}: expected {var_type.__name__}")
-    
+
     for var_name, var_type in OPTIONAL_ENV_VARS.items():
         value = os.environ.get(var_name)
-        if value and var_type == str and not isinstance(value, str):
-            warnings.append(f"Invalid type for {var_name}: expected {var_type.__name__}")
+        if value and var_type is str and not isinstance(value, str):
+            warnings.append(
+                f"Invalid type for {var_name}: expected {var_type.__name__}"
+            )
     
     return {
         'valid': len(errors) == 0,

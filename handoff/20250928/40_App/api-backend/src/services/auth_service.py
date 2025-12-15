@@ -27,7 +27,12 @@ REFRESH_TOKEN_EXPIRY_DAYS = 7
 JWT_ALGORITHM = 'HS256'
 
 if os.getenv('LOG_TOKEN_EXPIRY_ON_STARTUP'):
-    print(f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set, using default 15')})", flush=True)
+    env_val = os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set, using default 15')
+    print(
+        f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} "
+        f"(from env: {env_val})",
+        flush=True
+    )
 
 def _as_bool(val):
     """Convert value to boolean"""
@@ -157,7 +162,10 @@ def _get_jwt_secret():
     return get_settings().jwt_secret_key or 'test-secret-key-for-testing'
 
 # Cookie Configuration (read from settings at module load - these are less critical for tests)
-COOKIE_SECURE = settings.cookie_secure if settings.cookie_secure is not None else (True if settings.is_production else False)
+COOKIE_SECURE = (
+    settings.cookie_secure if settings.cookie_secure is not None
+    else (True if settings.is_production else False)
+)
 COOKIE_SAMESITE = settings.cookie_samesite or 'Lax'  # Configurable: 'Strict', 'Lax', or 'None'
 COOKIE_HTTPONLY = True
 COOKIE_DOMAIN = settings.cookie_domain  # Optional: restrict to specific domain
@@ -194,7 +202,10 @@ def validate_security_config():
             )
     elif prod:
         if len(jwt_secret) < 32:
-            jwt_errors.append(f"JWT_SECRET_KEY must be at least 32 characters in production (current: {len(jwt_secret)})")
+            jwt_errors.append(
+                f"JWT_SECRET_KEY must be at least 32 characters in production "
+                f"(current: {len(jwt_secret)})"
+            )
         if jwt_secret in ['your-secret-key', 'secret', 'changeme', 'test', 'test-secret-key-for-testing']:
             jwt_errors.append("JWT_SECRET_KEY is using a known weak/default value")
     
@@ -448,7 +459,10 @@ def create_cookie_config(name: str, value: str, max_age_seconds: int, httponly: 
     return config
 
 
-def set_auth_cookies(response, access_token: str, refresh_token: str, access_expiry_ms: int, csrf_token: Optional[str] = None):
+def set_auth_cookies(
+    response, access_token: str, refresh_token: str,
+    access_expiry_ms: int, csrf_token: Optional[str] = None
+):
     """
     Set authentication cookies on Flask response
     

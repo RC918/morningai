@@ -3,7 +3,6 @@ Redis Configuration Helper
 
 Provides secure Redis URL configuration with TLS enforcement.
 """
-import os
 import logging
 from common.config.settings import get_settings
 
