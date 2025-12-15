@@ -24,38 +24,31 @@ logger = logging.getLogger(__name__)
 # Name: 'dashboard_reports' (globally unique)
 bp = Blueprint("dashboard_reports", __name__)
 
-# Module-level flag for backend services availability
-# Set by init_dashboard_reports_routes() during app initialization
-_backend_services_available = False
-
 
 def init_dashboard_reports_routes(backend_services_available):
-    """Initialize Dashboard/Reports routes with backend services availability flag.
+    """Initialize Dashboard/Reports routes (logging only).
 
-    This function is called during app initialization to set the backend services
-    availability flag. The flag is used by route handlers to determine whether
-    backend services (PersistentStateManager, monitoring_dashboard, report_generator)
-    are available.
+    This function is called from main.py for logging purposes.
+    The actual backend services availability is checked at runtime
+    via _get_backend_services_available() to support test patching.
 
     Args:
-        backend_services_available: Whether backend services are available
+        backend_services_available: Boolean flag (used for logging only)
     """
-    global _backend_services_available
-    _backend_services_available = backend_services_available
     logger.info(f"Dashboard/Reports routes initialized: backend_services_available={backend_services_available}")
 
 
 def _get_backend_services_available():
     """Check if backend services are available at runtime.
 
-    This function allows tests to patch the availability flag by patching
-    src.routes.dashboard_reports._get_backend_services_available or
-    src.routes.dashboard_reports._backend_services_available.
+    This function checks the BACKEND_SERVICES_AVAILABLE flag from src.main
+    at runtime to support test patching via @patch('src.main.BACKEND_SERVICES_AVAILABLE', False).
 
     Returns:
-        bool: Whether backend services are available
+        bool: True if backend services are available
     """
-    return _backend_services_available
+    import src.main
+    return src.main.BACKEND_SERVICES_AVAILABLE
 
 
 def _get_persistent_state_manager():
