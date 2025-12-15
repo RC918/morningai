@@ -427,7 +427,15 @@ ignore = []  # 所有規則都啟用
 
 ### 本地執行 Lint
 
+**重要**：請使用與 CI 相同的 Ruff 版本以確保一致性。
+
 ```bash
+# 安裝指定版本的 Ruff（與 CI 一致）
+pip install ruff==0.8.6
+
+# 驗證安裝
+ruff --version  # 應顯示 ruff 0.8.6
+
 # 檢查所有錯誤
 ruff check handoff/20250928/40_App/api-backend/src
 
@@ -438,26 +446,37 @@ ruff check handoff/20250928/40_App/api-backend/src --fix
 ruff check handoff/20250928/40_App/api-backend/src --statistics
 ```
 
+**常見問題排查**：
+
+- 若 `ruff: command not found`，請確認已啟用 venv 或使用 `python -m ruff`
+- 確認路徑：`which ruff` 應在你的 venv 內（如 `.venv/bin/ruff`）
+- 若版本不符，可能是全域安裝覆蓋了 venv 版本，建議使用 `python -m pip install ruff==0.8.6`
+
 ### CI 整合
 
 Lint 檢查在 `backend-ci` workflow 中執行，目前為 **blocking** 模式（lint 失敗會阻擋 CI）。
 
+CI 使用 [astral-sh/ruff-action](https://github.com/astral-sh/ruff-action) 官方 action，版本透過 `env.RUFF_VERSION` 集中管理。
+
 ```yaml
 # .github/workflows/backend.yml
-lint:
-  runs-on: ubuntu-latest
-  continue-on-error: false  # blocking mode
-  steps:
-    - uses: actions/checkout@v4
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    - name: Install Ruff
-      run: pip install ruff
-    - name: Run Ruff linter
-      run: ruff check handoff/20250928/40_App/api-backend/src --output-format=github
+env:
+  RUFF_VERSION: "0.8.6"  # 集中管理版本
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: false  # blocking mode
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Ruff linter
+        uses: astral-sh/ruff-action@v2
+        with:
+          version: ${{ env.RUFF_VERSION }}
+          args: "check handoff/20250928/40_App/api-backend/src --output-format=github"
 ```
+
+**版本升級**：Ruff 版本由 Dependabot 自動監控，每月檢查更新並建立 PR。
 
 ### 修復長行的技巧
 
