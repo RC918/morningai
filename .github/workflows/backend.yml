@@ -28,7 +28,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install Ruff
-        run: pip install ruff
+        run: pip install ruff==0.8.6
+      - name: Show Ruff version
+        run: ruff --version
       - name: Run Ruff linter
         run: |
           echo "### Ruff Lint Results" >> $GITHUB_STEP_SUMMARY
