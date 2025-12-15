@@ -81,7 +81,7 @@ if __name__ == '__main__':
         
         config_path = repo_root / 'config' / 'env.schema.yaml'
         if config_path.exists():
-            print(f"✓ Found config/env.schema.yaml")
+            print("✓ Found config/env.schema.yaml")
         else:
             print(f"⚠ config/env.schema.yaml not found at {config_path}")
         
@@ -90,7 +90,7 @@ if __name__ == '__main__':
         
         src_dir = backend_root / 'src'
         if src_dir.exists():
-            print(f"✓ Found src/ directory")
+            print("✓ Found src/ directory")
         else:
             print(f"⚠ src/ directory not found at {src_dir}")
         

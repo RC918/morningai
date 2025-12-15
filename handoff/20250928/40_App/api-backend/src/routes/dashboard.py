@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 import random
 import datetime
 import logging
-from typing import Dict, List, Tuple
+from typing import Tuple
 from src.middleware.auth_middleware import jwt_required
 
 logging.basicConfig(
@@ -168,10 +168,13 @@ def get_dashboard_data():
             }
             dashboard_data['agents'] = []
         
-        dashboard_data['system_health']['error_rate'] = 0.01 if dashboard_data['system_health']['overall_status'] == 'healthy' else 0.05
+        is_healthy = dashboard_data['system_health']['overall_status'] == 'healthy'
+        dashboard_data['system_health']['error_rate'] = 0.01 if is_healthy else 0.05
         dashboard_data['system_health']['avg_latency'] = 0.15  # 150ms average
         
-        logger.info(f"Dashboard data generated with {len(dashboard_data['agents'])} agents, {len(dashboard_data['alerts'])} alerts")
+        num_agents = len(dashboard_data['agents'])
+        num_alerts = len(dashboard_data['alerts'])
+        logger.info(f"Dashboard data generated with {num_agents} agents, {num_alerts} alerts")
         return jsonify(dashboard_data)
         
     except Exception as e:
@@ -197,7 +200,7 @@ def get_system_metrics():
         
         return jsonify(metrics)
         
-    except Exception as e:
+    except Exception:
         return jsonify({'error': '獲取系統指標失敗'}), 500
 
 @dashboard_bp.route('/performance-history', methods=['GET'])
@@ -224,7 +227,7 @@ def get_performance_history():
         
         return jsonify(data)
         
-    except Exception as e:
+    except Exception:
         return jsonify({'error': '獲取性能歷史失敗'}), 500
 
 @dashboard_bp.route('/recent-decisions', methods=['GET'])
@@ -250,7 +253,11 @@ def get_recent_decisions():
                 'timestamp': decision_time.isoformat(),
                 'strategy': random.choice(strategies),
                 'status': random.choice(statuses),
-                'impact': f'+{random.randint(10, 30)}% 性能提升' if random.choice([True, False]) else f'預計 +{random.randint(15, 40)}% 響應速度',
+                'impact': (
+                    f'+{random.randint(10, 30)}% 性能提升'
+                    if random.choice([True, False])
+                    else f'預計 +{random.randint(15, 40)}% 響應速度'
+                ),
                 'confidence': round(random.uniform(0.7, 0.95), 2),
                 'execution_time': round(random.uniform(30, 180), 1) if random.choice([True, False]) else None
             })
@@ -260,7 +267,7 @@ def get_recent_decisions():
         
         return jsonify(decisions)
         
-    except Exception as e:
+    except Exception:
         return jsonify({'error': '獲取決策記錄失敗'}), 500
 
 @dashboard_bp.route('/system-health', methods=['GET'])
@@ -318,7 +325,7 @@ def get_system_health():
             'last_check_time': datetime.datetime.now().isoformat()
         })
         
-    except Exception as e:
+    except Exception:
         return jsonify({'error': '獲取系統健康狀態失敗'}), 500
 
 @dashboard_bp.route('/alerts', methods=['GET'])
@@ -344,13 +351,15 @@ def get_active_alerts():
                     'type': alert['type'],
                     'message': alert['message'],
                     'severity': alert['severity'],
-                    'timestamp': (datetime.datetime.now() - datetime.timedelta(minutes=random.randint(1, 60))).isoformat(),
+                    'timestamp': (
+                        datetime.datetime.now() - datetime.timedelta(minutes=random.randint(1, 60))
+                    ).isoformat(),
                     'acknowledged': False
                 })
         
         return jsonify(alerts)
         
-    except Exception as e:
+    except Exception:
         return jsonify({'error': '獲取告警信息失敗'}), 500
 
 @dashboard_bp.route('/cost-analysis', methods=['GET'])
@@ -387,7 +396,7 @@ def get_cost_analysis():
         
         return jsonify(data)
         
-    except Exception as e:
+    except Exception:
         return jsonify({'error': '獲取成本分析失敗'}), 500
 
 @dashboard_bp.route('/layouts', methods=['GET'])

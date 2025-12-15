@@ -6,10 +6,9 @@ from the Phase 1 evaluation framework.
 """
 
 import os
-import json
 import logging
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import List, Dict
 from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, roles_required
 
@@ -36,7 +35,7 @@ def _fetch_evaluation_results_from_github(limit: int = 10) -> List[Dict]:
         List of evaluation result dictionaries (currently empty until artifacts are parsed)
     """
     try:
-        from github import Github, GithubException
+        from github import Github
         
         github_token = os.getenv('GITHUB_TOKEN')
         if not github_token:
@@ -98,8 +97,14 @@ def _calculate_aggregated_metrics(results: List[Dict]) -> Dict:
         'self_healing_rate': latest.get('self_healing_rate', 0.0),
         'total_tasks': latest.get('total_tasks', 0),
         'completed': latest.get('completed', 0),
-        'completion_rate': (latest.get('completed', 0) / latest.get('total_tasks', 1)) * 100 if latest.get('total_tasks', 0) > 0 else 0.0,
-        'ci_pass_rate': (latest.get('ci_passed', 0) / latest.get('completed', 1)) * 100 if latest.get('completed', 0) > 0 else 0.0
+        'completion_rate': (
+            (latest.get('completed', 0) / latest.get('total_tasks', 1)) * 100
+            if latest.get('total_tasks', 0) > 0 else 0.0
+        ),
+        'ci_pass_rate': (
+            (latest.get('ci_passed', 0) / latest.get('completed', 1)) * 100
+            if latest.get('completed', 0) > 0 else 0.0
+        )
     }
 
 
@@ -180,11 +185,15 @@ def get_evaluation_metrics():
         
         latest = evaluations[0]
         
+        total_tasks = latest.get('total_tasks', 0)
+        completed = latest.get('completed', 0)
+        ci_passed = latest.get('ci_passed', 0)
+        
         metrics = {
             'planner_accuracy': latest.get('planner_accuracy', 0.0),
             'self_healing_rate': latest.get('self_healing_rate', 0.0),
-            'completion_rate': (latest.get('completed', 0) / latest.get('total_tasks', 1)) * 100 if latest.get('total_tasks', 0) > 0 else 0.0,
-            'ci_pass_rate': (latest.get('ci_passed', 0) / latest.get('completed', 1)) * 100 if latest.get('completed', 0) > 0 else 0.0
+            'completion_rate': (completed / max(total_tasks, 1)) * 100 if total_tasks > 0 else 0.0,
+            'ci_pass_rate': (ci_passed / max(completed, 1)) * 100 if completed > 0 else 0.0
         }
         
         return jsonify({

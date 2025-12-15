@@ -2,7 +2,6 @@
 SQLAlchemy Database Models for Agent Registry
 Issue #960 - Replace Agent Registry in-memory storage with database
 """
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
 from enum import Enum
@@ -45,12 +44,28 @@ class AgentDB(db.Model):
     __tablename__ = 'agents'
     
     agent_id = db.Column(db.String(36), primary_key=True)  # UUID
-    agent_type = db.Column(db.Enum(AgentTypeDB, values_callable=lambda e: [i.value for i in e], name='agenttypedb'), nullable=False)
-    status = db.Column(db.Enum(AgentStatusDB, values_callable=lambda e: [i.value for i in e], name='agentstatusdb'), nullable=False, default=AgentStatusDB.IDLE)
-    permission_level = db.Column(db.Enum(PermissionLevelDB, values_callable=lambda e: [i.value for i in e], name='permissionleveldb'), nullable=False, default=PermissionLevelDB.SANDBOX_ONLY)
+    agent_type = db.Column(
+        db.Enum(AgentTypeDB, values_callable=lambda e: [i.value for i in e], name='agenttypedb'),
+        nullable=False
+    )
+    status = db.Column(
+        db.Enum(AgentStatusDB, values_callable=lambda e: [i.value for i in e], name='agentstatusdb'),
+        nullable=False,
+        default=AgentStatusDB.IDLE
+    )
+    permission_level = db.Column(
+        db.Enum(
+            PermissionLevelDB,
+            values_callable=lambda e: [i.value for i in e],
+            name='permissionleveldb'
+        ),
+        nullable=False,
+        default=PermissionLevelDB.SANDBOX_ONLY
+    )
     reputation_score = db.Column(db.Integer, nullable=False, default=500)
     capabilities = db.Column(db.Text, nullable=False, default='[]')  # JSON array
-    metadata_json = db.Column('metadata', db.Text, nullable=False, default='{}')  # JSON object - DB column is 'metadata'
+    # JSON object - DB column is 'metadata'
+    metadata_json = db.Column('metadata', db.Text, nullable=False, default='{}')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_activity = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
@@ -113,7 +128,11 @@ class TaskDB(db.Model):
     __tablename__ = 'tasks'
     
     task_id = db.Column(db.String(36), primary_key=True)  # UUID
-    status = db.Column(db.Enum(TaskStatusDB, values_callable=lambda e: [i.value for i in e], name='taskstatusdb'), nullable=False, default=TaskStatusDB.QUEUED)
+    status = db.Column(
+        db.Enum(TaskStatusDB, values_callable=lambda e: [i.value for i in e], name='taskstatusdb'),
+        nullable=False,
+        default=TaskStatusDB.QUEUED
+    )
     agent_id = db.Column(db.String(36), db.ForeignKey('agents.agent_id'), nullable=True)
     tenant_id = db.Column(db.String(36), nullable=True)  # UUID
     task_type = db.Column(db.String(100), nullable=False)
