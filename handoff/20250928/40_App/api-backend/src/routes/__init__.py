@@ -154,3 +154,10 @@ def register_blueprints(
     init_dashboard_reports_routes(backend_services_available)
     app.register_blueprint(dashboard_reports_bp)
     logger.info(f"Dashboard/Reports routes registered: backend_services_available={backend_services_available}")
+
+    # Health/Static routes (PR1.6d)
+    # Routes for health checks and static file serving (SPA fallback)
+    from src.routes.health_static import bp as health_static_bp, init_health_static_routes
+    init_health_static_routes()
+    app.register_blueprint(health_static_bp)
+    logger.info("Health/Static routes registered")
