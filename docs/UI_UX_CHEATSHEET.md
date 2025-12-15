@@ -1,7 +1,7 @@
 # UI/UX 速查表 (一頁速查)
 
 **快速參考**: 常用命令、路徑、組件、Tokens  
-**最後更新**: 2025-10-25
+**最後更新**: 2025-12-15
 
 ---
 
@@ -9,12 +9,15 @@
 
 | 資源 | 路徑 |
 |------|------|
-| **組件庫** | `handoff/20250928/40_App/frontend-dashboard/src/components/ui/` |
-| **Design Tokens** | `docs/UX/tokens.json` |
-| **Storybook Stories** | `handoff/20250928/40_App/frontend-dashboard/src/stories/` |
+| **Shared UI 組件庫** | `packages/shared-ui/src/components/` |
+| **UI 組件** | `packages/shared-ui/src/components/ui/` |
+| **Dashboard 卡片 Archetypes** | `packages/shared-ui/src/components/dashboard/` |
+| **Design Tokens** | `packages/shared-ui/src/tokens.json` |
+| **Storybook Stories** | `packages/shared-ui/src/components/**/*.stories.tsx` |
 | **UI/UX 文檔** | `docs/UX/` |
 | **設計系統文檔** | `docs/UX/TYPOGRAPHY_SYSTEM.md`, `COLOR_SYSTEM.md`, `MATERIAL_SYSTEM.md`, `SHADOW_SYSTEM.md`, `SPACING_SYSTEM.md` |
 | **設計系統指南** | `DESIGN_SYSTEM_GUIDELINES.md` |
+| **Shared UI 使用指南** | `docs/shared-ui-guide.md` |
 | **完整資源指南** | `docs/UI_UX_RESOURCES.md` |
 | **Issue 狀態追蹤** | `docs/UI_UX_ISSUE_STATUS.md` |
 
@@ -25,7 +28,16 @@
 ### Storybook
 
 ```bash
-# 啟動 Storybook
+# 首次執行：在 repo root 安裝依賴
+pnpm install
+
+# 啟動 shared-ui Storybook（推薦）
+cd packages/shared-ui && pnpm storybook
+
+# 啟動 owner-console Storybook
+cd handoff/20250928/40_App/owner-console && pnpm storybook
+
+# 啟動 frontend-dashboard Storybook
 cd handoff/20250928/40_App/frontend-dashboard && pnpm storybook
 
 # 構建 Storybook
@@ -202,6 +214,79 @@ animation.easing.easeOut    // cubic-bezier(0, 0, 0.2, 1)
 animation.easing.easeInOut  // cubic-bezier(0.4, 0, 0.2, 1)
 animation.easing.linear     // linear
 ```
+
+---
+
+## 🎴 Dashboard 卡片 Archetypes
+
+Dashboard 卡片 Archetypes 是專為儀表板設計的標準化卡片組件，位於 `@morningai/shared-ui`。
+
+### 卡片 Archetype 選擇指南
+
+| Archetype | 用途 | Icon 規格 | 互動性 | 使用場景 |
+|-----------|------|-----------|--------|----------|
+| **StatCard** | KPI 展示 | 40×40px 圓形 | 無 | 數據統計、指標展示 |
+| **StatusCard** | 狀態篩選 | 28×28px 方形 | 有 (onClick, isActive) | 篩選器、狀態切換 |
+| **MetricCard** | 實體摘要 | 依內容 | 無 | 詳細指標、趨勢展示 |
+| **SettingsCard** | 設定面板 | 依內容 | 按鈕動作 | 設定頁面、配置面板 |
+| **SectionCard** | 區塊容器 | 可選 | 可選 action | 內容分組、區塊標題 |
+
+### 使用範例
+
+```tsx
+import { 
+  StatCard, 
+  StatusCard, 
+  MetricCard, 
+  SettingsCard,
+  SectionCard,
+  TimelineList,
+  SystemStatusList,
+  ProgressTrack
+} from '@morningai/shared-ui'
+
+// StatCard - KPI 展示
+<StatCard 
+  label="總收入" 
+  value="$45,231" 
+  trend="+12.5%" 
+  icon={<DollarSign />}
+/>
+
+// StatusCard - 狀態篩選
+<StatusCard 
+  label="進行中" 
+  count={12} 
+  isActive={true}
+  onClick={() => setFilter('active')}
+/>
+
+// SettingsCard - 設定面板
+<SettingsCard
+  title="雙因素認證"
+  description="增強帳戶安全性"
+  icon={<Shield />}
+  action={<Button>設定</Button>}
+/>
+
+// SectionCard - 區塊容器
+<SectionCard title="系統狀態" subtitle="即時監控">
+  <SystemStatusList items={statusItems} />
+</SectionCard>
+```
+
+### 完整組件清單
+
+| 組件 | 檔案 | 用途 |
+|------|------|------|
+| StatCard | `stat-card.tsx` | KPI 統計卡片（支援 trend、badge、icon） |
+| StatusCard | `status-card.tsx` | 狀態篩選卡片（支援 onClick、isActive） |
+| MetricCard | `metric-card.tsx` | 指標摘要卡片（支援 delta、趨勢） |
+| SettingsCard | `settings-card.tsx` | 設定面板卡片（支援 icon、action） |
+| SectionCard | `section-card.tsx` | 區塊容器卡片（支援 title、subtitle、action） |
+| TimelineList | `timeline-list.tsx` | 時間軸列表（活動記錄） |
+| SystemStatusList | `system-status-list.tsx` | 系統狀態列表（服務監控） |
+| ProgressTrack | `progress-track.tsx` | 進度追蹤列表（自動 clamp 0-100%） |
 
 ---
 
