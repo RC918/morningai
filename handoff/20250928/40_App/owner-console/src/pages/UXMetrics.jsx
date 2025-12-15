@@ -211,14 +211,16 @@ export default function UXMetrics() {
             <StatCard
               label={t('uxMetrics.avgFCP')}
               value={formatValue(metrics.summary.lighthouse.fcp_avg, 'ms')}
-              subtitle={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}
+              deltaLabel={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.fcp, unit: 'ms' })}
+              deltaPositive="neutral"
               variant={metrics.summary.lighthouse.fcp_avg <= metrics.thresholds.lighthouse.fcp ? 'green' : 'red'}
             />
 
             <StatCard
               label={t('uxMetrics.avgLCP')}
               value={formatValue(metrics.summary.lighthouse.lcp_avg, 'ms')}
-              subtitle={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}
+              deltaLabel={t('uxMetrics.target', { value: metrics.thresholds.lighthouse.lcp, unit: 'ms' })}
+              deltaPositive="neutral"
               variant={metrics.summary.lighthouse.lcp_avg <= metrics.thresholds.lighthouse.lcp ? 'green' : 'red'}
             />
           </>
@@ -227,7 +229,8 @@ export default function UXMetrics() {
         <StatCard
           label={t('uxMetrics.i18nCoverage')}
           value={`${metrics.summary.apps['frontend-dashboard'].i18n_available}/${metrics.total_prs}`}
-          subtitle={t('uxMetrics.prsWithData')}
+          deltaLabel={t('uxMetrics.prsWithData')}
+          deltaPositive="neutral"
           variant="default"
         />
       </div>
