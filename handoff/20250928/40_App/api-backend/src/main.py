@@ -365,46 +365,18 @@ def create_app(config=None):
 def _register_inline_routes(flask_app):
     """Register all inline routes on the Flask app.
 
-    This function contains all routes that are currently defined inline in main.py.
-    These routes will be moved to separate blueprint modules in Phase 1.6.
+    NOTE: All inline routes have been moved to blueprint modules in Phase 1.6.
+    This function is kept for backward compatibility and documentation.
 
-    Phase 1.6 Progress:
+    Phase 1.6 Completion:
     - PR1.6a: Phase 4-6 routes moved to src/routes/phase456.py
     - PR1.6b: Phase 7 routes moved to src/routes/phase7.py
-    - PR1.6c: Dashboard/Reports/Settings routes (pending)
-    - PR1.6d: Health/Static routes (pending)
+    - PR1.6c: Dashboard/Reports/Settings routes moved to src/routes/dashboard_reports.py
+    - PR1.6d: Health/Static routes moved to src/routes/health_static.py
 
     Args:
         flask_app: The Flask application instance.
     """
-
-    @flask_app.route("/health", methods=["GET", "HEAD"])
-    @flask_app.route("/healthz", methods=["GET", "HEAD"])
-    @flask_app.route("/api/health", methods=["GET", "HEAD"])
-    @flask_app.route("/api/healthz", methods=["GET", "HEAD"])
-    def health_check():
-        """Health check endpoint with comprehensive system status"""
-        health_payload = get_health_payload()
-        if health_payload.get("status") == "unhealthy":
-            return jsonify(health_payload), 500
-        return jsonify(health_payload)
-
-    @flask_app.route("/", defaults={"path": ""})
-    @flask_app.route("/<path:path>")
-    def serve(path):
-        static_folder_path = flask_app.static_folder
-        if static_folder_path is None:
-            return "Static folder not configured", 404
-
-        if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
-            return send_from_directory(static_folder_path, path)
-        else:
-            index_path = os.path.join(static_folder_path, "index.html")
-            if os.path.exists(index_path):
-                return send_from_directory(static_folder_path, "index.html")
-            else:
-                return "index.html not found", 404
-
     # NOTE: Phase 7 routes moved to src/routes/phase7.py (PR1.6b)
     # - /api/phase7/status
     # - /api/phase7/approvals/pending
@@ -427,6 +399,15 @@ def _register_inline_routes(flask_app):
     # - /api/reports/templates (GET)
     # - /api/reports/history (GET)
     # - /api/settings (GET, POST)
+
+    # NOTE: Health/Static routes moved to src/routes/health_static.py (PR1.6d)
+    # - /health (GET, HEAD)
+    # - /healthz (GET, HEAD)
+    # - /api/health (GET, HEAD)
+    # - /api/healthz (GET, HEAD)
+    # - / (GET)
+    # - /<path:path> (GET)
+    pass
 
 
 # Create the Flask application using the factory function
