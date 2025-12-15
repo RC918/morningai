@@ -1740,7 +1740,7 @@ Phase 2 audit 腳本使用以下 regex 來偵測 shared-ui card 元件使用：
 **驗證方式**：
 ```bash
 # 檢查 frontend-dashboard 是否有新增 legacy cards
-scripts/phase2_audit.sh --file handoff/20250928/40_App/frontend-dashboard/src/
+scripts/phase2_audit.sh --dir handoff/20250928/40_App/frontend-dashboard/src/
 ```
 
 ---
