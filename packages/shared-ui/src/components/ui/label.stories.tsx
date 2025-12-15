@@ -65,8 +65,8 @@ export const WithDescription: Story = {
 
 export const Disabled: Story = {
   render: () => (
-    <div className="grid w-full max-w-sm items-center gap-1.5" data-disabled="true">
-      <Label htmlFor="disabled-input" className="opacity-50">Disabled Field</Label>
+    <div className="group grid w-full max-w-sm items-center gap-1.5" data-disabled="true">
+      <Label htmlFor="disabled-input">Disabled Field</Label>
       <Input type="text" id="disabled-input" placeholder="Cannot edit" disabled />
     </div>
   ),

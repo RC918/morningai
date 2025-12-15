@@ -51,7 +51,7 @@ export const WithDeltaNegative: Story = {
     label: "Error Rate",
     value: "2.3%",
     icon: <Zap />,
-    deltaLabel: "+0.5% from last week",
+    deltaLabel: "Up 0.5% from last week",
     deltaPositive: false,
     variant: "red",
   },
@@ -157,7 +157,7 @@ export const AllDeltaStates: Story = {
         label="Negative Delta"
         value="4.2%"
         icon={<Zap />}
-        deltaLabel="+1.2% increase"
+        deltaLabel="1.2% increase"
         deltaPositive={false}
         variant="red"
       />
