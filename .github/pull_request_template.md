@@ -93,10 +93,23 @@
 
 - [ ] 我已檢查 `@morningai/shared-ui` 是否有可用的元件
 - [ ] 如果需要新元件，我已將其加入 `packages/shared-ui/` 而非應用層
-- [ ] 新元件已加入 Storybook story（位於 `packages/shared-ui/src/stories/`）
+- [ ] 新元件已加入 Storybook story（位於 `packages/shared-ui/src/components/**/*.stories.tsx`）
 - [ ] 我沒有在應用層重複實作已存在於 shared-ui 的元件
 - [ ] 如使用設計 tokens，我已從 `@morningai/shared-ui` 匯入而非硬編碼
 - [ ] 不適用 - 此 PR 不包含 UI 元件變更
+
+### Apple 組件檢查（如適用）
+
+如果此 PR 包含 Apple 風格組件變更，請確認：
+
+- [ ] 組件消費 `tokens.json` 的 CSS 變數（不使用平行色彩系統）
+- [ ] 若為視覺原語（純視覺、無業務邏輯），已放在 `@morningai/shared-ui`
+- [ ] 若為應用層 adapter，已正確包裝 shared-ui 組件
+- [ ] 已加入完整的 stories + tests + a11y tests
+- [ ] 已支援 `prefers-reduced-motion`（動畫組件）
+- [ ] 不適用 - 此 PR 不包含 Apple 組件變更
+
+**相關文件**: [設計系統治理規則](../CONTRIBUTING_DESIGN_SYSTEM.md#apple-組件規則)
 
 ## Phase 2 Audit Checklist (Epic #2304)
 
