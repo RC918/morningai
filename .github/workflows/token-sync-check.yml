@@ -13,6 +13,10 @@ on:
     paths:
       - 'packages/shared-ui/src/tokens.json'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   token-sync:
     name: Verify Token Sync
@@ -166,4 +170,4 @@ jobs:
             - Space, Radius, Shadow, Animation, Breakpoint
             - Accessibility (wcag-aaa, focus, touch-target, animation)
             
-            **Related Documentation**: [設計系統治理規則](../CONTRIBUTING_DESIGN_SYSTEM.md#token-管理)
+            **Related Documentation**: [設計系統治理規則](CONTRIBUTING_DESIGN_SYSTEM.md#token-管理)

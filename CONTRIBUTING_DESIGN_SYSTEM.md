@@ -132,9 +132,15 @@
 
 ```tsx
 // packages/shared-ui/src/components/ui/apple-modal-base.tsx
-// 純視覺組件，無業務邏輯
-export function AppleModalBase({ children, ...props }) {
-  return <div className="apple-modal-base" {...props}>{children}</div>
+// 純視覺組件，無業務邏輯，接收 onConfirm 作為 prop 但不處理業務邏輯
+export function AppleModalBase({ children, onConfirm, ...props }) {
+  return (
+    <div className="apple-modal-base" {...props}>
+      {children}
+      {/* 內部確認按鈕會綁定 onConfirm */}
+      <button onClick={onConfirm}>確認</button>
+    </div>
+  )
 }
 
 // frontend-dashboard/src/components/apple/apple-modal.tsx
@@ -176,8 +182,10 @@ import {
   StatCard, 
   StatusCard, 
   SettingsCard,
-  SectionCard 
+  SectionCard,
+  Button
 } from '@morningai/shared-ui'
+import { DollarSign, Shield } from 'lucide-react'
 
 // StatCard - KPI 展示
 <StatCard 
@@ -296,7 +304,7 @@ export function LegacyStatCard() {
 
 | 組件 | 位置 | 替代方案 | 移除時間 |
 |------|------|----------|----------|
-| `LegacyCard` | owner-console | `@morningai/shared-ui` Card | Phase 3 完成後 |
+| `LegacyCard` | owner-console | 依使用情境選擇 `Card` (通用容器) 或對應的卡片 Archetype (如 `StatCard`, `SettingsCard`) | Phase 3 完成後 |
 
 ## 相關文檔
 
