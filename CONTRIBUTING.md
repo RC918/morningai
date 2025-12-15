@@ -36,6 +36,8 @@
 
 ## 設計系統與 Shared UI
 
+> **完整治理規則**：請參閱 [CONTRIBUTING_DESIGN_SYSTEM.md](CONTRIBUTING_DESIGN_SYSTEM.md) 了解完整的設計系統治理規則，包括 Token 管理、Apple 組件規則、Dashboard 卡片 Archetypes 等。
+
 ### 使用 @morningai/shared-ui
 
 MorningAI 使用統一的設計系統，所有 UI 元件集中在 `packages/shared-ui/`。
