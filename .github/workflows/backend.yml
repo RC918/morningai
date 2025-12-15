@@ -31,7 +31,8 @@ jobs:
         uses: astral-sh/ruff-action@v2
         with:
           version: ${{ env.RUFF_VERSION }}
-          args: "check handoff/20250928/40_App/api-backend/src --output-format=github"
+          args: "check --output-format=github"
+          src: "handoff/20250928/40_App/api-backend/src"
       - name: Show Ruff version (actual)
         run: ruff --version
       - name: Show Ruff statistics
