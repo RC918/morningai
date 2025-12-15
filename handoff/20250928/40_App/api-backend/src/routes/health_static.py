@@ -14,6 +14,7 @@ Routes:
 import os
 import logging
 from flask import Blueprint, jsonify, send_from_directory, current_app
+from werkzeug.utils import safe_join
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,10 @@ def serve(path):
     For paths that don't match a file, it falls back to index.html
     to support SPA routing.
 
+    Security: Uses werkzeug.utils.safe_join to prevent path traversal attacks.
+    The safe_join function returns None if the path would escape the base directory,
+    preventing information disclosure via os.path.exists checks.
+
     Args:
         path: The requested path
 
@@ -82,11 +87,16 @@ def serve(path):
     if static_folder_path is None:
         return "Static folder not configured", 404
 
-    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
-        return send_from_directory(static_folder_path, path)
+    # Use safe_join to prevent path traversal attacks (e.g., ../../etc/passwd)
+    # safe_join returns None if the path would escape the base directory
+    if path != "":
+        safe_path = safe_join(static_folder_path, path)
+        if safe_path is not None and os.path.isfile(safe_path):
+            return send_from_directory(static_folder_path, path)
+
+    # Fallback to index.html for SPA routing
+    index_path = safe_join(static_folder_path, "index.html")
+    if index_path is not None and os.path.exists(index_path):
+        return send_from_directory(static_folder_path, "index.html")
     else:
-        index_path = os.path.join(static_folder_path, "index.html")
-        if os.path.exists(index_path):
-            return send_from_directory(static_folder_path, "index.html")
-        else:
-            return "index.html not found", 404
+        return "index.html not found", 404
