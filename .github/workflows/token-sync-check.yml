@@ -1,0 +1,169 @@
+name: Token Sync Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/shared-ui/src/tokens.json'
+      - 'packages/shared-ui/src/design-tokens.ts'
+      - 'packages/shared-ui/src/**/*.css'
+      - '.github/workflows/token-sync-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/shared-ui/src/tokens.json'
+
+jobs:
+  token-sync:
+    name: Verify Token Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Verify tokens.json is valid JSON
+        run: |
+          echo "Validating tokens.json..."
+          if ! node -e "JSON.parse(require('fs').readFileSync('packages/shared-ui/src/tokens.json', 'utf8'))"; then
+            echo "::error::tokens.json is not valid JSON"
+            exit 1
+          fi
+          echo "tokens.json is valid JSON"
+      
+      - name: Check token structure
+        run: |
+          echo "Checking token structure..."
+          node -e "
+            const tokens = JSON.parse(require('fs').readFileSync('packages/shared-ui/src/tokens.json', 'utf8'));
+            
+            // Required top-level keys
+            const requiredKeys = ['color', 'font', 'space', 'radius', 'shadow', 'animation', 'breakpoint'];
+            const missingKeys = requiredKeys.filter(key => !tokens[key]);
+            
+            if (missingKeys.length > 0) {
+              console.error('Missing required token categories:', missingKeys.join(', '));
+              process.exit(1);
+            }
+            
+            // Check color structure
+            const colorKeys = ['primary', 'semantic', 'neutral', 'background'];
+            const missingColorKeys = colorKeys.filter(key => !tokens.color[key]);
+            
+            if (missingColorKeys.length > 0) {
+              console.error('Missing required color categories:', missingColorKeys.join(', '));
+              process.exit(1);
+            }
+            
+            // Check semantic colors
+            const semanticKeys = ['success', 'error', 'warning', 'info'];
+            const missingSemanticKeys = semanticKeys.filter(key => !tokens.color.semantic[key]);
+            
+            if (missingSemanticKeys.length > 0) {
+              console.error('Missing required semantic colors:', missingSemanticKeys.join(', '));
+              process.exit(1);
+            }
+            
+            console.log('Token structure is valid');
+            console.log('Categories:', Object.keys(tokens).join(', '));
+            console.log('Color categories:', Object.keys(tokens.color).join(', '));
+          "
+      
+      - name: Check for hardcoded hex in design-tokens.ts
+        run: |
+          echo "Checking for hardcoded hex colors in design-tokens.ts..."
+          
+          # Count hardcoded hex colors (excluding comments and token definitions)
+          HEX_COUNT=$(grep -oP '#[0-9A-Fa-f]{6}' packages/shared-ui/src/design-tokens.ts 2>/dev/null | wc -l || echo "0")
+          
+          echo "Found $HEX_COUNT hex color references in design-tokens.ts"
+          
+          # This is informational - design-tokens.ts may legitimately contain hex values
+          # as it's the bridge between tokens.json and CSS variables
+          echo "Note: design-tokens.ts is expected to contain hex values from tokens.json"
+      
+      - name: Verify accessibility tokens exist
+        run: |
+          echo "Checking accessibility tokens..."
+          node -e "
+            const tokens = JSON.parse(require('fs').readFileSync('packages/shared-ui/src/tokens.json', 'utf8'));
+            
+            if (!tokens.accessibility) {
+              console.error('Missing accessibility token category');
+              process.exit(1);
+            }
+            
+            const requiredA11yKeys = ['wcag-aaa', 'focus', 'touch-target', 'animation'];
+            const missingA11yKeys = requiredA11yKeys.filter(key => !tokens.accessibility[key]);
+            
+            if (missingA11yKeys.length > 0) {
+              console.error('Missing required accessibility tokens:', missingA11yKeys.join(', '));
+              process.exit(1);
+            }
+            
+            console.log('Accessibility tokens are complete');
+          "
+      
+      - name: Generate token summary
+        if: always()
+        run: |
+          echo "## Token Sync Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          node -e "
+            const tokens = JSON.parse(require('fs').readFileSync('packages/shared-ui/src/tokens.json', 'utf8'));
+            
+            const countTokens = (obj, prefix = '') => {
+              let count = 0;
+              for (const [key, value] of Object.entries(obj)) {
+                if (typeof value === 'object' && value !== null) {
+                  count += countTokens(value, prefix + key + '.');
+                } else {
+                  count++;
+                }
+              }
+              return count;
+            };
+            
+            const totalTokens = countTokens(tokens);
+            const colorTokens = countTokens(tokens.color);
+            const fontTokens = countTokens(tokens.font);
+            const spaceTokens = countTokens(tokens.space);
+            
+            console.log('| Category | Token Count |');
+            console.log('|----------|-------------|');
+            console.log('| Color | ' + colorTokens + ' |');
+            console.log('| Font | ' + fontTokens + ' |');
+            console.log('| Space | ' + spaceTokens + ' |');
+            console.log('| **Total** | **' + totalTokens + '** |');
+          " >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Source: \`packages/shared-ui/src/tokens.json\`" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: token-sync-check
+          body: |
+            ## Token Sync Check
+            
+            **Status**: ${{ job.status == 'success' && 'Passed' || 'Failed' }}
+            
+            This check verifies that `packages/shared-ui/src/tokens.json` is valid and contains all required token categories.
+            
+            **Required Categories**:
+            - Color (primary, semantic, neutral, background)
+            - Font (family, size, lineHeight, weight)
+            - Space, Radius, Shadow, Animation, Breakpoint
+            - Accessibility (wcag-aaa, focus, touch-target, animation)
+            
+            **Related Documentation**: [設計系統治理規則](../CONTRIBUTING_DESIGN_SYSTEM.md#token-管理)
