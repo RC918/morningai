@@ -1,0 +1,61 @@
+# PR Template Path Validation CI
+# Issue: #2514
+# Purpose: Validate that relative paths in PR templates point to existing files
+# Docs: CONTRIBUTING_DESIGN_SYSTEM.md
+# Script: scripts/validate-pr-template-paths.mjs
+
+name: Validate PR Template Paths
+
+on:
+  push:
+    paths:
+      - '.github/pull_request_template.md'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - 'PULL_REQUEST_TEMPLATE.md'
+      - 'pull_request_template.md'
+      - '.github/workflows/pr-template-path-check.yml'
+      - 'scripts/validate-pr-template-paths.mjs'
+      - 'scripts/tests/validate-pr-template-paths.test.mjs'
+  pull_request:
+    paths:
+      - '.github/pull_request_template.md'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - 'PULL_REQUEST_TEMPLATE.md'
+      - 'pull_request_template.md'
+      - '.github/workflows/pr-template-path-check.yml'
+      - 'scripts/validate-pr-template-paths.mjs'
+      - 'scripts/tests/validate-pr-template-paths.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run unit tests
+        run: node --test scripts/tests/validate-pr-template-paths.test.mjs
+
+  validate-paths:
+    name: Validate PR Template Paths
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate PR template paths
+        run: node scripts/validate-pr-template-paths.mjs
