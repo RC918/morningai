@@ -1,0 +1,51 @@
+[project]
+name = "morningai"
+version = "1.0.0"
+description = "MorningAI Backend API"
+requires-python = ">=3.12"
+
+[tool.ruff]
+# Target Python 3.12
+target-version = "py312"
+
+# Line length matching existing .flake8 config
+line-length = 120
+
+# Exclude directories (matching .flake8)
+exclude = [
+    ".venv",
+    ".git",
+    "__pycache__",
+    "dist",
+    "build",
+    "*.egg-info",
+    ".pytest_cache",
+    ".mypy_cache",
+    "node_modules",
+    ".next",
+    ".vercel",
+    "handoff/20250928/40_App/frontend-dashboard",
+    "handoff/20250928/60_Design",
+]
+
+[tool.ruff.lint]
+# Start with minimal rule set (F = Pyflakes, E = pycodestyle errors)
+# Can expand to include more rules later (W, I, B, UP, etc.)
+select = [
+    "F",   # Pyflakes - catches unused imports, undefined names, etc.
+    "E",   # pycodestyle errors
+]
+
+# Ignore rules matching existing .flake8 config
+ignore = [
+    "E203",  # Whitespace before ':'
+    "E402",  # Module level import not at top of file (due to sys.path manipulation in main.py)
+    "E501",  # Line too long (handled separately or by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow unused imports in __init__.py (re-exports)
+"__init__.py" = ["F401", "F403"]
+# Allow long lines in migrations and tests
+"*/migrations/*.py" = ["E501"]
+"*/tests/*.py" = ["E501"]
