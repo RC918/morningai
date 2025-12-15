@@ -2,6 +2,7 @@
 
 This module provides the register_blueprints function for Flask app initialization.
 Phase 1 refactoring: PR1c - Extract blueprint registration from main.py.
+Phase 1.6 refactoring: PR1.6a - Add Phase 4-6 blueprint registration.
 """
 import os
 import logging
@@ -9,7 +10,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def register_blueprints(app, backend_services_available=False):
+def register_blueprints(
+    app,
+    backend_services_available=False,
+    phase_456_available=False,
+    phase_456_api_funcs=None,
+):
     """Register all blueprints to the Flask app.
 
     IMPORTANT: Uses lazy imports inside the function to avoid circular dependencies
@@ -19,6 +25,8 @@ def register_blueprints(app, backend_services_available=False):
     Args:
         app: Flask application instance
         backend_services_available: Whether backend services (mock_api, etc.) are available
+        phase_456_available: Whether Phase 4-6 APIs are available (PR1.6a)
+        phase_456_api_funcs: Dictionary of Phase 4-6 API functions (PR1.6a)
 
     Note:
         - Registration order is preserved from original main.py for consistency
@@ -132,3 +140,11 @@ def register_blueprints(app, backend_services_available=False):
             app.register_blueprint(mock_api)
         except (ImportError, NameError):
             pass
+
+    # Phase 4-6 API routes (PR1.6a)
+    # Uses lazy import and runtime gating to avoid import-time crashes
+    # when phase4/5/6 packages are not available in certain environments
+    from src.routes.phase456 import bp as phase456_bp, init_phase456_routes
+    init_phase456_routes(phase_456_available, phase_456_api_funcs or {})
+    app.register_blueprint(phase456_bp)
+    logger.info(f"Phase 4-6 routes registered: available={phase_456_available}")
