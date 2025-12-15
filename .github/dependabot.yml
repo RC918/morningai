@@ -1,0 +1,68 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # GitHub Actions - monthly updates for workflow dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    # Group minor/patch updates together
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python dependencies for api-backend
+  - package-ecosystem: "pip"
+    directory: "/handoff/20250928/40_App/api-backend"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "python"
+    # Only allow security updates by default, manual review for others
+    open-pull-requests-limit: 5
+
+  # npm dependencies for owner-console
+  - package-ecosystem: "npm"
+    directory: "/handoff/20250928/40_App/owner-console"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "npm"
+    open-pull-requests-limit: 5
+    # Group minor/patch updates together
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # npm dependencies for shared-ui
+  - package-ecosystem: "npm"
+    directory: "/packages/shared-ui"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "npm"
+    open-pull-requests-limit: 5
