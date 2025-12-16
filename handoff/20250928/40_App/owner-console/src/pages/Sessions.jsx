@@ -33,7 +33,8 @@ import {
   Trash2,
   Plus,
   Edit3,
-  Lightbulb
+  Lightbulb,
+  Monitor
 } from 'lucide-react'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { apiClientWithMeta, handleApiError } from '@/lib/api-client'
@@ -45,6 +46,7 @@ import {
   SessionInsights,
   SessionCommandInput,
   SessionStatusCard,
+  IDEActivityPanel,
   CONFIDENCE_THRESHOLD,
   MEDIUM_CONFIDENCE_THRESHOLD,
   validateConfidence
@@ -1174,6 +1176,10 @@ const Sessions = () => {
                     <Lightbulb className="w-4 h-4 mr-2" />
                     {t('sessions.tabs.insights', 'Insights')}
                   </TabsTrigger>
+                  <TabsTrigger value="ideActivity" className="data-[state=active]:border-b-2 data-[state=active]:border-primary-500">
+                    <Monitor className="w-4 h-4 mr-2" />
+                    {t('sessions.tabs.ideActivity', 'IDE Activity')}
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="plan" className="p-5">
@@ -1382,6 +1388,12 @@ const Sessions = () => {
                   <SessionInsights
                     sessionId={selectedSession.id}
                     isOpen={true}
+                  />
+                </TabsContent>
+
+                <TabsContent value="ideActivity" className="p-5">
+                  <IDEActivityPanel
+                    ideActivity={selectedSession.ideActivity}
                   />
                 </TabsContent>
               </Tabs>

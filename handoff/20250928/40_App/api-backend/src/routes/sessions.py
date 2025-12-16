@@ -100,6 +100,100 @@ def _get_session_and_user(session_id: str) -> tuple:
     return session_data, user_info, key
 
 
+def _extract_ide_activity(session_data: dict) -> dict:
+    """
+    Extract IDE activity information from session data.
+
+    Issue #2241: Real-time IDE sync UI for session task execution.
+
+    Extracts file-related operations from observations and actions to show
+    which files the agent is working on and recent changes.
+
+    Args:
+        session_data: Raw session data from Redis
+
+    Returns:
+        dict with:
+        - activeFile: Currently active file path (if detectable)
+        - recentFiles: List of recently modified files with timestamps
+        - ideUrl: Public URL for IDE access (if configured)
+        - hasIdeSession: Whether an IDE session is active
+    """
+    import re
+
+    ide_metadata = session_data.get('ide_session', {})
+    context = session_data.get('context', {})
+
+    # Extract file paths from observations
+    observations = session_data.get('observations', [])
+    actions = session_data.get('actions', [])
+
+    # Patterns to detect file operations
+    file_patterns = [
+        r'(?:editing|modified|created|updated|wrote|reading|opened)\s+[`"\']?([^\s`"\']+\.[a-zA-Z0-9]+)',
+        r'file[:\s]+[`"\']?([^\s`"\']+\.[a-zA-Z0-9]+)',
+        r'([a-zA-Z0-9_/.-]+\.(py|js|jsx|ts|tsx|json|yaml|yml|md|css|html))',
+    ]
+
+    recent_files = []
+    seen_files = set()
+
+    # Extract from observations
+    for obs in reversed(observations[-20:]):
+        obs_text = obs.get('observation', '')
+        timestamp = obs.get('timestamp', '')
+
+        for pattern in file_patterns:
+            matches = re.findall(pattern, obs_text, re.IGNORECASE)
+            for match in matches:
+                file_path = match[0] if isinstance(match, tuple) else match
+                if file_path and file_path not in seen_files:
+                    seen_files.add(file_path)
+                    recent_files.append({
+                        'path': file_path,
+                        'timestamp': timestamp,
+                        'action': 'modified'
+                    })
+
+    # Extract from actions
+    for action in reversed(actions[-20:]):
+        action_type = action.get('action_type', '')
+        result = action.get('result', {})
+        timestamp = action.get('timestamp', '')
+
+        # Check for file-related action types
+        if action_type in ['WRITE_CODE', 'EDIT_FILE', 'CREATE_FILE', 'READ_FILE']:
+            file_path = result.get('file_path') or result.get('path', '')
+            if file_path and file_path not in seen_files:
+                seen_files.add(file_path)
+                recent_files.append({
+                    'path': file_path,
+                    'timestamp': timestamp,
+                    'action': 'modified' if action_type != 'READ_FILE' else 'read'
+                })
+
+    # Sort by timestamp descending and limit
+    recent_files.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+    recent_files = recent_files[:10]
+
+    # Determine active file (most recent modified file)
+    active_file = recent_files[0]['path'] if recent_files else None
+
+    # Get IDE URL from metadata or context
+    ide_url = (
+        ide_metadata.get('public_url') or
+        ide_metadata.get('vscode_endpoint') or
+        context.get('ide_url')
+    )
+
+    return {
+        'activeFile': active_file,
+        'recentFiles': recent_files,
+        'ideUrl': ide_url,
+        'hasIdeSession': bool(ide_metadata.get('session_id'))
+    }
+
+
 def transform_session_for_frontend(session_data: dict) -> dict:
     """
     Transform orchestrator SessionState to frontend format.
@@ -154,6 +248,10 @@ def transform_session_for_frontend(session_data: dict) -> dict:
     # Sort logs by timestamp descending
     logs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
 
+    # Extract IDE activity from observations and actions (#2241)
+    # Look for file-related operations to show in IDE Activity panel
+    ide_activity = _extract_ide_activity(session_data)
+
     # Check if session requires approval (escalated status)
     requires_approval = session_data.get('status') == 'escalated'
 
@@ -183,7 +281,8 @@ def transform_session_for_frontend(session_data: dict) -> dict:
         },
         'logs': logs[:20],  # Limit to 20 most recent logs
         'prUrl': session_data.get('context', {}).get('pr_url'),
-        'errorMessage': session_data.get('context', {}).get('error_message')
+        'errorMessage': session_data.get('context', {}).get('error_message'),
+        'ideActivity': ide_activity  # Issue #2241: IDE activity for real-time sync UI
     }
 
 
