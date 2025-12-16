@@ -200,7 +200,7 @@ describe('Auth Module', () => {
       });
 
       expect(result.user).toEqual(mockUser);
-      expect(result.tokens.expiresAt).toBe(mockResponse.tokens.expiresAt);
+      expect(result.tokens?.expiresAt).toBe(mockResponse.tokens.expiresAt);
       expect(getStoredUser()).toEqual(mockUser);
       expect(getStoredTokenExpiry()).toBe(mockResponse.tokens.expiresAt);
     });
