@@ -4,8 +4,8 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 25
-- **支援 workflow_dispatch**: 23 (96%)
+- **總工作流數量**: 26
+- **支援 workflow_dispatch**: 23 (88%)
 - **Branch Protection 必須檢查**: 4
 
 ---
@@ -733,6 +733,34 @@ git commit -m "chore: update pnpm-lock.yaml"
 此測試套件與 `verify_system_state.sh` 腳本需要長期同步維護。當修改腳本輸出格式、新增驗證項目、或變更 repo 結構時，需同步更新測試。測試 fixtures 會自動從真實 repo 讀取預期值（如 React 版本），以降低手動同步成本。
 
 **相關 Issue**: #2581 (verify_system_state.sh Regression Tests)
+
+---
+
+### 26. `react-version-sync-check` (Verify React Version Alignment)
+**檔案**: `.github/workflows/react-version-sync-check.yml`
+
+**用途**: React 版本同步檢查，確保所有 workspace 的 React 版本與 pnpm overrides 一致
+
+**觸發條件**:
+- ✅ `push` - main 分支推送（當任一 package.json 或 lockfile 變更時）
+- ✅ `pull_request` - 所有 PR（當 package.json、lockfile、sync script 或 workflow 變更時）
+
+**執行內容**:
+- **版本對齊檢查**: 驗證 frontend-dashboard、owner-console 的 react/react-dom 版本與 root package.json pnpm overrides 一致
+- **@types 版本檢查**: 驗證 @types/react、@types/react-dom 版本對齊
+- **Library 特殊處理**: shared-ui 僅檢查 devDependencies，保留 peerDependencies 版本範圍
+
+**為何非 Required**: 版本對齊檢查重要但不阻擋緊急修復
+
+**修復指令**:
+```bash
+./scripts/sync-react-versions.sh
+pnpm install
+git add -A
+git commit -m "chore(deps): sync React versions with pnpm overrides"
+```
+
+**相關 Issue**: #2580 (Automated React Version Sync Tool)
 
 ---
 

@@ -1,0 +1,90 @@
+name: React Version Sync Check
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - '**/package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/sync-react-versions.sh'
+      - '.github/workflows/react-version-sync-check.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+      - '**/package.json'
+      - 'pnpm-lock.yaml'
+
+jobs:
+  check-react-versions:
+    name: Verify React Version Alignment
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run React version sync check
+        id: check
+        run: |
+          chmod +x scripts/sync-react-versions.sh
+          ./scripts/sync-react-versions.sh --check --verbose
+
+      - name: Comment on PR with fix instructions
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## React Version Alignment Check Failed
+            
+            One or more workspace package.json files have React versions that don't match the pnpm overrides in the root package.json.
+            
+            ### How to Fix
+            
+            Run the sync script locally:
+            
+            \`\`\`bash
+            ./scripts/sync-react-versions.sh
+            pnpm install
+            git add -A
+            git commit -m "chore(deps): sync React versions with pnpm overrides"
+            \`\`\`
+            
+            ### Why This Matters
+            
+            - **Single Source of Truth**: The root \`package.json\` pnpm overrides define the canonical React version
+            - **Consistency**: All workspaces should use the same React version to avoid runtime issues
+            - **Lockfile Integrity**: Version mismatches can cause lockfile drift between dev/CI/prod
+            
+            ### Related
+            
+            - [PR #2578](https://github.com/RC918/morningai/pull/2578) - React version alignment
+            - [Issue #2576](https://github.com/RC918/morningai/issues/2576) - Version mismatch tracking
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## React Version Sync Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check.outcome }}" == "success" ]; then
+            echo "All React versions are aligned with pnpm overrides." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "React version misalignment detected!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`./scripts/sync-react-versions.sh\` locally to fix." >> $GITHUB_STEP_SUMMARY
+          fi
