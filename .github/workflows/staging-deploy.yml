@@ -86,7 +86,7 @@ jobs:
           cd handoff/20250928/40_App/api-backend
           python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=74 -v
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: staging-coverage-report
           path: handoff/20250928/40_App/api-backend/coverage.xml

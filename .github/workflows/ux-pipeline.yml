@@ -197,7 +197,7 @@ jobs:
       
       - name: Upload VRT results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: vrt-results-${{ matrix.app }}
           path: handoff/20250928/40_App/${{ matrix.app }}/test-results/
@@ -308,7 +308,7 @@ jobs:
       
       - name: Upload motion test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: motion-results-${{ matrix.app }}
           path: handoff/20250928/40_App/${{ matrix.app }}/motion-test-results/
@@ -433,7 +433,7 @@ jobs:
       
       - name: Upload a11y test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: a11y-results-${{ matrix.app }}
           path: handoff/20250928/40_App/${{ matrix.app }}/a11y-test-results/
@@ -503,7 +503,7 @@ jobs:
       
       - name: Upload i18n test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: i18n-results-${{ matrix.app }}
           path: handoff/20250928/40_App/${{ matrix.app }}/i18n-test-results/
@@ -732,7 +732,7 @@ jobs:
       
       - name: Upload UX QA results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ux-qa-results-${{ matrix.app }}
           path: ux-qa-results/
@@ -740,7 +740,7 @@ jobs:
       
       - name: Upload calibration data
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: calibration-csv-${{ matrix.app }}
           path: calibration.csv

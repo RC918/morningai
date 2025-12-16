@@ -193,7 +193,7 @@ jobs:
             core.info(`✅ Created check run for ${sha}`);
       
       - name: Upload metrics artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ux-metrics
           path: metrics/ux-metrics.json
