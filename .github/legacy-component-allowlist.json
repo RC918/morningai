@@ -1,0 +1,11 @@
+{
+  "$schema": "./legacy-component-allowlist.schema.json",
+  "description": "Allowlist for legacy component imports during gradual migration",
+  "legacy_components": [
+    "LegacyCard",
+    "LegacyStatCard"
+  ],
+  "allowed_files": [],
+  "expires": "2025-06-01",
+  "documentation": "https://github.com/RC918/morningai/blob/main/CONTRIBUTING_DESIGN_SYSTEM.md#廢棄組件處理"
+}

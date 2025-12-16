@@ -1,5 +1,20 @@
 # Phase 2 PR Template - Design System Card Migration
 
+> ⚠️ **DEPRECATED / 已棄用**
+>
+> 此檔案已被 `.github/PULL_REQUEST_TEMPLATE/phase2.md` 取代。
+> 請使用新的多模板機制建立 Phase 2 PR：
+>
+> **如何使用新模板：**
+> - 在 PR URL 後加上 `?template=phase2.md`
+> - 例如：`https://github.com/RC918/morningai/compare/main...your-branch?template=phase2.md`
+>
+> **新模板位置：** [.github/PULL_REQUEST_TEMPLATE/phase2.md](.github/PULL_REQUEST_TEMPLATE/phase2.md)
+>
+> 此檔案將在 Issue #2564 中移除。保留此檔案僅供參考歷史記錄。
+
+---
+
 ## PR Information
 
 **Phase**: 2-X (e.g., 2-1a, 2-2b)

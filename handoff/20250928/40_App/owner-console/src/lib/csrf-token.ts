@@ -382,10 +382,11 @@ export const UNSAFE_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 /**
  * Check if a request method requires CSRF protection
  *
- * @param method - HTTP method
+ * @param method - HTTP method (undefined defaults to GET which doesn't need CSRF)
  * @returns true if CSRF token should be included
  */
-export function shouldIncludeCsrf(method: string): boolean {
+export function shouldIncludeCsrf(method: string | undefined): boolean {
+  if (!method) return false;
   return UNSAFE_METHODS.includes(method.toUpperCase());
 }
 

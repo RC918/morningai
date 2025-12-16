@@ -1,0 +1,97 @@
+# =============================================================================
+# Legacy Component Detection Script Tests CI
+# =============================================================================
+#
+# PURPOSE:
+#   Runs automated tests for the legacy component detection scripts.
+#   Ensures changes to detection logic don't break functionality.
+#
+# TESTS:
+#   - scripts/tests/detect-legacy-components.test.sh: Unit tests for detection
+#   - scripts/tests/legacy-component-workflow.test.sh: Workflow contract tests
+#
+# RELATED:
+#   - Issue #2513: Legacy component detection CI
+#   - scripts/detect-legacy-components.sh: Main detection script
+#   - scripts/detect-legacy-components.mjs: AST-based detection
+#
+# =============================================================================
+
+name: Legacy Component Script Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/detect-legacy-components.sh'
+      - 'scripts/detect-legacy-components.mjs'
+      - 'scripts/tests/detect-legacy-components.test.sh'
+      - 'scripts/tests/legacy-component-workflow.test.sh'
+      - '.github/workflows/legacy-component-check.yml'
+      - '.github/workflows/legacy-component-script-tests.yml'
+      - '.github/legacy-component-allowlist.json'
+
+concurrency:
+  group: legacy-component-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-detection-script:
+    name: Test Detection Script
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Make scripts executable
+        run: |
+          chmod +x ./scripts/detect-legacy-components.sh
+          chmod +x ./scripts/tests/detect-legacy-components.test.sh
+          chmod +x ./scripts/tests/legacy-component-workflow.test.sh
+
+      - name: Run detection script unit tests
+        run: |
+          echo "## Legacy Component Detection Script Tests" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          ./scripts/tests/detect-legacy-components.test.sh 2>&1 | tee test-output.txt
+          
+          # Extract summary
+          echo "### Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -10 test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run workflow contract tests
+        run: |
+          ./scripts/tests/legacy-component-workflow.test.sh 2>&1 | tee workflow-test-output.txt
+          
+          # Extract summary
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Workflow Contract Test Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -10 workflow-test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify detection script runs successfully
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Detection Script Smoke Test" >> $GITHUB_STEP_SUMMARY
+          
+          # Run the actual detection script to ensure it works
+          ./scripts/detect-legacy-components.sh 2>&1 | tee smoke-test-output.txt
+          
+          # Extract key metrics
+          FILES_SCANNED=$(awk -F': ' '/Files scanned:/{print $2}' smoke-test-output.txt || echo "0")
+          VIOLATIONS=$(awk -F': ' '/Violations found:/{print $2}' smoke-test-output.txt || echo "0")
+          
+          echo "- Files scanned: $FILES_SCANNED" >> $GITHUB_STEP_SUMMARY
+          echo "- Violations found: $VIOLATIONS" >> $GITHUB_STEP_SUMMARY
