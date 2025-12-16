@@ -37,7 +37,7 @@ MorningAI implements multiple layers of data isolation to ensure tenant data rem
 
 **Database Level**: Row Level Security (RLS) in PostgreSQL enforces tenant boundaries at the database layer. Every query from authenticated users automatically filters by tenant_id. Service role access (used by backend services) bypasses RLS but is never exposed to client applications. Implementation details are in RLS_IMPLEMENTATION_GUIDE.md.
 
-**Application Level**: The API backend validates tenant context on every request. JWT tokens include tenant_id claims that are verified against the requested resource. Cross-tenant access attempts are blocked and logged.
+**Application Level**: The API backend validates tenant context on every request. JWT tokens include user_id claims; the backend queries the user_profiles table to retrieve the associated tenant_id. RLS policies use `auth.uid()` to look up tenant membership from user_profiles. Cross-tenant access attempts are blocked and logged.
 
 **Cache Level**: Redis keys are prefixed with tenant identifiers to prevent cache pollution between tenants. Key format follows the pattern `tenant:{tenant_id}:{resource_type}:{resource_id}`.
 
@@ -57,11 +57,11 @@ While tenants share infrastructure, network-level controls include rate limiting
 
 Each tenant operates within defined resource limits that can be configured based on subscription tier.
 
-**Compute Quotas**: Maximum concurrent agent tasks (default 10), daily task execution limit (default 1000), and maximum task duration (default 30 minutes).
+**Compute Quotas**: Maximum concurrent agent tasks (default 5), daily task execution limit (default 100), and maximum task duration (default 5 minutes / 300 seconds).
 
-**Storage Quotas**: Database storage limit (default 10GB), file storage limit (default 50GB), and log retention period (default 90 days).
+**Storage Quotas**: Database storage limit (default 1GB), maximum documents (default 1000), maximum embeddings (default 10000), and log retention period (default 90 days).
 
-**API Quotas**: Requests per minute (default 100), requests per day (default 10000), and webhook delivery attempts (default 3).
+**API Quotas**: Requests per minute (default 60), requests per hour (default 1000), requests per day (default 10000), and LLM tokens per day (default 100000).
 
 ### Cost Controls
 

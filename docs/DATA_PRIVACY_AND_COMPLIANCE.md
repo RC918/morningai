@@ -33,7 +33,7 @@ Key tables with RLS enforcement include `agent_tasks`, `tenants`, `users`, `plat
 
 ### Application Layer
 
-The API backend validates tenant context on every request through middleware that extracts tenant_id from JWT claims and injects it into the request context. All database queries automatically scope to the authenticated tenant. Cross-tenant access attempts are logged to the audit system and trigger alerts.
+The API backend validates tenant context on every request through middleware that extracts user_id from JWT claims, then queries the user_profiles table to retrieve the associated tenant_id. This tenant_id is injected into the request context. All database queries automatically scope to the authenticated tenant via RLS policies that use `auth.uid()` to look up tenant membership. Cross-tenant access attempts are logged to the audit system and trigger alerts.
 
 ### Network Layer
 
@@ -43,7 +43,7 @@ Tenant data flows through isolated channels with API endpoints scoped by tenant 
 
 ### JWT-Based Authentication
 
-MorningAI uses JWT tokens for authentication with the following security measures: tokens expire after a configurable period (default 1 hour), refresh tokens enable session continuity without re-authentication, token revocation is supported via a blocklist in Redis, and all tokens are signed with RS256 algorithm.
+MorningAI uses JWT tokens for authentication with the following security measures: tokens expire after a configurable period (default 1 hour), refresh tokens enable session continuity without re-authentication, token revocation is supported via a blocklist in Redis, and all tokens are signed with HS256 algorithm (symmetric key).
 
 ### Role-Based Access Control (RBAC)
 
