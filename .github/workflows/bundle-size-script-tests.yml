@@ -1,0 +1,137 @@
+# =============================================================================
+# Bundle Size Script Tests Workflow
+# =============================================================================
+#
+# PURPOSE:
+#   Validates the bundle size measurement script and its fallback mechanisms.
+#   This ensures that the script correctly handles edge cases like:
+#   - Vite output parsing failures
+#   - Direct gzip calculation fallback
+#   - bc/awk fallback for calculations
+#   - Zero-value detection
+#
+# RELATED:
+#   - scripts/measure-bundle-size.sh: Main bundle size measurement script
+#   - scripts/tests/measure-bundle-size.test.sh: Unit tests for the script
+#   - Issue #2476: CI fallback coverage tests
+#   - Epic #2304: Phase 2 Design System Migration
+#
+# =============================================================================
+
+name: Bundle Size Script Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/measure-bundle-size.sh'
+      - 'scripts/tests/measure-bundle-size.test.sh'
+      - '.github/workflows/bundle-size-script-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/measure-bundle-size.sh'
+      - 'scripts/tests/measure-bundle-size.test.sh'
+      - '.github/workflows/bundle-size-script-tests.yml'
+
+jobs:
+  unit-tests:
+    name: Bundle Size Script Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run unit tests
+        run: |
+          echo "## Bundle Size Script Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          chmod +x scripts/tests/measure-bundle-size.test.sh
+          
+          if ./scripts/tests/measure-bundle-size.test.sh 2>&1 | tee test_output.txt; then
+            echo "### All tests passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  bc-unavailable-test:
+    name: Test awk Fallback (bc unavailable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test with bc unavailable
+        run: |
+          echo "## awk Fallback Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Create a wrapper script that hides bc
+          mkdir -p /tmp/no-bc-bin
+          cat > /tmp/no-bc-bin/bc << 'EOF'
+          #!/bin/bash
+          echo "bc: command not found" >&2
+          exit 127
+          EOF
+          chmod +x /tmp/no-bc-bin/bc
+          
+          # Run tests with bc "unavailable" (PATH trick)
+          export PATH="/tmp/no-bc-bin:$PATH"
+          
+          chmod +x scripts/tests/measure-bundle-size.test.sh
+          
+          if ./scripts/tests/measure-bundle-size.test.sh 2>&1 | tee test_output.txt; then
+            echo "### awk fallback tests passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Tests passed with bc unavailable, confirming awk fallback works correctly." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### awk fallback tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  script-syntax-check:
+    name: Bash Syntax Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check bash syntax
+        run: |
+          echo "## Bash Syntax Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          FAILED=0
+          
+          for script in scripts/measure-bundle-size.sh scripts/tests/measure-bundle-size.test.sh; do
+            if bash -n "$script" 2>&1; then
+              echo "- $script: syntax OK" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- $script: syntax ERROR" >> $GITHUB_STEP_SUMMARY
+              FAILED=1
+            fi
+          done
+          
+          if [ $FAILED -eq 1 ]; then
+            exit 1
+          fi
