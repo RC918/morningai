@@ -12,15 +12,75 @@ Technical assessments, strategic plans, and approval documents from CTO reviews.
 
 ### Coverage Reports
 
-Test coverage reports and analysis.
+Test coverage reports, improvement strategies, and coverage milestones.
 
-- [Coverage Reports Directory](../coverage/) (located in `docs/coverage/`)
+- [Coverage Reports Directory](coverage/README.md)
+
+### Analysis Reports
+
+Code analysis, architecture reviews, and technical assessments.
+
+- [Analysis Reports Directory](analysis/README.md)
 
 ### Security Reports
 
-Security audits and assessments.
+Security audits, vulnerability assessments, and compliance reports.
 
-- [Security Reports Directory](../security/) (located in `docs/security/`)
+- [Security Reports Directory](security/README.md)
+
+### Operations Reports
+
+Deployment reports, production readiness checklists, and operational documentation.
+
+- [Operations Reports Directory](ops/README.md)
+
+### Phase Implementation Reports
+
+Reports documenting the implementation progress of various project phases.
+
+- [Phase Reports Directory](phase/README.md)
+
+### PR Review Reports
+
+CTO acceptance reports, code review findings, and PR validation documentation.
+
+- [PR Review Reports Directory](pr-reviews/README.md)
+
+### UI/UX Reports
+
+User interface and user experience assessments, accessibility audits, and design validation.
+
+- [UI/UX Reports Directory](uiux/README.md)
+
+### Validation Reports
+
+Test results, verification checklists, and validation documentation.
+
+- [Validation Reports Directory](validation/README.md)
+
+### Infrastructure Reports
+
+Infrastructure setup, monitoring, and system configuration reports.
+
+- [Infrastructure Reports Directory](infrastructure/README.md)
+
+### Calibration Reports
+
+Model calibration, performance tuning, and optimization tracking.
+
+- [Calibration Reports Directory](calibration/README.md)
+
+### Planning Documents
+
+Project plans, migration strategies, and implementation roadmaps.
+
+- [Planning Documents Directory](planning/README.md)
+
+## Related Documentation
+
+- [Runbooks](../runbooks/README.md) - Operational runbooks and quick reference guides
+- [Guides](../guides/README.md) - Developer guides and workflow documentation
+- [Releases](../releases/README.md) - Version release notes
 
 ## Adding New Reports
 
