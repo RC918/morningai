@@ -9,6 +9,7 @@ PR: PR 2 - Sessions API Integration
 """
 import logging
 import json
+import re
 import uuid
 from collections import Counter
 from datetime import datetime, timezone
@@ -100,6 +101,30 @@ def _get_session_and_user(session_id: str) -> tuple:
     return session_data, user_info, key
 
 
+# Pre-compiled regex patterns for IDE activity extraction (performance optimization)
+# Issue #2241: Real-time IDE sync UI
+_IDE_WRITE_PATTERN = re.compile(
+    r'(?:editing|modified|created|updated|wrote)\s+[`"\']?([^\s`"\']+\.[a-zA-Z0-9]+)',
+    re.IGNORECASE
+)
+_IDE_READ_PATTERN = re.compile(
+    r'(?:reading|opened)\s+[`"\']?([^\s`"\']+\.[a-zA-Z0-9]+)',
+    re.IGNORECASE
+)
+_IDE_FILE_REF_PATTERN = re.compile(
+    r'file[:\s]+[`"\']?([^\s`"\']+\.[a-zA-Z0-9]+)',
+    re.IGNORECASE
+)
+_IDE_FILE_EXT_PATTERN = re.compile(
+    r'([a-zA-Z0-9_/.-]+\.(py|js|jsx|ts|tsx|json|yaml|yml|md|css|html))',
+    re.IGNORECASE
+)
+
+# Action types that indicate file modification (not just reading)
+_WRITE_ACTION_TYPES = frozenset(['WRITE_CODE', 'EDIT_FILE', 'CREATE_FILE'])
+_READ_ACTION_TYPES = frozenset(['READ_FILE'])
+
+
 def _extract_ide_activity(session_data: dict) -> dict:
     """
     Extract IDE activity information from session data.
@@ -109,75 +134,111 @@ def _extract_ide_activity(session_data: dict) -> dict:
     Extracts file-related operations from observations and actions to show
     which files the agent is working on and recent changes.
 
+    Processing order: Actions first (structured, reliable), then observations (heuristic).
+    This ensures that if the same file appears in both, the action's metadata takes precedence.
+
     Args:
         session_data: Raw session data from Redis
 
     Returns:
         dict with:
-        - activeFile: Currently active file path (if detectable)
+        - activeFile: Currently active file path (most recent MODIFIED file, excludes reads)
         - recentFiles: List of recently modified files with timestamps
         - ideUrl: Public URL for IDE access (if configured)
         - hasIdeSession: Whether an IDE session is active
     """
-    import re
-
     ide_metadata = session_data.get('ide_session', {})
     context = session_data.get('context', {})
 
-    # Extract file paths from observations
     observations = session_data.get('observations', [])
     actions = session_data.get('actions', [])
-
-    # Patterns to detect file operations
-    file_patterns = [
-        r'(?:editing|modified|created|updated|wrote|reading|opened)\s+[`"\']?([^\s`"\']+\.[a-zA-Z0-9]+)',
-        r'file[:\s]+[`"\']?([^\s`"\']+\.[a-zA-Z0-9]+)',
-        r'([a-zA-Z0-9_/.-]+\.(py|js|jsx|ts|tsx|json|yaml|yml|md|css|html))',
-    ]
 
     recent_files = []
     seen_files = set()
 
-    # Extract from observations
-    for obs in reversed(observations[-20:]):
-        obs_text = obs.get('observation', '')
-        timestamp = obs.get('timestamp', '')
-
-        for pattern in file_patterns:
-            matches = re.findall(pattern, obs_text, re.IGNORECASE)
-            for match in matches:
-                file_path = match[0] if isinstance(match, tuple) else match
-                if file_path and file_path not in seen_files:
-                    seen_files.add(file_path)
-                    recent_files.append({
-                        'path': file_path,
-                        'timestamp': timestamp,
-                        'action': 'modified'
-                    })
-
-    # Extract from actions
+    # Extract from actions FIRST (more reliable, structured data)
     for action in reversed(actions[-20:]):
         action_type = action.get('action_type', '')
         result = action.get('result', {})
         timestamp = action.get('timestamp', '')
 
-        # Check for file-related action types
-        if action_type in ['WRITE_CODE', 'EDIT_FILE', 'CREATE_FILE', 'READ_FILE']:
+        if action_type in _WRITE_ACTION_TYPES:
             file_path = result.get('file_path') or result.get('path', '')
             if file_path and file_path not in seen_files:
                 seen_files.add(file_path)
                 recent_files.append({
                     'path': file_path,
                     'timestamp': timestamp,
-                    'action': 'modified' if action_type != 'READ_FILE' else 'read'
+                    'action': 'modified'
+                })
+        elif action_type in _READ_ACTION_TYPES:
+            file_path = result.get('file_path') or result.get('path', '')
+            if file_path and file_path not in seen_files:
+                seen_files.add(file_path)
+                recent_files.append({
+                    'path': file_path,
+                    'timestamp': timestamp,
+                    'action': 'read'
+                })
+
+    # Extract from observations SECOND (heuristic, less reliable)
+    # Distinguish between write and read operations based on verb
+    for obs in reversed(observations[-20:]):
+        obs_text = obs.get('observation', '')
+        timestamp = obs.get('timestamp', '')
+
+        # Check for write operations (editing, modified, created, updated, wrote)
+        for match in _IDE_WRITE_PATTERN.findall(obs_text):
+            file_path = match[0] if isinstance(match, tuple) else match
+            if file_path and file_path not in seen_files:
+                seen_files.add(file_path)
+                recent_files.append({
+                    'path': file_path,
+                    'timestamp': timestamp,
+                    'action': 'modified'
+                })
+
+        # Check for read operations (reading, opened)
+        for match in _IDE_READ_PATTERN.findall(obs_text):
+            file_path = match[0] if isinstance(match, tuple) else match
+            if file_path and file_path not in seen_files:
+                seen_files.add(file_path)
+                recent_files.append({
+                    'path': file_path,
+                    'timestamp': timestamp,
+                    'action': 'read'
+                })
+
+        # Check for generic file references (fallback, mark as 'read' since intent unclear)
+        for match in _IDE_FILE_REF_PATTERN.findall(obs_text):
+            file_path = match[0] if isinstance(match, tuple) else match
+            if file_path and file_path not in seen_files:
+                seen_files.add(file_path)
+                recent_files.append({
+                    'path': file_path,
+                    'timestamp': timestamp,
+                    'action': 'read'
+                })
+
+        # Check for file extension patterns (fallback, mark as 'read')
+        for match in _IDE_FILE_EXT_PATTERN.findall(obs_text):
+            file_path = match[0] if isinstance(match, tuple) else match
+            if file_path and file_path not in seen_files:
+                seen_files.add(file_path)
+                recent_files.append({
+                    'path': file_path,
+                    'timestamp': timestamp,
+                    'action': 'read'
                 })
 
     # Sort by timestamp descending and limit
     recent_files.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
     recent_files = recent_files[:10]
 
-    # Determine active file (most recent modified file)
-    active_file = recent_files[0]['path'] if recent_files else None
+    # Determine active file: most recent MODIFIED file (excludes reads)
+    # This ensures activeFile only shows files being actively edited
+    modified_files = [f for f in recent_files if f.get('action') != 'read']
+    active_file = modified_files[0]['path'] if modified_files else None
 
     # Get IDE URL from metadata or context
     ide_url = (

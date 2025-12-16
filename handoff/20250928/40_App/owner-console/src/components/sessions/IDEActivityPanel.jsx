@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Badge, SectionCard } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/apple/apple-button'
@@ -8,7 +8,6 @@ import {
   ExternalLink,
   Eye,
   Clock,
-  Edit3,
   FileText,
   ChevronRight,
   Activity,
@@ -51,6 +50,9 @@ const IDEActivityPanel = ({
     const prevPaths = new Set(prevFilesRef.current.map(f => f.path))
     const newFiles = recentFiles.filter(f => !prevPaths.has(f.path))
     
+    // Always update prevFilesRef at the start to avoid stale comparisons
+    prevFilesRef.current = recentFiles
+    
     if (newFiles.length > 0) {
       const newPaths = new Set(newFiles.map(f => f.path))
       setHighlightedFiles(newPaths)
@@ -62,8 +64,6 @@ const IDEActivityPanel = ({
       
       return () => clearTimeout(timer)
     }
-    
-    prevFilesRef.current = recentFiles
   }, [recentFiles])
 
   const handleFileClick = useCallback((file) => {
@@ -235,13 +235,13 @@ const IDEActivityPanel = ({
           </div>
           
           <div className="space-y-1 max-h-64 overflow-y-auto">
-            {recentFiles.map((file, index) => {
+            {recentFiles.map((file) => {
               const isHighlighted = highlightedFiles.has(file.path)
               const isSelected = selectedFile === file.path
               
               return (
                 <button
-                  key={`${file.path}-${index}`}
+                  key={file.path}
                   type="button"
                   onClick={() => handleFileClick(file)}
                   className={`
