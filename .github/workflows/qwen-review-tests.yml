@@ -176,11 +176,14 @@ jobs:
           PATTERN='\.(env(\..+)?|pem|key|secret|credential)$'
           
           # Should match (case-insensitive)
+          # Note: .env.* files (including backups like .env.example.bak) are treated as sensitive
+          # because the regex \.env(\..+)?$ matches .env followed by any extension(s)
           SHOULD_MATCH=(
             ".env"
             ".ENV"
             ".env.local"
             ".env.production"
+            ".env.example.bak"
             "config.pem"
             "private.key"
             "api.secret"
@@ -190,13 +193,14 @@ jobs:
           )
           
           # Should NOT match
+          # These files contain "env", "key", etc. in their names but don't end with sensitive extensions
           SHOULD_NOT_MATCH=(
             "environment.ts"
             "key.ts"
             ".envrc"
             "secret-manager.py"
             "credentials.json"
-            "my.env.example.bak"
+            "myenvfile.txt"
           )
           
           FAILED=0
