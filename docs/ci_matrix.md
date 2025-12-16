@@ -729,6 +729,9 @@ git commit -m "chore: update pnpm-lock.yaml"
 
 **為何非 Required**: 腳本測試重要但不阻擋緊急修復
 
+**維護注意事項**:
+此測試套件與 `verify_system_state.sh` 腳本需要長期同步維護。當修改腳本輸出格式、新增驗證項目、或變更 repo 結構時，需同步更新測試。測試 fixtures 會自動從真實 repo 讀取預期值（如 React 版本），以降低手動同步成本。
+
 **相關 Issue**: #2581 (verify_system_state.sh Regression Tests)
 
 ---

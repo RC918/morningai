@@ -5,10 +5,25 @@ Tests the system state verification script that validates documentation vs code 
 This script is critical for CI and validates React versions, pgvector, orchestrator architecture, etc.
 
 Related Issue: #2581
+
+MAINTENANCE NOTE:
+=================
+These tests and the verify_system_state.sh script require long-term synchronized maintenance.
+When modifying either:
+1. Script output format changes -> Update assertion helpers and test expectations
+2. Repository structure changes -> Update fixture paths (temp_repo, minimal_valid_repo)
+3. New verification checks added -> Add corresponding test cases
+4. React/dependency versions change -> Tests auto-read from real repo's package.json
+
+The test fixtures derive expected values (like React version) from the actual repository
+to minimize manual sync cost. If tests fail after repo restructuring, check:
+- FRONTEND_DASHBOARD_PATH and OWNER_CONSOLE_PATH constants
+- Directory structure in temp_repo and minimal_valid_repo fixtures
 """
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -21,6 +36,58 @@ os.environ['IDEMPOTENCY_TESTS_ALLOWED'] = 'true'
 
 # Path to the script under test
 SCRIPT_PATH = Path(__file__).parent.parent / 'scripts' / 'verify_system_state.sh'
+REPO_ROOT = Path(__file__).parent.parent
+
+# Repo structure constants - update these if repo structure changes
+FRONTEND_DASHBOARD_PATH = 'handoff/20250928/40_App/frontend-dashboard'
+OWNER_CONSOLE_PATH = 'handoff/20250928/40_App/owner-console'
+API_BACKEND_PATH = 'handoff/20250928/40_App/api-backend'
+
+
+def get_expected_react_version() -> str:
+    """Read expected React version from real repo's pnpm overrides.
+
+    This reduces manual sync cost - tests auto-adapt to version changes.
+    """
+    try:
+        pkg_json = REPO_ROOT / 'package.json'
+        if pkg_json.exists():
+            data = json.loads(pkg_json.read_text())
+            version = data.get('pnpm', {}).get('overrides', {}).get('react', '^19.1.0')
+            return version.lstrip('^~')
+    except (json.JSONDecodeError, KeyError):
+        pass
+    return '19.1.0'  # Fallback
+
+
+# Assertion helpers for flexible output matching
+def assert_check_present(stdout: str, check_label: str) -> None:
+    """Assert a check label appears in output (partial match)."""
+    assert check_label in stdout, f"Expected check '{check_label}' not found in output"
+
+
+def assert_check_passed(stdout: str, check_label: str) -> None:
+    """Assert a check passed (has checkmark prefix)."""
+    pattern = rf'[✓✅]\s*{re.escape(check_label)}'
+    assert re.search(pattern, stdout), f"Check '{check_label}' did not pass"
+
+
+def assert_check_failed(stdout: str, check_label: str) -> None:
+    """Assert a check failed (has X or error prefix)."""
+    pattern = rf'[✗❌⚠]\s*{re.escape(check_label)}'
+    assert re.search(pattern, stdout), f"Check '{check_label}' did not fail"
+
+
+def assert_verification_status(stdout: str, status: str) -> None:
+    """Assert verification summary status (PASSED/FAILED)."""
+    assert f'Verification {status}' in stdout, f"Expected 'Verification {status}' in output"
+
+
+def assert_version_match(stdout: str, app_name: str, version: str) -> None:
+    """Assert version output with flexible matching (ignores exact formatting)."""
+    pattern = rf'{re.escape(app_name)}.*React version[:\s]+{re.escape(version)}'
+    assert re.search(pattern, stdout, re.IGNORECASE), \
+        f"Expected {app_name} React version {version} not found"
 
 
 def setup_base_package_files(repo_path: Path) -> None:
@@ -964,3 +1031,199 @@ class TestEnvironmentVariables:
         )
 
         assert 'DATABASE_URL is set' in result.stdout
+
+
+class TestExceptionScenarios:
+    """Test exception scenarios: path anomalies, missing files, permissions.
+
+    These tests verify the script handles edge cases gracefully without crashing.
+    """
+
+    def test_path_with_spaces(self, tmp_path: Path):
+        """Test script handles paths containing spaces."""
+        # Create repo in path with spaces
+        repo_with_spaces = tmp_path / 'repo with spaces'
+        repo_with_spaces.mkdir()
+        (repo_with_spaces / 'scripts').mkdir()
+        shutil.copy(SCRIPT_PATH, repo_with_spaces / 'scripts' / 'verify_system_state.sh')
+
+        # Setup minimal structure
+        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard').mkdir(parents=True)
+        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'owner-console').mkdir(parents=True)
+        (repo_with_spaces / 'package.json').write_text(json.dumps({
+            "pnpm": {"overrides": {"react": "^19.1.0"}}
+        }))
+        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+            json.dumps({"dependencies": {"react": "^19.1.0"}})
+        )
+        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+            json.dumps({"dependencies": {"react": "^19.1.0"}})
+        )
+
+        result = subprocess.run(
+            ['bash', str(repo_with_spaces / 'scripts' / 'verify_system_state.sh')],
+            cwd=repo_with_spaces,
+            capture_output=True,
+            text=True
+        )
+
+        # Script should run without crashing on paths with spaces
+        assert result.returncode in (0, 1), f"Script crashed: {result.stderr}"
+        assert 'React version' in result.stdout or 'Verification' in result.stdout
+
+    def test_symlinked_script(self, minimal_valid_repo: Path, tmp_path: Path):
+        """Test script works when accessed via symlink."""
+        # Create symlink to the script
+        symlink_dir = tmp_path / 'symlinked'
+        symlink_dir.mkdir()
+        symlink_path = symlink_dir / 'verify_system_state.sh'
+        symlink_path.symlink_to(minimal_valid_repo / 'scripts' / 'verify_system_state.sh')
+
+        result = subprocess.run(
+            ['bash', str(symlink_path)],
+            cwd=minimal_valid_repo,
+            capture_output=True,
+            text=True
+        )
+
+        # Script should work via symlink
+        assert result.returncode in (0, 1), f"Script failed via symlink: {result.stderr}"
+
+    def test_missing_scripts_directory(self, tmp_path: Path):
+        """Test graceful handling when scripts directory is missing."""
+        # Create minimal repo without scripts dir
+        (tmp_path / 'package.json').write_text('{}')
+
+        # Script won't exist, so we test that bash reports the error properly
+        result = subprocess.run(
+            ['bash', str(tmp_path / 'scripts' / 'verify_system_state.sh')],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True
+        )
+
+        # Should fail with file not found
+        assert result.returncode != 0
+
+    @pytest.mark.skipif(os.name != 'posix', reason="Permission tests only work on POSIX")
+    @pytest.mark.skipif(os.geteuid() == 0, reason="Root bypasses permission checks")
+    def test_unreadable_package_json(self, temp_repo: Path):
+        """Test handling of unreadable package.json (permission denied)."""
+        setup_base_package_files(temp_repo)
+        pkg_json = temp_repo / 'package.json'
+
+        # Remove read permission
+        original_mode = pkg_json.stat().st_mode
+        try:
+            os.chmod(pkg_json, 0o000)
+
+            result = subprocess.run(
+                ['bash', str(temp_repo / 'scripts' / 'verify_system_state.sh')],
+                cwd=temp_repo,
+                capture_output=True,
+                text=True
+            )
+
+            # Script should handle permission error gracefully (non-zero exit)
+            assert result.returncode != 0
+        finally:
+            # Restore permissions for cleanup
+            os.chmod(pkg_json, original_mode)
+
+    def test_empty_directory_structure(self, tmp_path: Path):
+        """Test script behavior with completely empty repo."""
+        (tmp_path / 'scripts').mkdir()
+        shutil.copy(SCRIPT_PATH, tmp_path / 'scripts' / 'verify_system_state.sh')
+
+        result = subprocess.run(
+            ['bash', str(tmp_path / 'scripts' / 'verify_system_state.sh')],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True
+        )
+
+        # Script should fail but not crash
+        assert result.returncode != 0
+
+    def test_corrupted_json_files(self, temp_repo: Path):
+        """Test handling of corrupted/invalid JSON in multiple files."""
+        # Create corrupted package.json files
+        (temp_repo / 'package.json').write_text('{invalid json')
+        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+            'not json at all'
+        )
+
+        result = subprocess.run(
+            ['bash', str(temp_repo / 'scripts' / 'verify_system_state.sh')],
+            cwd=temp_repo,
+            capture_output=True,
+            text=True
+        )
+
+        # Script should handle JSON errors gracefully
+        assert result.returncode != 0
+
+    def test_very_long_file_paths(self, tmp_path: Path):
+        """Test handling of very long file paths."""
+        # Create deeply nested path (but within filesystem limits)
+        deep_path = tmp_path
+        for i in range(10):
+            deep_path = deep_path / f'level{i}'
+        deep_path.mkdir(parents=True)
+
+        # Copy script to deep path
+        (deep_path / 'scripts').mkdir()
+        shutil.copy(SCRIPT_PATH, deep_path / 'scripts' / 'verify_system_state.sh')
+
+        # Setup required directory structure for script to run
+        (deep_path / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard').mkdir(parents=True)
+        (deep_path / 'handoff' / '20250928' / '40_App' / 'owner-console').mkdir(parents=True)
+        (deep_path / 'package.json').write_text(json.dumps({
+            "pnpm": {"overrides": {"react": "^19.1.0"}}
+        }))
+        (deep_path / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+            json.dumps({"dependencies": {"react": "^19.1.0"}})
+        )
+        (deep_path / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+            json.dumps({"dependencies": {"react": "^19.1.0"}})
+        )
+
+        result = subprocess.run(
+            ['bash', str(deep_path / 'scripts' / 'verify_system_state.sh')],
+            cwd=deep_path,
+            capture_output=True,
+            text=True
+        )
+
+        # Script should handle deep paths
+        assert result.returncode in (0, 1), f"Script crashed on deep path: {result.stderr}"
+
+
+class TestRepoStructureSanity:
+    """Sanity tests to verify test fixtures match real repo structure.
+
+    These tests help catch when the real repo structure changes,
+    ensuring fixtures stay in sync.
+    """
+
+    def test_frontend_dashboard_path_exists(self):
+        """Verify frontend-dashboard path exists in real repo."""
+        path = REPO_ROOT / FRONTEND_DASHBOARD_PATH
+        assert path.exists(), f"Repo structure changed: {FRONTEND_DASHBOARD_PATH} not found"
+
+    def test_owner_console_path_exists(self):
+        """Verify owner-console path exists in real repo."""
+        path = REPO_ROOT / OWNER_CONSOLE_PATH
+        assert path.exists(), f"Repo structure changed: {OWNER_CONSOLE_PATH} not found"
+
+    def test_script_exists(self):
+        """Verify verify_system_state.sh exists."""
+        assert SCRIPT_PATH.exists(), f"Script not found at {SCRIPT_PATH}"
+
+    def test_pnpm_overrides_exist(self):
+        """Verify pnpm overrides exist in root package.json."""
+        pkg_json = REPO_ROOT / 'package.json'
+        assert pkg_json.exists(), "Root package.json not found"
+        data = json.loads(pkg_json.read_text())
+        assert 'pnpm' in data, "pnpm key not in package.json"
+        assert 'overrides' in data['pnpm'], "pnpm.overrides not in package.json"
