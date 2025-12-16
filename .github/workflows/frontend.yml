@@ -141,7 +141,7 @@ jobs:
       # These should be reduced over time as errors are fixed
       # See Issue #935 for tracking progress
       FRONTEND_DASHBOARD_BASELINE: 0
-      OWNER_CONSOLE_BASELINE: 9
+      OWNER_CONSOLE_BASELINE: 6
       SHARED_UI_BASELINE: 9
     steps:
       - uses: actions/checkout@v4
