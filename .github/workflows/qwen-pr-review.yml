@@ -120,6 +120,9 @@ jobs:
         if: steps.check_reviewed.outputs.skip != 'true'
         id: diff
         run: |
+          # Source shared library for consistent patterns
+          source scripts/lib/qwen_pr_review.sh
+          
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
           
@@ -129,8 +132,8 @@ jobs:
           # Get diff with context
           git diff --unified=3 "$BASE_SHA".."$HEAD_SHA" > full_diff.patch
           
-          # Check for sensitive files (case-insensitive, anchored to avoid false positives)
-          SENSITIVE_FILES=$(git diff --name-only "$BASE_SHA".."$HEAD_SHA" | grep -Ei '\.(env(\..+)?|pem|key|secret|credential)$' || true)
+          # Check for sensitive files using shared pattern
+          SENSITIVE_FILES=$(git diff --name-only "$BASE_SHA".."$HEAD_SHA" | grep -Ei "$QWEN_SENSITIVE_FILE_PATTERN" || true)
           if [ -n "$SENSITIVE_FILES" ]; then
             echo "SENSITIVE_WARNING=true" >> "$GITHUB_ENV"
             echo "Detected potentially sensitive files: $SENSITIVE_FILES"
@@ -292,10 +295,13 @@ jobs:
           echo "Endpoint: $QWEN_API_ENDPOINT"
           echo "Timeout: 120 seconds per attempt"
           
-          # Retry configuration
-          MAX_ATTEMPTS=3
-          RETRY_CODES="429 500 502 503 504"  # Transient errors worth retrying
-          NO_RETRY_CODES="400 401 403 404"   # Non-transient errors (bad request, auth, not found)
+          # Source shared library for consistent retry configuration
+          source scripts/lib/qwen_pr_review.sh
+          
+          # Use shared retry configuration
+          MAX_ATTEMPTS=$QWEN_MAX_ATTEMPTS
+          RETRY_CODES="$QWEN_RETRY_CODES"
+          NO_RETRY_CODES="$QWEN_NO_RETRY_CODES"
           
           API_SUCCESS=false
           LAST_HTTP_CODE=""
@@ -340,8 +346,8 @@ jobs:
             # Transient error - retry with exponential backoff
             if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
               BACKOFF=$((2 ** attempt))
-              # Cap backoff at 30 seconds
-              [ "$BACKOFF" -gt 30 ] && BACKOFF=30
+              # Cap backoff using shared constant
+              [ "$BACKOFF" -gt "$QWEN_MAX_BACKOFF" ] && BACKOFF=$QWEN_MAX_BACKOFF
               echo "Retrying in ${BACKOFF}s..."
               sleep "$BACKOFF"
             fi
