@@ -1,7 +1,10 @@
 [run]
+# Coverage configuration for MorningAI monorepo
+# Target: backend 60%, orchestrator 50%
 source =
     scripts
-    handoff/20250928/40_App/api-backend/src/middleware
+    handoff/20250928/40_App/api-backend/src
+    handoff/20250928/40_App/orchestrator
 
 omit =
     */tests/*
@@ -11,10 +14,20 @@ omit =
     */.venv/*
     */migrations/*
     */agents/**
-    */orchestrator/**
     */packages/**
+    # Exclude generated files
+    */generated/*
+    */*_pb2.py
+    */*_pb2_grpc.py
 
 [report]
+# Coverage thresholds by component:
+# - api-backend: 60% (target)
+# - orchestrator: 50% (target)
+# Overall fail_under is set conservatively; component-specific
+# thresholds are enforced in CI workflows
+fail_under = 50
+
 exclude_lines =
     pragma: no cover
     def __repr__
@@ -23,3 +36,12 @@ exclude_lines =
     if __name__ == .__main__.:
     if TYPE_CHECKING:
     @abstractmethod
+    # Exclude defensive programming patterns
+    except ImportError
+    except ModuleNotFoundError
+
+[html]
+directory = coverage_html_report
+
+[xml]
+output = coverage.xml
