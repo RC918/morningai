@@ -278,11 +278,12 @@ def create_app(config=None):
         flask_secret = "dev-only-fallback-secret-key"
     flask_app.config["SECRET_KEY"] = flask_secret
 
-    flask_app.config["ENABLE_MOCK_USERS"] = app_settings.enable_mock_users
+    settings_instance = get_settings()
+    if 'enable_mock_users' in settings_instance.model_fields_set:
+        flask_app.config["ENABLE_MOCK_USERS"] = app_settings.enable_mock_users
 
     flask_app.config["TESTING"] = app_settings.testing
     
-    settings_instance = get_settings()
     if 'rate_limit_requests' in settings_instance.model_fields_set:
         flask_app.config["RATE_LIMIT_REQUESTS"] = app_settings.rate_limit_requests
 

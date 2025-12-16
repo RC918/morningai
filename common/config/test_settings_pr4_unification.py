@@ -202,6 +202,32 @@ class TestModelFieldsSet:
             assert 'testing' in instance.model_fields_set
             assert instance.testing is True
 
+    def test_enable_mock_users_in_fields_set_when_provided(self):
+        """enable_mock_users should be in model_fields_set when explicitly set."""
+        with patch.dict(os.environ, {
+            'ENABLE_MOCK_USERS': 'true',
+            'ENVIRONMENT': 'development'
+        }, clear=False):
+            instance = Settings()
+            assert 'enable_mock_users' in instance.model_fields_set
+            assert instance.enable_mock_users is True
+
+    def test_enable_mock_users_not_in_fields_set_when_default(self):
+        """enable_mock_users should NOT be in model_fields_set when using default.
+        
+        This is critical for test mode behavior: auth_service.is_mock_users_enabled()
+        checks if 'ENABLE_MOCK_USERS' key exists in Flask config. If the key doesn't
+        exist, test mode defaults to True. We preserve this by only setting the
+        Flask config key when the env var is explicitly provided.
+        """
+        env_without_mock = {
+            k: v for k, v in os.environ.items() if k != 'ENABLE_MOCK_USERS'
+        }
+        with patch.dict(os.environ, env_without_mock, clear=True):
+            instance = Settings()
+            assert 'enable_mock_users' not in instance.model_fields_set
+            assert instance.enable_mock_users is False
+
 
 class TestFeatureFlagCombinations:
     """Test feature flag combinations for 2FA, mock users, and rate limiting."""
