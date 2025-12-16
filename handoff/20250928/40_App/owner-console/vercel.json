@@ -68,6 +68,8 @@
     }
   ],
   "git": {
-    "deploymentEnabled": true
+    "deploymentEnabled": {
+      "gh-pages-storybook": false
+    }
   }
 }
