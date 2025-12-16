@@ -10,12 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 const meta = {
   title: 'Components/Form',
-  component: Form,
   parameters: {
     layout: 'padded',
   },
   tags: ['autodocs'],
-} satisfies Meta<typeof Form>
+} satisfies Meta
 
 export default meta
 type Story = StoryObj<typeof meta>

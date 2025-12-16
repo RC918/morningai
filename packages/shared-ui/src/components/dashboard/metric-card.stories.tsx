@@ -10,6 +10,10 @@ const meta = {
     layout: "padded",
   },
   tags: ["autodocs"],
+  args: {
+    title: "Metric",
+    value: 0,
+  },
   argTypes: {
     variant: {
       control: "select",
