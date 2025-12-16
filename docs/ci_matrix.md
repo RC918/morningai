@@ -4,7 +4,7 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 24
+- **總工作流數量**: 25
 - **支援 workflow_dispatch**: 23 (96%)
 - **Branch Protection 必須檢查**: 4
 
@@ -698,6 +698,41 @@ git commit -m "chore: update pnpm-lock.yaml"
 ```
 
 **相關 Issue**: #2579 (CI Lockfile Sync Check)
+
+---
+
+### 25. `verify-system-state-tests` (test)
+**檔案**: `.github/workflows/verify-system-state-tests.yml`
+
+**用途**: verify_system_state.sh 回歸測試，確保文件與程式碼一致性檢查腳本正常運作
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發
+- ✅ `push` - main 分支推送（當 verify_system_state.sh 或其測試檔案變更時）
+- ✅ `pull_request` - 所有 PR（當 verify_system_state.sh 或其測試檔案變更時）
+
+**執行內容**:
+- **回歸測試**: 執行 43 個測試案例，涵蓋 10 個驗證類別
+- **語法檢查**: 驗證 verify_system_state.sh bash 語法正確
+
+**測試覆蓋範圍**:
+- React 版本提取與比對
+- pnpm overrides 讀取
+- pgvector 驗證
+- 雙 orchestrator 架構驗證
+- Production URL 映射
+- Alembic 狀態
+- Phase API 模組
+- 關鍵依賴
+- ADR 驗證
+- Edge cases（空 JSON、unicode、malformed JSON 等）
+
+**為何非 Required**: 腳本測試重要但不阻擋緊急修復
+
+**維護注意事項**:
+此測試套件與 `verify_system_state.sh` 腳本需要長期同步維護。當修改腳本輸出格式、新增驗證項目、或變更 repo 結構時，需同步更新測試。測試 fixtures 會自動從真實 repo 讀取預期值（如 React 版本），以降低手動同步成本。
+
+**相關 Issue**: #2581 (verify_system_state.sh Regression Tests)
 
 ---
 
