@@ -392,6 +392,9 @@ describe('Design Tokens', () => {
 
     it('should maintain focus outline width >= 3px for AAA compliance', () => {
       const outlineWidth = getToken('accessibility.focus.outline-width')
+      if (!outlineWidth) {
+        throw new Error('Missing accessibility.focus.outline-width token')
+      }
       const widthValue = parseInt(outlineWidth, 10)
       
       // WCAG AAA requires visible focus indicators
@@ -401,6 +404,9 @@ describe('Design Tokens', () => {
 
     it('should maintain focus outline offset >= 2px for visibility', () => {
       const outlineOffset = getToken('accessibility.focus.outline-offset')
+      if (!outlineOffset) {
+        throw new Error('Missing accessibility.focus.outline-offset token')
+      }
       const offsetValue = parseInt(outlineOffset, 10)
       
       // 2px offset ensures focus ring doesn't overlap content
