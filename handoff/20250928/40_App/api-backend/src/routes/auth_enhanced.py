@@ -88,9 +88,9 @@ def get_csrf_token():
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
         
-        from src.services.auth_service import create_cookie_config, ACCESS_TOKEN_EXPIRY_MINUTES
+        from src.services.auth_service import create_cookie_config, get_access_token_expiry_minutes
         response.set_cookie(
-            **create_cookie_config('csrf_token', csrf_token, ACCESS_TOKEN_EXPIRY_MINUTES * 60, httponly=False)
+            **create_cookie_config('csrf_token', csrf_token, get_access_token_expiry_minutes() * 60, httponly=False)
         )
         
         logger.debug("CSRF token generated")

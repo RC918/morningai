@@ -233,15 +233,16 @@ class TestTokenGeneration:
     
     def test_generate_access_token_expiry(self):
         """Should set correct expiry time (15 minutes)"""
-        from services.auth_service import generate_access_token, ACCESS_TOKEN_EXPIRY_MINUTES
+        from services.auth_service import generate_access_token, get_access_token_expiry_minutes
         
         before = datetime.datetime.now(datetime.UTC)
         token, expiry_ms = generate_access_token('user-123', 'test@example.com', 'admin')
         after = datetime.datetime.now(datetime.UTC)
         
+        access_token_expiry_minutes = get_access_token_expiry_minutes()
         expiry_dt = datetime.datetime.fromtimestamp(expiry_ms / 1000, tz=datetime.UTC)
-        expected_min = before + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRY_MINUTES) - datetime.timedelta(seconds=1)
-        expected_max = after + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRY_MINUTES) + datetime.timedelta(seconds=1)
+        expected_min = before + datetime.timedelta(minutes=access_token_expiry_minutes) - datetime.timedelta(seconds=1)
+        expected_max = after + datetime.timedelta(minutes=access_token_expiry_minutes) + datetime.timedelta(seconds=1)
         
         assert expected_min <= expiry_dt <= expected_max
     

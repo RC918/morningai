@@ -21,18 +21,51 @@ from common.config.settings import get_settings, settings
 
 logger = logging.getLogger(__name__)
 
+# One-time warning flags to avoid log spam
+_warned_settings_load_failed = False
+_warned_startup_config_failed = False
+
 # Token Configuration
-ACCESS_TOKEN_EXPIRY_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', '15'))
 REFRESH_TOKEN_EXPIRY_DAYS = 7
 JWT_ALGORITHM = 'HS256'
 
-if os.getenv('LOG_TOKEN_EXPIRY_ON_STARTUP'):
-    env_val = os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set, using default 15')
-    print(
-        f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} "
-        f"(from env: {env_val})",
-        flush=True
-    )
+
+def get_access_token_expiry_minutes() -> int:
+    """Get access token expiry in minutes (use-time accessor).
+    
+    This is a use-time accessor instead of import-time constant to ensure
+    tests can modify the value via environment variables without needing
+    to reload the module.
+    """
+    return get_settings().access_token_expiry_minutes
+
+
+def _log_token_config_on_startup():
+    """Log token configuration on startup if enabled.
+    
+    Wrapped in try/except to prevent import failures if settings
+    validation fails due to invalid environment variable combinations.
+    Logs warning once if settings load fails.
+    """
+    global _warned_startup_config_failed
+    try:
+        if get_settings().log_token_expiry_on_startup:
+            expiry = get_access_token_expiry_minutes()
+            print(
+                f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={expiry}",
+                flush=True
+            )
+    except Exception as e:
+        if not _warned_startup_config_failed:
+            _warned_startup_config_failed = True
+            logger.warning(
+                "Failed to log token config on startup (settings validation error): %s. "
+                "This may indicate misconfigured environment variables.",
+                e
+            )
+
+
+_log_token_config_on_startup()
 
 def _as_bool(val):
     """Convert value to boolean"""
@@ -44,7 +77,16 @@ def _as_bool(val):
     return s in ("1", "true", "yes", "on")
 
 def is_testing_mode():
-    """Check if running in testing mode (dynamic check)"""
+    """Check if running in testing mode (dynamic check)
+    
+    Priority order:
+    1. Flask app.config TESTING (explicit override)
+    2. os.environ TESTING (direct check to avoid triggering Pydantic validators)
+    3. settings.testing (use-time access via Pydantic, fallback)
+    
+    Note: We check os.environ before settings to avoid triggering Pydantic
+    validators that may fail when other env vars are set incorrectly.
+    """
     try:
         from flask import current_app
         if current_app:
@@ -53,7 +95,23 @@ def is_testing_mode():
                 return _as_bool(v)
     except Exception:
         pass
-    return _as_bool(os.getenv("TESTING"))
+    
+    env_testing = os.environ.get("TESTING")
+    if env_testing is not None:
+        return _as_bool(env_testing)
+    
+    global _warned_settings_load_failed
+    try:
+        return get_settings().testing
+    except Exception as e:
+        if not _warned_settings_load_failed:
+            _warned_settings_load_failed = True
+            logger.warning(
+                "Failed to load settings in is_testing_mode() (settings validation error): %s. "
+                "Falling back to False. This may indicate misconfigured environment variables.",
+                e
+            )
+        return False
 
 def is_production():
     """Check if running in production mode (dynamic check)
@@ -267,7 +325,7 @@ def generate_access_token(user_id: str, email: str, role: str) -> Tuple[str, int
         Tuple of (token, expiry_timestamp_ms)
     """
     now = datetime.datetime.now(datetime.UTC)
-    expiry = now + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRY_MINUTES)
+    expiry = now + datetime.timedelta(minutes=get_access_token_expiry_minutes())
     expiry_timestamp = int(expiry.timestamp() * 1000)  # milliseconds
     
     payload = {
@@ -473,7 +531,7 @@ def set_auth_cookies(
         access_expiry_ms: Access token expiry in milliseconds
         csrf_token: Optional CSRF token (required if SameSite=None)
     """
-    access_max_age = ACCESS_TOKEN_EXPIRY_MINUTES * 60
+    access_max_age = get_access_token_expiry_minutes() * 60
     response.set_cookie(
         **create_cookie_config('access_token', access_token, access_max_age, httponly=True)
     )
