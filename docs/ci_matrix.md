@@ -596,7 +596,7 @@
 
 **執行內容**:
 - 取得 PR diff 並截斷至 80KB（控制 token 成本）
-- 根據 PR labels 調整審查重點（frontend/backend/security/database/infra）
+- 根據 PR labels 調整審查重點（`ui`/`frontend`, `backend`/`api`, `security`, `database`/`migration`, `infra`/`devops`）
 - 呼叫 Qwen API 進行程式碼審查
 - 發佈 sticky comment 顯示審查結果
 - 使用 checklist 格式標示問題嚴重程度（CRITICAL/HIGH/MEDIUM/LOW）
@@ -645,7 +645,7 @@
 
 **觸發條件**:
 - ✅ `workflow_dispatch` - 手動觸發
-- ✅ `push` - 當 `qwen-pr-review.yml`、`qwen-review-tests.yml` 或測試腳本變更時
+- ✅ `push` - 當 `qwen-pr-review.yml`、`qwen-review-tests.yml` 變更時（測試邏輯內嵌於 workflow 的 `run:` 區塊）
 - ✅ `pull_request` - 當相關檔案變更時
 
 **執行內容**:
@@ -659,6 +659,8 @@
 - **nektos/act dry-run**: 使用 act 驗證 workflow YAML 語法
 
 **為何非 Required**: 測試工具，失敗不阻擋開發流程
+
+**維護注意事項**: 目前測試邏輯直接內嵌於 workflow 的 `run:` 區塊，與 production workflow 的邏輯是「重寫」而非「共用」。若 production workflow 邏輯變更，需同步更新測試。未來建議抽出共用腳本（如 `scripts/qwen_pr_review.sh`），由 production workflow 與 tests workflow 共同 source，以避免 drift。
 
 **相關 Issue**: #2551 (nektos/act 自動化測試)
 
@@ -842,8 +844,7 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ## 📝 版本歷史
 
-- **2025-12-16**: 新增 `qwen-pr-review` 和 `qwen-review-tests` 工作流文檔（Issue #2552）
-- **2025-12-16**: 記錄 Qwen AI Code Review 安全機制、成本控制、智能功能
+- **2025-12-16**: 新增 `qwen-pr-review` 和 `qwen-review-tests` 工作流文檔，記錄安全機制、成本控制、智能功能（Issue #2551, #2552）
 - **2025-11-30**: 新增 `coverage-trend` 和 `redis-security-check` 工作流文檔
 - **2025-11-30**: 記錄覆蓋率趨勢追蹤機制（Redis 存儲、dashboard 工具）
 - **2025-11-30**: 記錄 Redis CVE-2025-49844 安全監控機制
