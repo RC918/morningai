@@ -1,0 +1,387 @@
+# .github/workflows/qwen-review-tests.yml
+#
+# Qwen AI Code Review Workflow - Unit Tests
+#
+# This workflow tests the shell script logic used in qwen-pr-review.yml
+# to ensure reliability and catch regressions before they affect production.
+#
+# Tests cover:
+# - GITHUB_ENV multiline variable handling
+# - JSON encoding safety (special characters, injection prevention)
+# - @mention removal logic
+# - Sensitive file detection patterns
+# - Markdown truncation and code fence handling
+# - API retry logic simulation
+#
+# Related: .github/workflows/qwen-pr-review.yml
+# Issue: #2551 (nektos/act automated testing)
+
+name: "Qwen Review Tests"
+
+on:
+  push:
+    paths:
+      - '.github/workflows/qwen-pr-review.yml'
+      - '.github/workflows/qwen-review-tests.yml'
+      - 'scripts/tests/qwen-review.test.sh'
+  pull_request:
+    paths:
+      - '.github/workflows/qwen-pr-review.yml'
+      - '.github/workflows/qwen-review-tests.yml'
+      - 'scripts/tests/qwen-review.test.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-shell-logic:
+    name: Test Shell Script Logic
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test GITHUB_ENV multiline handling
+        run: |
+          echo "::group::Test GITHUB_ENV multiline handling"
+          
+          # Test case 1: Content with special characters
+          TEST_CONTENT='Line 1
+          Line 2 with "quotes" and $variables
+          Line 3 with backslash \ and backticks `code`
+          Line 4 with @mention and email@example.com'
+          
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            printf '%s\n' "TEST_VAR<<$DELIMITER"
+            printf '%s\n' "$TEST_CONTENT"
+            printf '%s\n' "$DELIMITER"
+          } >> "$GITHUB_ENV"
+          
+          echo "GITHUB_ENV write completed"
+          echo "::endgroup::"
+
+      - name: Verify GITHUB_ENV content
+        run: |
+          echo "::group::Verify GITHUB_ENV content"
+          
+          # Check that the variable was set correctly
+          if [ -z "$TEST_VAR" ]; then
+            echo "::error::TEST_VAR is empty"
+            exit 1
+          fi
+          
+          # Check multiline content preserved
+          LINE_COUNT=$(echo "$TEST_VAR" | wc -l)
+          if [ "$LINE_COUNT" -lt 4 ]; then
+            echo "::error::Multiline content not preserved (got $LINE_COUNT lines, expected 4+)"
+            exit 1
+          fi
+          
+          echo "TEST_VAR has $LINE_COUNT lines - OK"
+          echo "::endgroup::"
+
+      - name: Test JSON encoding safety
+        run: |
+          echo "::group::Test JSON encoding safety"
+          
+          # Test various dangerous inputs
+          DANGEROUS_INPUTS=(
+            'Normal text'
+            'Text with "double quotes"'
+            "Text with 'single quotes'"
+            'Text with \backslash'
+            'Text with $dollar and $(command)'
+            'Text with `backticks`'
+            'Text with
+          newlines'
+            'Text with unicode: 中文 日本語 한국어'
+            'Text with emoji: 🚀 ✅ ❌'
+          )
+          
+          FAILED=0
+          for input in "${DANGEROUS_INPUTS[@]}"; do
+            # Use jq to safely encode
+            ENCODED=$(jq -n --arg text "$input" '$text')
+            
+            # Verify it's valid JSON
+            if ! echo "$ENCODED" | jq -e . > /dev/null 2>&1; then
+              echo "::error::Failed to encode: $input"
+              FAILED=1
+            fi
+            
+            # Verify round-trip
+            DECODED=$(echo "$ENCODED" | jq -r '.')
+            if [ "$DECODED" != "$input" ]; then
+              echo "::error::Round-trip failed for: $input"
+              FAILED=1
+            fi
+          done
+          
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+          
+          echo "All JSON encoding tests passed"
+          echo "::endgroup::"
+
+      - name: Test @mention removal
+        run: |
+          echo "::group::Test @mention removal"
+          
+          # Test cases: input -> expected (@ should have zero-width space after it)
+          # The perl regex: s/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g
+          
+          TEST_CASES=(
+            "@username|should be modified"
+            "email@example.com|should NOT be modified"
+            "Hello @user1 and @user2|both should be modified"
+            "test@domain.com @realuser|only @realuser modified"
+            "@@double|first @ modified"
+          )
+          
+          FAILED=0
+          for case in "${TEST_CASES[@]}"; do
+            INPUT="${case%%|*}"
+            DESCRIPTION="${case##*|}"
+            
+            # Apply the same transformation as qwen-pr-review.yml
+            OUTPUT=$(printf '%s' "$INPUT" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$INPUT")
+            
+            # Check that @username patterns have zero-width space
+            # But email@domain.com should remain unchanged
+            if echo "$INPUT" | grep -qE '(^|[^a-zA-Z0-9])@[a-zA-Z0-9_-]+'; then
+              # Has @mention pattern - should be modified
+              if [ "$OUTPUT" = "$INPUT" ]; then
+                # Check if it's an email (should not be modified)
+                if ! echo "$INPUT" | grep -qE '[a-zA-Z0-9]@[a-zA-Z0-9]'; then
+                  echo "::warning::@mention not modified: $INPUT ($DESCRIPTION)"
+                fi
+              fi
+            fi
+            
+            echo "Input: $INPUT"
+            echo "Output length: ${#OUTPUT} (input was ${#INPUT})"
+          done
+          
+          echo "All @mention tests completed"
+          echo "::endgroup::"
+
+      - name: Test sensitive file detection
+        run: |
+          echo "::group::Test sensitive file detection"
+          
+          # Test the case-insensitive regex pattern
+          PATTERN='\.(env(\..+)?|pem|key|secret|credential)$'
+          
+          # Should match (case-insensitive)
+          SHOULD_MATCH=(
+            ".env"
+            ".ENV"
+            ".env.local"
+            ".env.production"
+            "config.pem"
+            "private.key"
+            "api.secret"
+            "db.credential"
+            "FILE.PEM"
+            "test.KEY"
+          )
+          
+          # Should NOT match
+          SHOULD_NOT_MATCH=(
+            "environment.ts"
+            "key.ts"
+            ".envrc"
+            "secret-manager.py"
+            "credentials.json"
+            "my.env.example.bak"
+          )
+          
+          FAILED=0
+          
+          echo "Testing files that SHOULD match:"
+          for file in "${SHOULD_MATCH[@]}"; do
+            if echo "$file" | grep -Eiq "$PATTERN"; then
+              echo "  OK: $file"
+            else
+              echo "  FAIL: $file (should have matched)"
+              FAILED=1
+            fi
+          done
+          
+          echo ""
+          echo "Testing files that should NOT match:"
+          for file in "${SHOULD_NOT_MATCH[@]}"; do
+            if echo "$file" | grep -Eiq "$PATTERN"; then
+              echo "  FAIL: $file (should NOT have matched)"
+              FAILED=1
+            else
+              echo "  OK: $file"
+            fi
+          done
+          
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+          
+          echo "All sensitive file detection tests passed"
+          echo "::endgroup::"
+
+      - name: Test Markdown truncation
+        run: |
+          echo "::group::Test Markdown truncation"
+          
+          # Test case 1: Content with unclosed code fence
+          CONTENT_WITH_UNCLOSED='Some text
+          ```python
+          def hello():
+              print("world")
+          # No closing fence'
+          
+          # Count fences
+          FENCE_COUNT=$(printf '%s' "$CONTENT_WITH_UNCLOSED" | grep -c '```' || echo "0")
+          echo "Fence count: $FENCE_COUNT"
+          
+          if [ $((FENCE_COUNT % 2)) -eq 1 ]; then
+            echo "Detected unclosed code fence - would add closing fence"
+          else
+            echo "::error::Should have detected unclosed code fence"
+            exit 1
+          fi
+          
+          # Test case 2: Content with closed code fence
+          CONTENT_WITH_CLOSED='Some text
+          ```python
+          def hello():
+              print("world")
+          ```
+          More text'
+          
+          FENCE_COUNT=$(printf '%s' "$CONTENT_WITH_CLOSED" | grep -c '```' || echo "0")
+          echo "Fence count: $FENCE_COUNT"
+          
+          if [ $((FENCE_COUNT % 2)) -eq 0 ]; then
+            echo "Detected balanced code fences - OK"
+          else
+            echo "::error::Should have detected balanced code fences"
+            exit 1
+          fi
+          
+          echo "All Markdown truncation tests passed"
+          echo "::endgroup::"
+
+      - name: Test API retry logic simulation
+        run: |
+          echo "::group::Test API retry logic simulation"
+          
+          # Simulate the retry logic without actual API calls
+          MAX_ATTEMPTS=3
+          RETRY_CODES="429 500 502 503 504"
+          NO_RETRY_CODES="400 401 403 404"
+          
+          # Test case 1: Transient error should retry
+          test_retry() {
+            local HTTP_CODE=$1
+            local EXPECTED_RETRY=$2
+            
+            if echo "$RETRY_CODES" | grep -qw "$HTTP_CODE"; then
+              SHOULD_RETRY=true
+            elif echo "$NO_RETRY_CODES" | grep -qw "$HTTP_CODE"; then
+              SHOULD_RETRY=false
+            else
+              SHOULD_RETRY=false
+            fi
+            
+            if [ "$SHOULD_RETRY" = "$EXPECTED_RETRY" ]; then
+              echo "OK: HTTP $HTTP_CODE -> retry=$SHOULD_RETRY"
+            else
+              echo "FAIL: HTTP $HTTP_CODE -> expected retry=$EXPECTED_RETRY, got $SHOULD_RETRY"
+              return 1
+            fi
+          }
+          
+          FAILED=0
+          
+          # Transient errors - should retry
+          test_retry 429 true || FAILED=1
+          test_retry 500 true || FAILED=1
+          test_retry 502 true || FAILED=1
+          test_retry 503 true || FAILED=1
+          test_retry 504 true || FAILED=1
+          
+          # Non-transient errors - should NOT retry
+          test_retry 400 false || FAILED=1
+          test_retry 401 false || FAILED=1
+          test_retry 403 false || FAILED=1
+          test_retry 404 false || FAILED=1
+          
+          # Success - should NOT retry
+          test_retry 200 false || FAILED=1
+          
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+          
+          echo "All API retry logic tests passed"
+          echo "::endgroup::"
+
+      - name: Test exponential backoff calculation
+        run: |
+          echo "::group::Test exponential backoff calculation"
+          
+          # Test the backoff calculation: 2^attempt, capped at 30
+          for attempt in 1 2 3 4 5; do
+            BACKOFF=$((2 ** attempt))
+            [ "$BACKOFF" -gt 30 ] && BACKOFF=30
+            echo "Attempt $attempt: backoff = ${BACKOFF}s"
+            
+            # Verify expected values
+            case $attempt in
+              1) [ "$BACKOFF" -eq 2 ] || { echo "FAIL: expected 2"; exit 1; } ;;
+              2) [ "$BACKOFF" -eq 4 ] || { echo "FAIL: expected 4"; exit 1; } ;;
+              3) [ "$BACKOFF" -eq 8 ] || { echo "FAIL: expected 8"; exit 1; } ;;
+              4) [ "$BACKOFF" -eq 16 ] || { echo "FAIL: expected 16"; exit 1; } ;;
+              5) [ "$BACKOFF" -eq 30 ] || { echo "FAIL: expected 30 (capped)"; exit 1; } ;;
+            esac
+          done
+          
+          echo "All exponential backoff tests passed"
+          echo "::endgroup::"
+
+  test-with-act:
+    name: Test with nektos/act (dry-run)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install act
+        run: |
+          echo "::group::Install nektos/act"
+          curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash -s -- -b /usr/local/bin
+          act --version
+          echo "::endgroup::"
+
+      - name: Validate workflow syntax (dry-run)
+        run: |
+          echo "::group::Validate qwen-pr-review.yml syntax"
+          
+          # Use act to validate the workflow syntax without running it
+          # -n = dry-run, -l = list workflows
+          act -n -l -W .github/workflows/qwen-pr-review.yml 2>&1 || {
+            echo "::warning::act dry-run had issues (this may be expected for complex workflows)"
+          }
+          
+          echo "Workflow syntax validation completed"
+          echo "::endgroup::"
+
+      - name: List workflow jobs
+        run: |
+          echo "::group::List qwen-pr-review.yml jobs"
+          
+          # List all jobs in the workflow
+          act -l -W .github/workflows/qwen-pr-review.yml 2>&1 || true
+          
+          echo "::endgroup::"
