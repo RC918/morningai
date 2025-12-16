@@ -133,7 +133,8 @@
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.15",
     "wait-on": "^9.0.3",
-    "workbox-window": "^7.4.0"
+    "workbox-window": "^7.4.0",
+    "is-odd": "^3.0.1"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
