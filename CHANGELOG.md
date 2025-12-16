@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Documentation Migration (Epic #2374 Phase 3)** - Major reorganization of root directory documentation
+  - **PR #2584 (PR6)**: Moved 13 CTO reports from root to `docs/reports/cto/`
+  - **PR #2587 (PR7)**: Moved 116 reports from root to structured `docs/reports/` hierarchy
+    - Coverage reports → `docs/reports/coverage/` (13 files)
+    - Analysis reports → `docs/reports/analysis/` (17 files)
+    - Security reports → `docs/reports/security/` (9 files)
+    - Operations reports → `docs/reports/ops/` (5 files)
+    - Phase reports → `docs/reports/phase/` (21 files)
+    - PR review reports → `docs/reports/pr-reviews/` (13 files)
+    - UI/UX reports → `docs/reports/uiux/` (8 files)
+    - Validation reports → `docs/reports/validation/` (9 files)
+    - Infrastructure reports → `docs/reports/infrastructure/` (3 files)
+    - Calibration reports → `docs/reports/calibration/` (3 files)
+    - Planning documents → `docs/reports/planning/` (7 files)
+    - Guides → `docs/guides/` (4 files)
+    - Runbooks → `docs/runbooks/` (2 files)
+    - Release notes → `docs/releases/` (2 files)
+  - **Path Mapping**: See `docs/migration/PR7_PATH_MAPPING.csv` for complete old-to-new path mapping
+  - **Backward Compatibility**: Stub files created for key CTO documents (removal date: 2026-03-16)
+  - **Impact**: External links to root-level report files will break; update references to new paths
+
+### Changed
 - **Phase 1 main.py Refactoring Complete** (PR #2447-#2500)
   - **Phase 1.6: Route Modularization** - Moved all inline routes from main.py to dedicated blueprint modules:
     - PR1.6a: Phase 4-6 routes → `src/routes/phase456.py` (20+ endpoints)
