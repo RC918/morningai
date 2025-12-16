@@ -79,8 +79,7 @@ jobs:
       - name: Setup pnpm
         if: steps.check-pnpm-lock.outputs.exists == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # Version is read from package.json "packageManager" field (single source of truth)
 
       - name: Setup Node.js
         if: steps.check-pnpm-lock.outputs.exists == 'true'
