@@ -1,0 +1,93 @@
+# =============================================================================
+# verify_system_state.sh Regression Tests
+# =============================================================================
+#
+# PURPOSE:
+#   Runs regression tests for scripts/verify_system_state.sh to ensure the
+#   documentation vs code consistency checker works correctly.
+#
+# TRIGGERS:
+#   - Push to main when verify_system_state.sh or its tests change
+#   - Pull requests to main when verify_system_state.sh or its tests change
+#   - Manual workflow dispatch
+#
+# RELATED:
+#   - Issue #2581: verify_system_state.sh Regression Tests
+#   - scripts/verify_system_state.sh: The script being tested
+#   - tests/test_scripts_verify_system_state.py: The test suite
+#
+# =============================================================================
+
+name: verify_system_state.sh Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/verify_system_state.sh'
+      - 'tests/test_scripts_verify_system_state.py'
+      - '.github/workflows/verify-system-state-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/verify_system_state.sh'
+      - 'tests/test_scripts_verify_system_state.py'
+      - '.github/workflows/verify-system-state-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run Regression Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+
+      - name: Run tests
+        run: |
+          echo "## verify_system_state.sh Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if pytest tests/test_scripts_verify_system_state.py -v --tb=short 2>&1 | tee test_output.txt; then
+            echo "### All 43 tests passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -20 test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat test_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Verify script syntax
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Script Syntax Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if bash -n scripts/verify_system_state.sh; then
+            echo "verify_system_state.sh has valid bash syntax" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "verify_system_state.sh has syntax errors" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
