@@ -136,40 +136,73 @@ jobs:
           
           # Test cases: input -> expected (@ should have zero-width space after it)
           # The perl regex: s/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g
-          
-          TEST_CASES=(
-            "@username|should be modified"
-            "email@example.com|should NOT be modified"
-            "Hello @user1 and @user2|both should be modified"
-            "test@domain.com @realuser|only @realuser modified"
-            "@@double|first @ modified"
-          )
+          # Zero-width space: U+200B (UTF-8: E2 80 8B)
           
           FAILED=0
-          for case in "${TEST_CASES[@]}"; do
-            INPUT="${case%%|*}"
-            DESCRIPTION="${case##*|}"
-            
-            # Apply the same transformation as qwen-pr-review.yml
-            OUTPUT=$(printf '%s' "$INPUT" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$INPUT")
-            
-            # Check that @username patterns have zero-width space
-            # But email@domain.com should remain unchanged
-            if echo "$INPUT" | grep -qE '(^|[^a-zA-Z0-9])@[a-zA-Z0-9_-]+'; then
-              # Has @mention pattern - should be modified
-              if [ "$OUTPUT" = "$INPUT" ]; then
-                # Check if it's an email (should not be modified)
-                if ! echo "$INPUT" | grep -qE '[a-zA-Z0-9]@[a-zA-Z0-9]'; then
-                  echo "::warning::@mention not modified: $INPUT ($DESCRIPTION)"
-                fi
-              fi
-            fi
-            
-            echo "Input: $INPUT"
-            echo "Output length: ${#OUTPUT} (input was ${#INPUT})"
-          done
           
-          echo "All @mention tests completed"
+          # Test 1: Simple @username should be modified
+          INPUT="@username"
+          OUTPUT=$(printf '%s' "$INPUT" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$INPUT")
+          
+          # Assert: zero-width space must be present
+          if ! printf '%s' "$OUTPUT" | grep -q $'\xE2\x80\x8B'; then
+            echo "::error::Zero-width space not found in @username transformation"
+            echo "Input: $INPUT"
+            echo "Output hex: $(printf '%s' "$OUTPUT" | xxd -p)"
+            FAILED=1
+          else
+            echo "OK: @username has zero-width space inserted"
+          fi
+          
+          # Test 2: email@example.com should NOT be modified
+          INPUT="email@example.com"
+          OUTPUT=$(printf '%s' "$INPUT" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$INPUT")
+          
+          # Assert: zero-width space must NOT be present (email should be unchanged)
+          if printf '%s' "$OUTPUT" | grep -q $'\xE2\x80\x8B'; then
+            echo "::error::Zero-width space incorrectly inserted in email address"
+            echo "Input: $INPUT"
+            echo "Output hex: $(printf '%s' "$OUTPUT" | xxd -p)"
+            FAILED=1
+          else
+            echo "OK: email@example.com unchanged (no zero-width space)"
+          fi
+          
+          # Test 3: Mixed content - only @mention should be modified
+          INPUT="test@domain.com @realuser"
+          OUTPUT=$(printf '%s' "$INPUT" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$INPUT")
+          
+          # Assert: exactly one zero-width space (for @realuser only)
+          ZWS_COUNT=$(printf '%s' "$OUTPUT" | grep -o $'\xE2\x80\x8B' | wc -l)
+          if [ "$ZWS_COUNT" -ne 1 ]; then
+            echo "::error::Expected exactly 1 zero-width space, got $ZWS_COUNT"
+            echo "Input: $INPUT"
+            echo "Output hex: $(printf '%s' "$OUTPUT" | xxd -p)"
+            FAILED=1
+          else
+            echo "OK: Mixed content has exactly 1 zero-width space (for @realuser)"
+          fi
+          
+          # Test 4: Multiple @mentions
+          INPUT="Hello @user1 and @user2"
+          OUTPUT=$(printf '%s' "$INPUT" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$INPUT")
+          
+          # Assert: exactly two zero-width spaces
+          ZWS_COUNT=$(printf '%s' "$OUTPUT" | grep -o $'\xE2\x80\x8B' | wc -l)
+          if [ "$ZWS_COUNT" -ne 2 ]; then
+            echo "::error::Expected exactly 2 zero-width spaces, got $ZWS_COUNT"
+            echo "Input: $INPUT"
+            echo "Output hex: $(printf '%s' "$OUTPUT" | xxd -p)"
+            FAILED=1
+          else
+            echo "OK: Multiple @mentions have 2 zero-width spaces"
+          fi
+          
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+          
+          echo "All @mention tests passed"
           echo "::endgroup::"
 
       - name: Test sensitive file detection
@@ -398,9 +431,28 @@ jobs:
       - name: Install act
         env:
           ACT_VERSION: "0.2.70"  # Pin to stable version for reproducibility
+          # SHA256 checksum from https://github.com/nektos/act/releases/download/v0.2.70/checksums.txt
+          ACT_CHECKSUM: "9ad9859c94e1951bdc051c8774010d21c29062b7eb86bb74ababcf6bbc2e933e"
         run: |
-          echo "::group::Install nektos/act v${ACT_VERSION}"
-          curl -sL "https://github.com/nektos/act/releases/download/v${ACT_VERSION}/act_Linux_x86_64.tar.gz" | sudo tar xz -C /usr/local/bin act
+          echo "::group::Install nektos/act v${ACT_VERSION} with checksum verification"
+          
+          # Download to temp file for checksum verification (supply chain security)
+          TARBALL="/tmp/act_Linux_x86_64.tar.gz"
+          curl -sL "https://github.com/nektos/act/releases/download/v${ACT_VERSION}/act_Linux_x86_64.tar.gz" -o "$TARBALL"
+          
+          # Verify SHA256 checksum
+          echo "${ACT_CHECKSUM}  ${TARBALL}" | sha256sum -c -
+          if [ $? -ne 0 ]; then
+            echo "::error::Checksum verification failed for act v${ACT_VERSION}"
+            rm -f "$TARBALL"
+            exit 1
+          fi
+          echo "Checksum verified: ${ACT_CHECKSUM}"
+          
+          # Extract and install
+          sudo tar xzf "$TARBALL" -C /usr/local/bin act
+          rm -f "$TARBALL"
+          
           act --version
           echo "Installed act version: $(act --version)"
           echo "::endgroup::"
