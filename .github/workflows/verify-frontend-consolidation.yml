@@ -26,8 +26,10 @@ jobs:
             ':!docs/adr/001-pnpm-turborepo-migration.md' \
             ':!docs/VERCEL_PNPM_INCIDENT_REPORT.md' \
             ':!docs/LIGHTHOUSE_CI_GUIDE.md' \
-            ':!CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT.md' \
-            ':!CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT_OLD.md' \
+              ':!CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT.md' \
+              ':!CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT_OLD.md' \
+              ':!docs/reports/cto/CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT.md' \
+              ':!docs/reports/cto/archive/CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT_OLD.md' \
             ':!DEPENDENCY_MANAGEMENT.md' \
             ':!PROJECT_DEEP_ANALYSIS.md' \
             ':!pnpm-lock.yaml' \
