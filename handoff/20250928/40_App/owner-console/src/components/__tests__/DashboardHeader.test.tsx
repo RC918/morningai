@@ -79,13 +79,13 @@ const renderDashboardHeader = (props = {}) => {
     notificationCount: 0,
     onLogout: vi.fn(),
   }
-  const userEventInstance = userEvent.setup()
+  const userInteraction = userEvent.setup()
   const result = render(
     <MemoryRouter>
       <DashboardHeader {...defaultProps} {...props} />
     </MemoryRouter>
   )
-  return { ...result, userEvent: userEventInstance, ...defaultProps, ...props }
+  return { ...result, userInteraction, ...defaultProps, ...props }
 }
 
 describe('DashboardHeader', () => {
