@@ -1,13 +1,33 @@
-## Phase 2 PR - Design System Card Migration
+<!--
+================================================================================
+PHASE 2 PR TEMPLATE - Phase 2 設計系統遷移專用模板
+================================================================================
 
-<!-- 
-此模板專用於 Phase 2 設計系統遷移 PR。
-如果您的 PR 不是 Phase 2 遷移的一部分，請使用預設模板。
+適用時機 (When to Use):
+- Phase 2 設計系統遷移 PR（Epic #2304）
+- 將 Legacy Card 遷移到 Shared-UI Card 的 PR
+- 需要填寫 Audit Delta Report 和 Bundle Size Report 的 PR
 
-選擇此模板的方式：
-- 建立 PR 時在 URL 加上 ?template=phase2.md
-- 或從 GitHub 的模板選擇器中選擇
+如何選擇此模板 (How to Select):
+- 方法 1: 在 PR URL 後加上 ?template=phase2.md
+  例如: https://github.com/RC918/morningai/compare/main...your-branch?template=phase2.md
+- 方法 2: 從 GitHub 的模板選擇器中選擇 "phase2"
+
+注意事項 (Important Notes):
+- 此模板包含完整的 Phase 2 Audit Checklist
+- 必須執行 ./scripts/phase2_audit.sh 並填寫 Audit Delta Report
+- 必須執行 ./scripts/measure-bundle-size.sh 並填寫 Bundle Size Report
+- 如果您的 PR 不是 Phase 2 遷移，請使用預設模板（不加 ?template 參數）
+
+其他模板:
+- 一般 PR: 預設模板（不加參數）
+- 緊急修復: ?template=hotfix.md
+
+文檔參考: CONTRIBUTING.md#phase-2-pr-要求epic-2304
+================================================================================
 -->
+
+## Phase 2 PR - Design System Card Migration
 
 **Phase**: 2-X (e.g., 2-1a, 2-2b)
 **Target Page/Component**: [Page or component name]

@@ -141,12 +141,18 @@ https://github.com/RC918/morningai/compare/main...your-branch?template=phase2.md
 
 ### Phase 2 PR 要求（Epic #2304）
 
+> ⚠️ **重要提醒**：多模板機制實施後，Phase 2 PR **不再默認包含 Phase 2 Audit Checklist**。
+> 您必須**明確選擇 `phase2.md` 模板**才能獲得完整的 Phase 2 檢查清單。
+> 如果您使用預設模板建立 Phase 2 PR，將缺少必要的 Audit Delta Report 和 Bundle Size Report 區塊。
+
 Phase 2 設計系統遷移 PR 必須遵循以下流程：
 
 #### 必要步驟
 
-1. **選擇 Phase 2 模板**：
-   建立 PR 時使用 `?template=phase2.md` 參數，或從模板選擇器中選擇 `phase2.md`
+1. **選擇 Phase 2 模板**（必要）：
+   - 方法 1：在 PR URL 後加上 `?template=phase2.md`
+   - 方法 2：從 GitHub 模板選擇器中選擇 `phase2`
+   - ❌ 不要使用預設模板，否則將缺少 Phase 2 必要區塊
 
 2. **執行 Audit 腳本**：
    ```bash

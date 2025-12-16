@@ -1,13 +1,33 @@
-## Hotfix PR
+<!--
+================================================================================
+HOTFIX PR TEMPLATE - 緊急修復專用模板
+================================================================================
 
-<!-- 
-此模板專用於緊急修復 PR。
-僅在需要快速修復生產環境問題時使用。
+適用時機 (When to Use):
+- 生產環境緊急修復（P0 優先級）
+- 需要快速修復並部署的問題
+- 影響用戶的關鍵 bug 修復
 
-選擇此模板的方式：
-- 建立 PR 時在 URL 加上 ?template=hotfix.md
-- 或從 GitHub 的模板選擇器中選擇
+如何選擇此模板 (How to Select):
+- 方法 1: 在 PR URL 後加上 ?template=hotfix.md
+  例如: https://github.com/RC918/morningai/compare/main...your-branch?template=hotfix.md
+- 方法 2: 從 GitHub 的模板選擇器中選擇 "hotfix"
+
+注意事項 (Important Notes):
+- 此模板簡化了檢查清單，專注於快速修復
+- 必須填寫問題描述、修復方案和 Rollback Plan
+- 建議建立 follow-up issue 進行完整修復（如這是臨時修復）
+- 如果不是緊急修復，請使用預設模板
+
+其他模板:
+- 一般 PR: 預設模板（不加參數）
+- Phase 2 遷移: ?template=phase2.md
+
+文檔參考: CONTRIBUTING.md#pr-template-選擇
+================================================================================
 -->
+
+## Hotfix PR
 
 **Priority**: P0 - 緊急修復
 **Affected Environment**: Production / Staging / Both
