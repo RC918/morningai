@@ -32,6 +32,7 @@ jobs:
               ':!docs/reports/cto/archive/CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT_OLD.md' \
             ':!DEPENDENCY_MANAGEMENT.md' \
             ':!PROJECT_DEEP_ANALYSIS.md' \
+            ':!docs/reports/analysis/PROJECT_DEEP_ANALYSIS.md' \
             ':!pnpm-lock.yaml' \
             ':!.gitignore' \
             ; then
