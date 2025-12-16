@@ -116,6 +116,62 @@ These checks ensure code quality and prevent breaking changes.
 - `verify_redis_security.py` - Redis security checks
 - `verify_secret_inventory.py` - Secret inventory verification
 
+### Dependency Management
+- `sync-react-versions.sh` - Automated React version synchronization tool
+
+## sync-react-versions.sh
+
+Automated tool to synchronize React and @types/react versions across all workspace packages using pnpm overrides as the single source of truth.
+
+### Requirements
+
+- **Node.js >= 18.0.0** - Required for JSON parsing
+- **pnpm** - Required only when using `--install` flag
+
+### Usage
+
+```bash
+# Check version alignment (CI mode - exits 1 if misaligned)
+./scripts/sync-react-versions.sh --check
+
+# Preview changes without applying (dry-run)
+./scripts/sync-react-versions.sh --dry-run
+
+# Sync versions from pnpm overrides
+./scripts/sync-react-versions.sh
+
+# Sync with specific version
+./scripts/sync-react-versions.sh --version 19.2.0
+
+# Sync specific workspace only
+./scripts/sync-react-versions.sh --workspace packages/shared-ui
+
+# Auto-run pnpm install after sync
+./scripts/sync-react-versions.sh --install
+
+# Verbose output
+./scripts/sync-react-versions.sh --verbose
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success (all versions aligned or updated) |
+| 1 | Version misalignment detected (in --check mode) |
+| 2 | Invalid arguments or missing required tools |
+| 3 | File not found or permission error |
+| 4 | JSON parse error |
+| 5 | pnpm install failed |
+
+### How It Works
+
+1. Reads target versions from `pnpm.overrides` in root `package.json`
+2. Discovers workspaces from `pnpm-workspace.yaml`
+3. Detects library vs application workspaces (libraries use peerDependencies)
+4. Updates `dependencies`, `devDependencies`, and `peerDependencies` as appropriate
+5. Optionally runs `pnpm install` to update lockfile
+
 ### Configuration
 - `check-env-drift.py` - Environment drift detection
 - `generate-env-examples.py` - Generate environment examples

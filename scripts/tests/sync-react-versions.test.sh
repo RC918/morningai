@@ -66,6 +66,14 @@ setup() {
   }
 }
 EOF
+
+  # Create pnpm-workspace.yaml for dynamic workspace discovery
+  cat > "$TEST_DIR/pnpm-workspace.yaml" << 'EOF'
+packages:
+  - 'packages/*'
+  - 'handoff/20250928/40_App/frontend-dashboard'
+  - 'handoff/20250928/40_App/owner-console'
+EOF
 }
 
 teardown() {
@@ -150,7 +158,25 @@ test_unknown_option() {
   local exit_code=0
   output=$("$SYNC_SCRIPT" --unknown-option 2>&1) || exit_code=$?
   
-  assert_exit_code "1" "$exit_code" "Unknown option should exit with 1"
+  assert_exit_code "2" "$exit_code" "Unknown option should exit with 2 (EXIT_INVALID_ARGS)"
+}
+
+test_version_flag_missing_arg() {
+  local output
+  local exit_code=0
+  output=$("$SYNC_SCRIPT" --version 2>&1) || exit_code=$?
+  
+  assert_exit_code "2" "$exit_code" "Missing version arg should exit with 2"
+  assert_contains "$output" "requires" "Should mention requires argument"
+}
+
+test_workspace_flag_missing_arg() {
+  local output
+  local exit_code=0
+  output=$("$SYNC_SCRIPT" --workspace 2>&1) || exit_code=$?
+  
+  assert_exit_code "2" "$exit_code" "Missing workspace arg should exit with 2"
+  assert_contains "$output" "requires" "Should mention requires argument"
 }
 
 # ============================================================================
@@ -203,7 +229,7 @@ test_invalid_version_format() {
   cd "$TEST_DIR"
   output=$("$SYNC_SCRIPT" --version "invalid" 2>&1) || exit_code=$?
   
-  assert_exit_code "1" "$exit_code" "Invalid version should exit with 1"
+  assert_exit_code "2" "$exit_code" "Invalid version should exit with 2 (EXIT_INVALID_ARGS)"
 }
 
 # ============================================================================
@@ -421,7 +447,179 @@ EOF
   
   output=$("$SYNC_SCRIPT" --check 2>&1) || exit_code=$?
   
-  assert_contains "$output" "not found" "Should warn about missing workspace"
+  # Script should still work with remaining workspaces
+  assert_exit_code "0" "$exit_code" "Should succeed with remaining workspaces"
+}
+
+# ============================================================================
+# TEST: Custom workspace option
+# ============================================================================
+
+test_custom_workspace_option() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Create aligned workspace
+  cat > "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  output=$("$SYNC_SCRIPT" --workspace "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard" --check 2>&1) || exit_code=$?
+  
+  assert_exit_code "0" "$exit_code" "Custom workspace should work"
+  assert_contains "$output" "custom" "Should mention custom workspace"
+}
+
+test_custom_workspace_not_found() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  output=$("$SYNC_SCRIPT" --workspace "/nonexistent/path" --check 2>&1) || exit_code=$?
+  
+  assert_exit_code "3" "$exit_code" "Missing workspace should exit with 3 (EXIT_FILE_ERROR)"
+  assert_contains "$output" "not found" "Should mention not found"
+}
+
+# ============================================================================
+# TEST: Library workspace handling
+# ============================================================================
+
+test_library_workspace_peer_deps_preserved() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Create library workspace with peerDependencies
+  cat > "$TEST_DIR/packages/shared-ui/package.json" << 'EOF'
+{
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2"
+  }
+}
+EOF
+  
+  # Create app workspace
+  cat > "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  cat > "$TEST_DIR/handoff/20250928/40_App/owner-console/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  output=$("$SYNC_SCRIPT" --check --verbose 2>&1) || exit_code=$?
+  
+  assert_exit_code "0" "$exit_code" "Library with peer deps should pass"
+  assert_contains "$output" "library" "Should identify as library"
+}
+
+# ============================================================================
+# TEST: Dynamic workspace discovery
+# ============================================================================
+
+test_workspace_discovery() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Create workspaces
+  cat > "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  cat > "$TEST_DIR/handoff/20250928/40_App/owner-console/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  output=$("$SYNC_SCRIPT" --check --verbose 2>&1) || exit_code=$?
+  
+  assert_exit_code "0" "$exit_code" "Workspace discovery should work"
+  assert_contains "$output" "Discovered" "Should mention discovered workspaces"
+}
+
+# ============================================================================
+# TEST: Exit codes
+# ============================================================================
+
+test_exit_code_misaligned() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Create misaligned workspace
+  cat > "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}
+EOF
+  
+  cat > "$TEST_DIR/handoff/20250928/40_App/owner-console/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  output=$("$SYNC_SCRIPT" --check 2>&1) || exit_code=$?
+  
+  assert_exit_code "1" "$exit_code" "Misaligned should exit with 1 (EXIT_MISALIGNED)"
+}
+
+test_missing_pnpm_workspace_yaml() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Remove pnpm-workspace.yaml
+  rm -f "$TEST_DIR/pnpm-workspace.yaml"
+  
+  output=$("$SYNC_SCRIPT" --check 2>&1) || exit_code=$?
+  
+  assert_exit_code "3" "$exit_code" "Missing pnpm-workspace.yaml should exit with 3"
+  assert_contains "$output" "pnpm-workspace.yaml" "Should mention missing file"
 }
 
 # ============================================================================
@@ -447,6 +645,8 @@ main() {
   echo "Help and Usage Tests:"
   run_test "Help flag shows usage" test_help_flag
   run_test "Unknown option exits with error" test_unknown_option
+  run_test "Version flag missing arg exits with error" test_version_flag_missing_arg
+  run_test "Workspace flag missing arg exits with error" test_workspace_flag_missing_arg
   echo ""
   
   # Version validation tests
@@ -476,9 +676,27 @@ main() {
   run_test "Extracts version from pnpm overrides" test_version_extraction_from_overrides
   echo ""
   
-  # Missing workspace tests
-  echo "Missing Workspace Tests:"
-  run_test "Warns about missing workspaces" test_missing_workspace_warning
+  # Workspace discovery tests
+  echo "Workspace Discovery Tests:"
+  run_test "Dynamic workspace discovery" test_workspace_discovery
+  run_test "Missing workspace handled gracefully" test_missing_workspace_warning
+  echo ""
+  
+  # Custom workspace tests
+  echo "Custom Workspace Tests:"
+  run_test "Custom workspace option works" test_custom_workspace_option
+  run_test "Custom workspace not found exits with error" test_custom_workspace_not_found
+  echo ""
+  
+  # Library workspace tests
+  echo "Library Workspace Tests:"
+  run_test "Library peerDependencies preserved" test_library_workspace_peer_deps_preserved
+  echo ""
+  
+  # Exit code tests
+  echo "Exit Code Tests:"
+  run_test "Misaligned versions exit with code 1" test_exit_code_misaligned
+  run_test "Missing pnpm-workspace.yaml exits with code 3" test_missing_pnpm_workspace_yaml
   echo ""
   
   # Summary
