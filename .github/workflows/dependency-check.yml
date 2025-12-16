@@ -76,6 +76,62 @@ jobs:
             echo "✅ pnpm-lock.yaml exists"
           fi
 
+      - name: Setup pnpm
+        if: steps.check-pnpm-lock.outputs.exists == 'true'
+        uses: pnpm/action-setup@v4
+        # Version is read from package.json "packageManager" field (single source of truth)
+
+      - name: Setup Node.js
+        if: steps.check-pnpm-lock.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Verify lockfile is in sync with package.json
+        id: check-lockfile-sync
+        if: steps.check-pnpm-lock.outputs.exists == 'true'
+        run: |
+          echo "Verifying pnpm-lock.yaml is in sync with package.json files..."
+          
+          # Save the original lockfile hash
+          ORIGINAL_HASH=$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)
+          echo "Original lockfile hash: $ORIGINAL_HASH"
+          
+          # Regenerate the lockfile without installing (--lockfile-only)
+          # This updates pnpm-lock.yaml based on current package.json files
+          pnpm install --lockfile-only 2>&1 || {
+            echo "sync=error" >> $GITHUB_OUTPUT
+            echo "❌ Failed to regenerate lockfile"
+            exit 1
+          }
+          
+          # Get the new lockfile hash
+          NEW_HASH=$(sha256sum pnpm-lock.yaml | cut -d' ' -f1)
+          echo "Regenerated lockfile hash: $NEW_HASH"
+          
+          # Compare hashes
+          if [ "$ORIGINAL_HASH" != "$NEW_HASH" ]; then
+            echo "sync=false" >> $GITHUB_OUTPUT
+            echo ""
+            echo "❌ pnpm-lock.yaml is OUT OF SYNC with package.json files!"
+            echo ""
+            echo "This means the lockfile was not regenerated after package.json changes."
+            echo ""
+            echo "To fix this issue, run locally:"
+            echo "  pnpm install"
+            echo "  git add pnpm-lock.yaml"
+            echo "  git commit -m 'chore: update pnpm-lock.yaml'"
+            echo ""
+            # Show which packages might have changed
+            echo "Checking for differences..."
+            git diff --stat pnpm-lock.yaml | head -20 || true
+            exit 1
+          else
+            echo "sync=true" >> $GITHUB_OUTPUT
+            echo "✅ pnpm-lock.yaml is in sync with package.json files"
+          fi
+
       - name: Check vercel.json for correct installCommand
         id: check-vercel
         if: always()
@@ -199,6 +255,20 @@ jobs:
               comment += '```\n\n';
             }
             
+            // Check lockfile sync
+            const lockfileSync = process.env.LOCKFILE_SYNC;
+            if (lockfileSync === 'false') {
+              comment += '### ❌ Lockfile Out of Sync\n\n';
+              comment += 'pnpm-lock.yaml is not in sync with package.json files.\n\n';
+              comment += 'This can cause different dependency versions between dev/CI/prod environments.\n\n';
+              comment += '**Action Required:**\n';
+              comment += '```bash\n';
+              comment += 'pnpm install\n';
+              comment += 'git add pnpm-lock.yaml\n';
+              comment += 'git commit -m "chore: update pnpm-lock.yaml"\n';
+              comment += '```\n\n';
+            }
+            
             // Check vercel.json
             const vercelUsesNpm = process.env.VERCEL_USES_NPM;
             const vercelUsesYarn = process.env.VERCEL_USES_YARN;
@@ -227,6 +297,7 @@ jobs:
         env:
           FORBIDDEN_FILES: ${{ steps.check-lockfiles.outputs.files }}
           PNPM_LOCK_EXISTS: ${{ steps.check-pnpm-lock.outputs.exists }}
+          LOCKFILE_SYNC: ${{ steps.check-lockfile-sync.outputs.sync }}
           VERCEL_USES_NPM: ${{ steps.check-vercel.outputs.vercel_uses_npm }}
           VERCEL_USES_YARN: ${{ steps.check-vercel.outputs.vercel_uses_yarn }}
 
@@ -248,6 +319,12 @@ jobs:
             echo "⏭️ No root package.json (skipped)" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ pnpm-lock.yaml missing" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ steps.check-lockfile-sync.outputs.sync }}" == "true" ]; then
+            echo "✅ pnpm-lock.yaml is in sync with package.json" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.check-lockfile-sync.outputs.sync }}" == "false" ]; then
+            echo "❌ pnpm-lock.yaml is OUT OF SYNC (run 'pnpm install' locally)" >> $GITHUB_STEP_SUMMARY
           fi
           
           if [ "${{ steps.check-vercel.outputs.vercel_uses_pnpm }}" == "true" ]; then
