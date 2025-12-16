@@ -4,8 +4,8 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 23
-- **支援 workflow_dispatch**: 23 (100%)
+- **總工作流數量**: 24
+- **支援 workflow_dispatch**: 23 (96%)
 - **Branch Protection 必須檢查**: 4
 
 ---
@@ -668,6 +668,36 @@
 **維護注意事項**: 目前測試邏輯直接內嵌於 workflow 的 `run:` 區塊，與 production workflow 的邏輯是「重寫」而非「共用」。若 production workflow 邏輯變更，需同步更新測試。未來建議抽出共用腳本（如 `scripts/qwen_pr_review.sh`），由 production workflow 與 tests workflow 共同 source，以避免 drift。
 
 **相關 Issue**: #2551 (nektos/act 自動化測試)
+
+---
+
+### 24. `dependency-check` (Dependency Management Check)
+**檔案**: `.github/workflows/dependency-check.yml`
+
+**用途**: 依賴管理一致性檢查，確保 monorepo 使用統一的套件管理器 (pnpm) 並防止 lockfile 漂移
+
+**觸發條件**:
+- ✅ `push` - main 分支推送（當 package.json、lockfile 相關檔案變更時）
+- ✅ `pull_request` - 所有 PR（當 package.json、lockfile、workflows、vercel.json 變更時）
+
+**執行內容**:
+- **禁止的 lockfile 檢查**: 確保沒有 `yarn.lock` 或 `package-lock.json`（僅允許 `pnpm-lock.yaml`）
+- **pnpm-lock.yaml 存在性檢查**: 確保 lockfile 存在
+- **Lockfile 同步檢查** (新增): 使用 `pnpm install --lockfile-only` 重新生成 lockfile 並比對 hash，確保 lockfile 與 package.json 同步
+- **vercel.json 配置檢查**: 確保 Vercel 使用 pnpm 而非 yarn/npm
+- **GitHub Actions workflows 檢查**: 掃描所有 workflows 確保使用 pnpm
+
+**為何非 Required**: 依賴管理檢查重要但不阻擋緊急修復
+
+**Lockfile 同步檢查說明**:
+此檢查防止 dev/CI/prod 環境因 lockfile 未更新而安裝不同版本的依賴。當 package.json 變更但 lockfile 未重新生成時，CI 會失敗並提供明確的修復指令：
+```bash
+pnpm install
+git add pnpm-lock.yaml
+git commit -m "chore: update pnpm-lock.yaml"
+```
+
+**相關 Issue**: #2579 (CI Lockfile Sync Check)
 
 ---
 
