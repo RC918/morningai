@@ -86,7 +86,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --help|-h)
-      head -40 "$0" | grep -E "^#" | sed 's/^# //' | sed 's/^#//'
+      sed '/^set -euo pipefail/q' "$0" | grep '^#' | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -216,10 +216,7 @@ detect_missing_stories() {
   local missing_files=()
   local covered_count=0
   
-  if [[ ! -d "$scan_dir" ]]; then
-    echo "Error: Scan directory does not exist: $scan_dir" >&2
-    return 1
-  fi
+  # Note: Directory existence is checked in main() before calling this function
   
   # Find all .tsx files
   while IFS= read -r -d '' file; do
@@ -277,11 +274,25 @@ output_json() {
   shift 4
   local missing_files=("$@")
   
-  local missing_json="[]"
-  if [[ ${#missing_files[@]} -gt 0 ]]; then
-    missing_json=$(printf '%s\n' "${missing_files[@]}" | while read -r f; do
-      echo "\"${f#$REPO_ROOT/}\""
-    done | paste -sd, | sed 's/^/[/' | sed 's/$/]/')
+  local missing_json
+  if command -v node &> /dev/null; then
+    local relative_missing_files=()
+    for file in "${missing_files[@]}"; do
+      relative_missing_files+=("${file#$REPO_ROOT/}")
+    done
+    if [[ ${#relative_missing_files[@]} -gt 0 ]]; then
+      missing_json=$(node -p 'JSON.stringify(process.argv.slice(1))' -- "${relative_missing_files[@]}")
+    else
+      missing_json="[]"
+    fi
+  else
+    echo "Warning: 'node' command not found. Using basic JSON output which may be unreliable for paths with special characters." >&2
+    missing_json="[]"
+    if [[ ${#missing_files[@]} -gt 0 ]]; then
+      missing_json=$(printf '%s\n' "${missing_files[@]}" | while read -r f; do
+        echo "\"${f#$REPO_ROOT/}\""
+      done | paste -sd, | sed 's/^/[/' | sed 's/$/]/')
+    fi
   fi
   
   cat << EOF
