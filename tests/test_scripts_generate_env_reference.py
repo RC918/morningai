@@ -760,3 +760,63 @@ class TestIntegration:
         assert '## Feature Flags' in content1
         assert 'CRITICAL' in content1
         assert 'production: `False`' in content1
+
+    def test_environment_specific_ordering_determinism(self, tmp_path):
+        """Test that environment_specific keys are sorted for deterministic output.
+
+        This ensures that different orderings of environment_specific keys
+        in the input schema produce identical output.
+        """
+        # Schema with environment_specific in one order
+        schema1 = {
+            'version': '1.0',
+            'fields': {
+                'TIMEOUT': {
+                    'category': 'Application',
+                    'description': 'Request timeout',
+                    'type': 'integer',
+                    'default': 30,
+                    'environment_specific': {
+                        'production': 30,
+                        'development': 60,
+                        'ci': 120
+                    }
+                }
+            }
+        }
+
+        # Schema with environment_specific in different order
+        schema2 = {
+            'version': '1.0',
+            'fields': {
+                'TIMEOUT': {
+                    'category': 'Application',
+                    'description': 'Request timeout',
+                    'type': 'integer',
+                    'default': 30,
+                    'environment_specific': {
+                        'ci': 120,
+                        'production': 30,
+                        'development': 60
+                    }
+                }
+            }
+        }
+
+        output1 = tmp_path / 'output1.md'
+        output2 = tmp_path / 'output2.md'
+
+        gen_env_ref_mod.generate_env_reference(schema1, output1)
+        gen_env_ref_mod.generate_env_reference(schema2, output2)
+
+        content1 = output1.read_text()
+        content2 = output2.read_text()
+
+        # Both outputs should be identical regardless of input order
+        assert content1 == content2, "environment_specific ordering affects output"
+
+        # Verify the sorted order appears in output (ci, development, production)
+        assert 'ci=120, development=60, production=30' in content1
+        assert 'ci: `120`' in content1
+        assert 'development: `60`' in content1
+        assert 'production: `30`' in content1
