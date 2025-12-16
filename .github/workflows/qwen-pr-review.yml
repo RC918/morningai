@@ -1,0 +1,343 @@
+# .github/workflows/qwen-pr-review.yml
+#
+# Qwen AI Code Review Workflow
+# 
+# This workflow automatically reviews all PRs using Qwen AI.
+# Code diffs are sent to DashScope/Qwen API for analysis.
+#
+# Setup:
+# 1. Add QWEN_API_KEY to GitHub Secrets (Settings -> Secrets -> Actions)
+#    Get your API key from: https://dashscope.console.aliyun.com/
+#
+# Opt-out:
+# - Add 'no-ai-review' label to skip AI review for specific PRs
+#
+# Security:
+# - Fork PRs are skipped (secrets not exposed)
+# - Bot/Dependabot PRs are skipped
+# - Sensitive file patterns are detected and warned
+#
+# Cost Control:
+# - Concurrency control prevents duplicate reviews
+# - Same commit SHA is not re-reviewed
+# - Large diffs are truncated with summary
+
+name: "Qwen AI Code Review"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: qwen-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  MAX_DIFF_SIZE: 80000
+  QWEN_MODEL: "qwen-plus"
+  QWEN_API_ENDPOINT: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+
+jobs:
+  review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+    # Trigger conditions:
+    # 1. Not a Bot (skip Dependabot, etc.)
+    # 2. Not a Fork PR (protect secrets)
+    # 3. Not labeled 'no-ai-review' (opt-out mechanism)
+    if: |
+      github.event.sender.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !contains(github.event.pull_request.labels.*.name, 'no-ai-review')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if already reviewed this commit
+        id: check_reviewed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const headSha = context.payload.pull_request.head.sha;
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            
+            // Look for existing Qwen review comment with this SHA
+            const existingReview = comments.data.find(c => 
+              c.body.includes('<!-- qwen-review-marker -->') && 
+              c.body.includes(`Commit: \`${headSha.substring(0, 7)}\``)
+            );
+            
+            if (existingReview) {
+              console.log(`Already reviewed commit ${headSha.substring(0, 7)}, skipping`);
+              core.setOutput('skip', 'true');
+            } else {
+              console.log(`New commit ${headSha.substring(0, 7)}, proceeding with review`);
+              core.setOutput('skip', 'false');
+            }
+
+      - name: Get PR diff safely
+        if: steps.check_reviewed.outputs.skip != 'true'
+        id: diff
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+          
+          # Get diff with context
+          git diff --unified=3 "$BASE_SHA".."$HEAD_SHA" > full_diff.patch
+          
+          # Check for sensitive files
+          SENSITIVE_FILES=$(git diff --name-only "$BASE_SHA".."$HEAD_SHA" | grep -E '\.(env|pem|key|secret|credential)' || true)
+          if [ -n "$SENSITIVE_FILES" ]; then
+            echo "SENSITIVE_WARNING=true" >> "$GITHUB_ENV"
+            echo "Detected potentially sensitive files: $SENSITIVE_FILES"
+          fi
+          
+          # Get diff size
+          DIFF_SIZE=$(wc -c < full_diff.patch)
+          echo "Diff size: $DIFF_SIZE bytes"
+          
+          # Truncate if needed
+          if [ "$DIFF_SIZE" -gt "$MAX_DIFF_SIZE" ]; then
+            echo "Diff too large ($DIFF_SIZE bytes), truncating to $MAX_DIFF_SIZE bytes"
+            head -c "$MAX_DIFF_SIZE" full_diff.patch > trimmed_diff.patch
+            echo -e "\n\n... (diff truncated, showing first $MAX_DIFF_SIZE bytes of $DIFF_SIZE total)" >> trimmed_diff.patch
+            echo "DIFF_TRUNCATED=true" >> "$GITHUB_ENV"
+          else
+            cp full_diff.patch trimmed_diff.patch
+          fi
+          
+          # Write to GITHUB_ENV safely
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            echo "DIFF<<$DELIMITER"
+            cat trimmed_diff.patch
+            echo ""
+            echo "$DELIMITER"
+          } >> "$GITHUB_ENV"
+          
+          # Get changed files list
+          {
+            echo "CHANGED_FILES<<$DELIMITER"
+            git diff --name-only "$BASE_SHA".."$HEAD_SHA"
+            echo "$DELIMITER"
+          } >> "$GITHUB_ENV"
+          
+          # Count changes
+          ADDITIONS=$(git diff --numstat "$BASE_SHA".."$HEAD_SHA" | awk '{sum+=$1} END {print sum+0}')
+          DELETIONS=$(git diff --numstat "$BASE_SHA".."$HEAD_SHA" | awk '{sum+=$2} END {print sum+0}')
+          FILE_COUNT=$(git diff --name-only "$BASE_SHA".."$HEAD_SHA" | wc -l)
+          
+          echo "ADDITIONS=$ADDITIONS" >> "$GITHUB_ENV"
+          echo "DELETIONS=$DELETIONS" >> "$GITHUB_ENV"
+          echo "FILE_COUNT=$FILE_COUNT" >> "$GITHUB_ENV"
+
+      - name: Determine review focus based on labels
+        if: steps.check_reviewed.outputs.skip != 'true'
+        id: focus
+        run: |
+          LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+          echo "PR Labels: $LABELS"
+          
+          # Base prompt with task list format
+          BASE_PROMPT="You are a senior code reviewer with expertise in security, performance, and best practices.
+          Analyze the following code changes and provide a thorough review.
+          
+          OUTPUT FORMAT (IMPORTANT - follow exactly):
+          1. Start with a 2-3 sentence summary
+          2. List issues as a Markdown checklist with severity icons:
+             - [ ] :red_circle: CRITICAL: [description] - must fix before merge
+             - [ ] :orange_circle: HIGH: [description] - should fix before merge
+             - [ ] :yellow_circle: MEDIUM: [description] - consider fixing
+             - [ ] :blue_circle: LOW: [description] - minor suggestion
+          3. If no issues found, say 'No significant issues found'
+          4. End with optional 'Suggestions' section for improvements
+          
+          Review focus: bugs, security vulnerabilities, performance issues, error handling, and code quality.
+          Be concise but thorough. Do not repeat the code back."
+          
+          # Adjust focus based on labels
+          FOCUS=""
+          if [[ "$LABELS" == *"ui"* ]] || [[ "$LABELS" == *"frontend"* ]]; then
+            FOCUS="Additional focus: React patterns, component design, CSS consistency, accessibility (a11y), responsive design, and state management."
+          elif [[ "$LABELS" == *"backend"* ]] || [[ "$LABELS" == *"api"* ]]; then
+            FOCUS="Additional focus: SQL injection, authentication/authorization, input validation, error handling, API design, and database queries."
+          elif [[ "$LABELS" == *"security"* ]]; then
+            FOCUS="SECURITY-SENSITIVE CHANGE. Focus heavily on: authentication, authorization, input sanitization, secrets handling, OWASP Top 10, and cryptographic practices."
+          elif [[ "$LABELS" == *"database"* ]] || [[ "$LABELS" == *"migration"* ]]; then
+            FOCUS="Additional focus: migration safety, index usage, query performance, data integrity, backwards compatibility, and rollback strategy."
+          elif [[ "$LABELS" == *"infra"* ]] || [[ "$LABELS" == *"devops"* ]]; then
+            FOCUS="Additional focus: infrastructure security, secrets management, resource limits, monitoring, and deployment safety."
+          fi
+          
+          # Combine prompts
+          if [ -n "$FOCUS" ]; then
+            SYSTEM_PROMPT="$BASE_PROMPT
+
+          $FOCUS"
+          else
+            SYSTEM_PROMPT="$BASE_PROMPT"
+          fi
+          
+          # Write safely
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            echo "SYSTEM_PROMPT<<$DELIMITER"
+            echo "$SYSTEM_PROMPT"
+            echo "$DELIMITER"
+          } >> "$GITHUB_ENV"
+
+      - name: Call Qwen API
+        if: steps.check_reviewed.outputs.skip != 'true'
+        id: qwen
+        env:
+          QWEN_API_KEY: ${{ secrets.QWEN_API_KEY }}
+        run: |
+          # Check API Key
+          if [ -z "$QWEN_API_KEY" ]; then
+            echo "QWEN_API_KEY secret is not set"
+            echo "API_ERROR=true" >> "$GITHUB_ENV"
+            echo "ERROR_MSG=QWEN_API_KEY secret is not configured. Please add it in Settings -> Secrets -> Actions." >> "$GITHUB_ENV"
+            exit 0
+          fi
+          
+          # Prepare PR info
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          
+          # Build user content with jq (safe JSON encoding)
+          USER_CONTENT=$(jq -n \
+            --arg title "$PR_TITLE" \
+            --arg body "$PR_BODY" \
+            --arg author "$PR_AUTHOR" \
+            --arg number "$PR_NUMBER" \
+            --arg files "$CHANGED_FILES" \
+            --arg additions "$ADDITIONS" \
+            --arg deletions "$DELETIONS" \
+            --arg file_count "$FILE_COUNT" \
+            --arg diff "$DIFF" \
+            '"## Pull Request #" + $number + "\n\n**Title:** " + $title + "\n**Author:** @" + $author + "\n**Changes:** +" + $additions + " -" + $deletions + " in " + $file_count + " files\n\n**Description:**\n" + ($body // "No description provided") + "\n\n**Changed Files:**\n```\n" + $files + "```\n\n## Code Diff\n```diff\n" + $diff + "\n```"')
+          
+          # Build full payload
+          PAYLOAD=$(jq -n \
+            --arg model "$QWEN_MODEL" \
+            --arg system "$SYSTEM_PROMPT" \
+            --argjson user "$USER_CONTENT" \
+            '{
+              model: $model,
+              messages: [
+                {role: "system", content: $system},
+                {role: "user", content: $user}
+              ],
+              temperature: 0.2,
+              max_tokens: 4096
+            }')
+          
+          echo "Calling Qwen API (model: $QWEN_MODEL)..."
+          
+          # Call API with error handling
+          HTTP_CODE=$(curl -s -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $QWEN_API_KEY" \
+            -d "$PAYLOAD" \
+            -o response.json \
+            --max-time 120 \
+            "$QWEN_API_ENDPOINT")
+          
+          echo "API Response Code: $HTTP_CODE"
+          
+          # Check HTTP status
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "API request failed with status $HTTP_CODE"
+            if [ -f response.json ]; then
+              ERROR_DETAIL=$(jq -r '.error.message // .message // "Unknown error"' response.json 2>/dev/null || echo "Could not parse error")
+              echo "Error: $ERROR_DETAIL"
+            fi
+            echo "API_ERROR=true" >> "$GITHUB_ENV"
+            echo "ERROR_MSG=Qwen API returned HTTP $HTTP_CODE. Please check your API key and quota." >> "$GITHUB_ENV"
+            exit 0
+          fi
+          
+          # Validate response format
+          if ! jq -e '.choices[0].message.content' response.json > /dev/null 2>&1; then
+            echo "Invalid API response format"
+            echo "API_ERROR=true" >> "$GITHUB_ENV"
+            echo "ERROR_MSG=Invalid response format from Qwen API" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          
+          # Extract and sanitize response
+          AI_RESPONSE=$(jq -r '.choices[0].message.content' response.json)
+          
+          # Remove @mentions to prevent notification spam (insert zero-width space)
+          AI_RESPONSE=$(echo "$AI_RESPONSE" | sed 's/@\([a-zA-Z0-9_-]\)/@\x00\1/g' | tr '\0' '\u200b' 2>/dev/null || echo "$AI_RESPONSE" | sed 's/@\([a-zA-Z0-9_-]\)/@ \1/g')
+          
+          # Limit output length (GitHub comment limit is 65536)
+          if [ ${#AI_RESPONSE} -gt 60000 ]; then
+            AI_RESPONSE="${AI_RESPONSE:0:60000}
+
+          ... (response truncated due to length)"
+          fi
+          
+          # Write safely
+          DELIMITER=$(openssl rand -hex 16)
+          {
+            echo "AI_COMMENT<<$DELIMITER"
+            echo "$AI_RESPONSE"
+            echo "$DELIMITER"
+          } >> "$GITHUB_ENV"
+          
+          echo "AI review generated successfully"
+
+      - name: Post review comment
+        if: steps.check_reviewed.outputs.skip != 'true'
+        uses: marocchino/sticky-comment@v2
+        with:
+          header: qwen-ai-review
+          message: |
+            <!-- qwen-review-marker -->
+            ## :robot: Qwen AI Code Review
+            
+            ${{ env.API_ERROR == 'true' && format(':x: **Review Failed**
+
+            {0}
+
+            Please check the workflow logs for details.', env.ERROR_MSG) || env.AI_COMMENT }}
+            
+            ---
+            <details>
+            <summary>:information_source: Review Info</summary>
+            
+            | Item | Value |
+            |------|-------|
+            | Model | `${{ env.QWEN_MODEL }}` |
+            | Commit | `${{ github.event.pull_request.head.sha }}` |
+            | Files | ${{ env.FILE_COUNT }} |
+            | Changes | +${{ env.ADDITIONS }} -${{ env.DELETIONS }} |
+            ${{ env.DIFF_TRUNCATED == 'true' && '| Note | Diff was truncated due to size |' || '' }}
+            ${{ env.SENSITIVE_WARNING == 'true' && '| :warning: | Potentially sensitive files detected |' || '' }}
+            
+            </details>
+            
+            > :bulb: Add `no-ai-review` label to skip AI review for this PR.
+            > Push a new commit to trigger a new review.
+
+      - name: Skip message
+        if: steps.check_reviewed.outputs.skip == 'true'
+        run: |
+          echo "Skipping review - commit already reviewed"
