@@ -19,7 +19,8 @@ Code analysis, architecture reviews, and technical assessments for the MorningAI
 | [ENGINEERING_TEAM_PREPARATION_REPORT.md](ENGINEERING_TEAM_PREPARATION_REPORT.md) | Engineering team preparation |
 | [FASTAPI_AUDIT_REPORT.md](FASTAPI_AUDIT_REPORT.md) | FastAPI audit report |
 | [ISSUE_CONFLICT_ANALYSIS.md](ISSUE_CONFLICT_ANALYSIS.md) | Issue conflict analysis |
-| [MORNINGAI_Deep_Analysis_Report_zhTW_2025-11-20.md](MorningAI_Deep_Analysis_Report_zhTW_2025-11-20.md) | Deep analysis report (zh-TW) |
+| [MorningAI_Deep_Analysis_Report_zhTW_2025-11-20.md](MorningAI_Deep_Analysis_Report_zhTW_2025-11-20.md) | Deep analysis report (zh-TW) - Canonical |
+| [MORNINGAI_深度解析報告_2025-11-20.md](MORNINGAI_深度解析報告_2025-11-20.md) | Deep analysis report (zh-TW) - Alias/Stub |
 | [PROJECT_DEEP_ANALYSIS.md](PROJECT_DEEP_ANALYSIS.md) | Project deep analysis |
 | [REDIS_TEST_FAILURE_ANALYSIS.md](REDIS_TEST_FAILURE_ANALYSIS.md) | Redis test failure analysis |
 
