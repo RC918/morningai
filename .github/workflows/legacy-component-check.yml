@@ -1,0 +1,159 @@
+# =============================================================================
+# Legacy Component Detection CI
+# =============================================================================
+#
+# PURPOSE:
+#   Detects imports of deprecated/legacy components in application code.
+#   This helps enforce gradual migration away from legacy components.
+#
+# MODE:
+#   Currently running in WARNING mode (soft gate) to avoid blocking PRs
+#   during active migration. Set --strict to enable blocking mode.
+#
+# RELATED:
+#   - Issue #2513: Legacy component detection CI
+#   - CONTRIBUTING_DESIGN_SYSTEM.md: Deprecated component list
+#   - .github/legacy-component-allowlist.json: Allowlist configuration
+#
+# =============================================================================
+
+name: Legacy Component Check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/frontend-dashboard/**'
+      - 'handoff/20250928/40_App/owner-console/**'
+      - 'scripts/detect-legacy-components.sh'
+      - '.github/legacy-component-allowlist.json'
+      - '.github/workflows/legacy-component-check.yml'
+
+concurrency:
+  group: legacy-component-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  detect-legacy-components:
+    name: Detect Legacy Component Imports
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Make script executable
+        run: chmod +x ./scripts/detect-legacy-components.sh
+
+      - name: Run legacy component detection
+        id: detect
+        continue-on-error: true
+        run: |
+          echo "## Legacy Component Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          ./scripts/detect-legacy-components.sh 2>&1 | tee detection-output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+      - name: Parse detection results
+        if: always()
+        id: parse
+        run: |
+          if [ -f detection-output.txt ]; then
+            VIOLATIONS=$(grep -oP "Violations found: \K\d+" detection-output.txt || echo "0")
+            FILES_SCANNED=$(grep -oP "Files scanned: \K\d+" detection-output.txt || echo "0")
+            
+            echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+            echo "files_scanned=$FILES_SCANNED" >> $GITHUB_OUTPUT
+            
+            echo "Results:"
+            echo "  Files scanned: $FILES_SCANNED"
+            echo "  Violations found: $VIOLATIONS"
+          else
+            echo "violations=0" >> $GITHUB_OUTPUT
+            echo "files_scanned=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR (violations detected)
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations != '0' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: legacy-component-check
+          body: |
+            ## Legacy Component Detection
+            
+            **Mode**: Warning (soft gate - not blocking)
+            **Status**: Violations detected
+            
+            **Summary**:
+            - Files scanned: ${{ steps.parse.outputs.files_scanned }}
+            - Violations found: ${{ steps.parse.outputs.violations }}
+            
+            ### Legacy Component Imports Found
+            
+            Your changes include imports of deprecated legacy components. Please consider migrating to shared-ui alternatives:
+            
+            | Legacy Component | Replacement |
+            |------------------|-------------|
+            | `LegacyCard` | `Card`, `StatCard`, `StatusCard`, `SettingsCard`, or `SectionCard` |
+            | `LegacyStatCard` | `StatCard` |
+            
+            **Migration Guide**: See [CONTRIBUTING_DESIGN_SYSTEM.md](https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING_DESIGN_SYSTEM.md#廢棄組件處理) for the LegacyCard replacement decision flow.
+            
+            **Temporary Allowlist**: If you need to temporarily allow a file during migration, add it to `.github/legacy-component-allowlist.json`.
+            
+            [View detailed detection report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ---
+            
+            This check is currently in **warning mode** and will not block your PR.
+
+      - name: Comment on PR (no violations)
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations == '0' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: legacy-component-check
+          body: |
+            ## Legacy Component Detection
+            
+            **Mode**: Warning (soft gate - not blocking)
+            **Status**: No violations
+            
+            **Summary**:
+            - Files scanned: ${{ steps.parse.outputs.files_scanned }}
+            - Violations found: 0
+            
+            No legacy component imports detected in your changes. Great work!
+            
+            [View detailed detection report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Add job summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Files scanned: ${{ steps.parse.outputs.files_scanned }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Violations found: ${{ steps.parse.outputs.violations }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.parse.outputs.violations }}" -gt 0 ]; then
+            echo "**Status**: Violations detected (warning mode - not blocking)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See [CONTRIBUTING_DESIGN_SYSTEM.md](https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING_DESIGN_SYSTEM.md#廢棄組件處理) for migration guide." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status**: No violations detected" >> $GITHUB_STEP_SUMMARY
+          fi
