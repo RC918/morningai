@@ -652,7 +652,7 @@
 - **GITHUB_ENV multiline 測試**: 驗證特殊字元（引號、反斜線、變數）正確處理
 - **JSON encoding 測試**: 驗證 `jq` 安全編碼各種危險輸入
 - **@mention 移除測試**: 驗證 perl regex 正確處理 @username vs email@domain.com
-- **敏感檔案偵測測試**: 驗證大小寫不敏感 regex pattern
+- **敏感檔案偵測測試**: 驗證大小寫不敏感 regex pattern，包含路徑、備份檔案、edge cases
 - **Markdown 截斷測試**: 驗證 code fence 計數與自動關閉邏輯
 - **API 重試邏輯測試**: 驗證 HTTP status code 分類（transient vs non-transient）
 - **Exponential backoff 測試**: 驗證 2^attempt 計算與 30 秒上限

@@ -172,35 +172,65 @@ jobs:
         run: |
           echo "::group::Test sensitive file detection"
           
-          # Test the case-insensitive regex pattern
+          # Test the case-insensitive regex pattern (must match qwen-pr-review.yml line 133)
+          # Production: grep -Ei '\.(env(\..+)?|pem|key|secret|credential)$'
           PATTERN='\.(env(\..+)?|pem|key|secret|credential)$'
           
           # Should match (case-insensitive)
           # Note: .env.* files (including backups like .env.example.bak) are treated as sensitive
           # because the regex \.env(\..+)?$ matches .env followed by any extension(s)
+          # Tests include paths with directories to match real git diff --name-only output
           SHOULD_MATCH=(
+            # Basic .env files
             ".env"
             ".ENV"
             ".env.local"
             ".env.production"
             ".env.example.bak"
+            ".env.production.local"
+            # Paths with directories (real git diff output)
+            "config/.env"
+            "foo/.ENV"
+            "a/b/c/.env.production.local"
+            "backend/.env.development"
+            # Other sensitive extensions
             "config.pem"
             "private.key"
             "api.secret"
             "db.credential"
             "FILE.PEM"
             "test.KEY"
+            # Paths with directories for other extensions
+            "secrets/PRIVATE.KEY"
+            "certs/server.PEM"
+            "config/db.credential"
+            # Edge case: filename starting with .env
+            "my.env"
+            "x.y.z.env.example.bak"
           )
           
           # Should NOT match
           # These files contain "env", "key", etc. in their names but don't end with sensitive extensions
+          # Note: .pem.bak, .key.old do NOT match (regex anchored to $) - this is intentional
           SHOULD_NOT_MATCH=(
+            # Files with similar names but different extensions
             "environment.ts"
             "key.ts"
             ".envrc"
             "secret-manager.py"
             "credentials.json"
             "myenvfile.txt"
+            # Backup files of non-.env secrets (intentionally NOT matched by current regex)
+            "config.pem.old"
+            "private.key.txt"
+            "server.pem.bak"
+            # Paths with directories
+            "config/.envrc"
+            "secrets/key.ts"
+            "foo/secret-manager.py"
+            # Directory named like sensitive file (path doesn't end with extension)
+            "cert.pem/README.md"
+            ".env/config.json"
           )
           
           FAILED=0
