@@ -1,0 +1,18 @@
+{
+  "$schema": "./storybook-coverage-allowlist.schema.json",
+  "description": "Allowlist for components that don't require Storybook stories",
+  "allowed_files": [
+    "sonner.tsx",
+    "toaster.tsx",
+    "use-mobile.tsx",
+    "use-toast.tsx"
+  ],
+  "reasons": {
+    "sonner.tsx": "Third-party wrapper, no custom UI",
+    "toaster.tsx": "Toast container, tested via toast stories",
+    "use-mobile.tsx": "Hook, not a visual component",
+    "use-toast.tsx": "Hook, not a visual component"
+  },
+  "expires": "2025-12-01",
+  "documentation": "https://github.com/RC918/morningai/blob/main/CONTRIBUTING_DESIGN_SYSTEM.md"
+}
