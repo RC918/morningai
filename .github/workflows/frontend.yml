@@ -142,7 +142,7 @@ jobs:
       # See Issue #935 for tracking progress
       FRONTEND_DASHBOARD_BASELINE: 0
       OWNER_CONSOLE_BASELINE: 0
-      SHARED_UI_BASELINE: 9
+      SHARED_UI_BASELINE: 0
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm
@@ -218,6 +218,9 @@ jobs:
       
       - name: Comment on PR with progress
         if: github.event_name == 'pull_request'
+        # Only tolerate failure for Dependabot PRs (limited permissions)
+        # Regular PRs will still fail loudly on config/network errors
+        continue-on-error: ${{ github.actor == 'dependabot[bot]' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
