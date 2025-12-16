@@ -608,7 +608,9 @@ jobs:
         run: pnpm run build
       
       - name: Install Playwright browsers
-        working-directory: handoff/20250928/40_App/${{ matrix.app }}
+        # Install at root level to match script resolution context
+        # scripts/ux/check-computed-styles.mjs imports from root @playwright/test
+        # See: https://github.com/RC918/morningai/issues/2571
         run: pnpm exec playwright install --with-deps chromium
       
       - name: Start preview server
