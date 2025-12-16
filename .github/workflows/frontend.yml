@@ -218,7 +218,9 @@ jobs:
       
       - name: Comment on PR with progress
         if: github.event_name == 'pull_request'
-        continue-on-error: true  # Dependabot PRs have limited permissions
+        # Only tolerate failure for Dependabot PRs (limited permissions)
+        # Regular PRs will still fail loudly on config/network errors
+        continue-on-error: ${{ github.actor == 'dependabot[bot]' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
