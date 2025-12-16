@@ -13,24 +13,64 @@
 #
 # OPTIONS:
 #   --dir <path>         Directory to scan (default: packages/shared-ui/src/components)
-#   --allowlist <path>   Path to allowlist JSON file
-#   --strict             Exit with error code 1 if missing stories found
-#   --json               Output results as JSON
+#                        Can also be set via STORYBOOK_SCAN_DIR environment variable.
+#   --allowlist <path>   Path to allowlist JSON file (default: .github/storybook-coverage-allowlist.json)
+#                        Can also be set via STORYBOOK_ALLOWLIST environment variable.
+#   --strict             Exit with error code 1 if missing stories found.
+#                        Use this in CI to block PRs with missing stories.
+#   --json               Output results as JSON for programmatic consumption.
+#   --help, -h           Show this help message.
 #
 # ENVIRONMENT VARIABLES:
-#   STORYBOOK_SCAN_DIR       Directory to scan
-#   STORYBOOK_ALLOWLIST      Path to allowlist JSON file
+#   STORYBOOK_SCAN_DIR       Directory to scan (overridden by --dir)
+#   STORYBOOK_ALLOWLIST      Path to allowlist JSON file (overridden by --allowlist)
 #
-# CONFIGURATION:
-#   Allowlist: .github/storybook-coverage-allowlist.json
+# EXIT CODES:
+#   0 - Success (or missing stories in non-strict mode)
+#   1 - Error (missing stories in strict mode, or invalid arguments)
+#
+# FILE EXCLUSIONS:
+#   The following files are automatically excluded from scanning:
+#   - *.test.tsx       - Test files
+#   - *.stories.tsx    - Story files themselves
+#   - index.tsx        - Index/barrel files
+#   - *.types.tsx      - Type definition files
+#   - use*.tsx         - Hook files (e.g., useCustomHook.tsx)
+#   - *-context.tsx    - Context files
+#   - *Context.tsx     - Context files (PascalCase)
+#   - *-provider.tsx   - Provider files
+#   - *Provider.tsx    - Provider files (PascalCase)
+#
+# ALLOWLIST FORMAT:
+#   The allowlist file should be a JSON file with the following structure:
+#   {
+#     "allowed_files": ["file1.tsx", "file2.tsx"],
+#     "reasons": { "file1.tsx": "Reason for exclusion" },
+#     "expires": "2026-06-01"
+#   }
+#
+# FAQ:
+#   Q: Why is my component not being detected?
+#   A: Check if it matches one of the exclusion patterns above.
+#
+#   Q: How do I exclude a component from the check?
+#   A: Add it to .github/storybook-coverage-allowlist.json with a reason.
+#
+#   Q: What if the workspace structure changes?
+#   A: Update DEFAULT_SCAN_DIR in this script or use --dir to specify the new path.
+#      Also update the workflow trigger paths in storybook-coverage-check.yml.
+#
+#   Q: How do I enable blocking mode?
+#   A: Use --strict flag or set it in the CI workflow.
 #
 # DEPENDENCIES:
 #   - Bash 4+
-#   - Node.js (for JSON parsing, optional)
+#   - Node.js (for JSON parsing, optional but recommended)
 #
 # RELATED:
 #   - Issue #2512: Storybook scanning CI
 #   - Issue #2303: Design system governance rules
+#   - Workflow: .github/workflows/storybook-coverage-check.yml
 #
 # =============================================================================
 
@@ -103,14 +143,99 @@ SCAN_DIR="${SCAN_DIR:-${STORYBOOK_SCAN_DIR:-$DEFAULT_SCAN_DIR}}"
 # Determine allowlist file
 ALLOWLIST_FILE="${ALLOWLIST_FILE:-${STORYBOOK_ALLOWLIST:-$DEFAULT_ALLOWLIST_FILE}}"
 
+# Logging functions for better debugging
+log_info() {
+  if [[ "$JSON_MODE" != "true" ]]; then
+    echo -e "${CYAN}[INFO]${NC} $1"
+  fi
+}
+
+log_warn() {
+  echo -e "${YELLOW}[WARN]${NC} $1" >&2
+}
+
+log_error() {
+  echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+log_debug() {
+  if [[ "${DEBUG:-false}" == "true" && "$JSON_MODE" != "true" ]]; then
+    echo -e "[DEBUG] $1"
+  fi
+}
+
+# Check allowlist expiration date
+check_allowlist_expiration() {
+  local allowlist_file="$1"
+  
+  if [[ ! -f "$allowlist_file" ]]; then
+    return 0
+  fi
+  
+  local expires_date=""
+  
+  if command -v node &> /dev/null; then
+    expires_date=$(node -e "
+      const fs = require('fs');
+      try {
+        const config = JSON.parse(fs.readFileSync('$allowlist_file', 'utf8'));
+        if (config.expires) console.log(config.expires);
+      } catch (e) {}
+    " 2>/dev/null || echo "")
+  else
+    # Fallback: grep-based extraction
+    expires_date=$(grep -oE '"expires"[[:space:]]*:[[:space:]]*"[0-9]{4}-[0-9]{2}-[0-9]{2}"' "$allowlist_file" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' || echo "")
+  fi
+  
+  if [[ -z "$expires_date" ]]; then
+    log_debug "No expiration date found in allowlist"
+    return 0
+  fi
+  
+  # Get current date in YYYY-MM-DD format
+  local current_date
+  current_date=$(date +%Y-%m-%d)
+  
+  # Compare dates (works on both GNU and BSD date)
+  if [[ "$current_date" > "$expires_date" ]]; then
+    log_warn "ALLOWLIST EXPIRED: The allowlist file expired on $expires_date"
+    log_warn "  File: $allowlist_file"
+    log_warn "  Please review and update the allowlist, or extend the expiration date."
+    echo "ALLOWLIST_EXPIRED=true"
+    return 0
+  fi
+  
+  # Check if expiring within 30 days
+  local days_until_expiry=0
+  if command -v node &> /dev/null; then
+    days_until_expiry=$(node -e "
+      const expires = new Date('$expires_date');
+      const now = new Date();
+      const diff = Math.ceil((expires - now) / (1000 * 60 * 60 * 24));
+      console.log(diff);
+    " 2>/dev/null || echo "999")
+  fi
+  
+  if [[ "$days_until_expiry" -le 30 && "$days_until_expiry" -gt 0 ]]; then
+    log_warn "ALLOWLIST EXPIRING SOON: The allowlist will expire in $days_until_expiry days ($expires_date)"
+    log_warn "  File: $allowlist_file"
+    echo "ALLOWLIST_EXPIRING_SOON=true"
+  fi
+  
+  return 0
+}
+
 # Read allowlist
 read_allowlist() {
   local allowlist_file="$1"
   
   if [[ ! -f "$allowlist_file" ]]; then
+    log_debug "Allowlist file not found: $allowlist_file"
     echo ""
     return
   fi
+  
+  log_debug "Reading allowlist from: $allowlist_file"
   
   if command -v node &> /dev/null; then
     node -e "
@@ -123,6 +248,7 @@ read_allowlist() {
       }
     " 2>/dev/null || echo ""
   else
+    log_warn "Node.js not found, using fallback grep-based allowlist parsing"
     # Fallback: simple grep-based extraction
     grep -oE '"[^"]+\.tsx"' "$allowlist_file" 2>/dev/null | tr -d '"' || echo ""
   fi
@@ -381,15 +507,34 @@ output_text() {
 
 # Main
 main() {
+  log_debug "Starting Storybook coverage detection"
+  log_debug "Scan directory: $SCAN_DIR"
+  log_debug "Allowlist file: $ALLOWLIST_FILE"
+  log_debug "Strict mode: $STRICT_MODE"
+  log_debug "JSON mode: $JSON_MODE"
+  
+  # Check allowlist expiration
+  check_allowlist_expiration "$ALLOWLIST_FILE"
+  
+  # Read allowlist
   local allowlist
   allowlist=$(read_allowlist "$ALLOWLIST_FILE")
   
   # Check if directory exists before proceeding
   if [[ ! -d "$SCAN_DIR" ]]; then
-    echo "Error: Scan directory does not exist: $SCAN_DIR" >&2
+    log_error "Scan directory does not exist: $SCAN_DIR"
+    log_error "Please check the path or use --dir to specify a different directory."
     exit 1
   fi
   
+  # Check if directory is readable
+  if [[ ! -r "$SCAN_DIR" ]]; then
+    log_error "Scan directory is not readable: $SCAN_DIR"
+    log_error "Please check file permissions."
+    exit 1
+  fi
+  
+  log_debug "Starting component scan..."
   detect_missing_stories "$SCAN_DIR" "$allowlist"
 }
 
