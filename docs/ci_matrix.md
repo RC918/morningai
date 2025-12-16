@@ -4,8 +4,8 @@
 
 ## 📊 總覽統計
 
-- **總工作流數量**: 21
-- **支援 workflow_dispatch**: 21 (100%)
+- **總工作流數量**: 23
+- **支援 workflow_dispatch**: 23 (100%)
 - **Branch Protection 必須檢查**: 4
 
 ---
@@ -583,6 +583,94 @@
 
 ---
 
+### 22. `qwen-pr-review` (Qwen AI Code Review) - **已停用**
+**檔案**: `.github/workflows/qwen-pr-review.yml`
+
+**狀態**: ⚠️ **已停用 (2025-12-16)** - 改用 GitHub Copilot 作為主要 AI 程式碼審查工具
+
+**用途**: AI 自動程式碼審查，使用阿里雲 Qwen LLM 對 PR 進行智能審查
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 僅限手動觸發（用於測試或一次性審查）
+- ❌ ~~`pull_request`~~ - 已停用自動觸發
+- ❌ Fork PR - 自動跳過（保護 secrets）
+- ❌ Bot PR - 自動跳過（避免浪費 API 費用）
+- ❌ `no-ai-review` label - 可選擇跳過特定 PR
+
+**如何重新啟用**: 取消註解 `qwen-pr-review.yml` 中的 `pull_request` 觸發器
+
+**執行內容**:
+- 取得 PR diff 並截斷至 80KB（控制 token 成本）
+- 根據 PR labels 調整審查重點（`ui`/`frontend`, `backend`/`api`, `security`, `database`/`migration`, `infra`/`devops`）
+- 呼叫 Qwen API 進行程式碼審查
+- 發佈 sticky comment 顯示審查結果
+- 使用 checklist 格式標示問題嚴重程度（CRITICAL/HIGH/MEDIUM/LOW）
+
+**環境變數/Secrets**:
+- `QWEN_API_KEY`: 阿里雲 DashScope API Key（必需，在 Settings → Secrets → Actions 設定）
+
+**安全機制**:
+- **Fork PR 跳過**: 防止 secrets 洩漏給外部貢獻者
+- **Bot PR 跳過**: 避免 Dependabot 等 bot 浪費 API 費用
+- **Shell injection 防護**: PR metadata 透過 step `env:` 傳遞，使用 `jq` 安全 JSON encode
+- **@mention 移除**: 使用 perl 移除 AI 輸出中的 @mentions，避免垃圾通知
+- **敏感檔案偵測**: 大小寫不敏感偵測 `.env`、`.pem`、`.key` 等檔案並警告
+- **GITHUB_ENV 安全寫入**: 使用 `printf` 而非 `echo` 處理 multiline 變數
+
+**成本控制**:
+- **並發控制**: 同一 PR 只執行一個 job，快速 push 時取消舊的執行
+- **Commit SHA 去重**: 相同 commit 不重複審查（使用 hidden HTML marker）
+- **Diff 截斷**: 大型 diff 自動截斷至 80KB
+- **API 重試**: 暫時性錯誤（429, 5xx）自動重試，非暫時性錯誤（4xx）立即失敗
+
+**智能功能**:
+- **Label-based 審查重點**: 根據 PR labels 調整 AI prompt
+  - `ui`/`frontend`: React patterns, a11y, responsive design
+  - `backend`/`api`: SQL injection, auth, input validation
+  - `security`: OWASP Top 10, secrets handling
+  - `database`/`migration`: migration safety, query performance
+  - `infra`/`devops`: infrastructure security, deployment safety
+- **Smart Markdown 截斷**: 偵測未閉合的 code fence 並自動補上關閉標記
+
+**為何非 Required**: AI 審查為輔助工具，失敗不應阻擋 PR 合併
+
+**Opt-out 機制**: 加上 `no-ai-review` label 可跳過特定 PR 的 AI 審查
+
+**相關 PR**:
+- PR #2540: 初始實作 Qwen AI Code Review workflow
+- Issue #2551: nektos/act 自動化測試
+- Issue #2552: docs/ci_matrix.md 文件補充
+
+---
+
+### 23. `qwen-review-tests` (Qwen Review Tests)
+**檔案**: `.github/workflows/qwen-review-tests.yml`
+
+**用途**: Qwen AI Code Review workflow 的單元測試，驗證 shell script 邏輯正確性
+
+**觸發條件**:
+- ✅ `workflow_dispatch` - 手動觸發
+- ✅ `push` - 當 `qwen-pr-review.yml`、`qwen-review-tests.yml` 變更時（測試邏輯內嵌於 workflow 的 `run:` 區塊）
+- ✅ `pull_request` - 當相關檔案變更時
+
+**執行內容**:
+- **GITHUB_ENV multiline 測試**: 驗證特殊字元（引號、反斜線、變數）正確處理
+- **JSON encoding 測試**: 驗證 `jq` 安全編碼各種危險輸入
+- **@mention 移除測試**: 驗證 perl regex 正確處理 @username vs email@domain.com
+- **敏感檔案偵測測試**: 驗證大小寫不敏感 regex pattern，包含路徑、備份檔案、edge cases
+- **Markdown 截斷測試**: 驗證 code fence 計數與自動關閉邏輯
+- **API 重試邏輯測試**: 驗證 HTTP status code 分類（transient vs non-transient）
+- **Exponential backoff 測試**: 驗證 2^attempt 計算與 30 秒上限
+- **nektos/act dry-run**: 使用 act 驗證 workflow YAML 語法
+
+**為何非 Required**: 測試工具，失敗不阻擋開發流程
+
+**維護注意事項**: 目前測試邏輯直接內嵌於 workflow 的 `run:` 區塊，與 production workflow 的邏輯是「重寫」而非「共用」。若 production workflow 邏輯變更，需同步更新測試。未來建議抽出共用腳本（如 `scripts/qwen_pr_review.sh`），由 production workflow 與 tests workflow 共同 source，以避免 drift。
+
+**相關 Issue**: #2551 (nektos/act 自動化測試)
+
+---
+
 ## 📋 Branch Protection 規則說明
 
 **目前配置的 4 個 Required Checks**:
@@ -761,6 +849,8 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ## 📝 版本歷史
 
+- **2025-12-16**: 停用 `qwen-pr-review` 自動觸發，改用 GitHub Copilot 作為主要 AI 程式碼審查工具
+- **2025-12-16**: 新增 `qwen-pr-review` 和 `qwen-review-tests` 工作流文檔，記錄安全機制、成本控制、智能功能（Issue #2551, #2552）
 - **2025-11-30**: 新增 `coverage-trend` 和 `redis-security-check` 工作流文檔
 - **2025-11-30**: 記錄覆蓋率趨勢追蹤機制（Redis 存儲、dashboard 工具）
 - **2025-11-30**: 記錄 Redis CVE-2025-49844 安全監控機制
@@ -777,6 +867,6 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ---
 
-**最後更新**: 2025-11-30  
+**最後更新**: 2025-12-16  
 **維護者**: @RC918 (Ryan Chen)  
-**文件版本**: 1.4.0
+**文件版本**: 1.5.0
