@@ -4,21 +4,25 @@ Unit tests for scripts/generate-env-reference.py
 Tests the environment reference documentation generation functionality.
 """
 
-import pytest
-from pathlib import Path
-import sys
-import yaml
 import importlib.util
 import os
+import sys
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
+import yaml
 
 pytestmark = pytest.mark.unit
 os.environ['IDEMPOTENCY_TESTS_ALLOWED'] = 'true'
 
+# Mock repo_root_utils before loading the script module.
+# This is required because generate-env-reference.py imports repo_root_utils
+# at module load time, and we need to provide a mock before exec_module().
 script_path = Path(__file__).parent.parent / 'scripts' / 'generate-env-reference.py'
 spec = importlib.util.spec_from_file_location("gen_env_ref_mod", script_path)
 gen_env_ref_mod = importlib.util.module_from_spec(spec)
 
-from unittest.mock import Mock
 mock_repo_root = Mock()
 mock_repo_root.get_repo_root.return_value = Path('/tmp/test_repo')
 sys.modules['repo_root_utils'] = mock_repo_root
@@ -493,3 +497,266 @@ class TestGenerateEnvReference:
         assert '**Total Variables**: 0' in content
         assert '**Required**: 0' in content
         assert '**Optional**: 0' in content
+
+
+class TestPermissionErrors:
+    """Test error handling for permission-related failures."""
+
+    def test_load_schema_permission_error(self, tmp_path):
+        """Test that PermissionError propagates when reading schema."""
+        schema_file = tmp_path / 'schema.yaml'
+
+        with patch('builtins.open', side_effect=PermissionError("Permission denied")):
+            with pytest.raises(PermissionError):
+                gen_env_ref_mod.load_schema(schema_file)
+
+    def test_generate_env_reference_write_permission_error(self, tmp_path):
+        """Test that PermissionError propagates when writing output."""
+        schema = {
+            'version': '1.0',
+            'fields': {'TEST_VAR': {'category': 'Testing', 'type': 'string'}}
+        }
+        output_file = tmp_path / 'ENV_REFERENCE.md'
+
+        with patch('builtins.open', side_effect=PermissionError("Permission denied")):
+            with pytest.raises(PermissionError):
+                gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+    def test_generate_env_reference_mkdir_permission_error(self, tmp_path):
+        """Test that PermissionError propagates when creating directories."""
+        schema = {
+            'version': '1.0',
+            'fields': {'TEST_VAR': {'category': 'Testing', 'type': 'string'}}
+        }
+        output_file = tmp_path / 'nested' / 'dir' / 'ENV_REFERENCE.md'
+
+        with patch.object(Path, 'mkdir', side_effect=PermissionError("Permission denied")):
+            with pytest.raises(PermissionError):
+                gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+
+class TestEdgeCases:
+    """Test edge cases and unusual inputs."""
+
+    def test_schema_missing_fields_key(self, tmp_path):
+        """Test generation with schema missing 'fields' key."""
+        schema = {'version': '1.0'}
+
+        output_file = tmp_path / 'ENV_REFERENCE.md'
+        gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+        content = output_file.read_text()
+        assert '**Total Variables**: 0' in content
+
+    def test_schema_missing_metadata(self, tmp_path):
+        """Test generation with schema missing 'metadata' key."""
+        schema = {
+            'version': '1.0',
+            'fields': {'TEST_VAR': {'category': 'Testing', 'type': 'string'}}
+        }
+
+        output_file = tmp_path / 'ENV_REFERENCE.md'
+        gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+        content = output_file.read_text()
+        assert '**Last Updated**: unknown' in content
+
+    def test_schema_missing_version(self, tmp_path):
+        """Test generation with schema missing 'version' key."""
+        schema = {
+            'fields': {'TEST_VAR': {'category': 'Testing', 'type': 'string'}}
+        }
+
+        output_file = tmp_path / 'ENV_REFERENCE.md'
+        gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+        content = output_file.read_text()
+        assert '**Schema Version**: unknown' in content
+
+    def test_invalid_yaml_raises_error(self, tmp_path):
+        """Test that invalid YAML raises an error."""
+        schema_file = tmp_path / 'invalid.yaml'
+        schema_file.write_text('invalid: yaml: content: [')
+
+        with pytest.raises(yaml.YAMLError):
+            gen_env_ref_mod.load_schema(schema_file)
+
+    def test_category_not_in_order_is_omitted(self, tmp_path):
+        """Test that variables with categories not in category_order are omitted."""
+        schema = {
+            'version': '1.0',
+            'fields': {
+                'KNOWN_VAR': {'category': 'Database', 'type': 'url'},
+                'UNKNOWN_CAT_VAR': {'category': 'UnknownCategory', 'type': 'string'},
+            }
+        }
+
+        output_file = tmp_path / 'ENV_REFERENCE.md'
+        gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+        content = output_file.read_text()
+        # Database is in category_order, so it should appear
+        assert '## Database' in content
+        assert 'KNOWN_VAR' in content
+        # UnknownCategory is NOT in category_order, so it should be omitted
+        assert '## UnknownCategory' not in content
+        assert 'UNKNOWN_CAT_VAR' not in content
+
+    def test_description_with_markdown_special_chars(self, tmp_path):
+        """Test generation with markdown special characters in description."""
+        schema = {
+            'version': '1.0',
+            'fields': {
+                'SPECIAL_VAR': {
+                    'category': 'Application',
+                    'description': 'Contains | pipe and `backticks` and **bold**',
+                    'type': 'string'
+                }
+            }
+        }
+
+        output_file = tmp_path / 'ENV_REFERENCE.md'
+        gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+        content = output_file.read_text()
+        # The description should be preserved as-is
+        assert 'Contains | pipe and `backticks` and **bold**' in content
+
+    def test_variable_with_all_optional_fields_missing(self, tmp_path):
+        """Test generation with variable having only required fields."""
+        schema = {
+            'version': '1.0',
+            'fields': {
+                'MINIMAL_VAR': {
+                    'category': 'Application'
+                    # No type, description, required, default, example, notes, etc.
+                }
+            }
+        }
+
+        output_file = tmp_path / 'ENV_REFERENCE.md'
+        gen_env_ref_mod.generate_env_reference(schema, output_file)
+
+        content = output_file.read_text()
+        assert 'MINIMAL_VAR' in content
+        assert '**Type**: string' in content  # Default type
+        assert '**Required**: No' in content  # Default required
+        assert '**Default**: `-`' in content  # Default value
+
+
+class TestIntegration:
+    """Integration tests for end-to-end functionality."""
+
+    def test_main_function_with_temp_repo(self, tmp_path):
+        """Test main() function with a temporary repo layout."""
+        # Create a minimal repo structure
+        config_dir = tmp_path / 'config'
+        config_dir.mkdir()
+        docs_dir = tmp_path / 'docs'
+        docs_dir.mkdir()
+
+        schema_data = {
+            'version': '1.0',
+            'metadata': {'last_updated': '2025-12-16'},
+            'fields': {
+                'DATABASE_URL': {
+                    'category': 'Database',
+                    'description': 'Database connection URL',
+                    'required': True,
+                    'type': 'url',
+                    'security_level': 'secret'
+                },
+                'LOG_LEVEL': {
+                    'category': 'Application',
+                    'description': 'Logging level',
+                    'required': False,
+                    'type': 'string',
+                    'default': 'INFO'
+                }
+            }
+        }
+
+        schema_file = config_dir / 'env.schema.yaml'
+        with open(schema_file, 'w', encoding='utf-8') as f:
+            yaml.dump(schema_data, f)
+
+        # Mock get_repo_root to return our temp directory
+        with patch.object(gen_env_ref_mod, 'get_repo_root', return_value=tmp_path):
+            # Capture stdout to verify print statements
+            gen_env_ref_mod.main()
+
+        # Verify the output file was created
+        output_file = docs_dir / 'ENV_REFERENCE.md'
+        assert output_file.exists()
+
+        content = output_file.read_text()
+        assert '# Environment Variable Reference' in content
+        assert 'DATABASE_URL' in content
+        assert 'LOG_LEVEL' in content
+        assert '## Database' in content
+        assert '## Application' in content
+
+    def test_main_function_schema_not_found(self, tmp_path):
+        """Test main() exits with error when schema file not found."""
+        # Create empty repo structure (no schema file)
+        config_dir = tmp_path / 'config'
+        config_dir.mkdir()
+
+        with patch.object(gen_env_ref_mod, 'get_repo_root', return_value=tmp_path):
+            with pytest.raises(SystemExit) as exc_info:
+                gen_env_ref_mod.main()
+
+        assert exc_info.value.code == 1
+
+    def test_full_generation_roundtrip(self, tmp_path):
+        """Test that generated file can be regenerated identically."""
+        schema = {
+            'version': '2.0',
+            'metadata': {'last_updated': '2025-12-16'},
+            'fields': {
+                'VAR_A': {
+                    'category': 'Authentication',
+                    'description': 'Auth variable A',
+                    'type': 'secret',
+                    'required': True,
+                    'security_level': 'critical'
+                },
+                'VAR_B': {
+                    'category': 'Database',
+                    'description': 'Database variable B',
+                    'type': 'url',
+                    'required': True,
+                    'default': 'postgresql://localhost/db'
+                },
+                'VAR_C': {
+                    'category': 'Feature Flags',
+                    'description': 'Feature flag C',
+                    'type': 'boolean',
+                    'required': False,
+                    'default': False,
+                    'environment_specific': {
+                        'production': False,
+                        'development': True
+                    }
+                }
+            }
+        }
+
+        # Generate twice and compare
+        output1 = tmp_path / 'output1.md'
+        output2 = tmp_path / 'output2.md'
+
+        gen_env_ref_mod.generate_env_reference(schema, output1)
+        gen_env_ref_mod.generate_env_reference(schema, output2)
+
+        content1 = output1.read_text()
+        content2 = output2.read_text()
+
+        assert content1 == content2, "Generation is not deterministic"
+
+        # Verify key content
+        assert '## Authentication' in content1
+        assert '## Database' in content1
+        assert '## Feature Flags' in content1
+        assert 'CRITICAL' in content1
+        assert 'production: `False`' in content1
