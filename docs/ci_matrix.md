@@ -677,7 +677,7 @@
 **用途**: 依賴管理一致性檢查，確保 monorepo 使用統一的套件管理器 (pnpm) 並防止 lockfile 漂移
 
 **觸發條件**:
-- ✅ `push` - main 分支推送（當 package.json、lockfile 相關檔案變更時）
+- ✅ `push` - main 分支推送（當任一 package.json 或 lockfile 變更時）
 - ✅ `pull_request` - 所有 PR（當 package.json、lockfile、workflows、vercel.json 變更時）
 
 **執行內容**:
