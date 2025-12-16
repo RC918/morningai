@@ -37,13 +37,20 @@ def get_access_token_expiry_minutes() -> int:
 
 
 def _log_token_config_on_startup():
-    """Log token configuration on startup if enabled."""
-    if get_settings().log_token_expiry_on_startup:
-        expiry = get_access_token_expiry_minutes()
-        print(
-            f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={expiry}",
-            flush=True
-        )
+    """Log token configuration on startup if enabled.
+    
+    Wrapped in try/except to prevent import failures if settings
+    validation fails due to invalid environment variable combinations.
+    """
+    try:
+        if get_settings().log_token_expiry_on_startup:
+            expiry = get_access_token_expiry_minutes()
+            print(
+                f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={expiry}",
+                flush=True
+            )
+    except Exception:
+        pass
 
 
 _log_token_config_on_startup()

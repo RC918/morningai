@@ -523,8 +523,8 @@ jobs:
           import sys, importlib, os
           print("PYTHONPATH OK, first 5:", sys.path[:5])
           import common
-          from src.services.auth_service import ACCESS_TOKEN_EXPIRY_MINUTES
-          print(f"[Preflight] ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set')})", flush=True)
+          from src.services.auth_service import get_access_token_expiry_minutes
+          print(f"[Preflight] ACCESS_TOKEN_EXPIRY_MINUTES={get_access_token_expiry_minutes()} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set')})", flush=True)
           print("✅ Import preflight: OK (orchestrator disabled for E2E)")
           PY
           
@@ -685,8 +685,8 @@ jobs:
           import sys, importlib, os
           print("PYTHONPATH OK, first 5:", sys.path[:5])
           import common
-          from src.services.auth_service import ACCESS_TOKEN_EXPIRY_MINUTES
-          print(f"[Preflight] ACCESS_TOKEN_EXPIRY_MINUTES={ACCESS_TOKEN_EXPIRY_MINUTES} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set')})", flush=True)
+          from src.services.auth_service import get_access_token_expiry_minutes
+          print(f"[Preflight] ACCESS_TOKEN_EXPIRY_MINUTES={get_access_token_expiry_minutes()} (from env: {os.getenv('ACCESS_TOKEN_EXPIRY_MINUTES', 'not set')})", flush=True)
           print("✅ Import preflight: OK (orchestrator disabled for E2E)")
           PY
           
