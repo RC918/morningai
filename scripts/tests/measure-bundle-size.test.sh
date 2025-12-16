@@ -89,6 +89,83 @@ assert_not_empty() {
   fi
 }
 
+# Floating point comparison helper
+# Uses bc if available, falls back to awk (consistent with production code)
+# Arguments:
+#   $1 - first value (a)
+#   $2 - operator: "gt" (>), "ge" (>=), "lt" (<), "le" (<=), "eq" (==)
+#   $3 - second value (b)
+# Returns:
+#   0 if comparison is true, 1 if false
+float_compare() {
+  local a="$1"
+  local op="$2"
+  local b="$3"
+  
+  # Normalize values (handle bc returning .X format)
+  a=$(echo "$a" | sed 's/^\./0./')
+  b=$(echo "$b" | sed 's/^\./0./')
+  
+  local expr
+  case "$op" in
+    gt) expr="$a > $b" ;;
+    ge) expr="$a >= $b" ;;
+    lt) expr="$a < $b" ;;
+    le) expr="$a <= $b" ;;
+    eq) expr="$a == $b" ;;
+    *) echo "Unknown operator: $op" >&2; return 1 ;;
+  esac
+  
+  local result
+  if command -v bc &> /dev/null && echo "1+1" | bc &> /dev/null; then
+    # Use bc for comparison
+    result=$(echo "$expr" | bc -l 2>/dev/null | tr -d '[:space:]')
+  else
+    # Fallback to awk
+    result=$(awk -v a="$a" -v b="$b" "BEGIN {print ($expr)}")
+  fi
+  
+  if [[ "$result" == "1" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Floating point range check helper
+# Uses bc if available, falls back to awk (consistent with production code)
+# Arguments:
+#   $1 - value to check
+#   $2 - minimum (inclusive)
+#   $3 - maximum (inclusive)
+# Returns:
+#   0 if value is in range [min, max], 1 if not
+float_in_range() {
+  local val="$1"
+  local min="$2"
+  local max="$3"
+  
+  # Normalize values (handle bc returning .X format)
+  val=$(echo "$val" | sed 's/^\./0./')
+  min=$(echo "$min" | sed 's/^\./0./')
+  max=$(echo "$max" | sed 's/^\./0./')
+  
+  local result
+  if command -v bc &> /dev/null && echo "1+1" | bc &> /dev/null; then
+    # Use bc for comparison
+    result=$(echo "$val >= $min && $val <= $max" | bc -l 2>/dev/null | tr -d '[:space:]')
+  else
+    # Fallback to awk
+    result=$(awk -v v="$val" -v mn="$min" -v mx="$max" "BEGIN {print (v >= mn && v <= mx)}")
+  fi
+  
+  if [[ "$result" == "1" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 run_test() {
   local test_name="$1"
   local test_func="$2"
@@ -141,15 +218,11 @@ test_gzip_direct_valid_directory() {
   local total
   total=$(echo "$result" | cut -d' ' -f1)
   
-  # Total should be greater than 0 (handle bc returning .X format)
-  # Normalize by prepending 0 if starts with .
-  local normalized_total
-  normalized_total=$(echo "$total" | sed 's/^\./0./')
-  
-  if [[ $(awk "BEGIN {print ($normalized_total > 0)}") == "1" ]]; then
+  # Total should be greater than 0
+  if float_compare "$total" gt 0; then
     return 0
   else
-    echo "Expected total > 0, got $total (normalized: $normalized_total)"
+    echo "Expected total > 0, got $total"
     return 1
   fi
 }
@@ -211,19 +284,12 @@ test_gzip_direct_multiple_files() {
   local largest
   largest=$(echo "$result" | cut -d' ' -f2)
   
-  # Normalize values (handle bc returning .X format)
-  local normalized_total
-  normalized_total=$(echo "$total" | sed 's/^\./0./')
-  local normalized_largest
-  normalized_largest=$(echo "$largest" | sed 's/^\./0./')
-  
   # Total should be greater than largest (multiple files)
-  # Both should be non-zero
-  if [[ $(awk "BEGIN {print ($normalized_total > 0)}") == "1" ]] && \
-     [[ $(awk "BEGIN {print ($normalized_largest > 0)}") == "1" ]]; then
+  # largest > 0 ensures we're testing meaningful values
+  if float_compare "$largest" gt 0 && float_compare "$total" gt "$largest"; then
     return 0
   else
-    echo "Expected non-zero values, got total=$total (normalized: $normalized_total), largest=$largest (normalized: $normalized_largest)"
+    echo "Expected largest > 0 and total > largest, got total=$total, largest=$largest"
     return 1
   fi
 }
@@ -242,7 +308,7 @@ test_gzip_direct_css_files() {
   local total
   total=$(echo "$result" | cut -d' ' -f1)
   
-  if [[ $(echo "$total > 0" | bc -l 2>/dev/null || awk "BEGIN {print ($total > 0)}") == "1" ]]; then
+  if float_compare "$total" gt 0; then
     return 0
   else
     echo "Expected total > 0 for CSS, got $total"
@@ -320,7 +386,7 @@ test_parse_vite_single_js() {
   total=$(echo "$result" | cut -d' ' -f1)
   
   # Should be approximately 78.2
-  if [[ $(echo "$total >= 78 && $total <= 79" | bc -l 2>/dev/null || awk "BEGIN {print ($total >= 78 && $total <= 79)}") == "1" ]]; then
+  if float_in_range "$total" 78 79; then
     return 0
   else
     echo "Expected ~78.2, got $total"
@@ -345,8 +411,7 @@ dist/assets/chunk-ghi789.js    50.00 kB │ gzip:  15.00 kB"
   
   # Total should be ~123.7 (78.23 + 30.50 + 15.00)
   # Largest should be ~78.2
-  if [[ $(echo "$total >= 123 && $total <= 124" | bc -l 2>/dev/null || awk "BEGIN {print ($total >= 123 && $total <= 124)}") == "1" ]] && \
-     [[ $(echo "$largest >= 78 && $largest <= 79" | bc -l 2>/dev/null || awk "BEGIN {print ($largest >= 78 && $largest <= 79)}") == "1" ]]; then
+  if float_in_range "$total" 123 124 && float_in_range "$largest" 78 79; then
     return 0
   else
     echo "Expected total ~123.7 and largest ~78.2, got total=$total, largest=$largest"
@@ -365,7 +430,7 @@ test_parse_vite_css() {
   local total
   total=$(echo "$result" | cut -d' ' -f1)
   
-  if [[ $(echo "$total >= 12 && $total <= 13" | bc -l 2>/dev/null || awk "BEGIN {print ($total >= 12 && $total <= 13)}") == "1" ]]; then
+  if float_in_range "$total" 12 13; then
     return 0
   else
     echo "Expected ~12.5, got $total"
@@ -415,8 +480,7 @@ build completed in 5.23s"
   local css_total
   css_total=$(echo "$css_result" | cut -d' ' -f1)
   
-  if [[ $(echo "$js_total >= 78 && $js_total <= 79" | bc -l 2>/dev/null || awk "BEGIN {print ($js_total >= 78 && $js_total <= 79)}") == "1" ]] && \
-     [[ $(echo "$css_total >= 12 && $css_total <= 13" | bc -l 2>/dev/null || awk "BEGIN {print ($css_total >= 12 && $css_total <= 13)}") == "1" ]]; then
+  if float_in_range "$js_total" 78 79 && float_in_range "$css_total" 12 13; then
     return 0
   else
     echo "Expected js ~78.2 and css ~12.5, got js=$js_total, css=$css_total"
