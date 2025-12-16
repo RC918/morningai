@@ -181,20 +181,20 @@ jobs:
             cp full_diff.patch trimmed_diff.patch
           fi
           
-          # Write to GITHUB_ENV safely
+          # Write to GITHUB_ENV safely using printf for reliable handling
           DELIMITER=$(openssl rand -hex 16)
           {
-            echo "DIFF<<$DELIMITER"
+            printf '%s\n' "DIFF<<$DELIMITER"
             cat trimmed_diff.patch
-            echo ""
-            echo "$DELIMITER"
+            printf '\n%s\n' "$DELIMITER"
           } >> "$GITHUB_ENV"
           
           # Get changed files list
+          DELIMITER2=$(openssl rand -hex 16)
           {
-            echo "CHANGED_FILES<<$DELIMITER"
+            printf '%s\n' "CHANGED_FILES<<$DELIMITER2"
             git diff --name-only "$BASE_SHA".."$HEAD_SHA"
-            echo "$DELIMITER"
+            printf '%s\n' "$DELIMITER2"
           } >> "$GITHUB_ENV"
           
           # Count changes
@@ -254,12 +254,12 @@ jobs:
             SYSTEM_PROMPT="$BASE_PROMPT"
           fi
           
-          # Write safely
+          # Write safely using printf for reliable handling
           DELIMITER=$(openssl rand -hex 16)
           {
-            echo "SYSTEM_PROMPT<<$DELIMITER"
-            echo "$SYSTEM_PROMPT"
-            echo "$DELIMITER"
+            printf '%s\n' "SYSTEM_PROMPT<<$DELIMITER"
+            printf '%s\n' "$SYSTEM_PROMPT"
+            printf '%s\n' "$DELIMITER"
           } >> "$GITHUB_ENV"
 
       - name: Call Qwen API
@@ -374,7 +374,8 @@ jobs:
           # Remove @mentions to prevent notification spam (insert zero-width space after @)
           # Use perl for reliable Unicode handling - only target @username patterns at word boundaries
           # This avoids modifying email addresses like foo@bar.com
-          AI_RESPONSE=$(echo "$AI_RESPONSE" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || echo "$AI_RESPONSE")
+          # Use printf instead of echo for reliable handling of arbitrary content (echo can mangle -n, backslashes, etc.)
+          AI_RESPONSE=$(printf '%s' "$AI_RESPONSE" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$AI_RESPONSE")
           
           # Limit output length (GitHub comment limit is 65536)
           if [ ${#AI_RESPONSE} -gt 60000 ]; then
@@ -383,12 +384,12 @@ jobs:
           ... (response truncated due to length)"
           fi
           
-          # Write safely
+          # Write safely using printf for reliable handling of arbitrary content
           DELIMITER=$(openssl rand -hex 16)
           {
-            echo "AI_COMMENT<<$DELIMITER"
-            echo "$AI_RESPONSE"
-            echo "$DELIMITER"
+            printf '%s\n' "AI_COMMENT<<$DELIMITER"
+            printf '%s\n' "$AI_RESPONSE"
+            printf '%s\n' "$DELIMITER"
           } >> "$GITHUB_ENV"
           
           RESPONSE_LENGTH=${#AI_RESPONSE}
