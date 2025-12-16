@@ -72,7 +72,8 @@ def format_default(var_config: Dict[str, Any], include_env_specific: bool = Fals
     if include_env_specific:
         env_specific = var_config.get('environment_specific')
         if env_specific:
-            env_parts = [f"{env}={val}" for env, val in env_specific.items()]
+            # Sort keys for deterministic output
+            env_parts = [f"{env}={val}" for env, val in sorted(env_specific.items())]
             return f"{base} ({', '.join(env_parts)})"
 
     return base
@@ -199,7 +200,8 @@ def generate_env_reference(schema: Dict[str, Any], output_path: Path) -> None:
             if env_specific:
                 lines.append("")
                 lines.append("**Environment-specific values**:")
-                for env, value in env_specific.items():
+                # Sort keys for deterministic output
+                for env, value in sorted(env_specific.items()):
                     lines.append(f"- {env}: `{value}`")
 
             lines.append("")
