@@ -306,7 +306,7 @@ jobs:
 
       - name: Post review comment
         if: steps.check_reviewed.outputs.skip != 'true'
-        uses: marocchino/sticky-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: qwen-ai-review
           message: |
