@@ -9,7 +9,7 @@ import sys
 import json
 from unittest.mock import patch, MagicMock
 
-from src.routes.sessions import transform_session_for_frontend
+from src.routes.sessions import transform_session_for_frontend, _extract_ide_activity
 
 
 @pytest.fixture
@@ -1100,3 +1100,420 @@ class TestSendCommandEndpoint:
                 call_args = mock_pipe.expire.call_args
                 assert call_args[0][0] == 'dev_agent:session:test-session-123:commands'
                 assert call_args[0][1] == 86400
+
+
+class TestExtractIdeActivity:
+    """Tests for _extract_ide_activity() function - Issue #2241"""
+
+    def test_extract_empty_session(self):
+        """Test extraction from session with no observations or actions"""
+        session_data = {
+            'observations': [],
+            'actions': [],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert result['activeFile'] is None
+        assert result['recentFiles'] == []
+        assert result['ideUrl'] is None
+        assert result['hasIdeSession'] is False
+
+    def test_extract_write_action_sets_active_file(self):
+        """Test that WRITE_CODE action sets activeFile"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': '/src/main.py'},
+                    'timestamp': '2024-01-15T10:00:00Z'
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert result['activeFile'] == '/src/main.py'
+        assert len(result['recentFiles']) == 1
+        assert result['recentFiles'][0]['action'] == 'modified'
+
+    def test_extract_read_action_does_not_set_active_file(self):
+        """Test that READ_FILE action does NOT set activeFile (regression test)"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'READ_FILE',
+                    'result': {'file_path': '/src/config.py'},
+                    'timestamp': '2024-01-15T10:00:00Z'
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # activeFile should be None because READ_FILE is excluded
+        assert result['activeFile'] is None
+        assert len(result['recentFiles']) == 1
+        assert result['recentFiles'][0]['action'] == 'read'
+
+    def test_extract_active_file_excludes_reads_mixed(self):
+        """Test activeFile picks most recent MODIFIED file, not read (regression test)"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': '/src/old.py'},
+                    'timestamp': '2024-01-15T09:00:00Z'
+                },
+                {
+                    'action_type': 'READ_FILE',
+                    'result': {'file_path': '/src/newer_read.py'},
+                    'timestamp': '2024-01-15T10:00:00Z'
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # activeFile should be the WRITE_CODE file, not the newer READ_FILE
+        assert result['activeFile'] == '/src/old.py'
+        assert len(result['recentFiles']) == 2
+
+    def test_extract_actions_take_precedence_over_observations(self):
+        """Test that actions are processed first and take precedence"""
+        session_data = {
+            'observations': [
+                {
+                    'observation': 'reading /src/main.py',
+                    'timestamp': '2024-01-15T10:00:00Z'
+                }
+            ],
+            'actions': [
+                {
+                    'action_type': 'EDIT_FILE',
+                    'result': {'file_path': '/src/main.py'},
+                    'timestamp': '2024-01-15T09:00:00Z'
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # File should be marked as 'modified' from action, not 'read' from observation
+        assert len(result['recentFiles']) == 1
+        assert result['recentFiles'][0]['action'] == 'modified'
+        assert result['activeFile'] == '/src/main.py'
+
+    def test_extract_observation_write_verbs(self):
+        """Test observation parsing for write verbs (editing, modified, created, etc.)"""
+        session_data = {
+            'observations': [
+                {'observation': 'editing /src/file1.py', 'timestamp': '2024-01-15T10:00:00Z'},
+                {'observation': 'modified /src/file2.txt', 'timestamp': '2024-01-15T10:01:00Z'},
+                {'observation': 'created /src/file3.cfg', 'timestamp': '2024-01-15T10:02:00Z'},
+                {'observation': 'updated /src/file4.ini', 'timestamp': '2024-01-15T10:03:00Z'},
+                {'observation': 'wrote /src/file5.log', 'timestamp': '2024-01-15T10:04:00Z'},
+            ],
+            'actions': [],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # All 5 files should be extracted and marked as 'modified'
+        # Using non-code extensions to avoid fallback pattern matching extra files
+        assert len(result['recentFiles']) == 5
+        for f in result['recentFiles']:
+            assert f['action'] == 'modified'
+
+    def test_extract_observation_read_verbs(self):
+        """Test observation parsing for read verbs (reading, opened)"""
+        session_data = {
+            'observations': [
+                {'observation': 'reading /src/config.py', 'timestamp': '2024-01-15T10:00:00Z'},
+                {'observation': 'opened /src/settings.cfg', 'timestamp': '2024-01-15T10:01:00Z'},
+            ],
+            'actions': [],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # All should be marked as 'read'
+        # Using non-code extensions to avoid fallback pattern matching extra files
+        assert len(result['recentFiles']) == 2
+        for f in result['recentFiles']:
+            assert f['action'] == 'read'
+        # activeFile should be None since all are reads
+        assert result['activeFile'] is None
+
+    def test_extract_file_deduplication(self):
+        """Test that same file appearing multiple times is deduplicated"""
+        session_data = {
+            'observations': [
+                {'observation': 'editing /src/main.py', 'timestamp': '2024-01-15T10:00:00Z'},
+                {'observation': 'modified /src/main.py', 'timestamp': '2024-01-15T10:01:00Z'},
+            ],
+            'actions': [],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # Should only have one entry for main.py
+        assert len(result['recentFiles']) == 1
+        assert result['recentFiles'][0]['path'] == '/src/main.py'
+
+    def test_extract_ide_url_from_metadata(self):
+        """Test IDE URL extraction from ide_session metadata"""
+        session_data = {
+            'observations': [],
+            'actions': [],
+            'ide_session': {
+                'session_id': 'ide-123',
+                'public_url': 'https://ide.example.com/session/123'
+            },
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert result['ideUrl'] == 'https://ide.example.com/session/123'
+        assert result['hasIdeSession'] is True
+
+    def test_extract_ide_url_fallback_to_vscode_endpoint(self):
+        """Test IDE URL fallback to vscode_endpoint"""
+        session_data = {
+            'observations': [],
+            'actions': [],
+            'ide_session': {
+                'session_id': 'ide-123',
+                'vscode_endpoint': 'https://vscode.example.com'
+            },
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert result['ideUrl'] == 'https://vscode.example.com'
+
+    def test_extract_ide_url_fallback_to_context(self):
+        """Test IDE URL fallback to context.ide_url"""
+        session_data = {
+            'observations': [],
+            'actions': [],
+            'ide_session': {},
+            'context': {'ide_url': 'https://context-ide.example.com'}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert result['ideUrl'] == 'https://context-ide.example.com'
+
+    def test_extract_limits_to_10_files(self):
+        """Test that recentFiles is limited to 10 entries"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': f'/src/file{i}.py'},
+                    'timestamp': f'2024-01-15T10:{i:02d}:00Z'
+                }
+                for i in range(15)
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert len(result['recentFiles']) == 10
+
+    def test_extract_sorts_by_timestamp_descending(self):
+        """Test that recentFiles is sorted by timestamp descending"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': '/src/old.py'},
+                    'timestamp': '2024-01-15T09:00:00Z'
+                },
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': '/src/new.py'},
+                    'timestamp': '2024-01-15T11:00:00Z'
+                },
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': '/src/mid.py'},
+                    'timestamp': '2024-01-15T10:00:00Z'
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # Should be sorted: new, mid, old
+        assert result['recentFiles'][0]['path'] == '/src/new.py'
+        assert result['recentFiles'][1]['path'] == '/src/mid.py'
+        assert result['recentFiles'][2]['path'] == '/src/old.py'
+
+    def test_extract_handles_missing_timestamp(self):
+        """Test graceful handling of missing timestamp"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': '/src/main.py'},
+                    # No timestamp
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert len(result['recentFiles']) == 1
+        assert result['recentFiles'][0]['timestamp'] == ''
+
+    def test_extract_handles_empty_file_path(self):
+        """Test that empty file paths are ignored"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'file_path': ''},
+                    'timestamp': '2024-01-15T10:00:00Z'
+                },
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {},  # No file_path at all
+                    'timestamp': '2024-01-15T10:01:00Z'
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert len(result['recentFiles']) == 0
+
+    def test_extract_handles_path_key_fallback(self):
+        """Test that 'path' key is used as fallback when 'file_path' is missing"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {
+                    'action_type': 'WRITE_CODE',
+                    'result': {'path': '/src/main.py'},  # Using 'path' instead of 'file_path'
+                    'timestamp': '2024-01-15T10:00:00Z'
+                }
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert len(result['recentFiles']) == 1
+        assert result['recentFiles'][0]['path'] == '/src/main.py'
+
+    def test_extract_all_write_action_types(self):
+        """Test all write action types are recognized"""
+        session_data = {
+            'observations': [],
+            'actions': [
+                {'action_type': 'WRITE_CODE', 'result': {'file_path': '/a.py'}, 'timestamp': '2024-01-15T10:00:00Z'},
+                {'action_type': 'EDIT_FILE', 'result': {'file_path': '/b.py'}, 'timestamp': '2024-01-15T10:01:00Z'},
+                {'action_type': 'CREATE_FILE', 'result': {'file_path': '/c.py'}, 'timestamp': '2024-01-15T10:02:00Z'},
+            ],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert len(result['recentFiles']) == 3
+        for f in result['recentFiles']:
+            assert f['action'] == 'modified'
+
+    def test_extract_file_extension_pattern_fallback(self):
+        """Test file extension pattern matching as fallback"""
+        session_data = {
+            'observations': [
+                {'observation': 'Looking at src/utils/helper.ts for reference', 'timestamp': '2024-01-15T10:00:00Z'},
+            ],
+            'actions': [],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        # Should extract the .ts file from the observation
+        assert len(result['recentFiles']) >= 1
+        # Fallback patterns mark as 'read' since intent is unclear
+        assert any(f['path'].endswith('.ts') for f in result['recentFiles'])
+
+    def test_extract_quoted_file_paths(self):
+        """Test extraction of file paths in quotes"""
+        session_data = {
+            'observations': [
+                {'observation': 'editing "src/main.py"', 'timestamp': '2024-01-15T10:00:00Z'},
+                {'observation': "modified 'src/utils.js'", 'timestamp': '2024-01-15T10:01:00Z'},
+                {'observation': 'created `src/config.ts`', 'timestamp': '2024-01-15T10:02:00Z'},
+            ],
+            'actions': [],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert len(result['recentFiles']) == 3
+
+    def test_extract_case_insensitive_verbs(self):
+        """Test that verb matching is case insensitive"""
+        session_data = {
+            'observations': [
+                {'observation': 'EDITING /src/upper.py', 'timestamp': '2024-01-15T10:00:00Z'},
+                {'observation': 'Editing /src/title.py', 'timestamp': '2024-01-15T10:01:00Z'},
+                {'observation': 'READING /src/read_upper.py', 'timestamp': '2024-01-15T10:02:00Z'},
+            ],
+            'actions': [],
+            'ide_session': {},
+            'context': {}
+        }
+
+        result = _extract_ide_activity(session_data)
+
+        assert len(result['recentFiles']) == 3
+        # First two should be modified, last one read
+        modified_files = [f for f in result['recentFiles'] if f['action'] == 'modified']
+        read_files = [f for f in result['recentFiles'] if f['action'] == 'read']
+        assert len(modified_files) == 2
+        assert len(read_files) == 1
