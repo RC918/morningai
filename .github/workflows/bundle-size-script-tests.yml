@@ -25,12 +25,14 @@ on:
     branches: [main]
     paths:
       - 'scripts/measure-bundle-size.sh'
+      - 'scripts/lib/bundle-size-lib.sh'
       - 'scripts/tests/measure-bundle-size.test.sh'
       - '.github/workflows/bundle-size-script-tests.yml'
   pull_request:
     branches: [main]
     paths:
       - 'scripts/measure-bundle-size.sh'
+      - 'scripts/lib/bundle-size-lib.sh'
       - 'scripts/tests/measure-bundle-size.test.sh'
       - '.github/workflows/bundle-size-script-tests.yml'
 
@@ -123,7 +125,7 @@ jobs:
           
           FAILED=0
           
-          for script in scripts/measure-bundle-size.sh scripts/tests/measure-bundle-size.test.sh; do
+          for script in scripts/measure-bundle-size.sh scripts/lib/bundle-size-lib.sh scripts/tests/measure-bundle-size.test.sh; do
             if bash -n "$script" 2>&1; then
               echo "- $script: syntax OK" >> $GITHUB_STEP_SUMMARY
             else

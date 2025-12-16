@@ -105,90 +105,18 @@ run_test() {
 }
 
 # ============================================================================
-# SOURCE THE FUNCTIONS TO TEST
+# SOURCE THE SHARED LIBRARY
 # ============================================================================
 
-# We need to source just the functions, not run the main script
-# Create a temporary file with just the functions
+# Determine script directory for sourcing library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$(cd "$SCRIPT_DIR/../lib" && pwd)"
 
-create_test_harness() {
-  cat > "$TEST_DIR/functions.sh" << 'FUNCTIONS'
-# Extracted functions from measure-bundle-size.sh for testing
-
-# Parse Vite build output to extract bundle sizes
-parse_vite_output() {
-  local build_output="$1"
-  local file_type="$2"
-  
-  local total=0
-  local largest=0
-  
-  while IFS= read -r line; do
-    if [[ "$line" =~ \.$file_type[[:space:]] ]] && [[ "$line" =~ gzip:[[:space:]]*([0-9.]+)[[:space:]]*kB ]]; then
-      local size="${BASH_REMATCH[1]}"
-      local size_int
-      if command -v bc &> /dev/null; then
-        size_int=$(echo "$size * 100" | bc | cut -d. -f1)
-      else
-        size_int=$(awk "BEGIN {printf \"%.0f\", $size * 100}")
-      fi
-      total=$((total + ${size_int:-0}))
-      if (( ${size_int:-0} > largest )); then
-        largest=${size_int:-0}
-      fi
-    fi
-  done <<< "$build_output"
-  
-  local total_kb
-  local largest_kb
-  if command -v bc &> /dev/null; then
-    total_kb=$(echo "scale=1; $total / 100" | bc)
-    largest_kb=$(echo "scale=1; $largest / 100" | bc)
-  else
-    total_kb=$(awk "BEGIN {printf \"%.1f\", $total / 100}")
-    largest_kb=$(awk "BEGIN {printf \"%.1f\", $largest / 100}")
-  fi
-  
-  echo "$total_kb $largest_kb"
-}
-
-# Direct gzip calculation fallback
-calculate_gzip_sizes_direct() {
-  local dist_path="$1"
-  local file_type="$2"
-  
-  local total=0
-  local largest=0
-  
-  if [[ ! -d "$dist_path/assets" ]]; then
-    echo "0 0"
-    return
-  fi
-  
-  while IFS= read -r -d '' file; do
-    if [[ -f "$file" ]]; then
-      local current_size
-      current_size=$({ gzip -c "$file" 2>/dev/null || true; } | wc -c)
-      total=$((total + ${current_size:-0}))
-      if (( ${current_size:-0} > largest )); then
-        largest=${current_size:-0}
-      fi
-    fi
-  done < <(find "$dist_path/assets" -name "*.$file_type" -print0 2>/dev/null)
-  
-  local total_kb
-  local largest_kb
-  if command -v bc &> /dev/null; then
-    total_kb=$(echo "scale=1; $total / 1024" | bc)
-    largest_kb=$(echo "scale=1; $largest / 1024" | bc)
-  else
-    total_kb=$(awk "BEGIN {printf \"%.1f\", $total / 1024}")
-    largest_kb=$(awk "BEGIN {printf \"%.1f\", $largest / 1024}")
-  fi
-  
-  echo "$total_kb $largest_kb"
-}
-FUNCTIONS
+# Source the shared library directly - this is the same library used by
+# measure-bundle-size.sh, ensuring test consistency with production code.
+# See scripts/tests/BUNDLE_SIZE_TESTING.md for architecture details.
+source_library() {
+  source "$LIB_DIR/bundle-size-lib.sh"
 }
 
 # ============================================================================
@@ -196,7 +124,7 @@ FUNCTIONS
 # ============================================================================
 
 test_gzip_direct_valid_directory() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   # Create test fixtures with larger content to ensure measurable gzip size
   mkdir -p "$TEST_DIR/dist/assets"
@@ -227,7 +155,7 @@ test_gzip_direct_valid_directory() {
 }
 
 test_gzip_direct_missing_directory() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   local result
   result=$(calculate_gzip_sizes_direct "$TEST_DIR/nonexistent" "js")
@@ -236,7 +164,7 @@ test_gzip_direct_missing_directory() {
 }
 
 test_gzip_direct_empty_directory() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   # Create empty assets directory
   mkdir -p "$TEST_DIR/empty/assets"
@@ -248,7 +176,7 @@ test_gzip_direct_empty_directory() {
 }
 
 test_gzip_direct_no_matching_files() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   # Create assets directory with only CSS files
   mkdir -p "$TEST_DIR/css-only/assets"
@@ -261,7 +189,7 @@ test_gzip_direct_no_matching_files() {
 }
 
 test_gzip_direct_multiple_files() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   # Create multiple JS files with larger content
   mkdir -p "$TEST_DIR/multi/assets"
@@ -301,7 +229,7 @@ test_gzip_direct_multiple_files() {
 }
 
 test_gzip_direct_css_files() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   # Create CSS files
   mkdir -p "$TEST_DIR/css/assets"
@@ -381,7 +309,7 @@ test_zero_regex_small_value() {
 # ============================================================================
 
 test_parse_vite_single_js() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   local vite_output="dist/assets/index-abc123.js   245.67 kB │ gzip:  78.23 kB"
   
@@ -401,7 +329,7 @@ test_parse_vite_single_js() {
 }
 
 test_parse_vite_multiple_js() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   local vite_output="dist/assets/index-abc123.js   245.67 kB │ gzip:  78.23 kB
 dist/assets/vendor-def456.js   100.00 kB │ gzip:  30.50 kB
@@ -427,7 +355,7 @@ dist/assets/chunk-ghi789.js    50.00 kB │ gzip:  15.00 kB"
 }
 
 test_parse_vite_css() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   local vite_output="dist/assets/style-abc123.css   45.00 kB │ gzip:  12.50 kB"
   
@@ -446,7 +374,7 @@ test_parse_vite_css() {
 }
 
 test_parse_vite_no_gzip_info() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   local vite_output="dist/assets/index-abc123.js   245.67 kB"
   
@@ -457,7 +385,7 @@ test_parse_vite_no_gzip_info() {
 }
 
 test_parse_vite_empty_output() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   local vite_output=""
   
@@ -468,7 +396,7 @@ test_parse_vite_empty_output() {
 }
 
 test_parse_vite_mixed_content() {
-  source "$TEST_DIR/functions.sh"
+  source_library
   
   local vite_output="vite v5.0.0 building for production...
 transforming...
@@ -564,7 +492,6 @@ main() {
   echo ""
   
   setup
-  create_test_harness
   
   echo "Test Suite: calculate_gzip_sizes_direct()"
   echo "-------------------------------------------"
