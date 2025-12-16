@@ -13,6 +13,6 @@
     "use-mobile.tsx": "Hook, not a visual component",
     "use-toast.tsx": "Hook, not a visual component"
   },
-  "expires": "2025-12-01",
+  "expires": "2026-06-01",
   "documentation": "https://github.com/RC918/morningai/blob/main/CONTRIBUTING_DESIGN_SYSTEM.md"
 }
