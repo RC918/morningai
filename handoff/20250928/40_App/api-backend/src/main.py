@@ -2,7 +2,7 @@ import os
 import sys
 import datetime
 import logging
-from common.config.settings import settings as app_settings
+from common.config.settings import settings as app_settings, get_settings
 
 from pathlib import Path
 # Path calculation: main.py -> src/ -> api-backend/ -> 40_App/ -> 20250928/ -> handoff/ -> repo root
@@ -32,7 +32,7 @@ elif not os.path.exists(app_dir):
 from flask import Flask
 from src.models.user import db
 # Note: jwt_required, admin_required, analyst_required moved to phase456 blueprint (PR1.6a)
-from common.config.settings import get_settings
+# Note: get_settings is imported at line 5 along with settings as app_settings
 import sys
 import os
 import logging
@@ -140,7 +140,7 @@ from src.services.auth_service import validate_security_config
 # These are used by module-level wrapper functions that tests can patch
 cors_origins = (app_settings.cors_origins or "http://localhost:5173,http://localhost:5174").split(",")
 cors_origins = [origin.strip() for origin in cors_origins]
-cors_debug_enabled = _as_bool(os.getenv("CORS_DEBUG")) and not app_settings.is_production
+cors_debug_enabled = app_settings.cors_debug and not app_settings.is_production
 
 
 # Wrapper functions to maintain backward-compatible signatures
@@ -278,14 +278,14 @@ def create_app(config=None):
         flask_secret = "dev-only-fallback-secret-key"
     flask_app.config["SECRET_KEY"] = flask_secret
 
-    enable_mock = os.getenv("ENABLE_MOCK_USERS")
-    if enable_mock is not None:
-        flask_app.config["ENABLE_MOCK_USERS"] = _as_bool(enable_mock)
+    settings_instance = get_settings()
+    if 'enable_mock_users' in settings_instance.model_fields_set:
+        flask_app.config["ENABLE_MOCK_USERS"] = app_settings.enable_mock_users
 
-    flask_app.config["TESTING"] = _as_bool(os.getenv("TESTING"))
-    rate_limit_env = os.getenv("RATE_LIMIT_REQUESTS")
-    if rate_limit_env:
-        flask_app.config["RATE_LIMIT_REQUESTS"] = int(rate_limit_env)
+    flask_app.config["TESTING"] = app_settings.testing
+    
+    if 'rate_limit_requests' in settings_instance.model_fields_set:
+        flask_app.config["RATE_LIMIT_REQUESTS"] = app_settings.rate_limit_requests
 
     # Apply custom config if provided
     if config:

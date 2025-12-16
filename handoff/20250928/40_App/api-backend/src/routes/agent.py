@@ -1,4 +1,3 @@
-import os
 import json
 import uuid
 import logging
@@ -87,7 +86,7 @@ def _is_testing_mode():
                 return bool(v)
     except Exception:
         pass
-    return (os.getenv("TESTING", "").lower() in ("1", "true", "yes", "on"))
+    return settings.testing
 
 
 def resolve_tenant_or_error(user_id: str, task_id: str, operation: str = "task"):

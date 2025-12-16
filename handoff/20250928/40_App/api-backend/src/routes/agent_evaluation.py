@@ -5,12 +5,12 @@ Provides endpoints for fetching and displaying agent evaluation results
 from the Phase 1 evaluation framework.
 """
 
-import os
 import logging
 from datetime import datetime, timezone
 from typing import List, Dict
 from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, roles_required
+from common.config.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,12 +37,12 @@ def _fetch_evaluation_results_from_github(limit: int = 10) -> List[Dict]:
     try:
         from github import Github
         
-        github_token = os.getenv('GITHUB_TOKEN')
+        github_token = settings.github_token
         if not github_token:
             logger.warning("GITHUB_TOKEN not set, returning empty results")
             return []
         
-        repo_name = os.getenv('GITHUB_REPO', 'RC918/morningai')
+        repo_name = settings.github_repo
         
         g = Github(github_token)
         repo = g.get_repo(repo_name)

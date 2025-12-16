@@ -15,7 +15,6 @@ Security:
 - TOTP secrets encrypted at rest
 """
 
-import os
 import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify, make_response
@@ -101,17 +100,11 @@ def is_2fa_feature_enabled() -> bool:
     try:
         from flask import current_app
         if current_app and current_app.config.get('TESTING'):
-            force_enable_in_tests = os.getenv('FORCE_ENABLE_2FA_IN_TESTS', '').lower() == 'true'
-            return force_enable_in_tests
+            return settings.force_enable_2fa_in_tests
     except (ImportError, RuntimeError):
         pass
     
-    # In production/non-test mode, check FEATURE_2FA_ENABLED env var or settings
-    feature_enabled_env = os.getenv('FEATURE_2FA_ENABLED', '').lower()
-    if feature_enabled_env:
-        return feature_enabled_env == 'true'
-    
-    return bool(settings.feature_2fa_enabled) if hasattr(settings, 'feature_2fa_enabled') else False
+    return settings.feature_2fa_enabled
 
 
 def get_totp_manager():
