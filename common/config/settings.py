@@ -1055,6 +1055,12 @@ class Settings(BaseSettings):
         description="Enable rate limiting in test environment"
     )
 
+    cors_debug: bool = Field(
+        default=False,
+        alias="CORS_DEBUG",
+        description="Enable CORS debug logging (only effective in non-production environments)"
+    )
+
     idempotency_tests_allowed: bool = Field(
         default=False,
         alias="IDEMPOTENCY_TESTS_ALLOWED",

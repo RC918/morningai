@@ -42,7 +42,7 @@ def get_rate_limit_redis():
     try:
         from flask import current_app
         if current_app and current_app.config.get("TESTING"):
-            if os.getenv("ENABLE_RATE_LIMIT_IN_TESTS") != "true":
+            if not settings.enable_rate_limit_in_tests:
                 return None
     except (RuntimeError, ImportError):
         pass
@@ -94,7 +94,7 @@ def get_rate_limit_redis():
     return redis_client
 
 def get_rate_limit_requests():
-    """Get rate limit requests dynamically from app.config, env, or settings"""
+    """Get rate limit requests dynamically from app.config or settings"""
     try:
         from flask import current_app
         if current_app:
@@ -103,9 +103,6 @@ def get_rate_limit_requests():
                 return int(v)
     except Exception:
         pass
-    env_v = os.getenv("RATE_LIMIT_REQUESTS")
-    if env_v is not None:
-        return int(env_v)
     return settings.rate_limit_requests or 60
 
 RATE_LIMIT_WINDOW = settings.rate_limit_window or 60
