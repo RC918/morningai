@@ -5,22 +5,41 @@
 # This workflow automatically reviews all PRs using Qwen AI.
 # Code diffs are sent to DashScope/Qwen API for analysis.
 #
-# Setup:
+# ============================================================================
+# SETUP
+# ============================================================================
 # 1. Add QWEN_API_KEY to GitHub Secrets (Settings -> Secrets -> Actions)
 #    Get your API key from: https://dashscope.console.aliyun.com/
 #
-# Opt-out:
+# ============================================================================
+# SECURITY NOTICE (IMPORTANT)
+# ============================================================================
+# - QWEN_API_KEY must be stored ONLY in GitHub Secrets (never in code/env files)
+# - This workflow sends code diffs to Alibaba Cloud DashScope API (third-party)
+# - Ensure your organization's security policy allows sending code to external LLMs
+# - The API response is NOT logged to prevent sensitive data exposure
+# - Fork PRs are automatically skipped to protect secrets
+# - Bot/Dependabot PRs are skipped to prevent unnecessary API calls
+#
+# ============================================================================
+# OPT-OUT MECHANISM
+# ============================================================================
 # - Add 'no-ai-review' label to skip AI review for specific PRs
+# - Useful for PRs with sensitive code that shouldn't be sent to external APIs
 #
-# Security:
-# - Fork PRs are skipped (secrets not exposed)
-# - Bot/Dependabot PRs are skipped
-# - Sensitive file patterns are detected and warned
+# ============================================================================
+# COST CONTROL
+# ============================================================================
+# - Concurrency control prevents duplicate reviews on rapid pushes
+# - Same commit SHA is not re-reviewed (deduplication via hidden marker)
+# - Large diffs are truncated to 80KB to limit token usage
 #
-# Cost Control:
-# - Concurrency control prevents duplicate reviews
-# - Same commit SHA is not re-reviewed
-# - Large diffs are truncated with summary
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+# - If review fails, check workflow logs for detailed error messages
+# - Common issues: invalid API key, quota exceeded, network timeout
+# - Verify perl and jq are available (standard on ubuntu-latest runners)
 
 name: "Qwen AI Code Review"
 
@@ -59,6 +78,47 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Verify required tools
+        id: verify_tools
+        run: |
+          echo "::group::Verifying required tools"
+          
+          # Check jq
+          if command -v jq &> /dev/null; then
+            JQ_VERSION=$(jq --version 2>&1 || echo "unknown")
+            echo "jq: $JQ_VERSION"
+          else
+            echo "::error::jq is not installed"
+            exit 1
+          fi
+          
+          # Check perl with Unicode support
+          if command -v perl &> /dev/null; then
+            PERL_VERSION=$(perl -v 2>&1 | head -2 | tail -1 || echo "unknown")
+            echo "perl: $PERL_VERSION"
+            # Test Unicode support
+            if echo "test" | perl -CSD -pe 's/t/\x{200B}t/g' &> /dev/null; then
+              echo "perl Unicode support: OK"
+            else
+              echo "::warning::perl Unicode support may be limited"
+            fi
+          else
+            echo "::error::perl is not installed"
+            exit 1
+          fi
+          
+          # Check curl
+          if command -v curl &> /dev/null; then
+            CURL_VERSION=$(curl --version 2>&1 | head -1 || echo "unknown")
+            echo "curl: $CURL_VERSION"
+          else
+            echo "::error::curl is not installed"
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+          echo "All required tools verified successfully"
 
       - name: Check if already reviewed this commit
         id: check_reviewed
@@ -213,13 +273,23 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          echo "::group::Qwen API Call"
+          echo "Starting AI code review..."
+          echo "PR: #$PR_NUMBER by $PR_AUTHOR"
+          echo "Commit: $HEAD_SHA"
+          echo "Model: $QWEN_MODEL"
+          echo "Files changed: $FILE_COUNT"
+          echo "Changes: +$ADDITIONS -$DELETIONS"
+          
           # Check API Key
           if [ -z "$QWEN_API_KEY" ]; then
-            echo "QWEN_API_KEY secret is not set"
+            echo "::error::QWEN_API_KEY secret is not configured"
             echo "API_ERROR=true" >> "$GITHUB_ENV"
             echo "ERROR_MSG=QWEN_API_KEY secret is not configured. Please add it in Settings -> Secrets -> Actions." >> "$GITHUB_ENV"
+            echo "::endgroup::"
             exit 0
           fi
+          echo "API Key: configured (not shown for security)"
           
           # Build user content with jq (safe JSON encoding)
           USER_CONTENT=$(jq -n \
@@ -249,9 +319,12 @@ jobs:
               max_tokens: 4096
             }')
           
-          echo "Calling Qwen API (model: $QWEN_MODEL)..."
+          echo "Sending request to Qwen API..."
+          echo "Endpoint: $QWEN_API_ENDPOINT"
+          echo "Timeout: 120 seconds"
           
           # Call API with error handling
+          START_TIME=$(date +%s)
           HTTP_CODE=$(curl -s -w "%{http_code}" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $QWEN_API_KEY" \
@@ -259,27 +332,40 @@ jobs:
             -o response.json \
             --max-time 120 \
             "$QWEN_API_ENDPOINT")
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
           
           echo "API Response Code: $HTTP_CODE"
+          echo "Request duration: ${DURATION}s"
           
           # Check HTTP status
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "API request failed with status $HTTP_CODE"
+            echo "::error::API request failed with HTTP $HTTP_CODE"
             if [ -f response.json ]; then
               ERROR_DETAIL=$(jq -r '.error.message // .message // "Unknown error"' response.json 2>/dev/null || echo "Could not parse error")
-              echo "Error: $ERROR_DETAIL"
+              echo "Error detail: $ERROR_DETAIL"
             fi
             echo "API_ERROR=true" >> "$GITHUB_ENV"
             echo "ERROR_MSG=Qwen API returned HTTP $HTTP_CODE. Please check your API key and quota." >> "$GITHUB_ENV"
+            echo "::endgroup::"
             exit 0
           fi
           
           # Validate response format
           if ! jq -e '.choices[0].message.content' response.json > /dev/null 2>&1; then
-            echo "Invalid API response format"
+            echo "::error::Invalid API response format"
             echo "API_ERROR=true" >> "$GITHUB_ENV"
             echo "ERROR_MSG=Invalid response format from Qwen API" >> "$GITHUB_ENV"
+            echo "::endgroup::"
             exit 0
+          fi
+          
+          # Log token usage if available (non-sensitive)
+          if jq -e '.usage' response.json > /dev/null 2>&1; then
+            PROMPT_TOKENS=$(jq -r '.usage.prompt_tokens // "N/A"' response.json)
+            COMPLETION_TOKENS=$(jq -r '.usage.completion_tokens // "N/A"' response.json)
+            TOTAL_TOKENS=$(jq -r '.usage.total_tokens // "N/A"' response.json)
+            echo "Token usage: prompt=$PROMPT_TOKENS, completion=$COMPLETION_TOKENS, total=$TOTAL_TOKENS"
           fi
           
           # Extract and sanitize response
@@ -305,7 +391,9 @@ jobs:
             echo "$DELIMITER"
           } >> "$GITHUB_ENV"
           
-          echo "AI review generated successfully"
+          RESPONSE_LENGTH=${#AI_RESPONSE}
+          echo "AI review generated successfully (${RESPONSE_LENGTH} chars)"
+          echo "::endgroup::"
 
       - name: Post review comment
         if: steps.check_reviewed.outputs.skip != 'true'
@@ -341,7 +429,10 @@ jobs:
             > :bulb: Add `no-ai-review` label to skip AI review for this PR.
             > Push a new commit to trigger a new review.
 
-      - name: Skip message
+      - name: Log skip reason
         if: steps.check_reviewed.outputs.skip == 'true'
         run: |
-          echo "Skipping review - commit already reviewed"
+          echo "::notice::Skipping AI review - this commit has already been reviewed"
+          echo "Commit SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "To trigger a new review, push a new commit to this PR"
+          echo "The existing review comment will remain visible on the PR"
