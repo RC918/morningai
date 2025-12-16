@@ -21,6 +21,10 @@ from common.config.settings import get_settings, settings
 
 logger = logging.getLogger(__name__)
 
+# One-time warning flags to avoid log spam
+_warned_settings_load_failed = False
+_warned_startup_config_failed = False
+
 # Token Configuration
 REFRESH_TOKEN_EXPIRY_DAYS = 7
 JWT_ALGORITHM = 'HS256'
@@ -41,7 +45,9 @@ def _log_token_config_on_startup():
     
     Wrapped in try/except to prevent import failures if settings
     validation fails due to invalid environment variable combinations.
+    Logs warning once if settings load fails.
     """
+    global _warned_startup_config_failed
     try:
         if get_settings().log_token_expiry_on_startup:
             expiry = get_access_token_expiry_minutes()
@@ -49,8 +55,14 @@ def _log_token_config_on_startup():
                 f"🔧 JWT Token Configuration: ACCESS_TOKEN_EXPIRY_MINUTES={expiry}",
                 flush=True
             )
-    except Exception:
-        pass
+    except Exception as e:
+        if not _warned_startup_config_failed:
+            _warned_startup_config_failed = True
+            logger.warning(
+                "Failed to log token config on startup (settings validation error): %s. "
+                "This may indicate misconfigured environment variables.",
+                e
+            )
 
 
 _log_token_config_on_startup()
@@ -88,9 +100,17 @@ def is_testing_mode():
     if env_testing is not None:
         return _as_bool(env_testing)
     
+    global _warned_settings_load_failed
     try:
         return get_settings().testing
-    except Exception:
+    except Exception as e:
+        if not _warned_settings_load_failed:
+            _warned_settings_load_failed = True
+            logger.warning(
+                "Failed to load settings in is_testing_mode() (settings validation error): %s. "
+                "Falling back to False. This may indicate misconfigured environment variables.",
+                e
+            )
         return False
 
 def is_production():

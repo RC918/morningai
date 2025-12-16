@@ -260,3 +260,160 @@ class TestAuthenticateUser:
                 user = authenticate_user("test@example.com", "password123")
                 
                 assert user is None
+
+
+class TestIsTestingModeFallbackChain:
+    """Test is_testing_mode() fallback chain priority order and error handling"""
+    
+    def test_flask_config_overrides_env(self, monkeypatch):
+        """Flask config TESTING should override os.environ TESTING"""
+        monkeypatch.setenv("TESTING", "true")
+        
+        app = Flask(__name__)
+        app.config["TESTING"] = False
+        
+        with app.app_context():
+            from src.services.auth_service import is_testing_mode
+            assert is_testing_mode() is False
+    
+    def test_env_overrides_settings(self, monkeypatch):
+        """os.environ TESTING should override settings.testing"""
+        monkeypatch.setenv("TESTING", "true")
+        
+        mock_settings = Mock()
+        mock_settings.testing = False
+        
+        with patch("src.services.auth_service.get_settings", return_value=mock_settings):
+            from src.services.auth_service import is_testing_mode
+            assert is_testing_mode() is True
+    
+    def test_settings_fallback_when_env_missing(self, monkeypatch):
+        """settings.testing should be used when os.environ TESTING is not set"""
+        monkeypatch.delenv("TESTING", raising=False)
+        
+        mock_settings = Mock()
+        mock_settings.testing = True
+        
+        with patch("src.services.auth_service.get_settings", return_value=mock_settings):
+            from src.services.auth_service import is_testing_mode
+            assert is_testing_mode() is True
+    
+    def test_settings_exception_returns_false_with_warning(self, monkeypatch, caplog):
+        """When get_settings() raises exception, should return False and log warning"""
+        import logging
+        monkeypatch.delenv("TESTING", raising=False)
+        
+        import src.services.auth_service as auth_module
+        auth_module._warned_settings_load_failed = False
+        
+        with patch("src.services.auth_service.get_settings", side_effect=Exception("Settings validation failed")):
+            with caplog.at_level(logging.WARNING):
+                from src.services.auth_service import is_testing_mode
+                result = is_testing_mode()
+                
+                assert result is False
+                assert "Failed to load settings in is_testing_mode()" in caplog.text
+                assert "Settings validation failed" in caplog.text
+    
+    def test_settings_exception_warning_only_once(self, monkeypatch, caplog):
+        """Warning should only be logged once even if called multiple times"""
+        import logging
+        monkeypatch.delenv("TESTING", raising=False)
+        
+        import src.services.auth_service as auth_module
+        auth_module._warned_settings_load_failed = False
+        
+        with patch("src.services.auth_service.get_settings", side_effect=Exception("Settings validation failed")):
+            with caplog.at_level(logging.WARNING):
+                from src.services.auth_service import is_testing_mode
+                
+                is_testing_mode()
+                is_testing_mode()
+                is_testing_mode()
+                
+                warning_count = caplog.text.count("Failed to load settings in is_testing_mode()")
+                assert warning_count == 1
+
+
+class TestLogTokenConfigOnStartup:
+    """Test _log_token_config_on_startup() error handling"""
+    
+    def test_settings_exception_logs_warning(self, monkeypatch, caplog):
+        """When get_settings() raises exception, should log warning once"""
+        import logging
+        
+        import src.services.auth_service as auth_module
+        auth_module._warned_startup_config_failed = False
+        
+        with patch("src.services.auth_service.get_settings", side_effect=Exception("Settings validation failed")):
+            with caplog.at_level(logging.WARNING):
+                from src.services.auth_service import _log_token_config_on_startup
+                
+                _log_token_config_on_startup()
+                
+                assert "Failed to log token config on startup" in caplog.text
+                assert "Settings validation failed" in caplog.text
+    
+    def test_settings_exception_warning_only_once(self, monkeypatch, caplog):
+        """Warning should only be logged once even if called multiple times"""
+        import logging
+        
+        import src.services.auth_service as auth_module
+        auth_module._warned_startup_config_failed = False
+        
+        with patch("src.services.auth_service.get_settings", side_effect=Exception("Settings validation failed")):
+            with caplog.at_level(logging.WARNING):
+                from src.services.auth_service import _log_token_config_on_startup
+                
+                _log_token_config_on_startup()
+                _log_token_config_on_startup()
+                _log_token_config_on_startup()
+                
+                warning_count = caplog.text.count("Failed to log token config on startup")
+                assert warning_count == 1
+    
+    def test_no_exception_when_log_disabled(self, monkeypatch):
+        """Should not raise exception when log_token_expiry_on_startup is False"""
+        mock_settings = Mock()
+        mock_settings.log_token_expiry_on_startup = False
+        
+        with patch("src.services.auth_service.get_settings", return_value=mock_settings):
+            from src.services.auth_service import _log_token_config_on_startup
+            
+            _log_token_config_on_startup()
+
+
+class TestGetAccessTokenExpiryMinutes:
+    """Test get_access_token_expiry_minutes() accessor function"""
+    
+    def test_returns_settings_value(self, monkeypatch):
+        """Should return value from settings.access_token_expiry_minutes"""
+        mock_settings = Mock()
+        mock_settings.access_token_expiry_minutes = 30
+        
+        with patch("src.services.auth_service.get_settings", return_value=mock_settings):
+            from src.services.auth_service import get_access_token_expiry_minutes
+            
+            assert get_access_token_expiry_minutes() == 30
+    
+    def test_default_value_15(self, monkeypatch):
+        """Should return 15 as default when not configured"""
+        mock_settings = Mock()
+        mock_settings.access_token_expiry_minutes = 15
+        
+        with patch("src.services.auth_service.get_settings", return_value=mock_settings):
+            from src.services.auth_service import get_access_token_expiry_minutes
+            
+            assert get_access_token_expiry_minutes() == 15
+    
+    def test_env_override_via_settings(self, monkeypatch):
+        """Environment variable should be reflected via settings"""
+        monkeypatch.setenv("ACCESS_TOKEN_EXPIRY_MINUTES", "60")
+        
+        mock_settings = Mock()
+        mock_settings.access_token_expiry_minutes = 60
+        
+        with patch("src.services.auth_service.get_settings", return_value=mock_settings):
+            from src.services.auth_service import get_access_token_expiry_minutes
+            
+            assert get_access_token_expiry_minutes() == 60
