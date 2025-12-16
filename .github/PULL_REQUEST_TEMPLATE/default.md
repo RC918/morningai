@@ -109,79 +109,32 @@
 - [ ] 已支援 `prefers-reduced-motion`（動畫組件）
 - [ ] 不適用 - 此 PR 不包含 Apple 組件變更
 
-**相關文件**: [設計系統治理規則](../CONTRIBUTING_DESIGN_SYSTEM.md#apple-組件規則)
+**相關文件**: [設計系統治理規則](../../CONTRIBUTING_DESIGN_SYSTEM.md#apple-組件規則)
 
-## Phase 2 Audit Checklist (Epic #2304)
+## Shared-UI Import 合規性（強制 - Stage 3: 完全強制執行）
 
-<!-- 
-如果此 PR 是 Phase 2 設計系統遷移的一部分，請填寫以下資訊。
-執行 audit 腳本：./scripts/phase2_audit.sh
-執行 bundle size 量測：./scripts/measure-bundle-size.sh
--->
-
-### Audit Delta Report
-
-<!-- 請貼上 audit 結果的變化（Before/After） -->
-
-| Metric | Before | After | Delta |
-|--------|--------|-------|-------|
-| Shared-UI Cards | | | |
-| Legacy Cards | | | |
-| Adoption Rate | | | |
-| Raw Hex Colors | | | |
-| Inline Styles | | | |
-
-### Bundle Size Report
-
-<!-- 請貼上 bundle size 量測結果 -->
-
-| App | JS (gzip) | CSS (gzip) | Largest Chunk | Status |
-|-----|-----------|------------|---------------|--------|
-| owner-console | | | | |
-| frontend-dashboard | | | | |
-
-### Phase 2 Verification Checklist
-
-- [ ] `./scripts/phase2_audit.sh` 已執行並記錄結果
-- [ ] `./scripts/measure-bundle-size.sh` 已執行並記錄結果
-- [ ] Shared-UI adoption rate 不低於 baseline
-- [ ] Raw hex colors 數量不增加
-- [ ] Inline styles 數量不增加
-- [ ] Bundle size 增量在閾值內（JS: +50KB, CSS: +10KB）
-- [ ] 視覺回歸測試通過（Vercel Preview 截圖）
-- [ ] 不適用 - 此 PR 不是 Phase 2 遷移的一部分
-
-### Shared-UI Import 合規性（強制 - Stage 3: 完全強制執行）
-
-<!-- ⚠️ 此檢查現在會阻擋 PR 合併。違規的 PR 無法合併，直到問題解決。 -->
+<!-- 此檢查會阻擋 PR 合併。違規的 PR 無法合併，直到問題解決。 -->
 
 **必須符合的要求**：
 
 - [ ] 我已使用 `@morningai/shared-ui` 元件，而非直接 import `@radix-ui/react-*`、`@mui/*` 等 UI 元件庫
 - [ ] 我沒有直接 import `@headlessui/*` 或 `@chakra-ui/*`
 - [ ] 如果使用第三方庫，僅限於允許的例外：
-  - ✅ `lucide-react`（圖示）
-  - ✅ `recharts`（圖表）
-  - ✅ `date-fns`（日期處理）
+  - lucide-react（圖示）
+  - recharts（圖表）
+  - date-fns（日期處理）
 - [ ] ESLint `no-restricted-imports` 規則通過（無 UI 元件庫 import 警告）
 - [ ] CI 的 "Audit UI Library Imports" 檢查通過（必須通過才能合併）
 - [ ] 不適用 - 此 PR 不包含 UI import 變更
 
-**🚨 Stage 2 強制執行**：
-- 此 PR 的變更檔案會被自動檢查（diff-only 模式）
-- 如果發現違規，CI 會失敗，PR 無法合併
-- 現有代碼中的違規不會阻擋此 PR（僅檢查新變更）
-
 **緊急情況處理**：
-如果您有合法的緊急情況需要繞過此檢查，請參考 [Emergency Override Runbook](../docs/EMERGENCY_OVERRIDE_RUNBOOK.md)。
-
-**注意**：沒有自動繞過機制。所有例外都需要明確的管理員批准和記錄。
+如果您有合法的緊急情況需要繞過此檢查，請參考 [Emergency Override Runbook](../../docs/EMERGENCY_OVERRIDE_RUNBOOK.md)。
 
 **相關文件**: 
-- 📚 [快速修復指南（2 分鐘）](../docs/DESIGN_SYSTEM_QUICKSTART.md)
-- 🎨 [設計系統強制執行指南](../docs/DESIGN_SYSTEM_ENFORCEMENT.md)
-- 📖 [i18n 政策](../CONTRIBUTING.md#i18n-政策強制執行)
-- 🎨 Storybook: `pnpm --filter frontend-dashboard storybook`
+- [快速修復指南（2 分鐘）](../../docs/DESIGN_SYSTEM_QUICKSTART.md)
+- [設計系統強制執行指南](../../docs/DESIGN_SYSTEM_ENFORCEMENT.md)
+- [i18n 政策](../../CONTRIBUTING.md#i18n-政策強制執行)
+- Storybook: `pnpm --filter frontend-dashboard storybook`
 
 ## 程式碼品質檢查
 
