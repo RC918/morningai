@@ -10,6 +10,21 @@
 #   Currently running in WARNING mode (soft gate) to avoid blocking PRs
 #   during active migration. Set --strict to enable blocking mode.
 #
+# ENVIRONMENT DEPENDENCIES:
+#   - ubuntu-latest runner (GitHub Actions)
+#   - Node.js >= 18 (for AST-based detection via TypeScript compiler)
+#   - TypeScript (available in repo node_modules)
+#   - Bash 4+ (for script execution)
+#   - GNU grep (available on ubuntu-latest, used for output parsing)
+#
+# SCRIPTS:
+#   - scripts/detect-legacy-components.sh: Wrapper script (entry point)
+#   - scripts/detect-legacy-components.mjs: AST-based detection (Node.js)
+#
+# TESTS:
+#   - scripts/tests/detect-legacy-components.test.sh: Unit tests
+#   - scripts/tests/legacy-component-workflow.test.sh: Workflow contract tests
+#
 # RELATED:
 #   - Issue #2513: Legacy component detection CI
 #   - CONTRIBUTING_DESIGN_SYSTEM.md: Deprecated component list
@@ -27,6 +42,7 @@ on:
       - 'handoff/20250928/40_App/frontend-dashboard/**'
       - 'handoff/20250928/40_App/owner-console/**'
       - 'scripts/detect-legacy-components.sh'
+      - 'scripts/detect-legacy-components.mjs'
       - '.github/legacy-component-allowlist.json'
       - '.github/workflows/legacy-component-check.yml'
 
@@ -72,8 +88,13 @@ jobs:
         id: parse
         run: |
           if [ -f detection-output.txt ]; then
-            VIOLATIONS=$(grep -oP "Violations found: \K\d+" detection-output.txt || echo "0")
-            FILES_SCANNED=$(grep -oP "Files scanned: \K\d+" detection-output.txt || echo "0")
+            # Use awk for POSIX compatibility (avoids GNU grep -oP dependency)
+            VIOLATIONS=$(awk -F': ' '/Violations found:/{print $2}' detection-output.txt || echo "0")
+            FILES_SCANNED=$(awk -F': ' '/Files scanned:/{print $2}' detection-output.txt || echo "0")
+            
+            # Ensure we have valid numbers
+            VIOLATIONS=${VIOLATIONS:-0}
+            FILES_SCANNED=${FILES_SCANNED:-0}
             
             echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
             echo "files_scanned=$FILES_SCANNED" >> $GITHUB_OUTPUT
