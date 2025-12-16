@@ -19,6 +19,10 @@ const meta = {
     layout: "padded",
   },
   tags: ["autodocs"],
+  args: {
+    title: "Section",
+    children: null,
+  },
   argTypes: {
     icon: {
       control: false,
