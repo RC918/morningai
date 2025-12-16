@@ -1,21 +1,33 @@
-# Phase 2 PR Template - Design System Card Migration
+<!--
+================================================================================
+PHASE 2 PR TEMPLATE - Phase 2 設計系統遷移專用模板
+================================================================================
 
-> ⚠️ **DEPRECATED / 已棄用**
->
-> 此檔案已被 `.github/PULL_REQUEST_TEMPLATE/phase2.md` 取代。
-> 請使用新的多模板機制建立 Phase 2 PR：
->
-> **如何使用新模板：**
-> - 在 PR URL 後加上 `?template=phase2.md`
-> - 例如：`https://github.com/RC918/morningai/compare/main...your-branch?template=phase2.md`
->
-> **新模板位置：** [.github/PULL_REQUEST_TEMPLATE/phase2.md](.github/PULL_REQUEST_TEMPLATE/phase2.md)
->
-> 此檔案將在 Issue #2564 中移除。保留此檔案僅供參考歷史記錄。
+適用時機 (When to Use):
+- Phase 2 設計系統遷移 PR（Epic #2304）
+- 將 Legacy Card 遷移到 Shared-UI Card 的 PR
+- 需要填寫 Audit Delta Report 和 Bundle Size Report 的 PR
 
----
+如何選擇此模板 (How to Select):
+- 方法 1: 在 PR URL 後加上 ?template=phase2.md
+  例如: https://github.com/RC918/morningai/compare/main...your-branch?template=phase2.md
+- 方法 2: 從 GitHub 的模板選擇器中選擇 "phase2"
 
-## PR Information
+注意事項 (Important Notes):
+- 此模板包含完整的 Phase 2 Audit Checklist
+- 必須執行 ./scripts/phase2_audit.sh 並填寫 Audit Delta Report
+- 必須執行 ./scripts/measure-bundle-size.sh 並填寫 Bundle Size Report
+- 如果您的 PR 不是 Phase 2 遷移，請使用預設模板（不加 ?template 參數）
+
+其他模板:
+- 一般 PR: 預設模板（不加參數）
+- 緊急修復: ?template=hotfix.md
+
+文檔參考: CONTRIBUTING.md#phase-2-pr-要求epic-2304
+================================================================================
+-->
+
+## Phase 2 PR - Design System Card Migration
 
 **Phase**: 2-X (e.g., 2-1a, 2-2b)
 **Target Page/Component**: [Page or component name]
@@ -23,9 +35,9 @@
 
 ---
 
-## Description
+## 描述 (Description)
 
-[Brief description of what this PR migrates]
+<!-- 簡要說明此 PR 遷移的內容 -->
 
 ### Changes Summary
 
@@ -33,9 +45,21 @@
 - [ ] Updated imports to use `@morningai/shared-ui`
 - [ ] Removed legacy card component (if applicable)
 
+## PR 類型與優先級 (PR Type & Priority)
+
+- [ ] **P0 - 主線功能 / 緊急修復 (Blocking)**
+- [x] **P1 - 修正既有問題 / 改善體驗 (Non-blocking)** - Phase 2 遷移
+- [ ] **P2 - 優化 / 重構 / 技術債 (Nice-to-have)**
+
+## 本 PR 不處理 (Out of Scope)
+
+<!-- 明確列出此 PR 不會處理的項目 -->
+
+- [此處列出不處理的項目，若無則刪除此行]
+
 ---
 
-## Audit Delta
+## Audit Delta Report
 
 ### Before
 
@@ -76,7 +100,7 @@
 | Inline Styles | X | X | 0 | PASS |
 
 <details>
-<summary>📋 範例填寫（可刪除）</summary>
+<summary>範例填寫（可刪除）</summary>
 
 **Before**:
 ```
@@ -116,15 +140,21 @@ Inline Styles: 0
 
 ### Before (from baseline or main branch)
 
+```bash
+./scripts/measure-bundle-size.sh
+```
+
 | App | Total JS (gzip) | Total CSS (gzip) | Largest Chunk |
 |-----|-----------------|------------------|---------------|
 | owner-console | X kB | X kB | X kB |
+| frontend-dashboard | X kB | X kB | X kB |
 
 ### After
 
 | App | Total JS (gzip) | Total CSS (gzip) | Largest Chunk |
 |-----|-----------------|------------------|---------------|
 | owner-console | X kB | X kB | X kB |
+| frontend-dashboard | X kB | X kB | X kB |
 
 ### Delta
 
@@ -133,6 +163,31 @@ Inline Styles: 0
 | Total JS | +X kB | +50 kB | PASS/FAIL |
 | Total CSS | +X kB | +10 kB | PASS/FAIL |
 | Largest Chunk | +X kB | +30 kB | PASS/FAIL |
+
+---
+
+## 如何測試 (How to Test)
+
+### 測試類型 (Test Types)
+
+- [ ] 單元測試 (Unit Tests) - `pnpm test`
+- [ ] 整合測試 (Integration Tests)
+- [ ] E2E 測試 (End-to-End Tests) - Playwright
+- [ ] 視覺回歸測試 (Visual Regression Tests) - VRT
+- [ ] 手動測試 (Manual Testing)
+- [ ] 無障礙測試 (Accessibility Testing)
+
+### 測試步驟 (Test Steps)
+
+1. 
+2. 
+3. 
+
+### 測試環境 (Test Environment)
+
+- [ ] 本地開發環境 (Local Development)
+- [ ] CI/CD Pipeline
+- [ ] Vercel Preview
 
 ---
 
@@ -146,8 +201,6 @@ Inline Styles: 0
   1. [ ] Step 1: [Describe action and expected result]
   2. [ ] Step 2: [Describe action and expected result]
   3. [ ] Step 3: [Describe action and expected result]
-  4. [ ] Step 4: [Describe action and expected result] (optional)
-  5. [ ] Step 5: [Describe action and expected result] (optional)
 - [ ] **Permission check**: Verified behavior for:
   - [ ] Admin user
   - [ ] Non-admin user (if applicable)
@@ -200,34 +253,66 @@ Inline Styles: 0
 | Default | [screenshot] | [screenshot] |
 | Hover | [screenshot] | [screenshot] |
 | Focus | [screenshot] | [screenshot] |
-| Active | [screenshot] | [screenshot] |
 | Loading | [screenshot] | [screenshot] |
 | Error | [screenshot] | [screenshot] |
-| Empty | [screenshot] | [screenshot] |
+
+---
+
+## i18n 檢查清單（強制）
+
+- [ ] 所有用戶可見字串使用 `t()` 或 `<Trans>`（無硬編碼字串）
+- [ ] 新 translation keys 已加入 `en-US.json` 和 `zh-TW.json`
+- [ ] Translation keys 使用適當的命名空間
+- [ ] 無障礙屬性已翻譯
+- [ ] ESLint i18n 規則通過
+- [ ] 不適用 - 此 PR 無用戶可見變更
+
+## 設計系統檢查 (Design System Checklist)
+
+- [ ] 我已檢查 `@morningai/shared-ui` 是否有可用的元件
+- [ ] 如果需要新元件，我已將其加入 `packages/shared-ui/` 而非應用層
+- [ ] 新元件已加入 Storybook story
+- [ ] 我沒有在應用層重複實作已存在於 shared-ui 的元件
+- [ ] 如使用設計 tokens，我已從 `@morningai/shared-ui` 匯入而非硬編碼
+
+## Shared-UI Import 合規性（強制）
+
+- [ ] 我已使用 `@morningai/shared-ui` 元件，而非直接 import UI 元件庫
+- [ ] ESLint `no-restricted-imports` 規則通過
+- [ ] CI 的 "Audit UI Library Imports" 檢查通過
 
 ---
 
 ## Interim QA Exit Criteria (for Phase 2-1d completion)
 
-> This section is only required for the final PR of Phase 2-1 (PR 2-1d)
+> This section is only required for the final PR of each Phase 2 sub-phase
 
-- [ ] All Phase 2-1 pages pass keyboard navigation test
-- [ ] All Phase 2-1 pages pass focus ring visibility test
-- [ ] All Phase 2-1 pages pass main interaction flow test
-- [ ] Vercel preview visual comparison passes for all Phase 2-1 pages
+- [ ] All Phase 2-X pages pass keyboard navigation test
+- [ ] All Phase 2-X pages pass focus ring visibility test
+- [ ] All Phase 2-X pages pass main interaction flow test
+- [ ] Vercel preview visual comparison passes for all Phase 2-X pages
 - [ ] No new raw hex colors introduced (delta = 0 or negative)
 - [ ] No new inline styles introduced (delta = 0 or negative)
-- [ ] Shared-UI adoption >= 80% for all Phase 2-1 pages
+- [ ] Shared-UI adoption >= 80% for all Phase 2-X pages
 - [ ] Bundle size within thresholds
-- [ ] No console errors on any Phase 2-1 page
-- [ ] No network errors on any Phase 2-1 page
+- [ ] No console errors on any Phase 2-X page
+- [ ] No network errors on any Phase 2-X page
 - [ ] Permission-based views verified (admin vs non-admin)
 
 ---
 
-## Reviewer Notes
+## 程式碼品質檢查
 
-[Any additional context for reviewers]
+- [ ] ESLint 通過（0 warnings）：`pnpm lint`
+- [ ] TypeScript 類型檢查通過：`pnpm typecheck`
+- [ ] 無 `any` 類型（使用適當的類型定義）
+- [ ] 所有測試通過：`pnpm test`
+
+## 文檔更新檢查清單
+
+- [ ] **新增/修改 GitHub Actions workflow** → 更新 `docs/ci_matrix.md`
+- [ ] **架構變更** → 更新 `PROJECT_STRUCTURE_REPORT.md`
+- [ ] 不適用 - 此 PR 不需要文檔更新
 
 ---
 
@@ -238,5 +323,6 @@ Inline Styles: 0
 
 ---
 
-**Link to Devin run**: [URL]
-**Requested by**: [Name] / @[GitHub username]
+## Reviewer Notes
+
+<!-- Any additional context for reviewers -->

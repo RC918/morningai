@@ -105,29 +105,72 @@ export function MyButton() {
 
 如誤用廢棄目錄，CI 會自動阻止 PR 合併。
 
+### PR Template 選擇
+
+MorningAI 提供多種 PR 模板以適應不同類型的變更。建立 PR 時，GitHub 會自動使用預設模板，您也可以手動選擇其他模板。
+
+#### 可用模板
+
+| 模板 | 用途 | 選擇方式 |
+|------|------|----------|
+| **default.md** | 一般 PR（預設） | 自動套用 |
+| **phase2.md** | Phase 2 設計系統遷移 | `?template=phase2.md` |
+| **hotfix.md** | 緊急修復 | `?template=hotfix.md` |
+
+#### 如何選擇模板
+
+**方法 1：URL 參數**
+
+在建立 PR 的 URL 後加上 `?template=<template_name>`：
+
+```
+https://github.com/RC918/morningai/compare/main...your-branch?template=phase2.md
+```
+
+**方法 2：GitHub UI**
+
+1. 點擊 "New Pull Request"
+2. 選擇分支後，在 PR 描述區域會看到模板選擇器
+3. 選擇適合的模板
+
+#### 模板說明
+
+- **default.md**：適用於大多數 PR，包含標準的測試、i18n、設計系統檢查清單
+- **phase2.md**：專為 Phase 2 遷移設計，包含完整的 Audit Delta Report、Bundle Size Report、Manual Verification Checklist
+- **hotfix.md**：簡化的緊急修復模板，專注於問題描述、修復方案和快速驗證
+
 ### Phase 2 PR 要求（Epic #2304）
+
+> ⚠️ **重要提醒**：多模板機制實施後，Phase 2 PR **不再默認包含 Phase 2 Audit Checklist**。
+> 您必須**明確選擇 `phase2.md` 模板**才能獲得完整的 Phase 2 檢查清單。
+> 如果您使用預設模板建立 Phase 2 PR，將缺少必要的 Audit Delta Report 和 Bundle Size Report 區塊。
 
 Phase 2 設計系統遷移 PR 必須遵循以下流程：
 
 #### 必要步驟
 
-1. **執行 Audit 腳本**：
+1. **選擇 Phase 2 模板**（必要）：
+   - 方法 1：在 PR URL 後加上 `?template=phase2.md`
+   - 方法 2：從 GitHub 模板選擇器中選擇 `phase2`
+   - ❌ 不要使用預設模板，否則將缺少 Phase 2 必要區塊
+
+2. **執行 Audit 腳本**：
    ```bash
    ./scripts/phase2_audit.sh
    # 或針對特定檔案
    ./scripts/phase2_audit.sh --file <target_file>
    ```
 
-2. **執行 Bundle Size 量測**：
+3. **執行 Bundle Size 量測**：
    ```bash
    ./scripts/measure-bundle-size.sh
    ```
 
-3. **填寫 PR Template**：使用 `PR_PHASE2_TEMPLATE.md` 或 PR template 中的 Phase 2 Audit Checklist
+4. **填寫 PR Template**：完整填寫 Phase 2 模板中的所有區塊
 
 #### 相關文件
 
-- 📋 [PR_PHASE2_TEMPLATE.md](PR_PHASE2_TEMPLATE.md) - Phase 2 PR 範本（含範例填寫）
+- 📋 [Phase 2 PR Template](.github/PULL_REQUEST_TEMPLATE/phase2.md) - Phase 2 PR 模板
 - 📚 [DESIGN_SYSTEM_GUIDELINES.md](DESIGN_SYSTEM_GUIDELINES.md) - 設計系統指南
   - 「Phase 2 Audit Scripts 技術文檔」章節：Namespace JSX 解析規則、Bundle Size Fallback 計算方式
 - 🎯 [Epic #2304](https://github.com/RC918/morningai/issues/2304) - Phase 2 拆分計畫
