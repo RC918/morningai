@@ -79,46 +79,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify required tools
-        id: verify_tools
+      # Tool verification is only shown in debug mode (jq, perl, curl are standard on ubuntu-latest)
+      - name: Verify required tools (debug)
+        if: runner.debug == '1'
         run: |
-          echo "::group::Verifying required tools"
-          
-          # Check jq
-          if command -v jq &> /dev/null; then
-            JQ_VERSION=$(jq --version 2>&1 || echo "unknown")
-            echo "jq: $JQ_VERSION"
-          else
-            echo "::error::jq is not installed"
-            exit 1
-          fi
-          
-          # Check perl with Unicode support
-          if command -v perl &> /dev/null; then
-            PERL_VERSION=$(perl -v 2>&1 | head -2 | tail -1 || echo "unknown")
-            echo "perl: $PERL_VERSION"
-            # Test Unicode support
-            if echo "test" | perl -CSD -pe 's/t/\x{200B}t/g' &> /dev/null; then
-              echo "perl Unicode support: OK"
-            else
-              echo "::warning::perl Unicode support may be limited"
-            fi
-          else
-            echo "::error::perl is not installed"
-            exit 1
-          fi
-          
-          # Check curl
-          if command -v curl &> /dev/null; then
-            CURL_VERSION=$(curl --version 2>&1 | head -1 || echo "unknown")
-            echo "curl: $CURL_VERSION"
-          else
-            echo "::error::curl is not installed"
-            exit 1
-          fi
-          
+          echo "::group::Tool versions (debug mode)"
+          echo "jq: $(jq --version 2>&1 || echo 'not found')"
+          echo "perl: $(perl -v 2>&1 | grep -oP 'v[\d.]+' | head -1 || echo 'not found')"
+          echo "curl: $(curl --version 2>&1 | head -1 || echo 'not found')"
           echo "::endgroup::"
-          echo "All required tools verified successfully"
 
       - name: Check if already reviewed this commit
         id: check_reviewed
@@ -160,8 +129,8 @@ jobs:
           # Get diff with context
           git diff --unified=3 "$BASE_SHA".."$HEAD_SHA" > full_diff.patch
           
-          # Check for sensitive files
-          SENSITIVE_FILES=$(git diff --name-only "$BASE_SHA".."$HEAD_SHA" | grep -E '\.(env|pem|key|secret|credential)' || true)
+          # Check for sensitive files (case-insensitive, anchored to avoid false positives)
+          SENSITIVE_FILES=$(git diff --name-only "$BASE_SHA".."$HEAD_SHA" | grep -Ei '\.(env(\..+)?|pem|key|secret|credential)$' || true)
           if [ -n "$SENSITIVE_FILES" ]; then
             echo "SENSITIVE_WARNING=true" >> "$GITHUB_ENV"
             echo "Detected potentially sensitive files: $SENSITIVE_FILES"
@@ -321,32 +290,74 @@ jobs:
           
           echo "Sending request to Qwen API..."
           echo "Endpoint: $QWEN_API_ENDPOINT"
-          echo "Timeout: 120 seconds"
+          echo "Timeout: 120 seconds per attempt"
           
-          # Call API with error handling
-          START_TIME=$(date +%s)
-          HTTP_CODE=$(curl -s -w "%{http_code}" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $QWEN_API_KEY" \
-            -d "$PAYLOAD" \
-            -o response.json \
-            --max-time 120 \
-            "$QWEN_API_ENDPOINT")
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
+          # Retry configuration
+          MAX_ATTEMPTS=3
+          RETRY_CODES="429 500 502 503 504"  # Transient errors worth retrying
+          NO_RETRY_CODES="400 401 403 404"   # Non-transient errors (bad request, auth, not found)
           
-          echo "API Response Code: $HTTP_CODE"
-          echo "Request duration: ${DURATION}s"
+          API_SUCCESS=false
+          LAST_HTTP_CODE=""
+          TOTAL_DURATION=0
           
-          # Check HTTP status
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::API request failed with HTTP $HTTP_CODE"
-            if [ -f response.json ]; then
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $attempt of $MAX_ATTEMPTS..."
+            
+            START_TIME=$(date +%s)
+            HTTP_CODE=$(curl -s -w "%{http_code}" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $QWEN_API_KEY" \
+              -d "$PAYLOAD" \
+              -o response.json \
+              --max-time 120 \
+              "$QWEN_API_ENDPOINT" 2>/dev/null) || HTTP_CODE="000"
+            END_TIME=$(date +%s)
+            DURATION=$((END_TIME - START_TIME))
+            TOTAL_DURATION=$((TOTAL_DURATION + DURATION))
+            LAST_HTTP_CODE="$HTTP_CODE"
+            
+            echo "Response: HTTP $HTTP_CODE (${DURATION}s)"
+            
+            # Success
+            if [ "$HTTP_CODE" = "200" ]; then
+              API_SUCCESS=true
+              echo "API call succeeded on attempt $attempt"
+              break
+            fi
+            
+            # Non-transient error - don't retry
+            if echo "$NO_RETRY_CODES" | grep -qw "$HTTP_CODE"; then
+              echo "Non-transient error (HTTP $HTTP_CODE), not retrying"
+              break
+            fi
+            
+            # Network failure (curl error)
+            if [ "$HTTP_CODE" = "000" ]; then
+              echo "Network error or timeout"
+            fi
+            
+            # Transient error - retry with exponential backoff
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              BACKOFF=$((2 ** attempt))
+              # Cap backoff at 30 seconds
+              [ "$BACKOFF" -gt 30 ] && BACKOFF=30
+              echo "Retrying in ${BACKOFF}s..."
+              sleep "$BACKOFF"
+            fi
+          done
+          
+          echo "Total request duration: ${TOTAL_DURATION}s"
+          
+          # Check final result
+          if [ "$API_SUCCESS" != "true" ]; then
+            echo "::error::API request failed after $MAX_ATTEMPTS attempts (last HTTP $LAST_HTTP_CODE)"
+            if [ -f response.json ] && [ "$LAST_HTTP_CODE" != "000" ]; then
               ERROR_DETAIL=$(jq -r '.error.message // .message // "Unknown error"' response.json 2>/dev/null || echo "Could not parse error")
               echo "Error detail: $ERROR_DETAIL"
             fi
             echo "API_ERROR=true" >> "$GITHUB_ENV"
-            echo "ERROR_MSG=Qwen API returned HTTP $HTTP_CODE. Please check your API key and quota." >> "$GITHUB_ENV"
+            echo "ERROR_MSG=Qwen API failed after $MAX_ATTEMPTS attempts (HTTP $LAST_HTTP_CODE). Please check your API key and quota." >> "$GITHUB_ENV"
             echo "::endgroup::"
             exit 0
           fi
@@ -377,11 +388,32 @@ jobs:
           # Use printf instead of echo for reliable handling of arbitrary content (echo can mangle -n, backslashes, etc.)
           AI_RESPONSE=$(printf '%s' "$AI_RESPONSE" | perl -CSD -pe 's/(?<![a-zA-Z0-9])@([a-zA-Z0-9_-]+)/@\x{200B}$1/g' 2>/dev/null || printf '%s' "$AI_RESPONSE")
           
-          # Limit output length (GitHub comment limit is 65536)
-          if [ ${#AI_RESPONSE} -gt 60000 ]; then
-            AI_RESPONSE="${AI_RESPONSE:0:60000}
+          # Smart truncation to avoid breaking Markdown structure (GitHub comment limit is 65536)
+          MAX_COMMENT_LENGTH=60000
+          if [ ${#AI_RESPONSE} -gt $MAX_COMMENT_LENGTH ]; then
+            echo "Response too long (${#AI_RESPONSE} chars), truncating to $MAX_COMMENT_LENGTH..."
+            
+            # Truncate at last newline before limit to avoid mid-line cuts
+            TRUNCATED="${AI_RESPONSE:0:$MAX_COMMENT_LENGTH}"
+            LAST_NEWLINE=$(printf '%s' "$TRUNCATED" | grep -bo $'\n' | tail -1 | cut -d: -f1 || echo "$MAX_COMMENT_LENGTH")
+            if [ -n "$LAST_NEWLINE" ] && [ "$LAST_NEWLINE" -gt 50000 ]; then
+              TRUNCATED="${AI_RESPONSE:0:$LAST_NEWLINE}"
+            fi
+            
+            # Count fenced code block markers (```) - if odd, we have an unclosed block
+            FENCE_COUNT=$(printf '%s' "$TRUNCATED" | grep -c '```' || echo "0")
+            if [ $((FENCE_COUNT % 2)) -eq 1 ]; then
+              # Odd number of fences = unclosed code block, add closing fence
+              AI_RESPONSE="$TRUNCATED
 
-          ... (response truncated due to length)"
+\`\`\`
+
+*... (response truncated; closing code fence added to fix rendering)*"
+            else
+              AI_RESPONSE="$TRUNCATED
+
+*... (response truncated due to length)*"
+            fi
           fi
           
           # Write safely using printf for reliable handling of arbitrary content
