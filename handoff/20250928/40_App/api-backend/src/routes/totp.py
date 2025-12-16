@@ -15,7 +15,6 @@ Security:
 - TOTP secrets encrypted at rest
 """
 
-import os
 import logging
 from datetime import datetime
 from flask import Blueprint, request, jsonify, make_response
