@@ -583,16 +583,21 @@
 
 ---
 
-### 22. `qwen-pr-review` (Qwen AI Code Review)
+### 22. `qwen-pr-review` (Qwen AI Code Review) - **已停用**
 **檔案**: `.github/workflows/qwen-pr-review.yml`
 
-**用途**: AI 自動程式碼審查，使用阿里雲 Qwen LLM 對所有 PR 進行智能審查
+**狀態**: ⚠️ **已停用 (2025-12-16)** - 改用 GitHub Copilot 作為主要 AI 程式碼審查工具
+
+**用途**: AI 自動程式碼審查，使用阿里雲 Qwen LLM 對 PR 進行智能審查
 
 **觸發條件**:
-- ✅ `pull_request` - PR 開啟、同步、重新開啟時自動觸發
+- ✅ `workflow_dispatch` - 僅限手動觸發（用於測試或一次性審查）
+- ❌ ~~`pull_request`~~ - 已停用自動觸發
 - ❌ Fork PR - 自動跳過（保護 secrets）
 - ❌ Bot PR - 自動跳過（避免浪費 API 費用）
 - ❌ `no-ai-review` label - 可選擇跳過特定 PR
+
+**如何重新啟用**: 取消註解 `qwen-pr-review.yml` 中的 `pull_request` 觸發器
 
 **執行內容**:
 - 取得 PR diff 並截斷至 80KB（控制 token 成本）
@@ -844,6 +849,7 @@ gh api repos/RC918/morningai/branches/main/protection \
 
 ## 📝 版本歷史
 
+- **2025-12-16**: 停用 `qwen-pr-review` 自動觸發，改用 GitHub Copilot 作為主要 AI 程式碼審查工具
 - **2025-12-16**: 新增 `qwen-pr-review` 和 `qwen-review-tests` 工作流文檔，記錄安全機制、成本控制、智能功能（Issue #2551, #2552）
 - **2025-11-30**: 新增 `coverage-trend` 和 `redis-security-check` 工作流文檔
 - **2025-11-30**: 記錄覆蓋率趨勢追蹤機制（Redis 存儲、dashboard 工具）
