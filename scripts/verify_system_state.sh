@@ -45,19 +45,24 @@ echo "========================================="
 echo ""
 
 echo "1. Verifying React versions..."
+# Single source of truth: read expected React version from root package.json pnpm overrides
+# This ensures the verification script stays in sync with the monorepo's version policy
+EXPECTED_REACT=$(node -p "require('./package.json').pnpm.overrides.react.replace('^', '')" 2>/dev/null || echo "19.1.0")
+log_verbose "Expected React version from pnpm overrides: $EXPECTED_REACT"
+
 FRONTEND_REACT=$(grep '"react":' handoff/20250928/40_App/frontend-dashboard/package.json | sed -E 's/[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' | head -1)
 OWNER_REACT=$(grep '"react":' handoff/20250928/40_App/owner-console/package.json | sed -E 's/[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/' | head -1)
 
-if [[ "$FRONTEND_REACT" == "19.1.0" ]]; then
-    check_pass "frontend-dashboard React version: $FRONTEND_REACT"
+if [[ "$FRONTEND_REACT" == "$EXPECTED_REACT" ]]; then
+    check_pass "frontend-dashboard React version: $FRONTEND_REACT (matches pnpm override)"
 else
-    check_fail "frontend-dashboard React version mismatch: expected 19.1.0, got $FRONTEND_REACT"
+    check_fail "frontend-dashboard React version mismatch: expected $EXPECTED_REACT (from pnpm overrides), got $FRONTEND_REACT"
 fi
 
-if [[ "$OWNER_REACT" == "19.1.0" ]]; then
-    check_pass "owner-console React version: $OWNER_REACT"
+if [[ "$OWNER_REACT" == "$EXPECTED_REACT" ]]; then
+    check_pass "owner-console React version: $OWNER_REACT (matches pnpm override)"
 else
-    check_fail "owner-console React version mismatch: expected 19.1.0, got $OWNER_REACT"
+    check_fail "owner-console React version mismatch: expected $EXPECTED_REACT (from pnpm overrides), got $OWNER_REACT"
 fi
 
 echo ""
