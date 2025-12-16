@@ -9,6 +9,8 @@ on:
       - 'migrations/**'
       - 'agents/*/migrations/**'
       - 'handoff/20250928/40_App/api-backend/requirements.txt'
+      - 'config/env.schema.yaml'
+      - 'scripts/generate-env-reference.py'
   workflow_dispatch:
 
 jobs:
@@ -169,4 +171,41 @@ jobs:
           else
             echo "::warning::docs/TEST_STATISTICS_EXPLANATION.md not found"
             echo "Consider creating this file to explain test statistics"
+          fi
+
+  verify-env-reference:
+    name: Verify ENV_REFERENCE.md Sync
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: pip install PyYAML
+      
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/scripts" >> $GITHUB_ENV
+      
+      - name: Regenerate ENV_REFERENCE.md
+        run: python scripts/generate-env-reference.py
+      
+      - name: Check for drift
+        run: |
+          echo "Checking if ENV_REFERENCE.md is in sync with env.schema.yaml..."
+          
+          if git diff --exit-code docs/ENV_REFERENCE.md; then
+            echo "✅ ENV_REFERENCE.md is in sync with env.schema.yaml"
+          else
+            echo "::error::ENV_REFERENCE.md is out of sync with env.schema.yaml!"
+            echo "::error::Run 'python scripts/generate-env-reference.py' locally and commit the changes."
+            echo ""
+            echo "Diff:"
+            git diff docs/ENV_REFERENCE.md
+            exit 1
           fi
