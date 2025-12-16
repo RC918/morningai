@@ -3,7 +3,21 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { MemoryRouter } from 'react-router-dom';
 import Sidebar from './Sidebar';
 
-const meta: Meta<typeof Sidebar> = {
+// Extended story args type that includes Storybook-only routing parameter
+interface SidebarStoryArgs {
+  user?: {
+    name?: string;
+    email?: string;
+    role?: string;
+    avatar?: string;
+  };
+  collapsed?: boolean;
+  isMobileDrawer?: boolean;
+  /** Storybook-only: initial route for MemoryRouter (not a Sidebar prop) */
+  initialPath?: string;
+}
+
+const meta: Meta<SidebarStoryArgs> = {
   title: 'OwnerConsole/Layout/Sidebar',
   component: Sidebar,
   parameters: {
@@ -11,7 +25,7 @@ const meta: Meta<typeof Sidebar> = {
   },
   decorators: [
     (Story, context) => (
-      <MemoryRouter initialEntries={[context.args.initialPath || '/dashboard']}>
+      <MemoryRouter initialEntries={[(context.args as SidebarStoryArgs).initialPath || '/dashboard']}>
         <div style={{ height: '100vh', display: 'flex' }}>
           <Story />
         </div>
@@ -23,15 +37,11 @@ const meta: Meta<typeof Sidebar> = {
       control: 'object',
       description: 'User object with name, role, and avatar',
     },
-    onLogout: {
-      action: 'logout',
-      description: 'Callback when logout button is clicked',
-    },
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof Sidebar>;
+type Story = StoryObj<SidebarStoryArgs>;
 
 const defaultUser = {
   name: 'Ryan Chen',

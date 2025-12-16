@@ -8,12 +8,11 @@ import {
 
 const meta = {
   title: 'Components/Accordion',
-  component: Accordion,
   parameters: {
     layout: 'centered',
   },
   tags: ['autodocs'],
-} satisfies Meta<typeof Accordion>
+} satisfies Meta
 
 export default meta
 type Story = StoryObj<typeof meta>

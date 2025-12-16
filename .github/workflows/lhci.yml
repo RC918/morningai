@@ -180,7 +180,7 @@ jobs:
         working-directory: handoff/20250928/40_App/frontend-dashboard
 
       - name: Upload Playwright test results (PR)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-test-results-pr
@@ -197,7 +197,7 @@ jobs:
         run: pnpm dlx @lhci/cli assert --config=../../../../lighthouserc.json
 
       - name: Upload LHCI artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: lhci-artifacts-pr
@@ -230,7 +230,7 @@ jobs:
 
       - name: Upload backend logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-logs-lhci-pr
           path: handoff/20250928/40_App/api-backend/backend.log
@@ -417,7 +417,7 @@ jobs:
         working-directory: handoff/20250928/40_App/frontend-dashboard
 
       - name: Upload Playwright test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-test-results
@@ -458,7 +458,7 @@ jobs:
         run: pnpm dlx @lhci/cli collect --config=../../../../lighthouserc.main.json --url=http://localhost:4173/ --url=http://localhost:4173/login --url=http://localhost:4173/pricing --url=http://localhost:4173/dashboard --url=http://localhost:4173/settings --numberOfRuns=1 --settings.chromeFlags="--no-sandbox --disable-dev-shm-usage"
 
       - name: Upload LHCI artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: lhci-artifacts-main
@@ -481,7 +481,7 @@ jobs:
 
       - name: Upload backend logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-logs-lhci-main
           path: handoff/20250928/40_App/api-backend/backend.log

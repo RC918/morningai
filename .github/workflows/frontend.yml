@@ -68,7 +68,7 @@ jobs:
       
       - name: Upload frontend-dashboard coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-dashboard-coverage
           path: handoff/20250928/40_App/frontend-dashboard/coverage/
@@ -81,7 +81,7 @@ jobs:
       
       - name: Upload owner-console coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: owner-console-coverage
           path: handoff/20250928/40_App/owner-console/coverage/
@@ -94,7 +94,7 @@ jobs:
       
       - name: Upload shared-ui coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: shared-ui-coverage
           path: packages/shared-ui/coverage/
@@ -125,7 +125,7 @@ jobs:
       
       - name: Upload baseline report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: i18n-baseline-report
           path: scripts/i18n-baseline.json
@@ -141,8 +141,8 @@ jobs:
       # These should be reduced over time as errors are fixed
       # See Issue #935 for tracking progress
       FRONTEND_DASHBOARD_BASELINE: 0
-      OWNER_CONSOLE_BASELINE: 9
-      SHARED_UI_BASELINE: 9
+      OWNER_CONSOLE_BASELINE: 0
+      SHARED_UI_BASELINE: 0
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm
@@ -186,7 +186,7 @@ jobs:
       
       - name: Upload strict typecheck reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: strict-typecheck-reports
           path: |
@@ -218,6 +218,9 @@ jobs:
       
       - name: Comment on PR with progress
         if: github.event_name == 'pull_request'
+        # Only tolerate failure for Dependabot PRs (limited permissions)
+        # Regular PRs will still fail loudly on config/network errors
+        continue-on-error: ${{ github.actor == 'dependabot[bot]' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -601,7 +604,7 @@ jobs:
       
       - name: Upload backend logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-logs-owner-console
           path: handoff/20250928/40_App/api-backend/backend.log
@@ -609,7 +612,7 @@ jobs:
       
       - name: Upload Playwright test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report-owner-console
           path: handoff/20250928/40_App/owner-console/playwright-report/
@@ -617,7 +620,7 @@ jobs:
       
       - name: Upload Playwright screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-screenshots-owner-console
           path: handoff/20250928/40_App/owner-console/test-results/
@@ -742,7 +745,7 @@ jobs:
       
       - name: Upload backend logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: backend-logs
           path: handoff/20250928/40_App/api-backend/backend.log
@@ -750,7 +753,7 @@ jobs:
       
       - name: Upload Playwright test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report-frontend-dashboard
           path: handoff/20250928/40_App/frontend-dashboard/playwright-report/
@@ -758,7 +761,7 @@ jobs:
       
       - name: Upload Playwright screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-screenshots-frontend-dashboard
           path: handoff/20250928/40_App/frontend-dashboard/test-results/

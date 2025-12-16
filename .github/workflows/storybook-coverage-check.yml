@@ -1,0 +1,187 @@
+# =============================================================================
+# Storybook Coverage Check CI
+# =============================================================================
+#
+# PURPOSE:
+#   Detects React components in shared-ui that are missing corresponding
+#   Storybook stories. This helps ensure all components are properly
+#   documented and visually testable.
+#
+# MODE:
+#   Currently running in WARNING mode (soft gate) to avoid blocking PRs.
+#   Set --strict to enable blocking mode after coverage improves.
+#
+# ENVIRONMENT DEPENDENCIES:
+#   - ubuntu-latest runner (GitHub Actions)
+#   - Bash 4+ (for script execution)
+#   - Node.js (optional, for JSON parsing)
+#
+# SCRIPTS:
+#   - scripts/detect-missing-stories.sh: Detection script
+#
+# TESTS:
+#   - scripts/tests/detect-missing-stories.test.sh: Unit tests
+#
+# RELATED:
+#   - Issue #2512: Storybook scanning CI
+#   - Issue #2303: Design system governance rules
+#
+# =============================================================================
+
+name: Storybook Coverage Check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/shared-ui/src/components/**'
+      - 'scripts/detect-missing-stories.sh'
+      - '.github/storybook-coverage-allowlist.json'
+      - '.github/workflows/storybook-coverage-check.yml'
+
+concurrency:
+  group: storybook-coverage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-storybook-coverage:
+    name: Check Storybook Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Make script executable
+        run: chmod +x ./scripts/detect-missing-stories.sh
+
+      - name: Run Storybook coverage detection
+        id: detect
+        continue-on-error: true
+        run: |
+          echo "## Storybook Coverage Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          ./scripts/detect-missing-stories.sh 2>&1 | tee detection-output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+      - name: Parse detection results
+        if: always()
+        id: parse
+        run: |
+          if [ -f detection-output.txt ]; then
+            # Use awk for POSIX compatibility
+            SCANNED=$(awk -F': ' '/Components scanned:/{print $2}' detection-output.txt || echo "0")
+            COVERED=$(awk -F': ' '/Components with stories:/{print $2}' detection-output.txt || echo "0")
+            MISSING=$(awk -F': ' '/Components missing stories:/{print $2}' detection-output.txt || echo "0")
+            COVERAGE=$(awk -F': ' '/Coverage:/{gsub(/%/,"",$2); print $2}' detection-output.txt || echo "0")
+            
+            # Ensure we have valid numbers
+            SCANNED=${SCANNED:-0}
+            COVERED=${COVERED:-0}
+            MISSING=${MISSING:-0}
+            COVERAGE=${COVERAGE:-0}
+            
+            echo "scanned=$SCANNED" >> $GITHUB_OUTPUT
+            echo "covered=$COVERED" >> $GITHUB_OUTPUT
+            echo "missing=$MISSING" >> $GITHUB_OUTPUT
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            
+            echo "Results:"
+            echo "  Components scanned: $SCANNED"
+            echo "  Components with stories: $COVERED"
+            echo "  Components missing stories: $MISSING"
+            echo "  Coverage: ${COVERAGE}%"
+          else
+            echo "scanned=0" >> $GITHUB_OUTPUT
+            echo "covered=0" >> $GITHUB_OUTPUT
+            echo "missing=0" >> $GITHUB_OUTPUT
+            echo "coverage=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR (missing stories detected)
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.missing != '0' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: storybook-coverage-check
+          body: |
+            ## Storybook Coverage Check
+            
+            **Mode**: Warning (soft gate - not blocking)
+            **Status**: Missing stories detected
+            
+            **Summary**:
+            | Metric | Value |
+            |--------|-------|
+            | Components scanned | ${{ steps.parse.outputs.scanned }} |
+            | Components with stories | ${{ steps.parse.outputs.covered }} |
+            | Components missing stories | ${{ steps.parse.outputs.missing }} |
+            | Coverage | ${{ steps.parse.outputs.coverage }}% |
+            
+            ### Action Required
+            
+            Some components in `packages/shared-ui/src/components/` are missing Storybook stories.
+            
+            **How to fix**:
+            1. Create a `.stories.tsx` file for each component
+            2. Or add the component to `.github/storybook-coverage-allowlist.json` if it shouldn't have a story
+            
+            **Documentation**: See [CONTRIBUTING_DESIGN_SYSTEM.md](https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING_DESIGN_SYSTEM.md) for story guidelines.
+            
+            [View detailed detection report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ---
+            
+            This check is currently in **warning mode** and will not block your PR.
+
+      - name: Comment on PR (full coverage)
+        if: github.event_name == 'pull_request' && always() && steps.parse.outputs.missing == '0' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: storybook-coverage-check
+          body: |
+            ## Storybook Coverage Check
+            
+            **Mode**: Warning (soft gate - not blocking)
+            **Status**: Full coverage
+            
+            **Summary**:
+            | Metric | Value |
+            |--------|-------|
+            | Components scanned | ${{ steps.parse.outputs.scanned }} |
+            | Components with stories | ${{ steps.parse.outputs.covered }} |
+            | Coverage | 100% |
+            
+            All components have Storybook stories. Great work!
+            
+            [View detailed detection report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Add job summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Components scanned | ${{ steps.parse.outputs.scanned }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Components with stories | ${{ steps.parse.outputs.covered }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Components missing stories | ${{ steps.parse.outputs.missing }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage | ${{ steps.parse.outputs.coverage }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.parse.outputs.missing }}" -gt 0 ]; then
+            echo "**Status**: Missing stories detected (warning mode - not blocking)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See [CONTRIBUTING_DESIGN_SYSTEM.md](https://github.com/${{ github.repository }}/blob/main/CONTRIBUTING_DESIGN_SYSTEM.md) for story guidelines." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status**: Full coverage" >> $GITHUB_STEP_SUMMARY
+          fi

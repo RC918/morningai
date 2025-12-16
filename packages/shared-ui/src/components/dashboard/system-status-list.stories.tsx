@@ -9,6 +9,9 @@ const meta = {
     layout: "padded",
   },
   tags: ["autodocs"],
+  args: {
+    items: [],
+  },
 } satisfies Meta<typeof SystemStatusList>;
 
 export default meta;

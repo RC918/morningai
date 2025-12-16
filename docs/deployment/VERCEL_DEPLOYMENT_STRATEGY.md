@@ -84,10 +84,14 @@ The deployment logic is controlled by `scripts/vercel-ignore.sh`:
     }
   ],
   "git": {
-    "deploymentEnabled": true
+    "deploymentEnabled": {
+      "gh-pages-storybook": false
+    }
   }
 }
 ```
+
+> **Note**: The `git.deploymentEnabled` configuration disables deployments for the `gh-pages-storybook` branch. See [Artifact Branch Deployment Errors](#artifact-branch-deployment-errors) for details.
 
 ## Vercel Dashboard Configuration (Option A - Recommended)
 
@@ -353,6 +357,33 @@ All deployments send errors and performance data to Sentry:
 2. Check variable is set for the correct environment (Production/Preview/Development)
 3. Rebuild the deployment after adding new variables
 
+### Artifact Branch Deployment Errors
+
+**Symptom**: Deployment fails with error `The specified Root Directory "handoff/20250928/40_App/owner-console" does not exist` on branches like `gh-pages-storybook`.
+
+**Root Cause**: Artifact branches (like `gh-pages-storybook` for GitHub Pages) contain only static build files, not the source code directory structure. Vercel validates the `rootDirectory` exists **before** running the `ignoreCommand`, so the ignore logic never gets a chance to skip the build.
+
+**Solution**: Use `git.deploymentEnabled` in `vercel.json` to disable deployments for artifact branches at an earlier stage:
+
+```json
+{
+  "git": {
+    "deploymentEnabled": {
+      "gh-pages-storybook": false
+    }
+  }
+}
+```
+
+This configuration prevents Vercel from attempting to deploy the specified branch entirely, avoiding the `rootDirectory` validation error.
+
+**When to use this pattern**:
+- GitHub Pages artifact branches (e.g., `gh-pages`, `gh-pages-storybook`)
+- Any branch that contains only build artifacts without source code structure
+- Branches that should never trigger Vercel deployments
+
+**Reference**: [Vercel Git Configuration Documentation](https://vercel.com/docs/project-configuration/git-configuration#git.deploymentenabled)
+
 ## Security Considerations
 
 1. **Never expose backend secrets** in Vercel frontend projects
@@ -378,9 +409,16 @@ All deployments send errors and performance data to Sentry:
 
 ---
 
-**Last Updated**: 2025-12-03
+**Last Updated**: 2025-12-16
 **Owner**: CTO + DevOps Team
 **Status**: Active
+
+**近期重要更新** (2025-12-16):
+
+*Vercel 配置更新：*
+- **PR #2562**: 新增 `git.deploymentEnabled` 配置禁用 `gh-pages-storybook` 分支部署
+  - 解決 artifact branch 導致的 rootDirectory 驗證錯誤
+  - 新增 Troubleshooting 文檔：[Artifact Branch Deployment Errors](#artifact-branch-deployment-errors)
 
 **近期重要更新** (2025-12-02 至 2025-12-03):
 
