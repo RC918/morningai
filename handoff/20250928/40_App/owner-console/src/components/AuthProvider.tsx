@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authLogin(credentials);
       
       if (response.next_step === 'session' || !response.next_step) {
-        setUser(response.user);
+        setUser(response.user ?? null);
         setIsAuthenticated(true);
       }
       
