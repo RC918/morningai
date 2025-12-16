@@ -4,7 +4,7 @@
 
 > **🚀 Current Phase: Transformation to World-Class (Q4 2025 - Q2 2026)**  
 > We are evolving from MVP to a production-ready, enterprise-grade AI agent ecosystem.  
-> See [CTO Strategic Plan](CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) for our roadmap.
+> See [CTO Strategic Plan](docs/reports/cto/CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) for our roadmap.
 >
 > **📊 Strategic Integration**: Our roadmap has been validated through integration of three comprehensive assessments:
 > - CTO Strategic Plan (6-month transformation)
@@ -12,7 +12,7 @@
 > - MVP Journey Report (project history & recommendations)
 >
 > All three documents converge on **identical P0 priorities**, validating our strategic direction.  
-> See [Integration Analysis](CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) for detailed comparison and refined timeline.
+> See [Integration Analysis](docs/reports/cto/CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) for detailed comparison and refined timeline.
 
 > **⚠️ Development Guidelines**  
 > - **UI Components**: MorningAI 使用 `@morningai/shared-ui` 作為唯一的 UI 元件庫，開發新 UI 請參考 [Shared UI 使用指南](docs/shared-ui-guide.md)
@@ -517,9 +517,9 @@ MorningAI 使用 Lighthouse CI 進行前端效能監控，目前處於「資訊�
 
 ### 📈 戰略與路線圖 (Strategy & Roadmap)
 
-- [CTO Strategic Plan](CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) - 6 個月轉型計畫（MVP → World-Class）
-- [CTO Technical Assessment](CTO_TECHNICAL_ASSESSMENT_REPORT.md) - 技術評估報告
-- [Strategic Integration Analysis](CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) - 戰略整合分析
+- [CTO Strategic Plan](docs/reports/cto/CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) - 6 個月轉型計畫（MVP → World-Class）
+- [CTO Technical Assessment](docs/reports/cto/CTO_TECHNICAL_ASSESSMENT_REPORT.md) - 技術評估報告
+- [Strategic Integration Analysis](docs/reports/cto/CTO_STRATEGIC_INTEGRATION_ANALYSIS.md) - 戰略整合分析
 - [Strategic Roadmap](.github/projects/cto-strategic-roadmap-q4-2025-q2-2026.yml) - Q4 2025 - Q2 2026 詳細時間表
 
 ---

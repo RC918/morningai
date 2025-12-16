@@ -62,3 +62,33 @@ The following CTO-related documents remain in `docs/` as they are actively refer
 - **Source**: Root directory (`/`)
 - **Destination**: `docs/reports/cto/`
 - **Stub Files**: Created for key documents to maintain backward compatibility
+
+### Documents with Stub Files (Backward Compatible)
+
+The following documents have stub files in the root directory that redirect to the new location. External links to these files will continue to work until 2026-03-16:
+
+| Original Path | New Path | Stub Removal Date |
+|---------------|----------|-------------------|
+| `/CTO_TECHNICAL_ASSESSMENT_REPORT.md` | `docs/reports/cto/CTO_TECHNICAL_ASSESSMENT_REPORT.md` | 2026-03-16 |
+| `/CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md` | `docs/reports/cto/CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md` | 2026-03-16 |
+| `/CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT.md` | `docs/reports/cto/CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT.md` | 2026-03-16 |
+
+### Documents Moved Without Stub Files
+
+The following documents were moved without stub files. External links to these files will break:
+
+| Original Path | New Path |
+|---------------|----------|
+| `/CTO_ACCEPTANCE_PR571_API_DOCUMENTATION.md` | `docs/reports/cto/CTO_ACCEPTANCE_PR571_API_DOCUMENTATION.md` |
+| `/CTO_COMPREHENSIVE_TECHNICAL_DEEP_DIVE_2025.md` | `docs/reports/cto/CTO_COMPREHENSIVE_TECHNICAL_DEEP_DIVE_2025.md` |
+| `/CTO_DESIGN_SYSTEM_ASSESSMENT_REPORT.md` | `docs/reports/cto/CTO_DESIGN_SYSTEM_ASSESSMENT_REPORT.md` |
+| `/CTO_FINAL_APPROVAL_PR562_SPRINT1_SECURITY.md` | `docs/reports/cto/CTO_FINAL_APPROVAL_PR562_SPRINT1_SECURITY.md` |
+| `/CTO_FINAL_APPROVAL_PR563_MODULE_RENAME.md` | `docs/reports/cto/CTO_FINAL_APPROVAL_PR563_MODULE_RENAME.md` |
+| `/CTO_GOVERNANCE_FRAMEWORK_ACCEPTANCE_REPORT.md` | `docs/reports/cto/CTO_GOVERNANCE_FRAMEWORK_ACCEPTANCE_REPORT.md` |
+| `/CTO_ONBOARDING_AND_STRATEGIC_PLAN.md` | `docs/reports/cto/CTO_ONBOARDING_AND_STRATEGIC_PLAN.md` |
+| `/CTO_REVIEW_PR562_SPRINT1_SECURITY.md` | `docs/reports/cto/CTO_REVIEW_PR562_SPRINT1_SECURITY.md` |
+| `/CTO_STRATEGIC_INTEGRATION_ANALYSIS.md` | `docs/reports/cto/CTO_STRATEGIC_INTEGRATION_ANALYSIS.md` |
+| `/CTO_SUPPLEMENTAL_APPROVAL_PR563_DOCUMENTATION.md` | `docs/reports/cto/CTO_SUPPLEMENTAL_APPROVAL_PR563_DOCUMENTATION.md` |
+| `/CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT_OLD.md` | `docs/reports/cto/archive/CTO_COMPREHENSIVE_TECHNICAL_ASSESSMENT_OLD.md` |
+
+If you have external links to these documents, please update them to point to the new locations.
