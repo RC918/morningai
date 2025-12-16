@@ -130,7 +130,9 @@
 **緊急情況處理**：
 如果您有合法的緊急情況需要繞過此檢查，請參考 [Emergency Override Runbook](../../docs/EMERGENCY_OVERRIDE_RUNBOOK.md)。
 
-**相關文件**: 
+**注意**：沒有自動繞過機制。所有例外都需要明確的管理員批准和記錄。
+
+**相關文件**:
 - [快速修復指南（2 分鐘）](../../docs/DESIGN_SYSTEM_QUICKSTART.md)
 - [設計系統強制執行指南](../../docs/DESIGN_SYSTEM_ENFORCEMENT.md)
 - [i18n 政策](../../CONTRIBUTING.md#i18n-政策強制執行)
