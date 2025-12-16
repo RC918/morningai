@@ -29,12 +29,10 @@ on:
     paths:
       - '.github/workflows/qwen-pr-review.yml'
       - '.github/workflows/qwen-review-tests.yml'
-      - 'scripts/tests/qwen-review.test.sh'
   pull_request:
     paths:
       - '.github/workflows/qwen-pr-review.yml'
       - '.github/workflows/qwen-review-tests.yml'
-      - 'scripts/tests/qwen-review.test.sh'
   workflow_dispatch:
 
 permissions:
