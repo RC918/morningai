@@ -9,7 +9,6 @@ Endpoints:
 - GET /api/auth/me - Get current user info
 """
 
-import os
 from flask import Blueprint, request, jsonify, make_response
 from src.services.auth_service import (
     authenticate_user,
@@ -29,7 +28,7 @@ from src.services.auth_service import (
     PREAUTH_TOKEN_TTL
 )
 from common.config.settings import get_settings
-from src.middleware.csrf import csrf_protect, should_enforce_csrf
+from src.middleware.csrf import csrf_protect
 from src.utils.pre_auth_token import get_pre_auth_manager
 import logging
 
@@ -167,13 +166,12 @@ def login():
         if not user:
             return jsonify({'message': 'Invalid email or password'}), 401
         
-        from .totp import check_2fa_required, is_2fa_feature_enabled
+        from .totp import check_2fa_required
         from supabase import create_client
         
         if check_2fa_required(user['id'], user['role']):
             next_step = 'enroll_2fa'
-            scope = 'enroll'
-            
+
             supabase_url = get_settings().supabase_url
             supabase_key = get_settings().supabase_service_role_key
             
@@ -184,9 +182,11 @@ def login():
                     
                     if user_2fa.data and user_2fa.data[0].get('enabled') and user_2fa.data[0].get('verified_at'):
                         next_step = 'challenge_2fa'
-                        scope = 'challenge'
                 except Exception as supabase_error:
-                    logger.warning(f"Supabase query failed for user {user['email']}, defaulting to enroll_2fa: {supabase_error}")
+                    logger.warning(
+                        f"Supabase query failed for user {user['email']}, "
+                        f"defaulting to enroll_2fa: {supabase_error}"
+                    )
             
             tmp_token = generate_preauth_token(
                 user_id=user['id'],

@@ -1,8 +1,7 @@
 import jwt
-import os
 import logging
 from functools import wraps
-from flask import request, jsonify, current_app
+from flask import request, jsonify
 from common.config.settings import get_settings
 
 def verify_jwt_library():
@@ -26,10 +25,10 @@ def verify_jwt_library():
         try:
             try:
                 import pkg_resources
-                version = pkg_resources.get_distribution("PyJWT").version
+                _version = pkg_resources.get_distribution("PyJWT").version  # noqa: F841
             except (ImportError, ModuleNotFoundError):
                 from importlib import metadata
-                version = metadata.version("PyJWT")
+                _version = metadata.version("PyJWT")  # noqa: F841 - check only
         except Exception:
             raise RuntimeError(
                 "Wrong 'jwt' package detected! "
@@ -109,7 +108,8 @@ def _extract_jwt_from_request():
 
     return None, (jsonify({
         'error': 'Authorization header missing',
-        'message': 'Please provide a valid JWT token via Authorization header, X-Access-Token header, or access_token cookie.'
+        'message': 'Please provide a valid JWT token via Authorization header, '
+                   'X-Access-Token header, or access_token cookie.'
     }), 401)
 
 def _error_response_from_exception(e):
@@ -179,13 +179,17 @@ def _decode_jwt_with_fallback():
         token, parse_error = _parse_bearer_token(auth_header)
         if parse_error:
             primary_error = parse_error
-            logging.warning(f"Invalid Authorization header format, trying fallback methods: {parse_error[0].get_json()}")
+            logging.warning(
+                f"Invalid Authorization header format, trying fallback: {parse_error[0].get_json()}"
+            )
         else:
             payload, decode_error = _try_decode_token(token, jwt_secret)
             if payload:
                 return payload, None
             primary_error = _error_response_from_exception(decode_error)
-            logging.warning(f"Authorization token decode failed, trying fallback methods: {primary_error[0].get_json()}")
+            logging.warning(
+                f"Authorization token decode failed, trying fallback: {primary_error[0].get_json()}"
+            )
 
     x_access_token = request.headers.get('X-Access-Token')
     if x_access_token:
@@ -204,7 +208,8 @@ def _decode_jwt_with_fallback():
 
     return None, (jsonify({
         'error': 'Authorization header missing',
-        'message': 'Please provide a valid JWT token via Authorization header, X-Access-Token header, or access_token cookie.'
+        'message': 'Please provide a valid JWT token via Authorization header, '
+                   'X-Access-Token header, or access_token cookie.'
     }), 401)
 
 def jwt_required(f):
@@ -309,7 +314,9 @@ def analyst_required(f):
         normalized_role = normalize_role(raw_role)
         is_platform_admin = payload.get('is_platform_admin', False)
 
-        if normalized_role not in ['admin', 'analyst'] and raw_role not in ['超級管理員', '分析師'] and not is_platform_admin:
+        is_analyst_or_admin = normalized_role in ['admin', 'analyst']
+        is_legacy_admin = raw_role in ['超級管理員', '分析師']
+        if not is_analyst_or_admin and not is_legacy_admin and not is_platform_admin:
             return jsonify({
                 'error': 'Insufficient privileges',
                 'message': 'Analyst access or higher required for this endpoint.'

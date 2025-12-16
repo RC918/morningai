@@ -3,10 +3,8 @@ Vector Visualization API Routes
 
 Provides endpoints for pgvector space visualization and memory drift analysis.
 """
-import os
 import logging
 from flask import Blueprint, jsonify, request
-import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 from src.middleware.auth_middleware import jwt_required
@@ -80,7 +78,10 @@ def visualize_vectors():
         Plotly JSON figure
     """
     if not VISUALIZATION_AVAILABLE:
-        return jsonify({"error": "Visualization libraries not available. Install pandas, scikit-learn, and plotly."}), 503
+        return jsonify({
+            "error": "Visualization libraries not available. "
+                     "Install pandas, scikit-learn, and plotly."
+        }), 503
     
     method = request.args.get('method', 'tsne').lower()
     limit = int(request.args.get('limit', 1000))

@@ -4,13 +4,12 @@ Persistent State Manager - Database-backed state persistence
 Replaces in-memory state with persistent storage for Beta candidates and approval history
 """
 
-import asyncio
 import logging
 import json
 import os
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional
+from dataclasses import dataclass
 import sqlite3
 import threading
 from contextlib import contextmanager

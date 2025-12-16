@@ -3,15 +3,12 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import jwt
 import datetime
 import secrets
-import os
-from src.models.user import db, User
-from common.config.settings import get_settings
+from common.config.settings import get_settings, settings
 
 auth_bp = Blueprint('auth', __name__)
 
 
 # 模擬用戶數據（實際應用中應該從數據庫讀取）
-from common.config.settings import settings
 
 MOCK_USERS = {
     'admin': {
@@ -118,7 +115,7 @@ def login():
                 'token': token
             })
         
-    except Exception as e:
+    except Exception:
         return jsonify({'message': '登錄失敗，請稍後重試'}), 500
 
 @auth_bp.route('/verify', methods=['GET'])
@@ -165,7 +162,7 @@ def verify_token():
         except jwt.InvalidTokenError:
             return jsonify({'message': '無效的Token'}), 401
             
-    except Exception as e:
+    except Exception:
         return jsonify({'message': '驗證失敗'}), 500
 
 @auth_bp.route('/logout', methods=['POST'])

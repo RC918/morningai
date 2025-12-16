@@ -137,8 +137,11 @@ jobs:
     # Changed from continue-on-error: true to blocking check
     # This enforces TypeScript strict mode compliance
     env:
+      # Baselines for TypeScript strict mode error counts
+      # These should be reduced over time as errors are fixed
+      # See Issue #935 for tracking progress
       FRONTEND_DASHBOARD_BASELINE: 0
-      OWNER_CONSOLE_BASELINE: 6
+      OWNER_CONSOLE_BASELINE: 0
       SHARED_UI_BASELINE: 9
     steps:
       - uses: actions/checkout@v4

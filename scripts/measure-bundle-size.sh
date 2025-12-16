@@ -30,6 +30,16 @@
 #   - Total CSS: +10KB
 #   - Largest Chunk: +30KB
 #
+# TESTING:
+#   Unit tests: scripts/tests/measure-bundle-size.test.sh
+#   CI workflow: .github/workflows/bundle-size-script-tests.yml
+#   Documentation: scripts/tests/BUNDLE_SIZE_TESTING.md
+#
+# ARCHITECTURE:
+#   Core helper functions (parse_vite_output, calculate_gzip_sizes_direct) are
+#   defined in scripts/lib/bundle-size-lib.sh and sourced by both this script
+#   and the unit tests. This ensures consistency and reduces maintenance cost.
+#
 # ============================================================================
 
 set -euo pipefail
@@ -68,6 +78,17 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+
+# ============================================================================
+# SHARED LIBRARY
+# ============================================================================
+
+# Determine script directory for sourcing library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source shared library containing parse_vite_output and calculate_gzip_sizes_direct
+# This library is also used by unit tests to ensure consistency
+source "$SCRIPT_DIR/lib/bundle-size-lib.sh"
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -112,91 +133,6 @@ THRESHOLDS:
   - Total CSS (gzip): +10KB
   - Largest Chunk (gzip): +30KB
 EOF
-}
-
-# Parse Vite build output to extract bundle sizes
-# Vite output format: dist/assets/index-abc123.js   245.67 kB │ gzip:  78.23 kB
-parse_vite_output() {
-  local build_output="$1"
-  local file_type="$2"  # "js" or "css"
-  
-  local total=0
-  local largest=0
-  
-  while IFS= read -r line; do
-    if [[ "$line" =~ \.$file_type[[:space:]] ]] && [[ "$line" =~ gzip:[[:space:]]*([0-9.]+)[[:space:]]*kB ]]; then
-      local size="${BASH_REMATCH[1]}"
-      # Convert to integer (multiply by 100 for precision, then divide later)
-      # Use bc if available, otherwise use awk as fallback
-      local size_int
-      if command -v bc &> /dev/null; then
-        size_int=$(echo "$size * 100" | bc | cut -d. -f1)
-      else
-        size_int=$(awk "BEGIN {printf \"%.0f\", $size * 100}")
-      fi
-      total=$((total + ${size_int:-0}))
-      if (( ${size_int:-0} > largest )); then
-        largest=${size_int:-0}
-      fi
-    fi
-  done <<< "$build_output"
-  
-  # Convert back to KB with one decimal
-  local total_kb
-  local largest_kb
-  if command -v bc &> /dev/null; then
-    total_kb=$(echo "scale=1; $total / 100" | bc)
-    largest_kb=$(echo "scale=1; $largest / 100" | bc)
-  else
-    total_kb=$(awk "BEGIN {printf \"%.1f\", $total / 100}")
-    largest_kb=$(awk "BEGIN {printf \"%.1f\", $largest / 100}")
-  fi
-  
-  echo "$total_kb $largest_kb"
-}
-
-# Direct gzip calculation fallback
-# Used when Vite output parsing fails or returns 0
-# This directly measures gzip size of files in dist/assets
-calculate_gzip_sizes_direct() {
-  local dist_path="$1"
-  local file_type="$2"  # "js" or "css"
-  
-  local total=0
-  local largest=0
-  
-  if [[ ! -d "$dist_path/assets" ]]; then
-    echo "0 0"
-    return
-  fi
-  
-  # Find all files of the specified type and calculate gzip size
-  while IFS= read -r -d '' file; do
-    if [[ -f "$file" ]]; then
-      # Calculate gzip size in bytes
-      # Use { gzip || true; } to prevent pipefail from terminating script on gzip failure
-      local current_size
-      current_size=$({ gzip -c "$file" 2>/dev/null || true; } | wc -c)
-      # Use default value 0 if current_size is empty (gzip failed completely)
-      total=$((total + ${current_size:-0}))
-      if (( ${current_size:-0} > largest )); then
-        largest=${current_size:-0}
-      fi
-    fi
-  done < <(find "$dist_path/assets" -name "*.$file_type" -print0 2>/dev/null)
-  
-  # Convert bytes to KB with one decimal
-  local total_kb
-  local largest_kb
-  if command -v bc &> /dev/null; then
-    total_kb=$(echo "scale=1; $total / 1024" | bc)
-    largest_kb=$(echo "scale=1; $largest / 1024" | bc)
-  else
-    total_kb=$(awk "BEGIN {printf \"%.1f\", $total / 1024}")
-    largest_kb=$(awk "BEGIN {printf \"%.1f\", $largest / 1024}")
-  fi
-  
-  echo "$total_kb $largest_kb"
 }
 
 # Build an app and capture output

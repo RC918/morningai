@@ -10,7 +10,6 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
-import time
 
 @dataclass
 class DashboardMetrics:
@@ -86,7 +85,6 @@ class MonitoringDashboard:
             circuit_breakers = resilience_metrics.get('circuit_breakers', {})
             total_requests = 0
             total_failures = 0
-            total_latency = 0
             open_breakers = 0
             
             for cb_name, cb_metrics in circuit_breakers.items():
@@ -307,12 +305,23 @@ class MonitoringDashboard:
         timestamp = int(metrics.timestamp.timestamp() * 1000)
         
         for name, cb_metrics in metrics.circuit_breakers.items():
-            lines.append(f'circuit_breaker_total_requests{{service="{name}"}} {cb_metrics.get("total_requests", 0)} {timestamp}')
-            lines.append(f'circuit_breaker_failed_requests{{service="{name}"}} {cb_metrics.get("failed_requests", 0)} {timestamp}')
-            lines.append(f'circuit_breaker_failure_rate{{service="{name}"}} {cb_metrics.get("failure_rate", 0)} {timestamp}')
+            total_req = cb_metrics.get("total_requests", 0)
+            failed_req = cb_metrics.get("failed_requests", 0)
+            fail_rate = cb_metrics.get("failure_rate", 0)
+            lines.append(
+                f'circuit_breaker_total_requests{{service="{name}"}} {total_req} {timestamp}'
+            )
+            lines.append(
+                f'circuit_breaker_failed_requests{{service="{name}"}} {failed_req} {timestamp}'
+            )
+            lines.append(
+                f'circuit_breaker_failure_rate{{service="{name}"}} {fail_rate} {timestamp}'
+            )
             
-        lines.append(f'system_error_rate {metrics.system_health.get("error_rate", 0)} {timestamp}')
-        lines.append(f'system_open_circuit_breakers {metrics.system_health.get("open_circuit_breakers", 0)} {timestamp}')
+        error_rate = metrics.system_health.get("error_rate", 0)
+        open_cbs = metrics.system_health.get("open_circuit_breakers", 0)
+        lines.append(f'system_error_rate {error_rate} {timestamp}')
+        lines.append(f'system_open_circuit_breakers {open_cbs} {timestamp}')
         
         return '\n'.join(lines)
     
@@ -326,7 +335,6 @@ class MonitoringDashboard:
         try:
             import os
             import redis
-            from datetime import datetime
             
             redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
             redis_client = redis.from_url(redis_url, decode_responses=True)

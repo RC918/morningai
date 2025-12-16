@@ -225,15 +225,19 @@ def health_check():
         if GOVERNANCE_AVAILABLE:
             try:
                 cost_tracker = get_cost_tracker()
-                status['components']['cost_tracker'] = 'available' if cost_tracker.redis else 'degraded'
-            except:
+                status['components']['cost_tracker'] = (
+                    'available' if cost_tracker.redis else 'degraded'
+                )
+            except Exception:
                 status['components']['cost_tracker'] = 'unavailable'
-            
+
             try:
                 reputation_engine = get_reputation_engine()
                 supabase = reputation_engine._get_supabase()
-                status['components']['reputation_engine'] = 'available' if supabase else 'degraded'
-            except:
+                status['components']['reputation_engine'] = (
+                    'available' if supabase else 'degraded'
+                )
+            except Exception:
                 status['components']['reputation_engine'] = 'unavailable'
         
         return jsonify(status)

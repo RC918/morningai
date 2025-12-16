@@ -6,7 +6,6 @@ Feature Flag: MVP_MONITORING_FOUNDATION
 Provides comprehensive Sentry integration with custom tags, error filtering,
 and performance monitoring for the MorningAI platform.
 """
-import os
 import logging
 from typing import Optional, Dict, Any
 from functools import wraps
@@ -17,46 +16,6 @@ logger = logging.getLogger(__name__)
 SENTRY_DSN = settings.sentry_dsn
 SENTRY_ENVIRONMENT = settings.sentry_environment or "production"
 APP_VERSION = settings.app_version or "8.0.0"
-
-sentry_sdk = None
-if SENTRY_DSN and SENTRY_DSN.strip():
-    try:
-        import sentry_sdk
-        from sentry_sdk.integrations.flask import FlaskIntegration
-        from sentry_sdk.integrations.redis import RedisIntegration
-        from sentry_sdk.integrations.logging import LoggingIntegration
-        
-        logging_integration = LoggingIntegration(
-            level=logging.INFO,
-            event_level=logging.ERROR
-        )
-        
-        sentry_sdk.init(
-            dsn=SENTRY_DSN,
-            environment=SENTRY_ENVIRONMENT,
-            release=f"morningai@{APP_VERSION}",
-            traces_sample_rate=0.1,  # 10% of transactions
-            profiles_sample_rate=0.1,  # 10% of transactions
-            integrations=[
-                FlaskIntegration(),
-                RedisIntegration(),
-                logging_integration
-            ],
-            before_send=scrub_sensitive_data,
-            ignore_errors=[
-                KeyboardInterrupt,
-                SystemExit,
-                BrokenPipeError
-            ]
-        )
-        
-        logger.info(f"Sentry initialized successfully (environment={SENTRY_ENVIRONMENT}, version={APP_VERSION})")
-    except Exception as e:
-        logger.error(f"Failed to initialize Sentry: {e}")
-        sentry_sdk = None
-else:
-    logger.info("Sentry DSN not configured, monitoring disabled")
-
 
 def scrub_sensitive_data(event: Dict[str, Any], hint: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
@@ -101,6 +60,49 @@ def scrub_sensitive_data(event: Dict[str, Any], hint: Dict[str, Any]) -> Optiona
                 event['extra'][field] = '[REDACTED]'
     
     return event
+
+
+# Initialize Sentry SDK after scrub_sensitive_data is defined
+sentry_sdk = None
+if SENTRY_DSN and SENTRY_DSN.strip():
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        from sentry_sdk.integrations.redis import RedisIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
+        logging_integration = LoggingIntegration(
+            level=logging.INFO,
+            event_level=logging.ERROR
+        )
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=SENTRY_ENVIRONMENT,
+            release=f"morningai@{APP_VERSION}",
+            traces_sample_rate=0.1,  # 10% of transactions
+            profiles_sample_rate=0.1,  # 10% of transactions
+            integrations=[
+                FlaskIntegration(),
+                RedisIntegration(),
+                logging_integration
+            ],
+            before_send=scrub_sensitive_data,
+            ignore_errors=[
+                KeyboardInterrupt,
+                SystemExit,
+                BrokenPipeError
+            ]
+        )
+
+        logger.info(
+            f"Sentry initialized (env={SENTRY_ENVIRONMENT}, ver={APP_VERSION})"
+        )
+    except Exception as e:
+        logger.error(f"Failed to initialize Sentry: {e}")
+        sentry_sdk = None
+else:
+    logger.info("Sentry DSN not configured, monitoring disabled")
 
 
 def set_user_context(user_id: Optional[str] = None, tenant_id: Optional[str] = None, **kwargs):

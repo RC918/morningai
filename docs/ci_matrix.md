@@ -104,7 +104,7 @@
 ### 5. `backend-ci`
 **檔案**: `.github/workflows/backend.yml`
 
-**用途**: Backend 程式碼品質檢查與測試覆蓋率
+**用途**: Backend 程式碼品質檢查、Ruff lint 與測試覆蓋率
 
 **觸發條件**:
 - ✅ `workflow_dispatch` - 手動觸發 (Phase 11 新增)
@@ -112,11 +112,16 @@
 - ✅ `pull_request` - 所有 PR
 
 **執行內容**:
-- 安裝 Python 3.12.x 與後端依賴
-- 執行 pytest 單元測試
-- 測試覆蓋率檢查 (目前門檻: 25%)
+- **lint job** (blocking): 執行 Ruff linter 檢查 Python 程式碼品質
+  - 使用 Ruff (10-100x faster than flake8)
+  - 配置於 `pyproject.toml` [tool.ruff] section
+  - Line length: 120 characters
+  - Per-file-ignores 用於特殊情況 (migrations, tests, main.py)
+- **validate-env-schema job**: 驗證環境變數 schema
+- **validate-openapi-spec job**: 驗證 OpenAPI 規格
+- **test job**: 執行 pytest 單元測試，測試覆蓋率檢查 (目前門檻: 80%)
 
-**為何非 Required**: 測試覆蓋率仍在提升中，避免阻擋開發速度
+**為何非 Required**: 測試覆蓋率已達 80%，但保持非 Required 以避免阻擋緊急修復
 
 ---
 

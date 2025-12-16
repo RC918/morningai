@@ -36,6 +36,8 @@
 
 ## 設計系統與 Shared UI
 
+> **完整治理規則**：請參閱 [CONTRIBUTING_DESIGN_SYSTEM.md](CONTRIBUTING_DESIGN_SYSTEM.md) 了解完整的設計系統治理規則，包括 Token 管理、Apple 組件規則、Dashboard 卡片 Archetypes 等。
+
 ### 使用 @morningai/shared-ui
 
 MorningAI 使用統一的設計系統，所有 UI 元件集中在 `packages/shared-ui/`。
@@ -389,6 +391,124 @@ from tests.fixtures.auth import auth_headers
 def test_vector_search(client, auth_headers):
     response = client.post('/api/vectors/search', headers=auth_headers)
     assert response.status_code == 200
+```
+
+## Python Lint 規則 (Ruff)
+
+MorningAI 使用 [Ruff](https://docs.astral.sh/ruff/) 作為 Python linter，配置於 `pyproject.toml`。
+
+### 基本配置
+
+```toml
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]  # pycodestyle errors/warnings, pyflakes
+ignore = []  # 所有規則都啟用
+
+[tool.ruff.lint.per-file-ignores]
+"*/migrations/*" = ["E501"]  # 允許 migrations 超長行
+"*/tests/*" = ["E501"]       # 允許測試檔案超長行
+"**/main.py" = ["E402"]      # 允許 main.py 延遲 import
+"**/governance.py" = ["E402"] # 允許 governance.py 延遲 import
+```
+
+### 常見規則說明
+
+| 規則 | 說明 | 修復方式 |
+|------|------|---------|
+| E501 | Line too long (>120 chars) | 拆分長行、使用括號換行 |
+| E402 | Module import not at top | 重新排列 imports 或加入 per-file-ignores |
+| F401 | Unused import | 移除未使用的 import |
+| F841 | Unused variable | 移除未使用的變數或使用 `_` 前綴 |
+| W291 | Trailing whitespace | 移除行尾空白 |
+
+### 本地執行 Lint
+
+**重要**：請使用與 CI 相同的 Ruff 版本以確保一致性。
+
+```bash
+# 安裝指定版本的 Ruff（與 CI 一致）
+pip install ruff==0.8.6
+
+# 驗證安裝
+ruff --version  # 應顯示 ruff 0.8.6
+
+# 檢查所有錯誤
+ruff check handoff/20250928/40_App/api-backend/src
+
+# 自動修復可修復的錯誤
+ruff check handoff/20250928/40_App/api-backend/src --fix
+
+# 顯示統計資訊
+ruff check handoff/20250928/40_App/api-backend/src --statistics
+```
+
+**常見問題排查**：
+
+- 若 `ruff: command not found`，請確認已啟用 venv 或使用 `python -m ruff`
+- 確認路徑：`which ruff` 應在你的 venv 內（如 `.venv/bin/ruff`）
+- 若版本不符，可能是全域安裝覆蓋了 venv 版本，建議使用 `python -m pip install ruff==0.8.6`
+
+### CI 整合
+
+Lint 檢查在 `backend-ci` workflow 中執行，目前為 **blocking** 模式（lint 失敗會阻擋 CI）。
+
+CI 使用 [astral-sh/ruff-action](https://github.com/astral-sh/ruff-action) 官方 action，版本透過 `env.RUFF_VERSION` 集中管理。
+
+```yaml
+# .github/workflows/backend.yml
+env:
+  RUFF_VERSION: "0.8.6"  # 集中管理版本
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: false  # blocking mode
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Ruff linter
+        uses: astral-sh/ruff-action@v2
+        with:
+          version: ${{ env.RUFF_VERSION }}
+          args: "check handoff/20250928/40_App/api-backend/src --output-format=github"
+```
+
+**版本升級**：Ruff 版本由 Dependabot 自動監控，每月檢查更新並建立 PR。
+
+### 修復長行的技巧
+
+```python
+# ❌ 超過 120 字元
+result = some_function(very_long_argument_name, another_long_argument, yet_another_argument)
+
+# ✅ 使用括號換行
+result = some_function(
+    very_long_argument_name,
+    another_long_argument,
+    yet_another_argument
+)
+
+# ❌ 超長字串
+message = "This is a very long error message that exceeds the line length limit"
+
+# ✅ 使用隱式字串連接
+message = (
+    "This is a very long error message "
+    "that exceeds the line length limit"
+)
+
+# ❌ 超長條件式
+if condition1 and condition2 and condition3 and condition4:
+    pass
+
+# ✅ 提取變數
+is_valid = condition1 and condition2
+is_ready = condition3 and condition4
+if is_valid and is_ready:
+    pass
 ```
 
 ## GitHub Actions 最佳實踐
