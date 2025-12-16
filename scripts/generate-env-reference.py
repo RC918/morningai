@@ -18,7 +18,6 @@ from collections import defaultdict
 from repo_root_utils import get_repo_root
 
 
-SECURITY_LEVEL_ORDER = ['critical', 'secret', 'medium', 'low', 'public']
 SECURITY_LEVEL_EMOJI = {
     'critical': 'CRITICAL',
     'secret': 'SECRET',
@@ -30,7 +29,7 @@ SECURITY_LEVEL_EMOJI = {
 
 def load_schema(schema_path: Path) -> Dict[str, Any]:
     """Load the environment schema from YAML file."""
-    with open(schema_path, 'r') as f:
+    with open(schema_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
@@ -52,14 +51,31 @@ def format_type(var_config: Dict[str, Any]) -> str:
     return var_type
 
 
-def format_default(var_config: Dict[str, Any]) -> str:
-    """Format the default value for a variable."""
+def format_default(var_config: Dict[str, Any], include_env_specific: bool = False) -> str:
+    """Format the default value for a variable.
+
+    Args:
+        var_config: Variable configuration dictionary
+        include_env_specific: If True, append environment-specific values
+
+    Returns:
+        Formatted default value string
+    """
     default = var_config.get('default')
     if default is None:
-        return '-'
-    if isinstance(default, bool):
-        return str(default).lower()
-    return str(default)
+        base = '-'
+    elif isinstance(default, bool):
+        base = str(default).lower()
+    else:
+        base = str(default)
+
+    if include_env_specific:
+        env_specific = var_config.get('environment_specific')
+        if env_specific:
+            env_parts = [f"{env}={val}" for env, val in env_specific.items()]
+            return f"{base} ({', '.join(env_parts)})"
+
+    return base
 
 
 def generate_env_reference(schema: Dict[str, Any], output_path: Path) -> None:
@@ -142,7 +158,7 @@ def generate_env_reference(schema: Dict[str, Any], output_path: Path) -> None:
         for var_name, var_config in vars_in_category:
             var_type = format_type(var_config)
             required = "Yes" if var_config.get('required', False) else "No"
-            default = format_default(var_config)
+            default = format_default(var_config, include_env_specific=True)
             security = SECURITY_LEVEL_EMOJI.get(
                 var_config.get('security_level', 'public'), 'PUBLIC'
             )
@@ -189,7 +205,7 @@ def generate_env_reference(schema: Dict[str, Any], output_path: Path) -> None:
             lines.append("")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w') as f:
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines))
 
     print(f"Generated: {output_path}")

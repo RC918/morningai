@@ -46,7 +46,7 @@
 | Variable | Type | Required | Default | Security |
 |----------|------|----------|---------|----------|
 | `JWT_SECRET_KEY` | secret | Yes | - | CRITICAL |
-| `ACCESS_TOKEN_EXPIRY_MINUTES` | integer | No | 15 | MEDIUM |
+| `ACCESS_TOKEN_EXPIRY_MINUTES` | integer | No | 15 (production=15, development=15, ci=60) | MEDIUM |
 | `ADMIN_PASSWORD` | secret | Yes | - | CRITICAL |
 | `OWNER_PASSWORD` | secret | No | - | CRITICAL |
 
@@ -578,11 +578,11 @@ Secondary Vercel token for testing/sandbox environments (optional)
 | `GUNICORN_LOG_LEVEL` | string (debug, info, warning, error, critical) | No | info | PUBLIC |
 | `GUNICORN_RELOAD` | boolean | No | false | PUBLIC |
 | `ORCHESTRATOR_SHUTDOWN_TIMEOUT` | integer | No | 30 | PUBLIC |
-| `USE_REDIS_CHECKPOINTER` | boolean | No | false | PUBLIC |
+| `USE_REDIS_CHECKPOINTER` | boolean | No | false (production=True, staging=True, development=False) | PUBLIC |
 | `REDIS_CHECKPOINTER_TTL` | integer | No | 86400 | PUBLIC |
-| `REVIEW_FOLLOW_UP_STORE_BACKEND` | string | No | in_memory | PUBLIC |
+| `REVIEW_FOLLOW_UP_STORE_BACKEND` | string | No | in_memory (production=redis, staging=redis, development=in_memory) | PUBLIC |
 | `REVIEW_FOLLOW_UP_TASK_TTL` | integer | No | 2592000 | PUBLIC |
-| `RQ_MAX_JOBS` | integer | No | 0 | PUBLIC |
+| `RQ_MAX_JOBS` | integer | No | 0 (production=15, staging=15, development=0) | PUBLIC |
 | `WORKER_HEARTBEAT_INTERVAL` | integer | No | 60 | PUBLIC |
 | `WORKER_HEARTBEAT_TTL` | integer | No | 180 | PUBLIC |
 | `DASHBOARD_PORT` | integer | No | 8050 | PUBLIC |
@@ -1601,7 +1601,7 @@ Application logging level
 | `ENABLE_MOCK_USERS` | boolean | No | false | CRITICAL |
 | `ENABLE_ORCHESTRATOR` | boolean | No | true | PUBLIC |
 | `USE_LANGGRAPH` | boolean | No | false | PUBLIC |
-| `USE_LANGGRAPH_PERCENT` | integer | No | 0 | PUBLIC |
+| `USE_LANGGRAPH_PERCENT` | integer | No | 0 (development=0, staging=15, production=0) | PUBLIC |
 | `USE_LANGGRAPH_FOR_FAQ` | boolean | No | false | PUBLIC |
 | `USE_LLM_PLANNER` | boolean | No | false | PUBLIC |
 | `USE_CODE_GENERATION` | boolean | No | false | PUBLIC |
@@ -2592,7 +2592,7 @@ Enable real backend API for Owner Console (defaults to true in production builds
 
 | Variable | Type | Required | Default | Security |
 |----------|------|----------|---------|----------|
-| `VITE_E2E` | boolean | No | false | CRITICAL |
+| `VITE_E2E` | boolean | No | false (production=False, development=False, ci=True) | CRITICAL |
 | `TEST_ADMIN_JWT` | secret | No | - | SECRET |
 | `RLS_TESTS_ALLOWED` | boolean | No | false | CRITICAL |
 | `TEST_SUPABASE_URL` | url | No | - | PUBLIC |
@@ -2600,7 +2600,7 @@ Enable real backend API for Owner Console (defaults to true in production builds
 | `TESTING` | boolean | No | false | PUBLIC |
 | `RUN_PY_BROWSER_E2E` | boolean | No | false | PUBLIC |
 | `ORCHESTRATOR_TEST_MODE` | boolean | No | false | PUBLIC |
-| `ORCHESTRATOR_DRY_RUN` | boolean | No | false | PUBLIC |
+| `ORCHESTRATOR_DRY_RUN` | boolean | No | false (production=False, staging=True, development=False) | PUBLIC |
 | `ENABLE_RATE_LIMIT_IN_TESTS` | boolean | No | false | PUBLIC |
 | `ALLOW_GOVERNANCE_MOCK` | boolean | No | false | PUBLIC |
 | `REPO_ROOT_PATH` | string | No | - | PUBLIC |
@@ -2907,7 +2907,7 @@ Enable alerts when capability regression is detected
 
 | Variable | Type | Required | Default | Security |
 |----------|------|----------|---------|----------|
-| `MORNINGAI_REPO_PATH` | string | No | - | PUBLIC |
+| `MORNINGAI_REPO_PATH` | string | No | - (production=/opt/render/project/src, staging=/opt/render/project/src, development=None) | PUBLIC |
 
 ### Details
 
