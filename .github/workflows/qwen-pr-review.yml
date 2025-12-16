@@ -420,14 +420,15 @@ jobs:
               TRUNCATED="${AI_RESPONSE:0:$LAST_NEWLINE}"
             fi
             
-            # Count fenced code block markers (```) - if odd, we have an unclosed block
-            FENCE_COUNT=$(printf '%s' "$TRUNCATED" | grep -c '```' || echo "0")
+            # Count fenced code block markers - if odd, we have an unclosed block
+            # Use printf with octal codes to generate backticks (avoids YAML parsing issues)
+            CODE_FENCE=$(printf '\140\140\140')
+            FENCE_COUNT=$(printf '%s' "$TRUNCATED" | grep -c "$CODE_FENCE" || echo "0")
             if [ $((FENCE_COUNT % 2)) -eq 1 ]; then
               # Odd number of fences = unclosed code block, add closing fence
-              # Use ANSI-C quoting to avoid YAML parser issues with backticks
-              AI_RESPONSE="${TRUNCATED}"$'\n\n```\n\n*... (response truncated; closing code fence added to fix rendering)*'
+              AI_RESPONSE=$(printf '%s\n\n%s\n\n%s' "$TRUNCATED" "$CODE_FENCE" "*... (response truncated; closing code fence added to fix rendering)*")
             else
-              AI_RESPONSE="${TRUNCATED}"$'\n\n*... (response truncated due to length)*'
+              AI_RESPONSE=$(printf '%s\n\n%s' "$TRUNCATED" "*... (response truncated due to length)*")
             fi
           fi
           
