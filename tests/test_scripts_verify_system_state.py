@@ -42,6 +42,28 @@ REPO_ROOT = Path(__file__).parent.parent
 FRONTEND_DASHBOARD_PATH = 'handoff/20250928/40_App/frontend-dashboard'
 OWNER_CONSOLE_PATH = 'handoff/20250928/40_App/owner-console'
 API_BACKEND_PATH = 'handoff/20250928/40_App/api-backend'
+ORCHESTRATOR_PATH = 'handoff/20250928/40_App/orchestrator'
+
+
+# Path helper functions to avoid hardcoding throughout tests
+def frontend_dashboard_dir(repo: Path) -> Path:
+    """Get frontend-dashboard directory path."""
+    return repo / Path(FRONTEND_DASHBOARD_PATH)
+
+
+def owner_console_dir(repo: Path) -> Path:
+    """Get owner-console directory path."""
+    return repo / Path(OWNER_CONSOLE_PATH)
+
+
+def api_backend_dir(repo: Path) -> Path:
+    """Get api-backend directory path."""
+    return repo / Path(API_BACKEND_PATH)
+
+
+def orchestrator_dir(repo: Path) -> Path:
+    """Get orchestrator directory path."""
+    return repo / Path(ORCHESTRATOR_PATH)
 
 
 def get_expected_react_version() -> str:
@@ -97,11 +119,11 @@ def setup_base_package_files(repo_path: Path) -> None:
         "pnpm": {"overrides": {"react": "^19.1.0"}}
     }))
     # Frontend dashboard package.json
-    (repo_path / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+    (frontend_dashboard_dir(repo_path) / 'package.json').write_text(
         json.dumps({"dependencies": {"react": "^19.1.0"}})
     )
     # Owner console package.json
-    (repo_path / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+    (owner_console_dir(repo_path) / 'package.json').write_text(
         json.dumps({"dependencies": {"react": "^19.1.0"}})
     )
 
@@ -114,12 +136,12 @@ def temp_repo(tmp_path: Path) -> Generator[Path, None, None]:
     (tmp_path / 'migrations').mkdir(parents=True)
     (tmp_path / 'agents' / 'dev_agent' / 'migrations').mkdir(parents=True)
     (tmp_path / 'agents' / 'faq_agent' / 'migrations').mkdir(parents=True)
-    (tmp_path / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard').mkdir(parents=True)
-    (tmp_path / 'handoff' / '20250928' / '40_App' / 'owner-console').mkdir(parents=True)
-    (tmp_path / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'src' / 'routes').mkdir(parents=True)
-    (tmp_path / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'tests').mkdir(parents=True)
-    (tmp_path / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'alembic' / 'versions').mkdir(parents=True)
-    (tmp_path / 'handoff' / '20250928' / '40_App' / 'orchestrator').mkdir(parents=True)
+    frontend_dashboard_dir(tmp_path).mkdir(parents=True)
+    owner_console_dir(tmp_path).mkdir(parents=True)
+    (api_backend_dir(tmp_path) / 'src' / 'routes').mkdir(parents=True)
+    (api_backend_dir(tmp_path) / 'tests').mkdir(parents=True)
+    (api_backend_dir(tmp_path) / 'alembic' / 'versions').mkdir(parents=True)
+    orchestrator_dir(tmp_path).mkdir(parents=True)
     (tmp_path / 'orchestrator').mkdir(parents=True)
     (tmp_path / 'docs' / 'adr').mkdir(parents=True)
 
@@ -152,7 +174,7 @@ def minimal_valid_repo(temp_repo: Path) -> Path:
             "react-dom": "^19.1.0"
         }
     }
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+    (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
         json.dumps(frontend_package, indent=2)
     )
 
@@ -164,7 +186,7 @@ def minimal_valid_repo(temp_repo: Path) -> Path:
             "react-dom": "^19.1.0"
         }
     }
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+    (owner_console_dir(temp_repo) / 'package.json').write_text(
         json.dumps(owner_package, indent=2)
     )
 
@@ -181,7 +203,7 @@ def minimal_valid_repo(temp_repo: Path) -> Path:
     )
 
     # Vector API
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'src' / 'routes' / 'vectors.py').write_text(
+    (api_backend_dir(temp_repo) / 'src' / 'routes' / 'vectors.py').write_text(
         '# Vector API implementation'
     )
 
@@ -210,10 +232,10 @@ services:
     )
 
     # Alembic setup
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'alembic.ini').write_text('[alembic]')
+    (api_backend_dir(temp_repo) / 'alembic.ini').write_text('[alembic]')
 
     # requirements.txt
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'requirements.txt').write_text(
+    (api_backend_dir(temp_repo) / 'requirements.txt').write_text(
         'PyJWT==2.8.0\n'
         'rq==1.15.1\n'
         'pyotp==2.9.0\n'
@@ -228,22 +250,22 @@ services:
     )
 
     # Legacy orchestrator
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'orchestrator' / 'langgraph_orchestrator.py').write_text(
+    (orchestrator_dir(temp_repo) / 'langgraph_orchestrator.py').write_text(
         '# Legacy LangGraph orchestrator'
     )
 
     # pytest conftest
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'tests' / 'conftest.py').write_text(
+    (api_backend_dir(temp_repo) / 'tests' / 'conftest.py').write_text(
         'import pytest'
     )
 
     # pytest.ini
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'pytest.ini').write_text(
+    (api_backend_dir(temp_repo) / 'pytest.ini').write_text(
         '[pytest]\ntestpaths = tests'
     )
 
     # main.py without phase imports
-    (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'src' / 'main.py').write_text(
+    (api_backend_dir(temp_repo) / 'src' / 'main.py').write_text(
         'from fastapi import FastAPI\napp = FastAPI()'
     )
 
@@ -262,10 +284,10 @@ class TestReactVersionExtraction:
         """Test extraction of caret version (^19.1.0)."""
         # Setup
         package = {"dependencies": {"react": "^19.1.0"}}
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             json.dumps(package)
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps(package)
         )
         (temp_repo / 'package.json').write_text(json.dumps({
@@ -286,10 +308,10 @@ class TestReactVersionExtraction:
     def test_valid_exact_version(self, temp_repo: Path):
         """Test extraction of exact version (19.1.0 without caret)."""
         package = {"dependencies": {"react": "19.1.0"}}
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             json.dumps(package)
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps(package)
         )
         (temp_repo / 'package.json').write_text(json.dumps({
@@ -311,10 +333,10 @@ class TestReactVersionExtraction:
         frontend_package = {"dependencies": {"react": "^18.2.0"}}
         owner_package = {"dependencies": {"react": "^19.1.0"}}
 
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             json.dumps(frontend_package)
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps(owner_package)
         )
         (temp_repo / 'package.json').write_text(json.dumps({
@@ -353,10 +375,10 @@ class TestReactVersionExtraction:
     def test_malformed_json_handling(self, temp_repo: Path):
         """Test handling of malformed JSON in package.json."""
         # Write invalid JSON
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             '{"dependencies": {"react": "^19.1.0"'  # Missing closing braces
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             '{"dependencies": {"react": "^19.1.0"}}'
         )
         (temp_repo / 'package.json').write_text(json.dumps({
@@ -391,10 +413,10 @@ class TestPnpmOverrideReading:
 
         # Create matching frontend packages
         frontend_package = {"dependencies": {"react": "^19.1.0"}}
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             json.dumps(frontend_package)
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps(frontend_package)
         )
 
@@ -414,10 +436,10 @@ class TestPnpmOverrideReading:
         (temp_repo / 'package.json').write_text(json.dumps(root_package))
 
         frontend_package = {"dependencies": {"react": "^19.1.0"}}
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             json.dumps(frontend_package)
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps(frontend_package)
         )
 
@@ -432,32 +454,42 @@ class TestPnpmOverrideReading:
         assert 'Expected React version from pnpm overrides: 19.1.0' in result.stdout
 
     def test_node_unavailable_fallback(self, temp_repo: Path):
-        """Test fallback when node is unavailable."""
-        # Create a script that simulates node being unavailable
-        modified_script = (temp_repo / 'scripts' / 'verify_system_state.sh').read_text()
-        modified_script = modified_script.replace(
-            'EXPECTED_REACT=$(node -p',
-            'EXPECTED_REACT=$(nonexistent_command -p'
-        )
-        (temp_repo / 'scripts' / 'verify_system_state.sh').write_text(modified_script)
-
+        """Test fallback when node is unavailable using PATH manipulation."""
+        # Setup required files
         frontend_package = {"dependencies": {"react": "^19.1.0"}}
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (temp_repo / Path(FRONTEND_DASHBOARD_PATH) / 'package.json').write_text(
             json.dumps(frontend_package)
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (temp_repo / Path(OWNER_CONSOLE_PATH) / 'package.json').write_text(
             json.dumps(frontend_package)
         )
         (temp_repo / 'package.json').write_text(json.dumps({"name": "test"}))
+
+        # Manipulate PATH to exclude node's directory
+        node_path = shutil.which("node")
+        if node_path is None:
+            pytest.skip("node not found in PATH, cannot test fallback")
+
+        node_dir = str(Path(node_path).parent.resolve())
+        old_path = os.environ.get('PATH', '')
+        # Build new PATH excluding node's directory
+        new_path = os.pathsep.join([
+            p for p in old_path.split(os.pathsep)
+            if p and Path(p).resolve() != Path(node_dir).resolve()
+        ])
+
+        env = os.environ.copy()
+        env['PATH'] = new_path
 
         result = subprocess.run(
             ['bash', str(temp_repo / 'scripts' / 'verify_system_state.sh'), '--verbose'],
             cwd=temp_repo,
             capture_output=True,
-            text=True
+            text=True,
+            env=env
         )
 
-        # Should fallback to default 19.1.0
+        # Should fallback to default 19.1.0 when node is unavailable
         assert 'Expected React version from pnpm overrides: 19.1.0' in result.stdout
 
 
@@ -482,10 +514,10 @@ class TestVersionComparison:
         (temp_repo / 'package.json').write_text(json.dumps({
             "pnpm": {"overrides": {"react": "^19.1.0"}}
         }))
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             json.dumps({"dependencies": {"react": "^18.0.0"}})
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps({"dependencies": {"react": "^19.1.0"}})
         )
 
@@ -500,15 +532,17 @@ class TestVersionComparison:
         assert result.returncode != 0
 
     def test_empty_version_handling(self, temp_repo: Path):
-        """Test handling when version is empty or missing."""
+        """Test handling when version is empty or malformed."""
         (temp_repo / 'package.json').write_text(json.dumps({
             "pnpm": {"overrides": {"react": "^19.1.0"}}
         }))
-        # Package without react dependency - grep will find "react" but no version
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
-            json.dumps({"dependencies": {"other": "1.0.0"}})
+        # Package with react key but empty/invalid version string
+        # grep will find "react": but sed won't extract a valid semver version
+        # This ensures the script reaches the mismatch logic instead of exiting early
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
+            json.dumps({"dependencies": {"react": ""}})
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps({"dependencies": {"react": "^19.1.0"}})
         )
 
@@ -519,9 +553,10 @@ class TestVersionComparison:
             text=True
         )
 
-        # Empty version should cause mismatch (grep returns empty, version comparison fails)
+        # Empty version should cause mismatch (sed extracts empty string, version comparison fails)
         # The script will show mismatch because extracted version is empty
-        assert 'frontend-dashboard React version mismatch' in result.stdout or result.returncode != 0
+        # Using 'and' to ensure BOTH conditions are met (stricter assertion)
+        assert 'frontend-dashboard React version mismatch' in result.stdout and result.returncode != 0
 
 
 class TestPgvectorVerification:
@@ -718,7 +753,7 @@ class TestAlembicStatus:
         """Test failure when Alembic is not implemented."""
         # Setup base files so script can run past React check
         setup_base_package_files(temp_repo)
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'requirements.txt').write_text(
+        (api_backend_dir(temp_repo) / 'requirements.txt').write_text(
             'fastapi==0.104.0\n'
         )
 
@@ -750,7 +785,7 @@ class TestPhaseAPIModules:
         """Test failure when main.py directly imports phase modules."""
         # Setup base files so script can run past React check
         setup_base_package_files(temp_repo)
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'src' / 'main.py').write_text(
+        (api_backend_dir(temp_repo) / 'src' / 'main.py').write_text(
             'from phase4_meta_agent_api import router\n'
             'from fastapi import FastAPI\n'
             'app = FastAPI()'
@@ -787,7 +822,7 @@ class TestCriticalDependencies:
         """Test failure when critical dependency is missing."""
         # Setup base files so script can run past React check
         setup_base_package_files(temp_repo)
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'api-backend' / 'requirements.txt').write_text(
+        (api_backend_dir(temp_repo) / 'requirements.txt').write_text(
             'fastapi==0.104.0\n'
         )
 
@@ -852,8 +887,8 @@ class TestEdgeCases:
     def test_empty_package_json(self, temp_repo: Path):
         """Test handling of empty package.json."""
         (temp_repo / 'package.json').write_text('{}')
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text('{}')
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text('{}')
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text('{}')
+        (owner_console_dir(temp_repo) / 'package.json').write_text('{}')
 
         result = subprocess.run(
             ['bash', str(temp_repo / 'scripts' / 'verify_system_state.sh')],
@@ -872,10 +907,10 @@ class TestEdgeCases:
             "dependencies": {"react": "^19.1.0"},
             "devDependencies": {"react": "^18.0.0"}
         }
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             json.dumps(package)
         )
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(temp_repo) / 'package.json').write_text(
             json.dumps(package)
         )
         (temp_repo / 'package.json').write_text(json.dumps({
@@ -1048,15 +1083,15 @@ class TestExceptionScenarios:
         shutil.copy(SCRIPT_PATH, repo_with_spaces / 'scripts' / 'verify_system_state.sh')
 
         # Setup minimal structure
-        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard').mkdir(parents=True)
-        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'owner-console').mkdir(parents=True)
+        frontend_dashboard_dir(repo_with_spaces).mkdir(parents=True)
+        owner_console_dir(repo_with_spaces).mkdir(parents=True)
         (repo_with_spaces / 'package.json').write_text(json.dumps({
             "pnpm": {"overrides": {"react": "^19.1.0"}}
         }))
-        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(repo_with_spaces) / 'package.json').write_text(
             json.dumps({"dependencies": {"react": "^19.1.0"}})
         )
-        (repo_with_spaces / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(repo_with_spaces) / 'package.json').write_text(
             json.dumps({"dependencies": {"react": "^19.1.0"}})
         )
 
@@ -1149,7 +1184,7 @@ class TestExceptionScenarios:
         """Test handling of corrupted/invalid JSON in multiple files."""
         # Create corrupted package.json files
         (temp_repo / 'package.json').write_text('{invalid json')
-        (temp_repo / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(temp_repo) / 'package.json').write_text(
             'not json at all'
         )
 
@@ -1176,15 +1211,15 @@ class TestExceptionScenarios:
         shutil.copy(SCRIPT_PATH, deep_path / 'scripts' / 'verify_system_state.sh')
 
         # Setup required directory structure for script to run
-        (deep_path / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard').mkdir(parents=True)
-        (deep_path / 'handoff' / '20250928' / '40_App' / 'owner-console').mkdir(parents=True)
+        frontend_dashboard_dir(deep_path).mkdir(parents=True)
+        owner_console_dir(deep_path).mkdir(parents=True)
         (deep_path / 'package.json').write_text(json.dumps({
             "pnpm": {"overrides": {"react": "^19.1.0"}}
         }))
-        (deep_path / 'handoff' / '20250928' / '40_App' / 'frontend-dashboard' / 'package.json').write_text(
+        (frontend_dashboard_dir(deep_path) / 'package.json').write_text(
             json.dumps({"dependencies": {"react": "^19.1.0"}})
         )
-        (deep_path / 'handoff' / '20250928' / '40_App' / 'owner-console' / 'package.json').write_text(
+        (owner_console_dir(deep_path) / 'package.json').write_text(
             json.dumps({"dependencies": {"react": "^19.1.0"}})
         )
 

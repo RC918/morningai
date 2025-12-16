@@ -701,7 +701,7 @@ git commit -m "chore: update pnpm-lock.yaml"
 
 ---
 
-### 24. `verify-system-state-tests` (test)
+### 25. `verify-system-state-tests` (test)
 **檔案**: `.github/workflows/verify-system-state-tests.yml`
 
 **用途**: verify_system_state.sh 回歸測試，確保文件與程式碼一致性檢查腳本正常運作
