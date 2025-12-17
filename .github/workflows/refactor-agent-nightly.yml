@@ -61,7 +61,9 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src
         run: |
-          MAX_ERRORS="${{ github.event.inputs.max_errors || '10' }}"
+          # For workflow_dispatch: use input value, fallback to repo variable, then default
+          # For scheduled runs: use repo variable, then default
+          MAX_ERRORS="${{ github.event.inputs.max_errors || vars.REFACTOR_AGENT_MAX_ERRORS || '10' }}"
           DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
 
           echo "Running Refactor Agent with max_errors=$MAX_ERRORS, dry_run=$DRY_RUN"
@@ -81,6 +83,8 @@ jobs:
           print(f'Errors fixed: {result.errors_fixed}')
           print(f'Errors failed: {result.errors_failed}')
           print(f'Summary: {result.summary}')
+          if result.pr_url:
+              print(f'PR URL: {result.pr_url}')
 
           # Output for GitHub Actions
           with open('$GITHUB_OUTPUT', 'a') as f:
@@ -89,6 +93,7 @@ jobs:
               f.write(f'errors_fixed={result.errors_fixed}\n')
               f.write(f'errors_failed={result.errors_failed}\n')
               f.write(f'summary={result.summary}\n')
+              f.write(f'pr_url={result.pr_url or \"\"}\n')
           "
 
       - name: Create summary
@@ -102,6 +107,9 @@ jobs:
           echo "| Total Errors Found | ${{ steps.refactor.outputs.total_errors }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Errors Fixed | ${{ steps.refactor.outputs.errors_fixed }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Errors Failed | ${{ steps.refactor.outputs.errors_failed }} |" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.refactor.outputs.pr_url }}" ]; then
+            echo "| PR URL | ${{ steps.refactor.outputs.pr_url }} |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Summary" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.refactor.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
