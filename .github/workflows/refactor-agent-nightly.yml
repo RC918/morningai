@@ -60,6 +60,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src
+          REFACTOR_AGENT_AUTO_PR: ${{ vars.REFACTOR_AGENT_AUTO_PR }}
         run: |
           # For workflow_dispatch: use input value, fallback to repo variable, then default
           # For scheduled runs: use repo variable, then default
