@@ -700,12 +700,6 @@
     ]
   ],
   [
-    "/api/phase7/monitoring/dashboard",
-    [
-      "GET"
-    ]
-  ],
-  [
     "/api/phase7/monitoring/metrics",
     [
       "GET"
@@ -775,6 +769,36 @@
   ],
   [
     "/api/reports/templates",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/api/rollout/circuit-breaker/reset",
+    [
+      "POST"
+    ]
+  ],
+  [
+    "/api/rollout/comparison",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/api/rollout/dashboard",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/api/rollout/health",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/api/rollout/slo",
     [
       "GET"
     ]
