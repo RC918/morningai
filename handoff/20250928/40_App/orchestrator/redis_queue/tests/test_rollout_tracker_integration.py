@@ -116,8 +116,12 @@ class TestRolloutTrackerRecordMethods:
     and that the circuit breaker state is updated correctly for LangGraph tasks.
     """
 
-    def test_record_langgraph_task_success_updates_circuit_breaker(self):
-        """Test that record_langgraph_task updates circuit breaker on success."""
+    def test_record_langgraph_task_disabled_does_not_update_circuit_breaker(self):
+        """Test that record_langgraph_task does NOT update circuit breaker when disabled.
+
+        When enabled=False, record methods return early (no-op), so circuit
+        breaker state should remain unchanged.
+        """
         from rollout_tracker import RolloutTracker, CircuitState
 
         tracker = RolloutTracker(redis_client=None, enabled=False)
@@ -206,8 +210,7 @@ class TestRolloutTrackerDisabledBehavior:
     def test_disabled_tracker_does_not_persist_to_redis(self):
         """Test that disabled tracker does not attempt to persist metrics to Redis.
 
-        When enabled=False, the tracker should still record metrics in memory
-        but should not attempt to write to Redis.
+        When enabled=False, record methods are no-op and do not write to Redis.
         """
         from rollout_tracker import RolloutTracker
 
