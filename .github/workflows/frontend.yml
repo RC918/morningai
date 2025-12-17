@@ -134,15 +134,8 @@ jobs:
   typecheck-strict:
     name: TypeScript Strict Mode Check (Blocking)
     runs-on: ubuntu-latest
-    # Changed from continue-on-error: true to blocking check
     # This enforces TypeScript strict mode compliance
-    env:
-      # Baselines for TypeScript strict mode error counts
-      # These should be reduced over time as errors are fixed
-      # See Issue #935 for tracking progress
-      FRONTEND_DASHBOARD_BASELINE: 0
-      OWNER_CONSOLE_BASELINE: 0
-      SHARED_UI_BASELINE: 0
+    # Baselines are read from .strict-baseline.json (see docs/typescript/STRICT_MODE_BASELINE.md)
     steps:
       - uses: actions/checkout@v4
       - name: Setup pnpm
@@ -156,6 +149,23 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      
+      - name: Read baselines from .strict-baseline.json
+        run: |
+          # Read baselines from JSON file (fallback to 0 if file doesn't exist)
+          if [ -f .strict-baseline.json ]; then
+            FD_BASELINE=$(jq -r '.packages."frontend-dashboard".error_count // 0' .strict-baseline.json)
+            OC_BASELINE=$(jq -r '.packages."owner-console".error_count // 0' .strict-baseline.json)
+            SUI_BASELINE=$(jq -r '.packages."shared-ui".error_count // 0' .strict-baseline.json)
+          else
+            FD_BASELINE=0
+            OC_BASELINE=0
+            SUI_BASELINE=0
+          fi
+          echo "FRONTEND_DASHBOARD_BASELINE=$FD_BASELINE" >> $GITHUB_ENV
+          echo "OWNER_CONSOLE_BASELINE=$OC_BASELINE" >> $GITHUB_ENV
+          echo "SHARED_UI_BASELINE=$SUI_BASELINE" >> $GITHUB_ENV
+          echo "::notice::Baselines loaded: frontend-dashboard=$FD_BASELINE, owner-console=$OC_BASELINE, shared-ui=$SUI_BASELINE"
       
       - name: Build shared-ui package
         run: pnpm --filter @morningai/shared-ui build
@@ -226,18 +236,18 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           comment-tag: typescript-strict-progress
           body: |
-            ## 📊 TypeScript Strict Mode Progress
+            ## TypeScript Strict Mode Progress
             
             | Package | Current | Baseline | Status |
             |---------|---------|----------|--------|
-            | frontend-dashboard | ${{ env.FD_ERRORS }} | ${{ env.FRONTEND_DASHBOARD_BASELINE }} | ${{ env.FD_ERRORS <= env.FRONTEND_DASHBOARD_BASELINE && '✅' || '⚠️ Regression' }} |
-            | owner-console | ${{ env.OC_ERRORS }} | ${{ env.OWNER_CONSOLE_BASELINE }} | ${{ env.OC_ERRORS <= env.OWNER_CONSOLE_BASELINE && '✅' || '⚠️ Regression' }} |
-            | shared-ui | ${{ env.SUI_ERRORS }} | ${{ env.SHARED_UI_BASELINE }} | ${{ env.SUI_ERRORS <= env.SHARED_UI_BASELINE && '✅' || '⚠️ Regression' }} |
+            | frontend-dashboard | ${{ env.FD_ERRORS }} | ${{ env.FRONTEND_DASHBOARD_BASELINE }} | ${{ env.FD_ERRORS <= env.FRONTEND_DASHBOARD_BASELINE && 'OK' || 'Regression' }} |
+            | owner-console | ${{ env.OC_ERRORS }} | ${{ env.OWNER_CONSOLE_BASELINE }} | ${{ env.OC_ERRORS <= env.OWNER_CONSOLE_BASELINE && 'OK' || 'Regression' }} |
+            | shared-ui | ${{ env.SUI_ERRORS }} | ${{ env.SHARED_UI_BASELINE }} | ${{ env.SUI_ERRORS <= env.SHARED_UI_BASELINE && 'OK' || 'Regression' }} |
             
             **This is now a BLOCKING check.** Regressions in TypeScript strict mode errors will fail CI.
-            See [Issue #935](https://github.com/RC918/morningai/issues/935) for details.
             
-            📎 [View full report artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            To update baselines: `./scripts/count-strict-errors.sh --update-baseline`
+            See [docs/typescript/STRICT_MODE_BASELINE.md](../docs/typescript/STRICT_MODE_BASELINE.md) for details.
   
   changed-files-strict-i18n:
     name: Changed Files Strict i18n Check
