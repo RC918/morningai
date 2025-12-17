@@ -2092,3 +2092,340 @@ class TestApplyFixesBatchTaskResults:
 
             assert results['task_results']['task-001'] is False
             assert results['failure_count'] == 1
+
+
+class TestCheckExistingRefactorPR:
+    """Tests for _check_existing_refactor_pr method (TS-3 follow-up)"""
+
+    def test_check_existing_refactor_pr_returns_none_when_no_repo(self):
+        """Test that _check_existing_refactor_pr returns None when GitHub unavailable"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_get_github_repo', return_value=None):
+                result = agent._check_existing_refactor_pr()
+                assert result is None
+
+    def test_check_existing_refactor_pr_finds_matching_pr_by_title(self):
+        """Test that _check_existing_refactor_pr finds PR with matching title"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label_refactor = MagicMock()
+            mock_label_refactor.name = "refactor"
+            mock_label_automated = MagicMock()
+            mock_label_automated.name = "automated"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "refactor(typescript): fix strict mode errors"
+            mock_pr.number = 123
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.labels = [mock_label_refactor, mock_label_automated]
+
+            mock_repo = MagicMock()
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result == mock_pr
+                mock_repo.get_pulls.assert_called_once_with(state='open', base='main')
+
+    def test_check_existing_refactor_pr_finds_matching_pr_by_labels(self):
+        """Test that _check_existing_refactor_pr finds PR with refactor+automated labels"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label_refactor = MagicMock()
+            mock_label_refactor.name = "refactor"
+            mock_label_automated = MagicMock()
+            mock_label_automated.name = "automated"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "some other title"
+            mock_pr.number = 456
+            mock_pr.html_url = "https://github.com/test/repo/pull/456"
+            mock_pr.labels = [mock_label_refactor, mock_label_automated]
+
+            mock_repo = MagicMock()
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result == mock_pr
+
+    def test_check_existing_refactor_pr_returns_none_when_no_match(self):
+        """Test that _check_existing_refactor_pr returns None when no matching PR"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label = MagicMock()
+            mock_label.name = "bug"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "fix: some bug"
+            mock_pr.labels = [mock_label]
+
+            mock_repo = MagicMock()
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result is None
+
+    def test_check_existing_refactor_pr_handles_exception(self):
+        """Test that _check_existing_refactor_pr handles exceptions gracefully"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_repo = MagicMock()
+            mock_repo.get_pulls.side_effect = Exception("API error")
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result is None
+
+
+class TestPreparePRBranch:
+    """Tests for _prepare_pr_branch method (TS-3 follow-up)"""
+
+    def test_prepare_pr_branch_success(self):
+        """Test that _prepare_pr_branch returns True on success"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=True), \
+                 patch.object(agent, '_commit_fixes', return_value=True), \
+                 patch.object(agent, '_push_branch', return_value=True):
+
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is True
+
+    def test_prepare_pr_branch_fails_on_branch_creation(self):
+        """Test that _prepare_pr_branch returns False when branch creation fails"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=False):
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is False
+
+    def test_prepare_pr_branch_fails_on_commit(self):
+        """Test that _prepare_pr_branch returns False and checkouts main on commit failure"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=True), \
+                 patch.object(agent, '_commit_fixes', return_value=False), \
+                 patch.object(agent, '_checkout_main', return_value=True) as mock_checkout:
+
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is False
+                mock_checkout.assert_called_once()
+
+    def test_prepare_pr_branch_fails_on_push(self):
+        """Test that _prepare_pr_branch returns False and checkouts main on push failure"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=True), \
+                 patch.object(agent, '_commit_fixes', return_value=True), \
+                 patch.object(agent, '_push_branch', return_value=False), \
+                 patch.object(agent, '_checkout_main', return_value=True) as mock_checkout:
+
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is False
+                mock_checkout.assert_called_once()
+
+
+class TestSubmitPRToGitHub:
+    """Tests for _submit_pr_to_github method (TS-3 follow-up)"""
+
+    def test_submit_pr_to_github_success(self):
+        """Test that _submit_pr_to_github returns PR URL and number on success"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, ["refactor"]
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+            mock_repo.create_pull.assert_called_once_with(
+                title="Test title",
+                body="Test body",
+                head="test-branch",
+                base="main",
+                draft=False
+            )
+            mock_pr.add_to_labels.assert_called_once_with("refactor")
+
+    def test_submit_pr_to_github_with_draft(self):
+        """Test that _submit_pr_to_github creates draft PR when requested"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.create_pull.return_value = mock_pr
+
+            agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", True, []
+            )
+
+            mock_repo.create_pull.assert_called_once_with(
+                title="Test title",
+                body="Test body",
+                head="test-branch",
+                base="main",
+                draft=True
+            )
+
+    def test_submit_pr_to_github_handles_label_failure(self):
+        """Test that _submit_pr_to_github handles label addition failure gracefully"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+            mock_pr.add_to_labels.side_effect = Exception("Label error")
+
+            mock_repo = MagicMock()
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, ["refactor"]
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+
+    def test_submit_pr_to_github_handles_create_failure(self):
+        """Test that _submit_pr_to_github returns None on PR creation failure"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_repo = MagicMock()
+            mock_repo.create_pull.side_effect = Exception("API error")
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, ["refactor"]
+            )
+
+            assert result == (None, None)
+
+    def test_submit_pr_to_github_no_labels(self):
+        """Test that _submit_pr_to_github works with empty labels list"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, []
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+            mock_pr.add_to_labels.assert_not_called()
+
+
+class TestCreatePRWithExistingPRCheck:
+    """Tests for create_pr with existing PR check (TS-3 follow-up)"""
+
+    def test_create_pr_skips_when_existing_pr_found(self):
+        """Test that create_pr skips creation when existing open PR found"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = True
+
+            mock_existing_pr = MagicMock()
+            mock_existing_pr.number = 999
+            mock_existing_pr.html_url = "https://github.com/test/repo/pull/999"
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            result = RefactorResult(
+                run_id="test-run",
+                started_at=0.0,
+                total_errors_found=1,
+                errors_fixed=1,
+                errors_failed=0,
+                tasks=tasks
+            )
+
+            with patch.object(agent, '_check_existing_refactor_pr', return_value=mock_existing_pr):
+                pr_url, pr_number = agent.create_pr(result, tasks)
+
+                assert pr_url is None
+                assert pr_number is None
+
+    def test_create_pr_proceeds_when_no_existing_pr(self):
+        """Test that create_pr proceeds when no existing open PR found"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = True
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            result = RefactorResult(
+                run_id="test-run",
+                started_at=0.0,
+                total_errors_found=1,
+                errors_fixed=1,
+                errors_failed=0,
+                tasks=tasks
+            )
+
+            with patch.object(agent, '_check_existing_refactor_pr', return_value=None), \
+                 patch.object(agent, '_prepare_pr_branch', return_value=True), \
+                 patch.object(agent, '_get_github_repo') as mock_get_repo, \
+                 patch.object(agent, '_submit_pr_to_github', return_value=("https://github.com/test/pr/1", 1)), \
+                 patch.object(agent, '_checkout_main', return_value=True):
+
+                mock_repo = MagicMock()
+                mock_get_repo.return_value = mock_repo
+
+                pr_url, pr_number = agent.create_pr(result, tasks)
+
+                assert pr_url == "https://github.com/test/pr/1"
+                assert pr_number == 1
