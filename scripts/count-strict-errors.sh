@@ -49,6 +49,12 @@ validate_baseline_file() {
     local error_count
     error_count=$(jq -r ".packages.\"$package\".error_count // empty" "$BASELINE_FILE")
     
+    # Check for invalid characters in package name (colon is used as delimiter in batch updates)
+    if [[ "$package" == *":"* ]]; then
+      echo -e "${RED}ERROR: Package name '$package' contains ':' which is not allowed${NC}"
+      errors=$((errors + 1))
+    fi
+    
     if [ -z "$path" ]; then
       echo -e "${RED}ERROR: Package '$package' missing 'path' field${NC}"
       errors=$((errors + 1))
@@ -108,33 +114,32 @@ get_package_path() {
   jq -r ".packages.\"$package\".path // empty" "$BASELINE_FILE"
 }
 
-update_baseline_single() {
-  local package="$1"
-  local count="$2"
-  local today
-  today=$(date +%Y-%m-%d)
-  
-  # Update existing baseline (single package - used for individual updates)
-  jq ".packages.\"$package\".error_count = $count | .last_updated = \"$today\"" "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
-  mv "$BASELINE_FILE.tmp" "$BASELINE_FILE"
-}
-
-# Batch update baseline - more efficient for updating multiple packages at once
+# Batch update baseline - more efficient and safer for updating multiple packages at once
 # Usage: update_baseline_batch "pkg1:count1" "pkg2:count2" ...
+# Uses --argjson to safely pass data to jq, avoiding string interpolation vulnerabilities
 update_baseline_batch() {
   local today
   today=$(date +%Y-%m-%d)
   
-  # Build jq filter for all updates
-  local jq_filter=".last_updated = \"$today\""
+  # Build JSON array of updates for safe passing to jq
+  local updates_json="["
+  local first=true
   for entry in "$@"; do
-    local package="${entry%%:*}"
-    local count="${entry#*:}"
-    jq_filter="$jq_filter | .packages.\"$package\".error_count = $count"
+    if [ "$first" = true ]; then
+      first=false
+    else
+      updates_json+=","
+    fi
+    updates_json+="\"$entry\""
   done
+  updates_json+="]"
   
-  # Single file write with all updates
-  jq "$jq_filter" "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
+  # Use --argjson to safely pass data to jq (avoids string interpolation vulnerabilities)
+  # The reduce function iterates over updates and applies each one
+  jq --arg today "$today" \
+     --argjson updates "$updates_json" \
+     '.last_updated = $today | reduce ($updates[] | split(":")) as $p (.; .packages[$p[0]].error_count = ($p[1] | tonumber))' \
+     "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
   mv "$BASELINE_FILE.tmp" "$BASELINE_FILE"
 }
 
