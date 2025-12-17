@@ -1,4 +1,4 @@
-python-dotenv==1.0.1
+python-dotenv==1.2.1
 PyGithub==2.4.0
 redis>=5.2.0,<6.0.0
 rq==1.16.2
@@ -6,7 +6,7 @@ supabase==2.11.0
 # openai>=1.55.0 required for httpx>=0.28 compatibility (fixes 'proxies' kwarg error)
 openai>=1.55.0,<2.0.0
 google-genai==1.52.0
-requests==2.32.4
+requests==2.32.5
 sentry-sdk==2.19.2
 pydantic-settings>=2.0.0
 tiktoken>=0.5.0
