@@ -241,3 +241,151 @@ class TestRolloutTrackerDisabledBehavior:
 
         assert tracker_with_enabled_true.enabled is False
         assert tracker_with_enabled_false.enabled is False
+
+
+class TestRolloutTrackerEnabledWithRedis:
+    """Tests for RolloutTracker with enabled=True and mock Redis (Issue #2641).
+
+    These tests verify that when enabled=True and a Redis client is provided,
+    the tracker correctly writes metrics to Redis.
+    """
+
+    def _create_mock_redis(self):
+        """Create a mock Redis client with pipeline support."""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_pipeline.__enter__ = MagicMock(return_value=mock_pipeline)
+        mock_pipeline.__exit__ = MagicMock(return_value=False)
+        mock_redis.pipeline.return_value = mock_pipeline
+        return mock_redis, mock_pipeline
+
+    def test_record_langgraph_task_success_writes_to_redis(self):
+        """Test that record_langgraph_task writes to Redis when enabled."""
+        from rollout_tracker import RolloutTracker
+
+        mock_redis, mock_pipeline = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        tracker.record_langgraph_task(
+            trace_id="test-trace-001",
+            success=True,
+            latency_ms=150.0
+        )
+
+        mock_redis.pipeline.assert_called()
+        mock_pipeline.set.assert_called()
+        mock_pipeline.incrby.assert_called()
+        mock_pipeline.execute.assert_called()
+
+    def test_record_langgraph_task_failure_writes_to_redis(self):
+        """Test that record_langgraph_task failure writes to Redis when enabled."""
+        from rollout_tracker import RolloutTracker
+
+        mock_redis, mock_pipeline = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        tracker.record_langgraph_task(
+            trace_id="test-trace-002",
+            success=False,
+            latency_ms=500.0,
+            is_5xx_error=True
+        )
+
+        mock_redis.pipeline.assert_called()
+        mock_pipeline.execute.assert_called()
+
+    def test_record_simple_task_success_writes_to_redis(self):
+        """Test that record_simple_task writes to Redis when enabled."""
+        from rollout_tracker import RolloutTracker
+
+        mock_redis, mock_pipeline = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        tracker.record_simple_task(
+            trace_id="test-trace-003",
+            success=True,
+            latency_ms=100.0
+        )
+
+        mock_redis.pipeline.assert_called()
+        mock_pipeline.set.assert_called()
+        mock_pipeline.incrby.assert_called()
+        mock_pipeline.execute.assert_called()
+
+    def test_record_simple_task_failure_writes_to_redis(self):
+        """Test that record_simple_task failure writes to Redis when enabled."""
+        from rollout_tracker import RolloutTracker
+
+        mock_redis, mock_pipeline = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        tracker.record_simple_task(
+            trace_id="test-trace-004",
+            success=False,
+            latency_ms=200.0
+        )
+
+        mock_redis.pipeline.assert_called()
+        mock_pipeline.execute.assert_called()
+
+    def test_enabled_tracker_with_redis_client_is_enabled(self):
+        """Test that tracker is enabled when redis_client is provided and enabled=True."""
+        from rollout_tracker import RolloutTracker
+
+        mock_redis, _ = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        assert tracker.enabled is True
+
+    def test_record_langgraph_task_success_updates_circuit_breaker(self):
+        """Test that record_langgraph_task updates circuit breaker on success when enabled."""
+        from rollout_tracker import RolloutTracker, CircuitState
+
+        mock_redis, _ = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker._circuit_breaker.state = CircuitState.HALF_OPEN
+        tracker._circuit_breaker.success_count_since_half_open = 2
+
+        tracker.record_langgraph_task(
+            trace_id="test-trace-005",
+            success=True,
+            latency_ms=150.0
+        )
+
+        assert tracker._circuit_breaker.success_count_since_half_open == 3
+
+    def test_record_langgraph_task_failure_updates_circuit_breaker(self):
+        """Test that record_langgraph_task updates circuit breaker on failure when enabled."""
+        from rollout_tracker import RolloutTracker, CircuitState
+
+        mock_redis, _ = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker._circuit_breaker.state = CircuitState.CLOSED
+        tracker._circuit_breaker.failure_count = 0
+
+        tracker.record_langgraph_task(
+            trace_id="test-trace-006",
+            success=False,
+            latency_ms=500.0
+        )
+
+        assert tracker._circuit_breaker.failure_count == 1
+
+    def test_redis_key_format_contains_metric_name(self):
+        """Test that Redis keys are generated with correct format."""
+        from rollout_tracker import RolloutTracker
+
+        mock_redis, mock_pipeline = self._create_mock_redis()
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        tracker.record_langgraph_task(
+            trace_id="test-trace-007",
+            success=True,
+            latency_ms=100.0
+        )
+
+        set_calls = mock_pipeline.set.call_args_list
+        assert len(set_calls) > 0
+        first_key = set_calls[0][0][0]
+        assert "metrics:rollout" in first_key
+        assert "langgraph" in first_key
