@@ -658,3 +658,246 @@ class TestRolloutComparison:
         assert result["langgraph"]["success_rate"] == 95.0
         assert result["simple"]["success_rate"] == 90.0
         assert result["langgraph_advantage"]["success_rate_diff"] == 5.0
+
+
+class TestRedisExceptionHandling:
+    """Tests for Redis exception handling - tracker should never crash on Redis errors"""
+
+    def test_safe_incr_handles_pipeline_execute_exception(self):
+        """Test that _safe_incr handles pipeline.execute() exceptions gracefully"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_pipe.execute.side_effect = Exception("Redis connection lost")
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        # Should not raise - tracker should handle exception gracefully
+        tracker.record_langgraph_task(trace_id="test", success=True, latency_ms=100)
+
+    def test_safe_incr_handles_pipeline_creation_exception(self):
+        """Test that _safe_incr handles pipeline() creation exceptions gracefully"""
+        mock_redis = MagicMock()
+        mock_redis.pipeline.side_effect = Exception("Redis not available")
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        # Should not raise - tracker should handle exception gracefully
+        tracker.record_langgraph_task(trace_id="test", success=True, latency_ms=100)
+
+    def test_record_simple_task_handles_redis_exception(self):
+        """Test that record_simple_task handles Redis exceptions gracefully"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_pipe.execute.side_effect = Exception("Redis timeout")
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        # Should not raise - tracker should handle exception gracefully
+        tracker.record_simple_task(trace_id="test", success=False, is_5xx_error=True)
+
+    def test_save_circuit_state_handles_redis_exception(self):
+        """Test that _save_circuit_state_to_redis handles exceptions gracefully"""
+        mock_redis = MagicMock()
+        mock_redis.setex.side_effect = Exception("Redis write failed")
+        mock_redis.get.return_value = None
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        # Should not raise - circuit state save failure should be handled
+        tracker._set_circuit_state(CircuitState.OPEN)
+
+    def test_get_circuit_state_handles_redis_exception(self):
+        """Test that _get_circuit_state_from_redis handles exceptions gracefully"""
+        mock_redis = MagicMock()
+        mock_redis.get.side_effect = Exception("Redis read failed")
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+
+        # Should not raise - should return None on exception
+        result = tracker._get_circuit_state_from_redis()
+        assert result is None
+
+
+class TestRedisPipelineCallVerification:
+    """Tests verifying exact Redis pipeline call parameters"""
+
+    def test_safe_incr_uses_transaction_pipeline(self):
+        """Test that _safe_incr uses pipeline with transaction=True"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker._safe_incr("test:key", 1)
+
+        mock_redis.pipeline.assert_called_with(transaction=True)
+
+    def test_safe_incr_sets_key_with_correct_params(self):
+        """Test that _safe_incr calls set with nx=True and correct TTL"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker._safe_incr("test:key", 1)
+
+        # Verify set was called with nx=True and correct TTL
+        mock_pipe.set.assert_called_once_with("test:key", 0, ex=86400, nx=True)
+
+    def test_safe_incr_calls_incrby_with_correct_value(self):
+        """Test that _safe_incr calls incrby with correct key and value"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker._safe_incr("test:key", 5)
+
+        mock_pipe.incrby.assert_called_once_with("test:key", 5)
+
+    def test_safe_incr_executes_pipeline(self):
+        """Test that _safe_incr calls execute on the pipeline"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker._safe_incr("test:key", 1)
+
+        mock_pipe.execute.assert_called_once()
+
+    def test_record_langgraph_task_success_increments_correct_keys(self):
+        """Test that record_langgraph_task success increments total and success keys"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker.record_langgraph_task(trace_id="test", success=True, latency_ms=100)
+
+        # Verify set was called with keys containing langgraph.total and langgraph.success
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        assert any("langgraph.total" in key for key in set_keys)
+        assert any("langgraph.success" in key for key in set_keys)
+
+    def test_record_langgraph_task_failure_increments_failure_key(self):
+        """Test that record_langgraph_task failure increments failure key"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker.record_langgraph_task(trace_id="test", success=False)
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        assert any("langgraph.total" in key for key in set_keys)
+        assert any("langgraph.failure" in key for key in set_keys)
+
+    def test_record_langgraph_task_5xx_increments_error_key(self):
+        """Test that record_langgraph_task with 5xx error increments error_5xx key"""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker.record_langgraph_task(trace_id="test", success=False, is_5xx_error=True)
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        assert any("langgraph.error_5xx" in key for key in set_keys)
+
+
+class TestCircuitBreakerPublicAPI:
+    """Tests for circuit breaker using public API instead of internal attributes"""
+
+    @pytest.fixture
+    def mock_redis(self):
+        """Create mock Redis client"""
+        redis_mock = MagicMock()
+        redis_mock.get.return_value = None
+        redis_mock.pipeline.return_value.__enter__ = MagicMock(return_value=MagicMock())
+        redis_mock.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        return redis_mock
+
+    @pytest.fixture
+    def tracker(self, mock_redis):
+        """Create RolloutTracker with mock Redis"""
+        return RolloutTracker(redis_client=mock_redis, enabled=True)
+
+    def test_circuit_breaker_state_via_public_api(self, tracker):
+        """Test getting circuit breaker state via public API"""
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.CLOSED
+        assert state.failure_count == 0
+
+    def test_circuit_breaker_opens_via_public_api(self, tracker):
+        """Test circuit breaker opens after failures - verified via public API"""
+        for _ in range(tracker.circuit_failure_threshold):
+            tracker._update_circuit_breaker_failure("test")
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.OPEN
+
+    def test_circuit_breaker_closes_via_public_api(self, tracker):
+        """Test circuit breaker closes after recovery - verified via public API"""
+        tracker._set_circuit_state(CircuitState.HALF_OPEN)
+
+        for _ in range(tracker.circuit_success_threshold):
+            tracker._update_circuit_breaker_success()
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.CLOSED
+
+    def test_circuit_breaker_tracks_failure_count_via_public_api(self, tracker):
+        """Test failure count tracking via public API"""
+        tracker._update_circuit_breaker_failure("test_error")
+        tracker._update_circuit_breaker_failure("test_error")
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.failure_count == 2
+        assert state.last_failure_reason == "test_error"
+
+    def test_circuit_breaker_half_open_success_count_via_public_api(self, tracker):
+        """Test success count in half-open state via public API"""
+        tracker._set_circuit_state(CircuitState.HALF_OPEN)
+        tracker._update_circuit_breaker_success()
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.HALF_OPEN
+        assert state.success_count_since_half_open == 1
+
+    def test_check_circuit_breaker_returns_correct_value(self, tracker):
+        """Test check_circuit_breaker returns correct allow/block decision"""
+        # Initially closed - should allow
+        assert tracker.check_circuit_breaker() is True
+
+        # Set to open with future cooldown - should block
+        tracker._set_circuit_state(CircuitState.OPEN)
+        future_time = datetime.now(timezone.utc) + timedelta(minutes=10)
+        tracker._circuit_breaker.cooldown_until = future_time.isoformat()
+        assert tracker.check_circuit_breaker() is False
