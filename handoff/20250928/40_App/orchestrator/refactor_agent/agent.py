@@ -872,7 +872,8 @@ class RefactorAgent:
                 'failure_count': int,
                 'applied': List[str],  # file paths successfully modified
                 'failed': List[str],   # file paths that failed
-                'backups': Dict[str, Path]  # file_path -> backup_path mapping
+                'backups': Dict[str, Path],  # file_path -> backup_path mapping
+                'task_results': Dict[str, bool]  # task_id -> success mapping
             }
         """
         if len(tasks) != len(fixes):
@@ -883,7 +884,8 @@ class RefactorAgent:
             'failure_count': 0,
             'applied': [],
             'failed': [],
-            'backups': {}
+            'backups': {},
+            'task_results': {}
         }
 
         applied_backups: Dict[str, Path] = {}
@@ -893,9 +895,10 @@ class RefactorAgent:
         task_fix_pairs.sort(key=lambda x: (x[0].error.file_path, x[0].error.line))
 
         for task, fix in task_fix_pairs:
-            if fix is None:
+            if fix is None or fix == "":
                 results['failure_count'] += 1
                 results['failed'].append(task.error.file_path)
+                results['task_results'][task.task_id] = False
                 continue
 
             file_path = task.error.file_path
@@ -927,6 +930,7 @@ class RefactorAgent:
             if success:
                 results['success_count'] += 1
                 results['applied'].append(file_path)
+                results['task_results'][task.task_id] = True
                 if backup_path:
                     applied_backups[file_path] = backup_path
 
@@ -937,6 +941,7 @@ class RefactorAgent:
             else:
                 results['failure_count'] += 1
                 results['failed'].append(file_path)
+                results['task_results'][task.task_id] = False
 
         results['backups'] = applied_backups
 
@@ -1068,24 +1073,37 @@ class RefactorAgent:
             # Apply fixes to files if we have any completed tasks
             completed_tasks = [t for t in tasks if t.status == "completed"]
             if completed_tasks:
-                logger.info(
-                    "[RefactorAgent] Applying %d fixes to files",
-                    len(completed_tasks)
-                )
-                apply_results = self.apply_fixes_batch(completed_tasks)
+                # Filter out tasks with None/empty fix_applied
+                tasks_to_apply = []
+                fixes_to_apply = []
+                for task in completed_tasks:
+                    if task.fix_applied and task.fix_applied.strip():
+                        tasks_to_apply.append(task)
+                        fixes_to_apply.append(task.fix_applied)
+                    else:
+                        # Mark task as failed if fix_applied is None/empty
+                        task.status = "failed"
+                        task.error_message = "No fix generated (fix_applied is empty)"
+                        errors_failed += 1
+                        errors_fixed -= 1  # Decrement since we counted it as fixed earlier
 
-                # Update counts based on actual application results
-                actual_fixed = sum(1 for success, _ in apply_results if success)
-                actual_failed = len(completed_tasks) - actual_fixed
+                if tasks_to_apply:
+                    logger.info(
+                        "[RefactorAgent] Applying %d fixes to files",
+                        len(tasks_to_apply)
+                    )
+                    apply_results = self.apply_fixes_batch(tasks_to_apply, fixes_to_apply)
 
-                # Update task statuses based on apply results
-                for i, (success, _) in enumerate(apply_results):
-                    if not success:
-                        completed_tasks[i].status = "failed"
-                        completed_tasks[i].error_message = "Failed to apply fix to file"
+                    # Update task statuses based on per-task results
+                    for task in tasks_to_apply:
+                        task_success = apply_results['task_results'].get(task.task_id, False)
+                        if not task_success:
+                            task.status = "failed"
+                            task.error_message = "Failed to apply fix to file"
 
-                errors_fixed = actual_fixed
-                errors_failed += actual_failed
+                    # Update counts from apply results
+                    errors_fixed = apply_results['success_count']
+                    errors_failed += apply_results['failure_count']
 
         completed_at = time.time()
         latency_ms = (completed_at - started_at) * 1000
