@@ -120,10 +120,10 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
-    "@vitest/coverage-v8": "^4.0.15",
-    "@vitest/ui": "^4.0.15",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/ui": "^4.0.16",
     "axe-playwright": "^2.2.2",
     "babel-loader": "^10.0.0",
     "concurrently": "^9.2.1",
@@ -138,7 +138,7 @@
     "tsup": "^8.5.1",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.50.0",
-    "vitest": "^4.0.15",
+    "vitest": "^4.0.16",
     "wait-on": "^9.0.3",
     "zod": "^3.24.4"
   }
