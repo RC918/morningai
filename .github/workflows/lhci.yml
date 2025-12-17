@@ -473,7 +473,7 @@ jobs:
       - name: Commit baseline updates
         if: github.event_name != 'pull_request'
         continue-on-error: true
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore(ci): update LHCI baseline & trend [skip ci]"
           file_pattern: ".lhci-baseline.json trend.csv"
