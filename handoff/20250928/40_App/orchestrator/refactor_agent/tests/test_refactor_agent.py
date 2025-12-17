@@ -2107,22 +2107,21 @@ class TestCheckExistingRefactorPR:
                 assert result is None
 
     def test_check_existing_refactor_pr_finds_matching_pr_by_title(self):
-        """Test that _check_existing_refactor_pr finds PR with matching title"""
+        """Test that _check_existing_refactor_pr finds PR with fix(ts): title and automated label"""
         with tempfile.TemporaryDirectory() as tmpdir:
             agent = RefactorAgent(repo_path=tmpdir)
 
-            mock_label_refactor = MagicMock()
-            mock_label_refactor.name = "refactor"
             mock_label_automated = MagicMock()
             mock_label_automated.name = "automated"
 
             mock_pr = MagicMock()
-            mock_pr.title = "refactor(typescript): fix strict mode errors"
+            mock_pr.title = "fix(ts): Automated TS strict mode fixes (5 errors) - 2025-01-01"
             mock_pr.number = 123
             mock_pr.html_url = "https://github.com/test/repo/pull/123"
-            mock_pr.labels = [mock_label_refactor, mock_label_automated]
+            mock_pr.labels = [mock_label_automated]
 
             mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
             mock_repo.get_pulls.return_value = [mock_pr]
 
             with patch.object(agent, '_get_github_repo', return_value=mock_repo):
@@ -2130,13 +2129,11 @@ class TestCheckExistingRefactorPR:
                 assert result == mock_pr
                 mock_repo.get_pulls.assert_called_once_with(state='open', base='main')
 
-    def test_check_existing_refactor_pr_finds_matching_pr_by_labels(self):
-        """Test that _check_existing_refactor_pr finds PR with refactor+automated labels"""
+    def test_check_existing_refactor_pr_requires_both_title_and_label(self):
+        """Test that _check_existing_refactor_pr requires BOTH fix(ts): title AND automated label"""
         with tempfile.TemporaryDirectory() as tmpdir:
             agent = RefactorAgent(repo_path=tmpdir)
 
-            mock_label_refactor = MagicMock()
-            mock_label_refactor.name = "refactor"
             mock_label_automated = MagicMock()
             mock_label_automated.name = "automated"
 
@@ -2144,14 +2141,15 @@ class TestCheckExistingRefactorPR:
             mock_pr.title = "some other title"
             mock_pr.number = 456
             mock_pr.html_url = "https://github.com/test/repo/pull/456"
-            mock_pr.labels = [mock_label_refactor, mock_label_automated]
+            mock_pr.labels = [mock_label_automated]
 
             mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
             mock_repo.get_pulls.return_value = [mock_pr]
 
             with patch.object(agent, '_get_github_repo', return_value=mock_repo):
                 result = agent._check_existing_refactor_pr()
-                assert result == mock_pr
+                assert result is None
 
     def test_check_existing_refactor_pr_returns_none_when_no_match(self):
         """Test that _check_existing_refactor_pr returns None when no matching PR"""
@@ -2183,6 +2181,29 @@ class TestCheckExistingRefactorPR:
             with patch.object(agent, '_get_github_repo', return_value=mock_repo):
                 result = agent._check_existing_refactor_pr()
                 assert result is None
+
+    def test_check_existing_refactor_pr_uses_custom_target_branch(self):
+        """Test that _check_existing_refactor_pr uses custom target branch when provided"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label_automated = MagicMock()
+            mock_label_automated.name = "automated"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "fix(ts): Automated TS strict mode fixes (3 errors) - 2025-01-01"
+            mock_pr.number = 789
+            mock_pr.html_url = "https://github.com/test/repo/pull/789"
+            mock_pr.labels = [mock_label_automated]
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr(target_branch="develop")
+                assert result == mock_pr
+                mock_repo.get_pulls.assert_called_once_with(state='open', base='develop')
 
 
 class TestPreparePRBranch:
@@ -2250,6 +2271,7 @@ class TestSubmitPRToGitHub:
             mock_pr.number = 123
 
             mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
             mock_repo.create_pull.return_value = mock_pr
 
             result = agent._submit_pr_to_github(
@@ -2276,6 +2298,7 @@ class TestSubmitPRToGitHub:
             mock_pr.number = 123
 
             mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
             mock_repo.create_pull.return_value = mock_pr
 
             agent._submit_pr_to_github(
@@ -2301,6 +2324,7 @@ class TestSubmitPRToGitHub:
             mock_pr.add_to_labels.side_effect = Exception("Label error")
 
             mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
             mock_repo.create_pull.return_value = mock_pr
 
             result = agent._submit_pr_to_github(
@@ -2333,6 +2357,7 @@ class TestSubmitPRToGitHub:
             mock_pr.number = 123
 
             mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
             mock_repo.create_pull.return_value = mock_pr
 
             result = agent._submit_pr_to_github(
@@ -2341,6 +2366,33 @@ class TestSubmitPRToGitHub:
 
             assert result == ("https://github.com/test/repo/pull/123", 123)
             mock_pr.add_to_labels.assert_not_called()
+
+    def test_submit_pr_to_github_custom_base_branch(self):
+        """Test that _submit_pr_to_github uses custom base branch when provided"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, [],
+                base_branch="develop"
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+            mock_repo.create_pull.assert_called_once_with(
+                title="Test title",
+                body="Test body",
+                head="test-branch",
+                base="develop",
+                draft=False
+            )
 
 
 class TestCreatePRWithExistingPRCheck:
