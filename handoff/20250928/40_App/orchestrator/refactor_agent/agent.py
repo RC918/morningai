@@ -1065,6 +1065,28 @@ class RefactorAgent:
                     task.error_message = "Unable to generate automatic fix"
                     errors_failed += 1
 
+            # Apply fixes to files if we have any completed tasks
+            completed_tasks = [t for t in tasks if t.status == "completed"]
+            if completed_tasks:
+                logger.info(
+                    "[RefactorAgent] Applying %d fixes to files",
+                    len(completed_tasks)
+                )
+                apply_results = self.apply_fixes_batch(completed_tasks)
+
+                # Update counts based on actual application results
+                actual_fixed = sum(1 for success, _ in apply_results if success)
+                actual_failed = len(completed_tasks) - actual_fixed
+
+                # Update task statuses based on apply results
+                for i, (success, _) in enumerate(apply_results):
+                    if not success:
+                        completed_tasks[i].status = "failed"
+                        completed_tasks[i].error_message = "Failed to apply fix to file"
+
+                errors_fixed = actual_fixed
+                errors_failed += actual_failed
+
         completed_at = time.time()
         latency_ms = (completed_at - started_at) * 1000
 
@@ -1085,6 +1107,17 @@ class RefactorAgent:
             }
         )
 
+        # Create PR if we have fixes and auto_pr is enabled
+        if not dry_run and errors_fixed > 0 and self.auto_pr:
+            logger.info("[RefactorAgent] Creating PR for %d fixes", errors_fixed)
+            pr_url, pr_number = self.create_pr(result, tasks)
+            if pr_url:
+                result.pr_url = pr_url
+                result.metadata["pr_number"] = pr_number
+                logger.info("[RefactorAgent] Created PR: %s", pr_url)
+            else:
+                logger.warning("[RefactorAgent] Failed to create PR")
+
         logger.info(
             "[RefactorAgent] Refactor run complete: %s",
             result.summary,
@@ -1094,6 +1127,7 @@ class RefactorAgent:
                 "errors_fixed": errors_fixed,
                 "errors_failed": errors_failed,
                 "latency_ms": latency_ms,
+                "pr_url": result.pr_url,
             }
         )
 
