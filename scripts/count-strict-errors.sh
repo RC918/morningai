@@ -1,9 +1,10 @@
 #!/bin/bash
 # Count TypeScript strict mode errors for all packages
-# Usage: ./scripts/count-strict-errors.sh [--update-baseline]
+# Usage: ./scripts/count-strict-errors.sh [--update-baseline] [--validate]
 #
 # This script counts TypeScript strict mode errors and compares against baselines.
 # Use --update-baseline to update .strict-baseline.json with current counts.
+# Use --validate to run a quick validation check (for CI smoke testing).
 
 set -e
 
@@ -16,12 +17,62 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Package paths
-declare -A PACKAGES=(
-  ["frontend-dashboard"]="handoff/20250928/40_App/frontend-dashboard"
-  ["owner-console"]="handoff/20250928/40_App/owner-console"
-  ["shared-ui"]="packages/shared-ui"
-)
+validate_baseline_file() {
+  local errors=0
+  
+  echo "Validating baseline file..."
+  
+  # Check file exists
+  if [ ! -f "$BASELINE_FILE" ]; then
+    echo -e "${RED}ERROR: $BASELINE_FILE not found${NC}"
+    echo "This file is required for TypeScript strict mode checks."
+    echo "See docs/typescript/STRICT_MODE_BASELINE.md for setup instructions."
+    return 1
+  fi
+  
+  # Check JSON is valid
+  if ! jq -e '.' "$BASELINE_FILE" > /dev/null 2>&1; then
+    echo -e "${RED}ERROR: $BASELINE_FILE is not valid JSON${NC}"
+    return 1
+  fi
+  
+  # Check required structure
+  if ! jq -e '.packages' "$BASELINE_FILE" > /dev/null 2>&1; then
+    echo -e "${RED}ERROR: Missing 'packages' key in baseline file${NC}"
+    return 1
+  fi
+  
+  # Validate each package entry
+  for package in $(jq -r '.packages | keys[]' "$BASELINE_FILE"); do
+    local path
+    path=$(jq -r ".packages.\"$package\".path // empty" "$BASELINE_FILE")
+    local error_count
+    error_count=$(jq -r ".packages.\"$package\".error_count // empty" "$BASELINE_FILE")
+    
+    if [ -z "$path" ]; then
+      echo -e "${RED}ERROR: Package '$package' missing 'path' field${NC}"
+      errors=$((errors + 1))
+    elif [ ! -d "$REPO_ROOT/$path" ]; then
+      echo -e "${YELLOW}WARNING: Package '$package' path does not exist: $path${NC}"
+    fi
+    
+    if [ -z "$error_count" ]; then
+      echo -e "${RED}ERROR: Package '$package' missing 'error_count' field${NC}"
+      errors=$((errors + 1))
+    elif ! [[ "$error_count" =~ ^[0-9]+$ ]]; then
+      echo -e "${RED}ERROR: Package '$package' error_count is not a number: $error_count${NC}"
+      errors=$((errors + 1))
+    fi
+  done
+  
+  if [ "$errors" -gt 0 ]; then
+    echo -e "${RED}Validation failed with $errors error(s)${NC}"
+    return 1
+  fi
+  
+  echo -e "${GREEN}Baseline file validation passed${NC}"
+  return 0
+}
 
 count_errors() {
   local package_path="$1"
@@ -32,13 +83,12 @@ count_errors() {
     return
   fi
   
-  cd "$full_path"
-  
-  # Run typecheck:strict and count errors
+  # Run typecheck:strict in a subshell to avoid changing working directory
+  # Count errors matching "src/" and "error TS" to match CI behavior
   local output
-  output=$(pnpm run typecheck:strict 2>&1 || true)
+  output=$( (cd "$full_path" && pnpm run typecheck:strict) 2>&1 || true)
   local count
-  count=$(echo "$output" | grep -c 'error TS' || true)
+  count=$(echo "$output" | grep "src/" | grep -c 'error TS' || true)
   
   # Handle case where grep returns empty or non-numeric
   if [ -z "$count" ] || ! [[ "$count" =~ ^[0-9]+$ ]]; then
@@ -50,11 +100,12 @@ count_errors() {
 
 get_baseline() {
   local package="$1"
-  if [ -f "$BASELINE_FILE" ]; then
-    jq -r ".packages.\"$package\".error_count // 0" "$BASELINE_FILE"
-  else
-    echo "0"
-  fi
+  jq -r ".packages.\"$package\".error_count // 0" "$BASELINE_FILE"
+}
+
+get_package_path() {
+  local package="$1"
+  jq -r ".packages.\"$package\".path // empty" "$BASELINE_FILE"
 }
 
 update_baseline() {
@@ -63,17 +114,37 @@ update_baseline() {
   local today
   today=$(date +%Y-%m-%d)
   
-  if [ -f "$BASELINE_FILE" ]; then
-    # Update existing baseline
-    jq ".packages.\"$package\".error_count = $count | .last_updated = \"$today\"" "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
-    mv "$BASELINE_FILE.tmp" "$BASELINE_FILE"
-  fi
+  # Update existing baseline
+  jq ".packages.\"$package\".error_count = $count | .last_updated = \"$today\"" "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
+  mv "$BASELINE_FILE.tmp" "$BASELINE_FILE"
 }
 
 main() {
   local update_mode=false
-  if [ "$1" = "--update-baseline" ]; then
-    update_mode=true
+  local validate_mode=false
+  
+  for arg in "$@"; do
+    case "$arg" in
+      --update-baseline)
+        update_mode=true
+        ;;
+      --validate)
+        validate_mode=true
+        ;;
+    esac
+  done
+
+  # Validate mode: just check baseline file structure
+  if [ "$validate_mode" = true ]; then
+    validate_baseline_file
+    exit $?
+  fi
+
+  # Normal mode: require baseline file
+  if [ ! -f "$BASELINE_FILE" ]; then
+    echo -e "${RED}ERROR: $BASELINE_FILE not found${NC}"
+    echo "This file is required. See docs/typescript/STRICT_MODE_BASELINE.md"
+    exit 1
   fi
 
   echo "TypeScript Strict Mode Error Count"
@@ -84,8 +155,10 @@ main() {
   local total_baseline=0
   local has_regression=false
   
-  for package in "${!PACKAGES[@]}"; do
-    local path="${PACKAGES[$package]}"
+  # Read packages dynamically from baseline file
+  for package in $(jq -r '.packages | keys[]' "$BASELINE_FILE"); do
+    local path
+    path=$(get_package_path "$package")
     local count
     count=$(count_errors "$path")
     local baseline

@@ -150,18 +150,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       
+      - name: Validate baseline file and script (smoke test)
+        run: |
+          # Validate script syntax
+          bash -n scripts/count-strict-errors.sh
+          
+          # Run script validation mode (checks baseline file structure)
+          ./scripts/count-strict-errors.sh --validate
+      
       - name: Read baselines from .strict-baseline.json
         run: |
-          # Read baselines from JSON file (fallback to 0 if file doesn't exist)
-          if [ -f .strict-baseline.json ]; then
-            FD_BASELINE=$(jq -r '.packages."frontend-dashboard".error_count // 0' .strict-baseline.json)
-            OC_BASELINE=$(jq -r '.packages."owner-console".error_count // 0' .strict-baseline.json)
-            SUI_BASELINE=$(jq -r '.packages."shared-ui".error_count // 0' .strict-baseline.json)
-          else
-            FD_BASELINE=0
-            OC_BASELINE=0
-            SUI_BASELINE=0
-          fi
+          # Read baselines from JSON file (file existence already validated)
+          FD_BASELINE=$(jq -r '.packages."frontend-dashboard".error_count // 0' .strict-baseline.json)
+          OC_BASELINE=$(jq -r '.packages."owner-console".error_count // 0' .strict-baseline.json)
+          SUI_BASELINE=$(jq -r '.packages."shared-ui".error_count // 0' .strict-baseline.json)
           echo "FRONTEND_DASHBOARD_BASELINE=$FD_BASELINE" >> $GITHUB_ENV
           echo "OWNER_CONSOLE_BASELINE=$OC_BASELINE" >> $GITHUB_ENV
           echo "SHARED_UI_BASELINE=$SUI_BASELINE" >> $GITHUB_ENV
