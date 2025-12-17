@@ -22,6 +22,16 @@ DEFAULT PR TEMPLATE - 預設 PR 模板
 ================================================================================
 -->
 
+## PR Title 格式（必須）
+
+<!-- PR title 必須符合以下格式，否則 CI 會失敗 -->
+
+**格式：** `<type>: <description>` 或 `<type>(<scope>): <description>`
+
+**常用類型：** `feat:`, `fix:`, `docs:`, `ci:`, `refactor:`, `chore:`, `deps:`, `test:`, `perf:`, `style:`
+
+**完整規範：** [docs/development/commit_hygiene.md](../../docs/development/commit_hygiene.md)
+
 ## 描述 (Description)
 
 <!-- 簡要說明此 PR 的目的和變更內容 -->
