@@ -137,7 +137,7 @@ class TestLogStructured:
 
     @patch("builtins.print")
     def test_log_timestamp_format(self, mock_print):
-        """Test that timestamp is in ISO format with Z suffix"""
+        """Test that timestamp is in valid ISO format with Z suffix (not +00:00Z)"""
         log_structured(
             level="INFO",
             message="Test",
@@ -148,7 +148,10 @@ class TestLogStructured:
         log_entry = json.loads(call_args)
 
         timestamp = log_entry["timestamp"]
-        assert timestamp.endswith("Z")
+        # Must end with Z (UTC indicator)
+        assert timestamp.endswith("Z"), f"Timestamp should end with Z, got: {timestamp}"
+        # Must NOT have both +00:00 and Z (invalid ISO 8601)
+        assert "+00:00" not in timestamp, f"Timestamp should not contain +00:00 when using Z suffix, got: {timestamp}"
         # Verify it's a valid ISO format by parsing
         # Remove the trailing Z for parsing
         datetime.fromisoformat(timestamp.rstrip("Z"))
