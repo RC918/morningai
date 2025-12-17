@@ -38,6 +38,23 @@ pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/ -v
 | `test_rollout_tracker_integration.py` | RolloutTracker integration tests including enabled=True + Redis scenarios |
 | `test_meta_agent_worker.py` | Meta agent worker integration tests |
 
+## Not Covered Yet (Known Gaps)
+
+The following scenarios are not yet covered by automated tests and represent areas for future improvement:
+
+| Category | Scenario | Risk Level | Notes |
+|----------|----------|------------|-------|
+| **Concurrency** | Multi-worker race conditions | Medium | Multiple workers updating same Redis keys simultaneously |
+| **Concurrency** | Multi-process circuit breaker state | Medium | Circuit breaker state consistency across processes |
+| **Redis Failures** | Connection timeout handling | High | Redis unavailable during `record_langgraph_task()` |
+| **Redis Failures** | Network partition recovery | Medium | Reconnection behavior after temporary outage |
+| **Redis Failures** | Pipeline partial failure | Low | Some commands succeed, others fail in pipeline |
+| **Edge Cases** | Long-running job timeout | Low | Jobs exceeding expected duration |
+| **Edge Cases** | Redis memory pressure | Low | Behavior when Redis approaches memory limit |
+| **Edge Cases** | Clock skew between workers | Low | Time-based cooldown with unsynchronized clocks |
+
+These gaps are tracked for future work. Contributions welcome.
+
 ## Related Issues
 
 - Issue #2280 - Integrate RolloutTracker to worker.py
