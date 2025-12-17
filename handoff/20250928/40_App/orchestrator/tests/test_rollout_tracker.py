@@ -944,3 +944,145 @@ class TestCircuitBreakerPublicAPI:
         future_time = datetime.now(timezone.utc) + timedelta(minutes=10)
         tracker._circuit_breaker.cooldown_until = future_time.isoformat()
         assert tracker.check_circuit_breaker() is False
+
+
+class TestCircuitBreakerBlackBox:
+    """Black-box tests for circuit breaker using only public API (Issue #2647).
+
+    These tests verify circuit breaker behavior without using internal methods like
+    _update_circuit_breaker_failure(), _update_circuit_breaker_success(), or _set_circuit_state().
+
+    Instead, they use:
+    - record_langgraph_task(success=False) to drive failure count increases
+    - record_langgraph_task(success=True) to drive success count increases
+    - get_circuit_breaker_state() and check_circuit_breaker() to verify results
+    """
+
+    @pytest.fixture
+    def mock_redis(self):
+        """Create mock Redis client with pipeline support"""
+        redis_mock = MagicMock()
+        redis_mock.get.return_value = None
+        mock_pipe = MagicMock()
+        redis_mock.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        redis_mock.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        return redis_mock
+
+    @pytest.fixture
+    def tracker(self, mock_redis):
+        """Create RolloutTracker with mock Redis"""
+        return RolloutTracker(redis_client=mock_redis, enabled=True)
+
+    def test_circuit_breaker_opens_after_threshold_failures_black_box(self, tracker):
+        """Test circuit breaker opens after threshold failures - black box approach.
+
+        Uses record_langgraph_task(success=False) to drive failures instead of
+        calling _update_circuit_breaker_failure() directly.
+        """
+        initial_state = tracker.get_circuit_breaker_state()
+        assert initial_state.state == CircuitState.CLOSED
+
+        for i in range(tracker.circuit_failure_threshold):
+            tracker.record_langgraph_task(trace_id=f"test-{i}", success=False)
+
+        final_state = tracker.get_circuit_breaker_state()
+        assert final_state.state == CircuitState.OPEN
+
+    def test_circuit_breaker_tracks_failure_count_black_box(self, tracker):
+        """Test failure count tracking via public API - black box approach."""
+        tracker.record_langgraph_task(trace_id="test-1", success=False)
+        tracker.record_langgraph_task(trace_id="test-2", success=False)
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.failure_count == 2
+
+    def test_circuit_breaker_resets_failure_count_on_success_black_box(self, tracker):
+        """Test failure count resets on success when closed - black box approach."""
+        tracker.record_langgraph_task(trace_id="test-1", success=False)
+        tracker.record_langgraph_task(trace_id="test-2", success=False)
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.failure_count == 2
+
+        tracker.record_langgraph_task(trace_id="test-3", success=True)
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.failure_count == 0
+
+    def test_circuit_breaker_closes_after_recovery_black_box(self, tracker):
+        """Test circuit breaker closes after recovery in half-open - black box approach.
+
+        This test manually sets half-open state (unavoidable for testing recovery),
+        then uses record_langgraph_task(success=True) to drive recovery.
+        """
+        tracker._circuit_breaker.state = CircuitState.HALF_OPEN
+        tracker._circuit_breaker.success_count_since_half_open = 0
+
+        for i in range(tracker.circuit_success_threshold):
+            tracker.record_langgraph_task(trace_id=f"recovery-{i}", success=True)
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.CLOSED
+
+    def test_circuit_breaker_tracks_success_count_in_half_open_black_box(self, tracker):
+        """Test success count tracking in half-open state - black box approach."""
+        tracker._circuit_breaker.state = CircuitState.HALF_OPEN
+        tracker._circuit_breaker.success_count_since_half_open = 0
+
+        tracker.record_langgraph_task(trace_id="test-1", success=True)
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.success_count_since_half_open == 1
+
+    def test_circuit_breaker_reopens_on_failure_in_half_open_black_box(self, tracker):
+        """Test circuit breaker reopens on failure in half-open - black box approach."""
+        tracker._circuit_breaker.state = CircuitState.HALF_OPEN
+
+        tracker.record_langgraph_task(trace_id="test-fail", success=False)
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.OPEN
+
+    def test_check_circuit_breaker_allows_when_closed_black_box(self, tracker):
+        """Test check_circuit_breaker allows traffic when closed - black box approach."""
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.CLOSED
+
+        assert tracker.check_circuit_breaker() is True
+
+    def test_check_circuit_breaker_blocks_when_open_black_box(self, tracker):
+        """Test check_circuit_breaker blocks traffic when open - black box approach."""
+        for i in range(tracker.circuit_failure_threshold):
+            tracker.record_langgraph_task(trace_id=f"test-{i}", success=False)
+
+        state = tracker.get_circuit_breaker_state()
+        assert state.state == CircuitState.OPEN
+
+        assert tracker.check_circuit_breaker() is False
+
+    def test_full_circuit_breaker_lifecycle_black_box(self, tracker):
+        """Test full circuit breaker lifecycle: closed -> open -> half-open -> closed.
+
+        This is an end-to-end black-box test that verifies the complete lifecycle
+        using only public API methods where possible.
+        """
+        assert tracker.get_circuit_breaker_state().state == CircuitState.CLOSED
+        assert tracker.check_circuit_breaker() is True
+
+        for i in range(tracker.circuit_failure_threshold):
+            tracker.record_langgraph_task(trace_id=f"fail-{i}", success=False)
+
+        assert tracker.get_circuit_breaker_state().state == CircuitState.OPEN
+        assert tracker.check_circuit_breaker() is False
+
+        past_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+        tracker._circuit_breaker.cooldown_until = past_time.isoformat()
+
+        assert tracker.check_circuit_breaker() is True
+        assert tracker.get_circuit_breaker_state().state == CircuitState.HALF_OPEN
+
+        for i in range(tracker.circuit_success_threshold):
+            tracker.record_langgraph_task(trace_id=f"success-{i}", success=True)
+
+        assert tracker.get_circuit_breaker_state().state == CircuitState.CLOSED
+        assert tracker.check_circuit_breaker() is True
