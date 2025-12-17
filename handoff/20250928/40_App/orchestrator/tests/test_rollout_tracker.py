@@ -957,6 +957,10 @@ class TestCircuitBreakerBlackBox:
 
     Time-based transitions (OPEN -> HALF_OPEN) use datetime patching to simulate
     cooldown expiration without accessing internal state.
+
+    Design notes (team template):
+    - FrozenDatetime inherits from datetime to support all datetime methods automatically
+    - Fixtures only drive state, assertions are in test body for clearer error messages
     """
 
     @pytest.fixture
@@ -980,10 +984,11 @@ class TestCircuitBreakerBlackBox:
 
         This fixture drives the circuit breaker to OPEN state by recording
         enough failures through the public API.
+
+        Note: State verification is done in test body, not here, for clearer error messages.
         """
         for i in range(tracker.circuit_failure_threshold):
             tracker.record_langgraph_task(trace_id=f"open-{i}", success=False)
-        assert tracker.get_circuit_breaker_state().state == CircuitState.OPEN
         return tracker
 
     @pytest.fixture
@@ -992,31 +997,31 @@ class TestCircuitBreakerBlackBox:
 
         This fixture:
         1. Starts with an OPEN tracker (from open_tracker fixture)
-        2. Patches datetime.now to simulate cooldown expiration
+        2. Patches datetime using FrozenDatetime (inherits all datetime methods)
         3. Calls check_circuit_breaker() to trigger OPEN -> HALF_OPEN transition
+
+        Note: State verification is done in test body, not here, for clearer error messages.
         """
         import rollout_tracker as rt_module
 
         cooldown_seconds = open_tracker.circuit_cooldown_seconds
         future_time = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds + 1)
 
-        original_datetime = rt_module.datetime
+        class FrozenDatetime(datetime):
+            """Datetime subclass that freezes now() while inheriting all other methods.
 
-        class MockDatetime:
-            @staticmethod
-            def now(tz=None):
+            This approach is more robust than a minimal mock because:
+            - All datetime methods (strftime, utcnow, astimezone, etc.) work automatically
+            - Future code changes using new datetime methods won't break tests silently
+            """
+
+            @classmethod
+            def now(cls, tz=None):
                 return future_time
 
-            @staticmethod
-            def fromisoformat(date_string):
-                return original_datetime.fromisoformat(date_string)
+        monkeypatch.setattr(rt_module, "datetime", FrozenDatetime)
 
-        monkeypatch.setattr(rt_module, "datetime", MockDatetime)
-
-        result = open_tracker.check_circuit_breaker()
-        assert result is True
-        assert open_tracker.get_circuit_breaker_state().state == CircuitState.HALF_OPEN
-
+        open_tracker.check_circuit_breaker()
         return open_tracker
 
     def test_circuit_breaker_opens_after_threshold_failures_black_box(self, tracker):
@@ -1098,6 +1103,8 @@ class TestCircuitBreakerBlackBox:
 
         This is an end-to-end black-box test that verifies the complete lifecycle
         using only public API methods and time patching for cooldown simulation.
+
+        Uses FrozenDatetime (inherits from datetime) for robust time patching.
         """
         import rollout_tracker as rt_module
 
@@ -1113,18 +1120,14 @@ class TestCircuitBreakerBlackBox:
         cooldown_seconds = tracker.circuit_cooldown_seconds
         future_time = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds + 1)
 
-        original_datetime = rt_module.datetime
+        class FrozenDatetime(datetime):
+            """Datetime subclass that freezes now() while inheriting all other methods."""
 
-        class MockDatetime:
-            @staticmethod
-            def now(tz=None):
+            @classmethod
+            def now(cls, tz=None):
                 return future_time
 
-            @staticmethod
-            def fromisoformat(date_string):
-                return original_datetime.fromisoformat(date_string)
-
-        monkeypatch.setattr(rt_module, "datetime", MockDatetime)
+        monkeypatch.setattr(rt_module, "datetime", FrozenDatetime)
 
         assert tracker.check_circuit_breaker() is True
         assert tracker.get_circuit_breaker_state().state == CircuitState.HALF_OPEN
