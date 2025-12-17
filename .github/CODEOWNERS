@@ -35,3 +35,7 @@
 /.github/workflows/*security*.yml @RC918
 /.github/workflows/*secret*.yml @RC918
 /docs/*SECURITY*.md @RC918
+
+# TypeScript Strict Mode Baseline (requires review for changes)
+# Baseline increases should include justification in PR description
+/.strict-baseline.json @RC918
