@@ -28,8 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Path Mapping**: See `docs/migration/PR7_PATH_MAPPING.csv` for complete old-to-new path mapping
   - **Backward Compatibility**: Stub files created for key CTO documents (removal date: 2026-03-16)
   - **Impact**: External links to root-level report files will break; update references to new paths
-
-### Changed
 - **Phase 1 main.py Refactoring Complete** (PR #2447-#2500)
   - **Phase 1.6: Route Modularization** - Moved all inline routes from main.py to dedicated blueprint modules:
     - PR1.6a: Phase 4-6 routes → `src/routes/phase456.py` (20+ endpoints)

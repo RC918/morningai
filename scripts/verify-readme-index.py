@@ -50,8 +50,12 @@ def extract_linked_files_from_readme(readme_path: Path) -> set[str]:
     return linked_files
 
 
-def get_md_files_in_directory(directory: Path, recursive: bool = False) -> set[str]:
-    """Get all .md files in a directory (excluding README.md)."""
+def get_md_files_in_directory(directory: Path) -> set[str]:
+    """Get all .md files in a directory (excluding README.md).
+    
+    Only descends into subdirectories that don't have their own README.md,
+    to avoid pulling in files from nested index directories.
+    """
     if not directory.exists():
         return set()
     
@@ -59,11 +63,14 @@ def get_md_files_in_directory(directory: Path, recursive: bool = False) -> set[s
     for f in directory.iterdir():
         if f.is_file() and f.suffix == '.md' and f.name != 'README.md':
             md_files.add(f.name)
-        elif recursive and f.is_dir():
-            # Include files from subdirectories with relative path
-            for subf in f.iterdir():
-                if subf.is_file() and subf.suffix == '.md' and subf.name != 'README.md':
-                    md_files.add(f"{f.name}/{subf.name}")
+        elif f.is_dir():
+            # Only include subdirectory files if the subdirectory doesn't have its own README
+            subdir_readme = f / 'README.md'
+            if not subdir_readme.exists():
+                for subf in f.iterdir():
+                    if subf.is_file() and subf.suffix == '.md' and subf.name != 'README.md':
+                        # Use as_posix() for cross-platform path consistency
+                        md_files.add(Path(f.name, subf.name).as_posix())
     
     return md_files
 
@@ -77,12 +84,12 @@ def check_directory(directory: Path) -> list[IndexIssue]:
         return issues
     
     linked_files = extract_linked_files_from_readme(readme_path)
-    actual_files = get_md_files_in_directory(directory, recursive=True)
+    actual_files = get_md_files_in_directory(directory)
     
     # Files in directory but not in README
     for f in actual_files - linked_files:
         issues.append(IndexIssue(
-            directory=str(directory),
+            directory=directory.as_posix(),
             issue_type='missing_in_readme',
             filename=f
         ))
@@ -94,25 +101,61 @@ def check_directory(directory: Path) -> list[IndexIssue]:
     return issues
 
 
+def is_index_style_readme(readme_path: Path) -> bool:
+    """Check if a README.md file is an index-style README with a table.
+    
+    Index-style READMEs contain markdown tables (with |---| separators)
+    and links to .md files. Non-index READMEs (narrative documentation)
+    are skipped.
+    """
+    if not readme_path.exists():
+        return False
+    
+    content = readme_path.read_text(encoding='utf-8')
+    
+    # Check for markdown table separator (|---| or | --- |)
+    has_table = bool(re.search(r'\|[\s-]+\|', content))
+    
+    # Check for at least one relative .md link (not README.md, not http)
+    has_md_links = bool(re.search(r'\]\((?!http)(?!#)(?!README\.md)[^)]+\.md\)', content))
+    
+    return has_table and has_md_links
+
+
 def get_docs_directories() -> list[Path]:
-    """Get all directories under docs/ that should have README indexes."""
+    """Get all directories under docs/ that should have README indexes.
+    
+    Dynamically discovers subdirectories under docs/ that contain
+    index-style README.md files. Focuses on directories that are part
+    of the PR7 documentation migration structure.
+    
+    Scanned areas:
+    - docs/reports/* (all subdirectories)
+    - docs/guides, docs/runbooks, docs/releases, docs/migration
+    """
     docs_root = Path('docs')
     directories = []
     
-    # Check docs/reports/* subdirectories
+    if not docs_root.exists():
+        return directories
+    
+    # Dynamically discover docs/reports/* subdirectories with index READMEs
     reports_dir = docs_root / 'reports'
     if reports_dir.exists():
-        for subdir in reports_dir.iterdir():
-            if subdir.is_dir():
-                directories.append(subdir)
+        for readme_path in reports_dir.rglob('README.md'):
+            parent_dir = readme_path.parent
+            # Skip docs/reports itself, only include subdirectories
+            if parent_dir != reports_dir and is_index_style_readme(readme_path):
+                directories.append(parent_dir)
     
-    # Check other docs subdirectories
-    for subdir in ['guides', 'runbooks', 'releases', 'migration']:
-        path = docs_root / subdir
-        if path.exists() and path.is_dir():
-            directories.append(path)
+    # Check other PR7 migration directories
+    for subdir_name in ['guides', 'runbooks', 'releases', 'migration']:
+        subdir = docs_root / subdir_name
+        readme_path = subdir / 'README.md'
+        if subdir.exists() and is_index_style_readme(readme_path):
+            directories.append(subdir)
     
-    return directories
+    return sorted(directories, key=lambda p: p.as_posix())
 
 
 def main() -> int:
