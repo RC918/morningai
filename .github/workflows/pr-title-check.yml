@@ -4,6 +4,9 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+permissions:
+  pull-requests: write
+
 jobs:
   check-title:
     name: Validate PR Title Format
@@ -33,6 +36,7 @@ jobs:
           subjectPattern: ^.+$
           subjectPatternError: |
             PR title must follow format: <type>: <description>
+            Or with optional scope: <type>(<scope>): <description>
             
             Allowed types:
             - feat:     New feature
@@ -50,7 +54,7 @@ jobs:
             Examples:
             - feat: add user dashboard
             - fix: resolve login timeout
-            - docs: update API documentation
+            - feat(auth): implement OAuth2 login
 
       - name: Comment on PR (if validation fails)
         if: failure()
@@ -65,7 +69,7 @@ jobs:
               '',
               '**Current title:** `' + prTitle + '`',
               '',
-              '**Required format:** `<type>: <description>`',
+              '**Required format:** `<type>: <description>` or `<type>(<scope>): <description>`',
               '',
               '### Allowed Types',
               '',

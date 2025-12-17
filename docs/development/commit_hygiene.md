@@ -64,14 +64,14 @@ To fix a failed check, simply edit your PR title to follow the correct format. T
 The standardized PR title format enables easy filtering of human contributions vs bot PRs:
 
 ```bash
-# Exclude bot PRs from changelog
-git log --oneline --no-merges | grep -v "^.*bot:" | grep -v "^.*deps:"
+# Exclude bot/deps PRs from changelog (precise regex to avoid false positives)
+git log --pretty=format:"%h %s" --no-merges | grep -v -E "^[a-f0-9]+ (bot|deps)(\(.+\))?:"
 
 # Only show feature and fix PRs
-git log --oneline --grep="^feat:\|^fix:" main..HEAD
+git log --pretty=format:"%h %s" --no-merges | grep -E "^[a-f0-9]+ (feat|fix)(\(.+\))?:"
 
-# Generate human-readable changelog
-git log --oneline --no-merges | grep -E "^[a-f0-9]+ (feat|fix|refactor|perf):" 
+# Generate human-readable changelog (excludes bot, deps, chore)
+git log --pretty=format:"%h %s" --no-merges | grep -E "^[a-f0-9]+ (feat|fix|refactor|perf|docs|ci|test|style)(\(.+\))?:"
 ```
 
 ## Future Considerations
