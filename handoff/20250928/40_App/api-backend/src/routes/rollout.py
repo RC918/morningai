@@ -85,6 +85,47 @@ def _get_current_rollout_percent() -> int:
         return 0
 
 
+def _get_tracker_or_503():
+    """Get RolloutTracker or return 503 error response.
+    
+    Returns:
+        Tuple of (tracker, None) if successful, or (None, error_response) if unavailable.
+        
+    Usage:
+        tracker, error = _get_tracker_or_503()
+        if error:
+            return error
+    """
+    tracker = _get_rollout_tracker()
+    if tracker is None:
+        return None, (jsonify({
+            "error": "RolloutTracker unavailable",
+            "timestamp": _get_utc_iso_timestamp(),
+            "available": False
+        }), 503)
+    return tracker, None
+
+
+def _json_error(message: str, status: int = 500, include_available: bool = True):
+    """Create standardized JSON error response.
+    
+    Args:
+        message: Error message to include
+        status: HTTP status code (default: 500)
+        include_available: Whether to include 'available' field (default: True)
+        
+    Returns:
+        Tuple of (response, status_code)
+    """
+    response = {
+        "error": message,
+        "timestamp": _get_utc_iso_timestamp(),
+    }
+    if include_available:
+        response["available"] = False
+    return jsonify(response), status
+
+
 @rollout_bp.route('/rollout/dashboard', methods=['GET'])
 def get_rollout_dashboard():
     """
