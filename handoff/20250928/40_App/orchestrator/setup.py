@@ -13,7 +13,7 @@ setup(
         "supabase==2.6.0",
         "openai>=1.55.0,<3.0.0",  # httpx 0.28+ compatibility
         "requests==2.32.5",
-        "sentry-sdk==2.19.2",
+        "sentry-sdk==2.48.0",
         "redis",
         "rq",
         "python-dotenv==1.2.1"
