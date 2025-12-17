@@ -15,6 +15,7 @@ from typing import Optional
 
 from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import admin_required
+from common.config.settings import get_settings
 
 DEFAULT_WINDOW_MINUTES = 15
 MIN_WINDOW_MINUTES = 1
@@ -75,6 +76,15 @@ def _parse_window_minutes(window_param: Optional[str]) -> int:
         return DEFAULT_WINDOW_MINUTES
 
 
+def _get_current_rollout_percent() -> int:
+    """Get current LangGraph rollout percentage from settings"""
+    try:
+        return get_settings().use_langgraph_percent
+    except Exception as e:
+        logger.warning(f"Failed to get rollout percent from settings: {e}")
+        return 0
+
+
 @rollout_bp.route('/rollout/dashboard', methods=['GET'])
 def get_rollout_dashboard():
     """
@@ -130,7 +140,8 @@ def get_rollout_dashboard():
         }), 503
 
     try:
-        dashboard = tracker.get_dashboard_summary(window_minutes)
+        current_percent = _get_current_rollout_percent()
+        dashboard = tracker.get_dashboard_summary(current_percent, window_minutes)
 
         return jsonify({
             "timestamp": _get_utc_iso_timestamp(),
@@ -190,7 +201,8 @@ def get_rollout_health():
         }), 503
 
     try:
-        health = tracker.get_rollout_health(window_minutes)
+        current_percent = _get_current_rollout_percent()
+        health = tracker.get_rollout_health(current_percent, window_minutes)
         health_dict = health.to_dict()
 
         status = "healthy"
