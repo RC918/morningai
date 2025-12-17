@@ -1641,3 +1641,843 @@ class TestPRAutomation:
 
             assert "`src/file0.ts`" in changelog
             assert "`src/file1.ts`" in changelog
+
+
+class TestRunRefactorPipeline:
+    """Tests for run_refactor() pipeline including apply and PR creation (TS-3)"""
+
+    def test_run_refactor_applies_fixes_when_not_dry_run(self):
+        """Test that run_refactor calls apply_fixes_batch when not in dry_run mode"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "src" / "test.ts"
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.write_text("const x = null;\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "const x = null ?? 'default';"
+                mock_apply.return_value = {
+                    'success_count': 1,
+                    'failure_count': 0,
+                    'applied': ['src/test.ts'],
+                    'failed': [],
+                    'backups': {},
+                    'task_results': {'task-0': True}
+                }
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                mock_apply.assert_called_once()
+                assert result.errors_fixed == 1
+
+    def test_run_refactor_does_not_apply_in_dry_run(self):
+        """Test that run_refactor does NOT call apply_fixes_batch in dry_run mode"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+
+                result = agent.run_refactor(max_errors=1, dry_run=True)
+
+                mock_apply.assert_not_called()
+                assert result.errors_fixed == 0
+                assert result.metadata["dry_run"] is True
+
+    def test_run_refactor_creates_pr_when_auto_pr_enabled(self):
+        """Test that run_refactor calls create_pr when auto_pr is enabled"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = True
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply, \
+                 patch.object(agent, 'create_pr') as mock_create_pr:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "const x = null ?? 'default';"
+                mock_apply.return_value = {
+                    'success_count': 1,
+                    'failure_count': 0,
+                    'applied': ['src/test.ts'],
+                    'failed': [],
+                    'backups': {},
+                    'task_results': {'task-0': True}
+                }
+                mock_create_pr.return_value = ("https://github.com/test/pr/1", 1)
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                mock_create_pr.assert_called_once()
+                assert result.pr_url == "https://github.com/test/pr/1"
+                assert result.metadata["pr_number"] == 1
+
+    def test_run_refactor_does_not_create_pr_when_auto_pr_disabled(self):
+        """Test that run_refactor does NOT call create_pr when auto_pr is disabled"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply, \
+                 patch.object(agent, 'create_pr') as mock_create_pr:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "const x = null ?? 'default';"
+                mock_apply.return_value = {
+                    'success_count': 1,
+                    'failure_count': 0,
+                    'applied': ['src/test.ts'],
+                    'failed': [],
+                    'backups': {},
+                    'task_results': {'task-0': True}
+                }
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                mock_create_pr.assert_not_called()
+                assert result.pr_url is None
+
+    def test_run_refactor_handles_empty_fix_applied(self):
+        """Test that run_refactor handles tasks with empty fix_applied"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = ""
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                mock_apply.assert_not_called()
+                assert result.errors_fixed == 0
+                assert result.errors_failed == 1
+
+    def test_run_refactor_handles_none_fix_applied(self):
+        """Test that run_refactor handles tasks with None fix_applied"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = None
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                assert result.errors_fixed == 0
+                assert result.errors_failed == 1
+
+    def test_run_refactor_handles_apply_failure(self):
+        """Test that run_refactor handles apply_fixes_batch failures correctly"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "const x = null ?? 'default';"
+                mock_apply.return_value = {
+                    'success_count': 0,
+                    'failure_count': 1,
+                    'applied': [],
+                    'failed': ['src/test.ts'],
+                    'backups': {},
+                    'task_results': {'task-0': False}
+                }
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                assert result.errors_fixed == 0
+                assert result.errors_failed == 1
+                assert result.tasks[0].status == "failed"
+                assert "Failed to apply" in result.tasks[0].error_message
+
+    def test_run_refactor_handles_partial_apply_success(self):
+        """Test that run_refactor handles partial apply success correctly"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test1.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error 1"
+                    ),
+                    TSError(
+                        file_path="src/test2.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error 2"
+                    )
+                ]
+                mock_generate.return_value = "fixed code"
+                mock_apply.return_value = {
+                    'success_count': 1,
+                    'failure_count': 1,
+                    'applied': ['src/test1.ts'],
+                    'failed': ['src/test2.ts'],
+                    'backups': {},
+                    'task_results': {'task-0': True, 'task-1': False}
+                }
+
+                result = agent.run_refactor(max_errors=2, dry_run=False)
+
+                assert result.errors_fixed == 1
+                assert result.errors_failed == 1
+
+    def test_run_refactor_handles_create_pr_failure(self):
+        """Test that run_refactor handles create_pr failure gracefully"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = True
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply, \
+                 patch.object(agent, 'create_pr') as mock_create_pr:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "const x = null ?? 'default';"
+                mock_apply.return_value = {
+                    'success_count': 1,
+                    'failure_count': 0,
+                    'applied': ['src/test.ts'],
+                    'failed': [],
+                    'backups': {},
+                    'task_results': {'task-0': True}
+                }
+                mock_create_pr.return_value = (None, None)
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                mock_create_pr.assert_called_once()
+                assert result.pr_url is None
+                assert result.errors_fixed == 1
+
+    def test_run_refactor_filters_whitespace_only_fixes(self):
+        """Test that run_refactor filters out whitespace-only fix_applied"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "   \n\t  "
+
+                result = agent.run_refactor(max_errors=1, dry_run=False)
+
+                mock_apply.assert_not_called()
+                assert result.errors_fixed == 0
+
+
+class TestApplyFixesBatchTaskResults:
+    """Tests for apply_fixes_batch task_results tracking (TS-3)"""
+
+    def test_apply_fixes_batch_returns_task_results(self):
+        """Test that apply_fixes_batch returns task_results dict"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text("line 1\nline 2\nline 3\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="test.ts",
+                        line=2,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            fixes = ["fixed line 2"]
+
+            results = agent.apply_fixes_batch(tasks, fixes)
+
+            assert 'task_results' in results
+            assert results['task_results']['task-001'] is True
+
+    def test_apply_fixes_batch_task_results_tracks_failures(self):
+        """Test that apply_fixes_batch tracks failures in task_results"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="nonexistent.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            fixes = ["fixed code"]
+
+            results = agent.apply_fixes_batch(tasks, fixes)
+
+            assert results['task_results']['task-001'] is False
+            assert results['failure_count'] == 1
+
+    def test_apply_fixes_batch_handles_none_fix(self):
+        """Test that apply_fixes_batch handles None fix correctly"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text("line 1\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            fixes = [None]
+
+            results = agent.apply_fixes_batch(tasks, fixes)
+
+            assert results['task_results']['task-001'] is False
+            assert results['failure_count'] == 1
+
+    def test_apply_fixes_batch_handles_empty_string_fix(self):
+        """Test that apply_fixes_batch handles empty string fix correctly"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "test.ts"
+            test_file.write_text("line 1\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            fixes = [""]
+
+            results = agent.apply_fixes_batch(tasks, fixes)
+
+            assert results['task_results']['task-001'] is False
+            assert results['failure_count'] == 1
+
+
+class TestCheckExistingRefactorPR:
+    """Tests for _check_existing_refactor_pr method (TS-3 follow-up)"""
+
+    def test_check_existing_refactor_pr_returns_none_when_no_repo(self):
+        """Test that _check_existing_refactor_pr returns None when GitHub unavailable"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_get_github_repo', return_value=None):
+                result = agent._check_existing_refactor_pr()
+                assert result is None
+
+    def test_check_existing_refactor_pr_finds_matching_pr_by_title(self):
+        """Test that _check_existing_refactor_pr finds PR with fix(ts): title and automated label"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label_automated = MagicMock()
+            mock_label_automated.name = "automated"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "fix(ts): Automated TS strict mode fixes (5 errors) - 2025-01-01"
+            mock_pr.number = 123
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.labels = [mock_label_automated]
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result == mock_pr
+                mock_repo.get_pulls.assert_called_once_with(state='open', base='main')
+
+    def test_check_existing_refactor_pr_requires_both_title_and_label(self):
+        """Test that _check_existing_refactor_pr requires BOTH fix(ts): title AND automated label"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label_automated = MagicMock()
+            mock_label_automated.name = "automated"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "some other title"
+            mock_pr.number = 456
+            mock_pr.html_url = "https://github.com/test/repo/pull/456"
+            mock_pr.labels = [mock_label_automated]
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result is None
+
+    def test_check_existing_refactor_pr_returns_none_when_no_match(self):
+        """Test that _check_existing_refactor_pr returns None when no matching PR"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label = MagicMock()
+            mock_label.name = "bug"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "fix: some bug"
+            mock_pr.labels = [mock_label]
+
+            mock_repo = MagicMock()
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result is None
+
+    def test_check_existing_refactor_pr_handles_exception(self):
+        """Test that _check_existing_refactor_pr handles exceptions gracefully"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_repo = MagicMock()
+            mock_repo.get_pulls.side_effect = Exception("API error")
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr()
+                assert result is None
+
+    def test_check_existing_refactor_pr_uses_custom_target_branch(self):
+        """Test that _check_existing_refactor_pr uses custom target branch when provided"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_label_automated = MagicMock()
+            mock_label_automated.name = "automated"
+
+            mock_pr = MagicMock()
+            mock_pr.title = "fix(ts): Automated TS strict mode fixes (3 errors) - 2025-01-01"
+            mock_pr.number = 789
+            mock_pr.html_url = "https://github.com/test/repo/pull/789"
+            mock_pr.labels = [mock_label_automated]
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.get_pulls.return_value = [mock_pr]
+
+            with patch.object(agent, '_get_github_repo', return_value=mock_repo):
+                result = agent._check_existing_refactor_pr(target_branch="develop")
+                assert result == mock_pr
+                mock_repo.get_pulls.assert_called_once_with(state='open', base='develop')
+
+
+class TestPreparePRBranch:
+    """Tests for _prepare_pr_branch method (TS-3 follow-up)"""
+
+    def test_prepare_pr_branch_success(self):
+        """Test that _prepare_pr_branch returns True on success"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=True), \
+                 patch.object(agent, '_commit_fixes', return_value=True), \
+                 patch.object(agent, '_push_branch', return_value=True):
+
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is True
+
+    def test_prepare_pr_branch_fails_on_branch_creation(self):
+        """Test that _prepare_pr_branch returns False when branch creation fails"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=False):
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is False
+
+    def test_prepare_pr_branch_fails_on_commit(self):
+        """Test that _prepare_pr_branch returns False and checkouts main on commit failure"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=True), \
+                 patch.object(agent, '_commit_fixes', return_value=False), \
+                 patch.object(agent, '_checkout_main', return_value=True) as mock_checkout:
+
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is False
+                mock_checkout.assert_called_once()
+
+    def test_prepare_pr_branch_fails_on_push(self):
+        """Test that _prepare_pr_branch returns False and checkouts main on push failure"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch.object(agent, '_create_refactor_branch', return_value=True), \
+                 patch.object(agent, '_commit_fixes', return_value=True), \
+                 patch.object(agent, '_push_branch', return_value=False), \
+                 patch.object(agent, '_checkout_main', return_value=True) as mock_checkout:
+
+                result = agent._prepare_pr_branch("test-branch", [], "Test title")
+                assert result is False
+                mock_checkout.assert_called_once()
+
+
+class TestSubmitPRToGitHub:
+    """Tests for _submit_pr_to_github method (TS-3 follow-up)"""
+
+    def test_submit_pr_to_github_success(self):
+        """Test that _submit_pr_to_github returns PR URL and number on success"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, ["refactor"]
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+            mock_repo.create_pull.assert_called_once_with(
+                title="Test title",
+                body="Test body",
+                head="test-branch",
+                base="main",
+                draft=False
+            )
+            mock_pr.add_to_labels.assert_called_once_with("refactor")
+
+    def test_submit_pr_to_github_with_draft(self):
+        """Test that _submit_pr_to_github creates draft PR when requested"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.create_pull.return_value = mock_pr
+
+            agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", True, []
+            )
+
+            mock_repo.create_pull.assert_called_once_with(
+                title="Test title",
+                body="Test body",
+                head="test-branch",
+                base="main",
+                draft=True
+            )
+
+    def test_submit_pr_to_github_handles_label_failure(self):
+        """Test that _submit_pr_to_github handles label addition failure gracefully"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+            mock_pr.add_to_labels.side_effect = Exception("Label error")
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, ["refactor"]
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+
+    def test_submit_pr_to_github_handles_create_failure(self):
+        """Test that _submit_pr_to_github returns None on PR creation failure"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_repo = MagicMock()
+            mock_repo.create_pull.side_effect = Exception("API error")
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, ["refactor"]
+            )
+
+            assert result == (None, None)
+
+    def test_submit_pr_to_github_no_labels(self):
+        """Test that _submit_pr_to_github works with empty labels list"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, []
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+            mock_pr.add_to_labels.assert_not_called()
+
+    def test_submit_pr_to_github_custom_base_branch(self):
+        """Test that _submit_pr_to_github uses custom base branch when provided"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            mock_pr = MagicMock()
+            mock_pr.html_url = "https://github.com/test/repo/pull/123"
+            mock_pr.number = 123
+
+            mock_repo = MagicMock()
+            mock_repo.default_branch = "main"
+            mock_repo.create_pull.return_value = mock_pr
+
+            result = agent._submit_pr_to_github(
+                mock_repo, "test-branch", "Test title", "Test body", False, [],
+                base_branch="develop"
+            )
+
+            assert result == ("https://github.com/test/repo/pull/123", 123)
+            mock_repo.create_pull.assert_called_once_with(
+                title="Test title",
+                body="Test body",
+                head="test-branch",
+                base="develop",
+                draft=False
+            )
+
+
+class TestCreatePRWithExistingPRCheck:
+    """Tests for create_pr with existing PR check (TS-3 follow-up)"""
+
+    def test_create_pr_skips_when_existing_pr_found(self):
+        """Test that create_pr skips creation when existing open PR found"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = True
+
+            mock_existing_pr = MagicMock()
+            mock_existing_pr.number = 999
+            mock_existing_pr.html_url = "https://github.com/test/repo/pull/999"
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            result = RefactorResult(
+                run_id="test-run",
+                started_at=0.0,
+                total_errors_found=1,
+                errors_fixed=1,
+                errors_failed=0,
+                tasks=tasks
+            )
+
+            with patch.object(agent, '_check_existing_refactor_pr', return_value=mock_existing_pr):
+                pr_url, pr_number = agent.create_pr(result, tasks)
+
+                assert pr_url is None
+                assert pr_number is None
+
+    def test_create_pr_proceeds_when_no_existing_pr(self):
+        """Test that create_pr proceeds when no existing open PR found"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = True
+
+            tasks = [
+                RefactorTask(
+                    task_id="task-001",
+                    error=TSError(
+                        file_path="test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Error"
+                    ),
+                    fix_strategy="null_check",
+                    estimated_risk=RefactorRisk.LOW,
+                    status="completed"
+                )
+            ]
+            result = RefactorResult(
+                run_id="test-run",
+                started_at=0.0,
+                total_errors_found=1,
+                errors_fixed=1,
+                errors_failed=0,
+                tasks=tasks
+            )
+
+            with patch.object(agent, '_check_existing_refactor_pr', return_value=None), \
+                 patch.object(agent, '_prepare_pr_branch', return_value=True), \
+                 patch.object(agent, '_get_github_repo') as mock_get_repo, \
+                 patch.object(agent, '_submit_pr_to_github', return_value=("https://github.com/test/pr/1", 1)), \
+                 patch.object(agent, '_checkout_main', return_value=True):
+
+                mock_repo = MagicMock()
+                mock_get_repo.return_value = mock_repo
+
+                pr_url, pr_number = agent.create_pr(result, tasks)
+
+                assert pr_url == "https://github.com/test/pr/1"
+                assert pr_number == 1
