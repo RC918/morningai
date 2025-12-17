@@ -23,7 +23,10 @@ These integration tests verify:
 ## Running Tests Locally
 
 ```bash
-cd ~/repos/morningai && source .venv/bin/activate && \
+# Set REPO_ROOT to your local morningai repository path
+REPO_ROOT=/path/to/morningai
+
+cd "$REPO_ROOT" && source .venv/bin/activate && \
 export PYTHONPATH="$PWD/handoff/20250928/40_App/orchestrator:$PWD/handoff/20250928/40_App/api-backend/src:$PWD:$PYTHONPATH" && \
 pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/ -v
 ```

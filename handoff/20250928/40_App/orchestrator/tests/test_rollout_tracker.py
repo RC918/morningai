@@ -949,13 +949,14 @@ class TestCircuitBreakerPublicAPI:
 class TestCircuitBreakerBlackBox:
     """Black-box tests for circuit breaker using only public API (Issue #2647).
 
-    These tests verify circuit breaker behavior without using internal methods like
-    _update_circuit_breaker_failure(), _update_circuit_breaker_success(), or _set_circuit_state().
-
-    Instead, they use:
+    These tests verify circuit breaker behavior without directly setting internal state.
+    State transitions are driven entirely through public API methods:
     - record_langgraph_task(success=False) to drive failure count increases
     - record_langgraph_task(success=True) to drive success count increases
     - get_circuit_breaker_state() and check_circuit_breaker() to verify results
+
+    Time-based transitions (OPEN -> HALF_OPEN) use datetime patching to simulate
+    cooldown expiration without accessing internal state.
     """
 
     @pytest.fixture
@@ -973,12 +974,53 @@ class TestCircuitBreakerBlackBox:
         """Create RolloutTracker with mock Redis"""
         return RolloutTracker(redis_client=mock_redis, enabled=True)
 
-    def test_circuit_breaker_opens_after_threshold_failures_black_box(self, tracker):
-        """Test circuit breaker opens after threshold failures - black box approach.
+    @pytest.fixture
+    def open_tracker(self, tracker):
+        """Create a tracker in OPEN state via public API (failures).
 
-        Uses record_langgraph_task(success=False) to drive failures instead of
-        calling _update_circuit_breaker_failure() directly.
+        This fixture drives the circuit breaker to OPEN state by recording
+        enough failures through the public API.
         """
+        for i in range(tracker.circuit_failure_threshold):
+            tracker.record_langgraph_task(trace_id=f"open-{i}", success=False)
+        assert tracker.get_circuit_breaker_state().state == CircuitState.OPEN
+        return tracker
+
+    @pytest.fixture
+    def half_open_tracker(self, open_tracker, monkeypatch):
+        """Create a tracker in HALF_OPEN state via public API + time patching.
+
+        This fixture:
+        1. Starts with an OPEN tracker (from open_tracker fixture)
+        2. Patches datetime.now to simulate cooldown expiration
+        3. Calls check_circuit_breaker() to trigger OPEN -> HALF_OPEN transition
+        """
+        import rollout_tracker as rt_module
+
+        cooldown_seconds = open_tracker.circuit_cooldown_seconds
+        future_time = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds + 1)
+
+        original_datetime = rt_module.datetime
+
+        class MockDatetime:
+            @staticmethod
+            def now(tz=None):
+                return future_time
+
+            @staticmethod
+            def fromisoformat(date_string):
+                return original_datetime.fromisoformat(date_string)
+
+        monkeypatch.setattr(rt_module, "datetime", MockDatetime)
+
+        result = open_tracker.check_circuit_breaker()
+        assert result is True
+        assert open_tracker.get_circuit_breaker_state().state == CircuitState.HALF_OPEN
+
+        return open_tracker
+
+    def test_circuit_breaker_opens_after_threshold_failures_black_box(self, tracker):
+        """Test circuit breaker opens after threshold failures - black box approach."""
         initial_state = tracker.get_circuit_breaker_state()
         assert initial_state.state == CircuitState.CLOSED
 
@@ -1009,38 +1051,32 @@ class TestCircuitBreakerBlackBox:
         state = tracker.get_circuit_breaker_state()
         assert state.failure_count == 0
 
-    def test_circuit_breaker_closes_after_recovery_black_box(self, tracker):
+    def test_circuit_breaker_closes_after_recovery_black_box(self, half_open_tracker):
         """Test circuit breaker closes after recovery in half-open - black box approach.
 
-        This test manually sets half-open state (unavoidable for testing recovery),
-        then uses record_langgraph_task(success=True) to drive recovery.
+        Uses half_open_tracker fixture which reaches HALF_OPEN via public API + time patching.
         """
-        tracker._circuit_breaker.state = CircuitState.HALF_OPEN
-        tracker._circuit_breaker.success_count_since_half_open = 0
+        for i in range(half_open_tracker.circuit_success_threshold):
+            half_open_tracker.record_langgraph_task(trace_id=f"recovery-{i}", success=True)
 
-        for i in range(tracker.circuit_success_threshold):
-            tracker.record_langgraph_task(trace_id=f"recovery-{i}", success=True)
-
-        state = tracker.get_circuit_breaker_state()
+        state = half_open_tracker.get_circuit_breaker_state()
         assert state.state == CircuitState.CLOSED
 
-    def test_circuit_breaker_tracks_success_count_in_half_open_black_box(self, tracker):
+    def test_circuit_breaker_tracks_success_count_in_half_open_black_box(self, half_open_tracker):
         """Test success count tracking in half-open state - black box approach."""
-        tracker._circuit_breaker.state = CircuitState.HALF_OPEN
-        tracker._circuit_breaker.success_count_since_half_open = 0
+        initial_state = half_open_tracker.get_circuit_breaker_state()
+        initial_count = initial_state.success_count_since_half_open
 
-        tracker.record_langgraph_task(trace_id="test-1", success=True)
+        half_open_tracker.record_langgraph_task(trace_id="test-1", success=True)
 
-        state = tracker.get_circuit_breaker_state()
-        assert state.success_count_since_half_open == 1
+        state = half_open_tracker.get_circuit_breaker_state()
+        assert state.success_count_since_half_open == initial_count + 1
 
-    def test_circuit_breaker_reopens_on_failure_in_half_open_black_box(self, tracker):
+    def test_circuit_breaker_reopens_on_failure_in_half_open_black_box(self, half_open_tracker):
         """Test circuit breaker reopens on failure in half-open - black box approach."""
-        tracker._circuit_breaker.state = CircuitState.HALF_OPEN
+        half_open_tracker.record_langgraph_task(trace_id="test-fail", success=False)
 
-        tracker.record_langgraph_task(trace_id="test-fail", success=False)
-
-        state = tracker.get_circuit_breaker_state()
+        state = half_open_tracker.get_circuit_breaker_state()
         assert state.state == CircuitState.OPEN
 
     def test_check_circuit_breaker_allows_when_closed_black_box(self, tracker):
@@ -1050,22 +1086,21 @@ class TestCircuitBreakerBlackBox:
 
         assert tracker.check_circuit_breaker() is True
 
-    def test_check_circuit_breaker_blocks_when_open_black_box(self, tracker):
+    def test_check_circuit_breaker_blocks_when_open_black_box(self, open_tracker):
         """Test check_circuit_breaker blocks traffic when open - black box approach."""
-        for i in range(tracker.circuit_failure_threshold):
-            tracker.record_langgraph_task(trace_id=f"test-{i}", success=False)
-
-        state = tracker.get_circuit_breaker_state()
+        state = open_tracker.get_circuit_breaker_state()
         assert state.state == CircuitState.OPEN
 
-        assert tracker.check_circuit_breaker() is False
+        assert open_tracker.check_circuit_breaker() is False
 
-    def test_full_circuit_breaker_lifecycle_black_box(self, tracker):
+    def test_full_circuit_breaker_lifecycle_black_box(self, tracker, monkeypatch):
         """Test full circuit breaker lifecycle: closed -> open -> half-open -> closed.
 
         This is an end-to-end black-box test that verifies the complete lifecycle
-        using only public API methods where possible.
+        using only public API methods and time patching for cooldown simulation.
         """
+        import rollout_tracker as rt_module
+
         assert tracker.get_circuit_breaker_state().state == CircuitState.CLOSED
         assert tracker.check_circuit_breaker() is True
 
@@ -1075,8 +1110,21 @@ class TestCircuitBreakerBlackBox:
         assert tracker.get_circuit_breaker_state().state == CircuitState.OPEN
         assert tracker.check_circuit_breaker() is False
 
-        past_time = datetime.now(timezone.utc) - timedelta(minutes=10)
-        tracker._circuit_breaker.cooldown_until = past_time.isoformat()
+        cooldown_seconds = tracker.circuit_cooldown_seconds
+        future_time = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds + 1)
+
+        original_datetime = rt_module.datetime
+
+        class MockDatetime:
+            @staticmethod
+            def now(tz=None):
+                return future_time
+
+            @staticmethod
+            def fromisoformat(date_string):
+                return original_datetime.fromisoformat(date_string)
+
+        monkeypatch.setattr(rt_module, "datetime", MockDatetime)
 
         assert tracker.check_circuit_breaker() is True
         assert tracker.get_circuit_breaker_state().state == CircuitState.HALF_OPEN
