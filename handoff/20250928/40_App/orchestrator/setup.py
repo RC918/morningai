@@ -11,7 +11,7 @@ setup(
         "langgraph>=0.2.4",
         "PyGithub==2.4.0",
         "supabase==2.6.0",
-        "openai>=1.55.0,<2.0.0",  # httpx 0.28+ compatibility
+        "openai>=1.55.0,<3.0.0",  # httpx 0.28+ compatibility
         "requests==2.32.5",
         "sentry-sdk==2.48.0",
         "redis",
