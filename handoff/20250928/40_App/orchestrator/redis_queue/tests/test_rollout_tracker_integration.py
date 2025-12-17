@@ -96,8 +96,7 @@ class TestRolloutTrackerFeatureFlag:
         from common.config.settings import Settings
 
         settings = Settings()
-        rollout_tracker_enabled = getattr(settings, "rollout_tracker_enabled", True)
-        assert rollout_tracker_enabled is True
+        assert settings.rollout_tracker_enabled is True
 
     def test_rollout_tracker_can_be_disabled(self):
         """Test that rollout_tracker_enabled can be disabled via environment."""
@@ -106,5 +105,4 @@ class TestRolloutTrackerFeatureFlag:
             from common.config.settings import Settings
 
             settings = Settings()
-            rollout_tracker_enabled = getattr(settings, "rollout_tracker_enabled", True)
-            assert rollout_tracker_enabled in [True, False]
+            assert settings.rollout_tracker_enabled in [True, False]

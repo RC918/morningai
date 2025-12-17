@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 218
+- **Total Variables**: 219
 - **Required**: 21
-- **Optional**: 197
+- **Optional**: 198
 - **Last Updated**: 2025-12-07
 
 ## Security Levels
@@ -32,7 +32,7 @@
 - [Integration](#integration) (15 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
-- [Feature Flags](#feature-flags) (58 variables)
+- [Feature Flags](#feature-flags) (59 variables)
 - [Orchestrator](#orchestrator) (6 variables)
 - [Frontend](#frontend) (6 variables)
 - [Testing](#testing) (16 variables)
@@ -1603,6 +1603,7 @@ Application logging level
 | `USE_LANGGRAPH` | boolean | No | false | PUBLIC |
 | `USE_LANGGRAPH_PERCENT` | integer | No | 0 (development=0, production=0, staging=15) | PUBLIC |
 | `USE_LANGGRAPH_FOR_FAQ` | boolean | No | false | PUBLIC |
+| `ROLLOUT_TRACKER_ENABLED` | boolean | No | true | PUBLIC |
 | `USE_LLM_PLANNER` | boolean | No | false | PUBLIC |
 | `USE_CODE_GENERATION` | boolean | No | false | PUBLIC |
 | `USE_CODEGEN_WORKFLOW_PERCENT` | integer | No | 0 | PUBLIC |
@@ -1854,6 +1855,22 @@ Enable LangGraph mode for FAQ tasks (default false to preserve low latency)
 > FAQ tasks bypass LangGraph by default due to latency requirements.
 > Set to true to experiment with LangGraph for FAQ generation.
 > Only effective when USE_LANGGRAPH=true or USE_LANGGRAPH_PERCENT>0.
+
+#### `ROLLOUT_TRACKER_ENABLED`
+
+Enable RolloutTracker for LangGraph rollout monitoring
+
+- **Type**: boolean
+- **Required**: No
+- **Default**: `true`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Controls whether RolloutTracker is enabled for monitoring LangGraph rollout progress.
+> - true (default): RolloutTracker records metrics, evaluates SLOs, and manages circuit breaker
+> - false: RolloutTracker is disabled, no metrics are recorded
+> Set to false to disable rollout monitoring without code changes.
+> Related: Issue #2285, #2214 (LangGraph 100% Rollout)
 
 #### `USE_LLM_PLANNER`
 
