@@ -24,6 +24,8 @@ try:
 except ImportError:
     redis = None
 
+from orchestrator_metrics import LATENCY_BUCKETS_MS
+
 logger = logging.getLogger(__name__)
 
 
@@ -452,12 +454,14 @@ class RolloutTracker:
             logger.warning(f"[RolloutTracker] Failed to record Simple task: {e}")
 
     def _record_latency(self, mode: str, latency_ms: float) -> None:
-        """Record latency in histogram buckets"""
-        buckets = [100, 500, 1000, 2000, 5000, 10000, 30000]
-
+        """Record latency in histogram buckets
+        
+        Uses LATENCY_BUCKETS_MS from orchestrator_metrics for consistency
+        across all metrics collection (Issue #2282).
+        """
         try:
             target_bucket = None
-            for bucket in buckets:
+            for bucket in LATENCY_BUCKETS_MS:
                 if latency_ms <= bucket:
                     target_bucket = bucket
                     break
@@ -526,7 +530,7 @@ class RolloutTracker:
                 )
 
     def _set_circuit_state(self, state: CircuitState) -> None:
-        """Set circuit breaker state"""
+        """Set circuit breaker state and persist to Redis for multi-worker sync (Issue #2281)"""
         self._circuit_breaker.state = state
         self._circuit_breaker.last_state_change = datetime.now(timezone.utc).isoformat()
 
@@ -539,13 +543,134 @@ class RolloutTracker:
             self._circuit_breaker.failure_count = 0
             self._circuit_breaker.cooldown_until = None
 
+        # Persist to Redis for multi-worker synchronization
+        self._save_circuit_state_to_redis()
+
+    def _get_circuit_state_redis_key(self) -> str:
+        """Get Redis key for circuit breaker state"""
+        return f"{self.key_prefix}:circuit_breaker"
+
+    def _save_circuit_state_to_redis(self) -> None:
+        """
+        Save circuit breaker state to Redis for multi-worker synchronization (Issue #2281)
+        
+        This ensures all workers share the same circuit breaker state, preventing
+        scenarios where one worker trips the circuit but others continue sending
+        traffic to LangGraph.
+        """
+        if not self.enabled:
+            return
+
+        try:
+            key = self._get_circuit_state_redis_key()
+            state_data = {
+                "state": self._circuit_breaker.state.value,
+                "last_state_change": self._circuit_breaker.last_state_change,
+                "failure_count": self._circuit_breaker.failure_count,
+                "success_count_since_half_open": self._circuit_breaker.success_count_since_half_open,
+                "last_failure_reason": self._circuit_breaker.last_failure_reason,
+                "cooldown_until": self._circuit_breaker.cooldown_until
+            }
+            # 24-hour TTL for circuit breaker state
+            self.redis.setex(key, 86400, json.dumps(state_data))
+            logger.debug(f"[RolloutTracker] Saved circuit state to Redis: {state_data['state']}")
+        except Exception as e:
+            logger.warning(f"[RolloutTracker] Failed to save circuit state to Redis: {e}")
+
+    def _get_circuit_state_from_redis(self) -> Optional[CircuitBreakerState]:
+        """
+        Get circuit breaker state from Redis for multi-worker synchronization (Issue #2281)
+        
+        Returns:
+            CircuitBreakerState if found in Redis, None otherwise
+        """
+        if not self.enabled:
+            return None
+
+        try:
+            key = self._get_circuit_state_redis_key()
+            data = self.redis.get(key)
+            if data is None:
+                return None
+
+            state_data = json.loads(data)
+            return CircuitBreakerState(
+                state=CircuitState(state_data["state"]),
+                last_state_change=state_data.get("last_state_change", ""),
+                failure_count=state_data.get("failure_count", 0),
+                success_count_since_half_open=state_data.get("success_count_since_half_open", 0),
+                last_failure_reason=state_data.get("last_failure_reason", ""),
+                cooldown_until=state_data.get("cooldown_until")
+            )
+        except Exception as e:
+            logger.warning(f"[RolloutTracker] Failed to get circuit state from Redis: {e}")
+            return None
+
+    def _parse_iso_timestamp(self, ts: str) -> Optional[datetime]:
+        """
+        Safely parse ISO timestamp string to datetime.
+        
+        Handles both 'Z' suffix and '+00:00' timezone formats.
+        Returns None if parsing fails.
+        """
+        if not ts:
+            return None
+        try:
+            # Handle 'Z' suffix by replacing with '+00:00'
+            normalized = ts.replace('Z', '+00:00')
+            return datetime.fromisoformat(normalized)
+        except (ValueError, AttributeError):
+            logger.warning(f"[RolloutTracker] Failed to parse timestamp: {ts}")
+            return None
+
+    def _is_timestamp_newer(self, ts1: str, ts2: str) -> bool:
+        """
+        Compare two ISO timestamp strings, returning True if ts1 is newer than ts2.
+        
+        Falls back to string comparison if parsing fails (maintains backward compatibility).
+        """
+        dt1 = self._parse_iso_timestamp(ts1)
+        dt2 = self._parse_iso_timestamp(ts2)
+        
+        if dt1 is not None and dt2 is not None:
+            return dt1 > dt2
+        # Fallback to string comparison if parsing fails
+        return ts1 > ts2
+
+    def _sync_circuit_state_from_redis(self) -> None:
+        """
+        Sync local circuit breaker state from Redis (Issue #2281)
+        
+        Called before checking circuit breaker to ensure this worker has
+        the latest state from other workers.
+        """
+        redis_state = self._get_circuit_state_from_redis()
+        if redis_state is not None:
+            # Only update if Redis state is newer or more restrictive
+            is_redis_open = redis_state.state == CircuitState.OPEN
+            is_local_not_open = self._circuit_breaker.state != CircuitState.OPEN
+            if is_redis_open and is_local_not_open:
+                self._circuit_breaker = redis_state
+                logger.info("[RolloutTracker] Synced OPEN circuit state from Redis")
+            elif self._is_timestamp_newer(
+                redis_state.last_state_change,
+                self._circuit_breaker.last_state_change
+            ):
+                self._circuit_breaker = redis_state
+                logger.debug("[RolloutTracker] Synced circuit state from Redis")
+
     def check_circuit_breaker(self) -> bool:
         """
         Check if LangGraph should be allowed
+        
+        Syncs state from Redis first to ensure multi-worker consistency (Issue #2281).
 
         Returns:
             True if LangGraph is allowed, False if circuit is open
         """
+        # Sync from Redis to get latest state from other workers
+        self._sync_circuit_state_from_redis()
+
         if self._circuit_breaker.state == CircuitState.CLOSED:
             return True
 
@@ -601,15 +726,17 @@ class RolloutTracker:
         )
 
     def _get_latency_percentiles(self, mode: str, window_minutes: int = 15) -> Dict[str, Optional[float]]:
-        """Calculate latency percentiles from histogram buckets"""
+        """Calculate latency percentiles from histogram buckets
+        
+        Uses LATENCY_BUCKETS_MS from orchestrator_metrics for consistency
+        across all metrics collection (Issue #2282).
+        """
         if not self.enabled:
             return {"p50": None, "p95": None, "p99": None}
 
-        buckets = [100, 500, 1000, 2000, 5000, 10000, 30000]
-
         try:
             bucket_counts = {}
-            for bucket in buckets:
+            for bucket in LATENCY_BUCKETS_MS:
                 count = self._get_window_count(f"{mode}.latency_bucket_{bucket}", window_minutes)
                 bucket_counts[bucket] = count
 
@@ -624,7 +751,7 @@ class RolloutTracker:
             target_idx = 0
             cumulative = 0
 
-            for bucket in sorted(buckets):
+            for bucket in sorted(LATENCY_BUCKETS_MS):
                 cumulative += bucket_counts[bucket]
                 cumulative_pct = (cumulative / total) * 100.0
 

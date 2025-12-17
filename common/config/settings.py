@@ -1112,6 +1112,12 @@ class Settings(BaseSettings):
         description="Enable LangGraph mode for FAQ tasks (default false to preserve low latency)"
     )
 
+    rollout_tracker_enabled: bool = Field(
+        default=True,
+        alias="ROLLOUT_TRACKER_ENABLED",
+        description="Enable RolloutTracker for LangGraph rollout monitoring (Issue #2285)"
+    )
+
     use_llm_planner: bool = Field(
         default=False,
         alias="USE_LLM_PLANNER",

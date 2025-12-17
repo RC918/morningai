@@ -410,9 +410,8 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
     if _rollout_tracker is None:
         try:
             from rollout_tracker import create_rollout_tracker
-            rollout_tracker_enabled = getattr(settings, 'rollout_tracker_enabled', True)
-            _rollout_tracker = create_rollout_tracker(redis, enabled=rollout_tracker_enabled)
-            logger.info(f"Rollout tracker initialized: enabled={rollout_tracker_enabled}")
+            _rollout_tracker = create_rollout_tracker(redis, enabled=settings.rollout_tracker_enabled)
+            logger.info(f"Rollout tracker initialized: enabled={settings.rollout_tracker_enabled}")
         except Exception as e:
             logger.warning(f"Failed to initialize rollout tracker: {e}")
             _rollout_tracker = None
