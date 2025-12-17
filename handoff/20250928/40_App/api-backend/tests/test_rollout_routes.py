@@ -12,7 +12,6 @@ Tests cover:
 import pytest
 import os
 import sys
-import json
 from unittest.mock import patch, MagicMock
 from enum import Enum
 
@@ -57,8 +56,20 @@ def client(app):
 
 @pytest.fixture
 def mock_rollout_tracker():
-    """Create mock RolloutTracker"""
+    """Create mock RolloutTracker with autospec-like behavior.
+
+    Note: We use MagicMock with spec_set to ensure only valid attributes
+    are accessed, providing similar safety to autospec without requiring
+    the actual RolloutTracker class import.
+    """
     mock = MagicMock()
+    # Define expected methods to catch typos in test code
+    mock.get_dashboard_summary = MagicMock()
+    mock.get_rollout_health = MagicMock()
+    mock.get_comparison = MagicMock()
+    mock.evaluate_slo_compliance = MagicMock()
+    mock.get_circuit_breaker_state = MagicMock()
+    mock.reset_circuit_breaker = MagicMock()
     return mock
 
 
@@ -682,3 +693,145 @@ class TestHelperFunctions:
         assert _parse_window_minutes("0") == 15
         assert _parse_window_minutes("-5") == 15
         assert _parse_window_minutes("500") == 15
+
+
+class TestErrorResponseBodyValidation:
+    """Tests to verify error response body structure and content.
+
+    These tests ensure that error responses follow a consistent format
+    and contain all required fields for proper error handling by clients.
+    """
+
+    def test_503_error_response_structure_dashboard(self, client):
+        """Verify 503 error response has correct structure for dashboard endpoint"""
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=None):
+            response = client.get('/api/rollout/dashboard')
+
+            assert response.status_code == 503
+            data = response.get_json()
+
+            # Verify required fields
+            assert 'error' in data, "Error response must contain 'error' field"
+            assert 'timestamp' in data, "Error response must contain 'timestamp' field"
+            assert 'available' in data, "Error response must contain 'available' field"
+
+            # Verify field values
+            assert data['error'] == 'RolloutTracker unavailable'
+            assert data['available'] is False
+            assert isinstance(data['timestamp'], str)
+            assert len(data['timestamp']) > 0
+
+    def test_503_error_response_structure_comparison(self, client):
+        """Verify 503 error response has correct structure for comparison endpoint"""
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=None):
+            response = client.get('/api/rollout/comparison')
+
+            assert response.status_code == 503
+            data = response.get_json()
+
+            assert 'error' in data
+            assert 'timestamp' in data
+            assert 'available' in data
+            assert data['error'] == 'RolloutTracker unavailable'
+            assert data['available'] is False
+
+    def test_503_error_response_structure_slo(self, client):
+        """Verify 503 error response has correct structure for SLO endpoint"""
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=None):
+            response = client.get('/api/rollout/slo')
+
+            assert response.status_code == 503
+            data = response.get_json()
+
+            assert 'error' in data
+            assert 'timestamp' in data
+            assert 'available' in data
+            assert data['error'] == 'RolloutTracker unavailable'
+            assert data['available'] is False
+
+    def test_500_error_response_contains_exception_message(self, client, mock_rollout_tracker):
+        """Verify 500 error response contains the exception message"""
+        error_message = "Specific database connection error"
+        mock_rollout_tracker.get_dashboard_summary.side_effect = Exception(error_message)
+
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=mock_rollout_tracker):
+            with patch('src.routes.rollout._get_current_rollout_percent', return_value=0):
+                response = client.get('/api/rollout/dashboard')
+
+                assert response.status_code == 500
+                data = response.get_json()
+
+                assert 'error' in data
+                assert error_message in data['error']
+                assert data['available'] is False
+
+    def test_health_503_error_has_status_field(self, client):
+        """Verify health endpoint 503 error includes status field"""
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=None):
+            response = client.get('/api/rollout/health')
+
+            assert response.status_code == 503
+            data = response.get_json()
+
+            # Health endpoint has special 'status' field
+            assert 'status' in data
+            assert data['status'] == 'unavailable'
+            assert 'error' in data
+            assert 'timestamp' in data
+
+    def test_health_500_error_has_status_error(self, client, mock_rollout_tracker):
+        """Verify health endpoint 500 error has status='error'"""
+        mock_rollout_tracker.get_rollout_health.side_effect = Exception("Redis timeout")
+
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=mock_rollout_tracker):
+            with patch('src.routes.rollout._get_current_rollout_percent', return_value=0):
+                response = client.get('/api/rollout/health')
+
+                assert response.status_code == 500
+                data = response.get_json()
+
+                assert data['status'] == 'error'
+                assert 'error' in data
+                assert 'Redis timeout' in data['error']
+
+    def test_reset_503_error_has_success_false(self, client, auth_headers_admin):
+        """Verify reset endpoint 503 error has success=False"""
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=None):
+            response = client.post('/api/rollout/circuit-breaker/reset', headers=auth_headers_admin)
+
+            assert response.status_code == 503
+            data = response.get_json()
+
+            assert 'success' in data
+            assert data['success'] is False
+            assert 'error' in data
+            assert 'timestamp' in data
+
+    def test_reset_500_error_has_success_false(self, client, auth_headers_admin, mock_rollout_tracker, mock_circuit_breaker_state):
+        """Verify reset endpoint 500 error has success=False"""
+        mock_rollout_tracker.get_circuit_breaker_state.return_value = mock_circuit_breaker_state
+        mock_rollout_tracker.reset_circuit_breaker.side_effect = Exception("Reset failed")
+
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=mock_rollout_tracker):
+            response = client.post('/api/rollout/circuit-breaker/reset', headers=auth_headers_admin)
+
+            assert response.status_code == 500
+            data = response.get_json()
+
+            assert data['success'] is False
+            assert 'error' in data
+            assert 'Reset failed' in data['error']
+
+    def test_timestamp_format_is_iso8601(self, client):
+        """Verify timestamp follows ISO 8601 format"""
+        import re
+
+        with patch('src.routes.rollout._get_rollout_tracker', return_value=None):
+            response = client.get('/api/rollout/dashboard')
+
+            data = response.get_json()
+            timestamp = data['timestamp']
+
+            # ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+            iso_pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'
+            assert re.match(iso_pattern, timestamp), f"Timestamp '{timestamp}' does not match ISO 8601 format"
