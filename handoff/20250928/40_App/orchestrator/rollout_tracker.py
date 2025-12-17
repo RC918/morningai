@@ -606,6 +606,37 @@ class RolloutTracker:
             logger.warning(f"[RolloutTracker] Failed to get circuit state from Redis: {e}")
             return None
 
+    def _parse_iso_timestamp(self, ts: str) -> Optional[datetime]:
+        """
+        Safely parse ISO timestamp string to datetime.
+        
+        Handles both 'Z' suffix and '+00:00' timezone formats.
+        Returns None if parsing fails.
+        """
+        if not ts:
+            return None
+        try:
+            # Handle 'Z' suffix by replacing with '+00:00'
+            normalized = ts.replace('Z', '+00:00')
+            return datetime.fromisoformat(normalized)
+        except (ValueError, AttributeError):
+            logger.warning(f"[RolloutTracker] Failed to parse timestamp: {ts}")
+            return None
+
+    def _is_timestamp_newer(self, ts1: str, ts2: str) -> bool:
+        """
+        Compare two ISO timestamp strings, returning True if ts1 is newer than ts2.
+        
+        Falls back to string comparison if parsing fails (maintains backward compatibility).
+        """
+        dt1 = self._parse_iso_timestamp(ts1)
+        dt2 = self._parse_iso_timestamp(ts2)
+        
+        if dt1 is not None and dt2 is not None:
+            return dt1 > dt2
+        # Fallback to string comparison if parsing fails
+        return ts1 > ts2
+
     def _sync_circuit_state_from_redis(self) -> None:
         """
         Sync local circuit breaker state from Redis (Issue #2281)
@@ -616,11 +647,15 @@ class RolloutTracker:
         redis_state = self._get_circuit_state_from_redis()
         if redis_state is not None:
             # Only update if Redis state is newer or more restrictive
-            if (redis_state.state == CircuitState.OPEN and 
-                self._circuit_breaker.state != CircuitState.OPEN):
+            is_redis_open = redis_state.state == CircuitState.OPEN
+            is_local_not_open = self._circuit_breaker.state != CircuitState.OPEN
+            if is_redis_open and is_local_not_open:
                 self._circuit_breaker = redis_state
                 logger.info("[RolloutTracker] Synced OPEN circuit state from Redis")
-            elif redis_state.last_state_change > self._circuit_breaker.last_state_change:
+            elif self._is_timestamp_newer(
+                redis_state.last_state_change,
+                self._circuit_breaker.last_state_change
+            ):
                 self._circuit_breaker = redis_state
                 logger.debug("[RolloutTracker] Synced circuit state from Redis")
 

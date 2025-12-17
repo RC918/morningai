@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from flask import Blueprint, jsonify, request
+from middleware.auth_middleware import admin_required
 
 DEFAULT_WINDOW_MINUTES = 15
 MIN_WINDOW_MINUTES = 1
@@ -214,6 +215,7 @@ def get_rollout_health():
 
 
 @rollout_bp.route('/rollout/circuit-breaker/reset', methods=['POST'])
+@admin_required
 def reset_circuit_breaker():
     """
     Manually reset the circuit breaker to closed state.
@@ -258,6 +260,9 @@ def reset_circuit_breaker():
         reason = "Manual reset via API"
         if request.is_json and request.json:
             reason = request.json.get("reason", reason)
+            # Limit reason length to prevent log pollution
+            if len(reason) > 500:
+                reason = reason[:500] + "..."
 
         tracker.reset_circuit_breaker()
 
