@@ -4,7 +4,7 @@ redis>=5.2.0,<6.0.0
 rq==1.16.2
 supabase==2.11.0
 # openai>=1.55.0 required for httpx>=0.28 compatibility (fixes 'proxies' kwarg error)
-openai>=1.55.0,<2.0.0
+openai>=1.55.0,<3.0.0
 google-genai==1.52.0
 requests==2.32.4
 sentry-sdk==2.19.2
