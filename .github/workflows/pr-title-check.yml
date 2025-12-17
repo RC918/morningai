@@ -21,6 +21,7 @@ jobs:
             refactor
             docs
             test
+            ci
             bot
             deps
             chore
@@ -39,6 +40,7 @@ jobs:
             - refactor: Code refactoring (no behavior change)
             - docs:     Documentation updates
             - test:     Test-related changes
+            - ci:       CI/CD changes
             - bot:      Automated/bot PRs
             - deps:     Dependency updates
             - chore:    Miscellaneous maintenance
@@ -74,6 +76,7 @@ jobs:
               '| `refactor:` | Code refactoring | `refactor: extract auth service` |',
               '| `docs:` | Documentation | `docs: update API documentation` |',
               '| `test:` | Test changes | `test: add unit tests for auth` |',
+              '| `ci:` | CI/CD changes | `ci: update GitHub Actions workflow` |',
               '| `bot:` | Automated PRs | `bot: update dependencies` |',
               '| `deps:` | Dependency updates | `deps: bump react to 19.0.0` |',
               '| `chore:` | Maintenance | `chore: update CI config` |',

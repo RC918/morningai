@@ -25,6 +25,7 @@ Or with optional scope:
 | `refactor:` | Code refactoring (no behavior change) | `refactor: extract auth service` |
 | `docs:` | Documentation updates | `docs: update API documentation` |
 | `test:` | Test-related changes | `test: add unit tests for auth` |
+| `ci:` | CI/CD changes | `ci: update GitHub Actions workflow` |
 | `bot:` | Automated/bot PRs | `bot: update dependencies` |
 | `deps:` | Dependency updates | `deps: bump react to 19.0.0` |
 | `chore:` | Miscellaneous maintenance | `chore: update CI config` |
@@ -39,6 +40,7 @@ Good PR titles:
 - `refactor: extract common validation logic`
 - `docs: update deployment guide`
 - `test: add integration tests for payment module`
+- `ci: add PR title validation workflow`
 - `deps: upgrade TypeScript to 5.3`
 - `chore: configure ESLint rules`
 - `style: apply prettier formatting`
