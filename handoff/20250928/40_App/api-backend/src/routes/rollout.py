@@ -85,6 +85,43 @@ def _get_current_rollout_percent() -> int:
         return 0
 
 
+def _get_tracker_or_503():
+    """Get RolloutTracker or return 503 error response.
+
+    Returns:
+        Tuple of (tracker, None) if successful, or (None, error_response) if unavailable.
+
+    Usage:
+        tracker, error = _get_tracker_or_503()
+        if error:
+            return error
+    """
+    tracker = _get_rollout_tracker()
+    if tracker is None:
+        return None, _json_error("RolloutTracker unavailable", status=503)
+    return tracker, None
+
+
+def _json_error(message: str, status: int = 500, include_available: bool = True):
+    """Create standardized JSON error response.
+
+    Args:
+        message: Error message to include
+        status: HTTP status code (default: 500)
+        include_available: Whether to include 'available' field (default: True)
+
+    Returns:
+        Tuple of (response, status_code)
+    """
+    response = {
+        "error": message,
+        "timestamp": _get_utc_iso_timestamp(),
+    }
+    if include_available:
+        response["available"] = False
+    return jsonify(response), status
+
+
 @rollout_bp.route('/rollout/dashboard', methods=['GET'])
 def get_rollout_dashboard():
     """
@@ -131,13 +168,9 @@ def get_rollout_dashboard():
     """
     window_minutes = _parse_window_minutes(request.args.get('window'))
 
-    tracker = _get_rollout_tracker()
-    if tracker is None:
-        return jsonify({
-            "error": "RolloutTracker unavailable",
-            "timestamp": _get_utc_iso_timestamp(),
-            "available": False
-        }), 503
+    tracker, error = _get_tracker_or_503()
+    if error:
+        return error
 
     try:
         current_percent = _get_current_rollout_percent()
@@ -151,11 +184,7 @@ def get_rollout_dashboard():
         })
     except Exception as e:
         logger.error(f"Failed to get rollout dashboard: {e}")
-        return jsonify({
-            "error": str(e),
-            "timestamp": _get_utc_iso_timestamp(),
-            "available": False
-        }), 500
+        return _json_error(str(e), status=500)
 
 
 @rollout_bp.route('/rollout/health', methods=['GET'])
@@ -339,13 +368,9 @@ def get_rollout_comparison():
     """
     window_minutes = _parse_window_minutes(request.args.get('window'))
 
-    tracker = _get_rollout_tracker()
-    if tracker is None:
-        return jsonify({
-            "error": "RolloutTracker unavailable",
-            "timestamp": _get_utc_iso_timestamp(),
-            "available": False
-        }), 503
+    tracker, error = _get_tracker_or_503()
+    if error:
+        return error
 
     try:
         comparison = tracker.get_comparison(window_minutes)
@@ -358,11 +383,7 @@ def get_rollout_comparison():
         })
     except Exception as e:
         logger.error(f"Failed to get rollout comparison: {e}")
-        return jsonify({
-            "error": str(e),
-            "timestamp": _get_utc_iso_timestamp(),
-            "available": False
-        }), 500
+        return _json_error(str(e), status=500)
 
 
 @rollout_bp.route('/rollout/slo', methods=['GET'])
@@ -400,13 +421,9 @@ def get_slo_compliance():
     """
     window_minutes = _parse_window_minutes(request.args.get('window'))
 
-    tracker = _get_rollout_tracker()
-    if tracker is None:
-        return jsonify({
-            "error": "RolloutTracker unavailable",
-            "timestamp": _get_utc_iso_timestamp(),
-            "available": False
-        }), 503
+    tracker, error = _get_tracker_or_503()
+    if error:
+        return error
 
     try:
         slo_result = tracker.evaluate_slo_compliance(window_minutes)
@@ -419,8 +436,4 @@ def get_slo_compliance():
         })
     except Exception as e:
         logger.error(f"Failed to get SLO compliance: {e}")
-        return jsonify({
-            "error": str(e),
-            "timestamp": _get_utc_iso_timestamp(),
-            "available": False
-        }), 500
+        return _json_error(str(e), status=500)
