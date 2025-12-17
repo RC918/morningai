@@ -16,7 +16,7 @@ setup(
         "sentry-sdk==2.19.2",
         "redis",
         "rq",
-        "python-dotenv==1.0.1"
+        "python-dotenv==1.2.1"
     ],
     python_requires=">=3.11",
     author="Morning AI",
