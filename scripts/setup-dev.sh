@@ -38,6 +38,12 @@ source .venv/bin/activate
 echo "Upgrading pip..."
 pip install --upgrade pip
 
+# Install root dev dependencies (pytest, flake8, etc.)
+echo "Installing root dev dependencies..."
+if [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt
+fi
+
 # IMPORTANT: Remove the wrong jwt package if installed
 # The 'jwt' package (jwt 1.x) conflicts with 'PyJWT' (jwt 2.x)
 # We need PyJWT for proper JWT handling
