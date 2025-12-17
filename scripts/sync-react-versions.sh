@@ -293,15 +293,35 @@ get_workspace_version() {
 }
 
 # Update version in a workspace package.json using node
+# Usage: update_workspace_version <workspace> <package> <new_version> [section]
+# Parameters:
+#   workspace   - Path to the workspace directory
+#   package     - Package name to update (e.g., "react", "@types/react")
+#   new_version - New version to set (without ^ prefix)
+#   section     - Optional: specific section to update (dependencies|devDependencies|peerDependencies)
+#                 If not provided, updates all sections where the package exists
 update_workspace_version() {
     local workspace="$1"
     local package="$2"
     local new_version="$3"
+    local section="${4:-}"  # Optional: specific section to update
     local pkg_json="$workspace/package.json"
     
     if [[ ! -f "$pkg_json" ]]; then
         log_error "Package.json not found: $pkg_json"
         return 1
+    fi
+    
+    # Validate section parameter if provided
+    if [[ -n "$section" ]]; then
+        case "$section" in
+            dependencies|devDependencies|peerDependencies)
+                ;;
+            *)
+                log_error "Invalid section: $section (must be dependencies, devDependencies, or peerDependencies)"
+                return 1
+                ;;
+        esac
     fi
     
     # Use node to update the version while preserving formatting
@@ -311,7 +331,10 @@ update_workspace_version() {
         const content = fs.readFileSync(path, 'utf8');
         const pkg = JSON.parse(content);
         
-        const sections = ['dependencies', 'devDependencies', 'peerDependencies'];
+        const targetSection = '$section';
+        const sections = targetSection 
+            ? [targetSection] 
+            : ['dependencies', 'devDependencies', 'peerDependencies'];
         let updated = false;
         
         for (const section of sections) {
@@ -574,11 +597,12 @@ for workspace in "${LIBRARY_WORKSPACES[@]}"; do
             if [[ "$CHECK_ONLY" == true ]]; then
                 log_error "$workspace_name: $package $current_version != $TYPES_VERSION"
             elif [[ "$DRY_RUN" == true ]]; then
-                log_warning "[DRY-RUN] Would update $package: $current_version -> $TYPES_VERSION"
+                log_warning "[DRY-RUN] Would update $package: $current_version -> $TYPES_VERSION (devDependencies only)"
                 CHANGES=$((CHANGES + 1))
             else
-                if update_workspace_version "$workspace" "$package" "$TYPES_VERSION"; then
-                    log_success "Updated $package: $current_version -> $TYPES_VERSION"
+                # Use parameterized update to only update devDependencies for libraries
+                if update_workspace_version "$workspace" "$package" "$TYPES_VERSION" "devDependencies"; then
+                    log_success "Updated $package: $current_version -> $TYPES_VERSION (devDependencies)"
                     CHANGES=$((CHANGES + 1))
                 else
                     log_error "Failed to update $package in $workspace_name"

@@ -538,6 +538,158 @@ EOF
   assert_contains "$output" "library" "Should identify as library"
 }
 
+test_library_workspace_peer_deps_not_modified() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Create library workspace with misaligned devDependencies but valid peerDependencies
+  cat > "$TEST_DIR/packages/shared-ui/package.json" << 'EOF'
+{
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0"
+  }
+}
+EOF
+  
+  # Create aligned app workspaces
+  cat > "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  cat > "$TEST_DIR/handoff/20250928/40_App/owner-console/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  # Run sync (not check mode)
+  output=$("$SYNC_SCRIPT" 2>&1) || exit_code=$?
+  
+  # Verify peerDependencies were NOT modified
+  local pkg_content
+  pkg_content=$(cat "$TEST_DIR/packages/shared-ui/package.json")
+  
+  assert_contains "$pkg_content" "^18.0.0 || ^19.0.0" "peerDependencies should NOT be modified"
+  assert_contains "$pkg_content" "^19.1.2" "devDependencies should be updated"
+}
+
+test_library_workspace_dev_deps_updated() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Create library workspace with misaligned devDependencies
+  cat > "$TEST_DIR/packages/shared-ui/package.json" << 'EOF'
+{
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0"
+  }
+}
+EOF
+  
+  # Create aligned app workspaces
+  cat > "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  cat > "$TEST_DIR/handoff/20250928/40_App/owner-console/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  # Run sync
+  output=$("$SYNC_SCRIPT" 2>&1) || exit_code=$?
+  
+  assert_exit_code "0" "$exit_code" "Sync should succeed"
+  assert_contains "$output" "devDependencies" "Should mention devDependencies update"
+  
+  # Verify devDependencies were updated
+  local pkg_content
+  pkg_content=$(cat "$TEST_DIR/packages/shared-ui/package.json")
+  
+  # Check that @types/react was updated to 19.1.2
+  local types_version
+  types_version=$(node -p "JSON.parse(require('fs').readFileSync('$TEST_DIR/packages/shared-ui/package.json')).devDependencies['@types/react']" 2>/dev/null)
+  
+  assert_equals "^19.1.2" "$types_version" "devDependencies @types/react should be updated"
+}
+
+test_library_workspace_only_types_synced() {
+  local output
+  local exit_code=0
+  
+  cd "$TEST_DIR"
+  
+  # Create library workspace - react/react-dom in peerDeps should NOT be synced
+  cat > "$TEST_DIR/packages/shared-ui/package.json" << 'EOF'
+{
+  "peerDependencies": {
+    "react": "^17.0.0 || ^18.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2"
+  }
+}
+EOF
+  
+  # Create aligned app workspaces
+  cat > "$TEST_DIR/handoff/20250928/40_App/frontend-dashboard/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  cat > "$TEST_DIR/handoff/20250928/40_App/owner-console/package.json" << 'EOF'
+{
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}
+EOF
+  
+  # Run check - should pass because peerDeps are skipped
+  output=$("$SYNC_SCRIPT" --check --verbose 2>&1) || exit_code=$?
+  
+  assert_exit_code "0" "$exit_code" "Check should pass (peerDeps skipped)"
+  assert_contains "$output" "peerDependencies" "Should mention skipping peerDependencies"
+}
+
 # ============================================================================
 # TEST: Dynamic workspace discovery
 # ============================================================================
@@ -691,6 +843,9 @@ main() {
   # Library workspace tests
   echo "Library Workspace Tests:"
   run_test "Library peerDependencies preserved" test_library_workspace_peer_deps_preserved
+  run_test "Library peerDependencies not modified during sync" test_library_workspace_peer_deps_not_modified
+  run_test "Library devDependencies updated during sync" test_library_workspace_dev_deps_updated
+  run_test "Library only @types synced (peerDeps skipped)" test_library_workspace_only_types_synced
   echo ""
   
   # Exit code tests
