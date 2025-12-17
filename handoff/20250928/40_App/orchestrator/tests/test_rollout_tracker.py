@@ -781,55 +781,98 @@ class TestRedisPipelineCallVerification:
         mock_pipe.execute.assert_called_once()
 
     def test_record_langgraph_task_success_increments_correct_keys(self):
-        """Test that record_langgraph_task success increments total and success keys"""
+        """Test that record_langgraph_task success increments total, success, and latency keys"""
         mock_redis = MagicMock()
         mock_pipe = MagicMock()
         mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
         mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
         mock_redis.get.return_value = None
 
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
         tracker.record_langgraph_task(trace_id="test", success=True, latency_ms=100)
 
-        # Verify set was called with keys containing langgraph.total and langgraph.success
         set_calls = mock_pipe.set.call_args_list
         set_keys = [call[0][0] for call in set_calls]
+        incrby_calls = mock_pipe.incrby.call_args_list
+        incrby_keys = [call[0][0] for call in incrby_calls]
 
         assert any("langgraph.total" in key for key in set_keys)
         assert any("langgraph.success" in key for key in set_keys)
+        assert any("latency_bucket_" in key for key in set_keys)
+
+        assert any("langgraph.total" in key for key in incrby_keys)
+        assert any("langgraph.success" in key for key in incrby_keys)
+        assert any("latency_bucket_" in key for key in incrby_keys)
+
+        for call in set_calls:
+            assert call[0][1] == 0
+            assert call[1]["ex"] == 86400
+            assert call[1]["nx"] is True
+
+        for call in incrby_calls:
+            assert call[0][1] == 1
 
     def test_record_langgraph_task_failure_increments_failure_key(self):
-        """Test that record_langgraph_task failure increments failure key"""
+        """Test that record_langgraph_task failure increments failure key with correct params"""
         mock_redis = MagicMock()
         mock_pipe = MagicMock()
         mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
         mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
         mock_redis.get.return_value = None
 
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
         tracker.record_langgraph_task(trace_id="test", success=False)
 
         set_calls = mock_pipe.set.call_args_list
         set_keys = [call[0][0] for call in set_calls]
+        incrby_calls = mock_pipe.incrby.call_args_list
+        incrby_keys = [call[0][0] for call in incrby_calls]
 
         assert any("langgraph.total" in key for key in set_keys)
         assert any("langgraph.failure" in key for key in set_keys)
 
+        assert any("langgraph.total" in key for key in incrby_keys)
+        assert any("langgraph.failure" in key for key in incrby_keys)
+
+        for call in set_calls:
+            assert call[0][1] == 0
+            assert call[1]["ex"] == 86400
+            assert call[1]["nx"] is True
+
+        for call in incrby_calls:
+            assert call[0][1] == 1
+
     def test_record_langgraph_task_5xx_increments_error_key(self):
-        """Test that record_langgraph_task with 5xx error increments error_5xx key"""
+        """Test that record_langgraph_task with 5xx error increments all expected keys"""
         mock_redis = MagicMock()
         mock_pipe = MagicMock()
         mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
         mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
         mock_redis.get.return_value = None
 
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
         tracker.record_langgraph_task(trace_id="test", success=False, is_5xx_error=True)
 
         set_calls = mock_pipe.set.call_args_list
         set_keys = [call[0][0] for call in set_calls]
+        incrby_calls = mock_pipe.incrby.call_args_list
+        incrby_keys = [call[0][0] for call in incrby_calls]
 
+        assert any("langgraph.total" in key for key in set_keys)
+        assert any("langgraph.failure" in key for key in set_keys)
         assert any("langgraph.error_5xx" in key for key in set_keys)
+
+        assert any("langgraph.total" in key for key in incrby_keys)
+        assert any("langgraph.failure" in key for key in incrby_keys)
+        assert any("langgraph.error_5xx" in key for key in incrby_keys)
+
+        for call in set_calls:
+            assert call[0][1] == 0
+            assert call[1]["ex"] == 86400
+            assert call[1]["nx"] is True
+
+        for call in incrby_calls:
+            assert call[0][1] == 1
 
 
 class TestCircuitBreakerPublicAPI:
