@@ -108,14 +108,33 @@ get_package_path() {
   jq -r ".packages.\"$package\".path // empty" "$BASELINE_FILE"
 }
 
-update_baseline() {
+update_baseline_single() {
   local package="$1"
   local count="$2"
   local today
   today=$(date +%Y-%m-%d)
   
-  # Update existing baseline
+  # Update existing baseline (single package - used for individual updates)
   jq ".packages.\"$package\".error_count = $count | .last_updated = \"$today\"" "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
+  mv "$BASELINE_FILE.tmp" "$BASELINE_FILE"
+}
+
+# Batch update baseline - more efficient for updating multiple packages at once
+# Usage: update_baseline_batch "pkg1:count1" "pkg2:count2" ...
+update_baseline_batch() {
+  local today
+  today=$(date +%Y-%m-%d)
+  
+  # Build jq filter for all updates
+  local jq_filter=".last_updated = \"$today\""
+  for entry in "$@"; do
+    local package="${entry%%:*}"
+    local count="${entry#*:}"
+    jq_filter="$jq_filter | .packages.\"$package\".error_count = $count"
+  done
+  
+  # Single file write with all updates
+  jq "$jq_filter" "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
   mv "$BASELINE_FILE.tmp" "$BASELINE_FILE"
 }
 
@@ -154,6 +173,7 @@ main() {
   local total_errors=0
   local total_baseline=0
   local has_regression=false
+  local updates=()  # Collect updates for batch processing
   
   # Read packages dynamically from baseline file
   for package in $(jq -r '.packages | keys[]' "$BASELINE_FILE"); do
@@ -181,9 +201,15 @@ main() {
     printf "%-20s: %3d errors (baseline: %3d) %b\n" "$package" "$count" "$baseline" "$status"
     
     if [ "$update_mode" = true ]; then
-      update_baseline "$package" "$count"
+      # Collect updates for batch processing (more efficient than individual file writes)
+      updates+=("$package:$count")
     fi
   done
+  
+  # Batch update all baselines in a single file write (if in update mode)
+  if [ "$update_mode" = true ] && [ ${#updates[@]} -gt 0 ]; then
+    update_baseline_batch "${updates[@]}"
+  fi
   
   echo ""
   echo "-----------------------------------"
