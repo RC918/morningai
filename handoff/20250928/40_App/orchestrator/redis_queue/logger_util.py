@@ -29,7 +29,7 @@ def log_structured(
         **extra: Additional fields to include
     """
     log_entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "level": level,
         "message": message,
         "operation": operation,

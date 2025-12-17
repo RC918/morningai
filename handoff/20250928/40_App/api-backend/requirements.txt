@@ -1,5 +1,5 @@
 blinker==1.9.0
-click==8.2.1
+click==8.3.1
 Flask==3.1.1
 flask-cors==6.0.2
 Flask-SQLAlchemy==3.1.1
@@ -19,7 +19,7 @@ PyYAML
 requests
 gunicorn
 psycopg2-binary
-redis>=5.2.0,<6.0.0
+redis>=5.2.0,<7.0.0
 upstash-redis>=1.1.0,<2.0.0
 rq
 sentry-sdk==2.19.2
