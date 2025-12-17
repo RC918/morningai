@@ -78,6 +78,8 @@ Baselines should only be updated when:
 
 3. The CI workflow will automatically use the new baselines
 
+> **Note**: The script uses batch updates to efficiently write all package baselines in a single file operation, avoiding multiple file I/O operations.
+
 ### Manual Update
 
 You can also manually edit `.strict-baseline.json`:

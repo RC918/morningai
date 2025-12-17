@@ -49,6 +49,12 @@ validate_baseline_file() {
     local error_count
     error_count=$(jq -r ".packages.\"$package\".error_count // empty" "$BASELINE_FILE")
     
+    # Check for invalid characters in package name (colon is used as delimiter in batch updates)
+    if [[ "$package" == *":"* ]]; then
+      echo -e "${RED}ERROR: Package name '$package' contains ':' which is not allowed${NC}"
+      errors=$((errors + 1))
+    fi
+    
     if [ -z "$path" ]; then
       echo -e "${RED}ERROR: Package '$package' missing 'path' field${NC}"
       errors=$((errors + 1))
@@ -108,14 +114,32 @@ get_package_path() {
   jq -r ".packages.\"$package\".path // empty" "$BASELINE_FILE"
 }
 
-update_baseline() {
-  local package="$1"
-  local count="$2"
+# Batch update baseline - more efficient and safer for updating multiple packages at once
+# Usage: update_baseline_batch "pkg1:count1" "pkg2:count2" ...
+# Uses --argjson to safely pass data to jq, avoiding string interpolation vulnerabilities
+update_baseline_batch() {
   local today
   today=$(date +%Y-%m-%d)
   
-  # Update existing baseline
-  jq ".packages.\"$package\".error_count = $count | .last_updated = \"$today\"" "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
+  # Build JSON array of updates for safe passing to jq
+  local updates_json="["
+  local first=true
+  for entry in "$@"; do
+    if [ "$first" = true ]; then
+      first=false
+    else
+      updates_json+=","
+    fi
+    updates_json+="\"$entry\""
+  done
+  updates_json+="]"
+  
+  # Use --argjson to safely pass data to jq (avoids string interpolation vulnerabilities)
+  # The reduce function iterates over updates and applies each one
+  jq --arg today "$today" \
+     --argjson updates "$updates_json" \
+     '.last_updated = $today | reduce ($updates[] | split(":")) as $p (.; .packages[$p[0]].error_count = ($p[1] | tonumber))' \
+     "$BASELINE_FILE" > "$BASELINE_FILE.tmp"
   mv "$BASELINE_FILE.tmp" "$BASELINE_FILE"
 }
 
@@ -154,6 +178,7 @@ main() {
   local total_errors=0
   local total_baseline=0
   local has_regression=false
+  local updates=()  # Collect updates for batch processing
   
   # Read packages dynamically from baseline file
   for package in $(jq -r '.packages | keys[]' "$BASELINE_FILE"); do
@@ -181,9 +206,15 @@ main() {
     printf "%-20s: %3d errors (baseline: %3d) %b\n" "$package" "$count" "$baseline" "$status"
     
     if [ "$update_mode" = true ]; then
-      update_baseline "$package" "$count"
+      # Collect updates for batch processing (more efficient than individual file writes)
+      updates+=("$package:$count")
     fi
   done
+  
+  # Batch update all baselines in a single file write (if in update mode)
+  if [ "$update_mode" = true ] && [ ${#updates[@]} -gt 0 ]; then
+    update_baseline_batch "${updates[@]}"
+  fi
   
   echo ""
   echo "-----------------------------------"
