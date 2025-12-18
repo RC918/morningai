@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-LLM Reviewer Adapter - Phase 6 PR-3 Implementation
+LLM Reviewer Adapter - Phase 6 PR-3 Implementation + EPIC B Diff-Aware Review
 Integrates LLM-powered code review into LangGraph orchestrator
 
 This module provides:
-1. LLM-based code review using multiple providers (OpenAI, Gemini)
+1. LLM-based code review using multiple providers (OpenAI, Gemini, Qwen)
 2. A/B testing support via ExperimentManager
 3. JSON response parsing with retry logic
 4. Graceful fallback to CI-only review on failure
+5. EPIC B: Diff-aware review with actual code changes (Issue #2595)
 
 Usage:
     from llm_reviewer_adapter import generate_llm_review
@@ -18,7 +19,9 @@ Usage:
         ci_state="success",
         goal="Add new feature",
         repo="owner/repo",
-        trace_id="abc123"
+        trace_id="abc123",
+        diff="--- a/file.py\n+++ b/file.py\n...",  # EPIC B: actual diff
+        diff_truncated=False
     )
 """
 import json
@@ -107,7 +110,10 @@ class LLMReviewerAdapter:
         goal: str,
         repo: str,
         base_quality_score: int,
-        base_severity: str
+        base_severity: str,
+        diff: Optional[str] = None,
+        diff_truncated: bool = False,
+        diff_files: Optional[list] = None
     ) -> Dict[str, Any]:
         """
         Generate LLM-powered code review
@@ -120,6 +126,9 @@ class LLMReviewerAdapter:
             repo: GitHub repository (owner/repo format)
             base_quality_score: Base quality score from CI-only review
             base_severity: Base severity from CI-only review
+            diff: PR diff content (EPIC B Phase B-1)
+            diff_truncated: Whether diff was truncated (EPIC B Phase B-2)
+            diff_files: List of changed files metadata (EPIC B Phase B-1)
 
         Returns:
             Dict with review results:
@@ -130,19 +139,24 @@ class LLMReviewerAdapter:
             - comments: List of review comments
             - llm_used: Whether LLM was used
             - provider: LLM provider used (if any)
+            - diff_aware: Whether diff was available for review (EPIC B)
         """
         if not self.llm_client or not self.llm_client.is_available():
             logger.warning("[LLM Reviewer] LLM client not available, skipping LLM review")
             return self._get_fallback_result(base_quality_score, base_severity)
 
         try:
+            has_diff = bool(diff and diff.strip())
             logger.info(
                 f"[LLM Reviewer] Generating review for PR #{pr_number}",
                 extra={
                     "operation": "llm_reviewer",
                     "trace_id": self.trace_id,
                     "pr_number": pr_number,
-                    "ci_state": ci_state
+                    "ci_state": ci_state,
+                    "diff_aware": has_diff,
+                    "diff_truncated": diff_truncated,
+                    "diff_file_count": len(diff_files) if diff_files else 0
                 }
             )
 
@@ -151,7 +165,10 @@ class LLMReviewerAdapter:
                 pr_url=pr_url,
                 ci_state=ci_state,
                 goal=goal,
-                repo=repo
+                repo=repo,
+                diff=diff,
+                diff_truncated=diff_truncated,
+                diff_files=diff_files
             )
 
             llm_score = review_data.get("quality_score", base_quality_score)
@@ -183,7 +200,8 @@ class LLMReviewerAdapter:
                 "comments": review_data.get("comments", []),
                 "llm_used": True,
                 "provider": self.llm_client.provider_name,
-                "review_time_ms": review_data.get("review_time_ms", 0)
+                "review_time_ms": review_data.get("review_time_ms", 0),
+                "diff_aware": has_diff
             }
 
         except Exception as e:
@@ -204,7 +222,10 @@ class LLMReviewerAdapter:
         pr_url: Optional[str],
         ci_state: str,
         goal: str,
-        repo: str
+        repo: str,
+        diff: Optional[str] = None,
+        diff_truncated: bool = False,
+        diff_files: Optional[list] = None
     ) -> Dict[str, Any]:
         """
         Call LLM to generate review
@@ -215,65 +236,39 @@ class LLMReviewerAdapter:
             ci_state: CI check state
             goal: User's goal
             repo: GitHub repository
+            diff: PR diff content (EPIC B)
+            diff_truncated: Whether diff was truncated (EPIC B)
+            diff_files: List of changed files metadata (EPIC B)
 
         Returns:
             Dict with review data and timing
         """
         use_json_mode = getattr(settings, 'reviewer_json_mode', True)
+        has_diff = bool(diff and diff.strip())
 
-        system_prompt = """You are a senior software engineer performing code review for a pull request.
-
-You receive:
-1. The CI status for this PR (success, failure, pending, or unknown)
-2. The task goal/description
-3. Repository and PR metadata
-
-IMPORTANT: You do NOT see the actual code diff. You are providing a high-level risk assessment based on the available metadata and CI status. Be conservative in your assessment.
-
-Your job is to:
-1. Assess overall code quality risk based on CI status and task complexity
-2. Identify potential concerns based on the task description
-3. Produce a JSON object that summarizes your assessment
-
-Rules:
-- Be conservative: if CI failed, severity should be at least "high"
-- If CI passed, you can still flag concerns based on task complexity
-- If information is limited, default to moderate scores and "needs_changes" decision
-- Always respond with valid JSON only, no extra commentary
-
-Output format (strict JSON):
-{
-  "summary": "Brief assessment of the PR based on available information",
-  "quality_score": 0-100,
-  "severity": "none" | "low" | "medium" | "high" | "critical",
-  "decision": "approve" | "needs_changes" | "block",
-  "comments": [
-    {
-      "severity": "nit" | "suggestion" | "warning" | "error",
-      "category": "style" | "bug" | "performance" | "security" | "maintainability" | "other",
-      "message": "Description of concern or suggestion"
-    }
-  ]
-}
-
-Guidelines for scoring:
-- CI success + simple task: quality_score 70-85, severity "none" or "low"
-- CI success + complex task: quality_score 60-75, severity "low" or "medium"
-- CI pending: quality_score 50-65, severity "medium"
-- CI failure: quality_score 30-50, severity "high" or "critical"
-"""
-
-        user_prompt = f"""**Pull Request Information**
-- Repository: {repo}
-- PR Number: {pr_number or "Unknown"}
-- PR URL: {pr_url or "Not available"}
-- CI Status: {ci_state}
-
-**Task Goal/Description**:
-{goal}
-
-Based on this information, provide your code review assessment as JSON.
-Remember: You cannot see the actual code changes, so focus on risk assessment based on CI status and task complexity."""
+        # EPIC B: Use diff-aware prompt if diff is available
+        if has_diff:
+            system_prompt = self._get_diff_aware_system_prompt()
+            user_prompt = self._build_diff_aware_user_prompt(
+                repo=repo,
+                pr_number=pr_number,
+                pr_url=pr_url,
+                ci_state=ci_state,
+                goal=goal,
+                diff=diff,
+                diff_truncated=diff_truncated,
+                diff_files=diff_files
+            )
+        else:
+            # Fallback to metadata-only review (original behavior)
+            system_prompt = self._get_metadata_only_system_prompt()
+            user_prompt = self._build_metadata_only_user_prompt(
+                repo=repo,
+                pr_number=pr_number,
+                pr_url=pr_url,
+                ci_state=ci_state,
+                goal=goal
+            )
 
         start_time = time.time()
 
@@ -334,6 +329,204 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         except Exception as e:
             logger.error(f"[LLM Reviewer] LLM API call failed: {e}")
             raise
+
+    def _get_diff_aware_system_prompt(self) -> str:
+        """
+        Get system prompt for diff-aware code review (EPIC B Phase B-3)
+
+        Returns:
+            System prompt string for LLM
+        """
+        return """You are a senior software engineer performing code review for a pull request.
+
+You receive:
+1. The CI status for this PR (success, failure, pending, or unknown)
+2. The task goal/description
+3. Repository and PR metadata
+4. The actual code diff showing the changes made
+
+Your job is to:
+1. Review the actual code changes in the diff
+2. Identify bugs, security issues, performance problems, and style concerns
+3. Assess overall code quality based on the changes
+4. Produce a JSON object that summarizes your review
+
+Rules:
+- Focus on the actual code changes, not hypothetical issues
+- Be specific: reference file names and line numbers when possible
+- Be constructive: suggest improvements, not just criticisms
+- Be conservative with severity: only use "critical" for serious bugs or security issues
+- If CI failed, investigate if the diff might be related
+- Always respond with valid JSON only, no extra commentary
+
+Output format (strict JSON):
+{
+  "summary": "Brief summary of the code changes and overall assessment",
+  "quality_score": 0-100,
+  "severity": "none" | "low" | "medium" | "high" | "critical",
+  "decision": "approve" | "needs_changes" | "block",
+  "comments": [
+    {
+      "severity": "nit" | "suggestion" | "warning" | "error",
+      "category": "style" | "bug" | "performance" | "security" | "maintainability" | "other",
+      "file": "path/to/file.py",
+      "line": 42,
+      "message": "Specific feedback about this code"
+    }
+  ]
+}
+
+Guidelines for scoring:
+- Clean code, good practices, CI passed: quality_score 80-95
+- Minor issues, style concerns: quality_score 65-80
+- Moderate issues, needs refactoring: quality_score 50-65
+- Serious bugs or security issues: quality_score 30-50
+- Critical issues requiring immediate attention: quality_score 0-30
+"""
+
+    def _build_diff_aware_user_prompt(
+        self,
+        repo: str,
+        pr_number: Optional[int],
+        pr_url: Optional[str],
+        ci_state: str,
+        goal: str,
+        diff: str,
+        diff_truncated: bool,
+        diff_files: Optional[list]
+    ) -> str:
+        """
+        Build user prompt for diff-aware code review (EPIC B Phase B-3)
+
+        Args:
+            repo: GitHub repository
+            pr_number: Pull request number
+            pr_url: Pull request URL
+            ci_state: CI check state
+            goal: User's goal
+            diff: PR diff content
+            diff_truncated: Whether diff was truncated
+            diff_files: List of changed files metadata
+
+        Returns:
+            User prompt string for LLM
+        """
+        # Build file summary if available
+        file_summary = ""
+        if diff_files:
+            file_list = []
+            for f in diff_files[:10]:  # Limit to first 10 files
+                file_list.append(
+                    f"  - {f['filename']} (+{f['additions']}/-{f['deletions']})"
+                )
+            file_summary = "\n**Changed Files:**\n" + "\n".join(file_list)
+            if len(diff_files) > 10:
+                file_summary += f"\n  ... and {len(diff_files) - 10} more files"
+
+        # Build truncation warning if applicable
+        truncation_warning = ""
+        if diff_truncated:
+            truncation_warning = "\n\n**Note:** The diff has been truncated due to size limits. Some files may not be shown."
+
+        return f"""**Pull Request Information**
+- Repository: {repo}
+- PR Number: {pr_number or "Unknown"}
+- PR URL: {pr_url or "Not available"}
+- CI Status: {ci_state}
+{file_summary}
+
+**Task Goal/Description:**
+{goal}
+{truncation_warning}
+
+**Code Diff:**
+```diff
+{diff}
+```
+
+Please review the code changes above and provide your assessment as JSON."""
+
+    def _get_metadata_only_system_prompt(self) -> str:
+        """
+        Get system prompt for metadata-only review (original behavior)
+
+        Returns:
+            System prompt string for LLM
+        """
+        return """You are a senior software engineer performing code review for a pull request.
+
+You receive:
+1. The CI status for this PR (success, failure, pending, or unknown)
+2. The task goal/description
+3. Repository and PR metadata
+
+IMPORTANT: You do NOT see the actual code diff. You are providing a high-level risk assessment based on the available metadata and CI status. Be conservative in your assessment.
+
+Your job is to:
+1. Assess overall code quality risk based on CI status and task complexity
+2. Identify potential concerns based on the task description
+3. Produce a JSON object that summarizes your assessment
+
+Rules:
+- Be conservative: if CI failed, severity should be at least "high"
+- If CI passed, you can still flag concerns based on task complexity
+- If information is limited, default to moderate scores and "needs_changes" decision
+- Always respond with valid JSON only, no extra commentary
+
+Output format (strict JSON):
+{
+  "summary": "Brief assessment of the PR based on available information",
+  "quality_score": 0-100,
+  "severity": "none" | "low" | "medium" | "high" | "critical",
+  "decision": "approve" | "needs_changes" | "block",
+  "comments": [
+    {
+      "severity": "nit" | "suggestion" | "warning" | "error",
+      "category": "style" | "bug" | "performance" | "security" | "maintainability" | "other",
+      "message": "Description of concern or suggestion"
+    }
+  ]
+}
+
+Guidelines for scoring:
+- CI success + simple task: quality_score 70-85, severity "none" or "low"
+- CI success + complex task: quality_score 60-75, severity "low" or "medium"
+- CI pending: quality_score 50-65, severity "medium"
+- CI failure: quality_score 30-50, severity "high" or "critical"
+"""
+
+    def _build_metadata_only_user_prompt(
+        self,
+        repo: str,
+        pr_number: Optional[int],
+        pr_url: Optional[str],
+        ci_state: str,
+        goal: str
+    ) -> str:
+        """
+        Build user prompt for metadata-only review (original behavior)
+
+        Args:
+            repo: GitHub repository
+            pr_number: Pull request number
+            pr_url: Pull request URL
+            ci_state: CI check state
+            goal: User's goal
+
+        Returns:
+            User prompt string for LLM
+        """
+        return f"""**Pull Request Information**
+- Repository: {repo}
+- PR Number: {pr_number or "Unknown"}
+- PR URL: {pr_url or "Not available"}
+- CI Status: {ci_state}
+
+**Task Goal/Description**:
+{goal}
+
+Based on this information, provide your code review assessment as JSON.
+Remember: You cannot see the actual code changes, so focus on risk assessment based on CI status and task complexity."""
 
     def _parse_json_with_retry(self, content: str, use_json_mode: bool) -> Dict[str, Any]:
         """
@@ -422,7 +615,8 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             "comments": [],
             "llm_used": False,
             "provider": None,
-            "review_time_ms": 0
+            "review_time_ms": 0,
+            "diff_aware": False
         }
 
 
@@ -434,7 +628,10 @@ def generate_llm_review(
     repo: str,
     trace_id: str,
     base_quality_score: int,
-    base_severity: str
+    base_severity: str,
+    diff: Optional[str] = None,
+    diff_truncated: bool = False,
+    diff_files: Optional[list] = None
 ) -> Dict[str, Any]:
     """
     Convenience function to generate LLM-powered code review
@@ -448,6 +645,9 @@ def generate_llm_review(
         trace_id: Unique trace identifier
         base_quality_score: Base quality score from CI-only review
         base_severity: Base severity from CI-only review
+        diff: PR diff content (EPIC B Phase B-1)
+        diff_truncated: Whether diff was truncated (EPIC B Phase B-2)
+        diff_files: List of changed files metadata (EPIC B Phase B-1)
 
     Returns:
         Dict with review results
@@ -460,5 +660,8 @@ def generate_llm_review(
         goal=goal,
         repo=repo,
         base_quality_score=base_quality_score,
-        base_severity=base_severity
+        base_severity=base_severity,
+        diff=diff,
+        diff_truncated=diff_truncated,
+        diff_files=diff_files
     )

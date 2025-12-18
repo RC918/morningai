@@ -116,6 +116,7 @@ from agent_eval_integration import (
 from common.config.settings import settings
 from llm_reviewer_adapter import generate_llm_review
 from webhooks.review_follow_up import determine_hitl_requirement
+from tools.github_api import get_repo, get_pr_diff
 
 logger = logging.getLogger(__name__)
 
@@ -2312,6 +2313,50 @@ def reviewer_node(state: AgentState) -> AgentState:
                 goal = state.get("goal", "")
                 repo = state.get("repo", "")
 
+                # EPIC B Phase B-1: Fetch PR diff for diff-aware review
+                diff_data = None
+                diff_content = None
+                diff_truncated = False
+                diff_files = None
+
+                if pr_number:
+                    try:
+                        github_repo = get_repo()
+                        if github_repo:
+                            diff_data = get_pr_diff(github_repo, pr_number)
+                            if diff_data and not diff_data.get("error"):
+                                diff_content = diff_data.get("diff", "")
+                                diff_truncated = diff_data.get("truncated", False)
+                                diff_files = diff_data.get("files", [])
+                                logger.info(
+                                    "[Reviewer] Retrieved PR diff for review",
+                                    extra={
+                                        "operation": "reviewer",
+                                        "trace_id": trace_id,
+                                        "pr_number": pr_number,
+                                        "diff_file_count": len(diff_files) if diff_files else 0,
+                                        "diff_truncated": diff_truncated
+                                    }
+                                )
+                            else:
+                                logger.warning(
+                                    f"[Reviewer] Failed to get PR diff: {diff_data.get('error', 'unknown')}",
+                                    extra={
+                                        "operation": "reviewer",
+                                        "trace_id": trace_id,
+                                        "pr_number": pr_number
+                                    }
+                                )
+                    except Exception as diff_error:
+                        logger.warning(
+                            f"[Reviewer] Error fetching PR diff: {diff_error}",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "error": str(diff_error)
+                            }
+                        )
+
                 llm_review = generate_llm_review(
                     pr_number=pr_number,
                     pr_url=pr_url,
@@ -2320,7 +2365,10 @@ def reviewer_node(state: AgentState) -> AgentState:
                     repo=repo,
                     trace_id=trace_id,
                     base_quality_score=ci_review["code_quality_score"],
-                    base_severity=ci_review["review_severity"]
+                    base_severity=ci_review["review_severity"],
+                    diff=diff_content,
+                    diff_truncated=diff_truncated,
+                    diff_files=diff_files
                 )
 
                 if llm_review.get("llm_used", False):
