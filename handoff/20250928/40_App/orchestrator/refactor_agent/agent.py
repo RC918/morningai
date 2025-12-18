@@ -704,16 +704,9 @@ class RefactorAgent:
         if not fix:
             return fix
 
-        lines = fix.split("\n")
-        sanitized_lines = []
-
-        for line in lines:
-            # Remove line number prefixes like "34: " or ">>> 34: "
-            # Pattern matches: optional ">>> ", followed by digits, colon, and space
-            sanitized = re.sub(r'^(\s*>>>)?\s*\d+:\s*', '', line)
-            sanitized_lines.append(sanitized)
-
-        return "\n".join(sanitized_lines)
+        # Use re.MULTILINE for efficient single-pass sanitization
+        # Pattern matches: optional ">>> ", followed by digits, colon, and space
+        return re.sub(r'^(?:\s*>>>)?\s*\d+:\s*', '', fix, flags=re.MULTILINE)
 
     def _verify_syntax_after_fix(self, project_path: str) -> Tuple[bool, List[str]]:
         """
@@ -762,7 +755,7 @@ class RefactorAgent:
 
         except Exception as e:
             logger.error("[RefactorAgent] Error verifying syntax: %s", e)
-            return (False, [])
+            return (True, [f"Error during syntax verification: {e}"])
 
     def _create_backup(self, file_path: Path) -> Optional[Path]:
         """
@@ -1210,7 +1203,7 @@ class RefactorAgent:
 
                         if syntax_errors_found:
                             # Rollback all applied fixes
-                            backup_paths = apply_results.get('backup_paths', {})
+                            backup_paths = apply_results.get('backups', {})
                             if backup_paths:
                                 self.rollback_batch(backup_paths)
                                 logger.warning(
@@ -1223,8 +1216,8 @@ class RefactorAgent:
                                 task.status = "failed"
                                 task.error_message = "Fix caused syntax errors, rolled back"
 
+                            errors_failed += errors_fixed
                             errors_fixed = 0
-                            errors_failed = len(tasks_to_apply)
 
         completed_at = time.time()
         latency_ms = (completed_at - started_at) * 1000
