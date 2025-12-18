@@ -78,16 +78,120 @@ TELEMETRY_EVENT_SCHEMA = {
 }
 
 
-def validate_against_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> bool:  # noqa: C901
-    """
-    Simple JSON schema validation without external dependencies
+def _validate_datetime_format(value: str, field_name: str) -> None:
+    """Validate ISO 8601 date-time format with timezone.
 
-    Returns True if valid, raises ValueError if invalid
+    Accepts formats like:
+    - 2025-01-01T00:00:00+00:00
+    - 2025-01-01T00:00:00Z
+    - 2025-01-01T00:00:00.123456+00:00
+    """
+    # Handle 'Z' suffix (convert to +00:00 for fromisoformat)
+    normalized = value.replace('Z', '+00:00') if value.endswith('Z') else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+        # Require timezone-aware datetime
+        if parsed.tzinfo is None:
+            raise ValueError(
+                f"Field {field_name} must include timezone, "
+                f"got {value!r} (naive datetime)"
+            )
+    except ValueError as e:
+        raise ValueError(
+            f"Field {field_name} has invalid date-time format: {value!r}. "
+            f"Expected ISO 8601 format with timezone (e.g., 2025-01-01T00:00:00+00:00)"
+        ) from e
+
+
+def _validate_string(value: Any, field_name: str, prop_schema: Dict[str, Any]) -> None:
+    """Validate string type with format, minLength, and enum constraints."""
+    if not isinstance(value, str):
+        raise ValueError(
+            f"Field {field_name} expected string, got {type(value).__name__} ({value!r})"
+        )
+    if "minLength" in prop_schema and len(value) < prop_schema["minLength"]:
+        raise ValueError(
+            f"Field {field_name} too short: length {len(value)} < {prop_schema['minLength']}"
+        )
+    if "enum" in prop_schema and value not in prop_schema["enum"]:
+        raise ValueError(
+            f"Field {field_name} has invalid value: {value!r}. "
+            f"Expected one of: {prop_schema['enum']}"
+        )
+    # Validate date-time format if specified
+    if prop_schema.get("format") == "date-time":
+        _validate_datetime_format(value, field_name)
+
+
+def _validate_number(value: Any, field_name: str, prop_schema: Dict[str, Any]) -> None:
+    """Validate number type (int or float, excluding bool)."""
+    # Explicitly exclude bool (bool is subclass of int in Python)
+    if isinstance(value, bool):
+        raise ValueError(
+            f"Field {field_name} expected number, got bool ({value!r}). "
+            f"Boolean values are not valid numbers."
+        )
+    if not isinstance(value, (int, float)):
+        raise ValueError(
+            f"Field {field_name} expected number, got {type(value).__name__} ({value!r})"
+        )
+    if "minimum" in prop_schema and value < prop_schema["minimum"]:
+        raise ValueError(
+            f"Field {field_name} below minimum: {value} < {prop_schema['minimum']}"
+        )
+
+
+def _validate_integer(value: Any, field_name: str, prop_schema: Dict[str, Any]) -> None:
+    """Validate integer type (excluding bool)."""
+    # Explicitly exclude bool (bool is subclass of int in Python)
+    if isinstance(value, bool):
+        raise ValueError(
+            f"Field {field_name} expected integer, got bool ({value!r}). "
+            f"Boolean values are not valid integers."
+        )
+    if not isinstance(value, int):
+        raise ValueError(
+            f"Field {field_name} expected integer, got {type(value).__name__} ({value!r})"
+        )
+    if "minimum" in prop_schema and value < prop_schema["minimum"]:
+        raise ValueError(
+            f"Field {field_name} below minimum: {value} < {prop_schema['minimum']}"
+        )
+
+
+def _validate_boolean(value: Any, field_name: str) -> None:
+    """Validate boolean type."""
+    if not isinstance(value, bool):
+        raise ValueError(
+            f"Field {field_name} expected boolean, got {type(value).__name__} ({value!r})"
+        )
+
+
+def _validate_object(value: Any, field_name: str) -> None:
+    """Validate object type."""
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"Field {field_name} expected object, got {type(value).__name__} ({value!r})"
+        )
+
+
+def validate_against_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> bool:
+    """
+    JSON schema validation for TelemetryEvent without external dependencies.
+
+    Validates:
+    - Required fields presence
+    - Type constraints (string, number, integer, boolean, object)
+    - String constraints: minLength, enum, format (date-time)
+    - Number/integer constraints: minimum
+    - Bool exclusion: bool values are NOT valid for number/integer fields
+
+    Returns True if valid, raises ValueError with detailed message if invalid.
     """
     # Check required fields
-    for field in schema.get("required", []):
-        if field not in data:
-            raise ValueError(f"Missing required field: {field}")
+    for field_name in schema.get("required", []):
+        if field_name not in data:
+            raise ValueError(f"Missing required field: {field_name}")
 
     # Check property types
     properties = schema.get("properties", {})
@@ -100,30 +204,17 @@ def validate_against_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> boo
         prop_schema = properties[key]
         expected_type = prop_schema.get("type")
 
-        # Type checking
+        # Type checking with detailed error messages
         if expected_type == "string":
-            if not isinstance(value, str):
-                raise ValueError(f"Field {key} should be string, got {type(value)}")
-            if "minLength" in prop_schema and len(value) < prop_schema["minLength"]:
-                raise ValueError(f"Field {key} too short")
-            if "enum" in prop_schema and value not in prop_schema["enum"]:
-                raise ValueError(f"Field {key} has invalid value: {value}")
+            _validate_string(value, key, prop_schema)
         elif expected_type == "number":
-            if not isinstance(value, (int, float)):
-                raise ValueError(f"Field {key} should be number, got {type(value)}")
-            if "minimum" in prop_schema and value < prop_schema["minimum"]:
-                raise ValueError(f"Field {key} below minimum")
+            _validate_number(value, key, prop_schema)
         elif expected_type == "integer":
-            if not isinstance(value, int):
-                raise ValueError(f"Field {key} should be integer, got {type(value)}")
-            if "minimum" in prop_schema and value < prop_schema["minimum"]:
-                raise ValueError(f"Field {key} below minimum")
+            _validate_integer(value, key, prop_schema)
         elif expected_type == "boolean":
-            if not isinstance(value, bool):
-                raise ValueError(f"Field {key} should be boolean, got {type(value)}")
+            _validate_boolean(value, key)
         elif expected_type == "object":
-            if not isinstance(value, dict):
-                raise ValueError(f"Field {key} should be object, got {type(value)}")
+            _validate_object(value, key)
 
     return True
 
@@ -643,3 +734,236 @@ class TestRoutingDecisionVerification:
         engine = RoutingEngine(available_providers=["siliconflow"])
         model = engine.select_model(TaskType.UX_COPY)
         assert model.tier == Tier.TIER_3
+
+
+class TestValidatorTimestampFormat:
+    """Tests for timestamp format validation in validate_against_schema.
+
+    Issue #2686: Validator should enforce ISO 8601 date-time format with timezone.
+    Previously, any string would pass timestamp validation.
+    """
+
+    def test_valid_timestamp_with_offset(self):
+        """Valid ISO 8601 timestamp with offset should pass"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test"
+        }
+        assert validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+
+    def test_valid_timestamp_with_z_suffix(self):
+        """Valid ISO 8601 timestamp with Z suffix should pass"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "agent_id": "test"
+        }
+        assert validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+
+    def test_valid_timestamp_with_microseconds(self):
+        """Valid ISO 8601 timestamp with microseconds should pass"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00.123456+00:00",
+            "agent_id": "test"
+        }
+        assert validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+
+    def test_invalid_timestamp_not_a_date(self):
+        """Non-date string should fail timestamp validation"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "not-a-date",
+            "agent_id": "test"
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "timestamp" in str(exc_info.value)
+        assert "date-time" in str(exc_info.value).lower()
+
+    def test_invalid_timestamp_no_timezone(self):
+        """Timestamp without timezone should fail validation"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00",
+            "agent_id": "test"
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "timestamp" in str(exc_info.value)
+        assert "timezone" in str(exc_info.value).lower()
+
+    def test_invalid_timestamp_partial_date(self):
+        """Partial date should fail timestamp validation"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01",
+            "agent_id": "test"
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "timestamp" in str(exc_info.value)
+
+
+class TestValidatorBoolExclusion:
+    """Tests for bool exclusion in number/integer validation.
+
+    Issue #2686: Bool values should NOT be valid for number/integer fields.
+    Previously, True/False would pass because bool is subclass of int in Python.
+    """
+
+    def test_tokens_in_bool_true_rejected(self):
+        """tokens_in=True should be rejected (bool is not valid integer)"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "tokens_in": True
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "tokens_in" in str(exc_info.value)
+        assert "bool" in str(exc_info.value).lower()
+
+    def test_tokens_in_bool_false_rejected(self):
+        """tokens_in=False should be rejected (bool is not valid integer)"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "tokens_in": False
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "tokens_in" in str(exc_info.value)
+        assert "bool" in str(exc_info.value).lower()
+
+    def test_tokens_out_bool_rejected(self):
+        """tokens_out=True should be rejected"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "tokens_out": True
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "tokens_out" in str(exc_info.value)
+        assert "bool" in str(exc_info.value).lower()
+
+    def test_latency_ms_bool_rejected(self):
+        """latency_ms=True should be rejected (bool is not valid number)"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "latency_ms": True
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "latency_ms" in str(exc_info.value)
+        assert "bool" in str(exc_info.value).lower()
+
+    def test_tokens_in_zero_accepted(self):
+        """tokens_in=0 should be accepted (valid integer)"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "tokens_in": 0
+        }
+        assert validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+
+    def test_latency_ms_zero_accepted(self):
+        """latency_ms=0.0 should be accepted (valid number)"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "latency_ms": 0.0
+        }
+        assert validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+
+    def test_success_bool_accepted(self):
+        """success=True/False should be accepted (boolean field)"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "success": True
+        }
+        assert validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+
+        data["success"] = False
+        assert validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+
+
+class TestValidatorErrorMessages:
+    """Tests for detailed error messages in validate_against_schema.
+
+    Issue #2686: Error messages should include field name, expected type,
+    actual type, and actual value for easier debugging.
+    """
+
+    def test_error_message_includes_field_name(self):
+        """Error message should include the field name"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "tokens_in": "not_an_int"
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "tokens_in" in str(exc_info.value)
+
+    def test_error_message_includes_actual_type(self):
+        """Error message should include the actual type"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "tokens_in": "not_an_int"
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "str" in str(exc_info.value)
+
+    def test_error_message_includes_actual_value(self):
+        """Error message should include the actual value"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "tokens_in": "not_an_int"
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "not_an_int" in str(exc_info.value)
+
+    def test_enum_error_shows_valid_options(self):
+        """Enum validation error should show valid options"""
+        data = {
+            "event_type": "invalid_type",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test"
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "event_type" in str(exc_info.value)
+        assert "model_call" in str(exc_info.value)
+
+    def test_minimum_error_shows_constraint(self):
+        """Minimum validation error should show the constraint"""
+        data = {
+            "event_type": "model_call",
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "agent_id": "test",
+            "latency_ms": -1.0
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_against_schema(data, TELEMETRY_EVENT_SCHEMA)
+        assert "latency_ms" in str(exc_info.value)
+        assert "-1" in str(exc_info.value)
+        assert "0" in str(exc_info.value)
