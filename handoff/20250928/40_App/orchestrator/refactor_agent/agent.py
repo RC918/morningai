@@ -341,6 +341,22 @@ TS_FIX_STRATEGIES = {
     "TS18048": "possibly_undefined",  # 'X' is possibly 'undefined'
 }
 
+# Modules that indicate environment/setup issues when TS2307 is reported
+# These should never be "fixed" by the agent - they indicate missing dependencies
+# or build artifacts, not actual code issues that need refactoring.
+ENVIRONMENT_MODULES = {
+    # Workspace packages - must be built before typecheck
+    "@morningai/shared-ui",
+    # Critical externals - should always be installed
+    "react",
+    "react-dom",
+    "react-i18next",
+    "i18next",
+    # Common dev dependencies
+    "@types/react",
+    "@types/node",
+}
+
 
 class RefactorAgent:
     """
@@ -480,6 +496,75 @@ class RefactorAgent:
                 severity=severity
             )
         return None
+
+    def _check_environment_health(
+        self,
+        errors: List[TSError]
+    ) -> Tuple[bool, List[str]]:
+        """
+        Check if the collected errors indicate environment/setup issues.
+
+        TS2307 errors for workspace packages (like @morningai/shared-ui) or
+        critical externals (like react) indicate that dependencies are not
+        installed or build artifacts are missing. These should NOT be "fixed"
+        by the agent - they require environment setup, not code changes.
+
+        Args:
+            errors: List of TSError objects from collect_ts_errors()
+
+        Returns:
+            Tuple of (is_healthy, problem_modules):
+            - is_healthy: True if environment is healthy, False if issues detected
+            - problem_modules: List of module names that indicate env issues
+        """
+        problem_modules: List[str] = []
+
+        for error in errors:
+            if error.error_code != "TS2307":
+                continue
+
+            # Extract module name from TS2307 message
+            # Format: "Cannot find module 'X' or its corresponding type declarations."
+            # Support both single and double quotes for robustness
+            module_match = re.search(r"Cannot find module ['\"]([^'\"]+)['\"]", error.message)
+            if not module_match:
+                continue
+
+            module_name = module_match.group(1)
+
+            # Check if this is a workspace module or known environment module
+            # Prioritize workspace check for more specific log messages
+            is_workspace_module = module_name.startswith("@morningai/")
+            is_env_module = module_name in ENVIRONMENT_MODULES
+
+            if (is_workspace_module or is_env_module) and module_name not in problem_modules:
+                problem_modules.append(module_name)
+                if is_workspace_module:
+                    logger.warning(
+                        "[RefactorAgent] Environment issue detected: TS2307 for '%s' "
+                        "indicates workspace package not built",
+                        module_name,
+                    )
+                else:
+                    logger.warning(
+                        "[RefactorAgent] Environment issue detected: TS2307 for '%s' "
+                        "indicates missing dependency or build artifact",
+                        module_name,
+                    )
+
+        is_healthy = len(problem_modules) == 0
+
+        if not is_healthy:
+            logger.error(
+                "[RefactorAgent] Environment health check FAILED. "
+                "Found %d module resolution issues: %s. "
+                "Please ensure 'pnpm install' has been run and workspace packages are built.",
+                len(problem_modules), problem_modules
+            )
+        else:
+            logger.info("[RefactorAgent] Environment health check passed")
+
+        return is_healthy, problem_modules
 
     def analyze_error(self, error: TSError) -> RefactorTask:
         """
@@ -1144,6 +1229,25 @@ class RefactorAgent:
         # Collect errors
         all_errors = self.collect_ts_errors()
         total_errors = len(all_errors)
+
+        # Environment health check: Abort if TS2307 errors indicate setup issues
+        is_healthy, problem_modules = self._check_environment_health(all_errors)
+        if not is_healthy:
+            return RefactorResult(
+                run_id=run_id,
+                started_at=started_at,
+                completed_at=time.time(),
+                total_errors_found=total_errors,
+                summary=(
+                    f"Environment health check failed. "
+                    f"Found TS2307 errors for: {', '.join(problem_modules)}. "
+                    f"Please ensure 'pnpm install' has been run and workspace packages are built."
+                ),
+                metadata={
+                    "aborted_reason": "environment_unhealthy",
+                    "problem_modules": problem_modules,
+                }
+            )
 
         # Limit to max_errors
         errors_to_fix = all_errors[:max_errors]
