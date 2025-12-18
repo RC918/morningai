@@ -90,7 +90,7 @@ result = q.enqueue(my_background_task.process_data, 'http://example.com')
 - React Documentation: [https://reactjs.org/docs/getting-started.html](https://reactjs.org/docs/getting-started.html)
 - Flask Documentation: [https://flask.palletsprojects.com/en/2.0.x/](https://flask.palletsprojects.com/en/2.0.x/)
 - PostgreSQL RLS: [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- Redis Queue Documentation: [http://python-rq.org/docs/](http://python-rq.org/docs/)
+- Redis Queue Documentation: [https://python-rq.org/docs/](https://python-rq.org/docs/)
 - Render.com CI/CD: [https://render.com/docs/ci-cd](https://render.com/docs/ci-cd)
 
 ### Common Troubleshooting Tips

@@ -181,6 +181,15 @@ class ManifestVerifier:
         # Pattern matches http:// followed by a domain (not localhost/127.0.0.1/0.0.0.0)
         http_pattern = re.compile(r'http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s\)>\]]+')
 
+        # Patterns to exclude (code examples, internal services, formatting examples)
+        excluded_patterns = [
+            r'http://example\.com',  # Example URLs in code
+            r'http://mcp-server',    # Internal MCP server in code examples
+            r'http://`',             # Protocol mismatch formatting examples
+            r'http://\$',            # Variable URLs in code examples
+        ]
+        excluded_regex = re.compile('|'.join(excluded_patterns))
+
         files_checked = 0
         insecure_links = []
 
@@ -192,6 +201,9 @@ class ManifestVerifier:
 
                 matches = http_pattern.findall(content)
                 for match in matches:
+                    # Skip excluded patterns (code examples, internal services)
+                    if excluded_regex.search(match):
+                        continue
                     insecure_links.append((relative_path, match))
             except Exception as e:
                 self.log_warn(f"Could not read {md_file}: {e}")
