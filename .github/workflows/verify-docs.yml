@@ -236,17 +236,15 @@ jobs:
       
       - name: Verify architecture manifest
         id: verify-manifest
+        continue-on-error: true
         run: |
           echo "Running architecture manifest verification..."
           echo "Note: This check is currently non-blocking. See Epic #2465 for cleanup plan."
           python scripts/verify_architecture_manifest.py --verbose
-          echo "VERIFY_EXIT_CODE=$?" >> $GITHUB_ENV
       
       - name: Post success comment
-        # Only post success if verification actually passed (exit code 0)
-        # Note: With continue-on-error: true on job level, success() is always true
-        # So we check the actual exit code from the verification step
-        if: env.VERIFY_EXIT_CODE == '0' && github.event_name == 'pull_request'
+        # Only post success if verification actually passed (step outcome == success)
+        if: steps.verify-manifest.outcome == 'success' && github.event_name == 'pull_request'
         continue-on-error: true
         uses: actions/github-script@v7
         with:
