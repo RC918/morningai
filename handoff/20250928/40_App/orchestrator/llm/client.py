@@ -58,6 +58,24 @@ ProviderType = Literal["openai", "gemini", "alicloud", "siliconflow", "auto"]
 
 _default_client_lock = threading.Lock()
 
+# Provider registry for availability checks
+# Order determines priority for auto-selection
+_PROVIDER_REGISTRY = [
+    ("openai", OpenAIProvider),
+    ("gemini", GeminiProvider),
+    ("alicloud", AliCloudProvider),
+    ("siliconflow", SiliconFlowProvider),
+]
+
+
+def _get_available_providers() -> list[str]:
+    """Get list of available provider names based on configuration"""
+    available = []
+    for name, provider_class in _PROVIDER_REGISTRY:
+        if provider_class().is_available():
+            available.append(name)
+    return available
+
 
 class LLMClient:
     """
@@ -123,25 +141,11 @@ class LLMClient:
         4. SiliconFlow (if configured) - EPIC #2594
         5. Raise error if none available
         """
-        openai_provider = OpenAIProvider()
-        if openai_provider.is_available():
-            logger.info("[LLMClient] Auto-selected OpenAI provider")
-            return "openai"
-
-        gemini_provider = GeminiProvider()
-        if gemini_provider.is_available():
-            logger.info("[LLMClient] Auto-selected Gemini provider")
-            return "gemini"
-
-        alicloud_provider = AliCloudProvider()
-        if alicloud_provider.is_available():
-            logger.info("[LLMClient] Auto-selected AliCloud provider")
-            return "alicloud"
-
-        siliconflow_provider = SiliconFlowProvider()
-        if siliconflow_provider.is_available():
-            logger.info("[LLMClient] Auto-selected SiliconFlow provider")
-            return "siliconflow"
+        available = _get_available_providers()
+        if available:
+            selected = available[0]
+            logger.info(f"[LLMClient] Auto-selected {selected} provider")
+            return selected
 
         raise ValueError(
             "No LLM provider available. "
@@ -362,16 +366,8 @@ def get_client_for_task(
     try:
         from core.routing import RoutingEngine
 
-        # Determine available providers
-        available_providers = []
-        if OpenAIProvider().is_available():
-            available_providers.append("openai")
-        if GeminiProvider().is_available():
-            available_providers.append("gemini")
-        if AliCloudProvider().is_available():
-            available_providers.append("alicloud")
-        if SiliconFlowProvider().is_available():
-            available_providers.append("siliconflow")
+        # Determine available providers using shared helper
+        available_providers = _get_available_providers()
 
         if not available_providers:
             raise ValueError(

@@ -12,15 +12,10 @@ Tests cover:
 - Fallback mechanisms
 - Provider availability filtering
 """
-import sys
-import os
+import pytest
+from unittest.mock import patch
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import pytest  # noqa: E402
-from unittest.mock import patch  # noqa: E402
-
-from core.routing import RoutingEngine, Tier, TaskType, ModelInfo  # noqa: E402
+from core.routing import RoutingEngine, Tier, TaskType, ModelInfo
 
 
 class TestTierEnum:

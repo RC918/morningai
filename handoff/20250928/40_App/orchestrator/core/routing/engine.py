@@ -8,10 +8,11 @@ EPIC #2594 - Ticket 2: Routing Policy v1.1
 
 Reference: "Routing Policy for Multi-Model Use in MorningAI"
 """
+import copy
 import json
 import logging
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -47,6 +48,20 @@ class TaskType(Enum):
     SUMMARIZATION = "summarization"
     ANALYSIS = "analysis"
     CHAT = "chat"
+
+
+class RiskLevel(StrEnum):
+    """
+    Risk levels for routing decisions
+
+    Risk level affects tier selection:
+    - HIGH: Prefer higher capability (lower tier number)
+    - MEDIUM: Use default tier
+    - LOW: Can use lower capability (higher tier number)
+    """
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
 
 
 @dataclass
@@ -147,8 +162,10 @@ class RoutingEngine:
         """
         self._policy = self._load_policy(policy_path)
         self._available_providers = available_providers
-        self._tier_models = DEFAULT_TIER_MODELS.copy()
-        self._task_routing = self._policy.get("task_types", DEFAULT_TASK_ROUTING)
+        self._tier_models = copy.deepcopy(DEFAULT_TIER_MODELS)
+        self._task_routing = copy.deepcopy(
+            self._policy.get("task_types", DEFAULT_TASK_ROUTING)
+        )
 
         logger.info(
             f"[RoutingEngine] Initialized with {len(self._task_routing)} task types, "
@@ -167,18 +184,18 @@ class RoutingEngine:
                 return {}
 
         try:
-            with open(policy_path, 'r') as f:
+            with open(policy_path, 'r', encoding='utf-8') as f:
                 policy = json.load(f)
             logger.info(f"[RoutingEngine] Loaded policy from {policy_path}")
             return policy
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
             logger.warning(f"[RoutingEngine] Failed to load policy: {e}, using defaults")
             return {}
 
     def select_model(
         self,
         task_type: TaskType,
-        risk_level: str = "medium",
+        risk_level: RiskLevel | str = RiskLevel.MEDIUM,
         context_size: int = 0
     ) -> ModelInfo:
         """
@@ -186,15 +203,17 @@ class RoutingEngine:
 
         Args:
             task_type: Type of task to perform
-            risk_level: Risk level ("high", "medium", "low")
+            risk_level: Risk level (RiskLevel enum or "high", "medium", "low")
             context_size: Estimated context size in tokens
 
         Returns:
             ModelInfo with selected model details
 
         Raises:
-            ValueError: If no suitable model is available
+            ValueError: If no suitable model is available or invalid risk level
         """
+        normalized_risk = self._normalize_risk_level(risk_level)
+
         task_key = task_type.value
         routing_config = self._task_routing.get(task_key, {"tier": 2, "fallback": 3})
 
@@ -203,10 +222,10 @@ class RoutingEngine:
         fallback_tier_value = routing_config["fallback"]
 
         # Adjust tier based on risk level
-        if risk_level == "high":
+        if normalized_risk == RiskLevel.HIGH:
             # For high-risk tasks, prefer higher capability (lower tier number)
             target_tier_value = max(0, target_tier_value - 1)
-        elif risk_level == "low":
+        elif normalized_risk == RiskLevel.LOW:
             # For low-risk tasks, can use lower capability (higher tier number)
             target_tier_value = min(3, target_tier_value + 1)
 
@@ -218,7 +237,7 @@ class RoutingEngine:
             target_tier = self._adjust_tier_for_context(target_tier, context_size)
 
         # Try to find available model in target tier
-        model_info = self._find_available_model(target_tier, task_type)
+        model_info = self._find_available_model(target_tier)
         if model_info:
             model_info.reason = f"Selected for {task_key} task (tier {target_tier.value})"
             return model_info
@@ -228,7 +247,7 @@ class RoutingEngine:
             f"[RoutingEngine] No model available in tier {target_tier.value}, "
             f"falling back to tier {fallback_tier.value}"
         )
-        model_info = self._find_available_model(fallback_tier, task_type)
+        model_info = self._find_available_model(fallback_tier)
         if model_info:
             model_info.is_fallback = True
             model_info.reason = (
@@ -239,7 +258,7 @@ class RoutingEngine:
 
         # Try any available tier
         for tier in Tier:
-            model_info = self._find_available_model(tier, task_type)
+            model_info = self._find_available_model(tier)
             if model_info:
                 model_info.is_fallback = True
                 model_info.reason = f"Emergency fallback to tier {tier.value}"
@@ -252,6 +271,21 @@ class RoutingEngine:
             f"No suitable model available for task type '{task_key}'. "
             f"Check provider configurations."
         )
+
+    def _normalize_risk_level(self, risk_level: RiskLevel | str) -> RiskLevel:
+        """Normalize risk level to RiskLevel enum"""
+        if isinstance(risk_level, RiskLevel):
+            return risk_level
+
+        risk_str = str(risk_level).lower().strip()
+        try:
+            return RiskLevel(risk_str)
+        except ValueError:
+            valid_values = [r.value for r in RiskLevel]
+            raise ValueError(
+                f"Invalid risk level '{risk_level}'. "
+                f"Valid values are: {valid_values}"
+            )
 
     def _adjust_tier_for_context(self, tier: Tier, context_size: int) -> Tier:
         """Adjust tier based on context size requirements"""
@@ -277,11 +311,7 @@ class RoutingEngine:
         )
         return Tier.TIER_0
 
-    def _find_available_model(
-        self,
-        tier: Tier,
-        task_type: TaskType
-    ) -> Optional[ModelInfo]:
+    def _find_available_model(self, tier: Tier) -> Optional[ModelInfo]:
         """Find an available model in the specified tier"""
         tier_models = self._tier_models.get(tier, [])
 
