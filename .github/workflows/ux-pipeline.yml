@@ -20,7 +20,7 @@ jobs:
     name: UX QA Smoke Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [smoke-tests]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -139,7 +139,7 @@ jobs:
       matrix:
         app: [frontend-dashboard, owner-console]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -220,7 +220,7 @@ jobs:
           - app: owner-console
             port: 4174
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -331,7 +331,7 @@ jobs:
           - app: owner-console
             port: 4174
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -448,7 +448,7 @@ jobs:
       matrix:
         app: [frontend-dashboard, owner-console]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -523,7 +523,7 @@ jobs:
           - app: owner-console
             port: 4174
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -584,7 +584,7 @@ jobs:
           - app: owner-console
             port: 4174
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -649,7 +649,7 @@ jobs:
           - app: owner-console
             port: 4174
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
