@@ -17,43 +17,50 @@ import pytest  # noqa: F401 - pytest fixtures (caplog) are used implicitly
 from core.routing import RoutingEngine, Tier, TaskType
 from core.routing.engine import TIER_CONTEXT_LIMITS
 
+# Semantic aliases for tier context limits to improve test readability
+# while avoiding hardcoded values that could drift from implementation
+TIER_0_LIMIT = TIER_CONTEXT_LIMITS[Tier.TIER_0]  # 128000
+TIER_1_LIMIT = TIER_CONTEXT_LIMITS[Tier.TIER_1]  # 128000
+TIER_2_LIMIT = TIER_CONTEXT_LIMITS[Tier.TIER_2]  # 32000
+TIER_3_LIMIT = TIER_CONTEXT_LIMITS[Tier.TIER_3]  # 8000
+
 
 class TestContextSizeAtExactBoundary:
     """Tests for context size exactly at tier boundaries"""
 
     def test_context_at_tier_3_limit(self):
-        """Context exactly at Tier 3 limit (8000) should stay in Tier 3"""
+        """Context exactly at Tier 3 limit should stay in Tier 3"""
         engine = RoutingEngine(available_providers=["siliconflow"])
 
         # UX_COPY defaults to Tier 3
-        model = engine.select_model(TaskType.UX_COPY, context_size=8000)
+        model = engine.select_model(TaskType.UX_COPY, context_size=TIER_3_LIMIT)
 
         assert model.tier == Tier.TIER_3
 
     def test_context_at_tier_2_limit(self):
-        """Context exactly at Tier 2 limit (32000) should stay in Tier 2"""
+        """Context exactly at Tier 2 limit should stay in Tier 2"""
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
 
         # CHAT defaults to Tier 2
-        model = engine.select_model(TaskType.CHAT, context_size=32000)
+        model = engine.select_model(TaskType.CHAT, context_size=TIER_2_LIMIT)
 
         assert model.tier == Tier.TIER_2
 
     def test_context_at_tier_1_limit(self):
-        """Context exactly at Tier 1 limit (128000) should stay in Tier 1"""
+        """Context exactly at Tier 1 limit should stay in Tier 1"""
         engine = RoutingEngine(available_providers=["alicloud"])
 
         # CODING defaults to Tier 1
-        model = engine.select_model(TaskType.CODING, context_size=128000)
+        model = engine.select_model(TaskType.CODING, context_size=TIER_1_LIMIT)
 
         assert model.tier == Tier.TIER_1
 
     def test_context_at_tier_0_limit(self):
-        """Context exactly at Tier 0 limit (128000) should stay in Tier 0"""
+        """Context exactly at Tier 0 limit should stay in Tier 0"""
         engine = RoutingEngine(available_providers=["alicloud"])
 
         # PLANNING defaults to Tier 0
-        model = engine.select_model(TaskType.PLANNING, context_size=128000)
+        model = engine.select_model(TaskType.PLANNING, context_size=TIER_0_LIMIT)
 
         assert model.tier == Tier.TIER_0
 
@@ -62,34 +69,34 @@ class TestContextSizeJustAboveBoundary:
     """Tests for context size just above tier boundaries"""
 
     def test_context_just_above_tier_3_limit(self):
-        """Context just above Tier 3 limit (8001) should upgrade tier"""
+        """Context just above Tier 3 limit should upgrade tier"""
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
 
-        # UX_COPY defaults to Tier 3 (8000 limit)
-        # 8001 tokens should upgrade to a tier with larger context
-        model = engine.select_model(TaskType.UX_COPY, context_size=8001)
+        # UX_COPY defaults to Tier 3
+        # context_size > TIER_3_LIMIT should upgrade to a tier with larger context
+        model = engine.select_model(TaskType.UX_COPY, context_size=TIER_3_LIMIT + 1)
 
         # Should upgrade to Tier 2 or higher (lower tier number = higher capability)
         assert model.tier.value < Tier.TIER_3.value
 
     def test_context_just_above_tier_2_limit(self):
-        """Context just above Tier 2 limit (32001) should upgrade tier"""
+        """Context just above Tier 2 limit should upgrade tier"""
         engine = RoutingEngine(available_providers=["alicloud"])
 
-        # CHAT defaults to Tier 2 (32000 limit)
-        # 32001 tokens should upgrade to Tier 0 or 1
-        model = engine.select_model(TaskType.CHAT, context_size=32001)
+        # CHAT defaults to Tier 2
+        # context_size > TIER_2_LIMIT should upgrade to Tier 0 or 1
+        model = engine.select_model(TaskType.CHAT, context_size=TIER_2_LIMIT + 1)
 
-        # Should upgrade to Tier 0 or 1 (128000 limit)
+        # Should upgrade to Tier 0 or 1
         assert model.tier.value < Tier.TIER_2.value
 
     def test_context_just_above_tier_1_limit(self):
-        """Context just above Tier 1 limit (128001) should use Tier 0"""
+        """Context just above Tier 1 limit should use Tier 0"""
         engine = RoutingEngine(available_providers=["alicloud"])
 
-        # CODING defaults to Tier 1 (128000 limit)
-        # 128001 tokens exceeds all limits, should use Tier 0
-        model = engine.select_model(TaskType.CODING, context_size=128001)
+        # CODING defaults to Tier 1
+        # context_size > TIER_1_LIMIT exceeds all limits, should use Tier 0
+        model = engine.select_model(TaskType.CODING, context_size=TIER_1_LIMIT + 1)
 
         # Should use Tier 0 (highest capability)
         assert model.tier == Tier.TIER_0
@@ -335,8 +342,8 @@ class TestContextSizeEdgeCases:
         """Context size at boundary-1 should stay in current tier"""
         engine = RoutingEngine(available_providers=["siliconflow"])
 
-        # 7999 is just under Tier 3 limit (8000)
-        model = engine.select_model(TaskType.UX_COPY, context_size=7999)
+        # Just under Tier 3 limit
+        model = engine.select_model(TaskType.UX_COPY, context_size=TIER_3_LIMIT - 1)
 
         assert model.tier == Tier.TIER_3
 
@@ -344,8 +351,8 @@ class TestContextSizeEdgeCases:
         """Context size at Tier 2 boundary-1 should stay in Tier 2"""
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
 
-        # 31999 is just under Tier 2 limit (32000)
-        model = engine.select_model(TaskType.CHAT, context_size=31999)
+        # Just under Tier 2 limit
+        model = engine.select_model(TaskType.CHAT, context_size=TIER_2_LIMIT - 1)
 
         assert model.tier == Tier.TIER_2
 
@@ -353,7 +360,7 @@ class TestContextSizeEdgeCases:
         """Context size at Tier 0 boundary-1 should stay in Tier 0"""
         engine = RoutingEngine(available_providers=["alicloud"])
 
-        # 127999 is just under Tier 0/1 limit (128000)
-        model = engine.select_model(TaskType.PLANNING, context_size=127999)
+        # Just under Tier 0/1 limit
+        model = engine.select_model(TaskType.PLANNING, context_size=TIER_0_LIMIT - 1)
 
         assert model.tier == Tier.TIER_0
