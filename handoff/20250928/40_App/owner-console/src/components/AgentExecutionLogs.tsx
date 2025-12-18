@@ -1,5 +1,14 @@
+import * as React from 'react'
+const { useState, useEffect, useId } = React
+// Add this line at the top of your file
+/// <reference types="react-i18next" />
 import { useState, useEffect, useId } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
 import { 
   Card, 
   CardContent, 
@@ -23,7 +32,17 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger
-} from '@morningai/shared-ui'
+// Add a declaration file for the module if it doesn't exist
+// Create a file like `@morningai/shared-ui/index.d.ts`
+
+declare module '@morningai/shared-ui' {
+  export const Sheet: any;
+  export const SheetContent: any;
+  export const SheetDescription: any;
+  export const SheetHeader: any;
+  export const SheetTitle: any;
+  export const SheetTrigger: any;
+}
 import { 
   Filter,
   RefreshCw,
@@ -36,9 +55,14 @@ import {
   Eye,
   ChevronLeftIcon,
   ChevronRightIcon
-} from 'lucide-react'
+    34:   Copy,
+    35:   ExternalLink,
+    36:   Eye,
+    37:   ChevronLeftIcon,
+    38:   ChevronRightIcon
+    39: } from '@lucide/react'
 import { apiClient, apiClientWithMeta, handleApiError } from '@/lib/api-client'
-import { toast } from 'sonner'
+import { toast } from 'react-toastify'
 import { buildTraceUrl } from '@/lib/trace'
 import { AppleErrorBanner } from '@/components/AppleErrorBanner'
 import { AppleSelect, SelectItem as AppleSelectItem } from '@/components/apple/apple-select'
@@ -351,7 +375,7 @@ const AgentExecutionLogs = () => {
   const showSkeleton = loading && logs.length === 0
 
   return (
-    <div className="space-y-6" aria-busy={loading} data-testid="agent-execution-logs">
+    import React from 'react';
       {showSkeleton ? (
         <>
           {/* Summary Statistics Skeleton */}

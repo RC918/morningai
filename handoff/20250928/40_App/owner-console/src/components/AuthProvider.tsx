@@ -5,7 +5,9 @@
  * 
  * Provides authentication context and UI integration
  */
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import * as React from 'react';
+const { createContext, useContext, useState, useEffect } = React;
+type ReactNode = React.ReactNode;
 import {
   User,
   LoginCredentials,
@@ -122,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     refreshUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  import React from 'react';
 };
 
 export default AuthProvider;

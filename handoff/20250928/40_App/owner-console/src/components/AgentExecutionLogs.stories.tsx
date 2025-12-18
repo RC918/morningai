@@ -1,4 +1,10 @@
+// @ts-ignore
 import * as React from 'react';
+// @ts-ignore - msw is a dev dependency for Storybook
+import { http, HttpResponse } from 'msw';
+import AgentExecutionLogs from './AgentExecutionLogs';
+
+export default {
 // @ts-ignore - msw is a dev dependency for Storybook
 import { http, HttpResponse } from 'msw';
 import AgentExecutionLogs from './AgentExecutionLogs';
