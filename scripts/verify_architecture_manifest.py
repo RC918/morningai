@@ -29,6 +29,27 @@ except ImportError:
     sys.exit(1)
 
 
+# =============================================================================
+# Link Security Check Patterns (exported for testing)
+# =============================================================================
+
+# Pattern matches http:// followed by a domain (not localhost/127.0.0.1/0.0.0.0)
+HTTP_INSECURE_LINK_PATTERN = r'http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s\)>\]]+'
+HTTP_INSECURE_LINK_RE = re.compile(HTTP_INSECURE_LINK_PATTERN)
+
+# Patterns to exclude (code examples, internal services, formatting examples)
+# Note: Using lookahead to ensure we match the exact domain, not just a prefix
+# (e.g., http://example.com.evil.com should NOT be excluded)
+# The lookahead includes common URL delimiters and trailing punctuation in docs
+EXCLUDED_HTTP_PATTERNS = (
+    r"http://example\.com(?=[/:?#'\")\]>]|$)",  # Example URLs in code (exact domain)
+    r"http://mcp-server(?=[/:?#'\")\]>]|$)",    # Internal MCP server (exact hostname)
+    r'http://`',                                 # Protocol mismatch formatting examples
+    r'http://\$',                                # Variable URLs in code examples
+)
+EXCLUDED_HTTP_PATTERN_RE = re.compile('|'.join(EXCLUDED_HTTP_PATTERNS))
+
+
 class Colors:
     RED = '\033[0;31m'
     GREEN = '\033[0;32m'
@@ -178,18 +199,6 @@ class ManifestVerifier:
             self.log_warn("docs/ directory not found")
             return
 
-        # Pattern matches http:// followed by a domain (not localhost/127.0.0.1/0.0.0.0)
-        http_pattern = re.compile(r'http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s\)>\]]+')
-
-        # Patterns to exclude (code examples, internal services, formatting examples)
-        excluded_patterns = [
-            r'http://example\.com',  # Example URLs in code
-            r'http://mcp-server',    # Internal MCP server in code examples
-            r'http://`',             # Protocol mismatch formatting examples
-            r'http://\$',            # Variable URLs in code examples
-        ]
-        excluded_regex = re.compile('|'.join(excluded_patterns))
-
         files_checked = 0
         insecure_links = []
 
@@ -199,10 +208,10 @@ class ManifestVerifier:
                 content = md_file.read_text(encoding='utf-8')
                 relative_path = md_file.relative_to(self.repo_root)
 
-                matches = http_pattern.findall(content)
+                matches = HTTP_INSECURE_LINK_RE.findall(content)
                 for match in matches:
                     # Skip excluded patterns (code examples, internal services)
-                    if excluded_regex.search(match):
+                    if EXCLUDED_HTTP_PATTERN_RE.search(match):
                         continue
                     insecure_links.append((relative_path, match))
             except Exception as e:
