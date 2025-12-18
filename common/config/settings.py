@@ -552,6 +552,42 @@ class Settings(BaseSettings):
         """Gemini API key (unwrapped from SecretStr)"""
         return self.gemini_api_key_secret.get_secret_value() if self.gemini_api_key_secret else None
 
+    dashscope_api_key_secret: Optional[SecretStr] = Field(
+        None,
+        alias="DASHSCOPE_API_KEY",
+        description="AliCloud DashScope API key for Qwen models (EPIC #2594)",
+        repr=False
+    )
+
+    @property
+    def dashscope_api_key(self) -> Optional[str]:
+        """DashScope API key (unwrapped from SecretStr)"""
+        return self.dashscope_api_key_secret.get_secret_value() if self.dashscope_api_key_secret else None
+
+    siliconflow_api_key_secret: Optional[SecretStr] = Field(
+        None,
+        alias="SILICONFLOW_API_KEY",
+        description="SiliconFlow API key for Qwen models (EPIC #2594)",
+        repr=False
+    )
+
+    @property
+    def siliconflow_api_key(self) -> Optional[str]:
+        """SiliconFlow API key (unwrapped from SecretStr)"""
+        return self.siliconflow_api_key_secret.get_secret_value() if self.siliconflow_api_key_secret else None
+
+    dashscope_base_url: str = Field(
+        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        alias="DASHSCOPE_BASE_URL",
+        description="AliCloud DashScope API base URL (EPIC #2594)"
+    )
+
+    siliconflow_base_url: str = Field(
+        default="https://api.siliconflow.cn/v1",
+        alias="SILICONFLOW_BASE_URL",
+        description="SiliconFlow API base URL (EPIC #2594)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",

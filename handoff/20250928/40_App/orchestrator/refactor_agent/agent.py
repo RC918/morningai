@@ -407,7 +407,11 @@ class RefactorAgent:
 
     def collect_ts_errors(self, project_path: Optional[str] = None) -> List[TSError]:
         """
-        Collect TypeScript errors from the project.
+        Collect TypeScript strict mode errors from the project.
+
+        Uses `pnpm run typecheck:strict` to ensure consistency with CI workflow.
+        This requires the project to have a `typecheck:strict` script defined
+        in package.json that runs `tsc -p tsconfig.strict.json --noEmit`.
 
         Args:
             project_path: Path to the TypeScript project (relative to repo root)
@@ -427,14 +431,18 @@ class RefactorAgent:
                 continue
 
             try:
+                # Use pnpm run typecheck:strict for consistency with CI
+                # This ensures we use the same tsconfig.strict.json as the CI workflow
                 result = subprocess.run(
-                    ["npx", "tsc", "--noEmit", "--pretty", "false"],
+                    ["pnpm", "run", "typecheck:strict"],
                     cwd=proj_full_path,
                     capture_output=True,
                     text=True,
-                    timeout=120
+                    timeout=120,
+                    env={**subprocess.os.environ, "FORCE_COLOR": "0"}
                 )
 
+                # Parse errors from both stdout and stderr
                 for line in result.stdout.split("\n"):
                     error = self._parse_tsc_error(line, proj)
                     if error:
@@ -446,13 +454,13 @@ class RefactorAgent:
                         errors.append(error)
 
             except subprocess.TimeoutExpired:
-                logger.error("[RefactorAgent] tsc timeout for %s", proj)
+                logger.error("[RefactorAgent] typecheck:strict timeout for %s", proj)
             except FileNotFoundError:
-                logger.error("[RefactorAgent] npx/tsc not found for %s", proj)
+                logger.error("[RefactorAgent] pnpm not found for %s", proj)
             except Exception as e:
                 logger.error("[RefactorAgent] Error collecting TS errors: %s", e)
 
-        logger.info("[RefactorAgent] Collected %d TS errors", len(errors))
+        logger.info("[RefactorAgent] Collected %d TS strict errors", len(errors))
         return errors
 
     def _parse_tsc_error(self, line: str, project: str) -> Optional[TSError]:
@@ -617,10 +625,15 @@ class RefactorAgent:
 
                 fix = response.content.strip()
 
+                # Remove markdown code blocks if present
                 if fix.startswith("```"):
                     lines = fix.split("\n")
                     if len(lines) > 2:
                         fix = "\n".join(lines[1:-1])
+
+                # Sanitize LLM output to remove prompt format pollution
+                # This removes line numbers and markers that may have been copied from the prompt
+                fix = self._sanitize_llm_output(fix)
 
                 if fix and len(fix) > MIN_LLM_FIX_LENGTH:
                     logger.info(
@@ -674,6 +687,95 @@ class RefactorAgent:
         }
 
         return fallback_messages.get(strategy)
+
+    def _sanitize_llm_output(self, fix: str) -> str:
+        """
+        Sanitize LLM output to remove prompt format pollution.
+
+        The code context in prompts includes line numbers and markers (e.g., ">>> 34: code").
+        LLMs sometimes copy these formats into their output, which corrupts the code.
+
+        Safety: Only strips lines that contain the ">>>" marker we inject in _get_code_context().
+        This prevents false positives on legitimate code like `1: "first"` in object literals.
+
+        Args:
+            fix: Raw LLM output
+
+        Returns:
+            Sanitized code without line numbers or markers
+        """
+        if not fix:
+            return fix
+
+        # Only sanitize if the output contains our injected ">>>" marker
+        # This prevents false positives on legitimate code like `1: "first"`
+        if ">>>" not in fix:
+            return fix
+
+        # Pattern matches lines with our marker format: ">>> 34: code" or "    34: code"
+        # We only strip when >>> marker is present in the output (indicating prompt pollution)
+        sanitized = re.sub(r'^\s*>>>\s*\d+:\s*', '', fix, flags=re.MULTILINE)
+        sanitized = re.sub(r'^\s{4}\d+:\s*', '', sanitized, flags=re.MULTILINE)
+
+        lines_removed = fix.count('\n') - sanitized.count('\n')
+        chars_removed = len(fix) - len(sanitized)
+
+        if chars_removed > 0:
+            logger.info(
+                "[RefactorAgent] Sanitized LLM output: removed %d characters from %d lines",
+                chars_removed, lines_removed if lines_removed > 0 else 1
+            )
+
+        return sanitized
+
+    def _verify_syntax_after_fix(self, project_path: str) -> Tuple[bool, List[str]]:
+        """
+        Verify that the project has no syntax errors after applying fixes.
+
+        Syntax errors (TS1xxx codes) indicate that the code cannot be parsed,
+        which means the fix corrupted the file. This is different from type errors
+        (TS2xxx codes) which are expected during the fixing process.
+
+        Args:
+            project_path: Path to the TypeScript project (relative to repo root)
+
+        Returns:
+            Tuple of (has_syntax_errors, list of syntax error messages)
+        """
+        proj_full_path = self.repo_path / project_path
+        if not proj_full_path.exists():
+            return (False, [])
+
+        try:
+            result = subprocess.run(
+                ["pnpm", "run", "typecheck:strict"],
+                cwd=proj_full_path,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env={**subprocess.os.environ, "FORCE_COLOR": "0"}
+            )
+
+            syntax_errors = []
+            # TS1xxx errors are syntax/parse errors
+            syntax_error_pattern = r"error TS1\d{3}:"
+
+            for line in result.stdout.split("\n") + result.stderr.split("\n"):
+                if re.search(syntax_error_pattern, line):
+                    syntax_errors.append(line.strip())
+
+            has_syntax_errors = len(syntax_errors) > 0
+            if has_syntax_errors:
+                logger.warning(
+                    "[RefactorAgent] Found %d syntax errors after fix in %s",
+                    len(syntax_errors), project_path
+                )
+
+            return (has_syntax_errors, syntax_errors)
+
+        except Exception as e:
+            logger.error("[RefactorAgent] Error verifying syntax: %s", e)
+            return (True, [f"Error during syntax verification: {e}"])
 
     def _create_backup(self, file_path: Path) -> Optional[Path]:
         """
@@ -1104,6 +1206,38 @@ class RefactorAgent:
                     # Update counts from apply results
                     errors_fixed = apply_results['success_count']
                     errors_failed += apply_results['failure_count']
+
+                    # Post-fix validation: Check for syntax errors (TS1xxx)
+                    # If fixes introduced syntax errors, rollback all changes
+                    if errors_fixed > 0:
+                        syntax_errors_found = False
+                        for proj in self.target_projects:
+                            has_syntax_errors, syntax_error_list = self._verify_syntax_after_fix(proj)
+                            if has_syntax_errors:
+                                syntax_errors_found = True
+                                logger.error(
+                                    "[RefactorAgent] Syntax errors detected in %s after applying fixes. "
+                                    "Rolling back all changes. Errors: %s",
+                                    proj, syntax_error_list[:5]  # Log first 5 errors
+                                )
+
+                        if syntax_errors_found:
+                            # Rollback all applied fixes
+                            backup_paths = apply_results.get('backups', {})
+                            if backup_paths:
+                                self.rollback_batch(backup_paths)
+                                logger.warning(
+                                    "[RefactorAgent] Rolled back %d files due to syntax errors",
+                                    len(backup_paths)
+                                )
+
+                            # Mark all tasks as failed
+                            for task in tasks_to_apply:
+                                task.status = "failed"
+                                task.error_message = "Fix caused syntax errors, rolled back"
+
+                            errors_failed += errors_fixed
+                            errors_fixed = 0
 
         completed_at = time.time()
         latency_ms = (completed_at - started_at) * 1000
