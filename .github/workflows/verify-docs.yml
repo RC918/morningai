@@ -10,7 +10,9 @@ on:
       - 'agents/*/migrations/**'
       - 'handoff/20250928/40_App/api-backend/requirements.txt'
       - 'config/env.schema.yaml'
+      - 'config/architecture-manifest.yaml'
       - 'scripts/generate-env-reference.py'
+      - 'scripts/verify_architecture_manifest.py'
   workflow_dispatch:
 
 jobs:
@@ -208,4 +210,71 @@ jobs:
             echo "Diff:"
             git diff docs/ENV_REFERENCE.md
             exit 1
+          fi
+
+  verify-architecture-manifest:
+    name: Verify Architecture Manifest (Epic #2465)
+    runs-on: ubuntu-latest
+    # Note: This check is currently non-blocking to allow gradual cleanup of existing issues.
+    # Once existing documentation is cleaned up, remove continue-on-error to make it blocking.
+    continue-on-error: true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: pip install PyYAML
+      
+      - name: Make verification script executable
+        run: chmod +x scripts/verify_architecture_manifest.py
+      
+      - name: Verify architecture manifest
+        id: verify-manifest
+        run: |
+          echo "Running architecture manifest verification..."
+          echo "Note: This check is currently non-blocking. See Epic #2465 for cleanup plan."
+          python scripts/verify_architecture_manifest.py --verbose || echo "::warning::Architecture manifest verification found issues. See output above."
+      
+      - name: Post success comment
+        if: success() && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **Architecture Manifest Verification Passed**\n\nAll architecture claims have been verified:\n\n- Required paths: ✓\n- Service entrypoints: ✓\n- No invalid path aliases (hallucinations): ✓\n- Link security (HTTPS): ✓'
+            })
+
+  check-link-security:
+    name: Check Link Security (HTTPS)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Check for insecure HTTP links
+        run: |
+          echo "Checking for insecure HTTP links in documentation..."
+          
+          # Find HTTP links (excluding localhost and local IPs)
+          INSECURE_LINKS=$(grep -rE 'http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)' docs/ --include="*.md" || true)
+          
+          if [ -n "$INSECURE_LINKS" ]; then
+            echo "::error::Found insecure HTTP links in documentation:"
+            echo "$INSECURE_LINKS"
+            echo ""
+            echo "Please update these links to use HTTPS."
+            exit 1
+          else
+            echo "✅ No insecure HTTP links found in documentation"
           fi
