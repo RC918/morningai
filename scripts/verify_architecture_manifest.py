@@ -17,7 +17,6 @@ Exit codes:
 """
 
 import argparse
-import os
 import re
 import sys
 from pathlib import Path
@@ -68,7 +67,7 @@ class ManifestVerifier:
             return None
 
         try:
-            with open(manifest_path, 'r') as f:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f)
         except yaml.YAMLError as e:
             self.log_fail(f"Failed to parse architecture manifest: {e}")
@@ -179,13 +178,8 @@ class ManifestVerifier:
             self.log_warn("docs/ directory not found")
             return
 
+        # Pattern matches http:// followed by a domain (not localhost/127.0.0.1/0.0.0.0)
         http_pattern = re.compile(r'http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s\)>\]]+')
-
-        excluded_domains = [
-            'localhost',
-            '127.0.0.1',
-            '0.0.0.0',
-        ]
 
         files_checked = 0
         insecure_links = []
@@ -198,9 +192,7 @@ class ManifestVerifier:
 
                 matches = http_pattern.findall(content)
                 for match in matches:
-                    is_excluded = any(domain in match for domain in excluded_domains)
-                    if not is_excluded:
-                        insecure_links.append((relative_path, match))
+                    insecure_links.append((relative_path, match))
             except Exception as e:
                 self.log_warn(f"Could not read {md_file}: {e}")
 
