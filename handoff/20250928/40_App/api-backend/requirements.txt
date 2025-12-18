@@ -9,10 +9,10 @@ MarkupSafe==3.0.2
 SQLAlchemy==2.0.41
 typing_extensions==4.15.0
 Werkzeug==3.1.4
-alembic==1.13.1
+alembic==1.17.2
 
 
-PyJWT==2.8.0
+PyJWT==2.10.1
 cryptography
 packaging
 PyYAML
@@ -22,7 +22,7 @@ psycopg2-binary
 redis>=5.2.0,<7.0.0
 upstash-redis>=1.1.0,<2.0.0
 rq
-sentry-sdk==2.19.2
+sentry-sdk==2.48.0
 supabase==2.6.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
