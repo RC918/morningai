@@ -153,6 +153,7 @@ DIFF_MAX_FILES = 20
 DIFF_MAX_LINES = 1000
 DIFF_MAX_SIZE_BYTES = 100 * 1024  # 100KB
 DIFF_PRIORITY_EXTENSIONS = {'.py', '.ts', '.tsx', '.js', '.jsx'}
+DIFF_MIN_REMAINING_LINES_FOR_PARTIAL = 10  # Minimum lines to include partial patch
 
 
 def get_pr_diff(
@@ -232,6 +233,18 @@ def get_pr_diff(
 
         sorted_files = sorted(files, key=file_priority)
 
+        # Pre-calculate original totals for all files (before truncation)
+        # This ensures original_* values are always the true totals
+        original_total_lines = 0
+        original_total_size = 0
+        for file in sorted_files:
+            patch = file.patch or ""
+            original_total_lines += patch.count('\n') + 1 if patch else 0
+            original_total_size += len(patch.encode('utf-8'))
+
+        result["truncation_info"]["original_line_count"] = original_total_lines
+        result["truncation_info"]["original_size_bytes"] = original_total_size
+
         # Build diff with truncation
         diff_parts = []
         included_files = []
@@ -258,7 +271,7 @@ def get_pr_diff(
                     result["truncation_info"]["truncation_reasons"].append("line_count_exceeded")
                 # Include partial patch if possible
                 remaining_lines = max_lines - total_lines
-                if remaining_lines > 10:  # Only include if meaningful
+                if remaining_lines > DIFF_MIN_REMAINING_LINES_FOR_PARTIAL:
                     patch_lines_list = patch.split('\n')
                     patch = '\n'.join(patch_lines_list[:remaining_lines])
                     patch += f"\n... (truncated {len(patch_lines_list) - remaining_lines} more lines)"
@@ -289,22 +302,12 @@ def get_pr_diff(
             total_lines += patch_lines
             total_size += patch_size
 
-            # Update original counts
-            result["truncation_info"]["original_line_count"] += patch_lines
-            result["truncation_info"]["original_size_bytes"] += patch_size
-
         # Combine diff parts
         result["diff"] = '\n'.join(diff_parts)
         result["files"] = included_files
         result["truncation_info"]["included_file_count"] = len(included_files)
         result["truncation_info"]["included_line_count"] = total_lines
         result["truncation_info"]["included_size_bytes"] = total_size
-
-        # Calculate original totals for files not included
-        for file in sorted_files[len(included_files):]:
-            patch = file.patch or ""
-            result["truncation_info"]["original_line_count"] += patch.count('\n') + 1 if patch else 0
-            result["truncation_info"]["original_size_bytes"] += len(patch.encode('utf-8'))
 
         logger.info(
             f"[GitHub] Retrieved diff for PR #{pr_number}",

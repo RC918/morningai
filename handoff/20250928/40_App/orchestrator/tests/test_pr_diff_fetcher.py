@@ -18,7 +18,8 @@ from tools.github_api import (  # noqa: E402
     DIFF_MAX_FILES,
     DIFF_MAX_LINES,
     DIFF_MAX_SIZE_BYTES,
-    DIFF_PRIORITY_EXTENSIONS
+    DIFF_PRIORITY_EXTENSIONS,
+    DIFF_MIN_REMAINING_LINES_FOR_PARTIAL
 )
 
 
@@ -343,6 +344,134 @@ class TestGetPrDiff:
         assert "included_size_bytes" in info
         assert "truncation_reasons" in info
         assert isinstance(info["truncation_reasons"], list)
+
+    def test_original_totals_correct_with_partial_truncation(self):
+        """
+        Regression test: original_line_count and original_size_bytes
+        should reflect the TRUE original totals, not truncated values.
+
+        Bug fixed: When a file was partially truncated (line limit hit mid-file),
+        the truncated line count was incorrectly added to original_line_count.
+        """
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        # Create a file with 100 lines (will be truncated to 50)
+        original_lines = [f"+line{i}" for i in range(100)]
+        original_patch = "\n".join(original_lines)
+        original_line_count = original_patch.count('\n') + 1  # 100 lines
+        original_size = len(original_patch.encode('utf-8'))
+
+        mock_file = MagicMock()
+        mock_file.filename = "large.py"
+        mock_file.status = "modified"
+        mock_file.additions = 100
+        mock_file.deletions = 0
+        mock_file.changes = 100
+        mock_file.patch = original_patch
+
+        mock_pr.get_files.return_value = [mock_file]
+        mock_repo.get_pull.return_value = mock_pr
+
+        # Truncate to 50 lines
+        result = get_pr_diff(mock_repo, 123, max_lines=50)
+
+        info = result["truncation_info"]
+
+        # Original totals should be the TRUE original values
+        assert info["original_line_count"] == original_line_count
+        assert info["original_size_bytes"] == original_size
+
+        # Included totals should be truncated
+        assert info["included_line_count"] <= 50
+        assert result["truncated"] is True
+        assert "line_count_exceeded" in info["truncation_reasons"]
+
+    def test_original_totals_correct_with_file_count_truncation(self):
+        """
+        Regression test: original totals should include ALL files,
+        not just included files, when file count limit is hit.
+        """
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        # Create 5 files, but only include 2
+        files = []
+        total_original_lines = 0
+        total_original_size = 0
+
+        for i in range(5):
+            patch = f"+content{i}\n+more{i}"
+            total_original_lines += patch.count('\n') + 1
+            total_original_size += len(patch.encode('utf-8'))
+
+            mock_file = MagicMock()
+            mock_file.filename = f"file{i}.py"
+            mock_file.status = "modified"
+            mock_file.additions = 2
+            mock_file.deletions = 0
+            mock_file.changes = 2
+            mock_file.patch = patch
+            files.append(mock_file)
+
+        mock_pr.get_files.return_value = files
+        mock_repo.get_pull.return_value = mock_pr
+
+        # Only include 2 files
+        result = get_pr_diff(mock_repo, 123, max_files=2)
+
+        info = result["truncation_info"]
+
+        # Original totals should include ALL 5 files
+        assert info["original_file_count"] == 5
+        assert info["original_line_count"] == total_original_lines
+        assert info["original_size_bytes"] == total_original_size
+
+        # Included totals should only have 2 files
+        assert info["included_file_count"] == 2
+        assert result["truncated"] is True
+
+    def test_min_remaining_lines_constant(self):
+        """Test that DIFF_MIN_REMAINING_LINES_FOR_PARTIAL constant is used"""
+        assert DIFF_MIN_REMAINING_LINES_FOR_PARTIAL == 10
+
+    def test_partial_patch_not_included_when_remaining_too_small(self):
+        """
+        Test that partial patch is NOT included when remaining lines
+        is less than or equal to DIFF_MIN_REMAINING_LINES_FOR_PARTIAL.
+        """
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        # First file uses up most of the budget
+        mock_file1 = MagicMock()
+        mock_file1.filename = "first.py"
+        mock_file1.status = "modified"
+        mock_file1.additions = 95
+        mock_file1.deletions = 0
+        mock_file1.changes = 95
+        mock_file1.patch = "\n".join([f"+line{i}" for i in range(95)])
+
+        # Second file has 20 lines but only 5 lines remain in budget
+        mock_file2 = MagicMock()
+        mock_file2.filename = "second.py"
+        mock_file2.status = "modified"
+        mock_file2.additions = 20
+        mock_file2.deletions = 0
+        mock_file2.changes = 20
+        mock_file2.patch = "\n".join([f"+extra{i}" for i in range(20)])
+
+        mock_pr.get_files.return_value = [mock_file1, mock_file2]
+        mock_repo.get_pull.return_value = mock_pr
+
+        # Budget is 100 lines, first file uses 95, leaving only 5
+        # Since 5 <= DIFF_MIN_REMAINING_LINES_FOR_PARTIAL (10), second file should NOT be included
+        result = get_pr_diff(mock_repo, 123, max_lines=100)
+
+        # Only first file should be included
+        assert len(result["files"]) == 1
+        assert result["files"][0]["filename"] == "first.py"
+        assert result["truncated"] is True
 
 
 class TestDiffAwareReviewIntegration:
