@@ -333,7 +333,7 @@ jobs:
       - name: Create PR if changes
         id: cpr
         if: env.IS_MANUAL_BOOTSTRAP != 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(i18n): sync translations from Tolgee"
           title: "chore(i18n): Tolgee sync"

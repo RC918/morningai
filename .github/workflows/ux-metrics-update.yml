@@ -78,7 +78,7 @@ jobs:
       
       - name: Create or update metrics PR
         id: cpr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore: Update UX metrics dashboard data"
           title: "chore: Update UX metrics"
