@@ -22,6 +22,10 @@ Your API key is region-specific! A China API key will NOT work with the
 International endpoint, and vice versa. Set DASHSCOPE_BASE_URL to match
 your API key's region.
 
+Get API keys:
+- China: https://dashscope.console.aliyun.com/apiKey
+- International: https://dashscope-intl.console.aliyun.com/apiKey
+
 Reference:
 - EPIC #2594: Qwen3 Provider Integration
 - Ticket 1: Provider Adapters
