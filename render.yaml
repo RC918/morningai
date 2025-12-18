@@ -17,7 +17,7 @@
 #   - OPENAI_API_KEY: OpenAI API key
 #   - SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY: Supabase credentials
 #   - CORS_ORIGINS: Comma-separated list of allowed CORS origins (e.g., https://admin.gm365.me)
-#   - ORCHESTRATOR_CORS_ORIGINS: CORS origins for orchestrator API
+#   - ORCHESTRATOR_CORS_ORIGINS: Comma-separated list of allowed CORS origins for the orchestrator API
 #
 # Configure these in Render Dashboard > Environment Groups or per-service Environment
 # =============================================================================
