@@ -319,10 +319,15 @@ def parse_review_comment(
         if end_line is not None:
             comment["end_line"] = end_line
     else:
-        logger.info(
+        # WARNING: This indicates Agent failed to locate code precisely.
+        # This is a quality degradation that we need to be aware of, not hide.
+        # If warnings are too frequent, fix the prompt/model, not the log level.
+        logger.warning(
             f"[ReviewCommentSchema] Downgrading to file-level comment due to "
             f"invalid line range (start={start_line}, end={end_line})"
         )
+        # TODO (#2695): Add metrics counter here
+        # metrics.increment("review.schema.downgrade_to_file_level")
 
     # Optionally preserve raw for debugging
     if preserve_raw:
