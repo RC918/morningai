@@ -180,6 +180,21 @@ STRATEGY_TO_TEMPLATE: Dict[str, str] = {
     "possibly_undefined": "null_check",
 }
 
+# Module-level constants for risk level determination
+# Moved from _determine_risk_level() for better performance
+_HIGH_RISK_CODES = {"TS2322", "TS2345"}
+_MEDIUM_RISK_CODES = {"TS2339", "TS2554", "TS7006", "TS7031"}
+
+# Module-level constant for minimum LLM fix length validation
+MIN_LLM_FIX_LENGTH = 5
+
+# Module-level mapping for risk level to RefactorRisk enum
+_RISK_LEVEL_TO_ENUM = {
+    "high": RefactorRisk.HIGH,
+    "medium": RefactorRisk.MEDIUM,
+    "low": RefactorRisk.LOW,
+}
+
 
 class RefactorAgentV2(BaseAgent):
     """
@@ -227,7 +242,10 @@ class RefactorAgentV2(BaseAgent):
             self.errors_per_run = getattr(
                 settings, 'refactor_agent_errors_per_run', 10
             )
-        except (ImportError, AttributeError):
+        except (ImportError, AttributeError) as e:
+            logger.warning(
+                f"[RefactorAgentV2] Failed to load settings: {e}, using defaults"
+            )
             self.enabled = True
             self.errors_per_run = 10
 
@@ -285,7 +303,7 @@ class RefactorAgentV2(BaseAgent):
 
             fix_content = result.get("content", "")
 
-            if len(fix_content.strip()) < 5:
+            if len(fix_content.strip()) < MIN_LLM_FIX_LENGTH:
                 return AgentOutput(
                     task_id=input.task_id,
                     success=False,
@@ -351,25 +369,33 @@ class RefactorAgentV2(BaseAgent):
         """
         Determine risk level based on error type
 
+        Uses module-level constants _HIGH_RISK_CODES and _MEDIUM_RISK_CODES
+        for better performance.
+
         Args:
             error: TSError to analyze
 
         Returns:
             Risk level string: "high", "medium", or "low"
-        """
-        high_risk_codes = {"TS2322", "TS2345"}
-        medium_risk_codes = {"TS2339", "TS2554", "TS7006", "TS7031"}
 
-        if error.error_code in high_risk_codes:
+        Note:
+            Unknown error codes default to "medium" (conservative approach)
+            to avoid underestimating risk for new/unknown error types.
+        """
+        if error.error_code in _HIGH_RISK_CODES:
             return "high"
-        elif error.error_code in medium_risk_codes:
+        elif error.error_code in _MEDIUM_RISK_CODES:
             return "medium"
         else:
-            return "low"
+            # Unknown error codes default to medium (conservative approach)
+            # This prevents underestimating risk for new TypeScript error codes
+            return "medium"
 
     def analyze_error(self, error: TSError) -> RefactorTask:
         """
         Analyze a TS error and create a refactor task
+
+        Uses module-level _RISK_LEVEL_TO_ENUM mapping for better performance.
 
         Args:
             error: TSError to analyze
@@ -380,11 +406,8 @@ class RefactorAgentV2(BaseAgent):
         strategy = TS_FIX_STRATEGIES.get(error.error_code, "generic")
         risk_level = self._determine_risk_level(error)
 
-        risk_enum = {
-            "high": RefactorRisk.HIGH,
-            "medium": RefactorRisk.MEDIUM,
-            "low": RefactorRisk.LOW
-        }.get(risk_level, RefactorRisk.MEDIUM)
+        # Use module-level constant for risk level to enum mapping
+        risk_enum = _RISK_LEVEL_TO_ENUM.get(risk_level, RefactorRisk.MEDIUM)
 
         return RefactorTask(
             task_id=f"task-{error.error_code}-{error.line}",

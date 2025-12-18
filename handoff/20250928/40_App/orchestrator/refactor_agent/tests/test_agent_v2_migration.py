@@ -264,11 +264,12 @@ class TestRefactorAgentV2RiskLevel:
         assert agent._determine_risk_level(medium_risk_error) == "medium"
 
     @patch('refactor_agent.agent_v2.RefactorAgentV2._load_settings')
-    def test_low_risk_codes(self, mock_settings):
-        """Verify low risk error codes"""
+    def test_unknown_risk_codes_default_to_medium(self, mock_settings):
+        """Verify unknown error codes default to medium (conservative approach)"""
         agent = RefactorAgentV2()
 
-        low_risk_error = TSError(
+        # TS2531 is not in HIGH or MEDIUM risk codes, so it defaults to medium
+        unknown_risk_error = TSError(
             file_path="test.ts",
             line=1,
             column=1,
@@ -276,7 +277,8 @@ class TestRefactorAgentV2RiskLevel:
             message="Possibly null"
         )
 
-        assert agent._determine_risk_level(low_risk_error) == "low"
+        # Unknown codes now default to "medium" for conservative risk assessment
+        assert agent._determine_risk_level(unknown_risk_error) == "medium"
 
 
 class TestRefactorAgentV2AnalyzeError:
@@ -300,7 +302,8 @@ class TestRefactorAgentV2AnalyzeError:
         assert isinstance(task, RefactorTask)
         assert task.error == error
         assert task.fix_strategy == "null_check"
-        assert task.estimated_risk == RefactorRisk.LOW
+        # TS2531 is not in HIGH or MEDIUM risk codes, defaults to MEDIUM
+        assert task.estimated_risk == RefactorRisk.MEDIUM
 
     @patch('refactor_agent.agent_v2.RefactorAgentV2._load_settings')
     def test_analyze_error_unknown_code(self, mock_settings):
