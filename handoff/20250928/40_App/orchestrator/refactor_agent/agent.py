@@ -525,30 +525,31 @@ class RefactorAgent:
 
             # Extract module name from TS2307 message
             # Format: "Cannot find module 'X' or its corresponding type declarations."
-            module_match = re.search(r"Cannot find module '([^']+)'", error.message)
+            # Support both single and double quotes for robustness
+            module_match = re.search(r"Cannot find module ['\"]([^'\"]+)['\"]", error.message)
             if not module_match:
                 continue
 
             module_name = module_match.group(1)
 
-            # Check if this is a known environment module
-            if module_name in ENVIRONMENT_MODULES:
-                if module_name not in problem_modules:
-                    problem_modules.append(module_name)
-                    logger.warning(
-                        "[RefactorAgent] Environment issue detected: TS2307 for '%s' "
-                        "indicates missing dependency or build artifact",
-                        module_name
-                    )
+            # Check if this is a workspace module or known environment module
+            # Prioritize workspace check for more specific log messages
+            is_workspace_module = module_name.startswith("@morningai/")
+            is_env_module = module_name in ENVIRONMENT_MODULES
 
-            # Also check for workspace namespace pattern (@morningai/*)
-            if module_name.startswith("@morningai/"):
-                if module_name not in problem_modules:
-                    problem_modules.append(module_name)
+            if (is_workspace_module or is_env_module) and module_name not in problem_modules:
+                problem_modules.append(module_name)
+                if is_workspace_module:
                     logger.warning(
                         "[RefactorAgent] Environment issue detected: TS2307 for '%s' "
                         "indicates workspace package not built",
-                        module_name
+                        module_name,
+                    )
+                else:
+                    logger.warning(
+                        "[RefactorAgent] Environment issue detected: TS2307 for '%s' "
+                        "indicates missing dependency or build artifact",
+                        module_name,
                     )
 
         is_healthy = len(problem_modules) == 0
