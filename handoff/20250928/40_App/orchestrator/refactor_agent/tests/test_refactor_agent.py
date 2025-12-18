@@ -2662,3 +2662,190 @@ class TestRollbackOnSyntaxErrors:
 
                 mock_rollback.assert_not_called()
                 assert result.errors_fixed == 1
+
+
+class TestEnvironmentHealthCheck:
+    """Tests for _check_environment_health() method"""
+
+    def test_healthy_environment_no_ts2307(self):
+        """Test that environment is healthy when no TS2307 errors"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            errors = [
+                TSError(
+                    file_path="src/test.ts",
+                    line=1,
+                    column=1,
+                    error_code="TS2531",
+                    message="Object is possibly 'null'"
+                ),
+                TSError(
+                    file_path="src/test.ts",
+                    line=2,
+                    column=1,
+                    error_code="TS7006",
+                    message="Parameter 'x' implicitly has an 'any' type"
+                )
+            ]
+
+            is_healthy, problem_modules = agent._check_environment_health(errors)
+
+            assert is_healthy is True
+            assert problem_modules == []
+
+    def test_unhealthy_environment_shared_ui_missing(self):
+        """Test that environment is unhealthy when @morningai/shared-ui is missing"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            errors = [
+                TSError(
+                    file_path="src/components/Test.tsx",
+                    line=1,
+                    column=1,
+                    error_code="TS2307",
+                    message="Cannot find module '@morningai/shared-ui' or its corresponding type declarations."
+                )
+            ]
+
+            is_healthy, problem_modules = agent._check_environment_health(errors)
+
+            assert is_healthy is False
+            assert "@morningai/shared-ui" in problem_modules
+
+    def test_unhealthy_environment_react_missing(self):
+        """Test that environment is unhealthy when react is missing"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            errors = [
+                TSError(
+                    file_path="src/App.tsx",
+                    line=1,
+                    column=1,
+                    error_code="TS2307",
+                    message="Cannot find module 'react' or its corresponding type declarations."
+                )
+            ]
+
+            is_healthy, problem_modules = agent._check_environment_health(errors)
+
+            assert is_healthy is False
+            assert "react" in problem_modules
+
+    def test_unhealthy_environment_multiple_modules(self):
+        """Test that multiple missing modules are all detected"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            errors = [
+                TSError(
+                    file_path="src/App.tsx",
+                    line=1,
+                    column=1,
+                    error_code="TS2307",
+                    message="Cannot find module 'react' or its corresponding type declarations."
+                ),
+                TSError(
+                    file_path="src/App.tsx",
+                    line=2,
+                    column=1,
+                    error_code="TS2307",
+                    message="Cannot find module 'react-i18next' or its corresponding type declarations."
+                ),
+                TSError(
+                    file_path="src/components/Test.tsx",
+                    line=1,
+                    column=1,
+                    error_code="TS2307",
+                    message="Cannot find module '@morningai/shared-ui' or its corresponding type declarations."
+                )
+            ]
+
+            is_healthy, problem_modules = agent._check_environment_health(errors)
+
+            assert is_healthy is False
+            assert len(problem_modules) == 3
+            assert "react" in problem_modules
+            assert "react-i18next" in problem_modules
+            assert "@morningai/shared-ui" in problem_modules
+
+    def test_healthy_environment_ts2307_for_local_module(self):
+        """Test that TS2307 for local modules doesn't trigger unhealthy"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            errors = [
+                TSError(
+                    file_path="src/App.tsx",
+                    line=1,
+                    column=1,
+                    error_code="TS2307",
+                    message="Cannot find module './utils/helper' or its corresponding type declarations."
+                )
+            ]
+
+            is_healthy, problem_modules = agent._check_environment_health(errors)
+
+            assert is_healthy is True
+            assert problem_modules == []
+
+    def test_unhealthy_environment_workspace_namespace(self):
+        """Test that any @morningai/* module triggers unhealthy"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            errors = [
+                TSError(
+                    file_path="src/App.tsx",
+                    line=1,
+                    column=1,
+                    error_code="TS2307",
+                    message="Cannot find module '@morningai/some-new-package' or its corresponding type declarations."
+                )
+            ]
+
+            is_healthy, problem_modules = agent._check_environment_health(errors)
+
+            assert is_healthy is False
+            assert "@morningai/some-new-package" in problem_modules
+
+    def test_run_refactor_aborts_on_unhealthy_environment(self):
+        """Test that run_refactor aborts early when environment is unhealthy"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/App.tsx",
+                        line=1,
+                        column=1,
+                        error_code="TS2307",
+                        message="Cannot find module '@morningai/shared-ui' or its corresponding type declarations."
+                    )
+                ]
+
+                result = agent.run_refactor(dry_run=False, max_errors=10)
+
+                # Should NOT call generate_fix because it aborted early
+                mock_generate.assert_not_called()
+
+                # Result should indicate environment failure
+                assert "Environment health check failed" in result.summary
+                assert result.metadata.get("aborted_reason") == "environment_unhealthy"
+                assert "@morningai/shared-ui" in result.metadata.get("problem_modules", [])
+
+    def test_empty_errors_is_healthy(self):
+        """Test that empty error list is considered healthy"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            is_healthy, problem_modules = agent._check_environment_health([])
+
+            assert is_healthy is True
+            assert problem_modules == []
