@@ -11,6 +11,16 @@ Supports:
 
 Environment Variables:
 - DASHSCOPE_API_KEY: AliCloud DashScope API key
+- DASHSCOPE_BASE_URL: API endpoint (optional, defaults to China endpoint)
+
+IMPORTANT - Regional Endpoints:
+DashScope has TWO different endpoints with region-specific API keys:
+- China (default): https://dashscope.aliyuncs.com/compatible-mode/v1
+- International:   https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+
+Your API key is region-specific! A China API key will NOT work with the
+International endpoint, and vice versa. Set DASHSCOPE_BASE_URL to match
+your API key's region.
 
 Reference:
 - EPIC #2594: Qwen3 Provider Integration
