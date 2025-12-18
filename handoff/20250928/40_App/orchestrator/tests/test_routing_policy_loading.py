@@ -10,6 +10,7 @@ Tests cover:
 - Configuration precedence (JSON vs Python defaults)
 """
 import json
+import logging
 import pytest  # noqa: F401 - pytest fixtures (tmp_path, caplog) are used implicitly
 from pathlib import Path
 from unittest.mock import patch
@@ -123,7 +124,11 @@ class TestPolicyPartialJSON:
         assert engine._task_routing == DEFAULT_TASK_ROUTING
 
     def test_load_policy_empty_task_types_uses_empty(self, tmp_path):
-        """Should use empty task_types when section is empty dict"""
+        """Should use empty task_types when section is empty dict.
+
+        Design intent: Empty task_types dict is valid and intentional.
+        select_model() will safely fallback to tier 2 via .get() default.
+        """
         partial_json = tmp_path / "empty_tasks.json"
         partial_json.write_text(json.dumps({
             "version": "1.0",
@@ -134,7 +139,7 @@ class TestPolicyPartialJSON:
             policy_path=partial_json,
             available_providers=["alicloud"]
         )
-        # Should use empty task_types from JSON
+        # Empty task_types is valid - select_model() uses .get() with default tier 2
         assert engine._task_routing == {}
 
     def test_load_policy_only_version_uses_defaults(self, tmp_path):
@@ -214,21 +219,18 @@ class TestPolicyFilePermissions:
 
     def test_load_policy_permission_denied_uses_defaults(self, tmp_path):
         """Should use defaults when file permission is denied"""
-        # Create a file and make it unreadable
-        restricted_json = tmp_path / "restricted.json"
-        restricted_json.write_text('{"task_types": {}}')
-        restricted_json.chmod(0o000)
+        # Use mock to simulate PermissionError for cross-platform stability
+        # (chmod-based tests can be flaky on CI runners with root or special FS)
+        policy_path = tmp_path / "restricted.json"
 
-        try:
-            engine = RoutingEngine(
-                policy_path=restricted_json,
-                available_providers=["alicloud"]
-            )
-            # Should fall back to defaults due to OSError
-            assert engine._task_routing == DEFAULT_TASK_ROUTING
-        finally:
-            # Restore permissions for cleanup
-            restricted_json.chmod(0o644)
+        with patch.object(Path, 'exists', return_value=True):
+            with patch.object(Path, 'read_text', side_effect=PermissionError("Permission denied")):
+                engine = RoutingEngine(
+                    policy_path=policy_path,
+                    available_providers=["alicloud"]
+                )
+                # Should fall back to defaults due to PermissionError
+                assert engine._task_routing == DEFAULT_TASK_ROUTING
 
 
 class TestPolicyValidJSON:
@@ -346,7 +348,6 @@ class TestPolicyLogging:
         valid_json = tmp_path / "valid.json"
         valid_json.write_text(json.dumps({"task_types": {}}))
 
-        import logging
         with caplog.at_level(logging.INFO):
             RoutingEngine(
                 policy_path=valid_json,
@@ -360,7 +361,6 @@ class TestPolicyLogging:
         bad_json = tmp_path / "bad.json"
         bad_json.write_text("{ invalid }")
 
-        import logging
         with caplog.at_level(logging.WARNING):
             RoutingEngine(
                 policy_path=bad_json,
@@ -371,7 +371,6 @@ class TestPolicyLogging:
 
     def test_load_policy_logs_info_when_no_file(self, caplog):
         """Should log info when no policy file found"""
-        import logging
         with caplog.at_level(logging.INFO):
             # Use a path that definitely doesn't exist
             with patch.object(Path, 'exists', return_value=False):
