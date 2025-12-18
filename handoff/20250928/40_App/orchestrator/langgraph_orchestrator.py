@@ -2772,19 +2772,22 @@ def publisher_node(state: AgentState) -> AgentState:
         )
         state["publish_result"]["truncated_count"] = result.get("truncated_count", 0)
         state["publish_result"]["dry_run"] = result.get("dry_run", False)
+        state["publish_result"]["downgraded"] = result.get("downgraded", False)
         state["publish_result"]["error"] = result.get("error")
 
         if result.get("success"):
             mode = "[DRY-RUN]" if result.get("dry_run") else ""
+            downgraded = "[FALLBACK]" if result.get("downgraded") else ""
             state["messages"] = state.get("messages", []) + [
-                AIMessage(content=f"Review published {mode}: {result.get('posted_count', 0)} comments posted to PR #{pr_number}")
+                AIMessage(content=f"Review published {mode}{downgraded}: {result.get('posted_count', 0)} comments posted to PR #{pr_number}")
             ]
             logger.info("[Publisher] Review published successfully", extra={
                 "operation": "publisher",
                 "trace_id": trace_id,
                 "pr_number": pr_number,
                 "posted_count": result.get("posted_count", 0),
-                "dry_run": result.get("dry_run", False)
+                "dry_run": result.get("dry_run", False),
+                "downgraded": result.get("downgraded", False)
             })
         else:
             state["messages"] = state.get("messages", []) + [

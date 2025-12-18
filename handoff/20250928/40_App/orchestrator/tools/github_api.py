@@ -562,10 +562,71 @@ def post_pr_review(
         return result
 
     except GithubException as e:
-        # Handle 422 errors (line not in diff)
+        # Handle 422/404 errors with fallback to Review Body Appendix
+        # EPIC B Phase B-3: Atomic batch failure protection
+        # If any comment falls outside diff hunk, GitHub returns 422 and ALL fail
+        # Fallback: Convert comments to markdown and append to review body
+        if e.status in (422, 404) and gh_comments:
+            logger.warning(
+                f"[GitHub] Batch review failed (status={e.status}), "
+                f"falling back to Review Body Appendix. Error: {e}",
+                extra={
+                    "operation": "post_pr_review_fallback",
+                    "pr_number": pr_number,
+                    "original_comment_count": len(gh_comments),
+                    "error_status": e.status
+                }
+            )
+
+            try:
+                # Build fallback body with comments as markdown
+                fallback_body = summary + "\n\n## Comments (Fallback Mode)\n"
+                fallback_body += (
+                    "> *GitHub API rejected inline comments due to line drift. "
+                    "Showing below:*\n\n"
+                )
+
+                for c in gh_comments:
+                    line_info = c.get("start_line", c["line"])
+                    if c.get("start_line") and c["start_line"] != c["line"]:
+                        line_info = f"{c['start_line']}-{c['line']}"
+                    fallback_body += f"- **{c['path']}** (Line {line_info}):\n"
+                    fallback_body += f"  {c['body']}\n\n"
+
+                # Post review with body only (no inline comments)
+                pr.create_review(
+                    body=fallback_body,
+                    event="COMMENT"
+                )
+
+                result["success"] = True
+                result["posted_count"] = len(gh_comments)
+                result["downgraded"] = True
+
+                logger.info(
+                    f"[GitHub] Posted fallback review to PR #{pr_number} "
+                    f"with {len(gh_comments)} comments in body",
+                    extra={
+                        "operation": "post_pr_review_fallback_success",
+                        "pr_number": pr_number,
+                        "comment_count": len(gh_comments)
+                    }
+                )
+
+                return result
+
+            except Exception as fallback_error:
+                # Fallback also failed - log and return error
+                error_msg = (
+                    f"Both inline and fallback review failed. "
+                    f"Original: {e}, Fallback: {fallback_error}"
+                )
+                logger.error(f"[GitHub] {error_msg}")
+                result["error"] = error_msg
+                return result
+
+        # Other GitHub errors (401, 403, etc.) - don't fallback
         error_msg = f"GitHub API error: {e}"
-        if e.status == 422:
-            error_msg = f"Invalid comment position (line not in diff): {e}"
         logger.error(f"[GitHub] {error_msg}")
         result["error"] = error_msg
         return result
