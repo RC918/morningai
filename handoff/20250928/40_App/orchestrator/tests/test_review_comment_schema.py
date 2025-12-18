@@ -503,3 +503,36 @@ class TestEdgeCases:
 
         assert comment is not None
         assert "修復" in comment["message"]
+
+    def test_large_range_downgrades_to_file_level(self):
+        """When line range is too large (>500), downgrade to file-level comment"""
+        raw = {
+            "message": "Suspicious range",
+            "file": "src/test.py",
+            "start_line": 1,
+            "end_line": 600  # > MAX_LINE_RANGE (500)
+        }
+        comment = parse_review_comment(raw)
+
+        assert comment is not None
+        assert comment["file"] == "src/test.py"
+        # Line info should be stripped (downgraded to file-level)
+        assert comment.get("start_line") is None
+        assert comment.get("end_line") is None
+        # Should NOT be considered an inline comment
+        assert is_inline_comment(comment) is False
+
+    def test_valid_range_keeps_line_info(self):
+        """Valid line ranges should keep line info"""
+        raw = {
+            "message": "Valid range",
+            "file": "src/test.py",
+            "start_line": 1,
+            "end_line": 100  # < MAX_LINE_RANGE (500)
+        }
+        comment = parse_review_comment(raw)
+
+        assert comment is not None
+        assert comment["start_line"] == 1
+        assert comment["end_line"] == 100
+        assert is_inline_comment(comment) is True

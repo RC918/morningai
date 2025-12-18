@@ -26,7 +26,7 @@ Usage:
     normalized = normalize_review_comments(raw_comments)
 """
 import logging
-from typing import Any, Dict, List, Optional, TypedDict, Literal
+from typing import Any, Dict, List, Optional, TypedDict, Literal, get_args
 
 logger = logging.getLogger(__name__)
 
@@ -140,10 +140,8 @@ def _normalize_category(category: Optional[str]) -> CommentCategory:
         return DEFAULT_CATEGORY
 
     category_lower = category.lower().strip()
-    valid_categories = {
-        "style", "bug", "performance", "security",
-        "maintainability", "documentation", "other"
-    }
+    # Use get_args to keep Literal and set in sync
+    valid_categories = set(get_args(CommentCategory))
 
     if category_lower in valid_categories:
         return category_lower  # type: ignore
@@ -303,11 +301,19 @@ def parse_review_comment(
     if file_path and isinstance(file_path, str):
         comment["file"] = file_path.strip()
 
-    # Add line numbers if valid
-    if start_line is not None:
-        comment["start_line"] = start_line
-    if end_line is not None:
-        comment["end_line"] = end_line
+    # Add line numbers only if valid
+    # When line_valid=False (e.g., range > 500 lines), downgrade to file-level comment
+    # This prevents suspicious/hallucinated ranges from being posted as inline comments
+    if line_valid:
+        if start_line is not None:
+            comment["start_line"] = start_line
+        if end_line is not None:
+            comment["end_line"] = end_line
+    else:
+        logger.warning(
+            f"[ReviewCommentSchema] Downgrading to file-level comment due to "
+            f"invalid line range (start={start_line}, end={end_line})"
+        )
 
     # Optionally preserve raw for debugging
     if preserve_raw:
