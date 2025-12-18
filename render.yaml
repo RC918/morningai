@@ -16,6 +16,8 @@
 #   - GITHUB_TOKEN / AGENT_GITHUB_TOKEN: GitHub API tokens
 #   - OPENAI_API_KEY: OpenAI API key
 #   - SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY: Supabase credentials
+#   - CORS_ORIGINS: Comma-separated list of allowed CORS origins (e.g., https://admin.gm365.me)
+#   - ORCHESTRATOR_CORS_ORIGINS: Comma-separated list of allowed CORS origins for the orchestrator API
 #
 # Configure these in Render Dashboard > Environment Groups or per-service Environment
 # =============================================================================
@@ -81,7 +83,7 @@ services:
       - key: APP_VERSION
         value: "8.0.0"
       - key: CORS_ORIGINS
-        value: http://localhost:5173,http://localhost:5174,https://morningai.vercel.app,https://*.vercel.app
+        sync: false
 
   - type: worker
     name: morningai-agent-worker
@@ -166,7 +168,7 @@ services:
       - key: REDIS_URL
         sync: false
       - key: ORCHESTRATOR_CORS_ORIGINS
-        value: http://localhost:5173,http://localhost:5174,https://morningai.vercel.app,https://*.vercel.app
+        sync: false
       - key: ORCHESTRATOR_RATE_LIMIT_TASKS
         value: "10"
       - key: ORCHESTRATOR_RATE_LIMIT_EVENTS

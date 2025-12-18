@@ -1366,7 +1366,16 @@ CORS allowed origins (comma-separated)
 - **Required**: No
 - **Default**: `http://localhost:5173,http://localhost:5174`
 - **Security Level**: PUBLIC
-- **Example**: `http://localhost:5173,http://localhost:5174`
+- **Example**: `http://localhost:5173,http://localhost:5174,https://admin.gm365.me`
+
+**Notes**:
+> IMPORTANT: On Render deployments, this variable uses sync:false in render.yaml.
+> You MUST configure this in Render Dashboard or Environment Groups.
+> If not set, the app falls back to localhost defaults, causing CORS failures.
+> Production domains (e.g., https://admin.gm365.me, https://app.gm365.me) must be
+> explicitly listed - wildcard patterns like https://*.vercel.app do NOT work
+> for exact-match allowlist comparison.
+> Verify with: scripts/verify-cors-headers.sh <backend-url> <origin>
 
 #### `CORS_DEBUG`
 
@@ -1436,6 +1445,11 @@ CORS allowed origins for orchestrator API (comma-separated)
 - **Required**: No
 - **Default**: `http://localhost:5173`
 - **Security Level**: PUBLIC
+
+**Notes**:
+> IMPORTANT: On Render deployments, this variable uses sync:false in render.yaml.
+> You MUST configure this in Render Dashboard or Environment Groups.
+> See CORS_ORIGINS notes for details.
 
 #### `VSCODE_IFRAME_ALLOWED_ORIGINS`
 
