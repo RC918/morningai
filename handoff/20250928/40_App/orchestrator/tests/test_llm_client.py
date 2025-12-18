@@ -252,11 +252,15 @@ class TestLLMClient:
         client = LLMClient()
         assert client.provider_name == "openai"
 
+    @patch('llm.client._get_available_providers')
     @patch('llm.client.settings')
     @patch('llm.client.OpenAIProvider')
-    def test_auto_select_openai(self, mock_openai_provider, mock_settings):
+    def test_auto_select_openai(
+        self, mock_openai_provider, mock_settings, mock_get_available
+    ):
         """Test auto provider selection chooses OpenAI when available"""
         mock_settings.llm_provider = None
+        mock_get_available.return_value = ["openai"]
         mock_provider_instance = MagicMock()
         mock_provider_instance.is_available.return_value = True
         mock_provider_instance.model = "gpt-4-turbo-preview"
@@ -265,14 +269,17 @@ class TestLLMClient:
         client = LLMClient(provider="auto")
         assert client.provider_name == "openai"
 
+    @patch('llm.client._get_available_providers')
     @patch('llm.client.settings')
     @patch('llm.client.OpenAIProvider')
     @patch('llm.client.GeminiProvider')
     def test_auto_select_gemini_fallback(
-        self, mock_gemini_provider, mock_openai_provider, mock_settings
+        self, mock_gemini_provider, mock_openai_provider, mock_settings,
+        mock_get_available
     ):
         """Test auto provider selection falls back to Gemini"""
         mock_settings.llm_provider = None
+        mock_get_available.return_value = ["gemini"]
 
         mock_openai_instance = MagicMock()
         mock_openai_instance.is_available.return_value = False
@@ -286,14 +293,17 @@ class TestLLMClient:
         client = LLMClient(provider="auto")
         assert client.provider_name == "gemini"
 
+    @patch('llm.client._get_available_providers')
     @patch('llm.client.settings')
     @patch('llm.client.OpenAIProvider')
     @patch('llm.client.GeminiProvider')
     def test_auto_select_raises_when_none_available(
-        self, mock_gemini_provider, mock_openai_provider, mock_settings
+        self, mock_gemini_provider, mock_openai_provider, mock_settings,
+        mock_get_available
     ):
         """Test auto provider selection raises when no provider available"""
         mock_settings.llm_provider = None
+        mock_get_available.return_value = []
 
         mock_openai_instance = MagicMock()
         mock_openai_instance.is_available.return_value = False
