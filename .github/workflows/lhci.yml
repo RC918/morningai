@@ -39,7 +39,7 @@ jobs:
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -268,7 +268,7 @@ jobs:
       VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_TEST_KEY }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

@@ -19,7 +19,7 @@ jobs:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -104,7 +104,7 @@ jobs:
     name: i18n Violation Baseline Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -137,7 +137,7 @@ jobs:
     # This enforces TypeScript strict mode compliance
     # Baselines are read from .strict-baseline.json (see docs/typescript/STRICT_MODE_BASELINE.md)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -256,7 +256,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       
@@ -375,7 +375,7 @@ jobs:
     name: TypeScript Strict Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -404,7 +404,7 @@ jobs:
     name: Storybook A11y Tests (shared-ui)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -445,7 +445,7 @@ jobs:
     name: Storybook A11y Tests (owner-console)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -486,7 +486,7 @@ jobs:
     name: Owner Console E2E Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -649,7 +649,7 @@ jobs:
     name: Frontend Dashboard E2E Tests (Design Tokens)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
