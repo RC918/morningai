@@ -1,0 +1,206 @@
+# =============================================================================
+# Architecture Manifest - Single Source of Truth for MorningAI System
+# =============================================================================
+# This file is the authoritative source for system architecture facts.
+# It is used by:
+#   1. Documentation generators (to avoid hallucination)
+#   2. CI verifiers (to validate documentation claims)
+#   3. Developers (as a quick reference)
+#
+# IMPORTANT: This file MUST be kept in sync with the actual codebase.
+# CI will verify that paths exist and entrypoints are valid.
+# =============================================================================
+
+version: "1.0.0"
+last_updated: "2025-12-18"
+
+# -----------------------------------------------------------------------------
+# Services
+# -----------------------------------------------------------------------------
+services:
+  # Frontend Applications
+  frontend-dashboard:
+    name: "Tenant Dashboard"
+    description: "Main user-facing dashboard for tenants"
+    path: "handoff/20250928/40_App/frontend-dashboard"
+    entrypoint: "src/main.tsx"
+    framework: "react"
+    framework_version: "^19.1.0"
+    build_tool: "vite"
+    build_tool_version: "^6.3.5"
+    styling: "tailwindcss"
+    production_url: "https://app.gm365.me"
+    package_json: "handoff/20250928/40_App/frontend-dashboard/package.json"
+
+  owner-console:
+    name: "Owner Console"
+    description: "Admin dashboard for system owners"
+    path: "handoff/20250928/40_App/owner-console"
+    entrypoint: "src/main.jsx"
+    framework: "react"
+    framework_version: "^19.1.0"
+    build_tool: "vite"
+    build_tool_version: "^6.3.5"
+    styling: "tailwindcss"
+    production_url: "https://admin.gm365.me"
+    package_json: "handoff/20250928/40_App/owner-console/package.json"
+
+  # Backend Services
+  api-backend:
+    name: "API Backend"
+    description: "Main Flask API server handling authentication, routes, and business logic"
+    path: "handoff/20250928/40_App/api-backend"
+    entrypoint: "src/main.py"
+    framework: "flask"
+    framework_version: "3.1.1"
+    wsgi_server: "gunicorn"
+    language: "python"
+    requirements: "handoff/20250928/40_App/api-backend/requirements.txt"
+    deployment:
+      platform: "render"
+      service_name: "morningai-backend-v2"
+      start_command: "gunicorn -c gunicorn.conf.py src.main:app"
+
+  # Orchestrator (LangGraph-based task orchestration)
+  orchestrator:
+    name: "Orchestrator"
+    description: "LangGraph-based task orchestration system with Redis Queue workers"
+    path: "handoff/20250928/40_App/orchestrator"
+    entrypoint: "redis_queue/worker.py"
+    framework: "langgraph"
+    framework_version: ">=0.2.4"
+    language: "python"
+    requirements: "handoff/20250928/40_App/orchestrator/requirements.txt"
+    queue_system: "redis-queue"
+    queue_version: "1.16.2"
+    ai_providers:
+      - name: "openai"
+        version: ">=1.55.0,<3.0.0"
+      - name: "google-genai"
+        version: "1.52.0"
+
+  # Worker Dashboard
+  worker-dashboard:
+    name: "Worker Dashboard"
+    description: "Monitoring dashboard for RQ workers"
+    path: "agents/ops_agent/dashboard"
+    entrypoint: "app.py"
+    framework: "flask"
+    language: "python"
+    deployment:
+      platform: "render"
+      service_name: "morningai-worker-dashboard"
+
+  # Ops Agent Worker
+  ops-agent-worker:
+    name: "Ops Agent Worker"
+    description: "Background worker for operational tasks"
+    path: "agents/ops_agent"
+    entrypoint: "worker.py"
+    language: "python"
+    deployment:
+      platform: "render"
+      service_name: "morningai-ops-agent-worker"
+      type: "worker"
+
+# -----------------------------------------------------------------------------
+# Database
+# -----------------------------------------------------------------------------
+database:
+  primary:
+    name: "PostgreSQL (Supabase)"
+    provider: "supabase"
+    orm: "sqlalchemy"
+    orm_version: "2.0.41"
+    migrations: "alembic"
+    migrations_version: "1.17.2"
+
+  cache:
+    name: "Redis"
+    provider: "upstash"
+    client: "redis-py"
+    client_version: ">=5.2.0,<7.0.0"
+
+# -----------------------------------------------------------------------------
+# External Services
+# -----------------------------------------------------------------------------
+external_services:
+  error_tracking:
+    name: "Sentry"
+    sdk_version: "2.48.0"
+
+  deployment:
+    frontend:
+      platform: "vercel"
+    backend:
+      platform: "render"
+
+# -----------------------------------------------------------------------------
+# Key Directories (for path validation)
+# -----------------------------------------------------------------------------
+key_paths:
+  # These paths MUST exist in the repository
+  required:
+    - "handoff/20250928/40_App/frontend-dashboard"
+    - "handoff/20250928/40_App/owner-console"
+    - "handoff/20250928/40_App/api-backend"
+    - "handoff/20250928/40_App/orchestrator"
+    - "handoff/20250928/40_App/api-backend/src/main.py"
+    - "handoff/20250928/40_App/orchestrator/redis_queue/worker.py"
+    - "agents/ops_agent"
+    - "config/env.schema.yaml"
+    - "docs"
+
+  # These paths should NOT be used in documentation (common hallucinations)
+  invalid_aliases:
+    - path: "/frontend"
+      correct: "handoff/20250928/40_App/frontend-dashboard"
+    - path: "/backend"
+      correct: "handoff/20250928/40_App/api-backend"
+    - path: "/queue"
+      correct: "handoff/20250928/40_App/orchestrator/redis_queue"
+    - path: "/orchestrator"
+      correct: "handoff/20250928/40_App/orchestrator"
+    - path: "frontend/"
+      correct: "handoff/20250928/40_App/frontend-dashboard"
+    - path: "backend/"
+      correct: "handoff/20250928/40_App/api-backend"
+
+# -----------------------------------------------------------------------------
+# Documentation Links (for link validation)
+# -----------------------------------------------------------------------------
+documentation_links:
+  # External documentation that should be referenced with HTTPS
+  external:
+    - name: "Flask"
+      url: "https://flask.palletsprojects.com/en/stable/"
+      note: "Use /en/stable/, not versioned URLs like /en/2.0.x/"
+    - name: "React"
+      url: "https://react.dev/"
+    - name: "Vite"
+      url: "https://vite.dev/"
+    - name: "Redis Queue"
+      url: "https://python-rq.org/docs/"
+      note: "Must use HTTPS, not HTTP"
+    - name: "LangGraph"
+      url: "https://langchain-ai.github.io/langgraph/"
+    - name: "Supabase"
+      url: "https://supabase.com/docs"
+    - name: "Render"
+      url: "https://render.com/docs"
+
+# -----------------------------------------------------------------------------
+# Validation Rules
+# -----------------------------------------------------------------------------
+validation_rules:
+  paths:
+    - "All paths in documentation must exist in the repository"
+    - "Use full paths from repo root, not simplified aliases"
+  links:
+    - "All external links must use HTTPS"
+    - "Links must not return 404 or redirect to error pages"
+    - "Use stable/latest version URLs, not outdated version-specific URLs"
+  code_snippets:
+    - "Import statements must reference actual modules"
+    - "Code examples must be syntactically valid"
+    - "React examples must use current patterns (createRoot, not ReactDOM.render)"
