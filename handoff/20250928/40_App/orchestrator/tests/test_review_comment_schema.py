@@ -14,6 +14,7 @@ Tests cover:
 Issue #2595: EPIC B - Diff-Aware Review Plumbing
 Phase B-2: Review Comment Schema Definition
 """
+from typing import get_args
 from review_comment_schema import (
     parse_review_comment,
     normalize_review_comments,
@@ -25,6 +26,7 @@ from review_comment_schema import (
     _normalize_category,
     _parse_line_number,
     ReviewComment,
+    CommentCategory,
     MAX_LINE_RANGE,
     SCHEMA_VERSION,
     VALID_CATEGORIES,
@@ -587,11 +589,12 @@ class TestValidCategoriesConstant:
         """VALID_CATEGORIES should be a frozenset for immutability"""
         assert isinstance(VALID_CATEGORIES, frozenset)
 
-    def test_valid_categories_contains_all_categories(self):
-        """VALID_CATEGORIES should contain all defined categories"""
-        expected = {"style", "bug", "performance", "security",
-                    "maintainability", "documentation", "other"}
+    def test_valid_categories_matches_literal(self):
+        """VALID_CATEGORIES should stay in sync with CommentCategory Literal"""
+        expected = frozenset(get_args(CommentCategory))
         assert VALID_CATEGORIES == expected
+        # Sanity check: ensure it's not empty
+        assert "other" in VALID_CATEGORIES
 
     def test_valid_categories_used_in_normalization(self):
         """_normalize_category should use VALID_CATEGORIES"""

@@ -106,7 +106,7 @@ MAX_LINE_RANGE = 500
 SCHEMA_VERSION = "1.0"
 
 # Valid categories as frozenset for efficient lookup (extracted from Literal)
-VALID_CATEGORIES: frozenset = frozenset(get_args(CommentCategory))
+VALID_CATEGORIES: frozenset[str] = frozenset(get_args(CommentCategory))
 
 
 def _normalize_severity(
@@ -319,7 +319,7 @@ def parse_review_comment(
         if end_line is not None:
             comment["end_line"] = end_line
     else:
-        logger.warning(
+        logger.info(
             f"[ReviewCommentSchema] Downgrading to file-level comment due to "
             f"invalid line range (start={start_line}, end={end_line})"
         )
