@@ -6,10 +6,10 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 219
+- **Total Variables**: 223
 - **Required**: 21
-- **Optional**: 198
-- **Last Updated**: 2025-12-07
+- **Optional**: 202
+- **Last Updated**: 2025-12-18
 
 ## Security Levels
 
@@ -29,7 +29,7 @@
 - [Cloud Services](#cloud-services) (14 variables)
 - [Infrastructure](#infrastructure) (20 variables)
 - [Monitoring](#monitoring) (14 variables)
-- [Integration](#integration) (15 variables)
+- [Integration](#integration) (19 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
 - [Feature Flags](#feature-flags) (59 variables)
@@ -984,6 +984,10 @@ Latency alert threshold in milliseconds
 | `OPENAI_API_KEY` | secret | Yes | - | CRITICAL |
 | `LLM_PROVIDER` | string (openai, gemini, auto) | No | openai | PUBLIC |
 | `GEMINI_API_KEY` | secret | No | - | CRITICAL |
+| `DASHSCOPE_API_KEY` | secret | No | - | CRITICAL |
+| `DASHSCOPE_BASE_URL` | url | No | https://dashscope.aliyuncs.com/compatible-mode/v1 | PUBLIC |
+| `SILICONFLOW_API_KEY` | secret | No | - | CRITICAL |
+| `SILICONFLOW_BASE_URL` | url | No | https://api.siliconflow.cn/v1 | PUBLIC |
 | `SLACK_WEBHOOK_URL` | url | No | - | SECRET |
 | `TELEGRAM_BOT_TOKEN` | secret | No | - | SECRET |
 | `TELEGRAM_ADMIN_CHAT_ID` | string | No | - | PUBLIC |
@@ -1053,6 +1057,62 @@ Google Gemini API key for LLM operations (Phase 2 Extra)
 **Notes**:
 > Required when LLM_PROVIDER=gemini or LLM_PROVIDER=auto.
 > Get your API key from: https://makersuite.google.com/app/apikey
+
+#### `DASHSCOPE_API_KEY`
+
+AliCloud DashScope API key for Qwen models (EPIC
+
+- **Type**: secret
+- **Required**: No
+- **Default**: `-`
+- **Security Level**: CRITICAL
+
+**Notes**:
+> Required for AliCloud DashScope provider (Qwen models).
+> Get your API key from: https://dashscope.console.aliyun.com/
+> Supports models: qwen-max, qwen-plus, qwen-turbo
+
+#### `DASHSCOPE_BASE_URL`
+
+AliCloud DashScope API base URL (EPIC
+
+- **Type**: url
+- **Required**: No
+- **Default**: `https://dashscope.aliyuncs.com/compatible-mode/v1`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> OpenAI-compatible endpoint for DashScope API.
+> Default: https://dashscope.aliyuncs.com/compatible-mode/v1
+> Override only if using a proxy or alternative endpoint.
+
+#### `SILICONFLOW_API_KEY`
+
+SiliconFlow API key for Qwen models (EPIC
+
+- **Type**: secret
+- **Required**: No
+- **Default**: `-`
+- **Security Level**: CRITICAL
+
+**Notes**:
+> Required for SiliconFlow provider (Qwen models).
+> Get your API key from: https://cloud.siliconflow.cn/
+> Supports models: Qwen/Qwen2.5-72B/32B/14B/7B-Instruct
+
+#### `SILICONFLOW_BASE_URL`
+
+SiliconFlow API base URL (EPIC
+
+- **Type**: url
+- **Required**: No
+- **Default**: `https://api.siliconflow.cn/v1`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> OpenAI-compatible endpoint for SiliconFlow API.
+> Default: https://api.siliconflow.cn/v1
+> Override only if using a proxy or alternative endpoint.
 
 #### `SLACK_WEBHOOK_URL`
 
