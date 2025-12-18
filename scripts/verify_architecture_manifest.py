@@ -38,13 +38,14 @@ HTTP_INSECURE_LINK_PATTERN = r'http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^\s\
 HTTP_INSECURE_LINK_RE = re.compile(HTTP_INSECURE_LINK_PATTERN)
 
 # Patterns to exclude (code examples, internal services, formatting examples)
-# Note: Using lookahead (?=[/:?#]|$) to ensure we match the exact domain,
-# not just a prefix (e.g., http://example.com.evil.com should NOT be excluded)
+# Note: Using lookahead to ensure we match the exact domain, not just a prefix
+# (e.g., http://example.com.evil.com should NOT be excluded)
+# The lookahead includes common URL delimiters and trailing punctuation in docs
 EXCLUDED_HTTP_PATTERNS = (
-    r'http://example\.com(?=[/:?#]|$)',  # Example URLs in code (exact domain)
-    r'http://mcp-server(?=[/:?#]|$)',    # Internal MCP server (exact hostname)
-    r'http://`',                          # Protocol mismatch formatting examples
-    r'http://\$',                         # Variable URLs in code examples
+    r"http://example\.com(?=[/:?#'\")\]>]|$)",  # Example URLs in code (exact domain)
+    r"http://mcp-server(?=[/:?#'\")\]>]|$)",    # Internal MCP server (exact hostname)
+    r'http://`',                                 # Protocol mismatch formatting examples
+    r'http://\$',                                # Variable URLs in code examples
 )
 EXCLUDED_HTTP_PATTERN_RE = re.compile('|'.join(EXCLUDED_HTTP_PATTERNS))
 

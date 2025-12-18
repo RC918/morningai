@@ -65,6 +65,15 @@ class TestLinkSecurityExclusionPatterns:
         verifier.check_link_security({})
         assert len(verifier.errors) == 0
 
+    def test_excludes_example_com_in_python_string(self, verifier: ManifestVerifier, docs_dir: Path) -> None:
+        """Test that http://example.com in Python string (with trailing quote) is excluded."""
+        content = """```python
+result = q.enqueue(my_task, 'http://example.com')
+```"""
+        self.create_doc_file(docs_dir, "test.md", content)
+        verifier.check_link_security({})
+        assert len(verifier.errors) == 0
+
     def test_does_not_exclude_example_org(self, verifier: ManifestVerifier, docs_dir: Path) -> None:
         """Test that http://example.org is NOT excluded (only example.com)."""
         self.create_doc_file(docs_dir, "test.md", "Visit http://example.org for more info.")
@@ -297,6 +306,12 @@ class TestExclusionPatternRegex:
         assert EXCLUDED_HTTP_PATTERN_RE.search("http://example.com:8080")
         assert EXCLUDED_HTTP_PATTERN_RE.search("http://example.com?query=1")
         assert EXCLUDED_HTTP_PATTERN_RE.search("http://example.com#anchor")
+        # Should match with trailing punctuation (common in docs/code)
+        assert EXCLUDED_HTTP_PATTERN_RE.search("http://example.com'")
+        assert EXCLUDED_HTTP_PATTERN_RE.search('http://example.com"')
+        assert EXCLUDED_HTTP_PATTERN_RE.search("http://example.com)")
+        assert EXCLUDED_HTTP_PATTERN_RE.search("http://example.com]")
+        assert EXCLUDED_HTTP_PATTERN_RE.search("http://example.com>")
         # Should NOT match different domains
         assert not EXCLUDED_HTTP_PATTERN_RE.search("http://example.org")
 
