@@ -19,6 +19,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
 
 jobs:
   refactor:
@@ -38,23 +39,63 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Node.js/pnpm setup for TypeScript environment (required for accurate error detection)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install Node.js dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared-ui package
+        run: pnpm --filter @morningai/shared-ui build
+
+      - name: Check if refactor needed (early exit if baseline=0)
+        id: check_baseline
+        run: |
+          # Run the baseline check script
+          ./scripts/count-strict-errors.sh
+          
+          # Read total errors from baseline file
+          TOTAL=$(jq -r '[.packages[].error_count] | add' .strict-baseline.json)
+          echo "Total strict errors in baseline: $TOTAL"
+          
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No strict errors to fix (baseline=0), skipping refactor"
+            echo "skip_refactor=true" >> $GITHUB_OUTPUT
+          else
+            echo "Found $TOTAL strict errors, proceeding with refactor"
+            echo "skip_refactor=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Python
+        if: steps.check_baseline.outputs.skip_refactor != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Install Python dependencies
+        if: steps.check_baseline.outputs.skip_refactor != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r handoff/20250928/40_App/orchestrator/requirements.txt
 
       - name: Configure Git
+        if: steps.check_baseline.outputs.skip_refactor != 'true'
         run: |
           git config --global user.name "Refactor Agent"
           git config --global user.email "refactor-agent@morningai.com"
 
       - name: Run Refactor Agent
+        if: steps.check_baseline.outputs.skip_refactor != 'true'
         id: refactor
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -102,20 +143,27 @@ jobs:
         run: |
           echo "## Refactor Agent Nightly Run" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Run ID | ${{ steps.refactor.outputs.run_id }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Total Errors Found | ${{ steps.refactor.outputs.total_errors }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Errors Fixed | ${{ steps.refactor.outputs.errors_fixed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Errors Failed | ${{ steps.refactor.outputs.errors_failed }} |" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.refactor.outputs.pr_url }}" ]; then
-            echo "| PR URL | ${{ steps.refactor.outputs.pr_url }} |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.check_baseline.outputs.skip_refactor }}" == "true" ]; then
+            echo "**Status**: Skipped (baseline=0, no strict errors to fix)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All TypeScript strict mode packages are at 0 errors. No refactoring needed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Run ID | ${{ steps.refactor.outputs.run_id }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Errors Found | ${{ steps.refactor.outputs.total_errors }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Errors Fixed | ${{ steps.refactor.outputs.errors_fixed }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Errors Failed | ${{ steps.refactor.outputs.errors_failed }} |" >> $GITHUB_STEP_SUMMARY
+            if [ -n "${{ steps.refactor.outputs.pr_url }}" ]; then
+              echo "| PR URL | ${{ steps.refactor.outputs.pr_url }} |" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Summary" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.refactor.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Summary" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.refactor.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify on failure
-        if: failure()
+        if: failure() && steps.check_baseline.outputs.skip_refactor != 'true'
         run: |
           echo "::error::Refactor Agent nightly run failed. Check the logs for details."
