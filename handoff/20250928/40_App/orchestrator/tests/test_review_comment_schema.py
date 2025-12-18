@@ -26,6 +26,8 @@ from review_comment_schema import (
     _parse_line_number,
     ReviewComment,
     MAX_LINE_RANGE,
+    SCHEMA_VERSION,
+    VALID_CATEGORIES,
 )
 
 
@@ -536,3 +538,68 @@ class TestEdgeCases:
         assert comment["start_line"] == 1
         assert comment["end_line"] == 100
         assert is_inline_comment(comment) is True
+
+
+class TestSchemaVersioning:
+    """Tests for schema versioning (Issue #2696)"""
+
+    def test_schema_version_constant_exists(self):
+        """SCHEMA_VERSION constant should be defined"""
+        assert SCHEMA_VERSION is not None
+        assert isinstance(SCHEMA_VERSION, str)
+        assert SCHEMA_VERSION == "1.0"
+
+    def test_parsed_comment_has_schema_version(self):
+        """Parsed comments should include schema_version field"""
+        raw = {"message": "Test comment"}
+        comment = parse_review_comment(raw)
+
+        assert comment is not None
+        assert "schema_version" in comment
+        assert comment["schema_version"] == SCHEMA_VERSION
+
+    def test_schema_version_in_all_sources(self):
+        """Schema version should be present for all source types"""
+        raw = {"message": "Test"}
+
+        for source in ["llm", "ci", "human"]:
+            comment = parse_review_comment(raw, source=source)
+            assert comment is not None
+            assert comment["schema_version"] == SCHEMA_VERSION
+
+    def test_normalized_comments_have_schema_version(self):
+        """Normalized comments should all have schema_version"""
+        raw_comments = [
+            {"message": "Comment 1"},
+            {"message": "Comment 2", "file": "test.py", "line": 10}
+        ]
+        normalized = normalize_review_comments(raw_comments)
+
+        assert len(normalized) == 2
+        for comment in normalized:
+            assert comment["schema_version"] == SCHEMA_VERSION
+
+
+class TestValidCategoriesConstant:
+    """Tests for VALID_CATEGORIES module-level constant (Issue #2697)"""
+
+    def test_valid_categories_is_frozenset(self):
+        """VALID_CATEGORIES should be a frozenset for immutability"""
+        assert isinstance(VALID_CATEGORIES, frozenset)
+
+    def test_valid_categories_contains_all_categories(self):
+        """VALID_CATEGORIES should contain all defined categories"""
+        expected = {"style", "bug", "performance", "security",
+                    "maintainability", "documentation", "other"}
+        assert VALID_CATEGORIES == expected
+
+    def test_valid_categories_used_in_normalization(self):
+        """_normalize_category should use VALID_CATEGORIES"""
+        # All valid categories should be recognized
+        for category in VALID_CATEGORIES:
+            assert _normalize_category(category) == category
+
+    def test_valid_categories_case_insensitive(self):
+        """Category normalization should be case-insensitive"""
+        for category in VALID_CATEGORIES:
+            assert _normalize_category(category.upper()) == category
