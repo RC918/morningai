@@ -364,3 +364,189 @@ class TestContextSizeEdgeCases:
         model = engine.select_model(TaskType.PLANNING, context_size=TIER_0_LIMIT - 1)
 
         assert model.tier == Tier.TIER_0
+
+
+class TestAdjustTierForContextDirect:
+    """Direct unit tests for RoutingEngine._adjust_tier_for_context().
+
+    Issue #2685: These tests directly call the private method to verify
+    its behavior in isolation, without going through select_model().
+
+    This provides more precise testing of the tier adjustment logic
+    and catches edge cases that might be masked by other logic in select_model().
+    """
+
+    def test_tier_3_context_within_limit_returns_tier_3(self):
+        """_adjust_tier_for_context returns same tier when context is within limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_3, TIER_3_LIMIT)
+
+        assert result == Tier.TIER_3
+
+    def test_tier_3_context_below_limit_returns_tier_3(self):
+        """_adjust_tier_for_context returns same tier when context is below limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_3, TIER_3_LIMIT - 1)
+
+        assert result == Tier.TIER_3
+
+    def test_tier_3_context_above_limit_upgrades(self):
+        """_adjust_tier_for_context upgrades tier when context exceeds limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_3, TIER_3_LIMIT + 1)
+
+        # Should upgrade to a tier with larger context limit
+        assert result.value < Tier.TIER_3.value
+
+    def test_tier_2_context_within_limit_returns_tier_2(self):
+        """_adjust_tier_for_context returns Tier 2 when context is within limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_2, TIER_2_LIMIT)
+
+        assert result == Tier.TIER_2
+
+    def test_tier_2_context_above_limit_upgrades(self):
+        """_adjust_tier_for_context upgrades from Tier 2 when context exceeds limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_2, TIER_2_LIMIT + 1)
+
+        # Should upgrade to Tier 0 or 1
+        assert result.value < Tier.TIER_2.value
+
+    def test_tier_1_context_within_limit_returns_tier_1(self):
+        """_adjust_tier_for_context returns Tier 1 when context is within limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_1, TIER_1_LIMIT)
+
+        assert result == Tier.TIER_1
+
+    def test_tier_1_context_above_limit_returns_tier_0(self):
+        """_adjust_tier_for_context returns Tier 0 when context exceeds Tier 1 limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_1, TIER_1_LIMIT + 1)
+
+        # Should return Tier 0 (highest capability)
+        assert result == Tier.TIER_0
+
+    def test_tier_0_context_within_limit_returns_tier_0(self):
+        """_adjust_tier_for_context returns Tier 0 when context is within limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_0, TIER_0_LIMIT)
+
+        assert result == Tier.TIER_0
+
+    def test_tier_0_context_above_limit_returns_tier_0(self):
+        """_adjust_tier_for_context returns Tier 0 even when context exceeds all limits"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        result = engine._adjust_tier_for_context(Tier.TIER_0, TIER_0_LIMIT + 1)
+
+        # Should still return Tier 0 (highest capability, no higher tier available)
+        assert result == Tier.TIER_0
+
+    def test_zero_context_returns_same_tier(self):
+        """_adjust_tier_for_context returns same tier for zero context"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        for tier in Tier:
+            result = engine._adjust_tier_for_context(tier, 0)
+            assert result == tier
+
+    def test_negative_context_returns_same_tier(self):
+        """_adjust_tier_for_context returns same tier for negative context"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        for tier in Tier:
+            result = engine._adjust_tier_for_context(tier, -1)
+            assert result == tier
+
+    def test_very_large_context_returns_tier_0(self):
+        """_adjust_tier_for_context returns Tier 0 for very large context"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        for tier in Tier:
+            result = engine._adjust_tier_for_context(tier, 1000000)
+            assert result == Tier.TIER_0
+
+    def test_context_exactly_at_boundary_returns_same_tier(self):
+        """_adjust_tier_for_context returns same tier when context equals limit exactly"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        # Test each tier at its exact boundary
+        assert engine._adjust_tier_for_context(Tier.TIER_0, TIER_0_LIMIT) == Tier.TIER_0
+        assert engine._adjust_tier_for_context(Tier.TIER_1, TIER_1_LIMIT) == Tier.TIER_1
+        assert engine._adjust_tier_for_context(Tier.TIER_2, TIER_2_LIMIT) == Tier.TIER_2
+        assert engine._adjust_tier_for_context(Tier.TIER_3, TIER_3_LIMIT) == Tier.TIER_3
+
+    def test_context_one_above_boundary_upgrades(self):
+        """_adjust_tier_for_context upgrades tier when context is one above limit"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        # Tier 3 -> should upgrade
+        result_3 = engine._adjust_tier_for_context(Tier.TIER_3, TIER_3_LIMIT + 1)
+        assert result_3.value < Tier.TIER_3.value
+
+        # Tier 2 -> should upgrade
+        result_2 = engine._adjust_tier_for_context(Tier.TIER_2, TIER_2_LIMIT + 1)
+        assert result_2.value < Tier.TIER_2.value
+
+        # Tier 1 -> should return Tier 0
+        result_1 = engine._adjust_tier_for_context(Tier.TIER_1, TIER_1_LIMIT + 1)
+        assert result_1 == Tier.TIER_0
+
+        # Tier 0 -> should still return Tier 0
+        result_0 = engine._adjust_tier_for_context(Tier.TIER_0, TIER_0_LIMIT + 1)
+        assert result_0 == Tier.TIER_0
+
+
+class TestAdjustTierForContextLogging:
+    """Tests for logging behavior of _adjust_tier_for_context().
+
+    Issue #2685: Verify that appropriate log messages are emitted
+    when tier adjustments occur.
+    """
+
+    def test_upgrade_logs_info_message(self, caplog):
+        """_adjust_tier_for_context logs info when upgrading tier"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with caplog.at_level(logging.INFO):
+            engine._adjust_tier_for_context(Tier.TIER_3, TIER_3_LIMIT + 1)
+
+        assert "Adjusted tier" in caplog.text
+
+    def test_no_log_when_no_adjustment(self, caplog):
+        """_adjust_tier_for_context does not log when no adjustment needed"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with caplog.at_level(logging.INFO):
+            engine._adjust_tier_for_context(Tier.TIER_3, TIER_3_LIMIT)
+
+        assert "Adjusted tier" not in caplog.text
+
+    def test_exceeds_all_limits_logs_warning(self, caplog):
+        """_adjust_tier_for_context logs warning when context exceeds all limits"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with caplog.at_level(logging.WARNING):
+            engine._adjust_tier_for_context(Tier.TIER_3, 1000000)
+
+        assert "exceeds all tier limits" in caplog.text
+
+    def test_log_includes_context_size(self, caplog):
+        """_adjust_tier_for_context log includes context size"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+        context_size = 50000
+
+        with caplog.at_level(logging.INFO):
+            engine._adjust_tier_for_context(Tier.TIER_3, context_size)
+
+        assert str(context_size) in caplog.text
