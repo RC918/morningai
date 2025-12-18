@@ -64,6 +64,7 @@ class ReviewComment(TypedDict, total=False):
         severity: Canonical severity level
         category: Comment category
         source: Origin of the comment ("llm", "ci", "human")
+        schema_version: Schema version (e.g., "1.0")
         raw: Original unparsed comment dict (for debugging)
     """
     message: str
@@ -73,6 +74,7 @@ class ReviewComment(TypedDict, total=False):
     severity: CanonicalSeverity
     category: CommentCategory
     source: Literal["llm", "ci", "human"]
+    schema_version: str
     raw: Optional[Dict[str, Any]]
 
 
@@ -98,6 +100,13 @@ DEFAULT_CATEGORY: CommentCategory = "other"
 
 # Maximum allowed line range (to detect hallucinated ranges)
 MAX_LINE_RANGE = 500
+
+# Current schema version (semantic versioning: major.minor)
+# - v1.0: Initial schema with start_line/end_line support
+SCHEMA_VERSION = "1.0"
+
+# Valid categories as frozenset for efficient lookup (extracted from Literal)
+VALID_CATEGORIES: frozenset[str] = frozenset(get_args(CommentCategory))
 
 
 def _normalize_severity(
@@ -140,10 +149,9 @@ def _normalize_category(category: Optional[str]) -> CommentCategory:
         return DEFAULT_CATEGORY
 
     category_lower = category.lower().strip()
-    # Use get_args to keep Literal and set in sync
-    valid_categories = set(get_args(CommentCategory))
 
-    if category_lower in valid_categories:
+    # Use module-level VALID_CATEGORIES frozenset for efficient lookup
+    if category_lower in VALID_CATEGORIES:
         return category_lower  # type: ignore
 
     # Map common variations
@@ -229,7 +237,7 @@ def validate_line_range(
 
     # Swap if reversed
     if start > end:
-        logger.warning(
+        logger.debug(
             f"[ReviewCommentSchema] start_line ({start}) > end_line ({end}), swapping"
         )
         start, end = end, start
@@ -237,7 +245,7 @@ def validate_line_range(
     # Check range size
     range_size = end - start + 1
     if range_size > max_range:
-        logger.warning(
+        logger.debug(
             f"[ReviewCommentSchema] Line range too large ({range_size} lines), "
             f"flagging as low confidence"
         )
@@ -294,6 +302,7 @@ def parse_review_comment(
         "severity": _normalize_severity(raw.get("severity"), source),
         "category": _normalize_category(raw.get("category")),
         "source": source,
+        "schema_version": SCHEMA_VERSION,
     }
 
     # Add file if present
@@ -310,10 +319,15 @@ def parse_review_comment(
         if end_line is not None:
             comment["end_line"] = end_line
     else:
+        # WARNING: This indicates Agent failed to locate code precisely.
+        # This is a quality degradation that we need to be aware of, not hide.
+        # If warnings are too frequent, fix the prompt/model, not the log level.
         logger.warning(
             f"[ReviewCommentSchema] Downgrading to file-level comment due to "
             f"invalid line range (start={start_line}, end={end_line})"
         )
+        # TODO (#2695): Add metrics counter here
+        # metrics.increment("review.schema.downgrade_to_file_level")
 
     # Optionally preserve raw for debugging
     if preserve_raw:
