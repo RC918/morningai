@@ -1,16 +1,17 @@
 """
 Unified LLM Client for MorningAI Orchestrator
 
-Provides a single interface for multiple LLM providers (OpenAI, Gemini).
+Provides a single interface for multiple LLM providers (OpenAI, Gemini, AliCloud, SiliconFlow).
 This abstraction layer enables:
 - Easy provider switching via configuration
 - Consistent API across providers
 - Automatic fallback handling
 - Centralized logging and monitoring
 - A/B testing support via ExperimentManager (Phase 5 PR-5)
+- Task-based routing via RoutingEngine (EPIC #2594)
 
 Usage:
-    from llm.client import LLMClient, get_client_for_component
+    from llm.client import LLMClient, get_client_for_component, get_client_for_task
 
     # Default provider (OpenAI)
     client = LLMClient()
@@ -23,9 +24,18 @@ Usage:
         system_prompt="You are a code reviewer"
     )
 
+    # Qwen providers (EPIC #2594)
+    client = LLMClient(provider="alicloud")  # DashScope API
+    client = LLMClient(provider="siliconflow")  # SiliconFlow API
+
     # Auto provider selection (uses available provider)
     client = LLMClient(provider="auto")
     response = client.generate("Generate unit tests")
+
+    # Task-based routing (EPIC #2594 Ticket 2)
+    from core.routing import TaskType
+    client = get_client_for_task(TaskType.PLANNING, risk_level="high")
+    response = client.generate("Create a project plan")
 
     # Experiment-aware client for component (Phase 5 PR-5)
     client = get_client_for_component("reviewer", trace_id="abc123")
@@ -39,12 +49,32 @@ from common.config.settings import settings
 from .providers.base import LLMResponse
 from .providers.openai_provider import OpenAIProvider
 from .providers.gemini_provider import GeminiProvider
+from .providers.alicloud_provider import AliCloudProvider
+from .providers.siliconflow_provider import SiliconFlowProvider
 
 logger = logging.getLogger(__name__)
 
-ProviderType = Literal["openai", "gemini", "auto"]
+ProviderType = Literal["openai", "gemini", "alicloud", "siliconflow", "auto"]
 
 _default_client_lock = threading.Lock()
+
+# Provider registry for availability checks
+# Order determines priority for auto-selection
+_PROVIDER_REGISTRY = [
+    ("openai", OpenAIProvider),
+    ("gemini", GeminiProvider),
+    ("alicloud", AliCloudProvider),
+    ("siliconflow", SiliconFlowProvider),
+]
+
+
+def _get_available_providers() -> list[str]:
+    """Get list of available provider names based on configuration"""
+    available = []
+    for name, provider_class in _PROVIDER_REGISTRY:
+        if provider_class().is_available():
+            available.append(name)
+    return available
 
 
 class LLMClient:
@@ -53,7 +83,9 @@ class LLMClient:
 
     Providers:
     - openai: OpenAI GPT-4 (default)
-    - gemini: Google Gemini Pro (staging)
+    - gemini: Google Gemini Pro
+    - alicloud: Qwen models via DashScope API (EPIC #2594)
+    - siliconflow: Qwen models via SiliconFlow API (EPIC #2594)
     - auto: Automatic provider selection based on availability
 
     The provider can be configured via:
@@ -71,7 +103,7 @@ class LLMClient:
         Initialize LLM client with specified provider
 
         Args:
-            provider: Provider to use (openai, gemini, auto)
+            provider: Provider to use (openai, gemini, alicloud, siliconflow, auto)
                      If None, uses LLM_PROVIDER env var or defaults to openai
             model: Model to use (provider-specific)
                    If None, uses provider's default model
@@ -105,21 +137,20 @@ class LLMClient:
         Priority:
         1. OpenAI (if configured)
         2. Gemini (if configured)
-        3. Raise error if none available
+        3. AliCloud/DashScope (if configured) - EPIC #2594
+        4. SiliconFlow (if configured) - EPIC #2594
+        5. Raise error if none available
         """
-        openai_provider = OpenAIProvider()
-        if openai_provider.is_available():
-            logger.info("[LLMClient] Auto-selected OpenAI provider")
-            return "openai"
-
-        gemini_provider = GeminiProvider()
-        if gemini_provider.is_available():
-            logger.info("[LLMClient] Auto-selected Gemini provider")
-            return "gemini"
+        available = _get_available_providers()
+        if available:
+            selected = available[0]
+            logger.info(f"[LLMClient] Auto-selected {selected} provider")
+            return selected
 
         raise ValueError(
             "No LLM provider available. "
-            "Configure OPENAI_API_KEY or GEMINI_API_KEY."
+            "Configure OPENAI_API_KEY, GEMINI_API_KEY, DASHSCOPE_API_KEY, "
+            "or SILICONFLOW_API_KEY."
         )
 
     def _create_provider(self):
@@ -128,6 +159,10 @@ class LLMClient:
             return OpenAIProvider(model=self._model)
         elif self._provider_name == "gemini":
             return GeminiProvider(model=self._model)
+        elif self._provider_name == "alicloud":
+            return AliCloudProvider(model=self._model)
+        elif self._provider_name == "siliconflow":
+            return SiliconFlowProvider(model=self._model)
         else:
             raise ValueError(f"Unknown provider: {self._provider_name}")
 
@@ -289,3 +324,94 @@ def get_client_for_component(
             f"using default provider={default_provider}"
         )
         return LLMClient(provider=default_provider, model=model)
+
+
+def get_client_for_task(
+    task_type,
+    risk_level: str = "medium",
+    context_size: int = 0
+) -> LLMClient:
+    """
+    Get an LLMClient configured based on task type using the RoutingEngine.
+
+    This function implements task-based routing (EPIC #2594 Ticket 2),
+    selecting the appropriate model based on:
+    - Task type (planning, coding, review, etc.)
+    - Risk level (high, medium, low)
+    - Context size (token count)
+
+    Args:
+        task_type: Type of task (from core.routing.TaskType)
+        risk_level: Risk level ("high", "medium", "low")
+        context_size: Estimated context size in tokens
+
+    Returns:
+        LLMClient configured with the appropriate provider and model
+
+    Raises:
+        ValueError: If no suitable model is available
+
+    Usage:
+        from core.routing import TaskType
+        from llm.client import get_client_for_task
+
+        # Planning task - will select Tier 0 model (qwen-max or gpt-4o)
+        client = get_client_for_task(TaskType.PLANNING, risk_level="high")
+        response = client.generate("Create a project plan")
+
+        # UX copy task - will select Tier 3 model (qwen-14b)
+        client = get_client_for_task(TaskType.UX_COPY)
+        response = client.generate("Write button label")
+    """
+    try:
+        from core.routing import RoutingEngine
+
+        # Determine available providers using shared helper
+        available_providers = _get_available_providers()
+
+        if not available_providers:
+            raise ValueError(
+                "No LLM provider available. "
+                "Configure OPENAI_API_KEY, GEMINI_API_KEY, DASHSCOPE_API_KEY, "
+                "or SILICONFLOW_API_KEY."
+            )
+
+        engine = RoutingEngine(available_providers=available_providers)
+        model_info = engine.select_model(
+            task_type=task_type,
+            risk_level=risk_level,
+            context_size=context_size
+        )
+
+        logger.info(
+            f"[LLMClient] Task-based routing selected: "
+            f"provider={model_info.provider}, model={model_info.model_name}, "
+            f"tier={model_info.tier.value}, task={task_type.value}, "
+            f"risk={risk_level}, is_fallback={model_info.is_fallback}",
+            extra={
+                "operation": "get_client_for_task",
+                "task_type": task_type.value,
+                "risk_level": risk_level,
+                "context_size": context_size,
+                "provider": model_info.provider,
+                "model": model_info.model_name,
+                "tier": model_info.tier.value,
+                "is_fallback": model_info.is_fallback,
+                "reason": model_info.reason
+            }
+        )
+
+        return LLMClient(provider=model_info.provider, model=model_info.model_name)
+
+    except ImportError as e:
+        logger.warning(
+            f"[LLMClient] RoutingEngine not available: {e}, "
+            f"falling back to auto provider selection"
+        )
+        return LLMClient(provider="auto")
+    except Exception as e:
+        logger.warning(
+            f"[LLMClient] Task-based routing failed: {e}, "
+            f"falling back to auto provider selection"
+        )
+        return LLMClient(provider="auto")
