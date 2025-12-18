@@ -695,6 +695,9 @@ class RefactorAgent:
         The code context in prompts includes line numbers and markers (e.g., ">>> 34: code").
         LLMs sometimes copy these formats into their output, which corrupts the code.
 
+        Safety: Only strips lines that contain the ">>>" marker we inject in _get_code_context().
+        This prevents false positives on legitimate code like `1: "first"` in object literals.
+
         Args:
             fix: Raw LLM output
 
@@ -704,9 +707,26 @@ class RefactorAgent:
         if not fix:
             return fix
 
-        # Use re.MULTILINE for efficient single-pass sanitization
-        # Pattern matches: optional ">>> ", followed by digits, colon, and space
-        return re.sub(r'^(?:\s*>>>)?\s*\d+:\s*', '', fix, flags=re.MULTILINE)
+        # Only sanitize if the output contains our injected ">>>" marker
+        # This prevents false positives on legitimate code like `1: "first"`
+        if ">>>" not in fix:
+            return fix
+
+        # Pattern matches lines with our marker format: ">>> 34: code" or "    34: code"
+        # We only strip when >>> marker is present in the output (indicating prompt pollution)
+        sanitized = re.sub(r'^\s*>>>\s*\d+:\s*', '', fix, flags=re.MULTILINE)
+        sanitized = re.sub(r'^\s{4}\d+:\s*', '', sanitized, flags=re.MULTILINE)
+
+        lines_removed = fix.count('\n') - sanitized.count('\n')
+        chars_removed = len(fix) - len(sanitized)
+
+        if chars_removed > 0:
+            logger.info(
+                "[RefactorAgent] Sanitized LLM output: removed %d characters from %d lines",
+                chars_removed, lines_removed if lines_removed > 0 else 1
+            )
+
+        return sanitized
 
     def _verify_syntax_after_fix(self, project_path: str) -> Tuple[bool, List[str]]:
         """

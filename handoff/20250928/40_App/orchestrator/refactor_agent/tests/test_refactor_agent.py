@@ -2481,3 +2481,184 @@ class TestCreatePRWithExistingPRCheck:
 
                 assert pr_url == "https://github.com/test/pr/1"
                 assert pr_number == 1
+
+
+class TestSanitizeLLMOutput:
+    """Tests for _sanitize_llm_output method"""
+
+    def test_sanitize_removes_marker_lines(self):
+        """Test that lines with >>> marker are sanitized"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            polluted_output = ">>> 34: const x = null;\n    35: const y = 1;"
+            result = agent._sanitize_llm_output(polluted_output)
+
+            assert ">>>" not in result
+            assert "34:" not in result
+            assert "const x = null;" in result
+            assert "const y = 1;" in result
+
+    def test_sanitize_preserves_legitimate_code(self):
+        """Test that legitimate code like object literals is NOT modified"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            legitimate_code = 'const obj = { 1: "first", 2: "second" };'
+            result = agent._sanitize_llm_output(legitimate_code)
+
+            assert result == legitimate_code
+
+    def test_sanitize_preserves_code_without_marker(self):
+        """Test that code without >>> marker is returned unchanged"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            clean_code = "const x = 1;\nconst y = 2;"
+            result = agent._sanitize_llm_output(clean_code)
+
+            assert result == clean_code
+
+    def test_sanitize_handles_empty_input(self):
+        """Test that empty input returns empty output"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            assert agent._sanitize_llm_output("") == ""
+            assert agent._sanitize_llm_output(None) is None
+
+    def test_sanitize_handles_multiline_with_markers(self):
+        """Test sanitization of multiline output with mixed markers"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            polluted_output = """>>> 10: function test() {
+    11:   const x = null;
+>>> 12:   return x;
+    13: }"""
+            result = agent._sanitize_llm_output(polluted_output)
+
+            assert ">>>" not in result
+            assert "10:" not in result
+            assert "function test()" in result
+            assert "const x = null;" in result
+            assert "return x;" in result
+
+
+class TestVerifySyntaxAfterFix:
+    """Tests for _verify_syntax_after_fix method"""
+
+    def test_verify_syntax_returns_true_on_exception(self):
+        """Test that exceptions trigger fail-closed behavior (returns True)"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir) / "test-project"
+            project_dir.mkdir()
+
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            with patch('subprocess.run', side_effect=Exception("pnpm not found")):
+                has_errors, error_list = agent._verify_syntax_after_fix("test-project")
+
+                assert has_errors is True
+                assert len(error_list) == 1
+                assert "Error during syntax verification" in error_list[0]
+
+    def test_verify_syntax_returns_false_for_nonexistent_project(self):
+        """Test that nonexistent project returns False (no errors)"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            agent = RefactorAgent(repo_path=tmpdir)
+
+            has_errors, error_list = agent._verify_syntax_after_fix("nonexistent-project")
+
+            assert has_errors is False
+            assert error_list == []
+
+
+class TestRollbackOnSyntaxErrors:
+    """Tests for rollback behavior when syntax errors are detected"""
+
+    def test_rollback_called_when_syntax_errors_detected(self):
+        """Test that rollback_batch is called when _verify_syntax_after_fix returns errors"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "src" / "test.ts"
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.write_text("const x = null;\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply, \
+                 patch.object(agent, '_verify_syntax_after_fix') as mock_verify, \
+                 patch.object(agent, 'rollback_batch') as mock_rollback:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "const x = null ?? undefined;"
+
+                mock_apply.return_value = {
+                    'success_count': 1,
+                    'failure_count': 0,
+                    'applied': ["src/test.ts"],
+                    'failed': [],
+                    'backups': {"src/test.ts": Path(tmpdir) / ".refactor_backups" / "test.ts.bak"},
+                    'task_results': {"task-0": True}
+                }
+
+                mock_verify.return_value = (True, ["error TS1005: ';' expected"])
+
+                result = agent.run_refactor(dry_run=False, max_errors=1)
+
+                mock_rollback.assert_called_once()
+                assert result.errors_fixed == 0
+
+    def test_no_rollback_when_no_syntax_errors(self):
+        """Test that rollback_batch is NOT called when no syntax errors"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = Path(tmpdir) / "src" / "test.ts"
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.write_text("const x = null;\n")
+
+            agent = RefactorAgent(repo_path=tmpdir)
+            agent.auto_pr = False
+
+            with patch.object(agent, 'collect_ts_errors') as mock_collect, \
+                 patch.object(agent, 'generate_fix') as mock_generate, \
+                 patch.object(agent, 'apply_fixes_batch') as mock_apply, \
+                 patch.object(agent, '_verify_syntax_after_fix') as mock_verify, \
+                 patch.object(agent, 'rollback_batch') as mock_rollback:
+
+                mock_collect.return_value = [
+                    TSError(
+                        file_path="src/test.ts",
+                        line=1,
+                        column=1,
+                        error_code="TS2531",
+                        message="Object is possibly 'null'"
+                    )
+                ]
+                mock_generate.return_value = "const x = null ?? undefined;"
+
+                mock_apply.return_value = {
+                    'success_count': 1,
+                    'failure_count': 0,
+                    'applied': ["src/test.ts"],
+                    'failed': [],
+                    'backups': {"src/test.ts": Path(tmpdir) / ".refactor_backups" / "test.ts.bak"},
+                    'task_results': {"task-0": True}
+                }
+
+                mock_verify.return_value = (False, [])
+
+                result = agent.run_refactor(dry_run=False, max_errors=1)
+
+                mock_rollback.assert_not_called()
+                assert result.errors_fixed == 1
