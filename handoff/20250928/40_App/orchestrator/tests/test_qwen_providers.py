@@ -14,8 +14,12 @@ Reference:
 import pytest
 from unittest.mock import patch, MagicMock
 
-from llm.providers.alicloud_provider import AliCloudProvider, DASHSCOPE_BASE_URL
-from llm.providers.siliconflow_provider import SiliconFlowProvider, SILICONFLOW_BASE_URL
+from llm.providers.alicloud_provider import AliCloudProvider
+from llm.providers.siliconflow_provider import SiliconFlowProvider
+from common.config.settings import settings
+
+DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+SILICONFLOW_BASE_URL = "https://api.siliconflow.cn/v1"
 
 
 class TestAliCloudProvider:
@@ -44,8 +48,8 @@ class TestAliCloudProvider:
         assert "qwen-turbo" in AliCloudProvider.SUPPORTED_MODELS
 
     def test_base_url(self):
-        """Test DashScope base URL is correct"""
-        assert DASHSCOPE_BASE_URL == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        """Test DashScope base URL default is correct"""
+        assert settings.dashscope_base_url == DASHSCOPE_BASE_URL
 
     @patch('llm.providers.alicloud_provider.settings')
     def test_is_available_with_key(self, mock_settings):
@@ -74,6 +78,7 @@ class TestAliCloudProvider:
     def test_generate_success(self, mock_openai_class, mock_settings):
         """Test successful generation"""
         mock_settings.dashscope_api_key = "test-key"
+        mock_settings.dashscope_base_url = DASHSCOPE_BASE_URL
 
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
@@ -211,8 +216,8 @@ class TestSiliconFlowProvider:
         assert "Qwen/Qwen2.5-7B-Instruct" in SiliconFlowProvider.SUPPORTED_MODELS
 
     def test_base_url(self):
-        """Test SiliconFlow base URL is correct"""
-        assert SILICONFLOW_BASE_URL == "https://api.siliconflow.cn/v1"
+        """Test SiliconFlow base URL default is correct"""
+        assert settings.siliconflow_base_url == SILICONFLOW_BASE_URL
 
     @patch('llm.providers.siliconflow_provider.settings')
     def test_is_available_with_key(self, mock_settings):
@@ -241,6 +246,7 @@ class TestSiliconFlowProvider:
     def test_generate_success(self, mock_openai_class, mock_settings):
         """Test successful generation"""
         mock_settings.siliconflow_api_key = "test-key"
+        mock_settings.siliconflow_base_url = SILICONFLOW_BASE_URL
 
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
@@ -371,3 +377,185 @@ class TestProviderImports:
         from llm.providers import __all__
         assert "AliCloudProvider" in __all__
         assert "SiliconFlowProvider" in __all__
+
+
+class TestAliCloudProviderErrorHandling:
+    """Tests for AliCloudProvider error handling scenarios"""
+
+    @patch('llm.providers.alicloud_provider.settings')
+    @patch('openai.OpenAI')
+    def test_timeout_error(self, mock_openai_class, mock_settings):
+        """Test timeout error handling"""
+        from openai import APITimeoutError
+        mock_settings.dashscope_api_key = "test-key"
+        mock_settings.dashscope_base_url = DASHSCOPE_BASE_URL
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = APITimeoutError(
+            request=MagicMock()
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = AliCloudProvider()
+        with pytest.raises(APITimeoutError):
+            provider.generate("Test prompt")
+
+    @patch('llm.providers.alicloud_provider.settings')
+    @patch('openai.OpenAI')
+    def test_rate_limit_error(self, mock_openai_class, mock_settings):
+        """Test rate limit error handling"""
+        from openai import RateLimitError
+        mock_settings.dashscope_api_key = "test-key"
+        mock_settings.dashscope_base_url = DASHSCOPE_BASE_URL
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        mock_client.chat.completions.create.side_effect = RateLimitError(
+            message="Rate limit exceeded",
+            response=mock_response,
+            body={"error": {"message": "Rate limit exceeded"}}
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = AliCloudProvider()
+        with pytest.raises(RateLimitError):
+            provider.generate("Test prompt")
+
+    @patch('llm.providers.alicloud_provider.settings')
+    @patch('openai.OpenAI')
+    def test_authentication_error(self, mock_openai_class, mock_settings):
+        """Test authentication error handling"""
+        from openai import AuthenticationError
+        mock_settings.dashscope_api_key = "invalid-key"
+        mock_settings.dashscope_base_url = DASHSCOPE_BASE_URL
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_client.chat.completions.create.side_effect = AuthenticationError(
+            message="Invalid API key",
+            response=mock_response,
+            body={"error": {"message": "Invalid API key"}}
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = AliCloudProvider()
+        with pytest.raises(AuthenticationError):
+            provider.generate("Test prompt")
+
+    @patch('llm.providers.alicloud_provider.settings')
+    @patch('openai.OpenAI')
+    def test_api_connection_error(self, mock_openai_class, mock_settings):
+        """Test API connection error handling"""
+        from openai import APIConnectionError
+        mock_settings.dashscope_api_key = "test-key"
+        mock_settings.dashscope_base_url = DASHSCOPE_BASE_URL
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = APIConnectionError(
+            request=MagicMock()
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = AliCloudProvider()
+        with pytest.raises(APIConnectionError):
+            provider.generate("Test prompt")
+
+    def test_error_message_includes_env_var_hint(self):
+        """Test that error message includes environment variable hint"""
+        provider = AliCloudProvider()
+        with pytest.raises(ValueError) as exc_info:
+            provider.generate("Test prompt")
+        assert "DASHSCOPE_API_KEY" in str(exc_info.value)
+
+
+class TestSiliconFlowProviderErrorHandling:
+    """Tests for SiliconFlowProvider error handling scenarios"""
+
+    @patch('llm.providers.siliconflow_provider.settings')
+    @patch('openai.OpenAI')
+    def test_timeout_error(self, mock_openai_class, mock_settings):
+        """Test timeout error handling"""
+        from openai import APITimeoutError
+        mock_settings.siliconflow_api_key = "test-key"
+        mock_settings.siliconflow_base_url = SILICONFLOW_BASE_URL
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = APITimeoutError(
+            request=MagicMock()
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = SiliconFlowProvider()
+        with pytest.raises(APITimeoutError):
+            provider.generate("Test prompt")
+
+    @patch('llm.providers.siliconflow_provider.settings')
+    @patch('openai.OpenAI')
+    def test_rate_limit_error(self, mock_openai_class, mock_settings):
+        """Test rate limit error handling"""
+        from openai import RateLimitError
+        mock_settings.siliconflow_api_key = "test-key"
+        mock_settings.siliconflow_base_url = SILICONFLOW_BASE_URL
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        mock_client.chat.completions.create.side_effect = RateLimitError(
+            message="Rate limit exceeded",
+            response=mock_response,
+            body={"error": {"message": "Rate limit exceeded"}}
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = SiliconFlowProvider()
+        with pytest.raises(RateLimitError):
+            provider.generate("Test prompt")
+
+    @patch('llm.providers.siliconflow_provider.settings')
+    @patch('openai.OpenAI')
+    def test_authentication_error(self, mock_openai_class, mock_settings):
+        """Test authentication error handling"""
+        from openai import AuthenticationError
+        mock_settings.siliconflow_api_key = "invalid-key"
+        mock_settings.siliconflow_base_url = SILICONFLOW_BASE_URL
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_client.chat.completions.create.side_effect = AuthenticationError(
+            message="Invalid API key",
+            response=mock_response,
+            body={"error": {"message": "Invalid API key"}}
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = SiliconFlowProvider()
+        with pytest.raises(AuthenticationError):
+            provider.generate("Test prompt")
+
+    @patch('llm.providers.siliconflow_provider.settings')
+    @patch('openai.OpenAI')
+    def test_api_connection_error(self, mock_openai_class, mock_settings):
+        """Test API connection error handling"""
+        from openai import APIConnectionError
+        mock_settings.siliconflow_api_key = "test-key"
+        mock_settings.siliconflow_base_url = SILICONFLOW_BASE_URL
+
+        mock_client = MagicMock()
+        mock_client.chat.completions.create.side_effect = APIConnectionError(
+            request=MagicMock()
+        )
+        mock_openai_class.return_value = mock_client
+
+        provider = SiliconFlowProvider()
+        with pytest.raises(APIConnectionError):
+            provider.generate("Test prompt")
+
+    def test_error_message_includes_env_var_hint(self):
+        """Test that error message includes environment variable hint"""
+        provider = SiliconFlowProvider()
+        with pytest.raises(ValueError) as exc_info:
+            provider.generate("Test prompt")
+        assert "SILICONFLOW_API_KEY" in str(exc_info.value)

@@ -25,8 +25,6 @@ from .base import BaseLLMProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
 
-SILICONFLOW_BASE_URL = "https://api.siliconflow.cn/v1"
-
 
 class SiliconFlowProvider(BaseLLMProvider):
     """
@@ -67,11 +65,14 @@ class SiliconFlowProvider(BaseLLMProvider):
         """Lazy initialization of OpenAI client with SiliconFlow base URL"""
         if self._client is None:
             if not self.is_available():
-                raise ValueError("SiliconFlow API key not configured")
+                raise ValueError(
+                    "SiliconFlow API key not configured. "
+                    "Please set SILICONFLOW_API_KEY environment variable."
+                )
             from openai import OpenAI
             self._client = OpenAI(
                 api_key=settings.siliconflow_api_key,
-                base_url=SILICONFLOW_BASE_URL
+                base_url=settings.siliconflow_base_url
             )
         return self._client
 
@@ -114,7 +115,10 @@ class SiliconFlowProvider(BaseLLMProvider):
             Exception: If API call fails
         """
         if not self.is_available():
-            raise ValueError("SiliconFlow API key not configured")
+            raise ValueError(
+                "SiliconFlow API key not configured. "
+                "Please set SILICONFLOW_API_KEY environment variable."
+            )
 
         use_model = model or self.model
 

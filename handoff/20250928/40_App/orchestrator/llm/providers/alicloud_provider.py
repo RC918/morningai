@@ -24,8 +24,6 @@ from .base import BaseLLMProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
 
-DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-
 
 class AliCloudProvider(BaseLLMProvider):
     """
@@ -67,11 +65,14 @@ class AliCloudProvider(BaseLLMProvider):
         """Lazy initialization of OpenAI client with DashScope base URL"""
         if self._client is None:
             if not self.is_available():
-                raise ValueError("DashScope API key not configured")
+                raise ValueError(
+                    "DashScope API key not configured. "
+                    "Please set DASHSCOPE_API_KEY environment variable."
+                )
             from openai import OpenAI
             self._client = OpenAI(
                 api_key=settings.dashscope_api_key,
-                base_url=DASHSCOPE_BASE_URL
+                base_url=settings.dashscope_base_url
             )
         return self._client
 
@@ -114,7 +115,10 @@ class AliCloudProvider(BaseLLMProvider):
             Exception: If API call fails
         """
         if not self.is_available():
-            raise ValueError("DashScope API key not configured")
+            raise ValueError(
+                "DashScope API key not configured. "
+                "Please set DASHSCOPE_API_KEY environment variable."
+            )
 
         use_model = model or self.model
 
