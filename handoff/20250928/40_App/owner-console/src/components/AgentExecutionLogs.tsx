@@ -1,5 +1,13 @@
+import React, { useState, useEffect, useId } from 'react'
+// Add this line at the top of your file
+/// <reference types="react-i18next" />
 import { useState, useEffect, useId } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
 import { 
   Card, 
   CardContent, 
