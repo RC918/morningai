@@ -403,8 +403,7 @@ def post_pr_review(
     repo,
     pr_number: int,
     comments: list,
-    summary: str = "MorningAI Review",
-    commit_id: str = None
+    summary: str = "MorningAI Review"
 ) -> dict:
     """
     Post review comments to a GitHub PR as inline review comments.
@@ -424,7 +423,6 @@ def post_pr_review(
             - start_line: Start line number (optional, for multi-line)
             - message: Comment text (required)
         summary: Review summary text (default: "MorningAI Review")
-        commit_id: Commit SHA to comment on (optional, uses PR head if not provided)
 
     Returns:
         dict with keys:
@@ -464,10 +462,6 @@ def post_pr_review(
             return result
 
         pr = repo.get_pull(pr_number)
-
-        # Use PR head commit if not specified
-        if not commit_id:
-            commit_id = pr.head.sha
 
         # Truncate if over limit
         max_comments = settings.github_review_posting_max_comments

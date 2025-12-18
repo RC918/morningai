@@ -2678,14 +2678,6 @@ def publisher_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("publisher", trace_id)
 
-    logger.info("[Publisher] Starting review publishing", extra={
-        "operation": "publisher",
-        "trace_id": trace_id,
-        "pr_number": pr_number,
-        "comment_count": len(review_comments),
-        "enable_posting": getattr(settings, 'enable_github_review_posting', False)
-    })
-
     # Initialize publish result
     state["publish_result"] = {
         "attempted": False,
@@ -2696,6 +2688,24 @@ def publisher_node(state: AgentState) -> AgentState:
         "dry_run": False,
         "error": None
     }
+
+    # Short-circuit: Skip entirely if feature is disabled (pure no-op)
+    # This avoids calling get_repo() or any GitHub API when feature is off
+    if not settings.enable_github_review_posting:
+        logger.info("[Publisher] Feature disabled, skipping", extra={
+            "operation": "publisher",
+            "trace_id": trace_id
+        })
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    logger.info("[Publisher] Starting review publishing", extra={
+        "operation": "publisher",
+        "trace_id": trace_id,
+        "pr_number": pr_number,
+        "comment_count": len(review_comments)
+    })
 
     # Skip if no PR or no comments
     if not pr_number:
