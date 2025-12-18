@@ -215,9 +215,8 @@ jobs:
   verify-architecture-manifest:
     name: Verify Architecture Manifest (Epic #2465)
     runs-on: ubuntu-latest
-    # Note: This check is currently non-blocking to allow gradual cleanup of existing issues.
-    # Once existing documentation is cleaned up, remove continue-on-error to make it blocking.
-    continue-on-error: true
+    # Note: This check is now BLOCKING after Issue #2661 cleanup.
+    # All documentation errors have been fixed and the verification script passes.
     
     steps:
       - name: Checkout code
@@ -236,10 +235,8 @@ jobs:
       
       - name: Verify architecture manifest
         id: verify-manifest
-        continue-on-error: true
         run: |
           echo "Running architecture manifest verification..."
-          echo "Note: This check is currently non-blocking. See Epic #2465 for cleanup plan."
           python scripts/verify_architecture_manifest.py --verbose
       
       - name: Post success comment
@@ -259,9 +256,8 @@ jobs:
   check-link-security:
     name: Check Link Security (HTTPS)
     runs-on: ubuntu-latest
-    # Note: This check is currently non-blocking to allow gradual cleanup of existing issues.
-    # Once existing HTTP links are cleaned up (Issue #2661), remove continue-on-error to make it blocking.
-    continue-on-error: true
+    # Note: This check is now BLOCKING after Issue #2661 cleanup.
+    # All HTTP links have been fixed or excluded (code examples, internal services).
     
     steps:
       - name: Checkout code
@@ -271,16 +267,21 @@ jobs:
         run: |
           echo "Checking for insecure HTTP links in documentation..."
           
-          # Find HTTP links, then exclude localhost and local IPs
+          # Find HTTP links, then exclude localhost, local IPs, and known code examples
           # Note: Using two-stage grep because -E (ERE) doesn't support negative lookahead
-          # Fixed: Removed \] from character class (was causing POSIX ERE compatibility issues)
-          INSECURE_LINKS=$(grep -rE 'http://[^[:space:])>]+' docs/ --include="*.md" | grep -vE 'http://(localhost|127\.0\.0\.1|0\.0\.0\.0)' || true)
+          INSECURE_LINKS=$(grep -rE 'http://[^[:space:])>]+' docs/ --include="*.md" \
+            | grep -vE 'http://(localhost|127\.0\.0\.1|0\.0\.0\.0)' \
+            | grep -vE 'http://example\.com' \
+            | grep -vE 'http://mcp-server' \
+            | grep -vE 'http://`' \
+            || true)
           
           if [ -n "$INSECURE_LINKS" ]; then
-            echo "::warning::Found insecure HTTP links in documentation:"
+            echo "::error::Found insecure HTTP links in documentation:"
             echo "$INSECURE_LINKS"
             echo ""
-            echo "Please update these links to use HTTPS. See Issue #2661 for cleanup plan."
+            echo "Please update these links to use HTTPS."
+            exit 1
           else
             echo "✅ No insecure HTTP links found in documentation"
           fi

@@ -9,7 +9,7 @@ The system architecture of MorningAI is built around a microservices framework, 
 ### Frontend
 
 - **Technology Stack**: ReactJS with Vite for an efficient development experience and TailwindCSS for styling.
-- **Path**: `/frontend`
+- **Path**: `handoff/20250928/40_App/frontend-dashboard`
 - **Code Example**: Setting up the React environment.
   ```javascript
   import React from 'react';
@@ -31,7 +31,7 @@ The system architecture of MorningAI is built around a microservices framework, 
 - **Database Integration**: PostgreSQL through Supabase with Row Level Security (RLS) for data integrity and security.
 - **Queue Management**: Redis Queue (RQ) is utilized for managing background tasks with worker heartbeat monitoring to ensure reliability.
 - **Orchestration & AI**: LangGraph orchestrates agent workflows while OpenAI's GPT-4 powers content generation.
-- **Path**: `/backend`
+- **Path**: `handoff/20250928/40_App/api-backend`
 - **Code Example**: Flask application setup.
   ```python
   from flask import Flask
@@ -56,7 +56,7 @@ The system architecture of MorningAI is built around a microservices framework, 
 - [React Documentation](https://reactjs.org/docs/getting-started.html)
 - [TailwindCSS Documentation](https://tailwindcss.com/docs)
 - [Supabase Documentation](https://supabase.com/docs)
-- [Redis Queue (RQ) Documentation](http://python-rq.org/docs/)
+- [Redis Queue (RQ) Documentation](https://python-rq.org/docs/)
 - [Render Deployment Guides](https://render.com/docs)
 
 ## Common Troubleshooting Tips

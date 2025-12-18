@@ -111,7 +111,7 @@ def test_faq():
 
 **Before**:
 ```bash
-curl -X POST http://api.morningai.com/api/agent/faq \
+curl -X POST https://api.morningai.com/api/agent/faq \
   -H "Content-Type: application/json" \
   -d '{"question": "Test"}'
 ```
@@ -119,13 +119,13 @@ curl -X POST http://api.morningai.com/api/agent/faq \
 **After**:
 ```bash
 # 首先取得 JWT token (透過登入)
-TOKEN=$(curl -X POST http://api.morningai.com/auth/login \
+TOKEN=$(curl -X POST https://api.morningai.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "***"}' \
   | jq -r '.token')
 
 # 使用 token 調用 API
-curl -X POST http://api.morningai.com/api/agent/faq \
+curl -X POST https://api.morningai.com/api/agent/faq \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \  # ✅ 新增
   -d '{"question": "Test"}'
