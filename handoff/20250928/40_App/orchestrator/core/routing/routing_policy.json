@@ -1,0 +1,89 @@
+{
+  "version": "1.1",
+  "description": "Routing Policy for Multi-Model Use in MorningAI (EPIC #2594)",
+  "task_types": {
+    "planning": {
+      "tier": 0,
+      "fallback": 1,
+      "description": "Complex reasoning, strategic planning, critical decisions"
+    },
+    "coding": {
+      "tier": 1,
+      "fallback": 2,
+      "description": "Code generation, implementation, debugging"
+    },
+    "review": {
+      "tier": 1,
+      "fallback": 2,
+      "description": "Code review, PR analysis, quality assessment"
+    },
+    "ux_copy": {
+      "tier": 3,
+      "fallback": 2,
+      "description": "UI text, button labels, simple user-facing content"
+    },
+    "translation": {
+      "tier": 2,
+      "fallback": 3,
+      "description": "Language translation, localization"
+    },
+    "summarization": {
+      "tier": 2,
+      "fallback": 3,
+      "description": "Document summarization, key point extraction"
+    },
+    "analysis": {
+      "tier": 1,
+      "fallback": 2,
+      "description": "Data analysis, pattern recognition, insights"
+    },
+    "chat": {
+      "tier": 2,
+      "fallback": 3,
+      "description": "General conversation, Q&A, support"
+    }
+  },
+  "tier_models": {
+    "0": {
+      "description": "Highest capability - Complex reasoning, planning",
+      "models": [
+        {"provider": "alicloud", "model": "qwen-max"},
+        {"provider": "openai", "model": "gpt-4o"},
+        {"provider": "gemini", "model": "gemini-1.5-pro"}
+      ]
+    },
+    "1": {
+      "description": "High capability - Code generation, detailed analysis",
+      "models": [
+        {"provider": "alicloud", "model": "qwen-plus"},
+        {"provider": "openai", "model": "gpt-4o-mini"},
+        {"provider": "gemini", "model": "gemini-1.5-flash"}
+      ]
+    },
+    "2": {
+      "description": "Medium capability - Standard tasks, reviews",
+      "models": [
+        {"provider": "alicloud", "model": "qwen-turbo"},
+        {"provider": "siliconflow", "model": "Qwen/Qwen2.5-32B-Instruct"}
+      ]
+    },
+    "3": {
+      "description": "Basic capability - Simple tasks, UX copy",
+      "models": [
+        {"provider": "siliconflow", "model": "Qwen/Qwen2.5-14B-Instruct"},
+        {"provider": "siliconflow", "model": "Qwen/Qwen2.5-7B-Instruct"}
+      ]
+    }
+  },
+  "context_limits": {
+    "0": 128000,
+    "1": 128000,
+    "2": 32000,
+    "3": 8000
+  },
+  "risk_adjustments": {
+    "high": -1,
+    "medium": 0,
+    "low": 1
+  }
+}
