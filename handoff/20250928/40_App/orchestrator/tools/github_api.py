@@ -399,6 +399,184 @@ def delete_branch(repo, branch: str):
         return False
 
 
+def post_pr_review(
+    repo,
+    pr_number: int,
+    comments: list,
+    summary: str = "MorningAI Review",
+    commit_id: str = None
+) -> dict:
+    """
+    Post review comments to a GitHub PR as inline review comments.
+
+    EPIC B Phase B-3: GitHub Inline Comment Posting
+    Issue #2595: Diff-Aware Review Plumbing
+
+    This function posts review comments to GitHub using the Pull Request Review API.
+    It supports both single-line and multi-line comments.
+
+    Args:
+        repo: GitHub repository object
+        pr_number: Pull request number
+        comments: List of ReviewComment dicts with keys:
+            - file: File path (required)
+            - end_line: End line number (required)
+            - start_line: Start line number (optional, for multi-line)
+            - message: Comment text (required)
+        summary: Review summary text (default: "MorningAI Review")
+        commit_id: Commit SHA to comment on (optional, uses PR head if not provided)
+
+    Returns:
+        dict with keys:
+            - success: bool - Whether the review was posted
+            - posted_count: int - Number of comments posted
+            - skipped_count: int - Number of comments skipped (invalid)
+            - truncated_count: int - Number of comments truncated (over limit)
+            - dry_run: bool - Whether this was a dry-run
+            - error: str | None - Error message if failed
+    """
+    from common.config.settings import settings
+
+    result = {
+        "success": False,
+        "posted_count": 0,
+        "skipped_count": 0,
+        "truncated_count": 0,
+        "dry_run": False,
+        "error": None
+    }
+
+    # Check feature flag
+    if not settings.enable_github_review_posting:
+        logger.info("[GitHub] Review posting disabled by feature flag")
+        result["error"] = "Feature disabled"
+        return result
+
+    if not comments:
+        logger.info("[GitHub] No comments to post")
+        result["success"] = True
+        return result
+
+    try:
+        if repo is None:
+            result["error"] = "Repository not available"
+            logger.warning("[GitHub] Repository not available for post_pr_review")
+            return result
+
+        pr = repo.get_pull(pr_number)
+
+        # Use PR head commit if not specified
+        if not commit_id:
+            commit_id = pr.head.sha
+
+        # Truncate if over limit
+        max_comments = settings.github_review_posting_max_comments
+        if len(comments) > max_comments:
+            logger.warning(
+                f"[GitHub] Too many comments ({len(comments)}), "
+                f"truncating to {max_comments}"
+            )
+            result["truncated_count"] = len(comments) - max_comments
+            comments = comments[:max_comments]
+
+        # Build GitHub API payload
+        gh_comments = []
+        for c in comments:
+            # Validate required fields
+            file_path = c.get("file")
+            end_line = c.get("end_line")
+            message = c.get("message")
+
+            if not file_path or not end_line or not message:
+                logger.warning(
+                    f"[GitHub] Skipping invalid comment: "
+                    f"file={file_path}, end_line={end_line}, has_message={bool(message)}"
+                )
+                result["skipped_count"] += 1
+                continue
+
+            # Build comment payload for PyGithub
+            item = {
+                "path": file_path,
+                "body": message,
+                "line": int(end_line),
+                "side": "RIGHT"
+            }
+
+            # Add start_line for multi-line comments
+            start_line = c.get("start_line")
+            if start_line is not None and int(start_line) < int(end_line):
+                item["start_line"] = int(start_line)
+                item["start_side"] = "RIGHT"
+
+            gh_comments.append(item)
+
+        if not gh_comments:
+            logger.info("[GitHub] No valid comments to post after filtering")
+            result["success"] = True
+            return result
+
+        # Check dry-run mode
+        if settings.github_review_posting_dry_run:
+            logger.info(
+                f"[GitHub][DRY-RUN] Would post review to PR #{pr_number} "
+                f"with {len(gh_comments)} comments"
+            )
+            for i, c in enumerate(gh_comments):
+                logger.info(
+                    f"[GitHub][DRY-RUN] Comment {i + 1}: "
+                    f"{c['path']}:{c.get('start_line', c['line'])}-{c['line']}"
+                )
+            result["success"] = True
+            result["posted_count"] = len(gh_comments)
+            result["dry_run"] = True
+            return result
+
+        # Post the review
+        pr.create_review(
+            body=summary,
+            event="COMMENT",
+            comments=gh_comments
+        )
+
+        result["success"] = True
+        result["posted_count"] = len(gh_comments)
+
+        logger.info(
+            f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments",
+            extra={
+                "operation": "post_pr_review",
+                "pr_number": pr_number,
+                "comment_count": len(gh_comments),
+                "skipped_count": result["skipped_count"],
+                "truncated_count": result["truncated_count"]
+            }
+        )
+
+        return result
+
+    except UnknownObjectException as e:
+        error_msg = f"PR #{pr_number} not found: {e}"
+        logger.error(f"[GitHub] {error_msg}")
+        result["error"] = error_msg
+        return result
+
+    except GithubException as e:
+        # Handle 422 errors (line not in diff)
+        error_msg = f"GitHub API error: {e}"
+        if e.status == 422:
+            error_msg = f"Invalid comment position (line not in diff): {e}"
+        logger.error(f"[GitHub] {error_msg}")
+        result["error"] = error_msg
+        return result
+
+    except Exception as e:
+        error_msg = f"Failed to post review: {e}"
+        logger.error(f"[GitHub] {error_msg}", exc_info=True)
+        result["error"] = error_msg
+        return result
+
+
 def cleanup_stale_orchestrator_branches(max_age_days: int = 7, dry_run: bool = True):
     """
     Clean up stale orchestrator branches that were not properly cleaned up.

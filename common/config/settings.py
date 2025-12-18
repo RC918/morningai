@@ -1543,6 +1543,28 @@ class Settings(BaseSettings):
         alias="ENABLE_SLACK_NOTIFICATIONS",
         description="Enable outbound notifications to Slack (messages) for Meta Agent task status"
     )
+
+    # EPIC B Phase B-3: GitHub Review Posting Feature Flags
+    enable_github_review_posting: bool = Field(
+        default=False,
+        alias="ENABLE_GITHUB_REVIEW_POSTING",
+        description="Enable posting review comments to GitHub PR inline reviews (EPIC B Phase B-3)"
+    )
+
+    github_review_posting_dry_run: bool = Field(
+        default=True,
+        alias="GITHUB_REVIEW_POSTING_DRY_RUN",
+        description="Dry-run mode for GitHub review posting - logs what would be posted without actually posting"
+    )
+
+    github_review_posting_max_comments: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        alias="GITHUB_REVIEW_POSTING_MAX_COMMENTS",
+        description="Maximum number of inline comments to post per review (prevents notification spam)"
+    )
+
     vite_api_base_url: str = Field(
         default="http://localhost:5001",
         description="Frontend API base URL"

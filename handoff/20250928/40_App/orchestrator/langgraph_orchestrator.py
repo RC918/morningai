@@ -2641,6 +2641,185 @@ def should_fix_or_finalize(state: AgentState) -> str:
     return outcome
 
 
+def publisher_node(state: AgentState) -> AgentState:
+    """
+    Publisher node: Posts review comments to GitHub as inline PR review.
+
+    EPIC B Phase B-3: GitHub Inline Comment Posting
+    Issue #2595: Diff-Aware Review Plumbing
+
+    PURPOSE:
+    Batch and atomically post review comments to GitHub PR as inline review.
+    This node is placed between decision and finalizer to ensure:
+    1. All comments are collected before posting (batching)
+    2. Single notification to PR author (atomicity)
+    3. Proper separation of concerns (reviewer generates, publisher posts)
+
+    FEATURE FLAGS:
+    - ENABLE_GITHUB_REVIEW_POSTING: Master switch (default: False)
+    - GITHUB_REVIEW_POSTING_DRY_RUN: Log-only mode (default: True)
+    - GITHUB_REVIEW_POSTING_MAX_COMMENTS: Limit per review (default: 10)
+
+    INPUTS:
+    - review_comments: List[Dict] from reviewer_node
+    - pr_number: PR number to post to
+
+    OUTPUTS:
+    - publish_result: Dict with posting status and counts
+
+    NEXT NODE: finalizer_node
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+    pr_number = state.get("pr_number")
+    review_comments = state.get("review_comments", [])
+
+    metrics.record_node_start("publisher", trace_id)
+
+    logger.info("[Publisher] Starting review publishing", extra={
+        "operation": "publisher",
+        "trace_id": trace_id,
+        "pr_number": pr_number,
+        "comment_count": len(review_comments),
+        "enable_posting": getattr(settings, 'enable_github_review_posting', False)
+    })
+
+    # Initialize publish result
+    state["publish_result"] = {
+        "attempted": False,
+        "success": False,
+        "posted_count": 0,
+        "skipped_count": 0,
+        "truncated_count": 0,
+        "dry_run": False,
+        "error": None
+    }
+
+    # Skip if no PR or no comments
+    if not pr_number:
+        logger.info("[Publisher] No PR number, skipping publish", extra={
+            "operation": "publisher",
+            "trace_id": trace_id
+        })
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content="No PR available for review publishing, skipping")
+        ]
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    if not review_comments:
+        logger.info("[Publisher] No review comments to publish", extra={
+            "operation": "publisher",
+            "trace_id": trace_id,
+            "pr_number": pr_number
+        })
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content="No review comments to publish")
+        ]
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    # Filter comments that can be posted as inline (have file and line info)
+    from review_comment_schema import is_inline_comment
+
+    inline_comments = [c for c in review_comments if is_inline_comment(c)]
+    file_level_comments = [c for c in review_comments if not is_inline_comment(c)]
+
+    logger.info("[Publisher] Filtered comments for inline posting", extra={
+        "operation": "publisher",
+        "trace_id": trace_id,
+        "total_comments": len(review_comments),
+        "inline_comments": len(inline_comments),
+        "file_level_comments": len(file_level_comments)
+    })
+
+    if not inline_comments:
+        logger.info("[Publisher] No inline-eligible comments to publish", extra={
+            "operation": "publisher",
+            "trace_id": trace_id,
+            "pr_number": pr_number
+        })
+        state["publish_result"]["skipped_count"] = len(file_level_comments)
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"No inline-eligible comments to publish ({len(file_level_comments)} file-level only)")
+        ]
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    # Post to GitHub
+    state["publish_result"]["attempted"] = True
+
+    try:
+        from tools.github_api import get_repo, post_pr_review
+
+        repo = get_repo()
+        result = post_pr_review(
+            repo=repo,
+            pr_number=pr_number,
+            comments=inline_comments,
+            summary="MorningAI Code Review"
+        )
+
+        state["publish_result"]["success"] = result.get("success", False)
+        state["publish_result"]["posted_count"] = result.get("posted_count", 0)
+        state["publish_result"]["skipped_count"] = (
+            result.get("skipped_count", 0) + len(file_level_comments)
+        )
+        state["publish_result"]["truncated_count"] = result.get("truncated_count", 0)
+        state["publish_result"]["dry_run"] = result.get("dry_run", False)
+        state["publish_result"]["error"] = result.get("error")
+
+        if result.get("success"):
+            mode = "[DRY-RUN]" if result.get("dry_run") else ""
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"Review published {mode}: {result.get('posted_count', 0)} comments posted to PR #{pr_number}")
+            ]
+            logger.info("[Publisher] Review published successfully", extra={
+                "operation": "publisher",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "posted_count": result.get("posted_count", 0),
+                "dry_run": result.get("dry_run", False)
+            })
+        else:
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"Review publishing failed: {result.get('error', 'unknown error')}")
+            ]
+            logger.warning("[Publisher] Review publishing failed", extra={
+                "operation": "publisher",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "error": result.get("error")
+            })
+
+    except Exception as e:
+        error_msg = str(e)
+        state["publish_result"]["error"] = error_msg
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Review publishing error: {error_msg}")
+        ]
+        logger.error(f"[Publisher] Error publishing review: {e}", extra={
+            "operation": "publisher",
+            "trace_id": trace_id,
+            "pr_number": pr_number,
+            "error": error_msg
+        }, exc_info=True)
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete(
+        "publisher",
+        trace_id,
+        success=state["publish_result"].get("success", False),
+        latency_ms=latency_ms
+    )
+    return state
+
+
 def _observe_failure_for_learning(state: AgentState) -> None:
     """
     Phase 2 PR-1811: Observer Node helper function
@@ -3036,6 +3215,8 @@ def create_orchestrator_graph(entry_point: str = "planner"):
     workflow.add_node("reviewer", reviewer_node)
     workflow.add_node("decision", decision_node)
     workflow.add_node("fixer", fixer_node)
+    # EPIC B Phase B-3: Publisher node for GitHub inline comment posting
+    workflow.add_node("publisher", publisher_node)
     workflow.add_node("finalizer", finalizer_node)
     # Phase 2 PR-1813: Agent Evaluation node
     workflow.add_node("evaluation", evaluation_node)
@@ -3078,17 +3259,19 @@ def create_orchestrator_graph(entry_point: str = "planner"):
     # reputation_advisor → policy_enforcement (PR-2: policy enforcement gate)
     workflow.add_edge("reputation_advisor", "policy_enforcement")
 
-    # policy_enforcement → (executor | finalizer) based on policy decision (PR-2)
+    # policy_enforcement → (executor | publisher) based on policy decision (PR-2)
+    # EPIC B Phase B-3: Route finalize through publisher for review posting
     workflow.add_conditional_edges(
         "policy_enforcement",
         should_proceed_after_policy,
         {
             "execute": "executor",
-            "finalize": "finalizer"
+            "finalize": "publisher"
         }
     )
 
-    # executor → (execute | monitor_ci | fix | finalize)
+    # executor → (execute | monitor_ci | fix | publisher)
+    # EPIC B Phase B-3: Route finalize through publisher for review posting
     workflow.add_conditional_edges(
         "executor",
         should_continue_execution,
@@ -3096,7 +3279,7 @@ def create_orchestrator_graph(entry_point: str = "planner"):
             "execute": "executor",
             "monitor_ci": "ci_monitor",
             "fix": "fixer",
-            "finalize": "finalizer"
+            "finalize": "publisher"
         }
     )
 
@@ -3106,19 +3289,23 @@ def create_orchestrator_graph(entry_point: str = "planner"):
     # reviewer → decision
     workflow.add_edge("reviewer", "decision")
 
-    # decision → (fix | monitor_ci | finalize)
+    # decision → (fix | monitor_ci | publisher)
+    # EPIC B Phase B-3: Route finalize through publisher for review posting
     workflow.add_conditional_edges(
         "decision",
         should_fix_or_finalize,
         {
             "fix": "fixer",
             "monitor_ci": "ci_monitor",
-            "finalize": "finalizer"
+            "finalize": "publisher"
         }
     )
 
     # fixer → executor (retry loop)
     workflow.add_edge("fixer", "executor")
+
+    # EPIC B Phase B-3: publisher → finalizer
+    workflow.add_edge("publisher", "finalizer")
 
     # finalizer → evaluation (Phase 2 PR-1813: Agent Evaluation)
     workflow.add_edge("finalizer", "evaluation")
