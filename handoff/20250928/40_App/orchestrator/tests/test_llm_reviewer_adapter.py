@@ -9,7 +9,10 @@ from llm_reviewer_adapter import (
     LLMReviewerAdapter,
     generate_llm_review,
     combine_severity,
-    SEVERITY_ORDER
+    SEVERITY_ORDER,
+    # Phase B-2.5: Secrets redaction (#2703)
+    sanitize_diff_content,
+    SECRETS_REDACTION_PATTERNS
 )
 
 
@@ -677,3 +680,251 @@ class TestReasoningModeEnabled:
         assert result["quality_score"] == 80
         assert result["severity"] == "none"
         assert result["provider"] is None
+
+
+class TestPhaseB25SecretsRedaction:
+    """
+    Test suite for Phase B-2.5 Secrets Redaction (#2703)
+    Tests for sanitizing secrets from diff content before LLM injection
+    """
+
+    def test_secrets_redaction_patterns_exist(self):
+        """Test that SECRETS_REDACTION_PATTERNS is defined and non-empty"""
+        assert SECRETS_REDACTION_PATTERNS is not None
+        assert len(SECRETS_REDACTION_PATTERNS) > 0
+
+    def test_sanitize_diff_content_empty_input(self):
+        """Test sanitize_diff_content with empty input"""
+        result, count = sanitize_diff_content("")
+        assert result == ""
+        assert count == 0
+
+    def test_sanitize_diff_content_none_input(self):
+        """Test sanitize_diff_content with None input"""
+        result, count = sanitize_diff_content(None)
+        assert result is None
+        assert count == 0
+
+    def test_sanitize_diff_content_no_secrets(self):
+        """Test sanitize_diff_content with clean diff (no secrets)"""
+        clean_diff = """--- a/main.py
++++ b/main.py
+@@ -1,5 +1,6 @@
+ def hello():
++    print("Hello, World!")
+     return True
+"""
+        result, count = sanitize_diff_content(clean_diff)
+        assert result == clean_diff
+        assert count == 0
+
+    def test_sanitize_aws_access_key(self):
+        """Test redaction of AWS access keys"""
+        diff_with_aws = """--- a/config.py
++++ b/config.py
+@@ -1,3 +1,4 @@
++AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
+ def get_config():
+     return {}
+"""
+        result, count = sanitize_diff_content(diff_with_aws)
+        assert "AKIAIOSFODNN7EXAMPLE" not in result
+        assert "[REDACTED_AWS_KEY]" in result
+        assert count >= 1
+
+    def test_sanitize_github_token(self):
+        """Test redaction of GitHub tokens"""
+        diff_with_github = """--- a/auth.py
++++ b/auth.py
+@@ -1,3 +1,4 @@
++GITHUB_TOKEN = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ def authenticate():
+     pass
+"""
+        result, count = sanitize_diff_content(diff_with_github)
+        assert "ghp_" not in result or "[REDACTED_GITHUB_TOKEN]" in result
+        assert count >= 1
+
+    def test_sanitize_openai_api_key(self):
+        """Test redaction of OpenAI-style API keys (sk-...)"""
+        diff_with_openai = """--- a/llm.py
++++ b/llm.py
+@@ -1,3 +1,4 @@
++OPENAI_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ def call_llm():
+     pass
+"""
+        result, count = sanitize_diff_content(diff_with_openai)
+        assert "sk-xxxxxxxx" not in result
+        assert "[REDACTED_API_KEY]" in result
+        assert count >= 1
+
+    def test_sanitize_bearer_token(self):
+        """Test redaction of Bearer tokens"""
+        diff_with_bearer = """--- a/api.py
++++ b/api.py
+@@ -1,3 +1,4 @@
++headers = {"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"}
+ def make_request():
+     pass
+"""
+        result, count = sanitize_diff_content(diff_with_bearer)
+        assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in result
+        assert "Bearer [REDACTED_TOKEN]" in result
+        assert count >= 1
+
+    def test_sanitize_private_key(self):
+        """Test redaction of private keys"""
+        diff_with_private_key = """--- a/certs.py
++++ b/certs.py
+@@ -1,3 +1,8 @@
++PRIVATE_KEY = \"\"\"-----BEGIN PRIVATE KEY-----
++MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7
++-----END PRIVATE KEY-----\"\"\"
+ def load_certs():
+     pass
+"""
+        result, count = sanitize_diff_content(diff_with_private_key)
+        assert "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7" not in result
+        assert "[REDACTED_PRIVATE_KEY]" in result
+        assert count >= 1
+
+    def test_sanitize_json_secrets(self):
+        """Test redaction of JSON-style secrets"""
+        diff_with_json = """--- a/config.json
++++ b/config.json
+@@ -1,3 +1,4 @@
+ {
++  "api_key": "super_secret_api_key_12345678",
+   "name": "test"
+ }
+"""
+        result, count = sanitize_diff_content(diff_with_json)
+        assert "super_secret_api_key_12345678" not in result
+        assert count >= 1
+
+    def test_sanitize_env_export(self):
+        """Test redaction of environment variable exports"""
+        diff_with_export = """--- a/.env.example
++++ b/.env.example
+@@ -1,2 +1,3 @@
++export SECRET=my_super_secret_value
+ DATABASE_URL=postgres://localhost/db
+"""
+        result, count = sanitize_diff_content(diff_with_export)
+        assert "my_super_secret_value" not in result
+        assert count >= 1
+
+    def test_sanitize_multiple_secrets(self):
+        """Test redaction of multiple secrets in one diff"""
+        diff_with_multiple = """--- a/secrets.py
++++ b/secrets.py
+@@ -1,5 +1,8 @@
++AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
++GITHUB_TOKEN = "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
++API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ def get_secrets():
+     return {}
+"""
+        result, count = sanitize_diff_content(diff_with_multiple)
+        assert "AKIAIOSFODNN7EXAMPLE" not in result
+        assert count >= 2  # At least 2 secrets should be redacted
+
+    def test_sanitize_preserves_diff_structure(self):
+        """Test that redaction preserves diff structure (headers, line markers)"""
+        diff_with_secret = """--- a/config.py
++++ b/config.py
+@@ -1,5 +1,6 @@
+ def config():
++    api_key = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     return {
+         "name": "test"
+     }
+"""
+        result, count = sanitize_diff_content(diff_with_secret)
+        # Diff structure should be preserved
+        assert "--- a/config.py" in result
+        assert "+++ b/config.py" in result
+        assert "@@ -1,5 +1,6 @@" in result
+        assert " def config():" in result
+        # Line marker and variable name preserved (secret value redacted)
+        assert "+    api_key" in result
+        assert "[REDACTED" in result  # Some redaction marker present
+
+    def test_sanitize_no_false_positives_on_normal_code(self):
+        """Test that normal code is not incorrectly redacted"""
+        normal_diff = """--- a/utils.py
++++ b/utils.py
+@@ -1,5 +1,10 @@
+ def calculate_token_count(text):
++    # Count tokens in text
++    tokens = text.split()
++    return len(tokens)
++
++def get_password_hash(password):
++    # Hash the password
+     return hash(password)
+"""
+        result, count = sanitize_diff_content(normal_diff)
+        # Function names and comments should not be redacted
+        assert "calculate_token_count" in result
+        assert "get_password_hash" in result
+        assert "# Count tokens" in result
+        # Only actual secrets should be redacted, not variable names
+        assert count == 0 or "password" in result.lower()
+
+    def test_sanitize_preserves_format_regression(self):
+        """
+        Regression test: Redaction should preserve original formatting.
+        Issue: Previous implementation lost spaces and quotes during redaction.
+        Example: SECRET = "value" became SECRET=[REDACTED_SECRET] instead of
+                 SECRET = "[REDACTED_SECRET]"
+        """
+        # Test generic secret assignment with spaces and quotes
+        diff_with_secret = 'SECRET = "my-secret-value-12345678"'
+        result, count = sanitize_diff_content(diff_with_secret)
+        # Secret value should be redacted
+        assert "my-secret-value-12345678" not in result
+        # Format should be preserved: spaces around = and quotes
+        assert ' = "' in result or " = '" in result
+        assert count >= 1
+
+        # Test JSON format preservation
+        json_secret = '"api_key": "super_secret_key_12345678"'
+        result, count = sanitize_diff_content(json_secret)
+        assert "super_secret_key_12345678" not in result
+        # JSON format should be preserved
+        assert '": "' in result
+        assert count >= 1
+
+    def test_build_diff_aware_user_prompt_sanitizes_diff(self):
+        """Test that _build_diff_aware_user_prompt sanitizes the diff"""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        diff_with_secret = """--- a/config.py
++++ b/config.py
+@@ -1,3 +1,4 @@
++API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ def config():
+     pass
+"""
+        prompt = adapter._build_diff_aware_user_prompt(
+            repo="owner/repo",
+            pr_number=123,
+            pr_url="https://github.com/owner/repo/pull/123",
+            ci_state="success",
+            goal="Add API key",
+            diff=diff_with_secret,
+            diff_truncated=False,
+            diff_files=None
+        )
+
+        # The prompt should contain the sanitized diff (secret redacted)
+        assert "sk-xxxxxxxx" not in prompt
+        # Some redaction marker should be present
+        assert "[REDACTED" in prompt
+        # But should still contain the diff structure
+        assert "```diff" in prompt
+        assert "--- a/config.py" in prompt

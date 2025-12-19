@@ -26,6 +26,7 @@ Usage:
 """
 import json
 import logging
+import re
 import time
 from typing import Dict, Any, Optional
 
@@ -34,6 +35,94 @@ from llm.client import get_client_for_component
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# Phase B-2.5: Secrets redaction patterns (#2703)
+# These patterns detect common secret formats to prevent leakage to LLM providers
+# Uses capturing groups to preserve original formatting (spaces, quotes, delimiters)
+# Includes negative lookahead (?!\[REDACTED) to avoid double-redaction
+SECRETS_REDACTION_PATTERNS = [
+    # AWS Access Keys (AKIA followed by 16 alphanumeric chars)
+    (r'AKIA[0-9A-Z]{16}', '[REDACTED_AWS_KEY]'),
+    # AWS Secret Keys (40 char base64-like string after common prefixes)
+    # Preserves delimiter and spacing
+    (r'(?i)(aws_secret_access_key|aws_secret_key)(\s*[=:]\s*)(["\']?)(?!\[REDACTED)[A-Za-z0-9/+=]{40}\3',
+     r'\1\2\3[REDACTED_AWS_SECRET]\3'),
+    # GitHub tokens (ghp_, gho_, github_pat_)
+    (r'ghp_[A-Za-z0-9]{36,}', '[REDACTED_GITHUB_TOKEN]'),
+    (r'gho_[A-Za-z0-9]{36,}', '[REDACTED_GITHUB_TOKEN]'),
+    (r'github_pat_[A-Za-z0-9_]{22,}', '[REDACTED_GITHUB_TOKEN]'),
+    # Generic API keys (sk-... pattern used by OpenAI, Anthropic, etc.)
+    (r'sk-[A-Za-z0-9]{32,}', '[REDACTED_API_KEY]'),
+    # Bearer tokens - preserve "Bearer " prefix with original spacing
+    (r'(?i)(Bearer\s+)(?!\[REDACTED)[A-Za-z0-9\-_.~+/]+=*', r'\1[REDACTED_TOKEN]'),
+    # Private keys (PEM format)
+    (r'-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(RSA\s+)?PRIVATE\s+KEY-----',
+     '[REDACTED_PRIVATE_KEY]'),
+    (r'-----BEGIN\s+EC\s+PRIVATE\s+KEY-----[\s\S]*?-----END\s+EC\s+PRIVATE\s+KEY-----',
+     '[REDACTED_PRIVATE_KEY]'),
+    # Generic secret assignments (PASSWORD=, SECRET=, TOKEN=, API_KEY=)
+    # Preserves delimiter, spacing, and quote style
+    (r'(?i)\b(PASSWORD|SECRET|TOKEN|API_KEY|APIKEY|SECRET_KEY|PRIVATE_KEY)\b'
+     r'(\s*[=:]\s*)'
+     r'(["\'])(?!\[REDACTED)[^"\']{8,}\3',
+     r'\1\2\3[REDACTED_SECRET]\3'),
+    # Environment variable style (export SECRET=value)
+    # Preserves "export " prefix and spacing
+    (r'(?i)(export\s+)(PASSWORD|SECRET|TOKEN|API_KEY|APIKEY|SECRET_KEY)(\s*=\s*)(?!\[REDACTED)[^\s]+',
+     r'\1\2\3[REDACTED_SECRET]'),
+    # JSON style secrets ("api_key": "value")
+    # Preserves key name, colon spacing, and quotes
+    (r'(?i)("(?:password|secret|token|api_key|apikey|secret_key|private_key|access_token)")(\s*:\s*)"(?!\[REDACTED)[^"]{8,}"',
+     r'\1\2"[REDACTED_SECRET]"'),
+    # YAML style secrets (api_key: value)
+    # Preserves indentation and colon spacing
+    (r'(?i)^(\s*)(password|secret|token|api_key|apikey|secret_key|private_key|access_token)(\s*:\s*)(?!\[REDACTED)[^\s#][^\n]*',
+     r'\1\2\3[REDACTED_SECRET]'),
+]
+
+
+def sanitize_diff_content(diff: str) -> tuple[str, int]:
+    """
+    Sanitize diff content by redacting potential secrets.
+
+    Phase B-2.5: Apply secrets redaction to diff context (#2703)
+    This prevents secrets from being sent to LLM providers.
+
+    Args:
+        diff: Raw diff content
+
+    Returns:
+        Tuple of (sanitized_diff, redaction_count)
+    """
+    if not diff:
+        return diff, 0
+
+    sanitized = diff
+    total_redactions = 0
+
+    for pattern, replacement in SECRETS_REDACTION_PATTERNS:
+        try:
+            # Count matches before replacement
+            matches = len(re.findall(pattern, sanitized, re.MULTILINE))
+            if matches > 0:
+                sanitized = re.sub(pattern, replacement, sanitized, flags=re.MULTILINE)
+                total_redactions += matches
+        except re.error as e:
+            logger.warning(f"[LLM Reviewer] Regex error in secrets redaction: {e}")
+            continue
+
+    if total_redactions > 0:
+        logger.info(
+            f"[LLM Reviewer] Redacted {total_redactions} potential secrets from diff",
+            extra={
+                "operation": "sanitize_diff",
+                "redaction_count": total_redactions
+            }
+        )
+
+    return sanitized, total_redactions
+
 
 SEVERITY_ORDER = {
     "none": 0,
@@ -411,6 +500,19 @@ Guidelines for scoring:
         Returns:
             User prompt string for LLM
         """
+        # Phase B-2.5: Sanitize diff content to redact secrets (#2703)
+        sanitized_diff, redaction_count = sanitize_diff_content(diff)
+        if redaction_count > 0:
+            logger.debug(
+                f"[LLM Reviewer] Sanitized diff for PR #{pr_number}: "
+                f"{redaction_count} secrets redacted",
+                extra={
+                    "operation": "build_diff_aware_prompt",
+                    "pr_number": pr_number,
+                    "redaction_count": redaction_count
+                }
+            )
+
         # Build file summary if available
         file_summary = ""
         if diff_files:
@@ -441,7 +543,7 @@ Guidelines for scoring:
 
 **Code Diff:**
 ```diff
-{diff}
+{sanitized_diff}
 ```
 
 Please review the code changes above and provide your assessment as JSON."""

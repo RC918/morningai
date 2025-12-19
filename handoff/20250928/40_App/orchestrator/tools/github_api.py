@@ -155,6 +155,107 @@ DIFF_MAX_SIZE_BYTES = 100 * 1024  # 100KB
 DIFF_PRIORITY_EXTENSIONS = {'.py', '.ts', '.tsx', '.js', '.jsx'}
 DIFF_MIN_REMAINING_LINES_FOR_PARTIAL = 10  # Minimum lines to include partial patch
 
+# Phase B-2.5: Ignore list for lockfiles and generated assets (#2702)
+# These files waste LLM tokens and provide no review value
+DIFF_IGNORE_FILENAMES = {
+    # Package manager lockfiles
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'go.sum',
+    'Cargo.lock',
+    'Gemfile.lock',
+    'poetry.lock',
+    'composer.lock',
+    'Pipfile.lock',
+}
+
+DIFF_IGNORE_EXTENSIONS = {
+    # Minified/compiled assets
+    '.min.js',
+    '.min.css',
+    '.map',
+    # Binary/generated
+    '.pyc',
+    '.pyo',
+    '.class',
+    '.o',
+    '.so',
+    '.dll',
+}
+
+# Root-only ignore patterns: only match when directory is at the root level
+# These are typically project-level build outputs, not source directories
+DIFF_IGNORE_ROOT_DIRS = {
+    'dist',
+    'build',
+    '.next',
+    'out',
+}
+
+# Anywhere ignore patterns: match at any depth in the path
+# These are always generated/cached content regardless of location
+DIFF_IGNORE_ANYWHERE_DIRS = {
+    '__pycache__',
+    'node_modules',
+    'vendor',
+    '.tox',
+    '.pytest_cache',
+    'generated',
+    'auto_generated',
+}
+
+
+def _should_ignore_file(filename: str) -> bool:
+    """
+    Check if a file should be ignored based on Phase B-2.5 ignore list.
+
+    Uses path-segment matching to avoid false positives like src/build/main.py.
+    - Root-only patterns (dist, build, .next, out): only match at path root
+    - Anywhere patterns (node_modules, __pycache__): match at any depth
+
+    Args:
+        filename: File path to check
+
+    Returns:
+        True if file should be ignored, False otherwise
+    """
+    from pathlib import PurePosixPath
+
+    # Normalize path to POSIX format
+    normalized = filename.replace('\\', '/')
+    # Strip leading ./ but preserve dotfiles like .next
+    if normalized.startswith('./'):
+        normalized = normalized[2:]
+    parts = PurePosixPath(normalized).parts
+
+    if not parts:
+        return False
+
+    basename = parts[-1]
+
+    # Check exact filename match (lockfiles)
+    if basename in DIFF_IGNORE_FILENAMES:
+        return True
+
+    # Check extension match (minified/compiled)
+    for ext in DIFF_IGNORE_EXTENSIONS:
+        if filename.endswith(ext):
+            return True
+
+    # Check root-only directory patterns (first segment only)
+    # This avoids false positives like src/build/main.py
+    if parts[0] in DIFF_IGNORE_ROOT_DIRS:
+        return True
+
+    # Check anywhere directory patterns (any segment)
+    # These are always generated content regardless of depth
+    for part in parts[:-1]:  # Exclude filename itself
+        if part in DIFF_IGNORE_ANYWHERE_DIRS:
+            return True
+
+    return False
+
 
 def get_pr_diff(
     repo,
@@ -204,7 +305,10 @@ def get_pr_diff(
             "included_line_count": 0,
             "original_size_bytes": 0,
             "included_size_bytes": 0,
-            "truncation_reasons": []
+            "truncation_reasons": [],
+            # Phase B-2.5: Track ignored files (#2702)
+            "ignored_file_count": 0,
+            "ignored_filenames": []
         },
         "error": None
     }
@@ -218,11 +322,51 @@ def get_pr_diff(
         pr = repo.get_pull(pr_number)
 
         # Get list of changed files
-        files = list(pr.get_files())
-        result["truncation_info"]["original_file_count"] = len(files)
+        all_files = list(pr.get_files())
+        result["truncation_info"]["original_file_count"] = len(all_files)
+
+        if not all_files:
+            logger.info(f"[GitHub] PR #{pr_number} has no changed files")
+            return result
+
+        # Phase B-2.5: Filter out lockfiles and generated assets (#2702)
+        ignored_files = []
+        files = []
+        for f in all_files:
+            if _should_ignore_file(f.filename):
+                ignored_files.append(f.filename)
+            else:
+                files.append(f)
+
+        # Track ignored files in truncation_info
+        result["truncation_info"]["ignored_file_count"] = len(ignored_files)
+        # Only store first 5 filenames to avoid bloating the response
+        result["truncation_info"]["ignored_filenames"] = ignored_files[:5]
+
+        # Log ignored files at DEBUG level with aggregated summary
+        if ignored_files:
+            logger.debug(
+                f"[GitHub] Skipped {len(ignored_files)} generated/lockfiles: "
+                f"{ignored_files[:5]}{'...' if len(ignored_files) > 5 else ''}",
+                extra={
+                    "operation": "get_pr_diff",
+                    "pr_number": pr_number,
+                    "ignored_count": len(ignored_files),
+                    "ignored_sample": ignored_files[:5]
+                }
+            )
 
         if not files:
-            logger.info(f"[GitHub] PR #{pr_number} has no changed files")
+            # All files were ignored - return empty diff (metadata-only review)
+            logger.info(
+                f"[GitHub] PR #{pr_number} has only lockfiles/generated assets, "
+                f"returning empty diff for metadata-only review",
+                extra={
+                    "operation": "get_pr_diff",
+                    "pr_number": pr_number,
+                    "ignored_count": len(ignored_files)
+                }
+            )
             return result
 
         # Sort files by priority (important extensions first)
