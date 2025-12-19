@@ -571,8 +571,8 @@ class TestPublisherNodeNoOp:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.get_repo") as mock_get_repo:
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo") as mock_get_repo:
                     from langgraph_orchestrator import publisher_node
 
                     result = publisher_node(state)
@@ -596,8 +596,8 @@ class TestPublisherNodeNoOp:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.get_repo") as mock_get_repo:
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo") as mock_get_repo:
                     from langgraph_orchestrator import publisher_node
 
                     result = publisher_node(state)
@@ -620,8 +620,8 @@ class TestPublisherNodeNoOp:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.get_repo") as mock_get_repo:
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo") as mock_get_repo:
                     from langgraph_orchestrator import publisher_node
 
                     result = publisher_node(state)
@@ -644,9 +644,9 @@ class TestPublisherNodeNoOp:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.is_inline_comment", return_value=False):
-                    with patch("langgraph_orchestrator.get_repo") as mock_get_repo:
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("review_comment_schema.is_inline_comment", return_value=False):
+                    with patch("tools.github_api.get_repo") as mock_get_repo:
                         from langgraph_orchestrator import publisher_node
 
                         result = publisher_node(state)
@@ -687,10 +687,10 @@ class TestPublisherNodeIntegration:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.get_repo", return_value=mock_repo):
-                    with patch("langgraph_orchestrator.post_pr_review", return_value=mock_post_result):
-                        with patch("langgraph_orchestrator.is_inline_comment", return_value=True):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result):
+                        with patch("review_comment_schema.is_inline_comment", return_value=True):
                             from langgraph_orchestrator import publisher_node
 
                             result = publisher_node(state)
@@ -724,10 +724,10 @@ class TestPublisherNodeIntegration:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.get_repo", return_value=mock_repo):
-                    with patch("langgraph_orchestrator.post_pr_review", return_value=mock_post_result):
-                        with patch("langgraph_orchestrator.is_inline_comment", return_value=True):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result):
+                        with patch("review_comment_schema.is_inline_comment", return_value=True):
                             from langgraph_orchestrator import publisher_node
 
                             result = publisher_node(state)
@@ -762,10 +762,10 @@ class TestPublisherNodeIntegration:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.get_repo", return_value=mock_repo):
-                    with patch("langgraph_orchestrator.post_pr_review", return_value=mock_post_result):
-                        with patch("langgraph_orchestrator.is_inline_comment", return_value=True):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result):
+                        with patch("review_comment_schema.is_inline_comment", return_value=True):
                             from langgraph_orchestrator import publisher_node
 
                             result = publisher_node(state)
@@ -799,10 +799,10 @@ class TestPublisherNodeIntegration:
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
-            with patch("langgraph_orchestrator.metrics", mock_metrics):
-                with patch("langgraph_orchestrator.get_repo", return_value=mock_repo):
-                    with patch("langgraph_orchestrator.post_pr_review", return_value=mock_post_result):
-                        with patch("langgraph_orchestrator.is_inline_comment", return_value=True):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result):
+                        with patch("review_comment_schema.is_inline_comment", return_value=True):
                             from langgraph_orchestrator import publisher_node
 
                             result = publisher_node(state)
