@@ -2843,6 +2843,12 @@ def publisher_node(state: AgentState) -> AgentState:
         metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
         return state
 
+    # Fix: Initialize variables before any code that might raise exceptions
+    # This prevents UnboundLocalError in the exception handler
+    inline_eligible_count = 0
+    inline_comments = []
+    downgraded_count = 0
+
     # Filter comments that can be posted as inline (have file and line info)
     from review_comment_schema import (
         is_inline_comment,

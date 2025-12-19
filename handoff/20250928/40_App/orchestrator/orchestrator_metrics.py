@@ -1080,12 +1080,24 @@ class OrchestratorMetrics:
             failed_key = self._get_minute_key("review.inline.post_failed")
             self._safe_incr(failed_key)
         else:
-            posted_key = self._get_minute_key("review.inline.posted_total")
-            self._safe_incr(posted_key, posted_count)
-
+            # Fix: Separate inline-posted from fallback-posted comments
+            # When fallback_used=True, posted_count represents comments delivered
+            # via review body, not actual inline comments
             if fallback_used:
-                fallback_key = self._get_minute_key("review.inline.fallback_total")
-                self._safe_incr(fallback_key)
+                # Comments delivered via fallback body (comment-level counter)
+                fallback_comments_key = self._get_minute_key(
+                    "review.inline.fallback_comments_total"
+                )
+                self._safe_incr(fallback_comments_key, posted_count)
+                # Fallback events counter (event-level, for debugging only)
+                fallback_events_key = self._get_minute_key(
+                    "review.inline.fallback_events_total"
+                )
+                self._safe_incr(fallback_events_key)
+            else:
+                # True inline comments posted
+                posted_key = self._get_minute_key("review.inline.posted_total")
+                self._safe_incr(posted_key, posted_count)
 
         logger.debug("[Metrics] Inline comment result recorded", extra={
             "operation": "metrics_inline_comment",
@@ -1158,8 +1170,13 @@ class OrchestratorMetrics:
         inline_posted = self.get_window_count(
             "review.inline.posted_total", window_minutes
         )
-        inline_fallback = self.get_window_count(
-            "review.inline.fallback_total", window_minutes
+        # Fix: Use comment-level fallback counter, not event-level
+        inline_fallback_comments = self.get_window_count(
+            "review.inline.fallback_comments_total", window_minutes
+        )
+        # Event-level fallback counter (for debugging only)
+        inline_fallback_events = self.get_window_count(
+            "review.inline.fallback_events_total", window_minutes
         )
         inline_post_failed = self.get_window_count(
             "review.inline.post_failed", window_minutes
@@ -1183,8 +1200,11 @@ class OrchestratorMetrics:
             inline_posted / inline_eligible * 100, 2
         ) if inline_eligible > 0 else 0
 
+        # Fix: Use comment-level fallback counter for delivery_rate
+        # delivery_rate = (inline_posted + fallback_comments) / eligible
+        # This ensures both numerator components are comment-level counts
         delivery_rate = round(
-            (inline_posted + inline_fallback) / inline_eligible * 100, 2
+            (inline_posted + inline_fallback_comments) / inline_eligible * 100, 2
         ) if inline_eligible > 0 else 0
 
         return {
@@ -1209,7 +1229,9 @@ class OrchestratorMetrics:
                 "validated_total": inline_validated,
                 "downgraded_total": inline_downgraded,
                 "posted_total": inline_posted,
-                "fallback_total": inline_fallback,
+                # Fix: Separate comment-level and event-level fallback counters
+                "fallback_comments_total": inline_fallback_comments,
+                "fallback_events_total": inline_fallback_events,
                 "post_failed": inline_post_failed,
                 "dry_run_excluded": inline_dry_run,
                 "feature_disabled_excluded": inline_feature_disabled,
