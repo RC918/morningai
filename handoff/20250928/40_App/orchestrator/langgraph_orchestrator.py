@@ -2328,11 +2328,41 @@ def reviewer_node(state: AgentState) -> AgentState:
                                 diff_content = diff_data.get("diff", "")
                                 diff_truncated = diff_data.get("truncated", False)
                                 diff_files = diff_data.get("files", [])
-                                # Phase B-B: Extract github_total_files from truncation_info
+                                # Phase B-B: Extract truncation_info for metrics
                                 truncation_info = diff_data.get("truncation_info", {})
                                 github_total_files = truncation_info.get(
                                     "original_file_count", 0
                                 )
+                                included_file_count = truncation_info.get(
+                                    "included_file_count", 0
+                                )
+                                original_line_count = truncation_info.get(
+                                    "original_line_count", 0
+                                )
+                                included_line_count = truncation_info.get(
+                                    "included_line_count", 0
+                                )
+                                # Phase B-B C-lite: Check if lockfile-only PR
+                                ignored_file_count = truncation_info.get(
+                                    "ignored_file_count", 0
+                                )
+                                lockfile_only = (
+                                    ignored_file_count > 0 and
+                                    included_file_count == 0
+                                )
+
+                                # Phase B-B C-lite: Record diff fetch metrics
+                                metrics.record_diff_fetch(
+                                    trace_id=trace_id,
+                                    success=True,
+                                    truncated=diff_truncated,
+                                    original_files=github_total_files,
+                                    included_files=included_file_count,
+                                    original_lines=original_line_count,
+                                    included_lines=included_line_count,
+                                    lockfile_only=lockfile_only
+                                )
+
                                 logger.info(
                                     "[Reviewer] Retrieved PR diff for review",
                                     extra={
@@ -2346,6 +2376,11 @@ def reviewer_node(state: AgentState) -> AgentState:
                                     }
                                 )
                             else:
+                                # Phase B-B C-lite: Record diff fetch failure
+                                metrics.record_diff_fetch(
+                                    trace_id=trace_id,
+                                    success=False
+                                )
                                 logger.warning(
                                     f"[Reviewer] Failed to get PR diff: {diff_data.get('error', 'unknown')}",
                                     extra={
@@ -2355,6 +2390,11 @@ def reviewer_node(state: AgentState) -> AgentState:
                                     }
                                 )
                     except Exception as diff_error:
+                        # Phase B-B C-lite: Record diff fetch failure on exception
+                        metrics.record_diff_fetch(
+                            trace_id=trace_id,
+                            success=False
+                        )
                         logger.warning(
                             f"[Reviewer] Error fetching PR diff: {diff_error}",
                             extra={
@@ -2398,6 +2438,14 @@ def reviewer_node(state: AgentState) -> AgentState:
                         )
                         normalized_comment_count = len(normalized_llm_comments)
 
+                        # Phase B-B C-lite: Record schema validation metrics
+                        metrics.record_schema_validation(
+                            trace_id=trace_id,
+                            raw_count=raw_comment_count,
+                            normalized_count=normalized_comment_count,
+                            llm_api_failed=False
+                        )
+
                         # Phase B-B Telemetry: Log schema pass rate metrics
                         logger.info(
                             "[Reviewer] LLM comments normalized",
@@ -2412,6 +2460,14 @@ def reviewer_node(state: AgentState) -> AgentState:
 
                         state["review_comments"] = (
                             state["review_comments"] + normalized_llm_comments
+                        )
+                    else:
+                        # Phase B-B C-lite: Record empty LLM output
+                        metrics.record_schema_validation(
+                            trace_id=trace_id,
+                            raw_count=0,
+                            normalized_count=0,
+                            llm_api_failed=False
                         )
 
                     # Phase B-3.1: Store diff content in state for publisher validation
@@ -2447,6 +2503,13 @@ def reviewer_node(state: AgentState) -> AgentState:
                     })
 
             except Exception as llm_error:
+                # Phase B-B C-lite: Record LLM API failure (excluded from schema KPI)
+                metrics.record_schema_validation(
+                    trace_id=trace_id,
+                    raw_count=0,
+                    normalized_count=0,
+                    llm_api_failed=True
+                )
                 logger.warning(f"[Reviewer] LLM review failed, using CI-only: {llm_error}", extra={
                     "operation": "reviewer",
                     "trace_id": trace_id,
@@ -2730,6 +2793,15 @@ def publisher_node(state: AgentState) -> AgentState:
     # Short-circuit: Skip entirely if feature is disabled (pure no-op)
     # This avoids calling get_repo() or any GitHub API when feature is off
     if not settings.enable_github_review_posting:
+        # Phase B-B C-lite: Record feature disabled (excluded from KPI)
+        metrics.record_inline_comment_result(
+            trace_id=trace_id,
+            eligible_count=0,
+            validated_count=0,
+            downgraded_count=0,
+            posted_count=0,
+            feature_disabled=True
+        )
         logger.info("[Publisher] Feature disabled, skipping", extra={
             "operation": "publisher",
             "trace_id": trace_id
@@ -2883,19 +2955,36 @@ def publisher_node(state: AgentState) -> AgentState:
         state["publish_result"]["downgraded"] = result.get("downgraded", False)
         state["publish_result"]["error"] = result.get("error")
 
+        # Phase B-B C-lite: Record inline comment result metrics
+        is_dry_run = result.get("dry_run", False)
+        is_fallback = result.get("downgraded", False)
+        posted_count = result.get("posted_count", 0)
+
+        metrics.record_inline_comment_result(
+            trace_id=trace_id,
+            eligible_count=inline_eligible_count,
+            validated_count=len(inline_comments),
+            downgraded_count=downgraded_count,
+            posted_count=posted_count,
+            post_failed=not result.get("success", False),
+            fallback_used=is_fallback,
+            dry_run=is_dry_run,
+            feature_disabled=False
+        )
+
         if result.get("success"):
-            mode = "[DRY-RUN]" if result.get("dry_run") else ""
-            downgraded = "[FALLBACK]" if result.get("downgraded") else ""
+            mode = "[DRY-RUN]" if is_dry_run else ""
+            downgraded = "[FALLBACK]" if is_fallback else ""
             state["messages"] = state.get("messages", []) + [
-                AIMessage(content=f"Review published {mode}{downgraded}: {result.get('posted_count', 0)} comments posted to PR #{pr_number}")
+                AIMessage(content=f"Review published {mode}{downgraded}: {posted_count} comments posted to PR #{pr_number}")
             ]
             logger.info("[Publisher] Review published successfully", extra={
                 "operation": "publisher",
                 "trace_id": trace_id,
                 "pr_number": pr_number,
-                "posted_count": result.get("posted_count", 0),
-                "dry_run": result.get("dry_run", False),
-                "downgraded": result.get("downgraded", False)
+                "posted_count": posted_count,
+                "dry_run": is_dry_run,
+                "downgraded": is_fallback
             })
         else:
             state["messages"] = state.get("messages", []) + [
@@ -2909,6 +2998,18 @@ def publisher_node(state: AgentState) -> AgentState:
             })
 
     except Exception as e:
+        # Phase B-B C-lite: Record inline comment failure on exception
+        metrics.record_inline_comment_result(
+            trace_id=trace_id,
+            eligible_count=inline_eligible_count,
+            validated_count=len(inline_comments),
+            downgraded_count=downgraded_count,
+            posted_count=0,
+            post_failed=True,
+            fallback_used=False,
+            dry_run=False,
+            feature_disabled=False
+        )
         error_msg = str(e)
         state["publish_result"]["error"] = error_msg
         state["messages"] = state.get("messages", []) + [
