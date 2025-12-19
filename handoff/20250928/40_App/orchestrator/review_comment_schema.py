@@ -573,7 +573,12 @@ def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
                 # Deleted file - no RIGHT-side lines allowed
                 current_file = None
             else:
-                current_file = line[6:]  # Remove "+++ b/" prefix
+                # Remove "+++ b/" prefix and handle quoted paths
+                # Git may quote paths with spaces or special chars: +++ b/"path with spaces.txt"
+                raw_path = line[6:]
+                if raw_path.startswith('"') and raw_path.endswith('"'):
+                    raw_path = raw_path[1:-1]  # Strip surrounding quotes
+                current_file = raw_path
                 current_allowed = set()
                 current_truncated = False
             in_hunk = False
@@ -669,10 +674,8 @@ def is_line_in_diff(
 
     file_info = allowed_lines_map[file_path]
 
-    # If patch was truncated, be conservative
-    if file_info["patch_truncated"]:
-        # Still allow if lines are in the visible portion
-        pass
+    # Note: Truncated patch handling is done in validate_inline_comments()
+    # with strict_truncated flag. Here we just check if lines are visible.
 
     if end_line is None:
         return False, "missing_end_line"

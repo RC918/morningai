@@ -772,6 +772,25 @@ class TestParseDiffAllowedLines:
         # Should have 3 allowed lines
         assert len(result["test.py"]["allowed_lines"]) == 3
 
+    def test_quoted_path_parsing(self):
+        """Quoted paths (with spaces or special chars) should be parsed correctly"""
+        diff = '''--- a/"path with spaces.txt"
++++ b/"path with spaces.txt"
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+ line3
+'''
+        result = parse_diff_allowed_lines(diff)
+
+        # Should extract filename without quotes
+        assert "path with spaces.txt" in result
+        file_info = result["path with spaces.txt"]
+        assert 1 in file_info["allowed_lines"]
+        assert 2 in file_info["allowed_lines"]
+        assert 3 in file_info["allowed_lines"]
+        assert not file_info["patch_truncated"]
+
 
 class TestIsLineInDiff:
     """Tests for is_line_in_diff function (Phase B-3.1)"""
