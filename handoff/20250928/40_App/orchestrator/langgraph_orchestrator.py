@@ -3571,10 +3571,12 @@ def run_orchestrator(
     # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
     has_context = context is not None
     # Diagnostic fields to debug pr_number=0 issue
-    resource_type = context.get("resource_type", "") if context else ""
+    resource_type = context.get("resource_type", "MISSING") if context else "NO_CONTEXT"
     context_keys = ",".join(sorted(context.keys())) if context else ""
+    # Capture raw payload summary (first 200 chars) to see structure
+    raw_payload = str(context.get("payload", {}))[:200] if context else ""
     logger.info(
-        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url='{pr_url}' has_context={has_context} resource_type='{resource_type}' context_keys=[{context_keys}]",
+        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url='{pr_url}' has_context={has_context} resource_type='{resource_type}' context_keys=[{context_keys}] payload_summary='{raw_payload}'",
         extra={
             "operation": "run_orchestrator",
             "trace_id": trace_id,
