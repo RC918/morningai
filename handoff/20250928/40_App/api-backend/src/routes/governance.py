@@ -600,8 +600,9 @@ def get_config_summary():
     try:
         config_summary = {
             'orchestrator': {
-                'use_langgraph': settings.use_langgraph,
-                'use_langgraph_percent': settings.use_langgraph_percent,
+                # USE_LANGGRAPH, USE_LANGGRAPH_PERCENT removed in Issue #2651
+                # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
+                'mode': 'langgraph',  # Always LangGraph now
                 'enable_orchestrator': settings.enable_orchestrator,
                 'orchestrator_path': settings.orchestrator_path,
                 'orchestrator_test_mode': settings.orchestrator_test_mode,
