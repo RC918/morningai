@@ -3571,7 +3571,7 @@ def run_orchestrator(
     # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
     has_context = context is not None
     logger.info(
-        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url={pr_url} has_context={has_context}",
+        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url=\"{pr_url}\" has_context={has_context}",
         extra={
             "operation": "run_orchestrator",
             "trace_id": trace_id,
@@ -3617,7 +3617,7 @@ def run_orchestrator(
         result_status = final_result.get("status") or "unknown"
         result_pr_url = final_result.get("pr_url") or ""
         logger.info(
-            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url={result_pr_url}",
+            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url=\"{result_pr_url}\"",
             extra={
                 "operation": "run_orchestrator",
                 "trace_id": trace_id,
