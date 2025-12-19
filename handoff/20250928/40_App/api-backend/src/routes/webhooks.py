@@ -27,6 +27,58 @@ from common.config.settings import settings
 # Maximum request body size for webhooks (1MB)
 MAX_WEBHOOK_PAYLOAD_SIZE = 1 * 1024 * 1024  # 1MB
 
+
+class CaseInsensitiveDict(dict):
+    """
+    A dictionary that allows case-insensitive key access.
+
+    This is needed because Flask's request.headers is case-insensitive,
+    but when converted to a regular dict, the keys become case-sensitive.
+    Werkzeug may convert header names to different cases (e.g., X-Github-Event
+    instead of X-GitHub-Event), causing .get() to fail.
+
+    Issue: Phase B-B - Fix header case-sensitivity causing event=unknown
+    """
+
+    def __init__(self, data=None):
+        super().__init__()
+        self._key_map = {}  # lowercase -> original key
+        if data:
+            for key, value in data.items():
+                self[key] = value
+
+    def __setitem__(self, key, value):
+        lower_key = key.lower()
+        # If key already exists (case-insensitive), remove old entry
+        if lower_key in self._key_map:
+            old_key = self._key_map[lower_key]
+            if old_key in self:
+                super().__delitem__(old_key)
+        self._key_map[lower_key] = key
+        super().__setitem__(key, value)
+
+    def __getitem__(self, key):
+        lower_key = key.lower()
+        if lower_key in self._key_map:
+            return super().__getitem__(self._key_map[lower_key])
+        raise KeyError(key)
+
+    def __contains__(self, key):
+        return key.lower() in self._key_map
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __delitem__(self, key):
+        lower_key = key.lower()
+        if lower_key in self._key_map:
+            actual_key = self._key_map.pop(lower_key)
+            super().__delitem__(actual_key)
+
+
 # Rate limiting configuration
 WEBHOOK_RATE_LIMIT = 100  # requests per window
 WEBHOOK_RATE_WINDOW = 60  # seconds
@@ -445,8 +497,10 @@ def github_webhook():
                 "message": str(e)
             }), 400
 
-        # Get headers
-        headers = dict(request.headers)
+        # Get headers - use CaseInsensitiveDict to handle header name case variations
+        # Fix: Phase B-B - dict(request.headers) loses case-insensitivity, causing
+        # headers.get("X-GitHub-Event") to fail when Werkzeug uses different case
+        headers = CaseInsensitiveDict(request.headers)
 
         # Log incoming webhook
         event_type = headers.get("X-GitHub-Event", "unknown")
@@ -533,8 +587,8 @@ def jira_webhook():
                 "message": str(e)
             }), 400
 
-        # Get headers
-        headers = dict(request.headers)
+        # Get headers - use CaseInsensitiveDict for consistency with GitHub webhook
+        headers = CaseInsensitiveDict(request.headers)
 
         # Log incoming webhook
         webhook_event = parsed_payload.get("webhookEvent", "unknown")
@@ -639,8 +693,8 @@ def slack_webhook():
                 except Exception:
                     pass
 
-        # Get headers
-        headers = dict(request.headers)
+        # Get headers - use CaseInsensitiveDict for consistency with GitHub webhook
+        headers = CaseInsensitiveDict(request.headers)
 
         # Handle URL verification challenge
         if parsed_payload.get("type") == "url_verification":
