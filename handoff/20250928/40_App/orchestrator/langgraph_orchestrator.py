@@ -3613,8 +3613,9 @@ def run_orchestrator(
         final_result = result.get("final_result", {})
 
         # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
-        result_status = final_result.get("status")
-        result_pr_url = final_result.get("pr_url")
+        # Use default values to avoid "status=None" in logs
+        result_status = final_result.get("status") or "unknown"
+        result_pr_url = final_result.get("pr_url") or ""
         logger.info(
             f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url={result_pr_url}",
             extra={
