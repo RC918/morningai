@@ -31,7 +31,9 @@ Usage:
     # Parse diff and validate inline comments (Phase B-3.1)
     from review_comment_schema import parse_diff_allowed_lines, validate_inline_comments
     allowed_lines = parse_diff_allowed_lines(diff_content)
-    valid, invalid = validate_inline_comments(comments, allowed_lines)
+    valid, invalid, downgrade_reasons = validate_inline_comments(comments, allowed_lines)
+    # downgrade_reasons: Dict with keys file_not_in_diff, line_not_in_diff,
+    #                    missing_end_line, strict_truncated, other
 """
 import logging
 import re

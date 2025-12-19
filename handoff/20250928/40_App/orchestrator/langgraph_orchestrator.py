@@ -2799,9 +2799,6 @@ def publisher_node(state: AgentState) -> AgentState:
     diff_truncated = state.get("diff_truncated", False)
     downgraded_count = 0
 
-    # Phase B-B Telemetry: Initialize downgrade_reasons
-    downgrade_reasons: Dict[str, int] = {}
-
     if diff_content and inline_comments:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
 
@@ -2836,7 +2833,8 @@ def publisher_node(state: AgentState) -> AgentState:
                     ),
                     "downgrade_strict_truncated": downgrade_reasons.get(
                         "strict_truncated", 0
-                    )
+                    ),
+                    "downgrade_other": downgrade_reasons.get("other", 0)
                 }
             )
             # Move invalid inline comments to file-level
