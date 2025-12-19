@@ -24,6 +24,14 @@ from redis_queue.worker import (
 )
 
 
+# Check if langgraph is available for tests that need it
+try:
+    import langgraph
+    HAS_LANGGRAPH = True
+except ImportError:
+    HAS_LANGGRAPH = False
+
+
 class TestRunStep:
     """Test run_step function"""
 
@@ -107,6 +115,7 @@ class TestEnqueue:
 class TestRunOrchestratorTask:
     """Test run_orchestrator_task function (LangGraph-only mode)"""
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
     @patch('langgraph_orchestrator.run_orchestrator')
     def test_run_orchestrator_langgraph_mode_success(self, mock_run_orch, mock_redis):
@@ -126,6 +135,7 @@ class TestRunOrchestratorTask:
 
         mock_run_orch.assert_called_once_with("Generate docs", "owner/repo", task_id)
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
     @patch('langgraph_orchestrator.run_orchestrator')
     @patch('redis_queue.worker.upsert_task_running')
@@ -147,6 +157,7 @@ class TestRunOrchestratorTask:
             pr_url="https://github.com/pr/3"
         )
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
     @patch('langgraph_orchestrator.run_orchestrator')
     @patch('redis_queue.worker.upsert_task_error')
@@ -293,6 +304,7 @@ class TestMetricsLatencyConsistency:
     consistent metrics reporting across different tracking systems.
     """
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
     @patch('redis_queue.worker._rollout_tracker')
     @patch('redis_queue.worker._canary_metrics')
@@ -363,6 +375,7 @@ class TestMetricsLatencyConsistency:
         assert mock_monotonic_ns.call_count == 2, \
             f"Expected 2 monotonic_ns calls, got {mock_monotonic_ns.call_count}"
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
     @patch('redis_queue.worker._rollout_tracker')
     @patch('redis_queue.worker._canary_metrics')
