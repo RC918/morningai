@@ -42,6 +42,7 @@ import atexit
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from redis import Redis, ConnectionError as RedisConnectionError
+from redis.exceptions import ReadOnlyError
 from redis.retry import Retry as RedisRetry
 from redis.backoff import ExponentialBackoff
 from rq import Queue
@@ -131,7 +132,11 @@ else:
         logger.warning(f"⚠️ Redis URL does not use TLS: {redis_url[:30]}...")
 RQ_QUEUE_NAME = settings.rq_queue_name or "orchestrator"
 
-redis_retry = RedisRetry(ExponentialBackoff(base=1, cap=10), retries=5)
+redis_retry = RedisRetry(
+    ExponentialBackoff(base=1, cap=10),
+    retries=5,
+    supported_errors=(RedisConnectionError, TimeoutError, ReadOnlyError)
+)
 redis = Redis.from_url(
     redis_url, 
     decode_responses=True,
@@ -1996,6 +2001,18 @@ if __name__ == "__main__":
                 extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
             )
             break
+        except ReadOnlyError as e:
+            logger.warning(
+                f"Redis is in Read-Only mode (Maintenance/Upgrade). Sleeping for 15s...",
+                extra={
+                    "operation": "redis_readonly",
+                    "heartbeat_id": HEARTBEAT_ID,
+                    "rq_worker_name": RQ_WORKER_NAME,
+                    "error": str(e)
+                }
+            )
+            time.sleep(15)
+            continue
         except Exception as e:
             logger.exception(
                 f"Unexpected worker error",
