@@ -133,7 +133,7 @@ class TestRunOrchestratorTask:
         assert result["state"] == "success"
         assert result["trace_id"] == "trace-456"
 
-        mock_run_orch.assert_called_once_with("Generate docs", "owner/repo", task_id)
+        mock_run_orch.assert_called_once_with("Generate docs", "owner/repo", task_id, context=None)
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
