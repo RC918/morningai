@@ -118,7 +118,9 @@ class TestRunOrchestratorTask:
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
     @patch('langgraph_orchestrator.run_orchestrator')
-    def test_run_orchestrator_langgraph_mode_success(self, mock_run_orch, mock_redis):
+    @patch('redis_queue.worker.upsert_task_running')
+    @patch('redis_queue.worker.upsert_task_done')
+    def test_run_orchestrator_langgraph_mode_success(self, mock_upsert_done, mock_upsert_running, mock_run_orch, mock_redis):
         """Test orchestrator task always uses LangGraph mode"""
         mock_run_orch.return_value = {
             "pr_url": "https://github.com/pr/2",
@@ -134,6 +136,8 @@ class TestRunOrchestratorTask:
         assert result["trace_id"] == "trace-456"
 
         mock_run_orch.assert_called_once_with("Generate docs", "owner/repo", task_id, context=None)
+        mock_upsert_running.assert_called_once_with(task_id=task_id, trace_id=task_id)
+        mock_upsert_done.assert_called_once_with(task_id=task_id, trace_id="trace-456", pr_url="https://github.com/pr/2")
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     @patch('redis_queue.worker.redis')
