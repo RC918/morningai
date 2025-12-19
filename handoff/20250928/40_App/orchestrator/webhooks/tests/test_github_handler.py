@@ -23,20 +23,30 @@ def github_handler():
 
 @pytest.fixture
 def mock_pr_review_headers():
-    """Create mock headers for a PR review event"""
+    """Create mock headers for a PR review event (lowercase keys per HTTP best practice)"""
     return {
-        "X-GitHub-Event": "pull_request_review",
-        "X-GitHub-Delivery": "test-delivery-123",
-        "X-Hub-Signature-256": "sha256=test",
+        "x-github-event": "pull_request_review",
+        "x-github-delivery": "test-delivery-123",
+        "x-hub-signature-256": "sha256=test",
     }
 
 
 @pytest.fixture
 def mock_pr_comment_headers():
-    """Create mock headers for a PR comment event"""
+    """Create mock headers for a PR comment event (lowercase keys per HTTP best practice)"""
     return {
-        "X-GitHub-Event": "pull_request_review_comment",
-        "X-GitHub-Delivery": "test-delivery-456",
+        "x-github-event": "pull_request_review_comment",
+        "x-github-delivery": "test-delivery-456",
+        "x-hub-signature-256": "sha256=test",
+    }
+
+
+@pytest.fixture
+def mock_pr_review_headers_mixed_case():
+    """Create mock headers with mixed case to test defensive normalization"""
+    return {
+        "X-GitHub-Event": "pull_request_review",
+        "X-GitHub-Delivery": "test-delivery-789",
         "X-Hub-Signature-256": "sha256=test",
     }
 
@@ -135,8 +145,9 @@ class TestGitHubHandlerShouldProcess:
         )
         assert github_handler.should_process(event) is False
 
-    def test_should_not_process_dependabot(self, github_handler):
-        """Test that dependabot events are filtered out"""
+    def test_should_process_dependabot_for_pr_events(self, github_handler):
+        """Test that dependabot is allowed for PR events (automation bot allowlist)"""
+        # Dependabot is in ALLOWED_AUTOMATION_BOTS and should be allowed for PR events
         event = WebhookEvent(
             event_id="test-123",
             source=WebhookSource.GITHUB,
@@ -144,6 +155,46 @@ class TestGitHubHandlerShouldProcess:
             timestamp=datetime.now(timezone.utc),
             raw_payload={},
             actor_name="dependabot[bot]",
+            metadata={},
+        )
+        assert github_handler.should_process(event) is True
+
+    def test_should_not_process_dependabot_for_non_pr_events(self, github_handler):
+        """Test that dependabot is filtered out for non-PR events"""
+        # Dependabot should be rejected for non-PR events to avoid loops
+        event = WebhookEvent(
+            event_id="test-123",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.ISSUE_CREATED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            actor_name="dependabot[bot]",
+            metadata={},
+        )
+        assert github_handler.should_process(event) is False
+
+    def test_should_process_github_actions_for_pr_events(self, github_handler):
+        """Test that github-actions[bot] is allowed for PR events"""
+        event = WebhookEvent(
+            event_id="test-123",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.PR_OPENED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            actor_name="github-actions[bot]",
+            metadata={},
+        )
+        assert github_handler.should_process(event) is True
+
+    def test_should_not_process_github_actions_for_non_pr_events(self, github_handler):
+        """Test that github-actions[bot] is filtered out for non-PR events"""
+        event = WebhookEvent(
+            event_id="test-123",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.ISSUE_COMMENTED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            actor_name="github-actions[bot]",
             metadata={},
         )
         assert github_handler.should_process(event) is False
@@ -220,6 +271,17 @@ class TestGitHubHandlerEventTypes:
         event = github_handler.parse_event(mock_pr_comment_headers, payload)
 
         assert event.event_type == WebhookEventType.PR_COMMENTED
+
+    def test_pr_review_event_type_with_mixed_case_headers(
+        self, github_handler, mock_pr_review_headers_mixed_case
+    ):
+        """Test that PR review events work with mixed-case headers (defensive normalization)"""
+        payload = create_mock_payload("gemini-code-assist[bot]")
+        event = github_handler.parse_event(mock_pr_review_headers_mixed_case, payload)
+
+        # Should still correctly parse event type despite mixed-case headers
+        assert event.event_type == WebhookEventType.PR_REVIEWED
+        assert event.event_id == "test-delivery-789"
 
 
 class TestAIReviewerIntegration:

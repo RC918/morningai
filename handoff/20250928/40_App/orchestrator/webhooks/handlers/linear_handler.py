@@ -180,7 +180,8 @@ class LinearWebhookHandler(BaseWebhookHandler):
             Normalized WebhookEvent
         """
         # Get event metadata
-        event_id = headers.get(self.DELIVERY_HEADER, str(uuid.uuid4()))
+        # Fix: Phase B-B - Use lowercase key for consistent access
+        event_id = headers.get(self.DELIVERY_HEADER.lower(), str(uuid.uuid4()))
         event_type = self.get_event_type(headers, payload)
         linear_type = payload.get("type", "")
         linear_action = payload.get("action", "")
@@ -310,7 +311,8 @@ class LinearWebhookHandler(BaseWebhookHandler):
 
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
         """Get the Linear signature header"""
-        return headers.get(self.SIGNATURE_HEADER)
+        # Fix: Phase B-B - Use lowercase key for consistent access
+        return headers.get(self.SIGNATURE_HEADER.lower())
 
     def should_process(
         self,
