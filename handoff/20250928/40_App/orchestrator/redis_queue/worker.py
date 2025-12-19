@@ -1948,79 +1948,115 @@ if __name__ == "__main__":
         }
     )
     
-    max_retries = 1
-    for attempt in range(max_retries + 1):
-        try:
-            worker = Worker(
-                [q],
-                connection=redis_client_rq,
-                name=RQ_WORKER_NAME,
-                default_worker_ttl=600,
-                default_result_ttl=86400,
-                serializer=JSONSerializer()
-            )
-            logger.info(
-                f"Worker configuration complete",
-                extra={
-                    "operation": "startup",
-                    "heartbeat_id": HEARTBEAT_ID,
-                    "rq_worker_name": RQ_WORKER_NAME,
-                    "worker_ttl": 600,
-                    "result_ttl": 86400,
-                    "serializer": "JSONSerializer",
-                    "max_jobs": MAX_JOBS
-                }
-            )
-            # max_jobs: Worker exits after processing this many jobs
-            # This allows container orchestrator (Render) to restart the worker,
-            # clearing accumulated memory from LangGraph MemorySaver checkpoints
-            worker.work(max_jobs=MAX_JOBS)
-            break  # Success, exit retry loop
-        except ValueError as e:
-            if "exists an active worker" in str(e) and attempt < max_retries:
-                import random
-                suffix = f"{int(time.time())}-{random.randint(1000, 9999)}"
-                RQ_WORKER_NAME = f"{HEARTBEAT_ID}-{os.getpid()}-{suffix}"
-                WORKER_ID = RQ_WORKER_NAME  # Sync WORKER_ID for cleanup compatibility
-                logger.warning(
-                    f"Worker name collision detected, retrying with new name",
+    readonly_sleep_seconds = settings.redis_readonly_sleep_seconds
+    readonly_max_retries = settings.redis_readonly_max_retries
+    consecutive_readonly_count = 0
+    
+    while True:
+        max_retries = 1
+        should_exit = False
+        for attempt in range(max_retries + 1):
+            try:
+                worker = Worker(
+                    [q],
+                    connection=redis_client_rq,
+                    name=RQ_WORKER_NAME,
+                    default_worker_ttl=600,
+                    default_result_ttl=86400,
+                    serializer=JSONSerializer()
+                )
+                logger.info(
+                    f"Worker configuration complete",
                     extra={
                         "operation": "startup",
-                        "error": str(e),
-                        "new_rq_worker_name": RQ_WORKER_NAME,
-                        "worker_id": WORKER_ID,
-                        "attempt": attempt + 1
+                        "heartbeat_id": HEARTBEAT_ID,
+                        "rq_worker_name": RQ_WORKER_NAME,
+                        "worker_ttl": 600,
+                        "result_ttl": 86400,
+                        "serializer": "JSONSerializer",
+                        "max_jobs": MAX_JOBS
                     }
                 )
-                continue
-            else:
+                # max_jobs: Worker exits after processing this many jobs
+                # This allows container orchestrator (Render) to restart the worker,
+                # clearing accumulated memory from LangGraph MemorySaver checkpoints
+                worker.work(max_jobs=MAX_JOBS)
+                consecutive_readonly_count = 0
+                should_exit = True
+                break
+            except ValueError as e:
+                if "exists an active worker" in str(e) and attempt < max_retries:
+                    import random
+                    suffix = f"{int(time.time())}-{random.randint(1000, 9999)}"
+                    RQ_WORKER_NAME = f"{HEARTBEAT_ID}-{os.getpid()}-{suffix}"
+                    WORKER_ID = RQ_WORKER_NAME  # Sync WORKER_ID for cleanup compatibility
+                    logger.warning(
+                        f"Worker name collision detected, retrying with new name",
+                        extra={
+                            "operation": "startup",
+                            "error": str(e),
+                            "new_rq_worker_name": RQ_WORKER_NAME,
+                            "worker_id": WORKER_ID,
+                            "attempt": attempt + 1
+                        }
+                    )
+                    continue
+                else:
+                    raise
+            except KeyboardInterrupt:
+                logger.info(
+                    f"KeyboardInterrupt received",
+                    extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
+                )
+                should_exit = True
+                break
+            except ReadOnlyError as e:
+                consecutive_readonly_count += 1
+                if consecutive_readonly_count >= readonly_max_retries:
+                    logger.error(
+                        f"Redis ReadOnlyError exceeded max retries ({readonly_max_retries}). Exiting to trigger restart.",
+                        extra={
+                            "operation": "redis_readonly_exceeded",
+                            "heartbeat_id": HEARTBEAT_ID,
+                            "rq_worker_name": RQ_WORKER_NAME,
+                            "consecutive_readonly_count": consecutive_readonly_count,
+                            "max_retries": readonly_max_retries,
+                            "total_sleep_seconds": consecutive_readonly_count * readonly_sleep_seconds,
+                            "error": str(e)
+                        }
+                    )
+                    if SENTRY_DSN:
+                        sentry_sdk.capture_message(
+                            f"Redis ReadOnlyError exceeded max retries ({readonly_max_retries})",
+                            level="error"
+                        )
+                    should_exit = True
+                    break
+                logger.warning(
+                    f"Redis is in Read-Only mode (Maintenance/Upgrade). Sleeping for {readonly_sleep_seconds}s... ({consecutive_readonly_count}/{readonly_max_retries})",
+                    extra={
+                        "operation": "redis_readonly",
+                        "heartbeat_id": HEARTBEAT_ID,
+                        "rq_worker_name": RQ_WORKER_NAME,
+                        "consecutive_readonly_count": consecutive_readonly_count,
+                        "max_retries": readonly_max_retries,
+                        "sleep_seconds": readonly_sleep_seconds,
+                        "error": str(e)
+                    }
+                )
+                time.sleep(readonly_sleep_seconds)
+                break
+            except Exception as e:
+                logger.exception(
+                    f"Unexpected worker error",
+                    extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
+                )
+                if SENTRY_DSN:
+                    sentry_sdk.capture_exception(e)
                 raise
-        except KeyboardInterrupt:
-            logger.info(
-                f"KeyboardInterrupt received",
-                extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
-            )
+        
+        if should_exit:
             break
-        except ReadOnlyError as e:
-            logger.warning(
-                f"Redis is in Read-Only mode (Maintenance/Upgrade). Sleeping for 15s...",
-                extra={
-                    "operation": "redis_readonly",
-                    "heartbeat_id": HEARTBEAT_ID,
-                    "rq_worker_name": RQ_WORKER_NAME,
-                    "error": str(e)
-                }
-            )
-            time.sleep(15)
-            continue
-        except Exception as e:
-            logger.exception(
-                f"Unexpected worker error",
-                extra={"operation": "shutdown", "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME}
-            )
-            if SENTRY_DSN:
-                sentry_sdk.capture_exception(e)
-            raise
     
     cleanup_heartbeat()
     logger.info(
