@@ -10,10 +10,12 @@ This module provides:
 4. Severity mapping between different taxonomies
 5. Unified diff parser for extracting valid RIGHT-side line ranges (Phase B-3.1)
 6. Inline comment validator to gate comments against allowed line ranges (Phase B-3.1)
+7. Telemetry fields for Phase B-B staging verification
 
 Issue #2595: EPIC B - Diff-Aware Review Plumbing
 Phase B-2: Review Comment Schema Definition
 Phase B-3.1: Line Number Validation & Truncation Handling
+Phase B-B: Staging Verification (Dry-run)
 
 Usage:
     from review_comment_schema import parse_review_comment, normalize_review_comments
@@ -882,5 +884,7 @@ def get_diff_coverage_info(
         "total_files": total_files,
         "truncated_files": truncated_files,
         "total_allowed_lines": total_lines,
-        "files": list(allowed_lines_map.keys())
+        "files": list(allowed_lines_map.keys()),
+        # Phase B-B: Add coverage percentage for telemetry
+        "truncation_rate": truncated_files / total_files if total_files > 0 else 0.0
     }
