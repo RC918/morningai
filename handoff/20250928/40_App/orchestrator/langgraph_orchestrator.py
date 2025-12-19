@@ -3553,9 +3553,10 @@ def run_orchestrator(
 
     # Extract PR context from webhook context (only necessary fields)
     # Issue: Phase B-B - Avoid "No PR to review" by passing PR number
+    # Use positive validation: only extract PR info when resource_type == "pull_request"
     pr_number = 0
     pr_url = ""
-    if context:
+    if context and context.get("resource_type") == "pull_request":
         # Handle pr_number: could be int or string from webhook
         raw_pr_number = context.get("pr_number") or context.get("resource_id")
         if raw_pr_number:
@@ -3564,11 +3565,6 @@ def run_orchestrator(
             except (ValueError, TypeError):
                 pr_number = 0
         pr_url = context.get("pr_url") or context.get("url") or ""
-        # Only use pr_url if resource_type is pull_request (avoid misusing other IDs)
-        resource_type = context.get("resource_type", "")
-        if resource_type and resource_type != "pull_request":
-            pr_number = 0
-            pr_url = ""
 
     # Observability log: always print pr_number, pr_url, trace_id
     # Issue: Phase B-B - Avoid black-box issues where upstream extracts but downstream doesn't receive
