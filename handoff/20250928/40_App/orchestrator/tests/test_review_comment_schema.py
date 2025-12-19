@@ -883,11 +883,16 @@ class TestValidateInlineComments:
             }
         }
 
-        valid, invalid = validate_inline_comments(comments, allowed_lines_map)
+        valid, invalid, downgrade_reasons = validate_inline_comments(
+            comments, allowed_lines_map
+        )
 
         assert len(valid) == 1
         assert len(invalid) == 0
         assert valid[0]["file"] == "test.py"
+        # Phase B-B Telemetry: No downgrades should have zero counts
+        assert downgrade_reasons["file_not_in_diff"] == 0
+        assert downgrade_reasons["line_not_in_diff"] == 0
 
     def test_invalid_line_downgraded(self):
         """Comments with invalid lines should be downgraded"""
@@ -911,7 +916,9 @@ class TestValidateInlineComments:
             }
         }
 
-        valid, invalid = validate_inline_comments(comments, allowed_lines_map)
+        valid, invalid, downgrade_reasons = validate_inline_comments(
+            comments, allowed_lines_map
+        )
 
         assert len(valid) == 0
         assert len(invalid) == 1
@@ -922,6 +929,8 @@ class TestValidateInlineComments:
         assert invalid[0]["file"] == "test.py"
         # Message should indicate downgrade reason
         assert "Line info removed" in invalid[0]["message"]
+        # Phase B-B Telemetry: line_not_in_diff should be counted
+        assert downgrade_reasons["line_not_in_diff"] == 1
 
     def test_truncated_patch_strict_mode(self):
         """Truncated patch in strict mode should downgrade all comments"""
@@ -945,13 +954,15 @@ class TestValidateInlineComments:
             }
         }
 
-        valid, invalid = validate_inline_comments(
+        valid, invalid, downgrade_reasons = validate_inline_comments(
             comments, allowed_lines_map, strict_truncated=True
         )
 
         assert len(valid) == 0
         assert len(invalid) == 1
         assert "patch_truncated" in invalid[0]["message"]
+        # Phase B-B Telemetry: strict_truncated should be counted
+        assert downgrade_reasons["strict_truncated"] == 1
 
     def test_truncated_patch_non_strict_mode(self):
         """Truncated patch in non-strict mode should allow valid lines"""
@@ -975,12 +986,14 @@ class TestValidateInlineComments:
             }
         }
 
-        valid, invalid = validate_inline_comments(
+        valid, invalid, downgrade_reasons = validate_inline_comments(
             comments, allowed_lines_map, strict_truncated=False
         )
 
         assert len(valid) == 1
         assert len(invalid) == 0
+        # Phase B-B Telemetry: No downgrades in non-strict mode
+        assert downgrade_reasons["strict_truncated"] == 0
 
     def test_file_level_comments_pass_through(self):
         """File-level comments (no line info) should pass through"""
@@ -994,10 +1007,12 @@ class TestValidateInlineComments:
             }
         ]
 
-        valid, invalid = validate_inline_comments(comments, {})
+        valid, invalid, downgrade_reasons = validate_inline_comments(comments, {})
 
         assert len(valid) == 1
         assert len(invalid) == 0
+        # Phase B-B Telemetry: No downgrades for file-level comments
+        assert all(v == 0 for v in downgrade_reasons.values())
 
     def test_file_not_in_diff_downgraded(self):
         """Comments for files not in diff should be downgraded"""
@@ -1021,11 +1036,15 @@ class TestValidateInlineComments:
             }
         }
 
-        valid, invalid = validate_inline_comments(comments, allowed_lines_map)
+        valid, invalid, downgrade_reasons = validate_inline_comments(
+            comments, allowed_lines_map
+        )
 
         assert len(valid) == 0
         assert len(invalid) == 1
         assert "file_not_in_diff" in invalid[0]["message"]
+        # Phase B-B Telemetry: file_not_in_diff should be counted
+        assert downgrade_reasons["file_not_in_diff"] == 1
 
 
 class TestGetDiffCoverageInfo:

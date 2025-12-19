@@ -99,7 +99,7 @@ before transitioning to END state.
 import functools
 import logging
 import time
-from typing import TypedDict, Annotated, Sequence, Optional, Callable
+from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict
 from datetime import datetime
 import operator
 
@@ -2328,6 +2328,11 @@ def reviewer_node(state: AgentState) -> AgentState:
                                 diff_content = diff_data.get("diff", "")
                                 diff_truncated = diff_data.get("truncated", False)
                                 diff_files = diff_data.get("files", [])
+                                # Phase B-B: Extract github_total_files from truncation_info
+                                truncation_info = diff_data.get("truncation_info", {})
+                                github_total_files = truncation_info.get(
+                                    "original_file_count", 0
+                                )
                                 logger.info(
                                     "[Reviewer] Retrieved PR diff for review",
                                     extra={
@@ -2335,7 +2340,9 @@ def reviewer_node(state: AgentState) -> AgentState:
                                         "trace_id": trace_id,
                                         "pr_number": pr_number,
                                         "diff_file_count": len(diff_files) if diff_files else 0,
-                                        "diff_truncated": diff_truncated
+                                        "diff_truncated": diff_truncated,
+                                        # Phase B-B Telemetry: GitHub's total changed files
+                                        "github_total_files": github_total_files
                                     }
                                 )
                             else:
@@ -2379,12 +2386,30 @@ def reviewer_node(state: AgentState) -> AgentState:
                     state["review_severity"] = llm_review["severity"]
 
                     if llm_review.get("comments"):
+                        # Phase B-B Telemetry: raw_comment_count before normalization
+                        raw_llm_comments = llm_review["comments"]
+                        raw_comment_count = len(raw_llm_comments)
+
                         # Phase B-3.1: Normalize LLM comments using canonical schema
                         # This ensures start_line/end_line are properly set
                         from review_comment_schema import normalize_review_comments
                         normalized_llm_comments = normalize_review_comments(
-                            llm_review["comments"], source="llm"
+                            raw_llm_comments, source="llm"
                         )
+                        normalized_comment_count = len(normalized_llm_comments)
+
+                        # Phase B-B Telemetry: Log schema pass rate metrics
+                        logger.info(
+                            "[Reviewer] LLM comments normalized",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "raw_comment_count": raw_comment_count,
+                                "normalized_comment_count": normalized_comment_count,
+                                "schema_filtered_count": raw_comment_count - normalized_comment_count
+                            }
+                        )
+
                         state["review_comments"] = (
                             state["review_comments"] + normalized_llm_comments
                         )
@@ -2756,11 +2781,15 @@ def publisher_node(state: AgentState) -> AgentState:
     inline_comments = [c for c in review_comments if is_inline_comment(c)]
     file_level_comments = [c for c in review_comments if not is_inline_comment(c)]
 
+    # Phase B-B Telemetry: inline_eligible_count before validation
+    inline_eligible_count = len(inline_comments)
+
     logger.info("[Publisher] Filtered comments for inline posting", extra={
         "operation": "publisher",
         "trace_id": trace_id,
         "total_comments": len(review_comments),
         "inline_comments": len(inline_comments),
+        "inline_eligible_count": inline_eligible_count,
         "file_level_comments": len(file_level_comments)
     })
 
@@ -2774,7 +2803,8 @@ def publisher_node(state: AgentState) -> AgentState:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
 
         # Use strict mode for truncated diffs (safer)
-        valid_inline, invalid_inline = validate_inline_comments(
+        # Phase B-B: validate_inline_comments now returns downgrade_reasons
+        valid_inline, invalid_inline, downgrade_reasons = validate_inline_comments(
             inline_comments,
             allowed_lines_map,
             strict_truncated=diff_truncated
@@ -2782,6 +2812,7 @@ def publisher_node(state: AgentState) -> AgentState:
 
         downgraded_count = len(invalid_inline)
         if downgraded_count > 0:
+            # Phase B-B Telemetry: Log downgrade reasons breakdown
             logger.warning(
                 f"[Publisher] Downgraded {downgraded_count} comments due to "
                 f"line validation failures",
@@ -2789,7 +2820,21 @@ def publisher_node(state: AgentState) -> AgentState:
                     "operation": "publisher",
                     "trace_id": trace_id,
                     "downgraded_count": downgraded_count,
-                    "diff_truncated": diff_truncated
+                    "diff_truncated": diff_truncated,
+                    # Phase B-B Telemetry: Downgrade reason bucketing
+                    "downgrade_file_not_in_diff": downgrade_reasons.get(
+                        "file_not_in_diff", 0
+                    ),
+                    "downgrade_line_not_in_diff": downgrade_reasons.get(
+                        "line_not_in_diff", 0
+                    ),
+                    "downgrade_missing_end_line": downgrade_reasons.get(
+                        "missing_end_line", 0
+                    ),
+                    "downgrade_strict_truncated": downgrade_reasons.get(
+                        "strict_truncated", 0
+                    ),
+                    "downgrade_other": downgrade_reasons.get("other", 0)
                 }
             )
             # Move invalid inline comments to file-level
@@ -2797,6 +2842,8 @@ def publisher_node(state: AgentState) -> AgentState:
             inline_comments = valid_inline
 
         state["publish_result"]["validation_downgraded"] = downgraded_count
+        # Phase B-B Telemetry: Store downgrade reasons in state
+        state["publish_result"]["downgrade_reasons"] = downgrade_reasons
 
     if not inline_comments:
         logger.info("[Publisher] No inline-eligible comments to publish", extra={
