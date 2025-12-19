@@ -1115,38 +1115,8 @@ class Settings(BaseSettings):
         description="Enable cookie-based authentication (token in cookie instead of JSON body)"
     )
 
-    use_langgraph: bool = Field(
-        default=False,
-        alias="USE_LANGGRAPH",
-        description="Enable LangGraph orchestrator mode"
-    )
-
-    use_langgraph_percent: int = Field(
-        default=0,
-        ge=0,
-        le=100,
-        alias="USE_LANGGRAPH_PERCENT",
-        description="Percentage of tasks to use LangGraph mode (0-100)"
-    )
-
-    @field_validator('use_langgraph_percent', mode='before')
-    @classmethod
-    def normalize_langgraph_percent(cls, v):
-        if v is None:
-            return 0
-        if isinstance(v, str):
-            v = v.strip().rstrip('%')
-            try:
-                v = int(float(v))
-            except ValueError:
-                return 0
-        return max(0, min(100, int(v)))
-
-    use_langgraph_for_faq: bool = Field(
-        default=False,
-        alias="USE_LANGGRAPH_FOR_FAQ",
-        description="Enable LangGraph mode for FAQ tasks (default false to preserve low latency)"
-    )
+    # USE_LANGGRAPH, USE_LANGGRAPH_PERCENT, USE_LANGGRAPH_FOR_FAQ removed in Issue #2651
+    # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
 
     rollout_tracker_enabled: bool = Field(
         default=True,

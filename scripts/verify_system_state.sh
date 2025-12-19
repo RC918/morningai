@@ -100,27 +100,15 @@ else
 fi
 
 echo ""
-echo "3. Verifying dual orchestrator architecture..."
-
-if command -v yq >/dev/null 2>&1; then
-    USE_LANGGRAPH_VALUE=$(yq eval '.services[] | select(.envVars[] | select(.key == "USE_LANGGRAPH")) | .envVars[] | select(.key == "USE_LANGGRAPH") | .value' render.yaml 2>/dev/null | head -1)
-    if [[ "$USE_LANGGRAPH_VALUE" == "false" ]]; then
-        check_pass "USE_LANGGRAPH=false in render.yaml (verified with yq)"
-    else
-        check_fail "USE_LANGGRAPH flag not set to false in render.yaml (got: $USE_LANGGRAPH_VALUE)"
-    fi
-else
-    if awk '/- key: USE_LANGGRAPH/{getline; if ($0 ~ /value: false/) ok=1} END{exit(ok?0:1)}' render.yaml 2>/dev/null; then
-        check_pass "USE_LANGGRAPH=false in render.yaml (verified with awk)"
-    else
-        check_fail "USE_LANGGRAPH flag not set to false in render.yaml"
-    fi
-fi
+echo "3. Verifying LangGraph orchestrator architecture..."
+# Note: Simple Mode removed in Issue #2651 (2025-12-18)
+# USE_LANGGRAPH, USE_LANGGRAPH_PERCENT flags are no longer used
+# LangGraph is now the only orchestrator mode
 
 if grep -q "handoff/.*/orchestrator" render.yaml; then
-    check_pass "Legacy orchestrator path in render.yaml (worker deployment)"
+    check_pass "Orchestrator path in render.yaml (worker deployment)"
 else
-    check_warn "Legacy orchestrator path not found in render.yaml"
+    check_warn "Orchestrator path not found in render.yaml"
 fi
 
 if grep -q "orchestrator/Dockerfile" render.yaml; then

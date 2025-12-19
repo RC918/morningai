@@ -614,11 +614,16 @@ class TestPgvectorVerification:
         assert 'Vector API implementation exists' in result.stdout
 
 
-class TestDualOrchestratorArchitecture:
-    """Test dual orchestrator architecture verification."""
+class TestLangGraphOrchestratorArchitecture:
+    """Test LangGraph orchestrator architecture verification.
+    
+    Note: Simple Mode removed in Issue #2651 (2025-12-18).
+    USE_LANGGRAPH, USE_LANGGRAPH_PERCENT flags are no longer used.
+    LangGraph is now the only orchestrator mode.
+    """
 
-    def test_use_langgraph_false(self, minimal_valid_repo: Path):
-        """Test detection of USE_LANGGRAPH=false in render.yaml."""
+    def test_orchestrator_path_in_render_yaml(self, minimal_valid_repo: Path):
+        """Test detection of orchestrator path in render.yaml."""
         result = subprocess.run(
             ['bash', str(minimal_valid_repo / 'scripts' / 'verify_system_state.sh')],
             cwd=minimal_valid_repo,
@@ -626,29 +631,7 @@ class TestDualOrchestratorArchitecture:
             text=True
         )
 
-        assert 'USE_LANGGRAPH=false in render.yaml' in result.stdout
-
-    def test_use_langgraph_true_fails(self, temp_repo: Path):
-        """Test failure when USE_LANGGRAPH is not false."""
-        # Setup base files so script can run past React check
-        setup_base_package_files(temp_repo)
-        render_yaml = """
-services:
-  - name: api-backend
-    envVars:
-      - key: USE_LANGGRAPH
-        value: true
-"""
-        (temp_repo / 'render.yaml').write_text(render_yaml)
-
-        result = subprocess.run(
-            ['bash', str(temp_repo / 'scripts' / 'verify_system_state.sh')],
-            cwd=temp_repo,
-            capture_output=True,
-            text=True
-        )
-
-        assert 'USE_LANGGRAPH flag not set to false' in result.stdout
+        assert 'Orchestrator path in render.yaml' in result.stdout
 
     def test_orchestrator_dockerfile_reference(self, minimal_valid_repo: Path):
         """Test detection of orchestrator Dockerfile reference."""

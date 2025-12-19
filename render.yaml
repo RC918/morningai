@@ -76,8 +76,7 @@ services:
         value: false
       - key: RQ_QUEUE_NAME
         value: orchestrator
-      - key: USE_LANGGRAPH
-        value: false
+      # USE_LANGGRAPH removed in Issue #2651 - LangGraph is now the only orchestrator mode
       - key: ENABLE_MOCK_USERS
         value: false
       - key: APP_VERSION
