@@ -23,7 +23,8 @@ from tools.github_api import (  # noqa: E402
     # Phase B-2.5: Ignore list constants (#2702)
     DIFF_IGNORE_FILENAMES,
     DIFF_IGNORE_EXTENSIONS,
-    DIFF_IGNORE_PATH_PATTERNS,
+    DIFF_IGNORE_ROOT_DIRS,
+    DIFF_IGNORE_ANYWHERE_DIRS,
     _should_ignore_file
 )
 
@@ -748,13 +749,20 @@ class TestPhaseB25IgnoreList:
         assert '.pyo' in DIFF_IGNORE_EXTENSIONS
         assert '.class' in DIFF_IGNORE_EXTENSIONS
 
-    def test_ignore_path_patterns_contains_build_dirs(self):
-        """Test that DIFF_IGNORE_PATH_PATTERNS contains build directories"""
-        assert 'dist/' in DIFF_IGNORE_PATH_PATTERNS
-        assert 'build/' in DIFF_IGNORE_PATH_PATTERNS
-        assert '.next/' in DIFF_IGNORE_PATH_PATTERNS
-        assert 'node_modules/' in DIFF_IGNORE_PATH_PATTERNS
-        assert '__pycache__/' in DIFF_IGNORE_PATH_PATTERNS
+    def test_ignore_root_dirs_contains_build_dirs(self):
+        """Test that DIFF_IGNORE_ROOT_DIRS contains root-level build directories"""
+        assert 'dist' in DIFF_IGNORE_ROOT_DIRS
+        assert 'build' in DIFF_IGNORE_ROOT_DIRS
+        assert '.next' in DIFF_IGNORE_ROOT_DIRS
+        assert 'out' in DIFF_IGNORE_ROOT_DIRS
+
+    def test_ignore_anywhere_dirs_contains_generated_dirs(self):
+        """Test that DIFF_IGNORE_ANYWHERE_DIRS contains always-generated directories"""
+        assert 'node_modules' in DIFF_IGNORE_ANYWHERE_DIRS
+        assert '__pycache__' in DIFF_IGNORE_ANYWHERE_DIRS
+        assert 'vendor' in DIFF_IGNORE_ANYWHERE_DIRS
+        assert '.tox' in DIFF_IGNORE_ANYWHERE_DIRS
+        assert '.pytest_cache' in DIFF_IGNORE_ANYWHERE_DIRS
 
     def test_should_ignore_file_lockfiles(self):
         """Test _should_ignore_file correctly identifies lockfiles"""
@@ -785,6 +793,36 @@ class TestPhaseB25IgnoreList:
         assert _should_ignore_file('components/Button.tsx') is False
         assert _should_ignore_file('README.md') is False
         assert _should_ignore_file('package.json') is False  # Not lockfile
+
+    def test_should_ignore_file_false_positive_regression(self):
+        """
+        Regression test: src/build/main.py and src/dist/utils.py should NOT be ignored.
+        These are source files in directories named 'build' or 'dist', not build outputs.
+        Issue: Previous implementation used substring matching which caused false positives.
+        """
+        # These should NOT be ignored - they are source files in src/ directory
+        assert _should_ignore_file('src/build/main.py') is False
+        assert _should_ignore_file('src/dist/utils.py') is False
+        assert _should_ignore_file('lib/build/helper.ts') is False
+        assert _should_ignore_file('packages/core/dist/index.js') is False
+
+        # These SHOULD be ignored - they are actual build outputs at root level
+        assert _should_ignore_file('dist/bundle.js') is True
+        assert _should_ignore_file('build/output.js') is True
+
+    def test_should_ignore_file_anywhere_dirs_at_any_depth(self):
+        """Test that anywhere-ignore directories are filtered at any depth"""
+        # node_modules should be ignored at any depth
+        assert _should_ignore_file('node_modules/lodash/index.js') is True
+        assert _should_ignore_file('packages/foo/node_modules/bar/index.js') is True
+
+        # __pycache__ should be ignored at any depth
+        assert _should_ignore_file('__pycache__/module.cpython-39.pyc') is True
+        assert _should_ignore_file('src/utils/__pycache__/helper.cpython-39.pyc') is True
+
+        # vendor should be ignored at any depth
+        assert _should_ignore_file('vendor/github.com/pkg/errors/errors.go') is True
+        assert _should_ignore_file('lib/vendor/some/package.go') is True
 
     def test_get_pr_diff_filters_lockfiles(self):
         """Test that get_pr_diff filters out lockfiles"""

@@ -184,26 +184,35 @@ DIFF_IGNORE_EXTENSIONS = {
     '.dll',
 }
 
-DIFF_IGNORE_PATH_PATTERNS = [
-    # Build output directories
-    'dist/',
-    'build/',
-    '.next/',
-    'out/',
-    '__pycache__/',
-    'node_modules/',
-    'vendor/',
-    '.tox/',
-    '.pytest_cache/',
-    # Generated code directories
-    'generated/',
-    'auto_generated/',
-]
+# Root-only ignore patterns: only match when directory is at the root level
+# These are typically project-level build outputs, not source directories
+DIFF_IGNORE_ROOT_DIRS = {
+    'dist',
+    'build',
+    '.next',
+    'out',
+}
+
+# Anywhere ignore patterns: match at any depth in the path
+# These are always generated/cached content regardless of location
+DIFF_IGNORE_ANYWHERE_DIRS = {
+    '__pycache__',
+    'node_modules',
+    'vendor',
+    '.tox',
+    '.pytest_cache',
+    'generated',
+    'auto_generated',
+}
 
 
 def _should_ignore_file(filename: str) -> bool:
     """
     Check if a file should be ignored based on Phase B-2.5 ignore list.
+
+    Uses path-segment matching to avoid false positives like src/build/main.py.
+    - Root-only patterns (dist, build, .next, out): only match at path root
+    - Anywhere patterns (node_modules, __pycache__): match at any depth
 
     Args:
         filename: File path to check
@@ -211,8 +220,19 @@ def _should_ignore_file(filename: str) -> bool:
     Returns:
         True if file should be ignored, False otherwise
     """
-    import os
-    basename = os.path.basename(filename)
+    from pathlib import PurePosixPath
+
+    # Normalize path to POSIX format
+    normalized = filename.replace('\\', '/')
+    # Strip leading ./ but preserve dotfiles like .next
+    if normalized.startswith('./'):
+        normalized = normalized[2:]
+    parts = PurePosixPath(normalized).parts
+
+    if not parts:
+        return False
+
+    basename = parts[-1]
 
     # Check exact filename match (lockfiles)
     if basename in DIFF_IGNORE_FILENAMES:
@@ -223,9 +243,15 @@ def _should_ignore_file(filename: str) -> bool:
         if filename.endswith(ext):
             return True
 
-    # Check path pattern match (build directories)
-    for pattern in DIFF_IGNORE_PATH_PATTERNS:
-        if pattern in filename:
+    # Check root-only directory patterns (first segment only)
+    # This avoids false positives like src/build/main.py
+    if parts[0] in DIFF_IGNORE_ROOT_DIRS:
+        return True
+
+    # Check anywhere directory patterns (any segment)
+    # These are always generated content regardless of depth
+    for part in parts[:-1]:  # Exclude filename itself
+        if part in DIFF_IGNORE_ANYWHERE_DIRS:
             return True
 
     return False

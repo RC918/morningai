@@ -39,38 +39,46 @@ logger = logging.getLogger(__name__)
 
 # Phase B-2.5: Secrets redaction patterns (#2703)
 # These patterns detect common secret formats to prevent leakage to LLM providers
+# Uses capturing groups to preserve original formatting (spaces, quotes, delimiters)
+# Includes negative lookahead (?!\[REDACTED) to avoid double-redaction
 SECRETS_REDACTION_PATTERNS = [
     # AWS Access Keys (AKIA followed by 16 alphanumeric chars)
     (r'AKIA[0-9A-Z]{16}', '[REDACTED_AWS_KEY]'),
     # AWS Secret Keys (40 char base64-like string after common prefixes)
-    (r'(?i)(aws_secret_access_key|aws_secret_key)\s*[=:]\s*["\']?([A-Za-z0-9/+=]{40})["\']?',
-     r'\1=[REDACTED_AWS_SECRET]'),
+    # Preserves delimiter and spacing
+    (r'(?i)(aws_secret_access_key|aws_secret_key)(\s*[=:]\s*)(["\']?)(?!\[REDACTED)[A-Za-z0-9/+=]{40}\3',
+     r'\1\2\3[REDACTED_AWS_SECRET]\3'),
     # GitHub tokens (ghp_, gho_, github_pat_)
     (r'ghp_[A-Za-z0-9]{36,}', '[REDACTED_GITHUB_TOKEN]'),
     (r'gho_[A-Za-z0-9]{36,}', '[REDACTED_GITHUB_TOKEN]'),
     (r'github_pat_[A-Za-z0-9_]{22,}', '[REDACTED_GITHUB_TOKEN]'),
     # Generic API keys (sk-... pattern used by OpenAI, Anthropic, etc.)
     (r'sk-[A-Za-z0-9]{32,}', '[REDACTED_API_KEY]'),
-    # Bearer tokens
-    (r'(?i)Bearer\s+[A-Za-z0-9\-_.~+/]+=*', 'Bearer [REDACTED_TOKEN]'),
+    # Bearer tokens - preserve "Bearer " prefix with original spacing
+    (r'(?i)(Bearer\s+)(?!\[REDACTED)[A-Za-z0-9\-_.~+/]+=*', r'\1[REDACTED_TOKEN]'),
     # Private keys (PEM format)
     (r'-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(RSA\s+)?PRIVATE\s+KEY-----',
      '[REDACTED_PRIVATE_KEY]'),
     (r'-----BEGIN\s+EC\s+PRIVATE\s+KEY-----[\s\S]*?-----END\s+EC\s+PRIVATE\s+KEY-----',
      '[REDACTED_PRIVATE_KEY]'),
     # Generic secret assignments (PASSWORD=, SECRET=, TOKEN=, API_KEY=)
-    # Be conservative to avoid false positives - require quotes or specific formats
-    (r'(?i)(PASSWORD|SECRET|TOKEN|API_KEY|APIKEY|SECRET_KEY|PRIVATE_KEY)\s*[=:]\s*["\'][^"\']{8,}["\']',
-     r'\1=[REDACTED_SECRET]'),
+    # Preserves delimiter, spacing, and quote style
+    (r'(?i)\b(PASSWORD|SECRET|TOKEN|API_KEY|APIKEY|SECRET_KEY|PRIVATE_KEY)\b'
+     r'(\s*[=:]\s*)'
+     r'(["\'])(?!\[REDACTED)[^"\']{8,}\3',
+     r'\1\2\3[REDACTED_SECRET]\3'),
     # Environment variable style (export SECRET=value)
-    (r'(?i)export\s+(PASSWORD|SECRET|TOKEN|API_KEY|APIKEY|SECRET_KEY)\s*=\s*[^\s]+',
-     r'export \1=[REDACTED_SECRET]'),
+    # Preserves "export " prefix and spacing
+    (r'(?i)(export\s+)(PASSWORD|SECRET|TOKEN|API_KEY|APIKEY|SECRET_KEY)(\s*=\s*)(?!\[REDACTED)[^\s]+',
+     r'\1\2\3[REDACTED_SECRET]'),
     # JSON style secrets ("api_key": "value")
-    (r'(?i)"(password|secret|token|api_key|apikey|secret_key|private_key|access_token)"\s*:\s*"[^"]{8,}"',
-     r'"\1": "[REDACTED_SECRET]"'),
+    # Preserves key name, colon spacing, and quotes
+    (r'(?i)("(?:password|secret|token|api_key|apikey|secret_key|private_key|access_token)")(\s*:\s*)"(?!\[REDACTED)[^"]{8,}"',
+     r'\1\2"[REDACTED_SECRET]"'),
     # YAML style secrets (api_key: value)
-    (r'(?i)^(\s*)(password|secret|token|api_key|apikey|secret_key|private_key|access_token)\s*:\s*[^\s#][^\n]*',
-     r'\1\2: [REDACTED_SECRET]'),
+    # Preserves indentation and colon spacing
+    (r'(?i)^(\s*)(password|secret|token|api_key|apikey|secret_key|private_key|access_token)(\s*:\s*)(?!\[REDACTED)[^\s#][^\n]*',
+     r'\1\2\3[REDACTED_SECRET]'),
 ]
 
 

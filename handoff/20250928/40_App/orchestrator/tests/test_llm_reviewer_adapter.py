@@ -873,6 +873,30 @@ class TestPhaseB25SecretsRedaction:
         # Only actual secrets should be redacted, not variable names
         assert count == 0 or "password" in result.lower()
 
+    def test_sanitize_preserves_format_regression(self):
+        """
+        Regression test: Redaction should preserve original formatting.
+        Issue: Previous implementation lost spaces and quotes during redaction.
+        Example: SECRET = "value" became SECRET=[REDACTED_SECRET] instead of
+                 SECRET = "[REDACTED_SECRET]"
+        """
+        # Test generic secret assignment with spaces and quotes
+        diff_with_secret = 'SECRET = "my-secret-value-12345678"'
+        result, count = sanitize_diff_content(diff_with_secret)
+        # Secret value should be redacted
+        assert "my-secret-value-12345678" not in result
+        # Format should be preserved: spaces around = and quotes
+        assert ' = "' in result or " = '" in result
+        assert count >= 1
+
+        # Test JSON format preservation
+        json_secret = '"api_key": "super_secret_key_12345678"'
+        result, count = sanitize_diff_content(json_secret)
+        assert "super_secret_key_12345678" not in result
+        # JSON format should be preserved
+        assert '": "' in result
+        assert count >= 1
+
     def test_build_diff_aware_user_prompt_sanitizes_diff(self):
         """Test that _build_diff_aware_user_prompt sanitizes the diff"""
         adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
