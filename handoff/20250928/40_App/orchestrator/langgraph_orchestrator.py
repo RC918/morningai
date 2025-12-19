@@ -99,7 +99,7 @@ before transitioning to END state.
 import functools
 import logging
 import time
-from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict
+from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict, Any
 from datetime import datetime
 import operator
 
@@ -3523,7 +3523,12 @@ def _create_base_initial_state(
     }
 
 
-def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
+def run_orchestrator(
+    goal: str,
+    repo: str,
+    trace_id: str,
+    context: Optional[Dict[str, Any]] = None,
+) -> dict:
     """
     Run the LangGraph orchestrator workflow
 
@@ -3531,18 +3536,46 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         goal: User's goal/question
         repo: GitHub repository (owner/repo format)
         trace_id: Unique identifier for this task
+        context: Optional context dict from webhook/caller containing:
+            - pr_number: PR number (int) for PR-related tasks
+            - pr_url: PR URL (str) for PR-related tasks
+            - resource_id: Resource ID from webhook event
+            - resource_type: Resource type (e.g., "pull_request")
+            - event_type: Webhook event type
 
     Returns:
         dict: Final result containing pr_url, ci_state, status, etc.
+
+    Issue: Phase B-B - Fix PR context passing from webhook to orchestrator
     """
     start_time = time.time()
     metrics = _get_metrics()
 
+    # Extract PR context from webhook context (only necessary fields)
+    # Issue: Phase B-B - Avoid "No PR to review" by passing PR number
+    # Use positive validation: only extract PR info when resource_type == "pull_request"
+    pr_number = 0
+    pr_url = ""
+    if context and context.get("resource_type") == "pull_request":
+        # Handle pr_number: could be int or string from webhook
+        raw_pr_number = context.get("pr_number") or context.get("resource_id")
+        if raw_pr_number:
+            try:
+                pr_number = int(raw_pr_number)
+            except (ValueError, TypeError):
+                pr_number = 0
+        pr_url = context.get("pr_url") or context.get("url") or ""
+
+    # Observability log: always print pr_number, pr_url, trace_id
+    # Issue: Phase B-B - Avoid black-box issues where upstream extracts but downstream doesn't receive
     logger.info("Starting LangGraph orchestrator", extra={
         "operation": "run_orchestrator",
         "trace_id": trace_id,
         "goal": goal[:50],
-        "repo": repo
+        "repo": repo,
+        "pr_number": pr_number,
+        "pr_url": pr_url,
+        "has_context": context is not None,
     })
 
     metrics.record_workflow_start(trace_id, goal)
@@ -3559,6 +3592,13 @@ def run_orchestrator(goal: str, repo: str, trace_id: str) -> dict:
         repo=repo,
         task_type="default",
     )
+
+    # Issue: Phase B-B - Merge PR context into initial state
+    # pr_number: 0 is treated as "no PR" by downstream nodes, so only set if valid
+    if pr_number > 0:
+        initial_state["pr_number"] = pr_number
+    if pr_url:
+        initial_state["pr_url"] = pr_url
 
     config = {"configurable": {"thread_id": trace_id}}
 

@@ -1519,5 +1519,144 @@ class TestInternalReviewNodeFieldValidation:
         assert result.get("internal_review_mode") is True
 
 
+class TestPhaseBBPRContextPassing:
+    """Tests for Phase B-B PR context passing fix (Issue: Phase B-B)
+    
+    Verifies that PR number is correctly passed from webhook context
+    to LangGraph orchestrator initial state, preventing reviewer_node
+    from skipping due to "No PR to review".
+    """
+
+    def test_run_orchestrator_accepts_context_parameter(self):
+        """Test that run_orchestrator accepts optional context parameter"""
+        from langgraph_orchestrator import run_orchestrator
+        import inspect
+        
+        sig = inspect.signature(run_orchestrator)
+        params = list(sig.parameters.keys())
+        
+        assert "context" in params, "run_orchestrator should accept context parameter"
+        assert sig.parameters["context"].default is None, "context should default to None"
+
+    def test_run_orchestrator_extracts_pr_number_from_context(self):
+        """Test that run_orchestrator extracts pr_number from context"""
+        from langgraph_orchestrator import run_orchestrator
+        from unittest.mock import patch, MagicMock
+        
+        context = {
+            "resource_id": 123,
+            "resource_type": "pull_request",
+            "url": "https://github.com/RC918/morningai/pull/123"
+        }
+        
+        with patch("langgraph_orchestrator.create_orchestrator_graph") as mock_graph:
+            mock_app = MagicMock()
+            mock_app.invoke.return_value = {
+                "pr_url": "https://github.com/RC918/morningai/pull/123",
+                "ci_state": "success",
+                "trace_id": "test-trace"
+            }
+            mock_graph.return_value = mock_app
+            
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                
+                run_orchestrator(
+                    goal="Test goal",
+                    repo="RC918/morningai",
+                    trace_id="test-trace",
+                    context=context
+                )
+                
+                call_args = mock_app.invoke.call_args
+                initial_state = call_args[0][0]
+                
+                assert initial_state.get("pr_number") == 123
+                assert initial_state.get("pr_url") == "https://github.com/RC918/morningai/pull/123"
+
+    def test_run_orchestrator_ignores_non_pr_resource_type(self):
+        """Test that run_orchestrator ignores context when resource_type is not pull_request"""
+        from langgraph_orchestrator import run_orchestrator
+        from unittest.mock import patch, MagicMock
+        
+        context = {
+            "resource_id": 456,
+            "resource_type": "issue",
+            "url": "https://github.com/RC918/morningai/issues/456"
+        }
+        
+        with patch("langgraph_orchestrator.create_orchestrator_graph") as mock_graph:
+            mock_app = MagicMock()
+            mock_app.invoke.return_value = {
+                "pr_url": "",
+                "ci_state": "unknown",
+                "trace_id": "test-trace"
+            }
+            mock_graph.return_value = mock_app
+            
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                
+                run_orchestrator(
+                    goal="Test goal",
+                    repo="RC918/morningai",
+                    trace_id="test-trace",
+                    context=context
+                )
+                
+                call_args = mock_app.invoke.call_args
+                initial_state = call_args[0][0]
+                
+                assert initial_state.get("pr_number", 0) == 0
+                assert initial_state.get("pr_url", "") == ""
+
+    def test_run_orchestrator_handles_none_context(self):
+        """Test that run_orchestrator handles None context gracefully"""
+        from langgraph_orchestrator import run_orchestrator
+        from unittest.mock import patch, MagicMock
+        
+        with patch("langgraph_orchestrator.create_orchestrator_graph") as mock_graph:
+            mock_app = MagicMock()
+            mock_app.invoke.return_value = {
+                "pr_url": "",
+                "ci_state": "unknown",
+                "trace_id": "test-trace"
+            }
+            mock_graph.return_value = mock_app
+            
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                
+                run_orchestrator(
+                    goal="Test goal",
+                    repo="RC918/morningai",
+                    trace_id="test-trace",
+                    context=None
+                )
+                
+                call_args = mock_app.invoke.call_args
+                initial_state = call_args[0][0]
+                
+                assert initial_state.get("pr_number", 0) == 0
+
+    def test_reviewer_node_executes_with_valid_pr_number(self):
+        """Test that reviewer_node executes when pr_number > 0"""
+        state = create_test_state(pr_number=123)
+        
+        result = reviewer_node(state)
+        
+        assert result is not None
+        assert "No PR to review" not in str(result.get("messages", []))
+
+    def test_reviewer_node_skips_with_zero_pr_number(self):
+        """Test that reviewer_node skips when pr_number is 0"""
+        state = create_test_state(pr_number=0)
+        state["pr_url"] = ""
+        
+        result = reviewer_node(state)
+        
+        assert result is not None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
