@@ -423,6 +423,10 @@ class LLMReviewerAdapter:
         """
         Get system prompt for diff-aware code review (EPIC B Phase B-3)
 
+        Phase B-3.1: Updated to clarify line number semantics for inline comments.
+        Line numbers must be RIGHT-side (new file) line numbers that appear in
+        the diff hunks, not absolute file line numbers.
+
         Returns:
             System prompt string for LLM
         """
@@ -448,6 +452,16 @@ Rules:
 - If CI failed, investigate if the diff might be related
 - Always respond with valid JSON only, no extra commentary
 
+IMPORTANT - Line Number Semantics:
+When providing line numbers in comments, use the NEW FILE line numbers (RIGHT side of diff).
+These are the line numbers shown after the "+" in hunk headers: @@ -old,len +NEW,len @@
+Only reference lines that appear in the diff you can see. If the diff is truncated or you
+cannot see the exact line, omit the line fields and provide a file-level comment instead.
+
+Example: For a hunk "@@ -10,5 +12,7 @@", lines 12-18 are valid RIGHT-side line numbers.
+Lines marked with "+" or " " (context) in the hunk body are valid targets.
+Lines marked with "-" are deletions and should NOT be referenced.
+
 Output format (strict JSON):
 {
   "summary": "Brief summary of the code changes and overall assessment",
@@ -459,11 +473,18 @@ Output format (strict JSON):
       "severity": "nit" | "suggestion" | "warning" | "error",
       "category": "style" | "bug" | "performance" | "security" | "maintainability" | "other",
       "file": "path/to/file.py",
-      "line": 42,
+      "start_line": 40,
+      "end_line": 42,
       "message": "Specific feedback about this code"
     }
   ]
 }
+
+Note on comments:
+- Use "start_line" and "end_line" for multi-line comments (preferred)
+- For single-line comments, set start_line = end_line
+- If you cannot determine the exact line from the diff, omit line fields entirely
+- File-level comments (no line fields) are acceptable when line precision is uncertain
 
 Guidelines for scoring:
 - Clean code, good practices, CI passed: quality_score 80-95

@@ -8,9 +8,12 @@ This module provides:
 2. Parser that handles both old (line) and new (start_line/end_line) formats
 3. Validation and normalization logic for edge cases
 4. Severity mapping between different taxonomies
+5. Unified diff parser for extracting valid RIGHT-side line ranges (Phase B-3.1)
+6. Inline comment validator to gate comments against allowed line ranges (Phase B-3.1)
 
 Issue #2595: EPIC B - Diff-Aware Review Plumbing
 Phase B-2: Review Comment Schema Definition
+Phase B-3.1: Line Number Validation & Truncation Handling
 
 Usage:
     from review_comment_schema import parse_review_comment, normalize_review_comments
@@ -24,9 +27,15 @@ Usage:
 
     # Normalize a list of comments
     normalized = normalize_review_comments(raw_comments)
+
+    # Parse diff and validate inline comments (Phase B-3.1)
+    from review_comment_schema import parse_diff_allowed_lines, validate_inline_comments
+    allowed_lines = parse_diff_allowed_lines(diff_content)
+    valid, invalid = validate_inline_comments(comments, allowed_lines)
 """
 import logging
-from typing import Any, Dict, List, Optional, TypedDict, Literal, get_args
+import re
+from typing import Any, Dict, List, Optional, TypedDict, Literal, get_args, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -472,3 +481,356 @@ def merge_review_comments(
     normalized_llm = normalize_review_comments(llm_comments, "llm", preserve_raw)
 
     return normalized_ci + normalized_llm
+
+
+# =============================================================================
+# Phase B-3.1: Unified Diff Parser and Inline Comment Validator
+# =============================================================================
+# These functions address three high-risk items:
+# 1. Line number semantics: Clarify that line numbers are RIGHT-side file lines
+# 2. Truncated diff handling: Validate comments against visible diff hunks
+# 3. Partial patch detection: Detect and handle truncated patches per file
+# =============================================================================
+
+# Regex patterns for unified diff parsing
+DIFF_FILE_HEADER_PATTERN = re.compile(r'^--- a/(.+)$', re.MULTILINE)
+DIFF_NEW_FILE_HEADER_PATTERN = re.compile(r'^\+\+\+ b/(.+)$', re.MULTILINE)
+DIFF_HUNK_HEADER_PATTERN = re.compile(
+    r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@',
+    re.MULTILINE
+)
+# Sentinel for truncated patches (from get_pr_diff)
+TRUNCATION_SENTINEL = "... (truncated"
+
+
+class DiffFileInfo(TypedDict):
+    """Information about a file in the diff."""
+    filename: str
+    allowed_lines: Set[int]  # RIGHT-side line numbers that appear in diff
+    patch_truncated: bool  # Whether the patch was truncated mid-file
+
+
+def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
+    """
+    Parse unified diff to extract valid RIGHT-side line numbers per file.
+
+    Phase B-3.1: Line Number Validation
+    Issue #2595: EPIC B - Diff-Aware Review Plumbing
+
+    This function parses the unified diff that was sent to the LLM and extracts
+    the set of RIGHT-side (new file) line numbers that appear in each file's
+    diff hunks. This is used to validate inline comments before posting to GitHub.
+
+    GitHub's inline comment API requires that the line number exists in the
+    PR's diff context. Comments referencing lines outside the diff will fail
+    with 422 errors.
+
+    Algorithm:
+    1. Split diff by file sections (--- a/... and +++ b/...)
+    2. For each file, parse hunk headers (@@ -old,len +new,len @@)
+    3. Walk hunk body lines and track RIGHT-side line numbers:
+       - ' ' (context): allow this line, increment both counters
+       - '+' (addition): allow this line, increment new counter only
+       - '-' (deletion): increment old counter only, don't allow
+    4. Detect truncation sentinel to mark patch_truncated=True
+
+    Args:
+        diff_content: Unified diff string (from get_pr_diff)
+
+    Returns:
+        Dict mapping filename to DiffFileInfo with allowed_lines set
+    """
+    if not diff_content:
+        return {}
+
+    result: Dict[str, DiffFileInfo] = {}
+
+    # Split by file sections
+    # Each file section starts with "--- a/filename" and "+++ b/filename"
+    lines = diff_content.split('\n')
+    current_file: Optional[str] = None
+    current_allowed: Set[int] = set()
+    current_truncated = False
+    new_line_counter = 0
+    in_hunk = False
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Check for new file header
+        if line.startswith('+++ b/'):
+            # Save previous file if exists
+            if current_file is not None:
+                result[current_file] = {
+                    "filename": current_file,
+                    "allowed_lines": current_allowed,
+                    "patch_truncated": current_truncated
+                }
+
+            # Extract filename (handle +++ b/dev/null for deleted files)
+            if line == '+++ b/dev/null' or line.startswith('+++ /dev/null'):
+                # Deleted file - no RIGHT-side lines allowed
+                current_file = None
+            else:
+                # Remove "+++ b/" prefix and handle quoted paths
+                # Git may quote paths with spaces or special chars: +++ b/"path with spaces.txt"
+                raw_path = line[6:]
+                if raw_path.startswith('"') and raw_path.endswith('"'):
+                    raw_path = raw_path[1:-1]  # Strip surrounding quotes
+                current_file = raw_path
+                current_allowed = set()
+                current_truncated = False
+            in_hunk = False
+            i += 1
+            continue
+
+        # Check for hunk header
+        hunk_match = DIFF_HUNK_HEADER_PATTERN.match(line)
+        if hunk_match and current_file is not None:
+            # Parse hunk header: @@ -old_start,old_len +new_start,new_len @@
+            new_start = int(hunk_match.group(3))
+            new_line_counter = new_start
+            in_hunk = True
+            i += 1
+            continue
+
+        # Check for truncation sentinel
+        if TRUNCATION_SENTINEL in line:
+            if current_file is not None:
+                current_truncated = True
+            in_hunk = False
+            i += 1
+            continue
+
+        # Process hunk body lines
+        if in_hunk and current_file is not None and line:
+            first_char = line[0] if line else ''
+
+            if first_char == ' ':
+                # Context line: appears on both sides
+                current_allowed.add(new_line_counter)
+                new_line_counter += 1
+            elif first_char == '+':
+                # Addition: only on RIGHT side
+                current_allowed.add(new_line_counter)
+                new_line_counter += 1
+            elif first_char == '-':
+                # Deletion: only on LEFT side, don't add to allowed
+                pass
+            elif first_char == '\\':
+                # "\ No newline at end of file" - ignore
+                pass
+            else:
+                # Unknown line or end of hunk
+                # Could be start of new hunk or file
+                pass
+
+        i += 1
+
+    # Save last file
+    if current_file is not None:
+        result[current_file] = {
+            "filename": current_file,
+            "allowed_lines": current_allowed,
+            "patch_truncated": current_truncated
+        }
+
+    logger.debug(
+        f"[ReviewCommentSchema] Parsed diff: {len(result)} files, "
+        f"truncated files: {sum(1 for f in result.values() if f['patch_truncated'])}"
+    )
+
+    return result
+
+
+def is_line_in_diff(
+    file_path: str,
+    start_line: Optional[int],
+    end_line: Optional[int],
+    allowed_lines_map: Dict[str, DiffFileInfo]
+) -> Tuple[bool, str]:
+    """
+    Check if a comment's line range is valid within the diff.
+
+    Phase B-3.1: Inline Comment Validation
+
+    Args:
+        file_path: File path from the comment
+        start_line: Start line number (1-indexed)
+        end_line: End line number (1-indexed)
+        allowed_lines_map: Result from parse_diff_allowed_lines
+
+    Returns:
+        Tuple of (is_valid, reason)
+        - is_valid: True if the line range is fully contained in the diff
+        - reason: Human-readable reason if invalid
+    """
+    if not file_path:
+        return False, "missing_file_path"
+
+    if file_path not in allowed_lines_map:
+        return False, "file_not_in_diff"
+
+    file_info = allowed_lines_map[file_path]
+
+    # Note: Truncated patch handling is done in validate_inline_comments()
+    # with strict_truncated flag. Here we just check if lines are visible.
+
+    if end_line is None:
+        return False, "missing_end_line"
+
+    # Check if all lines in range are allowed
+    start = start_line if start_line is not None else end_line
+    allowed = file_info["allowed_lines"]
+
+    for line_num in range(start, end_line + 1):
+        if line_num not in allowed:
+            return False, f"line_{line_num}_not_in_diff"
+
+    return True, "valid"
+
+
+def validate_inline_comments(
+    comments: List[ReviewComment],
+    allowed_lines_map: Dict[str, DiffFileInfo],
+    strict_truncated: bool = True
+) -> Tuple[List[ReviewComment], List[ReviewComment]]:
+    """
+    Validate inline comments against the diff and split into valid/invalid.
+
+    Phase B-3.1: Inline Comment Validation
+    Issue #2595: EPIC B - Diff-Aware Review Plumbing
+
+    This function gates inline comments through a deterministic validator
+    that checks if each comment's target lines exist in the diff that was
+    shown to the LLM. Invalid comments are downgraded to file-level.
+
+    Args:
+        comments: List of normalized ReviewComment objects
+        allowed_lines_map: Result from parse_diff_allowed_lines
+        strict_truncated: If True, reject all inline comments for files
+                         with truncated patches (safer but loses some value)
+
+    Returns:
+        Tuple of (valid_inline_comments, invalid_comments)
+        - valid_inline_comments: Comments that can be posted as inline
+        - invalid_comments: Comments that failed validation (downgraded)
+    """
+    valid: List[ReviewComment] = []
+    invalid: List[ReviewComment] = []
+
+    for comment in comments:
+        # Skip non-inline comments (no file or line info)
+        if not is_inline_comment(comment):
+            # Already file-level, pass through as valid
+            valid.append(comment)
+            continue
+
+        file_path = comment.get("file")
+        start_line = comment.get("start_line")
+        end_line = comment.get("end_line")
+
+        # Check if file has truncated patch
+        if strict_truncated and file_path in allowed_lines_map:
+            file_info = allowed_lines_map[file_path]
+            if file_info["patch_truncated"]:
+                # Downgrade: strip line info
+                downgraded = _downgrade_to_file_level(
+                    comment, "patch_truncated"
+                )
+                invalid.append(downgraded)
+                continue
+
+        # Validate line range
+        is_valid, reason = is_line_in_diff(
+            file_path, start_line, end_line, allowed_lines_map
+        )
+
+        if is_valid:
+            valid.append(comment)
+        else:
+            # Downgrade: strip line info
+            downgraded = _downgrade_to_file_level(comment, reason)
+            invalid.append(downgraded)
+
+    if invalid:
+        logger.warning(
+            f"[ReviewCommentSchema] Downgraded {len(invalid)} comments "
+            f"to file-level due to line validation failures",
+            extra={
+                "operation": "validate_inline_comments",
+                "valid_count": len(valid),
+                "invalid_count": len(invalid)
+            }
+        )
+
+    return valid, invalid
+
+
+def _downgrade_to_file_level(
+    comment: ReviewComment,
+    reason: str
+) -> ReviewComment:
+    """
+    Downgrade an inline comment to file-level by stripping line info.
+
+    Args:
+        comment: Original comment with line info
+        reason: Reason for downgrade (for logging/debugging)
+
+    Returns:
+        New comment dict without line info
+    """
+    downgraded: ReviewComment = {
+        "message": comment["message"],
+        "severity": comment.get("severity", "info"),
+        "category": comment.get("category", "other"),
+        "source": comment.get("source", "llm"),
+        "schema_version": comment.get("schema_version", SCHEMA_VERSION),
+    }
+
+    # Keep file path for file-level comment
+    if comment.get("file"):
+        downgraded["file"] = comment["file"]
+
+    # Add downgrade reason to message for transparency
+    downgraded["message"] = (
+        f"[Line info removed: {reason}] {comment['message']}"
+    )
+
+    logger.debug(
+        f"[ReviewCommentSchema] Downgraded comment for {comment.get('file')}: "
+        f"lines {comment.get('start_line')}-{comment.get('end_line')} -> "
+        f"file-level (reason: {reason})"
+    )
+
+    return downgraded
+
+
+def get_diff_coverage_info(
+    allowed_lines_map: Dict[str, DiffFileInfo]
+) -> Dict[str, Any]:
+    """
+    Get summary information about diff coverage for logging/debugging.
+
+    Args:
+        allowed_lines_map: Result from parse_diff_allowed_lines
+
+    Returns:
+        Dict with coverage statistics
+    """
+    total_files = len(allowed_lines_map)
+    truncated_files = sum(
+        1 for f in allowed_lines_map.values() if f["patch_truncated"]
+    )
+    total_lines = sum(
+        len(f["allowed_lines"]) for f in allowed_lines_map.values()
+    )
+
+    return {
+        "total_files": total_files,
+        "truncated_files": truncated_files,
+        "total_allowed_lines": total_lines,
+        "files": list(allowed_lines_map.keys())
+    }

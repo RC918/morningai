@@ -606,3 +606,459 @@ class TestValidCategoriesConstant:
         """Category normalization should be case-insensitive"""
         for category in VALID_CATEGORIES:
             assert _normalize_category(category.upper()) == category
+
+
+# =============================================================================
+# Phase B-3.1: Diff Parser and Inline Comment Validator Tests
+# =============================================================================
+# Note: These imports are placed here to group related tests together.
+# The functions are imported from the same module as the tests above.
+
+from review_comment_schema import (  # noqa: E402
+    parse_diff_allowed_lines,
+    is_line_in_diff,
+    validate_inline_comments,
+    get_diff_coverage_info,
+)
+
+
+class TestParseDiffAllowedLines:
+    """Tests for parse_diff_allowed_lines function (Phase B-3.1)"""
+
+    def test_empty_diff_returns_empty_dict(self):
+        """Empty diff should return empty dict"""
+        assert parse_diff_allowed_lines("") == {}
+        assert parse_diff_allowed_lines(None) == {}
+
+    def test_simple_addition_diff(self):
+        """Simple diff with additions should extract RIGHT-side lines"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,3 +1,5 @@
+ line1
++new_line2
++new_line3
+ line4
+ line5
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        file_info = result["test.py"]
+        # Lines 1, 2, 3, 4, 5 should be allowed (context + additions)
+        assert 1 in file_info["allowed_lines"]
+        assert 2 in file_info["allowed_lines"]
+        assert 3 in file_info["allowed_lines"]
+        assert 4 in file_info["allowed_lines"]
+        assert 5 in file_info["allowed_lines"]
+        assert not file_info["patch_truncated"]
+
+    def test_deletion_only_diff(self):
+        """Deletions should not be in allowed lines"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,5 +1,3 @@
+ line1
+-deleted_line2
+-deleted_line3
+ line4
+ line5
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        file_info = result["test.py"]
+        # Only lines 1, 2, 3 should be allowed (context lines after deletion)
+        assert 1 in file_info["allowed_lines"]
+        assert 2 in file_info["allowed_lines"]
+        assert 3 in file_info["allowed_lines"]
+        # Line 4 and 5 from old file are deleted, not in new file
+        assert len(file_info["allowed_lines"]) == 3
+
+    def test_multiple_hunks(self):
+        """Multiple hunks should all be parsed"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,3 +1,4 @@
+ line1
++new_line2
+ line3
+ line4
+@@ -10,3 +11,4 @@
+ line11
++new_line12
+ line13
+ line14
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        file_info = result["test.py"]
+        # First hunk: lines 1-4
+        assert 1 in file_info["allowed_lines"]
+        assert 2 in file_info["allowed_lines"]
+        assert 3 in file_info["allowed_lines"]
+        assert 4 in file_info["allowed_lines"]
+        # Second hunk: lines 11-14
+        assert 11 in file_info["allowed_lines"]
+        assert 12 in file_info["allowed_lines"]
+        assert 13 in file_info["allowed_lines"]
+        assert 14 in file_info["allowed_lines"]
+
+    def test_multiple_files(self):
+        """Multiple files should all be parsed"""
+        diff = """--- a/file1.py
++++ b/file1.py
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+ line3
+--- a/file2.py
++++ b/file2.py
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+ line3
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "file1.py" in result
+        assert "file2.py" in result
+        assert 1 in result["file1.py"]["allowed_lines"]
+        assert 1 in result["file2.py"]["allowed_lines"]
+
+    def test_truncated_patch_detection(self):
+        """Truncation sentinel should mark patch as truncated"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,3 +1,5 @@
+ line1
++new_line2
+... (truncated 50 more lines)
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        assert result["test.py"]["patch_truncated"] is True
+
+    def test_deleted_file_not_in_result(self):
+        """Deleted files (b/dev/null) should not be in result"""
+        diff = """--- a/deleted.py
++++ b/dev/null
+@@ -1,3 +0,0 @@
+-line1
+-line2
+-line3
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        # Deleted file should not be in result (no RIGHT-side lines)
+        assert "deleted.py" not in result
+        assert "dev/null" not in result
+
+    def test_no_newline_at_end_of_file(self):
+        """'No newline at end of file' marker should be ignored"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+ line3
+\\ No newline at end of file
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        # Should have 3 allowed lines
+        assert len(result["test.py"]["allowed_lines"]) == 3
+
+    def test_quoted_path_parsing(self):
+        """Quoted paths (with spaces or special chars) should be parsed correctly"""
+        diff = '''--- a/"path with spaces.txt"
++++ b/"path with spaces.txt"
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+ line3
+'''
+        result = parse_diff_allowed_lines(diff)
+
+        # Should extract filename without quotes
+        assert "path with spaces.txt" in result
+        file_info = result["path with spaces.txt"]
+        assert 1 in file_info["allowed_lines"]
+        assert 2 in file_info["allowed_lines"]
+        assert 3 in file_info["allowed_lines"]
+        assert not file_info["patch_truncated"]
+
+
+class TestIsLineInDiff:
+    """Tests for is_line_in_diff function (Phase B-3.1)"""
+
+    def test_valid_line_in_diff(self):
+        """Valid line should return True"""
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3, 4, 5},
+                "patch_truncated": False
+            }
+        }
+
+        is_valid, reason = is_line_in_diff("test.py", 2, 4, allowed_lines_map)
+        assert is_valid is True
+        assert reason == "valid"
+
+    def test_line_not_in_diff(self):
+        """Line outside diff should return False"""
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": False
+            }
+        }
+
+        is_valid, reason = is_line_in_diff("test.py", 1, 5, allowed_lines_map)
+        assert is_valid is False
+        assert "not_in_diff" in reason
+
+    def test_file_not_in_diff(self):
+        """File not in diff should return False"""
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": False
+            }
+        }
+
+        is_valid, reason = is_line_in_diff("other.py", 1, 2, allowed_lines_map)
+        assert is_valid is False
+        assert reason == "file_not_in_diff"
+
+    def test_missing_file_path(self):
+        """Missing file path should return False"""
+        is_valid, reason = is_line_in_diff(None, 1, 2, {})
+        assert is_valid is False
+        assert reason == "missing_file_path"
+
+    def test_missing_end_line(self):
+        """Missing end_line should return False"""
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": False
+            }
+        }
+
+        is_valid, reason = is_line_in_diff("test.py", 1, None, allowed_lines_map)
+        assert is_valid is False
+        assert reason == "missing_end_line"
+
+
+class TestValidateInlineComments:
+    """Tests for validate_inline_comments function (Phase B-3.1)"""
+
+    def test_valid_comments_pass_through(self):
+        """Valid inline comments should pass validation"""
+        comments = [
+            {
+                "message": "Test comment",
+                "file": "test.py",
+                "start_line": 1,
+                "end_line": 2,
+                "severity": "info",
+                "category": "other",
+                "source": "llm",
+                "schema_version": "1.0"
+            }
+        ]
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3, 4, 5},
+                "patch_truncated": False
+            }
+        }
+
+        valid, invalid = validate_inline_comments(comments, allowed_lines_map)
+
+        assert len(valid) == 1
+        assert len(invalid) == 0
+        assert valid[0]["file"] == "test.py"
+
+    def test_invalid_line_downgraded(self):
+        """Comments with invalid lines should be downgraded"""
+        comments = [
+            {
+                "message": "Test comment",
+                "file": "test.py",
+                "start_line": 10,
+                "end_line": 15,
+                "severity": "info",
+                "category": "other",
+                "source": "llm",
+                "schema_version": "1.0"
+            }
+        ]
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": False
+            }
+        }
+
+        valid, invalid = validate_inline_comments(comments, allowed_lines_map)
+
+        assert len(valid) == 0
+        assert len(invalid) == 1
+        # Downgraded comment should have line info removed
+        assert "start_line" not in invalid[0]
+        assert "end_line" not in invalid[0]
+        # But should keep file path
+        assert invalid[0]["file"] == "test.py"
+        # Message should indicate downgrade reason
+        assert "Line info removed" in invalid[0]["message"]
+
+    def test_truncated_patch_strict_mode(self):
+        """Truncated patch in strict mode should downgrade all comments"""
+        comments = [
+            {
+                "message": "Test comment",
+                "file": "test.py",
+                "start_line": 1,
+                "end_line": 2,
+                "severity": "info",
+                "category": "other",
+                "source": "llm",
+                "schema_version": "1.0"
+            }
+        ]
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": True  # Truncated!
+            }
+        }
+
+        valid, invalid = validate_inline_comments(
+            comments, allowed_lines_map, strict_truncated=True
+        )
+
+        assert len(valid) == 0
+        assert len(invalid) == 1
+        assert "patch_truncated" in invalid[0]["message"]
+
+    def test_truncated_patch_non_strict_mode(self):
+        """Truncated patch in non-strict mode should allow valid lines"""
+        comments = [
+            {
+                "message": "Test comment",
+                "file": "test.py",
+                "start_line": 1,
+                "end_line": 2,
+                "severity": "info",
+                "category": "other",
+                "source": "llm",
+                "schema_version": "1.0"
+            }
+        ]
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": True
+            }
+        }
+
+        valid, invalid = validate_inline_comments(
+            comments, allowed_lines_map, strict_truncated=False
+        )
+
+        assert len(valid) == 1
+        assert len(invalid) == 0
+
+    def test_file_level_comments_pass_through(self):
+        """File-level comments (no line info) should pass through"""
+        comments = [
+            {
+                "message": "File-level comment",
+                "severity": "info",
+                "category": "other",
+                "source": "llm",
+                "schema_version": "1.0"
+            }
+        ]
+
+        valid, invalid = validate_inline_comments(comments, {})
+
+        assert len(valid) == 1
+        assert len(invalid) == 0
+
+    def test_file_not_in_diff_downgraded(self):
+        """Comments for files not in diff should be downgraded"""
+        comments = [
+            {
+                "message": "Test comment",
+                "file": "other.py",
+                "start_line": 1,
+                "end_line": 2,
+                "severity": "info",
+                "category": "other",
+                "source": "llm",
+                "schema_version": "1.0"
+            }
+        ]
+        allowed_lines_map = {
+            "test.py": {
+                "filename": "test.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": False
+            }
+        }
+
+        valid, invalid = validate_inline_comments(comments, allowed_lines_map)
+
+        assert len(valid) == 0
+        assert len(invalid) == 1
+        assert "file_not_in_diff" in invalid[0]["message"]
+
+
+class TestGetDiffCoverageInfo:
+    """Tests for get_diff_coverage_info function (Phase B-3.1)"""
+
+    def test_empty_map(self):
+        """Empty map should return zero counts"""
+        info = get_diff_coverage_info({})
+
+        assert info["total_files"] == 0
+        assert info["truncated_files"] == 0
+        assert info["total_allowed_lines"] == 0
+        assert info["files"] == []
+
+    def test_coverage_info_calculation(self):
+        """Coverage info should be calculated correctly"""
+        allowed_lines_map = {
+            "file1.py": {
+                "filename": "file1.py",
+                "allowed_lines": {1, 2, 3},
+                "patch_truncated": False
+            },
+            "file2.py": {
+                "filename": "file2.py",
+                "allowed_lines": {1, 2},
+                "patch_truncated": True
+            }
+        }
+
+        info = get_diff_coverage_info(allowed_lines_map)
+
+        assert info["total_files"] == 2
+        assert info["truncated_files"] == 1
+        assert info["total_allowed_lines"] == 5
+        assert "file1.py" in info["files"]
+        assert "file2.py" in info["files"]
