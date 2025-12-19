@@ -19,7 +19,12 @@ from tools.github_api import (  # noqa: E402
     DIFF_MAX_LINES,
     DIFF_MAX_SIZE_BYTES,
     DIFF_PRIORITY_EXTENSIONS,
-    DIFF_MIN_REMAINING_LINES_FOR_PARTIAL
+    DIFF_MIN_REMAINING_LINES_FOR_PARTIAL,
+    # Phase B-2.5: Ignore list constants (#2702)
+    DIFF_IGNORE_FILENAMES,
+    DIFF_IGNORE_EXTENSIONS,
+    DIFF_IGNORE_PATH_PATTERNS,
+    _should_ignore_file
 )
 
 
@@ -714,3 +719,252 @@ class TestPromptGeneration:
 
         assert "cannot see the actual code changes" in prompt.lower()
         assert "```diff" not in prompt
+
+
+class TestPhaseB25IgnoreList:
+    """
+    Test suite for Phase B-2.5 Ignore List (#2702)
+    Tests for filtering lockfiles and generated assets from diff
+    """
+
+    def test_ignore_filenames_contains_lockfiles(self):
+        """Test that DIFF_IGNORE_FILENAMES contains common lockfiles"""
+        assert 'package-lock.json' in DIFF_IGNORE_FILENAMES
+        assert 'yarn.lock' in DIFF_IGNORE_FILENAMES
+        assert 'pnpm-lock.yaml' in DIFF_IGNORE_FILENAMES
+        assert 'go.sum' in DIFF_IGNORE_FILENAMES
+        assert 'Cargo.lock' in DIFF_IGNORE_FILENAMES
+        assert 'Gemfile.lock' in DIFF_IGNORE_FILENAMES
+        assert 'poetry.lock' in DIFF_IGNORE_FILENAMES
+        assert 'composer.lock' in DIFF_IGNORE_FILENAMES
+        assert 'Pipfile.lock' in DIFF_IGNORE_FILENAMES
+
+    def test_ignore_extensions_contains_minified(self):
+        """Test that DIFF_IGNORE_EXTENSIONS contains minified/compiled files"""
+        assert '.min.js' in DIFF_IGNORE_EXTENSIONS
+        assert '.min.css' in DIFF_IGNORE_EXTENSIONS
+        assert '.map' in DIFF_IGNORE_EXTENSIONS
+        assert '.pyc' in DIFF_IGNORE_EXTENSIONS
+        assert '.pyo' in DIFF_IGNORE_EXTENSIONS
+        assert '.class' in DIFF_IGNORE_EXTENSIONS
+
+    def test_ignore_path_patterns_contains_build_dirs(self):
+        """Test that DIFF_IGNORE_PATH_PATTERNS contains build directories"""
+        assert 'dist/' in DIFF_IGNORE_PATH_PATTERNS
+        assert 'build/' in DIFF_IGNORE_PATH_PATTERNS
+        assert '.next/' in DIFF_IGNORE_PATH_PATTERNS
+        assert 'node_modules/' in DIFF_IGNORE_PATH_PATTERNS
+        assert '__pycache__/' in DIFF_IGNORE_PATH_PATTERNS
+
+    def test_should_ignore_file_lockfiles(self):
+        """Test _should_ignore_file correctly identifies lockfiles"""
+        assert _should_ignore_file('package-lock.json') is True
+        assert _should_ignore_file('yarn.lock') is True
+        assert _should_ignore_file('src/package-lock.json') is True
+        assert _should_ignore_file('nested/dir/yarn.lock') is True
+
+    def test_should_ignore_file_minified(self):
+        """Test _should_ignore_file correctly identifies minified files"""
+        assert _should_ignore_file('app.min.js') is True
+        assert _should_ignore_file('styles.min.css') is True
+        assert _should_ignore_file('bundle.js.map') is True
+        assert _should_ignore_file('src/assets/app.min.js') is True
+
+    def test_should_ignore_file_build_dirs(self):
+        """Test _should_ignore_file correctly identifies build directory files"""
+        assert _should_ignore_file('dist/bundle.js') is True
+        assert _should_ignore_file('build/output.js') is True
+        assert _should_ignore_file('.next/static/chunks/main.js') is True
+        assert _should_ignore_file('node_modules/lodash/index.js') is True
+        assert _should_ignore_file('__pycache__/module.cpython-39.pyc') is True
+
+    def test_should_ignore_file_normal_files(self):
+        """Test _should_ignore_file does NOT ignore normal source files"""
+        assert _should_ignore_file('src/main.py') is False
+        assert _should_ignore_file('app.ts') is False
+        assert _should_ignore_file('components/Button.tsx') is False
+        assert _should_ignore_file('README.md') is False
+        assert _should_ignore_file('package.json') is False  # Not lockfile
+
+    def test_get_pr_diff_filters_lockfiles(self):
+        """Test that get_pr_diff filters out lockfiles"""
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        # Create a mix of normal and lockfile changes
+        mock_file_py = MagicMock()
+        mock_file_py.filename = "main.py"
+        mock_file_py.status = "modified"
+        mock_file_py.additions = 10
+        mock_file_py.deletions = 5
+        mock_file_py.changes = 15
+        mock_file_py.patch = "+code"
+
+        mock_file_lock = MagicMock()
+        mock_file_lock.filename = "package-lock.json"
+        mock_file_lock.status = "modified"
+        mock_file_lock.additions = 1000
+        mock_file_lock.deletions = 500
+        mock_file_lock.changes = 1500
+        mock_file_lock.patch = "+lockfile content"
+
+        mock_pr.get_files.return_value = [mock_file_py, mock_file_lock]
+        mock_repo.get_pull.return_value = mock_pr
+
+        result = get_pr_diff(mock_repo, 123)
+
+        # Only main.py should be included
+        assert len(result["files"]) == 1
+        assert result["files"][0]["filename"] == "main.py"
+
+        # Truncation info should track ignored files
+        assert result["truncation_info"]["ignored_file_count"] == 1
+        assert "package-lock.json" in result["truncation_info"]["ignored_filenames"]
+
+    def test_get_pr_diff_filters_minified_files(self):
+        """Test that get_pr_diff filters out minified files"""
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        mock_file_ts = MagicMock()
+        mock_file_ts.filename = "app.ts"
+        mock_file_ts.status = "modified"
+        mock_file_ts.additions = 20
+        mock_file_ts.deletions = 10
+        mock_file_ts.changes = 30
+        mock_file_ts.patch = "+typescript"
+
+        mock_file_min = MagicMock()
+        mock_file_min.filename = "dist/app.min.js"
+        mock_file_min.status = "modified"
+        mock_file_min.additions = 1
+        mock_file_min.deletions = 1
+        mock_file_min.changes = 2
+        mock_file_min.patch = "+minified"
+
+        mock_pr.get_files.return_value = [mock_file_ts, mock_file_min]
+        mock_repo.get_pull.return_value = mock_pr
+
+        result = get_pr_diff(mock_repo, 123)
+
+        assert len(result["files"]) == 1
+        assert result["files"][0]["filename"] == "app.ts"
+        assert result["truncation_info"]["ignored_file_count"] == 1
+
+    def test_get_pr_diff_only_lockfiles_returns_empty(self):
+        """Test that PR with only lockfiles returns empty diff"""
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        mock_file_lock1 = MagicMock()
+        mock_file_lock1.filename = "package-lock.json"
+        mock_file_lock1.status = "modified"
+        mock_file_lock1.additions = 100
+        mock_file_lock1.deletions = 50
+        mock_file_lock1.changes = 150
+        mock_file_lock1.patch = "+lock1"
+
+        mock_file_lock2 = MagicMock()
+        mock_file_lock2.filename = "yarn.lock"
+        mock_file_lock2.status = "modified"
+        mock_file_lock2.additions = 200
+        mock_file_lock2.deletions = 100
+        mock_file_lock2.changes = 300
+        mock_file_lock2.patch = "+lock2"
+
+        mock_pr.get_files.return_value = [mock_file_lock1, mock_file_lock2]
+        mock_repo.get_pull.return_value = mock_pr
+
+        result = get_pr_diff(mock_repo, 123)
+
+        # Should return empty diff for metadata-only review
+        assert result["diff"] == ""
+        assert result["files"] == []
+        assert result["truncation_info"]["ignored_file_count"] == 2
+        assert result["truncation_info"]["original_file_count"] == 2
+
+    def test_get_pr_diff_mixed_files_filtering(self):
+        """Test filtering with mixed file types"""
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        files = []
+        # Normal files (should be included)
+        for name in ["src/main.py", "app.ts", "README.md"]:
+            f = MagicMock()
+            f.filename = name
+            f.status = "modified"
+            f.additions = 5
+            f.deletions = 2
+            f.changes = 7
+            f.patch = "+content"
+            files.append(f)
+
+        # Ignored files (should be filtered)
+        for name in ["package-lock.json", "dist/bundle.min.js", "node_modules/pkg/index.js"]:
+            f = MagicMock()
+            f.filename = name
+            f.status = "modified"
+            f.additions = 100
+            f.deletions = 50
+            f.changes = 150
+            f.patch = "+ignored"
+            files.append(f)
+
+        mock_pr.get_files.return_value = files
+        mock_repo.get_pull.return_value = mock_pr
+
+        result = get_pr_diff(mock_repo, 123)
+
+        # Only 3 normal files should be included
+        assert len(result["files"]) == 3
+        filenames = [f["filename"] for f in result["files"]]
+        assert "src/main.py" in filenames
+        assert "app.ts" in filenames
+        assert "README.md" in filenames
+
+        # 3 files should be ignored
+        assert result["truncation_info"]["ignored_file_count"] == 3
+        assert result["truncation_info"]["original_file_count"] == 6
+
+    def test_ignored_filenames_sample_limited_to_5(self):
+        """Test that ignored_filenames only stores first 5 filenames"""
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        files = []
+        # Create 10 lockfiles
+        lockfile_names = [
+            "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+            "go.sum", "Cargo.lock", "Gemfile.lock",
+            "poetry.lock", "composer.lock", "Pipfile.lock",
+            "nested/package-lock.json"
+        ]
+        for name in lockfile_names:
+            f = MagicMock()
+            f.filename = name
+            f.status = "modified"
+            f.additions = 10
+            f.deletions = 5
+            f.changes = 15
+            f.patch = "+lock"
+            files.append(f)
+
+        # Add one normal file
+        normal = MagicMock()
+        normal.filename = "main.py"
+        normal.status = "modified"
+        normal.additions = 5
+        normal.deletions = 2
+        normal.changes = 7
+        normal.patch = "+code"
+        files.append(normal)
+
+        mock_pr.get_files.return_value = files
+        mock_repo.get_pull.return_value = mock_pr
+
+        result = get_pr_diff(mock_repo, 123)
+
+        # Should have 10 ignored files but only 5 in sample
+        assert result["truncation_info"]["ignored_file_count"] == 10
+        assert len(result["truncation_info"]["ignored_filenames"]) == 5
