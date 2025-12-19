@@ -3566,17 +3566,22 @@ def run_orchestrator(
                 pr_number = 0
         pr_url = context.get("pr_url") or context.get("url") or ""
 
-    # Observability log: always print pr_number, pr_url, trace_id
+    # Observability log: always print pr_number, pr_url, trace_id in message
     # Issue: Phase B-B - Avoid black-box issues where upstream extracts but downstream doesn't receive
-    logger.info("Starting LangGraph orchestrator", extra={
-        "operation": "run_orchestrator",
-        "trace_id": trace_id,
-        "goal": goal[:50],
-        "repo": repo,
-        "pr_number": pr_number,
-        "pr_url": pr_url,
-        "has_context": context is not None,
-    })
+    # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
+    has_context = context is not None
+    logger.info(
+        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url={pr_url} has_context={has_context}",
+        extra={
+            "operation": "run_orchestrator",
+            "trace_id": trace_id,
+            "goal": goal[:50],
+            "repo": repo,
+            "pr_number": pr_number,
+            "pr_url": pr_url,
+            "has_context": has_context,
+        }
+    )
 
     metrics.record_workflow_start(trace_id, goal)
 
@@ -3607,12 +3612,18 @@ def run_orchestrator(
 
         final_result = result.get("final_result", {})
 
-        logger.info("LangGraph orchestrator completed", extra={
-            "operation": "run_orchestrator",
-            "trace_id": trace_id,
-            "status": final_result.get("status"),
-            "pr_url": final_result.get("pr_url")
-        })
+        # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
+        result_status = final_result.get("status")
+        result_pr_url = final_result.get("pr_url")
+        logger.info(
+            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url={result_pr_url}",
+            extra={
+                "operation": "run_orchestrator",
+                "trace_id": trace_id,
+                "status": result_status,
+                "pr_url": result_pr_url
+            }
+        )
 
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
