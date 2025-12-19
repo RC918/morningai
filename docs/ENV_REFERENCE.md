@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 223
+- **Total Variables**: 220
 - **Required**: 21
-- **Optional**: 202
+- **Optional**: 199
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -32,7 +32,7 @@
 - [Integration](#integration) (19 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
-- [Feature Flags](#feature-flags) (59 variables)
+- [Feature Flags](#feature-flags) (56 variables)
 - [Orchestrator](#orchestrator) (6 variables)
 - [Frontend](#frontend) (6 variables)
 - [Testing](#testing) (16 variables)
@@ -1679,9 +1679,6 @@ Application logging level
 | `PREAUTH_TOKEN_TTL` | integer | No | 300 | PUBLIC |
 | `ENABLE_MOCK_USERS` | boolean | No | false | CRITICAL |
 | `ENABLE_ORCHESTRATOR` | boolean | No | true | PUBLIC |
-| `USE_LANGGRAPH` | boolean | No | false | PUBLIC |
-| `USE_LANGGRAPH_PERCENT` | integer | No | 0 (development=0, production=0, staging=15) | PUBLIC |
-| `USE_LANGGRAPH_FOR_FAQ` | boolean | No | false | PUBLIC |
 | `ROLLOUT_TRACKER_ENABLED` | boolean | No | true | PUBLIC |
 | `USE_LLM_PLANNER` | boolean | No | false | PUBLIC |
 | `USE_CODE_GENERATION` | boolean | No | false | PUBLIC |
@@ -1882,58 +1879,6 @@ Enable orchestrator/agent routes (set to false in CI/E2E to bypass Redis/TLS dep
 > - true (default): Agent routes enabled for production use
 > - false: Agent routes disabled (used in CI/E2E tests to avoid Redis TLS requirements)
 > When disabled, only core authentication and application routes are available.
-
-#### `USE_LANGGRAPH`
-
-Enable LangGraph orchestrator mode (default: simple mode)
-
-- **Type**: boolean
-- **Required**: No
-- **Default**: `false`
-- **Security Level**: PUBLIC
-
-**Notes**:
-> Controls orchestrator execution mode:
-> - false (default): Simple mode for faster response
-> - true: LangGraph mode with full stateful workflow and retry logic
-
-#### `USE_LANGGRAPH_PERCENT`
-
-Percentage of tasks to use LangGraph mode (0-100, for canary rollout)
-
-- **Type**: integer
-- **Required**: No
-- **Default**: `0`
-- **Security Level**: PUBLIC
-
-**Notes**:
-> Canary rollout mechanism for LangGraph. Takes precedence over USE_LANGGRAPH.
-> Example: 15 = 15% of tasks use LangGraph, 85% use simple mode.
-> Recommended rollout phases (see ADR-005):
-> - Phase 1: 5% (baseline metrics)
-> - Phase 2: 15% (staging validation)
-> - Phase 3: 25% (expanded canary)
-> - Phase 4: 50% (majority traffic)
-> - Phase 5: 100% (full rollout)
-
-**Environment-specific values**:
-- development: `0`
-- production: `0`
-- staging: `15`
-
-#### `USE_LANGGRAPH_FOR_FAQ`
-
-Enable LangGraph mode for FAQ tasks (default false to preserve low latency)
-
-- **Type**: boolean
-- **Required**: No
-- **Default**: `false`
-- **Security Level**: PUBLIC
-
-**Notes**:
-> FAQ tasks bypass LangGraph by default due to latency requirements.
-> Set to true to experiment with LangGraph for FAQ generation.
-> Only effective when USE_LANGGRAPH=true or USE_LANGGRAPH_PERCENT>0.
 
 #### `ROLLOUT_TRACKER_ENABLED`
 

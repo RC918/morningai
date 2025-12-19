@@ -350,7 +350,8 @@ class MonitoringDashboard:
             canary_p95_threshold = int(os.environ.get('CANARY_P95_MS_THRESHOLD', 2500))
             canary_5xx_threshold = float(os.environ.get('CANARY_5XX_RATE_THRESHOLD', 1.0))
             canary_failure_threshold = float(os.environ.get('CANARY_FAILURE_RATE_THRESHOLD', 5.0))
-            use_langgraph_percent = int(os.environ.get('USE_LANGGRAPH_PERCENT', 0))
+            # USE_LANGGRAPH_PERCENT removed in Issue #2651
+            # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
             
             canary_metrics = create_canary_metrics(redis_client, enabled=True)
             summary = canary_metrics.get_canary_summary(window_minutes=canary_window_minutes)
@@ -380,7 +381,7 @@ class MonitoringDashboard:
             }
             
             summary['flags'] = {
-                'use_langgraph_percent': use_langgraph_percent,
+                'mode': 'langgraph',  # Always LangGraph now (Simple Mode removed)
                 'window_minutes': canary_window_minutes
             }
             

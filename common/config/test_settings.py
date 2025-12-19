@@ -109,10 +109,12 @@ class TestEnvironmentVariableLoading:
     
     def test_integer_fields_converted_correctly(self):
         """Integer fields should convert string values correctly"""
-        with patch.dict(os.environ, {'USE_LANGGRAPH_PERCENT': '75'}):
+        # USE_LANGGRAPH_PERCENT removed in Issue #2651 (Simple Mode removal)
+        # Test with another integer field instead
+        with patch.dict(os.environ, {'PREAUTH_TOKEN_TTL': '600'}):
             instance = Settings()
-            assert instance.use_langgraph_percent == 75
-            assert isinstance(instance.use_langgraph_percent, int)
+            assert instance.preauth_token_ttl == 600
+            assert isinstance(instance.preauth_token_ttl, int)
     
     def test_optional_fields_can_be_none(self):
         """Optional fields can be None when not set"""

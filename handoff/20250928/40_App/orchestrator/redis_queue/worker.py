@@ -390,19 +390,14 @@ def run_orchestrator_task(
     Execute orchestrator with retry logic (used by API for agent tasks)
     Configured with ttl=600, result_ttl=86400, failure_ttl=3600
     
-    Supports two modes:
-    - LangGraph mode (USE_LANGGRAPH=true): Full stateful workflow with retry logic
-    - Simple mode (default): Direct execution for faster response
-    
-    FAQ tasks always use Simple mode to avoid LangGraph 12-node overhead.
+    Uses LangGraph orchestrator for all tasks (Simple Mode removed as of 2025-12-18).
+    See Issue #2651 for migration details.
     
     Args:
         task_id: Unique task identifier (also used as trace_id)
         question: FAQ question or topic
         repo: GitHub repository (owner/repo format)
-        task_type: Task type for routing decisions (default: "faq")
-                   - "faq": Always uses Simple mode (skips LangGraph)
-                   - Other types: Subject to canary routing logic
+        task_type: Task type for logging/metrics (default: "faq")
         context: Optional context dict from webhook containing PR info:
                  - resource_id: PR number from webhook event
                  - resource_type: "pull_request" for PR events
@@ -432,71 +427,30 @@ def run_orchestrator_task(
             logger.warning(f"Failed to initialize rollout tracker: {e}")
             _rollout_tracker = None
     
-    use_langgraph = settings.use_langgraph or False
-    use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
-    use_langgraph_for_faq = getattr(settings, 'use_langgraph_for_faq', False) is True
-    
-    if task_type == "faq" and not use_langgraph_for_faq:
-        logger.info(
-            "[Routing] FAQ task detected, forcing simple orchestrator path (USE_LANGGRAPH_FOR_FAQ=false)",
-            extra={
-                "operation": "routing",
-                "task_id": task_id,
-                "task_type": task_type,
-                "original_use_langgraph": use_langgraph,
-                "original_use_langgraph_percent": use_langgraph_percent,
-                "use_langgraph_for_faq": use_langgraph_for_faq
-            }
-        )
-        use_langgraph = False
-    elif not use_langgraph and use_langgraph_percent > 0:
-        import hashlib
-        task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
-        task_percent = task_hash % 100
-        use_langgraph = task_percent < use_langgraph_percent
-        
-        logger.info(
-            f"Canary deployment: task_percent={task_percent}, threshold={use_langgraph_percent}, use_langgraph={use_langgraph}",
-            extra={
-                "operation": "canary_selection",
-                "task_id": task_id,
-                "task_type": task_type,
-                "task_percent": task_percent,
-                "use_langgraph_percent": use_langgraph_percent,
-                "use_langgraph": use_langgraph
-            }
-        )
-    
-    if use_langgraph and _rollout_tracker:
+    # Simple Mode removed - always use LangGraph (Issue #2651)
+    # Circuit breaker check for observability (logs warning but doesn't block)
+    if _rollout_tracker:
         try:
             if not _rollout_tracker.check_circuit_breaker():
                 logger.warning(
-                    "[Routing] Circuit breaker OPEN, forcing simple orchestrator path",
+                    "[Routing] Circuit breaker OPEN - proceeding with LangGraph (Simple Mode removed)",
                     extra={
                         "operation": "circuit_breaker",
                         "task_id": task_id,
                         "circuit_state": _rollout_tracker.get_circuit_breaker_state().state.value
                     }
                 )
-                use_langgraph = False
         except Exception as e:
             logger.warning(f"Failed to check circuit breaker: {e}")
     
     if _canary_metrics:
         try:
-            if use_langgraph:
-                _canary_metrics.incr_counter("decisions.langgraph")
-            else:
-                _canary_metrics.incr_counter("decisions.simple")
+            _canary_metrics.incr_counter("decisions.langgraph")
         except Exception as e:
             logger.warning(f"Failed to record routing decision metric: {e}")
     
-    if use_langgraph:
-        from langgraph_orchestrator import run_orchestrator
-        logger.info(f"Using LangGraph orchestrator for task {task_id}")
-    else:
-        from graph import execute
-        logger.info(f"Using simple orchestrator for task {task_id}")
+    from langgraph_orchestrator import run_orchestrator
+    logger.info(f"Using LangGraph orchestrator for task {task_id}")
     
     job_id = task_id
     logger.info(f"Starting orchestrator task", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "question": question[:50]})
@@ -550,29 +504,25 @@ def run_orchestrator_task(
         if SENTRY_DSN:
             sentry_sdk.add_breadcrumb(
                 category='orchestrator',
-                message=f'Executing orchestrator',
+                message=f'Executing LangGraph orchestrator',
                 level='info',
-                data={'task_id': task_id, 'trace_id': task_id, 'use_langgraph': use_langgraph}
+                data={'task_id': task_id, 'trace_id': task_id}
             )
         
         start_time_ns = time.monotonic_ns()
         execution_success = False
         
-        if use_langgraph:
-            # Issue: Phase B-B - Pass webhook context to orchestrator for PR info
-            result = run_orchestrator(question, repo, task_id, context=context)
-            pr_url = result.get("pr_url", "")
-            state = result.get("ci_state", "unknown")
-            trace_id = result.get("trace_id", task_id)
-            execution_success = bool(pr_url)  # Success if PR was created
-        else:
-            pr_url, state, trace_id = execute(question, repo, trace_id=task_id)
-            execution_success = bool(pr_url)  # Success if PR was created
+        # Issue: Phase B-B - Pass webhook context to orchestrator for PR info
+        result = run_orchestrator(question, repo, task_id, context=context)
+        pr_url = result.get("pr_url", "")
+        state = result.get("ci_state", "unknown")
+        trace_id = result.get("trace_id", task_id)
+        execution_success = bool(pr_url)  # Success if PR was created
         
         # Calculate elapsed_ms once for both _canary_metrics and _rollout_tracker (Issue #2286)
         elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
         
-        if _canary_metrics and use_langgraph:
+        if _canary_metrics:
             try:
                 _canary_metrics.observe_latency_ms(elapsed_ms)
                 
@@ -623,21 +573,13 @@ def run_orchestrator_task(
         
         if _rollout_tracker:
             try:
-                if use_langgraph:
-                    _rollout_tracker.record_langgraph_task(
-                        trace_id=task_id,
-                        success=execution_success,
-                        latency_ms=elapsed_ms,
-                        is_5xx_error=False
-                    )
-                else:
-                    _rollout_tracker.record_simple_task(
-                        trace_id=task_id,
-                        success=execution_success,
-                        latency_ms=elapsed_ms,
-                        is_5xx_error=False
-                    )
-                logger.debug(f"Rollout tracker recorded: mode={'langgraph' if use_langgraph else 'simple'}, latency={elapsed_ms:.2f}ms, success={execution_success}")
+                _rollout_tracker.record_langgraph_task(
+                    trace_id=task_id,
+                    success=execution_success,
+                    latency_ms=elapsed_ms,
+                    is_5xx_error=False
+                )
+                logger.debug(f"Rollout tracker recorded: mode=langgraph, latency={elapsed_ms:.2f}ms, success={execution_success}")
             except Exception as e:
                 logger.warning(f"Failed to record rollout tracker metrics: {e}")
         
@@ -687,7 +629,7 @@ def run_orchestrator_task(
         error_msg = str(e)
         logger.exception(f"Task failed", extra={"operation": "run_orchestrator_task", "task_id": task_id, "job_id": job_id, "trace_id": task_id, "status": "error", "error": error_msg})
         
-        if _canary_metrics and use_langgraph:
+        if _canary_metrics:
             try:
                 _canary_metrics.incr_counter("planner.error_5xx")
             except Exception as metric_error:
@@ -695,20 +637,12 @@ def run_orchestrator_task(
         
         if _rollout_tracker:
             try:
-                if use_langgraph:
-                    _rollout_tracker.record_langgraph_task(
-                        trace_id=task_id,
-                        success=False,
-                        latency_ms=None,
-                        is_5xx_error=True
-                    )
-                else:
-                    _rollout_tracker.record_simple_task(
-                        trace_id=task_id,
-                        success=False,
-                        latency_ms=None,
-                        is_5xx_error=True
-                    )
+                _rollout_tracker.record_langgraph_task(
+                    trace_id=task_id,
+                    success=False,
+                    latency_ms=None,
+                    is_5xx_error=True
+                )
             except Exception as tracker_error:
                 logger.warning(f"Failed to record rollout tracker error: {tracker_error}")
         

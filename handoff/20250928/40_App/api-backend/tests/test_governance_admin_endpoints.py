@@ -637,8 +637,10 @@ class TestConfigSummaryEndpoint:
         data = json.loads(response.data)
 
         assert 'orchestrator' in data
-        assert 'use_langgraph' in data['orchestrator']
-        assert 'use_langgraph_percent' in data['orchestrator']
+        # USE_LANGGRAPH, USE_LANGGRAPH_PERCENT removed in Issue #2651
+        # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
+        assert 'mode' in data['orchestrator']
+        assert data['orchestrator']['mode'] == 'langgraph'
         assert 'enable_orchestrator' in data['orchestrator']
 
         assert 'llm' in data
@@ -694,8 +696,10 @@ class TestConfigSummaryEndpoint:
         data = json.loads(response.data)
 
         orchestrator = data['orchestrator']
-        assert 'use_langgraph' in orchestrator
-        assert 'use_langgraph_percent' in orchestrator
+        # USE_LANGGRAPH, USE_LANGGRAPH_PERCENT removed in Issue #2651
+        # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
+        assert 'mode' in orchestrator
+        assert orchestrator['mode'] == 'langgraph'
         assert 'enable_orchestrator' in orchestrator
         assert 'orchestrator_path' in orchestrator
         assert 'orchestrator_test_mode' in orchestrator

@@ -1,10 +1,15 @@
 # Canary Rollback Runbook
 
+> **HISTORICAL DOCUMENT**: As of 2025-12-18, Simple Mode has been removed (Issue #2651).
+> LangGraph is now the only orchestrator mode. This runbook is preserved for historical
+> reference only. The canary rollback procedure is no longer applicable since there is
+> no fallback mode to roll back to.
+
 **Document ID**: SOP-CANARY-001  
-**Version**: 2.0  
+**Version**: 2.0 (ARCHIVED)  
 **Effective Date**: 2025-12-10  
-**Last Review Date**: 2025-12-10  
-**Next Review Date**: 2026-03-10  
+**Last Review Date**: 2025-12-18  
+**Next Review Date**: N/A (Archived)  
 **Document Owner**: Engineering Team  
 **Approver**: CTO
 
@@ -12,7 +17,9 @@
 
 ## Overview
 
-This Standard Operating Procedure (SOP) provides step-by-step instructions for rolling back the LangGraph canary deployment in case of issues or SLO breaches.
+~~This Standard Operating Procedure (SOP) provides step-by-step instructions for rolling back the LangGraph canary deployment in case of issues or SLO breaches.~~
+
+**ARCHIVED**: Simple Mode removed in Issue #2651. LangGraph is now the only orchestrator mode.
 
 **Target Time to Rollback:** < 5 minutes (excluding monitoring period)
 
