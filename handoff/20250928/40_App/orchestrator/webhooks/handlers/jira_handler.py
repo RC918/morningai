@@ -167,7 +167,8 @@ class JiraWebhookHandler(BaseWebhookHandler):
             Normalized WebhookEvent
         """
         # Get event metadata
-        event_id = headers.get(self.EVENT_HEADER, str(uuid.uuid4()))
+        # Fix: Phase B-B - Use lowercase key for consistent access
+        event_id = headers.get(self.EVENT_HEADER.lower(), str(uuid.uuid4()))
         event_type = self.get_event_type(headers, payload)
         jira_event = payload.get("webhookEvent", "")
 
@@ -452,7 +453,8 @@ class JiraWebhookHandler(BaseWebhookHandler):
 
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
         """Get the Jira signature header"""
-        return headers.get(self.SIGNATURE_HEADER)
+        # Fix: Phase B-B - Use lowercase key for consistent access
+        return headers.get(self.SIGNATURE_HEADER.lower())
 
     def should_process(
         self,

@@ -27,6 +27,7 @@ from common.config.settings import settings
 # Maximum request body size for webhooks (1MB)
 MAX_WEBHOOK_PAYLOAD_SIZE = 1 * 1024 * 1024  # 1MB
 
+
 # Rate limiting configuration
 WEBHOOK_RATE_LIMIT = 100  # requests per window
 WEBHOOK_RATE_WINDOW = 60  # seconds
@@ -445,12 +446,14 @@ def github_webhook():
                 "message": str(e)
             }), 400
 
-        # Get headers
-        headers = dict(request.headers)
+        # Get headers - normalize to lowercase keys for consistent access
+        # Fix: Phase B-B - HTTP headers are case-insensitive, but dict keys are not
+        # Using lowercase keys is the best practice for header handling
+        headers = {k.lower(): v for k, v in request.headers}
 
-        # Log incoming webhook
-        event_type = headers.get("X-GitHub-Event", "unknown")
-        delivery_id = headers.get("X-GitHub-Delivery", "unknown")
+        # Log incoming webhook - use request.headers directly for case-insensitive access
+        event_type = request.headers.get("X-GitHub-Event", "unknown")
+        delivery_id = request.headers.get("X-GitHub-Delivery", "unknown")
         logger.info(
             "[Webhooks] Received GitHub webhook: event=%s, delivery=%s",
             event_type,
@@ -533,8 +536,8 @@ def jira_webhook():
                 "message": str(e)
             }), 400
 
-        # Get headers
-        headers = dict(request.headers)
+        # Get headers - normalize to lowercase keys for consistent access
+        headers = {k.lower(): v for k, v in request.headers}
 
         # Log incoming webhook
         webhook_event = parsed_payload.get("webhookEvent", "unknown")
@@ -639,8 +642,8 @@ def slack_webhook():
                 except Exception:
                     pass
 
-        # Get headers
-        headers = dict(request.headers)
+        # Get headers - normalize to lowercase keys for consistent access
+        headers = {k.lower(): v for k, v in request.headers}
 
         # Handle URL verification challenge
         if parsed_payload.get("type") == "url_verification":

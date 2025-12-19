@@ -74,6 +74,25 @@ AI_REVIEWER_BOTS: Dict[str, str] = {
     "devin-ai-integration[bot]": "devin",
 }
 
+# Automation bots that are allowed for specific event types
+# These are NOT AI reviewers, but automation bots that trigger PR events
+# Fix: Phase B-B - Allow github-actions[bot] for PR events to enable webhook testing
+ALLOWED_AUTOMATION_BOTS: Dict[str, str] = {
+    # GitHub Actions - CI/CD automation bot
+    "github-actions[bot]": "github-actions",
+    # Dependabot - Dependency update bot
+    "dependabot[bot]": "dependabot",
+}
+
+# Event types that automation bots are allowed to trigger
+# Only allow PR-related events to avoid infinite loops
+AUTOMATION_BOT_ALLOWED_EVENTS = {
+    WebhookEventType.PR_OPENED,
+    WebhookEventType.PR_UPDATED,
+    WebhookEventType.PR_CLOSED,
+    WebhookEventType.PR_MERGED,
+}
+
 
 # GitHub event type to normalized event type mapping
 GITHUB_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
@@ -193,8 +212,12 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         Returns:
             Normalized WebhookEventType
         """
+        # Defensive normalization: accept headers with any case
+        # Fix: Phase B-B - Normalize headers to lowercase for consistent access
+        headers_lc = {k.lower(): v for k, v in headers.items()} if headers else {}
+
         # Get GitHub event type from header
-        github_event = headers.get(self.EVENT_HEADER, "").lower()
+        github_event = headers_lc.get(self.EVENT_HEADER.lower(), "").lower()
         action = payload.get("action", "default")
 
         # Handle special cases
@@ -240,10 +263,14 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         Returns:
             Normalized WebhookEvent
         """
+        # Defensive normalization: accept headers with any case
+        # Fix: Phase B-B - Normalize headers to lowercase for consistent access
+        headers_lc = {k.lower(): v for k, v in headers.items()} if headers else {}
+
         # Get event metadata
-        event_id = headers.get(self.DELIVERY_HEADER, str(uuid.uuid4()))
+        event_id = headers_lc.get(self.DELIVERY_HEADER.lower(), str(uuid.uuid4()))
         event_type = self.get_event_type(headers, payload)
-        github_event = headers.get(self.EVENT_HEADER, "").lower()
+        github_event = headers_lc.get(self.EVENT_HEADER.lower(), "").lower()
 
         # Extract repository information
         repo = payload.get("repository", {})
@@ -270,7 +297,10 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             title = pr.get("title")
             description = pr.get("body")
             url = pr.get("html_url")
-            resource_id = str(pr.get("number", ""))
+            # Fix: Avoid empty string trap - use None instead of "" when number is missing
+            # Empty string "" is falsy, causing _build_context() to skip resource_type
+            pr_number = pr.get("number")
+            resource_id = str(pr_number) if pr_number is not None else None
             resource_type = "pull_request"
             resource_url = pr.get("html_url")
             labels = [label.get("name") for label in pr.get("labels", [])]
@@ -281,7 +311,9 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             title = issue.get("title")
             description = issue.get("body")
             url = issue.get("html_url")
-            resource_id = str(issue.get("number", ""))
+            # Fix: Avoid empty string trap - use None instead of "" when number is missing
+            issue_number = issue.get("number")
+            resource_id = str(issue_number) if issue_number is not None else None
             resource_type = "issue"
             resource_url = issue.get("html_url")
             labels = [label.get("name") for label in issue.get("labels", [])]
@@ -365,7 +397,10 @@ class GitHubWebhookHandler(BaseWebhookHandler):
 
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
         """Get the GitHub signature header"""
-        return headers.get(self.SIGNATURE_HEADER)
+        # Defensive normalization: accept headers with any case
+        # Fix: Phase B-B - Normalize headers to lowercase for consistent access
+        headers_lc = {k.lower(): v for k, v in headers.items()} if headers else {}
+        return headers_lc.get(self.SIGNATURE_HEADER.lower())
 
     def should_process(
         self,
@@ -398,6 +433,25 @@ class GitHubWebhookHandler(BaseWebhookHandler):
                     review_source,
                 )
                 return True
+
+            # Allow automation bots for specific event types (PR events only)
+            # Fix: Phase B-B - Allow github-actions[bot] for PR events
+            if bot_type := ALLOWED_AUTOMATION_BOTS.get(actor_name):
+                if event.event_type in AUTOMATION_BOT_ALLOWED_EVENTS:
+                    logger.info(
+                        "[GitHubWebhookHandler] Allowing automation bot: %s (type: %s) for event: %s",
+                        actor_name,
+                        bot_type,
+                        event.event_type.value,
+                    )
+                    return True
+                else:
+                    logger.info(
+                        "[GitHubWebhookHandler] Ignoring automation bot %s for non-PR event: %s",
+                        actor_name,
+                        event.event_type.value,
+                    )
+                    return False
 
             # Ignore other bot-generated events
             logger.info(
