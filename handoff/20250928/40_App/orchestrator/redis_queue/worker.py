@@ -40,7 +40,7 @@ import threading
 import signal
 import atexit
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from redis import Redis, ConnectionError as RedisConnectionError
 from redis.retry import Retry as RedisRetry
 from redis.backoff import ExponentialBackoff
@@ -374,7 +374,13 @@ JOB_TIMEOUT = settings.rq_job_timeout
 MAX_JOBS = settings.rq_max_jobs if settings.rq_max_jobs != 0 else None
 
 @job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=3, interval=[10, 30, 60]), timeout=JOB_TIMEOUT)
-def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str = "faq"):
+def run_orchestrator_task(
+    task_id: str,
+    question: str,
+    repo: str,
+    task_type: str = "faq",
+    context: Optional[Dict[str, Any]] = None,
+):
     """
     Execute orchestrator with retry logic (used by API for agent tasks)
     Configured with ttl=600, result_ttl=86400, failure_ttl=3600
@@ -392,6 +398,11 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
         task_type: Task type for routing decisions (default: "faq")
                    - "faq": Always uses Simple mode (skips LangGraph)
                    - Other types: Subject to canary routing logic
+        context: Optional context dict from webhook containing PR info:
+                 - resource_id: PR number from webhook event
+                 - resource_type: "pull_request" for PR events
+                 - url: PR URL
+                 Issue: Phase B-B - Fix PR context passing
     
     Returns:
         dict: {"pr_url": str, "trace_id": str, "state": str}
@@ -543,7 +554,8 @@ def run_orchestrator_task(task_id: str, question: str, repo: str, task_type: str
         execution_success = False
         
         if use_langgraph:
-            result = run_orchestrator(question, repo, task_id)
+            # Issue: Phase B-B - Pass webhook context to orchestrator for PR info
+            result = run_orchestrator(question, repo, task_id, context=context)
             pr_url = result.get("pr_url", "")
             state = result.get("ci_state", "unknown")
             trace_id = result.get("trace_id", task_id)

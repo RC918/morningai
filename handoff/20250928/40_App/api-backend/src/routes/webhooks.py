@@ -271,19 +271,27 @@ def _enqueue_task(task):
             return None
 
         # Enqueue the task
+        # Issue: Phase B-B - Pass task.context to worker for PR info
         job = queue.enqueue(
             run_orchestrator_task,
             task.task_id,
             task.goal_text,
             repo,
             "webhook",
+            task.context,  # Pass context containing resource_id (PR number), url, etc.
             job_id=task.task_id,
             ttl=600,
             result_ttl=86400,
             failure_ttl=3600,
         )
 
-        logger.info("[Webhooks] Enqueued task %s as job %s for repo %s", task.task_id, job.id, repo)
+        logger.info(
+            "[Webhooks] Enqueued task %s as job %s for repo %s (pr_number=%s)",
+            task.task_id,
+            job.id,
+            repo,
+            task.context.get("resource_id", "none"),
+        )
         return job.id
 
     except Exception as e:
