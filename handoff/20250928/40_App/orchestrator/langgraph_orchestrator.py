@@ -3570,8 +3570,19 @@ def run_orchestrator(
     # Issue: Phase B-B - Avoid black-box issues where upstream extracts but downstream doesn't receive
     # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
     has_context = context is not None
+    # TODO: Remove these diagnostic fields after pr_number=0 root cause is identified (Phase B-B)
+    # Diagnostic fields to debug pr_number=0 issue - use structure info instead of raw content to avoid JSON breakage
+    resource_type = context.get("resource_type", "MISSING") if context else "NO_CONTEXT"
+    context_keys = ",".join(sorted(context.keys())) if context else ""
+    # Use payload structure info instead of raw content (raw content may contain quotes that break JSON)
+    payload = context.get("payload", {}) if context else {}
+    payload_keys = ",".join(sorted(payload.keys())) if isinstance(payload, dict) else "NOT_DICT"
+    payload_len = len(str(payload)) if payload else 0
+    # Capture raw values before extraction to diagnose pr_number=0
+    raw_pr_number = context.get("pr_number") or context.get("resource_id") if context else "MISSING"
+    raw_pr_url = context.get("pr_url") or context.get("url") if context else "MISSING"
     logger.info(
-        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url='{pr_url}' has_context={has_context}",
+        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url='{pr_url}' has_context={has_context} resource_type='{resource_type}' context_keys=[{context_keys}] payload_keys=[{payload_keys}] payload_len={payload_len} raw_pr_number={raw_pr_number} raw_pr_url='{raw_pr_url}'",
         extra={
             "operation": "run_orchestrator",
             "trace_id": trace_id,
