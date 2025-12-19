@@ -888,3 +888,4 @@ def get_diff_coverage_info(
         # Phase B-B: Add coverage percentage for telemetry
         "truncation_rate": truncated_files / total_files if total_files > 0 else 0.0
     }
+# Phase B-B Staging Verification Test - 20251219_122429
