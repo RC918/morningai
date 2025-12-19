@@ -22,17 +22,9 @@ environments:
     auto_deploy: true
     
     # Orchestrator Mode Configuration
+    # Note: USE_LANGGRAPH, USE_LANGGRAPH_PERCENT removed in Issue #2651
+    # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
     orchestrator:
-      USE_LANGGRAPH:
-        value: false
-        required: true
-        reason: "Production uses Simple Mode with canary rollout via USE_LANGGRAPH_PERCENT"
-      USE_LANGGRAPH_PERCENT:
-        value: 5
-        required: false
-        min: 0
-        max: 20
-        reason: "Canary rollout percentage; keep low for production stability"
       USE_LLM_PLANNER:
         value: true
         required: false
@@ -90,15 +82,9 @@ environments:
     auto_deploy: true
     
     # Orchestrator Mode Configuration
+    # Note: USE_LANGGRAPH, USE_LANGGRAPH_PERCENT removed in Issue #2651
+    # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
     orchestrator:
-      USE_LANGGRAPH:
-        value: true
-        required: true
-        reason: "Staging uses 100% LangGraph for validation before production rollout"
-      USE_LANGGRAPH_PERCENT:
-        value: 100
-        required: false
-        reason: "Ignored when USE_LANGGRAPH=true"
       USE_LLM_PLANNER:
         value: true
         required: true
@@ -157,15 +143,9 @@ environments:
     auto_deploy: false
     
     # Orchestrator Mode Configuration
+    # Note: USE_LANGGRAPH, USE_LANGGRAPH_PERCENT removed in Issue #2651
+    # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
     orchestrator:
-      USE_LANGGRAPH:
-        value: false
-        required: false
-        reason: "Developers can choose either mode"
-      USE_LANGGRAPH_PERCENT:
-        value: 0
-        required: false
-        reason: "Default to Simple Mode for faster iteration"
       USE_LLM_PLANNER:
         value: false
         required: false
@@ -233,9 +213,8 @@ validation_rules:
       - block_high    # 2
       - block_all     # 3 - most strict
       
-  - name: "langgraph_staging_validation"
-    description: "LangGraph must be enabled in Staging before increasing Production percentage"
-    rule: "if production.USE_LANGGRAPH_PERCENT > 0 then staging.USE_LANGGRAPH = true"
+  # langgraph_staging_validation rule removed in Issue #2651
+  # LangGraph is now the only orchestrator mode (Simple Mode removed 2025-12-18)
     
   - name: "mock_users_production_disabled"
     description: "Mock users must never be enabled in Production"
@@ -258,7 +237,7 @@ services:
       configs:
         - ENVIRONMENT=production
         - FLASK_ENV=production
-        - USE_LANGGRAPH=false
+        # USE_LANGGRAPH removed in Issue #2651 - LangGraph is now the only mode
         - ENABLE_MOCK_USERS=false
         - SANDBOX_ENABLED=false
         
