@@ -2379,9 +2379,22 @@ def reviewer_node(state: AgentState) -> AgentState:
                     state["review_severity"] = llm_review["severity"]
 
                     if llm_review.get("comments"):
-                        state["review_comments"] = (
-                            state["review_comments"] + llm_review["comments"]
+                        # Phase B-3.1: Normalize LLM comments using canonical schema
+                        # This ensures start_line/end_line are properly set
+                        from review_comment_schema import normalize_review_comments
+                        normalized_llm_comments = normalize_review_comments(
+                            llm_review["comments"], source="llm"
                         )
+                        state["review_comments"] = (
+                            state["review_comments"] + normalized_llm_comments
+                        )
+
+                    # Phase B-3.1: Store diff content in state for publisher validation
+                    # This allows publisher_node to validate inline comments against
+                    # the actual diff that was shown to the LLM
+                    if diff_content:
+                        state["diff_content"] = diff_content
+                        state["diff_truncated"] = diff_truncated
 
                     llm_decision = llm_review.get("decision", "needs_changes")
                     llm_summary = llm_review.get("summary", "")
@@ -2734,7 +2747,11 @@ def publisher_node(state: AgentState) -> AgentState:
         return state
 
     # Filter comments that can be posted as inline (have file and line info)
-    from review_comment_schema import is_inline_comment
+    from review_comment_schema import (
+        is_inline_comment,
+        parse_diff_allowed_lines,
+        validate_inline_comments
+    )
 
     inline_comments = [c for c in review_comments if is_inline_comment(c)]
     file_level_comments = [c for c in review_comments if not is_inline_comment(c)]
@@ -2746,6 +2763,40 @@ def publisher_node(state: AgentState) -> AgentState:
         "inline_comments": len(inline_comments),
         "file_level_comments": len(file_level_comments)
     })
+
+    # Phase B-3.1: Validate inline comments against diff
+    # This prevents 422 errors from GitHub when line numbers are invalid
+    diff_content = state.get("diff_content")
+    diff_truncated = state.get("diff_truncated", False)
+    downgraded_count = 0
+
+    if diff_content and inline_comments:
+        allowed_lines_map = parse_diff_allowed_lines(diff_content)
+
+        # Use strict mode for truncated diffs (safer)
+        valid_inline, invalid_inline = validate_inline_comments(
+            inline_comments,
+            allowed_lines_map,
+            strict_truncated=diff_truncated
+        )
+
+        downgraded_count = len(invalid_inline)
+        if downgraded_count > 0:
+            logger.warning(
+                f"[Publisher] Downgraded {downgraded_count} comments due to "
+                f"line validation failures",
+                extra={
+                    "operation": "publisher",
+                    "trace_id": trace_id,
+                    "downgraded_count": downgraded_count,
+                    "diff_truncated": diff_truncated
+                }
+            )
+            # Move invalid inline comments to file-level
+            file_level_comments.extend(invalid_inline)
+            inline_comments = valid_inline
+
+        state["publish_result"]["validation_downgraded"] = downgraded_count
 
     if not inline_comments:
         logger.info("[Publisher] No inline-eligible comments to publish", extra={
