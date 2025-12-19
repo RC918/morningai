@@ -7,11 +7,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from rollout_tracker import RolloutTracker, CircuitState, CircuitBreakerState  # noqa: E402
+from rollout_tracker import RolloutTracker, CircuitState, CircuitBreakerState
 
 try:
     import langgraph  # noqa: F401
@@ -20,50 +16,49 @@ except ImportError:
     HAS_LANGGRAPH = False
 
 
+@pytest.fixture
+def mock_redis():
+    """Shared mock Redis client fixture for circuit breaker tests."""
+    redis = MagicMock()
+    redis.get.return_value = None
+    return redis
+
+
+@pytest.fixture
+def tracker(mock_redis):
+    """RolloutTracker fixture with mock Redis."""
+    return RolloutTracker(redis_client=mock_redis, enabled=True)
+
+
 class TestCircuitBreakerBehavior:
     """Circuit Breaker Behavior Tests for LangGraph-only Mode"""
 
-    def test_circuit_breaker_returns_false_when_open(self):
-        mock_redis = MagicMock()
-        mock_redis.get.return_value = None
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+    def test_circuit_breaker_returns_false_when_open(self, tracker):
         tracker._circuit_breaker.state = CircuitState.OPEN
         tracker._circuit_breaker.cooldown_until = "2099-12-31T23:59:59+00:00"
         result = tracker.check_circuit_breaker()
         assert result is False
 
-    def test_circuit_breaker_closed_to_open(self):
-        mock_redis = MagicMock()
-        mock_redis.get.return_value = None
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+    def test_circuit_breaker_closed_to_open(self, tracker):
         assert tracker._circuit_breaker.state == CircuitState.CLOSED
         for i in range(tracker.circuit_failure_threshold):
             tracker._update_circuit_breaker_failure(f"failure_{i}")
         assert tracker._circuit_breaker.state == CircuitState.OPEN
 
-    def test_circuit_breaker_open_to_half_open(self):
-        mock_redis = MagicMock()
-        mock_redis.get.return_value = None
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+    def test_circuit_breaker_open_to_half_open(self, tracker):
         tracker._circuit_breaker.state = CircuitState.OPEN
         tracker._circuit_breaker.cooldown_until = "2020-01-01T00:00:00+00:00"
         result = tracker.check_circuit_breaker()
         assert result is True
         assert tracker._circuit_breaker.state == CircuitState.HALF_OPEN
 
-    def test_circuit_breaker_half_open_to_closed(self):
-        mock_redis = MagicMock()
-        mock_redis.get.return_value = None
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+    def test_circuit_breaker_half_open_to_closed(self, tracker):
         tracker._circuit_breaker.state = CircuitState.HALF_OPEN
         for i in range(tracker.circuit_success_threshold):
             tracker._update_circuit_breaker_success()
         assert tracker._circuit_breaker.state == CircuitState.CLOSED
 
-    def test_circuit_breaker_half_open_to_open_on_failure(self):
-        mock_redis = MagicMock()
-        mock_redis.get.return_value = None
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+    def test_circuit_breaker_half_open_to_open_on_failure(self, tracker):
         tracker._circuit_breaker.state = CircuitState.HALF_OPEN
         tracker._update_circuit_breaker_failure("test_failure")
         assert tracker._circuit_breaker.state == CircuitState.OPEN
@@ -75,10 +70,7 @@ class TestCircuitBreakerBehavior:
         assert not hasattr(CircuitState, 'FALLBACK')
         assert not hasattr(CircuitState, 'SIMPLE_MODE')
 
-    def test_circuit_breaker_state_persisted_to_redis(self):
-        mock_redis = MagicMock()
-        mock_redis.get.return_value = None
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+    def test_circuit_breaker_state_persisted_to_redis(self, tracker, mock_redis):
         for i in range(tracker.circuit_failure_threshold):
             tracker._update_circuit_breaker_failure(f"failure_{i}")
         assert mock_redis.setex.called
