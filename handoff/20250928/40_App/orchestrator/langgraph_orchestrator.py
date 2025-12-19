@@ -3570,8 +3570,11 @@ def run_orchestrator(
     # Issue: Phase B-B - Avoid black-box issues where upstream extracts but downstream doesn't receive
     # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
     has_context = context is not None
+    # Diagnostic fields to debug pr_number=0 issue
+    resource_type = context.get("resource_type", "") if context else ""
+    context_keys = ",".join(sorted(context.keys())) if context else ""
     logger.info(
-        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url='{pr_url}' has_context={has_context}",
+        f"Starting LangGraph orchestrator trace_id={trace_id} pr_number={pr_number} pr_url='{pr_url}' has_context={has_context} resource_type='{resource_type}' context_keys=[{context_keys}]",
         extra={
             "operation": "run_orchestrator",
             "trace_id": trace_id,
