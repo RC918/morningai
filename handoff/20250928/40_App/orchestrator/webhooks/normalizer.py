@@ -449,9 +449,13 @@ class EventNormalizer:
             context["project"] = event.project_key
 
         # Add resource context
+        # Fix: Decouple resource_type from resource_id - they should be added independently
+        # Previously, resource_type was only added if resource_id was truthy, causing
+        # resource_type to be missing when resource_id was empty string or None
+        if event.resource_type:
+            context["resource_type"] = event.resource_type
         if event.resource_id:
             context["resource_id"] = event.resource_id
-            context["resource_type"] = event.resource_type
 
         # Add labels and assignees
         if event.labels:

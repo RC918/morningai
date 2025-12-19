@@ -270,7 +270,10 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             title = pr.get("title")
             description = pr.get("body")
             url = pr.get("html_url")
-            resource_id = str(pr.get("number", ""))
+            # Fix: Avoid empty string trap - use None instead of "" when number is missing
+            # Empty string "" is falsy, causing _build_context() to skip resource_type
+            pr_number = pr.get("number")
+            resource_id = str(pr_number) if pr_number is not None else None
             resource_type = "pull_request"
             resource_url = pr.get("html_url")
             labels = [label.get("name") for label in pr.get("labels", [])]
@@ -281,7 +284,9 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             title = issue.get("title")
             description = issue.get("body")
             url = issue.get("html_url")
-            resource_id = str(issue.get("number", ""))
+            # Fix: Avoid empty string trap - use None instead of "" when number is missing
+            issue_number = issue.get("number")
+            resource_id = str(issue_number) if issue_number is not None else None
             resource_type = "issue"
             resource_url = issue.get("html_url")
             labels = [label.get("name") for label in issue.get("labels", [])]
