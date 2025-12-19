@@ -2343,12 +2343,15 @@ def reviewer_node(state: AgentState) -> AgentState:
                                     "included_line_count", 0
                                 )
                                 # Phase B-B C-lite: Check if lockfile-only PR
+                                # Fix: More robust detection to avoid false positives
+                                # when included_file_count == 0 due to truncation
                                 ignored_file_count = truncation_info.get(
                                     "ignored_file_count", 0
                                 )
                                 lockfile_only = (
+                                    included_file_count == 0 and
                                     ignored_file_count > 0 and
-                                    included_file_count == 0
+                                    github_total_files == ignored_file_count
                                 )
 
                                 # Phase B-B C-lite: Record diff fetch metrics
