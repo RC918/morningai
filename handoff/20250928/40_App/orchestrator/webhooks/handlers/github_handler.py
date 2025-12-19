@@ -212,9 +212,12 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         Returns:
             Normalized WebhookEventType
         """
+        # Defensive normalization: accept headers with any case
+        # Fix: Phase B-B - Normalize headers to lowercase for consistent access
+        headers_lc = {k.lower(): v for k, v in headers.items()} if headers else {}
+
         # Get GitHub event type from header
-        # Fix: Phase B-B - Use lowercase key for consistent access
-        github_event = headers.get(self.EVENT_HEADER.lower(), "").lower()
+        github_event = headers_lc.get(self.EVENT_HEADER.lower(), "").lower()
         action = payload.get("action", "default")
 
         # Handle special cases
@@ -260,11 +263,14 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         Returns:
             Normalized WebhookEvent
         """
+        # Defensive normalization: accept headers with any case
+        # Fix: Phase B-B - Normalize headers to lowercase for consistent access
+        headers_lc = {k.lower(): v for k, v in headers.items()} if headers else {}
+
         # Get event metadata
-        # Fix: Phase B-B - Use lowercase key for consistent access
-        event_id = headers.get(self.DELIVERY_HEADER.lower(), str(uuid.uuid4()))
+        event_id = headers_lc.get(self.DELIVERY_HEADER.lower(), str(uuid.uuid4()))
         event_type = self.get_event_type(headers, payload)
-        github_event = headers.get(self.EVENT_HEADER.lower(), "").lower()
+        github_event = headers_lc.get(self.EVENT_HEADER.lower(), "").lower()
 
         # Extract repository information
         repo = payload.get("repository", {})
@@ -391,8 +397,10 @@ class GitHubWebhookHandler(BaseWebhookHandler):
 
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
         """Get the GitHub signature header"""
-        # Fix: Phase B-B - Use lowercase key for consistent access
-        return headers.get(self.SIGNATURE_HEADER.lower())
+        # Defensive normalization: accept headers with any case
+        # Fix: Phase B-B - Normalize headers to lowercase for consistent access
+        headers_lc = {k.lower(): v for k, v in headers.items()} if headers else {}
+        return headers_lc.get(self.SIGNATURE_HEADER.lower())
 
     def should_process(
         self,
