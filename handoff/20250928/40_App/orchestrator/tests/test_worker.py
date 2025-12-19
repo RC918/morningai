@@ -740,3 +740,138 @@ class TestMetricsLatencyConsistency:
         # Verify monotonic_ns was called exactly twice (start_time_ns + elapsed_ms calculation)
         assert mock_monotonic_ns.call_count == 2, \
             f"Expected 2 monotonic_ns calls, got {mock_monotonic_ns.call_count}"
+
+
+class TestReadOnlyErrorHandling:
+    """Test Redis ReadOnlyError handling during maintenance windows"""
+    
+    def test_readonly_error_sleeps_and_retries(self):
+        """Test that ReadOnlyError triggers sleep and retry, not immediate exit"""
+        from redis.exceptions import ReadOnlyError
+        
+        sleep_calls = []
+        work_call_count = [0]
+        
+        def mock_sleep(seconds):
+            sleep_calls.append(seconds)
+        
+        def mock_work(max_jobs=None):
+            work_call_count[0] += 1
+            if work_call_count[0] == 1:
+                raise ReadOnlyError("Writes are temporarily rejected due to server upgrade")
+        
+        mock_worker = Mock()
+        mock_worker.work = mock_work
+        
+        with patch('time.sleep', mock_sleep):
+            consecutive_readonly_count = 0
+            readonly_sleep_seconds = 15
+            readonly_max_retries = 20
+            
+            for _ in range(3):
+                try:
+                    mock_worker.work(max_jobs=10)
+                    consecutive_readonly_count = 0
+                    break
+                except ReadOnlyError:
+                    consecutive_readonly_count += 1
+                    if consecutive_readonly_count >= readonly_max_retries:
+                        break
+                    mock_sleep(readonly_sleep_seconds)
+        
+        assert len(sleep_calls) == 1
+        assert sleep_calls[0] == 15
+        assert work_call_count[0] == 2
+        assert consecutive_readonly_count == 0
+    
+    def test_readonly_error_exits_after_max_retries(self):
+        """Test that ReadOnlyError exits after max retries exceeded"""
+        from redis.exceptions import ReadOnlyError
+        
+        sleep_calls = []
+        work_call_count = [0]
+        
+        def mock_sleep(seconds):
+            sleep_calls.append(seconds)
+        
+        def mock_work(max_jobs=None):
+            work_call_count[0] += 1
+            raise ReadOnlyError("Writes are temporarily rejected due to server upgrade")
+        
+        mock_worker = Mock()
+        mock_worker.work = mock_work
+        
+        with patch('time.sleep', mock_sleep):
+            consecutive_readonly_count = 0
+            readonly_sleep_seconds = 15
+            readonly_max_retries = 3
+            should_exit = False
+            
+            while not should_exit:
+                try:
+                    mock_worker.work(max_jobs=10)
+                    consecutive_readonly_count = 0
+                    should_exit = True
+                except ReadOnlyError:
+                    consecutive_readonly_count += 1
+                    if consecutive_readonly_count >= readonly_max_retries:
+                        should_exit = True
+                        break
+                    mock_sleep(readonly_sleep_seconds)
+        
+        assert len(sleep_calls) == 2
+        assert work_call_count[0] == 3
+        assert consecutive_readonly_count == 3
+    
+    def test_readonly_counter_resets_on_success(self):
+        """Test that consecutive readonly counter resets after successful work"""
+        from redis.exceptions import ReadOnlyError
+        
+        work_call_count = [0]
+        
+        def mock_work(max_jobs=None):
+            work_call_count[0] += 1
+            if work_call_count[0] <= 2:
+                raise ReadOnlyError("Writes are temporarily rejected")
+        
+        mock_worker = Mock()
+        mock_worker.work = mock_work
+        
+        with patch('time.sleep', Mock()):
+            consecutive_readonly_count = 0
+            readonly_max_retries = 20
+            
+            for _ in range(5):
+                try:
+                    mock_worker.work(max_jobs=10)
+                    consecutive_readonly_count = 0
+                    break
+                except ReadOnlyError:
+                    consecutive_readonly_count += 1
+                    if consecutive_readonly_count >= readonly_max_retries:
+                        break
+        
+        assert consecutive_readonly_count == 0
+        assert work_call_count[0] == 3
+    
+    def test_readonly_settings_configurable(self):
+        """Test that readonly sleep and max retries are configurable via settings"""
+        from common.config.settings import Settings
+        
+        settings = Settings(
+            _env_file=None,
+            REDIS_READONLY_SLEEP_SECONDS=30,
+            REDIS_READONLY_MAX_RETRIES=10
+        )
+        
+        assert settings.redis_readonly_sleep_seconds == 30
+        assert settings.redis_readonly_max_retries == 10
+    
+    def test_readonly_settings_defaults(self):
+        """Test that readonly settings have sensible defaults"""
+        from common.config.settings import Settings
+        
+        settings = Settings(_env_file=None)
+        
+        assert settings.redis_readonly_sleep_seconds == 15
+        assert settings.redis_readonly_max_retries == 20
