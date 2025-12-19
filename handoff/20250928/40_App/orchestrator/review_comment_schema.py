@@ -691,11 +691,43 @@ def is_line_in_diff(
     return True, "valid"
 
 
+def _bucket_downgrade_reason(reason: str) -> str:
+    """
+    Bucket raw downgrade reasons into canonical categories for telemetry.
+
+    Phase B-B Telemetry: Downgrade reason bucketing
+
+    Categories:
+    - file_not_in_diff: File path not found in diff
+    - line_not_in_diff: Line number(s) not visible in diff hunk
+    - missing_end_line: Comment missing required end_line
+    - strict_truncated: Truncated patch forced inline rejection
+
+    Args:
+        reason: Raw reason string from validation
+
+    Returns:
+        Canonical bucket name
+    """
+    if reason == "file_not_in_diff" or reason == "missing_file_path":
+        return "file_not_in_diff"
+    elif reason == "missing_end_line":
+        return "missing_end_line"
+    elif reason == "patch_truncated":
+        return "strict_truncated"
+    elif "not_in_diff" in reason:
+        # Matches "line_N_not_in_diff" patterns
+        return "line_not_in_diff"
+    else:
+        # Fallback for any unexpected reasons
+        return "other"
+
+
 def validate_inline_comments(
     comments: List[ReviewComment],
     allowed_lines_map: Dict[str, DiffFileInfo],
     strict_truncated: bool = True
-) -> Tuple[List[ReviewComment], List[ReviewComment]]:
+) -> Tuple[List[ReviewComment], List[ReviewComment], Dict[str, int]]:
     """
     Validate inline comments against the diff and split into valid/invalid.
 
@@ -713,12 +745,22 @@ def validate_inline_comments(
                          with truncated patches (safer but loses some value)
 
     Returns:
-        Tuple of (valid_inline_comments, invalid_comments)
+        Tuple of (valid_inline_comments, invalid_comments, downgrade_reasons)
         - valid_inline_comments: Comments that can be posted as inline
         - invalid_comments: Comments that failed validation (downgraded)
+        - downgrade_reasons: Dict mapping reason bucket to count
+          (Phase B-B Telemetry)
     """
     valid: List[ReviewComment] = []
     invalid: List[ReviewComment] = []
+    # Phase B-B Telemetry: Track downgrade reasons by bucket
+    downgrade_reasons: Dict[str, int] = {
+        "file_not_in_diff": 0,
+        "line_not_in_diff": 0,
+        "missing_end_line": 0,
+        "strict_truncated": 0,
+        "other": 0
+    }
 
     for comment in comments:
         # Skip non-inline comments (no file or line info)
@@ -740,6 +782,7 @@ def validate_inline_comments(
                     comment, "patch_truncated"
                 )
                 invalid.append(downgraded)
+                downgrade_reasons["strict_truncated"] += 1
                 continue
 
         # Validate line range
@@ -753,6 +796,9 @@ def validate_inline_comments(
             # Downgrade: strip line info
             downgraded = _downgrade_to_file_level(comment, reason)
             invalid.append(downgraded)
+            # Phase B-B Telemetry: Bucket the reason
+            bucket = _bucket_downgrade_reason(reason)
+            downgrade_reasons[bucket] += 1
 
     if invalid:
         logger.warning(
@@ -761,11 +807,13 @@ def validate_inline_comments(
             extra={
                 "operation": "validate_inline_comments",
                 "valid_count": len(valid),
-                "invalid_count": len(invalid)
+                "invalid_count": len(invalid),
+                # Phase B-B Telemetry: Include reason breakdown
+                "downgrade_reasons": downgrade_reasons
             }
         )
 
-    return valid, invalid
+    return valid, invalid, downgrade_reasons
 
 
 def _downgrade_to_file_level(
