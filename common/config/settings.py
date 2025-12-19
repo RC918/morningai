@@ -879,6 +879,18 @@ class Settings(BaseSettings):
         description="Worker heartbeat key TTL in seconds. Should be at least 3x the interval for safety margin."
     )
 
+    redis_readonly_sleep_seconds: int = Field(
+        default=15,
+        alias="REDIS_READONLY_SLEEP_SECONDS",
+        description="Sleep duration in seconds when Redis is in read-only mode during maintenance."
+    )
+
+    redis_readonly_max_retries: int = Field(
+        default=20,
+        alias="REDIS_READONLY_MAX_RETRIES",
+        description="Maximum consecutive retries when Redis is in read-only mode. After this, worker exits to trigger restart."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",
