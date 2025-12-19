@@ -97,7 +97,8 @@ class SlackWebhookHandler(BaseWebhookHandler):
             return False
 
         # Extract timestamp from headers
-        timestamp = headers.get(self.TIMESTAMP_HEADER) if headers else None
+        # Fix: Phase B-B - Use lowercase key for consistent access
+        timestamp = headers.get(self.TIMESTAMP_HEADER.lower()) if headers else None
         if not timestamp:
             logger.warning("[SlackWebhookHandler] Missing timestamp")
             return False
@@ -296,7 +297,8 @@ class SlackWebhookHandler(BaseWebhookHandler):
 
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
         """Get the Slack signature header"""
-        return headers.get(self.SIGNATURE_HEADER)
+        # Fix: Phase B-B - Use lowercase key for consistent access
+        return headers.get(self.SIGNATURE_HEADER.lower())
 
     def handle(
         self,
@@ -323,7 +325,8 @@ class SlackWebhookHandler(BaseWebhookHandler):
 
         # Validate signature with headers (timestamp is extracted from headers)
         if self.config.verify_signature and self.config.secret:
-            signature = headers.get(self.SIGNATURE_HEADER)
+            # Fix: Phase B-B - Use lowercase key for consistent access
+            signature = headers.get(self.SIGNATURE_HEADER.lower())
 
             if not self.validate_signature(payload, signature, self.config.secret, headers):
                 from ..bot_protocol import WebhookResponse
