@@ -41,7 +41,8 @@ class TestRolloutTrackerIntegration:
         assert hasattr(RolloutTracker, "record_langgraph_task")
         assert callable(getattr(RolloutTracker, "record_langgraph_task"))
 
-    # NOTE: test_rollout_tracker_has_record_simple_task was removed in Issue #2651 after LangGraph 100% rollout
+    # NOTE: test_rollout_tracker_has_record_simple_task was removed in Issue #2651 after LangGraph 100% rollout (2025-12-15)
+    # TODO: Remove this comment after 2026-01-15 (one release cycle)
 
     def test_rollout_tracker_has_get_circuit_breaker_state(self):
         """Test that RolloutTracker has get_circuit_breaker_state method."""

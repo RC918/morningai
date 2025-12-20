@@ -305,7 +305,8 @@ class TestRolloutTracker:
         )
         mock_redis.pipeline.assert_called()
 
-    # NOTE: test_record_simple_task was removed in Issue #2651 after LangGraph 100% rollout
+    # NOTE: test_record_simple_task was removed in Issue #2651 after LangGraph 100% rollout (2025-12-15)
+    # TODO: Remove this comment after 2026-01-15 (one release cycle)
 
     def test_record_p0_incident(self, tracker, mock_redis):
         """Test recording P0 incident"""
@@ -614,7 +615,8 @@ class TestDisabledTracker:
             latency_ms=100
         )
 
-    # NOTE: test_record_simple_task_disabled was removed in Issue #2651 after LangGraph 100% rollout
+    # NOTE: test_record_simple_task_disabled was removed in Issue #2651 after LangGraph 100% rollout (2025-12-15)
+    # TODO: Remove this comment after 2026-01-15 (one release cycle)
 
     def test_get_comparison_disabled(self, disabled_tracker):
         """Test getting comparison when disabled"""
@@ -673,7 +675,8 @@ class TestRedisExceptionHandling:
         # Should not raise - tracker should handle exception gracefully
         tracker.record_langgraph_task(trace_id="test", success=True, latency_ms=100)
 
-    # NOTE: test_record_simple_task_handles_redis_exception was removed in Issue #2651 after LangGraph 100% rollout
+    # NOTE: test_record_simple_task_handles_redis_exception was removed in Issue #2651 after LangGraph 100% rollout (2025-12-15)
+    # TODO: Remove this comment after 2026-01-15 (one release cycle)
 
     def test_save_circuit_state_handles_redis_exception(self):
         """Test that _save_circuit_state_to_redis handles exceptions gracefully"""

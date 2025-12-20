@@ -420,8 +420,9 @@ class RolloutTracker:
         except Exception as e:
             logger.warning(f"[RolloutTracker] Failed to record LangGraph task: {e}")
 
-    # NOTE: record_simple_task was removed in Issue #2651 after LangGraph 100% rollout
+    # NOTE: record_simple_task was removed in Issue #2651 after LangGraph 100% rollout (2025-12-15)
     # Simple Mode is no longer used - all tasks now use LangGraph
+    # TODO: Remove this comment after 2026-01-15 (one release cycle)
 
     def _record_latency(self, mode: str, latency_ms: float) -> None:
         """Record latency in histogram buckets

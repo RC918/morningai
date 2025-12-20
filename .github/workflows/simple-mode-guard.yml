@@ -1,0 +1,162 @@
+# =============================================================================
+# Simple Mode Guard CI
+# =============================================================================
+#
+# PURPOSE:
+#   Prevents reintroduction of deprecated Simple Mode code after LangGraph
+#   100% rollout. Blocks PRs that add forbidden symbols.
+#
+# FORBIDDEN SYMBOLS:
+#   - record_simple_task (removed method)
+#   - "Simple Mode" (deprecated terminology)
+#   - USE_LANGGRAPH_PERCENT (obsolete env var)
+#   - use_langgraph_percent (obsolete setting)
+#
+# EXCEPTIONS:
+#   - Comments explaining removal (e.g., "NOTE: removed in Issue #2651")
+#   - ADR/changelog entries documenting deprecation
+#   - Test files that verify absence of Simple Mode
+#
+# RELATED:
+#   - Issue #2651: Remove Simple Mode code after LangGraph 100% rollout
+#   - ADR-005: Deprecate Simple Orchestrator Mode
+#
+# =============================================================================
+
+name: Simple Mode Guard
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'handoff/20250928/40_App/orchestrator/**'
+      - 'handoff/20250928/40_App/api-backend/**'
+      - 'common/**'
+
+concurrency:
+  group: simple-mode-guard-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-forbidden-symbols:
+    name: Check for Forbidden Simple Mode Symbols
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for forbidden symbols in diff
+        id: check
+        run: |
+          echo "## Simple Mode Guard Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Get the diff for this PR (only added lines)
+          git diff origin/main...HEAD --diff-filter=A -U0 -- \
+            'handoff/20250928/40_App/orchestrator/*.py' \
+            'handoff/20250928/40_App/api-backend/**/*.py' \
+            'common/**/*.py' \
+            > diff.txt || true
+          
+          VIOLATIONS=0
+          VIOLATION_DETAILS=""
+          
+          # Check for forbidden symbols (excluding comments and documentation)
+          # Pattern 1: record_simple_task (method name)
+          if grep -n "record_simple_task" diff.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" > /dev/null 2>&1; then
+            VIOLATIONS=$((VIOLATIONS + 1))
+            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`record_simple_task\` method reference found"
+          fi
+          
+          # Pattern 2: "Simple Mode" string (case insensitive, excluding comments)
+          if grep -in '"Simple Mode"' diff.txt | grep -v "NOTE:" | grep -v "deprecated" | grep -v "removed" > /dev/null 2>&1; then
+            VIOLATIONS=$((VIOLATIONS + 1))
+            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \"Simple Mode\" string literal found"
+          fi
+          
+          # Pattern 3: USE_LANGGRAPH_PERCENT (obsolete env var)
+          if grep -n "USE_LANGGRAPH_PERCENT" diff.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" > /dev/null 2>&1; then
+            VIOLATIONS=$((VIOLATIONS + 1))
+            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`USE_LANGGRAPH_PERCENT\` env var reference found"
+          fi
+          
+          # Pattern 4: use_langgraph_percent (obsolete setting)
+          if grep -n "use_langgraph_percent" diff.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" > /dev/null 2>&1; then
+            VIOLATIONS=$((VIOLATIONS + 1))
+            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`use_langgraph_percent\` setting reference found"
+          fi
+          
+          echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+          echo "violation_details=$VIOLATION_DETAILS" >> $GITHUB_OUTPUT
+          
+          if [ $VIOLATIONS -gt 0 ]; then
+            echo "### Violations Found: $VIOLATIONS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo -e "$VIOLATION_DETAILS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required**: Remove deprecated Simple Mode references." >> $GITHUB_STEP_SUMMARY
+            echo "See [ADR-005](docs/adr/005-deprecate-simple-orchestrator-mode.md) for context." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "### No Violations" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No deprecated Simple Mode symbols detected in this PR." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment on PR (violations detected)
+        if: failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: simple-mode-guard
+          body: |
+            ## Simple Mode Guard
+            
+            **Status**: Violations detected
+            
+            Your PR introduces deprecated Simple Mode symbols that were removed in Issue #2651 after LangGraph 100% rollout.
+            
+            ### Forbidden Symbols Detected
+            
+            ${{ steps.check.outputs.violation_details }}
+            
+            ### Why This Matters
+            
+            Simple Mode was deprecated after LangGraph reached 100% rollout. All orchestrator tasks now use LangGraph exclusively. Reintroducing Simple Mode code would:
+            - Create dead code paths
+            - Increase maintenance burden
+            - Cause confusion about the current architecture
+            
+            ### How to Fix
+            
+            1. Remove any `record_simple_task` method calls
+            2. Remove "Simple Mode" string literals
+            3. Remove `USE_LANGGRAPH_PERCENT` / `use_langgraph_percent` references
+            4. Use LangGraph-only patterns (see `langgraph_orchestrator.py`)
+            
+            **Reference**: [ADR-005: Deprecate Simple Orchestrator Mode](docs/adr/005-deprecate-simple-orchestrator-mode.md)
+            
+            [View detailed check results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Comment on PR (no violations)
+        if: success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-tag: simple-mode-guard
+          body: |
+            ## Simple Mode Guard
+            
+            **Status**: No violations
+            
+            No deprecated Simple Mode symbols detected in this PR.
+            
+            [View detailed check results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
