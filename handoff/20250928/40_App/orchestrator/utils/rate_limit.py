@@ -964,7 +964,7 @@ def check_rq_scheduler_health(redis_url: Optional[str] = None) -> Dict[str, Any]
     """
     try:
         from common.config.settings import settings
-        queue_name = getattr(settings, 'rq_queue_name', 'orchestrator')
+        queue_name = getattr(settings, 'rq_queue_name', None) or 'orchestrator'
     except ImportError:
         queue_name = 'orchestrator'
 
