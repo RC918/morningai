@@ -17,9 +17,14 @@
 #   - ADR/changelog entries documenting deprecation
 #   - Test files that verify absence of Simple Mode
 #
+# TESTING:
+#   Run locally: ./scripts/tests/simple-mode-guard.test.sh
+#   Script: ./scripts/ci/simple-mode-guard.sh <base_sha> <head_sha>
+#
 # RELATED:
 #   - Issue #2651: Remove Simple Mode code after LangGraph 100% rollout
 #   - ADR-005: Deprecate Simple Orchestrator Mode
+#   - docs/ci/SIMPLE_MODE_GUARD.md: Detailed documentation
 #
 # =============================================================================
 
@@ -62,80 +67,49 @@ jobs:
           echo "## Simple Mode Guard Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Get the diff for this PR - check ADDED lines only (lines starting with +)
-          # Use diff-filter=AM to include both Added and Modified files
-          # Use explicit base and head SHAs to avoid issues with merge commits
-          # Filter to only Python files in relevant directories
-          echo "Comparing $BASE_SHA..$HEAD_SHA"
-          git diff "$BASE_SHA".."$HEAD_SHA" --diff-filter=AM -U0 -- "*.py" \
-            | grep -E '^diff --git.*(orchestrator|api-backend|common).*\.py' -A 1000000 \
-            | grep '^+' | grep -v '^+++' > added_lines.txt || true
+          # Run the guard script (testable, with resource limits)
+          chmod +x ./scripts/ci/simple-mode-guard.sh
           
-          echo "Added lines found:"
-          cat added_lines.txt || echo "(none)"
-          echo "---"
-          
-          VIOLATIONS=0
-          VIOLATION_DETAILS=""
-          
-          # Check for forbidden symbols in ADDED lines only (excluding comments and documentation)
-          # Pattern 1: record_simple_task (method name)
-          if grep "record_simple_task" added_lines.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" | grep -v "# TODO:" > /dev/null 2>&1; then
-            VIOLATIONS=$((VIOLATIONS + 1))
-            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`record_simple_task\` method reference found"
-          fi
-          
-          # Pattern 2: "Simple Mode" string (case insensitive, excluding comments)
-          if grep -i '"Simple Mode"' added_lines.txt | grep -v "NOTE:" | grep -v "deprecated" | grep -v "removed" > /dev/null 2>&1; then
-            VIOLATIONS=$((VIOLATIONS + 1))
-            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \"Simple Mode\" string literal found"
-          fi
-          
-          # Pattern 3: USE_LANGGRAPH_PERCENT (obsolete env var)
-          if grep "USE_LANGGRAPH_PERCENT" added_lines.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" | grep -v "# TODO:" > /dev/null 2>&1; then
-            VIOLATIONS=$((VIOLATIONS + 1))
-            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`USE_LANGGRAPH_PERCENT\` env var reference found"
-          fi
-          
-          # Pattern 4: use_langgraph_percent (obsolete setting)
-          if grep "use_langgraph_percent" added_lines.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" | grep -v "# TODO:" > /dev/null 2>&1; then
-            VIOLATIONS=$((VIOLATIONS + 1))
-            VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`use_langgraph_percent\` setting reference found"
-          fi
-          
-          echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
-          echo "violation_details=$VIOLATION_DETAILS" >> $GITHUB_OUTPUT
-          
-          if [ $VIOLATIONS -gt 0 ]; then
-            echo "### Violations Found: $VIOLATIONS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo -e "$VIOLATION_DETAILS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Action Required**: Remove deprecated Simple Mode references." >> $GITHUB_STEP_SUMMARY
-            echo "See [ADR-005](docs/adr/005-deprecate-simple-orchestrator-mode.md) for context." >> $GITHUB_STEP_SUMMARY
-            exit 1
-          else
+          if ./scripts/ci/simple-mode-guard.sh "$BASE_SHA" "$HEAD_SHA" 2>&1 | tee guard_output.txt; then
             echo "### No Violations" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "No deprecated Simple Mode symbols detected in this PR." >> $GITHUB_STEP_SUMMARY
+            echo "status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "### Violations Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            # Only show last 20 lines to avoid leaking sensitive code
+            tail -20 guard_output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required**: Remove deprecated Simple Mode references." >> $GITHUB_STEP_SUMMARY
+            echo "See [ADR-005](docs/adr/005-deprecate-simple-orchestrator-mode.md) for context." >> $GITHUB_STEP_SUMMARY
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit 1
           fi
+
+      - name: Find existing comment
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "## Simple Mode Guard"
 
       - name: Comment on PR (violations detected)
         if: failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: simple-mode-guard
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
             ## Simple Mode Guard
             
             **Status**: Violations detected
             
             Your PR introduces deprecated Simple Mode symbols that were removed in Issue #2651 after LangGraph 100% rollout.
-            
-            ### Forbidden Symbols Detected
-            
-            ${{ steps.check.outputs.violation_details }}
             
             ### Why This Matters
             
@@ -160,7 +134,8 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: simple-mode-guard
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
             ## Simple Mode Guard
             
