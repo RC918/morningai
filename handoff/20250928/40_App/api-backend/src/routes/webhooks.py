@@ -242,6 +242,11 @@ def _enqueue_task(task):
     if use_meta_agent:
         return _enqueue_meta_agent_task(task)
 
+    # Phase B-B: Check if this is a PR_UPDATED event that needs delayed job
+    pr_updated_should_schedule = task.context.get("pr_updated_should_schedule_job", False)
+    if pr_updated_should_schedule:
+        return _enqueue_pr_updated_delayed_task(task)
+
     try:
         from redis import Redis
         from rq import Queue
@@ -297,6 +302,105 @@ def _enqueue_task(task):
 
     except Exception as e:
         logger.exception("[Webhooks] Failed to enqueue task: %s", e)
+        return None
+
+
+def _enqueue_pr_updated_delayed_task(task):
+    """
+    Enqueue a PR_UPDATED task with delayed execution for debounce.
+
+    This implements the "sleep inside job" pattern:
+    - First PR_UPDATED event schedules a delayed job
+    - Job sleeps for debounce_seconds, then processes the review
+    - Subsequent events only update the payload in Redis (no new job)
+
+    Issue: Phase B-B - PR_UPDATED support with debounce/throttle
+
+    Args:
+        task: NormalizedTask from EventNormalizer with PR_UPDATED metadata
+
+    Returns:
+        Job ID if enqueued successfully, None otherwise
+    """
+    try:
+        from redis import Redis
+        from rq import Queue
+        from rq.serializers import JSONSerializer
+
+        redis_url = settings.redis_url
+        if not redis_url:
+            logger.warning("[Webhooks] Redis URL not configured, skipping PR_UPDATED task enqueue")
+            return None
+
+        redis_client = Redis.from_url(redis_url, decode_responses=False)
+        queue_name = settings.rq_queue_name or "orchestrator"
+        queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
+
+        from redis_queue.worker import run_pr_updated_delayed_task
+
+        repo = task.context.get("repo") or settings.github_repo
+        if not repo:
+            logger.error(
+                "[Webhooks] No repository specified for PR_UPDATED task %s",
+                task.task_id,
+            )
+            return None
+
+        pr_number = task.context.get("resource_id")
+        if not pr_number:
+            logger.error(
+                "[Webhooks] No PR number specified for PR_UPDATED task %s",
+                task.task_id,
+            )
+            return None
+
+        try:
+            pr_number = int(pr_number)
+        except (ValueError, TypeError):
+            logger.error(
+                "[Webhooks] Invalid PR number for PR_UPDATED task %s: %s",
+                task.task_id,
+                pr_number,
+            )
+            return None
+
+        job_token = task.context.get("pr_updated_job_token")
+        if not job_token:
+            logger.error(
+                "[Webhooks] No job token for PR_UPDATED task %s",
+                task.task_id,
+            )
+            return None
+
+        debounce_seconds = task.context.get("pr_updated_debounce_seconds", 30)
+
+        job = queue.enqueue(
+            run_pr_updated_delayed_task,
+            task.task_id,
+            repo,
+            pr_number,
+            job_token,
+            debounce_seconds,
+            task.goal_text,
+            task.context,
+            job_id=task.task_id,
+            ttl=debounce_seconds + 600,
+            result_ttl=86400,
+            failure_ttl=3600,
+        )
+
+        logger.info(
+            "[Webhooks] Enqueued PR_UPDATED delayed task %s as job %s for repo %s PR #%s (debounce=%ds)",
+            task.task_id,
+            job.id,
+            repo,
+            pr_number,
+            debounce_seconds,
+        )
+        return job.id
+
+    except Exception as e:
+        logger.exception("[Webhooks] Failed to enqueue PR_UPDATED delayed task: %s", e)
         return None
 
 
