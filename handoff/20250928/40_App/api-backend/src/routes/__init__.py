@@ -122,13 +122,9 @@ def register_blueprints(
     except ImportError as e:
         logger.warning("Metrics API routes not available: %s", e)
 
-    # Rollout API for LangGraph rollout dashboard (Epic #2311 Phase 4A, Issue #2283)
-    try:
-        from src.routes.rollout import rollout_bp
-        app.register_blueprint(rollout_bp, url_prefix="/api")
-        logger.info("Rollout API routes enabled")
-    except ImportError as e:
-        logger.warning("Rollout API routes not available: %s", e)
+    # Rollout API removed - LangGraph is now 100% rolled out (PR #2765, PR #2766)
+    # The rollout endpoints (/api/rollout/*) are no longer needed since the
+    # use_langgraph_percent setting has been removed from Settings.
 
     # Mock API for backend services (conditional)
     # Only import mock_api - other services are already imported in main.py

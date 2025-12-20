@@ -774,36 +774,6 @@
     ]
   ],
   [
-    "/api/rollout/circuit-breaker/reset",
-    [
-      "POST"
-    ]
-  ],
-  [
-    "/api/rollout/comparison",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/rollout/dashboard",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/rollout/health",
-    [
-      "GET"
-    ]
-  ],
-  [
-    "/api/rollout/slo",
-    [
-      "GET"
-    ]
-  ],
-  [
     "/api/security/access-requests/evaluate",
     [
       "GET",
