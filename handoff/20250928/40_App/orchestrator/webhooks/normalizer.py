@@ -561,9 +561,12 @@ class EventNormalizer:
         # Build context for Meta Agent
         context = self._build_context(event)
 
-        # Generate task ID
+        # Generate task ID with full UUID for DB compatibility
+        # Format: webhook-{source}-{full_uuid}
+        # The db_writer.normalize_and_validate_uuid() will extract the UUID portion
         import uuid
-        task_id = f"webhook-{event.source.value}-{uuid.uuid4().hex[:8]}"
+        task_uuid = str(uuid.uuid4())
+        task_id = f"webhook-{event.source.value}-{task_uuid}"
 
         task = NormalizedTask(
             task_id=task_id,
