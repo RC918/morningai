@@ -1772,29 +1772,105 @@ def run_pr_updated_delayed_task(
             )
 
             # Check if a new push happened within the debounce window
-            # If updated_at is more recent than (now - debounce_seconds), skip
-            # This handles the case where a new push happened but token wasn't updated yet
+            # If updated_at is more recent than (now - debounce_seconds), reschedule
+            # This implements true debounce: "wait until quiet period is satisfied"
             updated_at = latest_payload.get("updated_at")
             if updated_at:
-                time_since_update = time.time() - updated_at
+                # Clock skew protection: ensure time_since_update is non-negative
+                time_since_update = max(0, time.time() - updated_at)
                 if time_since_update < debounce_seconds:
+                    # Calculate remaining time until quiet period is satisfied
+                    # Minimum 1 second to avoid tight loops
+                    remaining_seconds = max(1, int(debounce_seconds - time_since_update) + 1)
+                    
                     logger.info(
-                        "[PRUpdatedDelayed] Recent push detected within debounce window, exiting",
+                        "[PRUpdatedDelayed] Recent push detected, rescheduling for remaining debounce",
                         extra={
-                            "operation": "pr_updated_recent_push",
+                            "operation": "pr_updated_reschedule",
                             "task_id": task_id,
                             "repo": repo,
                             "pr_number": pr_number,
                             "time_since_update": time_since_update,
                             "debounce_seconds": debounce_seconds,
+                            "remaining_seconds": remaining_seconds,
                         }
                     )
-                    return {
-                        "success": False,
-                        "task_id": task_id,
-                        "reason": "recent_push",
-                        "message": f"New push detected {time_since_update:.1f}s ago, within debounce window",
-                    }
+                    
+                    # Self-reschedule: enqueue this same task to run after remaining time
+                    # This ensures the last push is always processed after quiet period
+                    try:
+                        from datetime import timedelta
+                        from redis import Redis
+                        from rq import Queue
+                        from rq.serializers import JSONSerializer
+                        
+                        redis_url = getattr(settings, 'redis_url', None)
+                        if redis_url:
+                            redis_client = Redis.from_url(redis_url, decode_responses=False)
+                            queue_name = getattr(settings, 'rq_queue_name', 'orchestrator')
+                            queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
+                            
+                            # Use same job_id to replace/deduplicate
+                            # RQ will handle job replacement when using same job_id
+                            new_job = queue.enqueue_in(
+                                timedelta(seconds=remaining_seconds),
+                                run_pr_updated_delayed_task,
+                                task_id,
+                                repo,
+                                pr_number,
+                                job_token,
+                                debounce_seconds,
+                                goal_text,
+                                context,
+                                job_id=f"{task_id}-reschedule",  # New job_id to avoid conflict
+                                ttl=remaining_seconds + 600,
+                                result_ttl=86400,
+                                failure_ttl=3600,
+                            )
+                            
+                            logger.info(
+                                "[PRUpdatedDelayed] Successfully rescheduled task",
+                                extra={
+                                    "operation": "pr_updated_rescheduled",
+                                    "task_id": task_id,
+                                    "new_job_id": new_job.id,
+                                    "repo": repo,
+                                    "pr_number": pr_number,
+                                    "remaining_seconds": remaining_seconds,
+                                }
+                            )
+                            
+                            return {
+                                "success": False,
+                                "task_id": task_id,
+                                "reason": "rescheduled",
+                                "message": f"Rescheduled for {remaining_seconds}s (quiet period not satisfied)",
+                                "new_job_id": new_job.id,
+                            }
+                        else:
+                            logger.error(
+                                "[PRUpdatedDelayed] Cannot reschedule - Redis URL not configured",
+                                extra={
+                                    "operation": "pr_updated_reschedule_failed",
+                                    "task_id": task_id,
+                                    "repo": repo,
+                                    "pr_number": pr_number,
+                                }
+                            )
+                    except Exception as reschedule_error:
+                        logger.error(
+                            "[PRUpdatedDelayed] Failed to reschedule task, proceeding with review",
+                            extra={
+                                "operation": "pr_updated_reschedule_error",
+                                "task_id": task_id,
+                                "repo": repo,
+                                "pr_number": pr_number,
+                                "error": str(reschedule_error),
+                            },
+                            exc_info=True
+                        )
+                        # Fall through to execute review if reschedule fails
+                        # This is fail-open: better to review than to lose the task
 
         # Step 3: Execute orchestrator review
         logger.info(

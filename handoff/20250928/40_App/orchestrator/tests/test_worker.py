@@ -806,12 +806,12 @@ class TestRunPRUpdatedDelayedTask:
 
                         mock_mark_processed.assert_not_called()
 
-    def test_pr_updated_delayed_task_recent_push_exits(self):
-        """Test that recent push within debounce window causes early exit.
+    def test_pr_updated_delayed_task_recent_push_reschedules(self):
+        """Test that recent push within debounce window triggers self-rescheduling.
 
-        This is the new non-blocking debounce behavior: if a new push happened
-        within the debounce window (updated_at is recent), the job exits early
-        to let the newer scheduled job handle the review.
+        This implements true debounce: if a new push happened within the debounce
+        window (updated_at is recent), the job reschedules itself to run after
+        the remaining quiet period, ensuring the last push is always processed.
         """
         import sys
         import time
@@ -825,31 +825,58 @@ class TestRunPRUpdatedDelayedTask:
             with patch('utils.rate_limit.verify_pr_updated_job_token') as mock_verify_token:
                 with patch('utils.rate_limit.get_pr_updated_latest_payload') as mock_get_payload:
                     with patch('utils.rate_limit.mark_pr_updated_processed') as mock_mark_processed:
-                        from redis_queue.worker import run_pr_updated_delayed_task
+                        # Mock Redis and Queue for self-rescheduling
+                        with patch('redis.Redis') as mock_redis_class:
+                            with patch('rq.Queue') as mock_queue_class:
+                                with patch('redis_queue.worker.settings') as mock_settings:
+                                    mock_settings.redis_url = "redis://localhost:6379"
+                                    mock_settings.rq_queue_name = "orchestrator"
+                                    
+                                    mock_redis = MagicMock()
+                                    mock_redis_class.from_url.return_value = mock_redis
+                                    
+                                    mock_queue = MagicMock()
+                                    mock_new_job = MagicMock()
+                                    mock_new_job.id = "rescheduled-job-123"
+                                    mock_queue.enqueue_in.return_value = mock_new_job
+                                    mock_queue_class.return_value = mock_queue
+                                    
+                                    from redis_queue.worker import run_pr_updated_delayed_task
 
-                        mock_verify_token.return_value = True
-                        # Payload with updated_at within debounce window (recent push)
-                        mock_get_payload.return_value = {
-                            "event_count": 2,
-                            "sha": "new-sha",
-                            "updated_at": time.time() - 5  # 5 seconds ago, within 30s window
-                        }
+                                    mock_verify_token.return_value = True
+                                    # Payload with updated_at within debounce window (recent push)
+                                    mock_get_payload.return_value = {
+                                        "event_count": 2,
+                                        "sha": "new-sha",
+                                        "updated_at": time.time() - 5  # 5 seconds ago, within 30s window
+                                    }
 
-                        result = run_pr_updated_delayed_task(
-                            task_id="task-recent-push",
-                            repo="owner/repo",
-                            pr_number=42,
-                            job_token="valid-token",
-                            debounce_seconds=30,
-                            goal_text="Review PR changes",
-                            context=None
-                        )
+                                    result = run_pr_updated_delayed_task(
+                                        task_id="task-recent-push",
+                                        repo="owner/repo",
+                                        pr_number=42,
+                                        job_token="valid-token",
+                                        debounce_seconds=30,
+                                        goal_text="Review PR changes",
+                                        context=None
+                                    )
 
-                        assert result["success"] is False
-                        assert result["task_id"] == "task-recent-push"
-                        assert result["reason"] == "recent_push"
-                        assert "within debounce window" in result["message"]
+                                    assert result["success"] is False
+                                    assert result["task_id"] == "task-recent-push"
+                                    assert result["reason"] == "rescheduled"
+                                    assert "quiet period not satisfied" in result["message"]
+                                    assert result["new_job_id"] == "rescheduled-job-123"
 
-                        # Orchestrator should NOT be called
-                        mock_run_orchestrator.assert_not_called()
-                        mock_mark_processed.assert_not_called()
+                                    # Verify enqueue_in was called for rescheduling
+                                    mock_queue.enqueue_in.assert_called_once()
+                                    
+                                    # Verify remaining time calculation (30 - 5 = 25, +1 = 26)
+                                    call_args = mock_queue.enqueue_in.call_args
+                                    from datetime import timedelta
+                                    # remaining_seconds should be around 26 (30 - 5 + 1)
+                                    assert call_args[0][0].total_seconds() >= 25
+                                    assert call_args[0][0].total_seconds() <= 27
+
+                                    # Orchestrator should NOT be called
+                                    mock_run_orchestrator.assert_not_called()
+                                    mock_mark_processed.assert_not_called()
