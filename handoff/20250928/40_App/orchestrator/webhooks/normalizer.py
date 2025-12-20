@@ -50,6 +50,12 @@ def is_internal_repo_allowed(repo: str) -> bool:
     Phase B-B: Internal Repo Dogfooding
     This enables MorningAI to review its own code in Staging environment.
 
+    Preconditions (all must be true):
+    1. settings object is available
+    2. allow_internal_repos_in_staging is True
+    3. is_staging environment is True
+    4. repo is in internal_repos_whitelist
+
     Args:
         repo: Repository in owner/repo format (e.g., 'RC918/morningai')
 
@@ -59,25 +65,16 @@ def is_internal_repo_allowed(repo: str) -> bool:
     if not settings:
         return False
 
-    # Check if dogfooding is enabled in Staging
+    # Gather all preconditions using getattr for robustness
+    is_staging_env = getattr(settings, 'is_staging', False)
     allow_internal = getattr(settings, 'allow_internal_repos_in_staging', False)
-    if not allow_internal:
-        return False
-
-    # Check if we're in Staging environment
-    # is_staging is a property, so we need to access it directly
-    try:
-        is_staging_env = settings.is_staging
-    except Exception:
-        is_staging_env = False
-    if not is_staging_env:
-        return False
-
-    # Check if repo is in the internal repos whitelist
     whitelist_str = getattr(settings, 'internal_repos_whitelist', '')
-    if not whitelist_str:
+
+    # Dogfooding is only allowed when all preconditions are met
+    if not (allow_internal and is_staging_env and whitelist_str):
         return False
 
+    # Parse whitelist and check if repo is allowed
     whitelist = {r.strip() for r in whitelist_str.split(',') if r.strip()}
     is_allowed = repo in whitelist
 
