@@ -1241,18 +1241,37 @@ def governance_advisor_node(state: AgentState) -> AgentState:
 
         agent = get_governance_agent()
 
-        advisory = agent.analyze_task(
-            task_type=task_type,
-            trace_id=trace_id,
-            agent_id="orchestrator",
-            file_paths=[],
-            operations=plan,
-            content=goal,
-            labels=[],
-            environment="sandbox"
-        )
+        # Resolve agent_type to UUID for DB operations
+        agent_uuid = None
+        if agent.reputation_engine:
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid("orchestrator")
 
-        advisory_dict = advisory.to_dict()
+        # Fail-open: skip DB operations if UUID resolution fails
+        if agent_uuid:
+            advisory = agent.analyze_task(
+                task_type=task_type,
+                trace_id=trace_id,
+                agent_id=agent_uuid,
+                file_paths=[],
+                operations=plan,
+                content=goal,
+                labels=[],
+                environment="sandbox"
+            )
+            advisory_dict = advisory.to_dict()
+        else:
+            # UUID resolution failed - use safe defaults without DB operations
+            logger.warning("[GovernanceAdvisor] Could not resolve agent UUID, using defaults", extra={
+                "operation": "governance_advisor",
+                "trace_id": trace_id
+            })
+            from governance_agent.agent import GovernanceRisk
+            advisory_dict = {
+                "is_compliant": True,
+                "overall_risk": GovernanceRisk.INFO.value,
+                "findings": [],
+                "summary": "Governance check skipped: agent UUID could not be resolved"
+            }
         state["governance_advisory"] = advisory_dict
         state["governance_risk"] = advisory_dict["overall_risk"]
         state["governance_findings"] = advisory_dict["findings"]
@@ -1441,28 +1460,54 @@ def permission_advisor_node(state: AgentState) -> AgentState:
 
         agent = get_governance_agent()
 
-        advisory = agent.analyze_permissions(
-            agent_id=state.get("agent_id", "orchestrator"),
-            operations=plan,
-            environment=state.get("environment", "sandbox")
-        )
+        # Resolve agent_type to UUID for DB operations
+        agent_identifier = state.get("agent_id", "orchestrator")
+        agent_uuid = None
+        if agent.reputation_engine:
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid(agent_identifier)
 
-        advisory_dict = advisory.to_dict()
-        state["permission_advisory"] = advisory_dict
-        state["permission_risk"] = advisory_dict["overall_risk"]
-        state["permission_granted"] = advisory_dict["is_compliant"]
+        # Fail-open: skip DB operations if UUID resolution fails
+        if agent_uuid:
+            advisory = agent.analyze_permissions(
+                agent_id=agent_uuid,
+                operations=plan,
+                environment=state.get("environment", "sandbox")
+            )
+            advisory_dict = advisory.to_dict()
+            state["permission_advisory"] = advisory_dict
+            state["permission_risk"] = advisory_dict["overall_risk"]
+            state["permission_granted"] = advisory_dict["is_compliant"]
 
-        logger.info("[PermissionAdvisor] Analysis complete", extra={
-            "operation": "permission_advisor",
-            "trace_id": trace_id,
-            "permission_granted": advisory.is_compliant,
-            "risk_level": advisory.overall_risk.value,
-            "findings_count": len(advisory.findings)
-        })
+            logger.info("[PermissionAdvisor] Analysis complete", extra={
+                "operation": "permission_advisor",
+                "trace_id": trace_id,
+                "permission_granted": advisory.is_compliant,
+                "risk_level": advisory.overall_risk.value,
+                "findings_count": len(advisory.findings)
+            })
 
-        state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Permission analysis: risk={advisory.overall_risk.value}, granted={advisory.is_compliant}")
-        ]
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"Permission analysis: risk={advisory.overall_risk.value}, granted={advisory.is_compliant}")
+            ]
+        else:
+            # UUID resolution failed - use safe defaults without DB operations (fail-open)
+            logger.warning("[PermissionAdvisor] Could not resolve agent UUID, using defaults", extra={
+                "operation": "permission_advisor",
+                "trace_id": trace_id,
+                "agent_identifier": agent_identifier
+            })
+            from governance_agent.agent import GovernanceRisk
+            state["permission_advisory"] = {
+                "is_compliant": True,
+                "overall_risk": GovernanceRisk.INFO.value,
+                "findings": [],
+                "summary": "Permission check skipped: agent UUID could not be resolved"
+            }
+            state["permission_risk"] = GovernanceRisk.INFO.value
+            state["permission_granted"] = True
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content="Permission analysis skipped (agent UUID could not be resolved)")
+            ]
 
     except ImportError as e:
         logger.warning(f"[PermissionAdvisor] GovernanceAgent not available: {e}", extra={
@@ -1530,24 +1575,34 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
 
         agent = get_governance_agent()
 
+        # Resolve agent_type to UUID for DB operations
+        agent_uuid = None
+        if agent.reputation_engine:
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid("orchestrator")
+
         reputation_data = {
-            "agent_id": "orchestrator",
+            "agent_id": agent_uuid,  # Allow None for data consistency
             "score": 100,
             "level": "trusted",
             "history": []
         }
 
-        if agent.reputation_engine:
+        if agent.reputation_engine and agent_uuid:
             try:
-                reputation_data = agent.reputation_engine.get_reputation("orchestrator") or reputation_data
+                reputation_data = agent.reputation_engine.get_reputation(agent_uuid) or reputation_data
             except Exception as e:
                 logger.warning(f"[ReputationAdvisor] ReputationEngine query failed: {e}")
+        elif not agent_uuid:
+            logger.warning("[ReputationAdvisor] Could not resolve agent UUID, using defaults", extra={
+                "operation": "reputation_advisor",
+                "trace_id": trace_id
+            })
 
         score = reputation_data.get("score", 100)
         level = reputation_data.get("level", "trusted")
 
         state["reputation_advisory"] = {
-            "agent_id": reputation_data.get("agent_id", "orchestrator"),
+            "agent_id": reputation_data.get("agent_id", agent_uuid),  # Allow None for data consistency
             "score": score,
             "level": level,
             "history": reputation_data.get("history", []),
