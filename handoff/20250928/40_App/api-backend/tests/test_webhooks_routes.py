@@ -793,7 +793,7 @@ class TestEnqueuePRUpdatedDelayedTask:
                     mock_queue.enqueue.return_value = mock_job
                     mock_queue_class.return_value = mock_queue
 
-                    with patch("src.routes.webhooks.run_pr_updated_delayed_task") as mock_worker_func:
+                    with patch("redis_queue.worker.run_pr_updated_delayed_task") as mock_worker_func:
                         result = _enqueue_pr_updated_delayed_task(mock_task)
 
                         assert result == "job-pr-updated-123"
@@ -918,7 +918,7 @@ class TestEnqueuePRUpdatedDelayedTask:
                     mock_queue.enqueue.return_value = mock_job
                     mock_queue_class.return_value = mock_queue
 
-                    with patch("src.routes.webhooks.run_pr_updated_delayed_task"):
+                    with patch("redis_queue.worker.run_pr_updated_delayed_task"):
                         result = _enqueue_pr_updated_delayed_task(mock_task)
 
                         assert result == "job-123"
@@ -973,7 +973,7 @@ class TestEnqueuePRUpdatedDelayedTask:
                     mock_queue.enqueue.return_value = mock_job
                     mock_queue_class.return_value = mock_queue
 
-                    with patch("src.routes.webhooks.run_pr_updated_delayed_task"):
+                    with patch("redis_queue.worker.run_pr_updated_delayed_task"):
                         result = _enqueue_pr_updated_delayed_task(mock_task)
 
                         assert result == "job-123"
