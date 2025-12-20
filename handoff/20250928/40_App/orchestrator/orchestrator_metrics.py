@@ -603,7 +603,8 @@ class OrchestratorMetrics:
             "decisions": self.get_decision_summary(window_minutes),
             "fixer": self.get_fixer_summary(window_minutes),
             "quality_scores": self.get_quality_score_summary(window_minutes),
-            "failure_learning": self.get_failure_learning_summary(window_minutes)
+            "failure_learning": self.get_failure_learning_summary(window_minutes),
+            "review": self.get_review_summary(window_minutes)
         }
 
     # ==================== Failure Learning Metrics (Issue #2124) ====================
@@ -876,6 +877,373 @@ class OrchestratorMetrics:
             "context_with_kg_patterns": self.get_window_count(
                 "failure_learning.context.has_kg_patterns", window_minutes
             )
+        }
+
+    # ==================== Review Metrics (EPIC B Phase B-B C-lite) ====================
+
+    def record_diff_fetch(
+        self,
+        trace_id: str,
+        success: bool,
+        truncated: bool = False,
+        original_files: int = 0,
+        included_files: int = 0,
+        original_lines: int = 0,
+        included_lines: int = 0,
+        lockfile_only: bool = False
+    ) -> None:
+        """
+        Record diff fetch metrics for EPIC B Phase B-B.
+
+        Issue #2595: Diff-Aware Review Plumbing - C-lite Telemetry
+
+        KPI: Diff Coverage > 90% (未截斷 PR 比例)
+        - Denominator excludes lockfile-only PRs
+
+        Args:
+            trace_id: Unique trace identifier
+            success: Whether diff fetch succeeded
+            truncated: Whether diff was truncated
+            original_files: Total files in PR (from GitHub)
+            included_files: Files included after truncation
+            original_lines: Total lines in PR
+            included_lines: Lines included after truncation
+            lockfile_only: Whether PR only contains lockfiles (excluded from KPI)
+        """
+        if not self.enabled:
+            return
+
+        if lockfile_only:
+            key = self._get_minute_key("review.diff.lockfile_only")
+            self._safe_incr(key)
+            logger.debug("[Metrics] Diff fetch skipped (lockfile-only)", extra={
+                "operation": "metrics_diff_fetch",
+                "trace_id": trace_id,
+                "lockfile_only": True
+            })
+            return
+
+        if success:
+            key = self._get_minute_key("review.diff.fetch_success")
+            self._safe_incr(key)
+
+            if truncated:
+                truncated_key = self._get_minute_key("review.diff.truncated")
+                self._safe_incr(truncated_key)
+            else:
+                not_truncated_key = self._get_minute_key("review.diff.not_truncated")
+                self._safe_incr(not_truncated_key)
+
+            if original_files > 0:
+                files_key = self._get_minute_key("review.diff.original_files")
+                self._safe_incr(files_key, original_files)
+                included_files_key = self._get_minute_key("review.diff.included_files")
+                self._safe_incr(included_files_key, included_files)
+
+            if original_lines > 0:
+                lines_key = self._get_minute_key("review.diff.original_lines")
+                self._safe_incr(lines_key, original_lines)
+                included_lines_key = self._get_minute_key("review.diff.included_lines")
+                self._safe_incr(included_lines_key, included_lines)
+        else:
+            key = self._get_minute_key("review.diff.fetch_failure")
+            self._safe_incr(key)
+
+        logger.debug("[Metrics] Diff fetch recorded", extra={
+            "operation": "metrics_diff_fetch",
+            "trace_id": trace_id,
+            "success": success,
+            "truncated": truncated,
+            "original_files": original_files,
+            "included_files": included_files
+        })
+
+    def record_schema_validation(
+        self,
+        trace_id: str,
+        raw_count: int,
+        normalized_count: int,
+        llm_api_failed: bool = False
+    ) -> None:
+        """
+        Record schema validation metrics for EPIC B Phase B-B.
+
+        Issue #2595: Diff-Aware Review Plumbing - C-lite Telemetry
+
+        KPI: Schema Pass Rate > 95%
+        - Formula: normalized_count / raw_count
+        - Excludes LLM API failures (infrastructure issue, not schema issue)
+
+        Args:
+            trace_id: Unique trace identifier
+            raw_count: Number of raw comments from LLM
+            normalized_count: Number of comments after schema normalization
+            llm_api_failed: Whether LLM API call failed (excluded from KPI)
+        """
+        if not self.enabled:
+            return
+
+        if llm_api_failed:
+            key = self._get_minute_key("review.schema.llm_api_failed")
+            self._safe_incr(key)
+            logger.debug("[Metrics] Schema validation skipped (LLM API failed)", extra={
+                "operation": "metrics_schema_validation",
+                "trace_id": trace_id,
+                "llm_api_failed": True
+            })
+            return
+
+        if raw_count == 0:
+            key = self._get_minute_key("review.schema.empty_output")
+            self._safe_incr(key)
+            logger.debug("[Metrics] Schema validation skipped (empty LLM output)", extra={
+                "operation": "metrics_schema_validation",
+                "trace_id": trace_id,
+                "raw_count": 0
+            })
+            return
+
+        raw_key = self._get_minute_key("review.schema.raw_total")
+        self._safe_incr(raw_key, raw_count)
+
+        normalized_key = self._get_minute_key("review.schema.normalized_total")
+        self._safe_incr(normalized_key, normalized_count)
+
+        filtered_count = raw_count - normalized_count
+        if filtered_count > 0:
+            filtered_key = self._get_minute_key("review.schema.filtered_total")
+            self._safe_incr(filtered_key, filtered_count)
+
+        logger.debug("[Metrics] Schema validation recorded", extra={
+            "operation": "metrics_schema_validation",
+            "trace_id": trace_id,
+            "raw_count": raw_count,
+            "normalized_count": normalized_count,
+            "filtered_count": filtered_count
+        })
+
+    def record_inline_comment_result(
+        self,
+        trace_id: str,
+        eligible_count: int,
+        validated_count: int,
+        downgraded_count: int,
+        posted_count: int,
+        post_failed: bool = False,
+        fallback_used: bool = False,
+        dry_run: bool = False,
+        feature_disabled: bool = False
+    ) -> None:
+        """
+        Record inline comment posting metrics for EPIC B Phase B-B.
+
+        Issue #2595: Diff-Aware Review Plumbing - C-lite Telemetry
+
+        KPIs:
+        - Inline Success Rate > 90%: posted_count / eligible_count (strict)
+        - Review Delivery Rate: (posted_count + fallback_count) / eligible_count
+
+        Args:
+            trace_id: Unique trace identifier
+            eligible_count: Comments with file+line info (inline-eligible)
+            validated_count: Comments that passed diff line validation
+            downgraded_count: Comments downgraded to file-level due to validation
+            posted_count: Comments successfully posted as inline
+            post_failed: Whether GitHub API posting failed entirely
+            fallback_used: Whether fallback to review body was used
+            dry_run: Whether this was a dry-run (excluded from KPI)
+            feature_disabled: Whether feature was disabled (excluded from KPI)
+        """
+        if not self.enabled:
+            return
+
+        if feature_disabled:
+            key = self._get_minute_key("review.inline.feature_disabled")
+            self._safe_incr(key)
+            return
+
+        if dry_run:
+            key = self._get_minute_key("review.inline.dry_run")
+            self._safe_incr(key)
+            return
+
+        eligible_key = self._get_minute_key("review.inline.eligible_total")
+        self._safe_incr(eligible_key, eligible_count)
+
+        validated_key = self._get_minute_key("review.inline.validated_total")
+        self._safe_incr(validated_key, validated_count)
+
+        downgraded_key = self._get_minute_key("review.inline.downgraded_total")
+        self._safe_incr(downgraded_key, downgraded_count)
+
+        if post_failed:
+            failed_key = self._get_minute_key("review.inline.post_failed")
+            self._safe_incr(failed_key)
+        else:
+            # Fix: Separate inline-posted from fallback-posted comments
+            # When fallback_used=True, posted_count represents comments delivered
+            # via review body, not actual inline comments
+            if fallback_used:
+                # Comments delivered via fallback body (comment-level counter)
+                fallback_comments_key = self._get_minute_key(
+                    "review.inline.fallback_comments_total"
+                )
+                self._safe_incr(fallback_comments_key, posted_count)
+                # Fallback events counter (event-level, for debugging only)
+                fallback_events_key = self._get_minute_key(
+                    "review.inline.fallback_events_total"
+                )
+                self._safe_incr(fallback_events_key)
+            else:
+                # True inline comments posted
+                posted_key = self._get_minute_key("review.inline.posted_total")
+                self._safe_incr(posted_key, posted_count)
+
+        logger.debug("[Metrics] Inline comment result recorded", extra={
+            "operation": "metrics_inline_comment",
+            "trace_id": trace_id,
+            "eligible_count": eligible_count,
+            "validated_count": validated_count,
+            "downgraded_count": downgraded_count,
+            "posted_count": posted_count,
+            "post_failed": post_failed,
+            "fallback_used": fallback_used
+        })
+
+    def get_review_summary(self, window_minutes: int = 15) -> Dict:
+        """
+        Get summary of review metrics for EPIC B Phase B-B KPIs.
+
+        Issue #2595: Diff-Aware Review Plumbing - C-lite Telemetry
+
+        Returns:
+            Dict with review KPI metrics:
+            - diff_coverage_rate: % of PRs not truncated (target > 90%)
+            - schema_pass_rate: % of comments passing schema (target > 95%)
+            - inline_success_rate: % of inline comments posted (target > 90%)
+            - delivery_rate: % of comments delivered (inline + fallback)
+        """
+        if not self.enabled:
+            return {"enabled": False}
+
+        fetch_success = self.get_window_count(
+            "review.diff.fetch_success", window_minutes
+        )
+        fetch_failure = self.get_window_count(
+            "review.diff.fetch_failure", window_minutes
+        )
+        truncated = self.get_window_count(
+            "review.diff.truncated", window_minutes
+        )
+        not_truncated = self.get_window_count(
+            "review.diff.not_truncated", window_minutes
+        )
+        lockfile_only = self.get_window_count(
+            "review.diff.lockfile_only", window_minutes
+        )
+
+        schema_raw = self.get_window_count(
+            "review.schema.raw_total", window_minutes
+        )
+        schema_normalized = self.get_window_count(
+            "review.schema.normalized_total", window_minutes
+        )
+        schema_filtered = self.get_window_count(
+            "review.schema.filtered_total", window_minutes
+        )
+        schema_empty = self.get_window_count(
+            "review.schema.empty_output", window_minutes
+        )
+        llm_api_failed = self.get_window_count(
+            "review.schema.llm_api_failed", window_minutes
+        )
+
+        inline_eligible = self.get_window_count(
+            "review.inline.eligible_total", window_minutes
+        )
+        inline_validated = self.get_window_count(
+            "review.inline.validated_total", window_minutes
+        )
+        inline_downgraded = self.get_window_count(
+            "review.inline.downgraded_total", window_minutes
+        )
+        inline_posted = self.get_window_count(
+            "review.inline.posted_total", window_minutes
+        )
+        # Fix: Use comment-level fallback counter, not event-level
+        inline_fallback_comments = self.get_window_count(
+            "review.inline.fallback_comments_total", window_minutes
+        )
+        # Event-level fallback counter (for debugging only)
+        inline_fallback_events = self.get_window_count(
+            "review.inline.fallback_events_total", window_minutes
+        )
+        inline_post_failed = self.get_window_count(
+            "review.inline.post_failed", window_minutes
+        )
+        inline_dry_run = self.get_window_count(
+            "review.inline.dry_run", window_minutes
+        )
+        inline_feature_disabled = self.get_window_count(
+            "review.inline.feature_disabled", window_minutes
+        )
+
+        diff_coverage_rate = round(
+            not_truncated / fetch_success * 100, 2
+        ) if fetch_success > 0 else 0
+
+        schema_pass_rate = round(
+            schema_normalized / schema_raw * 100, 2
+        ) if schema_raw > 0 else 0
+
+        inline_success_rate = round(
+            inline_posted / inline_eligible * 100, 2
+        ) if inline_eligible > 0 else 0
+
+        # Fix: Use comment-level fallback counter for delivery_rate
+        # delivery_rate = (inline_posted + fallback_comments) / eligible
+        # This ensures both numerator components are comment-level counts
+        delivery_rate = round(
+            (inline_posted + inline_fallback_comments) / inline_eligible * 100, 2
+        ) if inline_eligible > 0 else 0
+
+        return {
+            "diff": {
+                "fetch_success": fetch_success,
+                "fetch_failure": fetch_failure,
+                "truncated": truncated,
+                "not_truncated": not_truncated,
+                "lockfile_only_excluded": lockfile_only,
+                "coverage_rate": diff_coverage_rate
+            },
+            "schema": {
+                "raw_total": schema_raw,
+                "normalized_total": schema_normalized,
+                "filtered_total": schema_filtered,
+                "empty_output_runs": schema_empty,
+                "llm_api_failed_excluded": llm_api_failed,
+                "pass_rate": schema_pass_rate
+            },
+            "inline": {
+                "eligible_total": inline_eligible,
+                "validated_total": inline_validated,
+                "downgraded_total": inline_downgraded,
+                "posted_total": inline_posted,
+                # Fix: Separate comment-level and event-level fallback counters
+                "fallback_comments_total": inline_fallback_comments,
+                "fallback_events_total": inline_fallback_events,
+                "post_failed": inline_post_failed,
+                "dry_run_excluded": inline_dry_run,
+                "feature_disabled_excluded": inline_feature_disabled,
+                "success_rate": inline_success_rate,
+                "delivery_rate": delivery_rate
+            },
+            "kpis": {
+                "diff_coverage_rate": diff_coverage_rate,
+                "schema_pass_rate": schema_pass_rate,
+                "inline_success_rate": inline_success_rate,
+                "delivery_rate": delivery_rate
+            }
         }
 
 
