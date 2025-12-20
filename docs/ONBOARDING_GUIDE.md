@@ -38,9 +38,9 @@ MorningAI is an intelligent agent orchestration platform that automates software
 
 Building the world's most advanced autonomous AI agent orchestration platform that seamlessly integrates development, operations, and business intelligence with human-in-the-loop governance.
 
-### Current Status (Updated: 2025-12-09)
+### Current Status (Updated: 2025-12-20)
 
-- **Phase**: Phase 8 (v8.0.0) - MVP Foundation Complete
+- **Phase**: Phase 8 (v8.0.0) - MVP Foundation Complete + LangGraph 100% Rollout
 - **Test Coverage**: 
   - Owner Console: **59.89% lines, 45.76% branches** (32 E2E tests passing, 218 unit tests)
   - Orchestrator: **70%+** (超過 50% 門檻)
@@ -49,6 +49,577 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 - **Uptime**: 90% (Target: 99.9% by Q2 2026)
 - **Transformation**: Q4 2025 - Q2 2026 (MVP to World-Class)
 - **Latest Roadmap**: [Strategic Roadmap Reality Comparison](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)
+- **LangGraph Status**: 100% Rollout Complete - Simple Mode removed (Dec 2025)
+
+**Recent Improvements (Dec 13 - Dec 20, 2025)** (198 PRs merged):
+
+*EPIC B: PR_UPDATED Event Support & Phase BB Robustness (21 PRs):*
+- **PR #2789**: feat(phase-bb): P2 technical debt - extract helper, narrow exceptions, add tests
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Technical debt reduction with helper extraction and narrowed exception handling
+- **PR #2788**: feat(epic-b): Phase 2 - Line drift protection with head_sha tracking
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Prevents stale comments by tracking head_sha for line drift detection
+- **PR #2787**: refactor(epic-b): P2/P3 follow-up improvements for Phase 1 Quick Wins
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Follow-up improvements for LLM reliability and file-level comments
+- **PR #2786**: feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: New env var `REDIS_KEY_PREFIX` for multi-environment Redis key isolation
+- **PR #2785**: feat(epic-b): Phase 1 Quick Wins - LLM reliability and file-level comments delivery
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Improved LLM reliability and file-level comment delivery
+- **PR #2784**: fix(phase-bb): use consistent queue_name pattern with None handling in worker.py
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+  - Impact: Consistent queue naming pattern with proper None handling
+- **PR #2782**: feat(phase-bb): add P2 robustness improvements for debounce mechanism
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Enhanced debounce mechanism robustness
+- **PR #2781**: refactor(phase-bb): implement non-blocking debounce with self-rescheduling
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Non-blocking debounce implementation with self-rescheduling
+- **PR #2776**: feat(phase-bb): implement PR_UPDATED delayed job integration
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Delayed job integration for PR_UPDATED events
+- **PR #2769**: feat(phase-bb): add PR_UPDATED event support with debounce/throttle
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Core PR_UPDATED event support with debounce and throttle mechanisms
+- **PR #2768**: feat(phase-bb): add 422 fault injection for fallback verification
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Fault injection for testing fallback behavior
+- **PR #2770**: feat: restrict 422 fault injection to internal repos only (P2 follow-up)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Security restriction for fault injection to internal repos only
+- **PR #2763**: feat(phase-bb): enable internal repo dogfooding in Staging
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Internal repo dogfooding enabled in Staging environment
+- **PR #2741**: feat(phase-bb): add C-lite telemetry for EPIC B KPIs
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: C-lite telemetry for EPIC B key performance indicators
+- **PR #2735**: fix(phase-bb): fix header case-sensitivity, empty string trap, and add automation bot allowlist
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Header case-sensitivity fix and automation bot allowlist
+- **PR #2732**: fix(phase-bb): add context observability fields to diagnose pr_number=0
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Enhanced observability for debugging pr_number=0 issues
+- **PR #2730**: fix(phase-bb): use single quotes for pr_url to preserve JSON format
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: JSON format preservation for pr_url
+- **PR #2726**: fix(phase-bb): put key fields in log message for observability
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Improved log observability with key fields
+- **PR #2721**: fix(phase-bb): pass PR context from webhook to LangGraph orchestrator
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: PR context passing from webhook to orchestrator
+- **PR #2716**: feat(telemetry): add Phase B-B staging verification fields
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Staging verification telemetry fields
+
+*LangGraph 100% Rollout & Simple Mode Removal (14 PRs):*
+- **PR #2767**: chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: **MAJOR**: Complete removal of Simple Mode code - LangGraph is now the only orchestration mode
+- **PR #2771**: feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: PostgreSQL checkpointer support for LangGraph state persistence
+- **PR #2772**: test(checkpointer): add unit tests for get_checkpointer priority and fallback
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Checkpointer priority and fallback test coverage
+- **PR #2775**: test(checkpointer): add P3 success path and fallback tests
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: P3 success path and fallback test coverage
+- **PR #2766**: chore: remove deprecated rollout API endpoints
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Deprecated rollout API endpoints removed
+- **PR #2765**: fix(rollout): remove obsolete use_langgraph_percent reference
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Cleanup of obsolete rollout percentage references
+- **PR #2757**: fix(worker): remove obsolete use_langgraph settings reference
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+  - Impact: Cleanup of obsolete settings references
+- **PR #2754**: feat(orchestrator): add FAQ latency monitoring (#2737)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: FAQ latency monitoring for performance tracking
+- **PR #2742**: test(orchestrator): add E2E and circuit breaker tests for LangGraph-only mode (#2736)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: E2E and circuit breaker tests for LangGraph-only mode
+- **PR #2740**: test(orchestrator): remove obsolete Simple Mode tests (#2738)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Cleanup of obsolete Simple Mode tests
+- **PR #2720**: feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: **MAJOR**: Simple Mode removal - LangGraph becomes the only mode
+- **PR #2644**: feat(tests): add RolloutTracker enabled=True + Redis integration tests (#2641)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: RolloutTracker integration tests
+- **PR #2611**: refactor(rollout): adopt helper functions in endpoints (#2605)
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Rollout endpoint refactoring with helper functions
+- **PR #2597**: feat(phase4a): implement LangGraph rollout pre-rollout telemetry and controls (#2285, #2282, #2281, #2283)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Pre-rollout telemetry and controls for LangGraph
+
+*EPIC B: Inline Code Review (Phase B-1 to B-3) (8 PRs):*
+- **PR #2714**: feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
+  - Impact: Inline comment validation with line number semantics
+- **PR #2710**: feat(diff): add ignore list and secrets redaction (Phase B-2.5)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Diff ignore list and secrets redaction for security
+- **PR #2707**: test(publisher): add comprehensive unit tests for post_pr_review and publisher_node (Issue #2706)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Comprehensive publisher node test coverage
+- **PR #2701**: feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
+  - Impact: GitHub inline comment posting capability
+- **PR #2698**: feat(reviewer): add schema versioning and reduce log noise (#2696, #2697)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Schema versioning and reduced log noise
+- **PR #2693**: feat(reviewer): add review comment schema with start_line/end_line support (EPIC B Phase B-2)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Review comment schema with line range support
+- **PR #2692**: feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Diff-aware code review implementation
+
+*Agent Architecture & Routing (12 PRs):*
+- **PR #2783**: fix(governance): resolve agent_type to UUID for ReputationEngine DB operations
+  - Path: `handoff/20250928/40_App/orchestrator/governance/reputation_engine.py`
+  - Impact: UUID resolution for ReputationEngine DB operations
+- **PR #2680**: feat(agents): add RefactorAgentV2 migration validation
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: RefactorAgentV2 migration validation
+- **PR #2674**: feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: BaseAgent with dynamic routing and Telemetry v2
+- **PR #2666**: feat(refactor-agent): Add TS2307 environment health check
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: TypeScript TS2307 environment health check
+- **PR #2665**: feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Routing Policy v1.1 for multi-model LLM selection
+- **PR #2659**: feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Qwen3 provider adapters for AliCloud and SiliconFlow
+- **PR #2657**: fix: Improve Refactor Agent reliability with environment setup and validation gates
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Refactor Agent reliability improvements
+- **PR #2691**: test(routing): add direct unit tests for _adjust_tier_for_context()
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Routing tier adjustment test coverage
+- **PR #2688**: test(routing): add type error handling and multi-threading safety tests
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Routing type error and multi-threading safety tests
+- **PR #2683**: test(routing): add context size boundary and edge case tests
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Routing context size boundary tests
+- **PR #2682**: test(routing): add routing_policy.json loading and error handling tests
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Routing policy loading tests
+- **PR #2684**: test(agents): add E2E tests and TelemetryEvent JSON schema validation
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Agent E2E tests and telemetry validation
+
+*CI/CD Infrastructure & Qwen Workflow (25 PRs):*
+- **PR #2779**: feat(tests): add CI integration tests and fault injection tests (#2650)
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/tests/`
+  - Impact: CI integration tests and fault injection tests
+- **PR #2774**: refactor(ci): extract CI Guard to testable script with resource limits
+  - Path: `.github/workflows/`, `scripts/ci/`
+  - Impact: CI Guard extraction to testable script
+- **PR #2598**: ci(pr8): add PR title convention check and documentation
+  - Path: `.github/workflows/`
+  - Impact: PR title convention enforcement
+- **PR #2596**: perf(typescript): implement batch baseline updates for efficiency
+  - Path: `scripts/`
+  - Impact: Batch baseline updates for TypeScript strict mode
+- **PR #2593**: feat(typescript): add strict mode baseline system (TS-1, TS-2)
+  - Path: `scripts/`, `.github/workflows/`
+  - Impact: TypeScript strict mode baseline system
+- **PR #2583**: feat(ci): add lockfile sync check to prevent dev/CI/prod drift
+  - Path: `.github/workflows/`
+  - Impact: Lockfile sync check to prevent environment drift
+- **PR #2577**: test(env-reference): add unit tests and CI sync check
+  - Path: `scripts/`, `.github/workflows/`
+  - Impact: ENV_REFERENCE.md sync check
+- **PR #2572**: fix(ci): resolve Playwright version mismatch in computed-style-check job
+  - Path: `.github/workflows/`
+  - Impact: Playwright version mismatch fix
+- **PR #2561**: feat: add Qwen workflow tests, docs, and disable automatic review
+  - Path: `.github/workflows/qwen-pr-review.yml`
+  - Impact: Qwen workflow tests and documentation
+- **PR #2565**: fix(ci): Fix YAML syntax error in qwen-pr-review.yml
+  - Path: `.github/workflows/qwen-pr-review.yml`
+  - Impact: YAML syntax fix
+- **PR #2553**: fix(ci): Handle Dependabot PR permissions and update shared-ui baseline to 0
+  - Path: `.github/workflows/`
+  - Impact: Dependabot PR permissions handling
+- **PR #2550**: feat(ci): add Storybook coverage detection CI (#2512)
+  - Path: `.github/workflows/`
+  - Impact: Storybook coverage detection
+- **PR #2540**: feat: add Qwen AI code review workflow for all PRs
+  - Path: `.github/workflows/qwen-pr-review.yml`
+  - Impact: Qwen AI code review workflow
+- **PR #2541**: feat(ci): add legacy component detection CI (#2513)
+  - Path: `.github/workflows/`
+  - Impact: Legacy component detection
+- **PR #2538**: feat(ci): add bundle size script fallback coverage tests (#2476)
+  - Path: `.github/workflows/`
+  - Impact: Bundle size script fallback tests
+- **PR #2536**: fix(ci): Improve Dependabot PR Compatibility
+  - Path: `.github/workflows/`
+  - Impact: Dependabot PR compatibility improvements
+- **PR #2515**: feat(ci): add PR template path validation CI (#2514)
+  - Path: `.github/workflows/`
+  - Impact: PR template path validation
+- **PR #2511**: [P2] Improve Ruff lint infrastructure with official action and auto-upgrade
+  - Path: `.github/workflows/`
+  - Impact: Ruff lint infrastructure improvements
+- **PR #2507**: [P2] Pin Ruff Version to 0.8.6 for CI Stability
+  - Path: `.github/workflows/`
+  - Impact: Ruff version pinning for stability
+- **PR #2503**: [P1] Add Ruff Lint Gate to CI Workflow (Blocking Mode)
+  - Path: `.github/workflows/`
+  - Impact: Ruff lint gate in blocking mode
+
+*Design System & UI Components (Epic #2304) (30 PRs):*
+- **PR #2508**: feat(governance): establish design system governance rules (#2303)
+  - Path: `docs/`, `packages/shared-ui/`
+  - Impact: Design system governance rules
+- **PR #2506**: docs: update UI/UX documentation with card archetypes and Apple Kit guide (#2302)
+  - Path: `docs/`
+  - Impact: UI/UX documentation with card archetypes
+- **PR #2504**: test(shared-ui): add unit tests for dashboard components (#2301)
+  - Path: `packages/shared-ui/`
+  - Impact: Dashboard component tests
+- **PR #2499**: feat(shared-ui): add Storybook stories for dashboard and UI components (#2300)
+  - Path: `packages/shared-ui/`
+  - Impact: Storybook stories for dashboard components
+- **PR #2492**: feat(owner-console): Phase 2-2c - Migrate UXMetrics summary cards to StatCard
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: UXMetrics migration to StatCard
+- **PR #2487**: refactor(owner-console): data-driven StatCards in AgentEvaluationDashboard (#2486)
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: Data-driven StatCards
+- **PR #2484**: feat(owner-console): Phase 2-1d - Cleanup unused Card imports and migrate AgentEvaluationDashboard
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: Card import cleanup
+- **PR #2482**: feat(owner-console): Phase 2-1c - Migrate FailureExperimentDashboard + SectionCard icon prop
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: FailureExperimentDashboard migration
+- **PR #2480**: feat(owner-console): Phase 2-1b - Migrate PlatformSettings to SettingsCard
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: PlatformSettings migration
+- **PR #2478**: feat(frontend-dashboard): Phase 2-1a - Migrate TwoFAStatusCard to SettingsCard
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: TwoFAStatusCard migration
+- **PR #2434**: feat(shared-ui): Issue #2296 - Add SettingsCard component for settings sections
+  - Path: `packages/shared-ui/`
+  - Impact: SettingsCard component
+- **PR #2426**: feat(shared-ui): Issue #2295 - Add MetricCard component for entity summary metrics
+  - Path: `packages/shared-ui/`
+  - Impact: MetricCard component
+- **PR #2403**: feat(design-tokens): Issue #2294 - Define card icon specification tokens
+  - Path: `packages/shared-ui/`
+  - Impact: Card icon specification tokens
+- **PR #2402**: feat(shared-ui): Issue #2293 - Add StatusCard component for Phase 1
+  - Path: `packages/shared-ui/`
+  - Impact: StatusCard component
+- **PR #2399**: refactor(design-system): replace hardcoded colors in spring-animations.css and micro-interactions.css (Phase 4 #2393)
+  - Path: `packages/shared-ui/`
+  - Impact: Hardcoded color replacement
+- **PR #2398**: refactor(design-system): replace hardcoded colors in materials.css and motion-governance.css (Phase 3 #2393)
+  - Path: `packages/shared-ui/`
+  - Impact: Hardcoded color replacement
+- **PR #2395**: feat(storybook): add stories for 10 missing components to improve coverage
+  - Path: `packages/shared-ui/`
+  - Impact: Storybook coverage improvement
+- **PR #2394**: refactor(design-system): replace hardcoded colors with CSS variables (Phase 2 #2393)
+  - Path: `packages/shared-ui/`
+  - Impact: CSS variable adoption
+- **PR #2392**: refactor(a11y): reduce hardcoded colors in accessibility.css and theme-apple.css
+  - Path: `packages/shared-ui/`
+  - Impact: Accessibility color improvements
+- **PR #2390**: refactor(a11y): Issue #2387 - Improve accessibility test quality
+  - Path: `packages/shared-ui/`
+  - Impact: Accessibility test quality
+- **PR #2384**: feat(a11y): Epic #2304 Phase 2-3 - Add 3+ accessibility test files
+  - Path: `packages/shared-ui/`
+  - Impact: Accessibility test files
+- **PR #2372**: feat(a11y): Issue #2292 - Define missing CSS variables for Accessibility Tokens
+  - Path: `packages/shared-ui/`
+  - Impact: Accessibility CSS variables
+- **PR #2369**: fix(a11y): Issue #2367 & #2368 - Replace white colors and resolve focus-visible conflict
+  - Path: `packages/shared-ui/`
+  - Impact: Accessibility color and focus fixes
+- **PR #2362**: feat(design-tokens): Issue #2291 - Design Token source unification
+  - Path: `packages/shared-ui/`
+  - Impact: Design token unification
+- **PR #2359**: feat(design-system): Implement Epic #2304 Phase 0-1 (UI/UX Foundation + Core)
+  - Path: `packages/shared-ui/`
+  - Impact: UI/UX foundation implementation
+
+*Backend Refactoring (api-backend main.py) (15 PRs):*
+- **PR #2500**: [PR1.7] Cleanup: Remove _register_inline_routes() empty function
+  - Path: `handoff/20250928/40_App/api-backend/src/main.py`
+  - Impact: Empty function cleanup
+- **PR #2498**: [PR1.6d] Extract Health/Static routes to src/routes/health_static.py
+  - Path: `handoff/20250928/40_App/api-backend/src/routes/health_static.py`
+  - Impact: Health/Static routes extraction
+- **PR #2496**: [PR1.6c] Extract Dashboard/Reports/Settings routes to src/routes/dashboard_reports.py
+  - Path: `handoff/20250928/40_App/api-backend/src/routes/dashboard_reports.py`
+  - Impact: Dashboard routes extraction
+- **PR #2493**: [PR1.6b] Extract Phase 7 routes to src/routes/phase7.py
+  - Path: `handoff/20250928/40_App/api-backend/src/routes/phase7.py`
+  - Impact: Phase 7 routes extraction
+- **PR #2491**: [PR1.6a] Extract Phase 4-6 routes to src/routes/phase456.py
+  - Path: `handoff/20250928/40_App/api-backend/src/routes/phase456.py`
+  - Impact: Phase 4-6 routes extraction
+- **PR #2489**: [PR1.5] Extract App Factory Pattern to create_app()
+  - Path: `handoff/20250928/40_App/api-backend/src/main.py`
+  - Impact: App factory pattern extraction
+- **PR #2485**: [PR1f] Extract Sentry initialization to src/extensions/sentry.py
+  - Path: `handoff/20250928/40_App/api-backend/src/extensions/sentry.py`
+  - Impact: Sentry initialization extraction
+- **PR #2481**: [PR1e] Extract Database Initialization to src/extensions/database.py
+  - Path: `handoff/20250928/40_App/api-backend/src/extensions/database.py`
+  - Impact: Database initialization extraction
+- **PR #2479**: [PR1d] Extract Error handlers to src/middleware/error_handlers.py
+  - Path: `handoff/20250928/40_App/api-backend/src/middleware/error_handlers.py`
+  - Impact: Error handlers extraction
+- **PR #2466**: [PR1c] Extract Blueprint registration to src/routes/__init__.py
+  - Path: `handoff/20250928/40_App/api-backend/src/routes/__init__.py`
+  - Impact: Blueprint registration extraction
+- **PR #2448**: [PR1b] Extract CORS middleware to src/middleware/cors.py
+  - Path: `handoff/20250928/40_App/api-backend/src/middleware/cors.py`
+  - Impact: CORS middleware extraction
+- **PR #2447**: [PR1a] Extract _as_bool to src/utils/helpers.py
+  - Path: `handoff/20250928/40_App/api-backend/src/utils/helpers.py`
+  - Impact: Helper function extraction
+- **PR #2446**: [Phase 1 Pre-work] Add contract tests for main.py refactoring
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Contract tests for refactoring
+- **PR #2444**: [Phase 1] Add main.py refactoring plan document
+  - Path: `docs/`
+  - Impact: Refactoring plan documentation
+- **PR #2437**: [PR0] Add regression guards: route-map test, settings reload fixture (#2375)
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Regression guards
+
+*Dependency Updates (28 PRs):*
+- **PR #2638**: chore(deps): Bump actions/setup-node from 4 to 6
+- **PR #2637**: chore(deps): Bump actions/checkout from 4 to 6
+- **PR #2618**: chore(deps): Bump sentry-sdk from 2.19.2 to 2.48.0 in api-backend
+- **PR #2617**: chore(deps): Bump pyjwt from 2.8.0 to 2.10.1 in api-backend
+- **PR #2616**: chore(deps): Bump alembic from 1.13.1 to 1.17.2 in api-backend
+- **PR #2639**: chore(deps): Bump tj-actions/changed-files from 44 to 47
+- **PR #2636**: chore(deps): Bump peter-evans/create-pull-request from 6 to 8
+- **PR #2635**: chore(deps): Bump stefanzweifel/git-auto-commit-action from 5 to 7
+- **PR #2621**: chore(deps): Update redis requirement from <6.0.0 to <7.0.0 in api-backend
+- **PR #2624**: chore(deps): Bump aiohttp from 3.9.1 to 3.13.2 in orchestrator
+- **PR #2623**: chore(deps): Update openai requirement from <2.0.0 to <3.0.0 in orchestrator
+- **PR #2622**: chore(deps): Bump sentry-sdk from 2.19.2 to 2.48.0 in orchestrator
+- **PR #2615**: chore(deps): Bump click from 8.2.1 to 8.3.1 in api-backend
+- **PR #2620**: chore(deps): Bump requests from 2.32.3 to 2.32.5 in orchestrator
+- **PR #2619**: chore(deps): Bump python-dotenv from 1.0.1 to 1.2.1 in orchestrator
+- **PR #2613**: chore(deps): add orchestrator to Dependabot configuration
+- **PR #2578**: fix(deps): align React versions with pnpm overrides (single source of truth)
+- **PR #2519**: chore(deps): Bump playwright from 1.48.0 to 1.57.0 in api-backend
+- **PR #2516**: chore(deps): Bump argon2-cffi from 23.1.0 to 25.1.0 in api-backend
+- **PR #2530**: chore(deps): Bump actions/upload-artifact from 4 to 6
+- **PR #2531**: chore(deps): Bump npm-minor-patch group in owner-console with 40 updates
+- **PR #2529**: chore(deps): Bump dawidd6/action-download-artifact from 3 to 11
+- **PR #2528**: chore(deps): Bump pnpm/action-setup from 2 to 4
+- **PR #2521**: chore(deps): Bump npm-minor-patch group in shared-ui with 25 updates
+- **PR #2526**: chore(deps): Bump trufflesecurity/trufflehog from 3.82.13 to 3.92.3
+- **PR #2517**: chore(deps): Bump flask-cors from 6.0.0 to 6.0.2 in api-backend
+- **PR #2640**: fix(deps): Epic #2427 P2 items - dev dependencies and jwt guard
+- **PR #2649**: feat(tests): add black-box circuit breaker tests and document redis_queue/tests
+
+*Orchestrator Infrastructure & Task Storage (10 PRs):*
+- **PR #2391**: feat(orchestrator): add Redis integration tests and env schema for Task Storage (#2259)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Redis integration tests for Task Storage
+- **PR #2385**: feat(orchestrator): implement Task Storage Migration with Repository pattern (#2259)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Task Storage Migration with Repository pattern
+- **PR #2373**: feat(orchestrator): implement P3 enhancements (#2248, #2249, #2250, #2255)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: P3 enhancements
+- **PR #2370**: refactor(orchestrator): extract _create_base_initial_state helper (#2260)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Initial state helper extraction
+- **PR #2401**: refactor(orchestrator): calculate elapsed_ms once for metrics (Issue #2286)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Metrics calculation optimization
+- **PR #2396**: feat(api): add review_follow_up metrics to /metrics endpoint (#2259)
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Review follow-up metrics
+
+*VSCode IDE Integration (6 PRs):*
+- **PR #2366**: docs(vscode): add CI config, OS matrix, and cross-references (#2363, #2364, #2365)
+  - Path: `handoff/20250928/40_App/orchestrator/docs/`
+  - Impact: VSCode CI documentation
+- **PR #2361**: docs(orchestrator): add VSCode IDE test strategy and edge case coverage (#2352)
+  - Path: `handoff/20250928/40_App/orchestrator/docs/`
+  - Impact: VSCode IDE test strategy
+- **PR #2360**: feat(orchestrator): add Resource monitoring for VSCode IDE (#2353)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: VSCode IDE resource monitoring
+- **PR #2358**: feat(orchestrator): add Extension auto-install for VSCode IDE (#2353)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: VSCode extension auto-install
+- **PR #2357**: feat(orchestrator): add CORS / iframe support for VSCode IDE (#2353)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: VSCode CORS/iframe support
+
+*Documentation & Architecture (12 PRs):*
+- **PR #2658**: feat(docs): add architecture manifest and verification (Epic #2465 Phase 0+1)
+  - Path: `docs/`
+  - Impact: Architecture manifest and verification
+- **PR #2664**: docs(cleanup): fix 12 pre-existing documentation errors (Issue #2661)
+  - Path: `docs/`
+  - Impact: Documentation error fixes
+- **PR #2681**: docs: document DashScope regional endpoints (China vs International)
+  - Path: `docs/`
+  - Impact: DashScope regional endpoint documentation
+- **PR #2668**: test: add unit tests for verify_architecture_manifest.py exclusion patterns (Issue #2667)
+  - Path: `scripts/`
+  - Impact: Architecture manifest verification tests
+- **PR #2589**: docs(pr7-followup): add migration records, README checker, and CHANGELOG update
+  - Path: `docs/`
+  - Impact: Migration records and README checker
+- **PR #2587**: docs(pr7): move coverage and other reports to docs/reports/ directory
+  - Path: `docs/reports/`
+  - Impact: Report directory organization
+- **PR #2584**: docs(pr6): move CTO reports to docs/reports/cto/ directory
+  - Path: `docs/reports/cto/`
+  - Impact: CTO report organization
+- **PR #2575**: feat(docs): add auto-generated ENV_REFERENCE.md from env.schema.yaml (#2406)
+  - Path: `docs/ENV_REFERENCE.md`
+  - Impact: Auto-generated environment reference
+- **PR #2574**: chore(phase3b): complete Phase 3B - Coverage Gate and Compliance docs
+  - Path: `docs/`
+  - Impact: Coverage gate and compliance documentation
+- **PR #2501**: [Phase 1.7 Follow-up] Documentation updates and lint configuration recommendations
+  - Path: `docs/`
+  - Impact: Documentation updates
+- **PR #2495**: docs: add frontend-dashboard carve-out rules for Phase 2 completion
+  - Path: `docs/`
+  - Impact: Frontend dashboard carve-out rules
+- **PR #2400**: docs: clarify Epic #2304 Phase structure to prevent confusion
+  - Path: `docs/`
+  - Impact: Epic phase structure clarification
+
+*Settings & Environment Configuration (6 PRs):*
+- **PR #2570**: feat(settings): convert auth_service.py import-time constants to use-time accessors (#2380)
+  - Path: `handoff/20250928/40_App/api-backend/src/services/auth_service.py`
+  - Impact: Import-time to use-time accessor conversion
+- **PR #2568**: feat(settings): unify os.getenv calls with centralized settings (#2379)
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Centralized settings unification
+- **PR #2435**: [PR0d] CORS single authority source refactor
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: CORS single authority source
+- **PR #2425**: [PR0a] PyJWT/jwt dependency consistency guard (#2404)
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: JWT dependency consistency
+- **PR #2414**: [PR0b] Docs corrections and CORS_DEBUG documentation
+  - Path: `docs/`
+  - Impact: CORS_DEBUG documentation
+- **PR #2412**: [PR0c] Gate CORS DEBUG logging with env flag and sanitize output
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: CORS DEBUG logging gate
+
+*Owner Console Features (8 PRs):*
+- **PR #2569**: feat(sessions): add IDE Activity panel for real-time file monitoring (#2241)
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+  - Impact: IDE Activity panel for real-time file monitoring
+- **PR #2563**: feat(dx): implement multiple PR templates (#2477)
+  - Path: `.github/PULL_REQUEST_TEMPLATE/`
+  - Impact: Multiple PR templates
+- **PR #2562**: fix(vercel): disable deployments for gh-pages-storybook branch
+  - Path: `vercel.json`
+  - Impact: Vercel deployment configuration
+- **PR #2544**: [Tech Debt] Fix shared-ui TypeScript strict errors - Reduce baseline to 0
+  - Path: `packages/shared-ui/`
+  - Impact: TypeScript strict error fixes
+- **PR #2539**: [Tech Debt] Fix owner-console TypeScript strict errors - Achieve baseline 0
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: TypeScript strict error fixes
+- **PR #2449**: feat(phase2): Phase 2-0 Plumbing PR - audit scripts and templates
+  - Path: `scripts/`
+  - Impact: Audit scripts and templates
+- **PR #2463**: feat(audit): improve audit script robustness (#2454, #2456, #2460)
+  - Path: `scripts/`
+  - Impact: Audit script robustness
+- **PR #2445**: feat(audit): implement match-based counting and cross-platform docs (#2440, #2441)
+  - Path: `scripts/`
+  - Impact: Match-based counting
+
+*Refactor Agent & TypeScript Tooling (10 PRs):*
+- **PR #2606**: feat(refactor-agent): TS-3 follow-up improvements - unit tests, duplicate PR check, and refactoring
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Refactor Agent TS-3 improvements
+- **PR #2607**: fix(workflow): pass REFACTOR_AGENT_AUTO_PR env var to Python script
+  - Path: `.github/workflows/`
+  - Impact: Refactor Agent workflow fix
+- **PR #2603**: fix(refactor-agent): enable PR creation in run_refactor (TS-3)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Refactor Agent PR creation
+- **PR #2601**: fix(critical): add missing current_percent parameter to rollout API endpoints
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Critical rollout API fix
+- **PR #2604**: feat(rollout): implement follow-up issues #2602, #2599, #2600
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - Impact: Rollout follow-up issues
+- **PR #2592**: feat(scripts): parameterize update_workspace_version and add library tests (#2590, #2591)
+  - Path: `scripts/`
+  - Impact: Workspace version script parameterization
+- **PR #2588**: feat(scripts): add automated React version sync tool (#2580)
+  - Path: `scripts/`
+  - Impact: Automated React version sync
+- **PR #2586**: feat(tests): add regression tests for verify_system_state.sh (#2581)
+  - Path: `tests/`
+  - Impact: System state verification tests
+- **PR #2612**: fix(ts): Automated TS strict mode fixes (1 error) - 2025-12-17
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: Automated TypeScript strict mode fix
+- **PR #2614**: feat(tests): complete Phase 4B - fix test assertion and add integration tests (#2280, #2287)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Phase 4B test completion
+
+*Other Notable PRs:*
+- **PR #2780**: fix(planner-events): add UUID normalization for trace_id DB compatibility
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: UUID normalization for trace_id
+- **PR #2777**: fix(webhooks): use full UUID in task_id for DB compatibility
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Full UUID in task_id
+- **PR #2733**: fix: harden Redis resilience against ReadOnlyError during maintenance
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Redis resilience hardening
+- **PR #2689**: fix(render): use sync:false for CORS_ORIGINS to prevent Dashboard override
+  - Path: `render.yaml`
+  - Impact: CORS_ORIGINS sync configuration
+- **PR #2690**: test(telemetry): improve validator with timestamp format and bool exclusion
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Telemetry validator improvements
+- **PR #2645**: fix(test): explicitly extend jest-dom matchers for CI compatibility
+  - Path: `handoff/20250928/40_App/owner-console/`
+  - Impact: Jest-dom matchers extension
+- **PR #2646**: test(orchestrator): add tests to reach 50% coverage (Issue #2423)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - Impact: Orchestrator coverage improvement
+- **PR #2397**: fix(shared-ui): slider accessibility labeling
+  - Path: `packages/shared-ui/`
+  - Impact: Slider accessibility fix
+- **PR #2415**: refactor: use small icons without containers and add deltaPositive neutral option
+  - Path: `packages/shared-ui/`
+  - Impact: Icon and delta display improvements
+- **PR #2424**: [P2] Docs and test improvements (#2419, #2420, #2421, #2422)
+  - Path: `docs/`
+  - Impact: Documentation and test improvements
 
 **Recent Improvements (Dec 6 - Dec 7, 2025)**:
 

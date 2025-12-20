@@ -6,13 +6,115 @@
 > - [README](../README.md) - 專案概覽和快速導航
 > - [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
-**Document Version**: 2.3.0  
-**Last Updated**: 2025-12-12  
-**Project Phase**: Phase 1-2 實施中 (LLM Planner + Code Generation Workflow) + Phase 5-6 (AI Governance + Failure Memory) + Phase 4 (Refactor Agent) + VSCode/MCP Integration + Epic #2311 (Observability)  
+**Document Version**: 2.4.0  
+**Last Updated**: 2025-12-20  
+**Project Phase**: Phase 8 (v8.0.0) - MVP Foundation Complete + LangGraph 100% Rollout + EPIC B (PR_UPDATED Event Support)  
 **Test Coverage**: 59.89% (Owner Console), 70%+ (Orchestrator), 74%+ (Backend)  
-**Recent Activity**: 467+ commits on main (2025-11-12 至 2025-12-12，快照值截至 2025-12-12)  
+**Recent Activity**: 665+ commits on main (2025-11-12 至 2025-12-20，快照值截至 2025-12-20)  
 **Strategic Roadmap**: [Reality Comparison Report](./STRATEGIC_ROADMAP_REALITY_COMPARE_2025_11_16.md) (Nov 16, 2025)  
-**RLS Status**: TRUE tenant isolation deployed (Staging & Production, Dec 12, 2025)
+**RLS Status**: TRUE tenant isolation deployed (Staging & Production, Dec 12, 2025)  
+**LangGraph Status**: 100% Rollout Complete - Simple Mode removed (Dec 2025)
+
+**Recent PRs (Dec 13 - Dec 20, 2025)** (198 PRs merged):
+
+*EPIC B: PR_UPDATED Event Support & Phase BB Robustness:*
+- **PR #2789** (Merged): feat(phase-bb): P2 technical debt - extract helper, narrow exceptions, add tests
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2788** (Merged): feat(epic-b): Phase 2 - Line drift protection with head_sha tracking
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2786** (Merged): feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - New env var: `REDIS_KEY_PREFIX` for multi-environment Redis key isolation
+- **PR #2785** (Merged): feat(epic-b): Phase 1 Quick Wins - LLM reliability and file-level comments delivery
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2769** (Merged): feat(phase-bb): add PR_UPDATED event support with debounce/throttle
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2768** (Merged): feat(phase-bb): add 422 fault injection for fallback verification
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2741** (Merged): feat(phase-bb): add C-lite telemetry for EPIC B KPIs
+  - Path: `handoff/20250928/40_App/orchestrator/`
+
+*LangGraph 100% Rollout & Simple Mode Removal:*
+- **PR #2767** (Merged): chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - **MAJOR**: Complete removal of Simple Mode code - LangGraph is now the only orchestration mode
+- **PR #2771** (Merged): feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2766** (Merged): chore: remove deprecated rollout API endpoints
+  - Path: `handoff/20250928/40_App/api-backend/`
+- **PR #2742** (Merged): test(orchestrator): add E2E and circuit breaker tests for LangGraph-only mode (#2736)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2740** (Merged): test(orchestrator): remove obsolete Simple Mode tests (#2738)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2720** (Merged): feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+
+*EPIC B: Inline Code Review (Phase B-1 to B-3):*
+- **PR #2714** (Merged): feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
+- **PR #2710** (Merged): feat(diff): add ignore list and secrets redaction (Phase B-2.5)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2701** (Merged): feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
+- **PR #2693** (Merged): feat(reviewer): add review comment schema with start_line/end_line support (EPIC B Phase B-2)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2692** (Merged): feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+
+*Agent Architecture & Routing:*
+- **PR #2783** (Merged): fix(governance): resolve agent_type to UUID for ReputationEngine DB operations
+  - Path: `handoff/20250928/40_App/orchestrator/governance/reputation_engine.py`
+- **PR #2674** (Merged): feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2665** (Merged): feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
+  - Path: `handoff/20250928/40_App/orchestrator/`
+- **PR #2659** (Merged): feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
+  - Path: `handoff/20250928/40_App/orchestrator/`
+
+*CI/CD Infrastructure & Qwen Workflow:*
+- **PR #2779** (Merged): feat(tests): add CI integration tests and fault injection tests (#2650)
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/tests/`
+- **PR #2774** (Merged): refactor(ci): extract CI Guard to testable script with resource limits
+  - Path: `.github/workflows/`, `scripts/ci/`
+- **PR #2593** (Merged): feat(typescript): add strict mode baseline system (TS-1, TS-2)
+  - Path: `scripts/`, `.github/workflows/`
+- **PR #2583** (Merged): feat(ci): add lockfile sync check to prevent dev/CI/prod drift
+  - Path: `.github/workflows/`
+- **PR #2540** (Merged): feat: add Qwen AI code review workflow for all PRs
+  - Path: `.github/workflows/qwen-pr-review.yml`
+
+*Design System & UI Components (Epic #2304):*
+- **PR #2508** (Merged): feat(governance): establish design system governance rules (#2303)
+  - Path: `docs/`, `packages/shared-ui/`
+- **PR #2434** (Merged): feat(shared-ui): Issue #2296 - Add SettingsCard component
+  - Path: `packages/shared-ui/`
+- **PR #2426** (Merged): feat(shared-ui): Issue #2295 - Add MetricCard component
+  - Path: `packages/shared-ui/`
+- **PR #2402** (Merged): feat(shared-ui): Issue #2293 - Add StatusCard component
+  - Path: `packages/shared-ui/`
+- **PR #2359** (Merged): feat(design-system): Implement Epic #2304 Phase 0-1 (UI/UX Foundation + Core)
+  - Path: `packages/shared-ui/`
+
+*Backend Refactoring (api-backend main.py):*
+- **PR #2489** (Merged): [PR1.5] Extract App Factory Pattern to create_app()
+  - Path: `handoff/20250928/40_App/api-backend/src/main.py`
+- **PR #2485** (Merged): [PR1f] Extract Sentry initialization to src/extensions/sentry.py
+  - Path: `handoff/20250928/40_App/api-backend/src/extensions/sentry.py`
+- **PR #2481** (Merged): [PR1e] Extract Database Initialization to src/extensions/database.py
+  - Path: `handoff/20250928/40_App/api-backend/src/extensions/database.py`
+- **PR #2448** (Merged): [PR1b] Extract CORS middleware to src/middleware/cors.py
+  - Path: `handoff/20250928/40_App/api-backend/src/middleware/cors.py`
+
+*Owner Console Features:*
+- **PR #2569** (Merged): feat(sessions): add IDE Activity panel for real-time file monitoring (#2241)
+  - Path: `handoff/20250928/40_App/owner-console/src/components/`
+- **PR #2563** (Merged): feat(dx): implement multiple PR templates (#2477)
+  - Path: `.github/PULL_REQUEST_TEMPLATE/`
+
+*Dependency Updates (28 PRs):*
+- Major updates: sentry-sdk 2.48.0, aiohttp 3.13.2, openai <3.0.0, redis <7.0.0
+- GitHub Actions: actions/checkout@6, actions/setup-node@6, actions/upload-artifact@6
+- npm packages: 40 updates in owner-console, 25 updates in shared-ui
 
 **Recent PRs (Dec 10 - Dec 12, 2025)**:
 
