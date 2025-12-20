@@ -91,17 +91,30 @@ def is_internal_repo_allowed(repo: str) -> bool:
     return is_allowed
 
 
-def is_pr_updated_allowed(repo: str, pr_number: int, redis_url: str = None) -> tuple:
+@dataclass
+class PRUpdatedAllowedResult:
+    """Result of PR_UPDATED allowed check"""
+    is_allowed: bool
+    reason: str
+    should_schedule_job: bool = False
+    job_token: Optional[str] = None
+    debounce_seconds: int = 30
+
+
+def is_pr_updated_allowed(repo: str, pr_number: int, redis_url: str = None) -> PRUpdatedAllowedResult:
     """
-    Check if a PR_UPDATED event should be processed.
+    Check if a PR_UPDATED event should trigger a delayed review job.
 
     Phase B-B: PR_UPDATED Event Support with Debounce/Throttle
     This enables AI review on PR updates (push events) with cost protection.
 
+    CRITICAL FIX: Now returns should_schedule_job=True for first event,
+    allowing caller to enqueue a delayed job that sleeps then processes.
+
     Preconditions (all must be true):
     1. settings.enable_pr_updated_review is True
     2. repo is in pr_updated_repos_whitelist (or whitelist is empty = all repos)
-    3. Debounce check passes (not within debounce window)
+    3. Debounce check passes (first event or debounce window expired)
     4. Throttle check passes (not reviewed too recently)
 
     Args:
@@ -110,24 +123,35 @@ def is_pr_updated_allowed(repo: str, pr_number: int, redis_url: str = None) -> t
         redis_url: Optional Redis URL for debounce/throttle tracking
 
     Returns:
-        Tuple of (is_allowed: bool, reason: str)
+        PRUpdatedAllowedResult with:
+        - is_allowed: True if event should trigger review workflow
+        - should_schedule_job: True if caller should enqueue delayed job
+        - job_token: Token to pass to delayed job for verification
+        - debounce_seconds: Debounce window for delayed job sleep
+        - reason: Human-readable explanation
     """
     if not settings:
-        return False, "settings_unavailable"
+        return PRUpdatedAllowedResult(
+            is_allowed=False,
+            reason="settings_unavailable",
+        )
 
-    # Check if PR_UPDATED review is enabled
     enable_pr_updated = getattr(settings, 'enable_pr_updated_review', False)
     if not enable_pr_updated:
-        return False, "pr_updated_review_disabled"
+        return PRUpdatedAllowedResult(
+            is_allowed=False,
+            reason="pr_updated_review_disabled",
+        )
 
-    # Check whitelist (empty whitelist = all repos allowed)
     whitelist_str = getattr(settings, 'pr_updated_repos_whitelist', '')
     if whitelist_str:
         whitelist = {r.strip() for r in whitelist_str.split(',') if r.strip()}
         if repo not in whitelist:
-            return False, "repo_not_in_whitelist"
+            return PRUpdatedAllowedResult(
+                is_allowed=False,
+                reason="repo_not_in_whitelist",
+            )
 
-    # Check debounce/throttle
     debounce_seconds = getattr(settings, 'pr_updated_debounce_seconds', 30)
     throttle_seconds = getattr(settings, 'pr_updated_throttle_seconds', 600)
 
@@ -139,27 +163,38 @@ def is_pr_updated_allowed(repo: str, pr_number: int, redis_url: str = None) -> t
         redis_url=redis_url,
     )
 
-    if not debounce_result.should_process:
+    if debounce_result.should_schedule_job:
         logger.info(
-            "[EventNormalizer] PR_UPDATED event debounced/throttled",
+            "[EventNormalizer] PR_UPDATED event - scheduling delayed job",
             extra={
-                "operation": "pr_updated_debounce_check",
+                "operation": "pr_updated_schedule_job",
                 "repo": repo,
                 "pr_number": pr_number,
-                "reason": debounce_result.reason,
+                "job_token": debounce_result.job_token,
+                "debounce_seconds": debounce_seconds,
             }
         )
-        return False, debounce_result.reason
+        return PRUpdatedAllowedResult(
+            is_allowed=True,
+            reason="first_event: delayed job scheduled",
+            should_schedule_job=True,
+            job_token=debounce_result.job_token,
+            debounce_seconds=debounce_seconds,
+        )
 
     logger.info(
-        "[EventNormalizer] PR_UPDATED event allowed",
+        "[EventNormalizer] PR_UPDATED event debounced/throttled",
         extra={
-            "operation": "pr_updated_allowed",
+            "operation": "pr_updated_debounce_check",
             "repo": repo,
             "pr_number": pr_number,
+            "reason": debounce_result.reason,
         }
     )
-    return True, "allowed"
+    return PRUpdatedAllowedResult(
+        is_allowed=False,
+        reason=debounce_result.reason,
+    )
 
 
 @dataclass
@@ -392,13 +427,16 @@ class EventNormalizer:
                 pr_number_int = 0
 
             if pr_number_int > 0:
-                pr_updated_allowed, pr_updated_reason = is_pr_updated_allowed(
+                pr_updated_result = is_pr_updated_allowed(
                     repo=repo,
                     pr_number=pr_number_int,
                 )
-                if pr_updated_allowed:
+                if pr_updated_result.is_allowed:
                     is_actionable_result = True
-                    actionable_reason = f"pr_updated_allowed:{pr_updated_reason}"
+                    actionable_reason = f"pr_updated_allowed:{pr_updated_result.reason}"
+                    event.metadata["pr_updated_should_schedule_job"] = pr_updated_result.should_schedule_job
+                    event.metadata["pr_updated_job_token"] = pr_updated_result.job_token
+                    event.metadata["pr_updated_debounce_seconds"] = pr_updated_result.debounce_seconds
                     logger.info(
                         "[EventNormalizer] PR_UPDATED event is actionable",
                         extra={
@@ -406,18 +444,20 @@ class EventNormalizer:
                             "event_id": event.event_id,
                             "repo": repo,
                             "pr_number": pr_number,
+                            "should_schedule_job": pr_updated_result.should_schedule_job,
+                            "job_token": pr_updated_result.job_token,
                         }
                     )
                 else:
                     logger.debug(
                         "[EventNormalizer] PR_UPDATED event not actionable: %s",
-                        pr_updated_reason,
+                        pr_updated_result.reason,
                         extra={
                             "operation": "pr_updated_not_actionable",
                             "event_id": event.event_id,
                             "repo": repo,
                             "pr_number": pr_number,
-                            "reason": pr_updated_reason,
+                            "reason": pr_updated_result.reason,
                         }
                     )
 
