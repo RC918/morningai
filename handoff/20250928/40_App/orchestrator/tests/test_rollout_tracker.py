@@ -305,14 +305,7 @@ class TestRolloutTracker:
         )
         mock_redis.pipeline.assert_called()
 
-    def test_record_simple_task(self, tracker, mock_redis):
-        """Test recording Simple mode task"""
-        tracker.record_simple_task(
-            trace_id="test-456",
-            success=True,
-            latency_ms=500.0
-        )
-        mock_redis.pipeline.assert_called()
+    # NOTE: test_record_simple_task was removed in Issue #2651 after LangGraph 100% rollout
 
     def test_record_p0_incident(self, tracker, mock_redis):
         """Test recording P0 incident"""
@@ -621,13 +614,7 @@ class TestDisabledTracker:
             latency_ms=100
         )
 
-    def test_record_simple_task_disabled(self, disabled_tracker):
-        """Test recording simple task when disabled"""
-        disabled_tracker.record_simple_task(
-            trace_id="test",
-            success=True,
-            latency_ms=100
-        )
+    # NOTE: test_record_simple_task_disabled was removed in Issue #2651 after LangGraph 100% rollout
 
     def test_get_comparison_disabled(self, disabled_tracker):
         """Test getting comparison when disabled"""
@@ -686,18 +673,7 @@ class TestRedisExceptionHandling:
         # Should not raise - tracker should handle exception gracefully
         tracker.record_langgraph_task(trace_id="test", success=True, latency_ms=100)
 
-    def test_record_simple_task_handles_redis_exception(self):
-        """Test that record_simple_task handles Redis exceptions gracefully"""
-        mock_redis = MagicMock()
-        mock_pipe = MagicMock()
-        mock_pipe.execute.side_effect = Exception("Redis timeout")
-        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
-        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
-
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
-
-        # Should not raise - tracker should handle exception gracefully
-        tracker.record_simple_task(trace_id="test", success=False, is_5xx_error=True)
+    # NOTE: test_record_simple_task_handles_redis_exception was removed in Issue #2651 after LangGraph 100% rollout
 
     def test_save_circuit_state_handles_redis_exception(self):
         """Test that _save_circuit_state_to_redis handles exceptions gracefully"""

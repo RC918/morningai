@@ -420,65 +420,8 @@ class RolloutTracker:
         except Exception as e:
             logger.warning(f"[RolloutTracker] Failed to record LangGraph task: {e}")
 
-    def record_simple_task(
-        self,
-        trace_id: str,
-        success: bool,
-        latency_ms: Optional[float] = None,
-        is_5xx_error: bool = False
-    ) -> None:
-        """
-        Record a Simple Mode task execution
-
-        Args:
-            trace_id: Unique trace identifier
-            success: Whether the task succeeded
-            latency_ms: Orchestrator worker execution duration in milliseconds.
-                This measures the time from when the worker starts processing the task
-                (after dequeuing from Redis) to when orchestration completes.
-                
-                INCLUDES: All time spent inside the worker, including outbound API calls
-                made by the orchestrator itself (LLM providers, GitHub API, etc.).
-                
-                EXCLUDES:
-                - Queue wait time before the job is picked up (enqueue -> dequeue)
-                - Downstream time after the worker finishes (client/UI round-trip,
-                  notifications, CI completion)
-                
-                See Issue #2286 for the refactoring that ensures this value is
-                calculated once and shared between _canary_metrics and _rollout_tracker.
-            is_5xx_error: Whether this was a 5xx error
-        """
-        if not self.enabled:
-            return
-
-        try:
-            # Record task count
-            self._safe_incr(self._get_minute_key("simple.total"))
-
-            if success:
-                self._safe_incr(self._get_minute_key("simple.success"))
-            else:
-                self._safe_incr(self._get_minute_key("simple.failure"))
-
-            if is_5xx_error:
-                self._safe_incr(self._get_minute_key("simple.error_5xx"))
-
-            # Record latency bucket
-            if latency_ms is not None:
-                self._record_latency("simple", latency_ms)
-
-            logger.debug(
-                "[RolloutTracker] Recorded Simple task",
-                extra={
-                    "trace_id": trace_id,
-                    "success": success,
-                    "latency_ms": latency_ms,
-                    "is_5xx_error": is_5xx_error
-                }
-            )
-        except Exception as e:
-            logger.warning(f"[RolloutTracker] Failed to record Simple task: {e}")
+    # NOTE: record_simple_task was removed in Issue #2651 after LangGraph 100% rollout
+    # Simple Mode is no longer used - all tasks now use LangGraph
 
     def _record_latency(self, mode: str, latency_ms: float) -> None:
         """Record latency in histogram buckets
