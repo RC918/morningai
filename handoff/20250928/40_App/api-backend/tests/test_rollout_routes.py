@@ -646,24 +646,28 @@ class TestHelperFunctions:
             data = response.get_json()
             assert 'available' not in data
 
-    def test_get_current_rollout_percent_success(self, app):
-        """Test _get_current_rollout_percent returns settings value"""
+    def test_get_current_rollout_percent_returns_100(self, app):
+        """Test _get_current_rollout_percent returns 100 (LangGraph 100% rolled out)
+        
+        Since LangGraph is now 100% rolled out and the use_langgraph_percent
+        setting has been removed from Settings, this function always returns 100.
+        """
         from src.routes.rollout import _get_current_rollout_percent
 
-        mock_settings = MagicMock()
-        mock_settings.use_langgraph_percent = 25
+        result = _get_current_rollout_percent()
+        assert result == 100
 
-        with patch('src.routes.rollout.get_settings', return_value=mock_settings):
-            result = _get_current_rollout_percent()
-            assert result == 25
-
-    def test_get_current_rollout_percent_fallback(self, app):
-        """Test _get_current_rollout_percent returns 0 on error"""
+    def test_get_current_rollout_percent_does_not_use_settings(self, app):
+        """Test _get_current_rollout_percent does not depend on get_settings
+        
+        This test ensures the function doesn't accidentally reintroduce
+        a dependency on the deleted use_langgraph_percent setting.
+        """
         from src.routes.rollout import _get_current_rollout_percent
 
-        with patch('src.routes.rollout.get_settings', side_effect=Exception("Settings error")):
+        with patch('src.routes.rollout.get_settings', side_effect=Exception("Should not be called"), create=True):
             result = _get_current_rollout_percent()
-            assert result == 0
+            assert result == 100
 
     def test_parse_window_minutes_valid(self, app):
         """Test _parse_window_minutes with valid input"""
