@@ -794,6 +794,12 @@ class Settings(BaseSettings):
         description="Use Redis-based checkpointer for LangGraph state persistence instead of in-memory MemorySaver. Enables cross-process state recovery."
     )
 
+    use_postgres_checkpointer: bool = Field(
+        default=False,
+        alias="USE_POSTGRES_CHECKPOINTER",
+        description="Use PostgreSQL-based checkpointer for LangGraph state persistence. Recommended over Redis for Upstash (which doesn't support RediSearch). Requires DATABASE_URL."
+    )
+
     use_distributed_vm_locking: bool = Field(
         default=False,
         alias="USE_DISTRIBUTED_VM_LOCKING",
