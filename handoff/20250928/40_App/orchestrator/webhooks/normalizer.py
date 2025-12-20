@@ -31,9 +31,9 @@ from .handlers.slack_handler import SlackWebhookHandler
 from .comment_triage import CommentTriageAgent, CommentTriageResult
 
 try:
-    from ..utils.rate_limit import check_ai_reviewer_rate_limit
+    from ..utils.rate_limit import check_ai_reviewer_rate_limit, check_pr_updated_debounce
 except ImportError:
-    from utils.rate_limit import check_ai_reviewer_rate_limit
+    from utils.rate_limit import check_ai_reviewer_rate_limit, check_pr_updated_debounce
 
 try:
     from common.config.settings import settings
@@ -89,6 +89,112 @@ def is_internal_repo_allowed(repo: str) -> bool:
         )
 
     return is_allowed
+
+
+@dataclass
+class PRUpdatedAllowedResult:
+    """Result of PR_UPDATED allowed check"""
+    is_allowed: bool
+    reason: str
+    should_schedule_job: bool = False
+    job_token: Optional[str] = None
+    debounce_seconds: int = 30
+
+
+def is_pr_updated_allowed(repo: str, pr_number: int, redis_url: str = None) -> PRUpdatedAllowedResult:
+    """
+    Check if a PR_UPDATED event should trigger a delayed review job.
+
+    Phase B-B: PR_UPDATED Event Support with Debounce/Throttle
+    This enables AI review on PR updates (push events) with cost protection.
+
+    CRITICAL FIX: Now returns should_schedule_job=True for first event,
+    allowing caller to enqueue a delayed job that sleeps then processes.
+
+    Preconditions (all must be true):
+    1. settings.enable_pr_updated_review is True
+    2. repo is in pr_updated_repos_whitelist (or whitelist is empty = all repos)
+    3. Debounce check passes (first event or debounce window expired)
+    4. Throttle check passes (not reviewed too recently)
+
+    Args:
+        repo: Repository in owner/repo format (e.g., 'RC918/morningai')
+        pr_number: Pull request number
+        redis_url: Optional Redis URL for debounce/throttle tracking
+
+    Returns:
+        PRUpdatedAllowedResult with:
+        - is_allowed: True if event should trigger review workflow
+        - should_schedule_job: True if caller should enqueue delayed job
+        - job_token: Token to pass to delayed job for verification
+        - debounce_seconds: Debounce window for delayed job sleep
+        - reason: Human-readable explanation
+    """
+    if not settings:
+        return PRUpdatedAllowedResult(
+            is_allowed=False,
+            reason="settings_unavailable",
+        )
+
+    enable_pr_updated = getattr(settings, 'enable_pr_updated_review', False)
+    if not enable_pr_updated:
+        return PRUpdatedAllowedResult(
+            is_allowed=False,
+            reason="pr_updated_review_disabled",
+        )
+
+    whitelist_str = getattr(settings, 'pr_updated_repos_whitelist', '')
+    if whitelist_str:
+        whitelist = {r.strip() for r in whitelist_str.split(',') if r.strip()}
+        if repo not in whitelist:
+            return PRUpdatedAllowedResult(
+                is_allowed=False,
+                reason="repo_not_in_whitelist",
+            )
+
+    debounce_seconds = getattr(settings, 'pr_updated_debounce_seconds', 30)
+    throttle_seconds = getattr(settings, 'pr_updated_throttle_seconds', 600)
+
+    debounce_result = check_pr_updated_debounce(
+        repo=repo,
+        pr_number=pr_number,
+        debounce_seconds=debounce_seconds,
+        throttle_seconds=throttle_seconds,
+        redis_url=redis_url,
+    )
+
+    if debounce_result.should_schedule_job:
+        logger.info(
+            "[EventNormalizer] PR_UPDATED event - scheduling delayed job",
+            extra={
+                "operation": "pr_updated_schedule_job",
+                "repo": repo,
+                "pr_number": pr_number,
+                "job_token": debounce_result.job_token,
+                "debounce_seconds": debounce_seconds,
+            }
+        )
+        return PRUpdatedAllowedResult(
+            is_allowed=True,
+            reason="first_event: delayed job scheduled",
+            should_schedule_job=True,
+            job_token=debounce_result.job_token,
+            debounce_seconds=debounce_seconds,
+        )
+
+    logger.info(
+        "[EventNormalizer] PR_UPDATED event debounced/throttled",
+        extra={
+            "operation": "pr_updated_debounce_check",
+            "repo": repo,
+            "pr_number": pr_number,
+            "reason": debounce_result.reason,
+        }
+    )
+    return PRUpdatedAllowedResult(
+        is_allowed=False,
+        reason=debounce_result.reason,
+    )
 
 
 @dataclass
@@ -311,6 +417,50 @@ class EventNormalizer:
             is_actionable_result = True
             actionable_reason = "event_type_actionable"
 
+        # Phase B-B: Check if PR_UPDATED event is allowed (with debounce/throttle)
+        # PR_UPDATED is NOT in ACTIONABLE_EVENT_TYPES by default to prevent cost explosion
+        # It requires explicit enablement via settings and passes debounce/throttle checks
+        elif event.event_type == WebhookEventType.PR_UPDATED:
+            try:
+                pr_number_int = int(pr_number) if pr_number != "unknown" else 0
+            except (ValueError, TypeError):
+                pr_number_int = 0
+
+            if pr_number_int > 0:
+                pr_updated_result = is_pr_updated_allowed(
+                    repo=repo,
+                    pr_number=pr_number_int,
+                )
+                if pr_updated_result.is_allowed:
+                    is_actionable_result = True
+                    actionable_reason = f"pr_updated_allowed:{pr_updated_result.reason}"
+                    event.metadata["pr_updated_should_schedule_job"] = pr_updated_result.should_schedule_job
+                    event.metadata["pr_updated_job_token"] = pr_updated_result.job_token
+                    event.metadata["pr_updated_debounce_seconds"] = pr_updated_result.debounce_seconds
+                    logger.info(
+                        "[EventNormalizer] PR_UPDATED event is actionable",
+                        extra={
+                            "operation": "pr_updated_actionable",
+                            "event_id": event.event_id,
+                            "repo": repo,
+                            "pr_number": pr_number,
+                            "should_schedule_job": pr_updated_result.should_schedule_job,
+                            "job_token": pr_updated_result.job_token,
+                        }
+                    )
+                else:
+                    logger.debug(
+                        "[EventNormalizer] PR_UPDATED event not actionable: %s",
+                        pr_updated_result.reason,
+                        extra={
+                            "operation": "pr_updated_not_actionable",
+                            "event_id": event.event_id,
+                            "repo": repo,
+                            "pr_number": pr_number,
+                            "reason": pr_updated_result.reason,
+                        }
+                    )
+
         # Check if event is from an AI reviewer (always actionable)
         # Issue: #2209 - AI reviewer events should be processed
         elif is_ai_reviewer:
@@ -411,9 +561,12 @@ class EventNormalizer:
         # Build context for Meta Agent
         context = self._build_context(event)
 
-        # Generate task ID
+        # Generate task ID with full UUID for DB compatibility
+        # Format: webhook-{source}-{full_uuid}
+        # The db_writer.normalize_and_validate_uuid() will extract the UUID portion
         import uuid
-        task_id = f"webhook-{event.source.value}-{uuid.uuid4().hex[:8]}"
+        task_uuid = str(uuid.uuid4())
+        task_id = f"webhook-{event.source.value}-{task_uuid}"
 
         task = NormalizedTask(
             task_id=task_id,
