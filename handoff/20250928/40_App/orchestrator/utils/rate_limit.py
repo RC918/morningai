@@ -422,6 +422,10 @@ PR_UPDATED_PENDING_KEY_TTL_BUFFER = 10
 PR_UPDATED_THROTTLE_KEY_TTL_BUFFER = 60
 PR_UPDATED_JOB_SCHEDULED_TTL_BUFFER = 120
 
+# P2 Robustness: Maximum number of times a single job can reschedule itself
+# Prevents infinite loops in extreme scenarios (e.g., continuous rapid pushes)
+PR_UPDATED_MAX_RESCHEDULE_COUNT = 10
+
 
 @dataclass
 class PRUpdatedDebounceResult:
@@ -582,13 +586,18 @@ def check_pr_updated_debounce(
                 ex=job_ttl + PR_UPDATED_PENDING_KEY_TTL_BUFFER
             )
 
+            # P2 Robustness: Extend job_scheduled_key TTL on subsequent pushes
+            # This prevents token expiration during long push sequences
+            r.expire(job_scheduled_key, job_ttl)
+
             logger.debug(
-                "[PRUpdatedDebounce] Subsequent event - updating payload only",
+                "[PRUpdatedDebounce] Subsequent event - updating payload and extending TTL",
                 extra={
                     "operation": "pr_updated_debounce_update_payload",
                     "repo": repo,
                     "pr_number": pr_number,
                     "event_count": event_count,
+                    "extended_ttl": job_ttl,
                 }
             )
             return PRUpdatedDebounceResult(
@@ -858,3 +867,188 @@ def get_ai_reviewer_rate_limit_counts(
         )
 
     return counts
+
+
+def increment_reschedule_count(
+    repo: str,
+    pr_number: int,
+    job_token: str,
+    ttl_seconds: int = 3600,
+    redis_url: Optional[str] = None
+) -> tuple[int, bool]:
+    """
+    Increment and check the reschedule count for a PR_UPDATED job.
+
+    P2 Robustness: Prevents infinite reschedule loops by limiting
+    the number of times a single job can reschedule itself.
+
+    Args:
+        repo: Repository identifier
+        pr_number: Pull request number
+        job_token: Token identifying the job chain
+        ttl_seconds: TTL for the counter key (default: 1 hour)
+        redis_url: Redis connection URL (uses settings.redis_url if None)
+
+    Returns:
+        Tuple of (current_count, exceeded_limit):
+        - current_count: Current reschedule count after increment
+        - exceeded_limit: True if count exceeds PR_UPDATED_MAX_RESCHEDULE_COUNT
+    """
+    pr_key = f"pr_updated:{repo}:{pr_number}"
+    reschedule_count_key = f"{pr_key}:reschedule_count:{job_token}"
+
+    try:
+        r = _get_redis_client(redis_url)
+        count = r.incr(reschedule_count_key)
+        r.expire(reschedule_count_key, ttl_seconds)
+
+        exceeded = count > PR_UPDATED_MAX_RESCHEDULE_COUNT
+
+        if exceeded:
+            logger.warning(
+                "[PRUpdatedDebounce] Reschedule limit exceeded",
+                extra={
+                    "operation": "pr_updated_reschedule_limit_exceeded",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "job_token": job_token,
+                    "reschedule_count": count,
+                    "max_reschedule_count": PR_UPDATED_MAX_RESCHEDULE_COUNT,
+                }
+            )
+        else:
+            logger.debug(
+                "[PRUpdatedDebounce] Reschedule count incremented",
+                extra={
+                    "operation": "pr_updated_reschedule_count",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "job_token": job_token,
+                    "reschedule_count": count,
+                    "max_reschedule_count": PR_UPDATED_MAX_RESCHEDULE_COUNT,
+                }
+            )
+
+        return count, exceeded
+
+    except Exception as e:
+        logger.warning(
+            "[PRUpdatedDebounce] Failed to check reschedule count - allowing reschedule",
+            extra={
+                "operation": "pr_updated_reschedule_count_error",
+                "error": str(e),
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+        return 0, False
+
+
+def extend_job_scheduled_ttl(
+    repo: str,
+    pr_number: int,
+    ttl_seconds: int,
+    redis_url: Optional[str] = None
+) -> bool:
+    """
+    Extend the TTL of the job_scheduled_key for a PR.
+
+    P2 Robustness: Prevents token expiration during long push sequences.
+    Called when subsequent PR_UPDATED events occur to extend the TTL.
+
+    Args:
+        repo: Repository identifier
+        pr_number: Pull request number
+        ttl_seconds: New TTL in seconds
+        redis_url: Redis connection URL (uses settings.redis_url if None)
+
+    Returns:
+        True if TTL was extended, False otherwise
+    """
+    pr_key = f"pr_updated:{repo}:{pr_number}"
+    job_scheduled_key = f"{pr_key}:job_scheduled"
+
+    try:
+        r = _get_redis_client(redis_url)
+        result = r.expire(job_scheduled_key, ttl_seconds)
+
+        if result:
+            logger.debug(
+                "[PRUpdatedDebounce] Extended job_scheduled_key TTL",
+                extra={
+                    "operation": "pr_updated_extend_ttl",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "ttl_seconds": ttl_seconds,
+                }
+            )
+        return bool(result)
+
+    except Exception as e:
+        logger.warning(
+            "[PRUpdatedDebounce] Failed to extend TTL",
+            extra={
+                "operation": "pr_updated_extend_ttl_error",
+                "error": str(e),
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+        return False
+
+
+def check_rq_scheduler_health(redis_url: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Check if RQ Scheduler is running and healthy.
+
+    P2 Robustness: Healthcheck to ensure the scheduler is running,
+    which is required for enqueue_in() delayed jobs to execute.
+
+    Args:
+        redis_url: Redis connection URL (uses settings.redis_url if None)
+
+    Returns:
+        Dict with health status:
+        - healthy: True if scheduler appears to be running
+        - scheduler_key_exists: True if scheduler registry key exists
+        - scheduled_jobs_count: Number of jobs in scheduled queue
+        - error: Error message if check failed
+    """
+    result: Dict[str, Any] = {
+        "healthy": False,
+        "scheduler_key_exists": False,
+        "scheduled_jobs_count": 0,
+        "error": None,
+    }
+
+    try:
+        r = _get_redis_client(redis_url)
+
+        scheduler_key = "rq:scheduler:orchestrator"
+        result["scheduler_key_exists"] = r.exists(scheduler_key) > 0
+
+        scheduled_registry_key = "rq:scheduled:orchestrator"
+        result["scheduled_jobs_count"] = r.zcard(scheduled_registry_key)
+
+        result["healthy"] = True
+
+        logger.info(
+            "[RQSchedulerHealth] Health check completed",
+            extra={
+                "operation": "rq_scheduler_health_check",
+                "scheduler_key_exists": result["scheduler_key_exists"],
+                "scheduled_jobs_count": result["scheduled_jobs_count"],
+            }
+        )
+
+    except Exception as e:
+        result["error"] = str(e)
+        logger.warning(
+            "[RQSchedulerHealth] Health check failed",
+            extra={
+                "operation": "rq_scheduler_health_check_error",
+                "error": str(e),
+            }
+        )
+
+    return result
