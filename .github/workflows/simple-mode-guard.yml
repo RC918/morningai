@@ -55,17 +55,25 @@ jobs:
 
       - name: Check for forbidden symbols in diff
         id: check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "## Simple Mode Guard Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Get the diff for this PR - check ADDED lines only (lines starting with +)
           # Use diff-filter=AM to include both Added and Modified files
-          git diff origin/main...HEAD --diff-filter=AM -U0 -- \
+          # Use explicit base and head SHAs to avoid issues with merge commits
+          echo "Comparing $BASE_SHA..$HEAD_SHA"
+          git diff "$BASE_SHA".."$HEAD_SHA" --diff-filter=AM -U0 -- \
             'handoff/20250928/40_App/orchestrator/**/*.py' \
             'handoff/20250928/40_App/api-backend/**/*.py' \
             'common/**/*.py' \
             | grep '^+' | grep -v '^+++' > added_lines.txt || true
+          
+          echo "Added lines found:"
+          cat added_lines.txt || echo "(none)"
           
           VIOLATIONS=0
           VIOLATION_DETAILS=""
