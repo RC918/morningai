@@ -222,3 +222,207 @@ class TestCheckpointerDocumentation:
         assert docstring is not None
         # Should mention Upstash or RediSearch limitation
         assert 'Upstash' in docstring or 'RediSearch' in docstring
+
+
+class TestCheckpointerSuccessPaths:
+    """P3 Follow-up: Tests for successful checkpointer initialization paths"""
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_postgres_checkpointer_selected_when_configured(self):
+        """Test PostgresSaver is selected when USE_POSTGRES_CHECKPOINTER=true and DATABASE_URL exists"""
+        try:
+            pytest.importorskip("langgraph.checkpoint.postgres")
+        except pytest.skip.Exception:
+            pytest.skip("langgraph-checkpoint-postgres not installed")
+
+        from unittest.mock import MagicMock
+
+        mock_pg_instance = MagicMock()
+        mock_pg_class = MagicMock()
+        mock_pg_class.from_conn_string.return_value = mock_pg_instance
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.use_postgres_checkpointer = True
+            mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
+            mock_settings.use_redis_checkpointer = False
+            mock_settings.redis_url = None
+
+            with patch('langgraph_orchestrator.logger'):
+                with patch('langgraph.checkpoint.postgres.PostgresSaver', mock_pg_class):
+                    from langgraph_orchestrator import get_checkpointer
+                    result = get_checkpointer()
+
+                    # Verify PostgresSaver was used
+                    mock_pg_class.from_conn_string.assert_called_once()
+                    mock_pg_instance.setup.assert_called_once()
+                    assert result is mock_pg_instance
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_redis_checkpointer_selected_when_configured(self):
+        """Test RedisSaver is selected when USE_REDIS_CHECKPOINTER=true and REDIS_URL exists"""
+        try:
+            pytest.importorskip("langgraph.checkpoint.redis")
+        except pytest.skip.Exception:
+            pytest.skip("langgraph-checkpoint-redis not installed")
+
+        from unittest.mock import MagicMock
+
+        mock_redis_instance = MagicMock()
+        mock_redis_class = MagicMock(return_value=mock_redis_instance)
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.use_postgres_checkpointer = False
+            mock_settings.database_url = None
+            mock_settings.use_redis_checkpointer = True
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.redis_checkpointer_ttl = 86400
+
+            with patch('langgraph_orchestrator.logger'):
+                with patch('langgraph.checkpoint.redis.RedisSaver', mock_redis_class):
+                    from langgraph_orchestrator import get_checkpointer
+                    result = get_checkpointer()
+
+                    # Verify RedisSaver was used
+                    mock_redis_class.assert_called_once()
+                    mock_redis_instance.setup.assert_called_once()
+                    assert result is mock_redis_instance
+
+
+class TestCheckpointerFallbackOnFailure:
+    """P3 Follow-up: Tests for fallback behavior when checkpointer initialization fails"""
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_fallback_to_redis_when_postgres_connection_fails(self):
+        """Test fallback to Redis when PostgreSQL connection fails"""
+        try:
+            pytest.importorskip("langgraph.checkpoint.postgres")
+            pytest.importorskip("langgraph.checkpoint.redis")
+        except pytest.skip.Exception:
+            pytest.skip("langgraph-checkpoint-postgres or langgraph-checkpoint-redis not installed")
+
+        from unittest.mock import MagicMock
+
+        # PostgreSQL will fail on setup
+        mock_pg_instance = MagicMock()
+        mock_pg_instance.setup.side_effect = Exception("Connection refused")
+        mock_pg_class = MagicMock()
+        mock_pg_class.from_conn_string.return_value = mock_pg_instance
+
+        # Redis will succeed
+        mock_redis_instance = MagicMock()
+        mock_redis_class = MagicMock(return_value=mock_redis_instance)
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.use_postgres_checkpointer = True
+            mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
+            mock_settings.use_redis_checkpointer = True
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.redis_checkpointer_ttl = 86400
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                with patch('langgraph.checkpoint.postgres.PostgresSaver', mock_pg_class):
+                    with patch('langgraph.checkpoint.redis.RedisSaver', mock_redis_class):
+                        from langgraph_orchestrator import get_checkpointer
+                        result = get_checkpointer()
+
+                        # Verify PostgreSQL was attempted and failed
+                        mock_pg_class.from_conn_string.assert_called_once()
+                        mock_pg_instance.setup.assert_called_once()
+
+                        # Verify error was logged
+                        mock_logger.error.assert_called()
+
+                        # Verify Redis was used as fallback
+                        mock_redis_class.assert_called_once()
+                        mock_redis_instance.setup.assert_called_once()
+                        assert result is mock_redis_instance
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_fallback_to_memory_when_redis_connection_fails(self):
+        """Test fallback to MemorySaver when Redis connection fails (e.g., RediSearch not available)"""
+        try:
+            pytest.importorskip("langgraph.checkpoint.redis")
+        except pytest.skip.Exception:
+            pytest.skip("langgraph-checkpoint-redis not installed")
+
+        from unittest.mock import MagicMock
+
+        # Redis will fail on setup (simulating RediSearch not available - the OOM root cause)
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.setup.side_effect = Exception("FT._LIST command not available")
+        mock_redis_class = MagicMock(return_value=mock_redis_instance)
+
+        # MemorySaver will be used as fallback
+        mock_memory_instance = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.use_postgres_checkpointer = False
+            mock_settings.database_url = None
+            mock_settings.use_redis_checkpointer = True
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.redis_checkpointer_ttl = 86400
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                with patch('langgraph.checkpoint.redis.RedisSaver', mock_redis_class):
+                    with patch('langgraph_orchestrator.MemorySaver', return_value=mock_memory_instance):
+                        from langgraph_orchestrator import get_checkpointer
+                        result = get_checkpointer()
+
+                        # Verify Redis was attempted and failed
+                        mock_redis_class.assert_called_once()
+                        mock_redis_instance.setup.assert_called_once()
+
+                        # Verify error was logged
+                        mock_logger.error.assert_called()
+
+                        # Verify MemorySaver was used as fallback
+                        assert result is mock_memory_instance
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_fallback_chain_postgres_to_redis_to_memory(self):
+        """Test complete fallback chain: PostgreSQL fails -> Redis fails -> MemorySaver"""
+        try:
+            pytest.importorskip("langgraph.checkpoint.postgres")
+            pytest.importorskip("langgraph.checkpoint.redis")
+        except pytest.skip.Exception:
+            pytest.skip("langgraph-checkpoint-postgres or langgraph-checkpoint-redis not installed")
+
+        from unittest.mock import MagicMock
+
+        # PostgreSQL will fail
+        mock_pg_instance = MagicMock()
+        mock_pg_instance.setup.side_effect = Exception("PostgreSQL connection refused")
+        mock_pg_class = MagicMock()
+        mock_pg_class.from_conn_string.return_value = mock_pg_instance
+
+        # Redis will also fail
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.setup.side_effect = Exception("Redis connection refused")
+        mock_redis_class = MagicMock(return_value=mock_redis_instance)
+
+        # MemorySaver will be used as final fallback
+        mock_memory_instance = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.use_postgres_checkpointer = True
+            mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
+            mock_settings.use_redis_checkpointer = True
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.redis_checkpointer_ttl = 86400
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                with patch('langgraph.checkpoint.postgres.PostgresSaver', mock_pg_class):
+                    with patch('langgraph.checkpoint.redis.RedisSaver', mock_redis_class):
+                        with patch('langgraph_orchestrator.MemorySaver', return_value=mock_memory_instance):
+                            from langgraph_orchestrator import get_checkpointer
+                            result = get_checkpointer()
+
+                            # Verify both PostgreSQL and Redis were attempted
+                            mock_pg_class.from_conn_string.assert_called_once()
+                            mock_redis_class.assert_called_once()
+
+                            # Verify errors were logged for both
+                            assert mock_logger.error.call_count >= 2
+
+                            # Verify MemorySaver was used as final fallback
+                            assert result is mock_memory_instance
