@@ -794,6 +794,12 @@ class Settings(BaseSettings):
         description="Use Redis-based checkpointer for LangGraph state persistence instead of in-memory MemorySaver. Enables cross-process state recovery."
     )
 
+    use_postgres_checkpointer: bool = Field(
+        default=False,
+        alias="USE_POSTGRES_CHECKPOINTER",
+        description="Use PostgreSQL-based checkpointer for LangGraph state persistence. Recommended over Redis for Upstash (which doesn't support RediSearch). Requires DATABASE_URL."
+    )
+
     use_distributed_vm_locking: bool = Field(
         default=False,
         alias="USE_DISTRIBUTED_VM_LOCKING",
@@ -1449,6 +1455,22 @@ class Settings(BaseSettings):
         default="RC918/morningai",
         alias="INTERNAL_REPOS_WHITELIST",
         description="Comma-separated list of internal repos allowed for AI review in Staging (e.g., 'RC918/morningai,RC918/other-repo')"
+    )
+
+    # Phase B-B: Fault Injection for 422 Fallback Verification (Staging Only)
+    # Enables controlled testing of the 422 fallback mechanism
+    enable_fault_injection: bool = Field(
+        default=False,
+        alias="ENABLE_FAULT_INJECTION",
+        description="Enable fault injection for testing fallback mechanisms. Only works when is_staging=True. Use with caution."
+    )
+
+    fault_injection_422_rate: float = Field(
+        default=1.0,
+        alias="FAULT_INJECTION_422_RATE",
+        ge=0.0,
+        le=1.0,
+        description="Rate at which to inject 422 errors (0.0-1.0). Only applies when enable_fault_injection=True and is_staging=True."
     )
 
     # Phase 3 #1822: Meta Agent Integration (Integrated Development Tools)

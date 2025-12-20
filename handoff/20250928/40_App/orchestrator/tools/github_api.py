@@ -543,6 +543,72 @@ def delete_branch(repo, branch: str):
         return False
 
 
+def _is_repo_in_internal_whitelist(settings, repo_full_name: str) -> bool:
+    """
+    Check if a repository is in the internal repos whitelist.
+
+    This is a helper function for fault injection to limit injection
+    to internal repos only, preventing interference with other staging flows.
+
+    Args:
+        settings: Application settings object
+        repo_full_name: Repository in owner/repo format (e.g., 'RC918/morningai')
+
+    Returns:
+        True if repo is in the internal whitelist, False otherwise
+    """
+    if not repo_full_name:
+        return False
+
+    whitelist_str = getattr(settings, 'internal_repos_whitelist', '')
+    if not whitelist_str:
+        return False
+
+    whitelist = {r.strip() for r in whitelist_str.split(',') if r.strip()}
+    return repo_full_name in whitelist
+
+
+def _should_inject_422_fault(settings, repo_full_name: str = None) -> bool:
+    """
+    Check if 422 fault injection should be triggered.
+
+    Phase B-B: Fault Injection for 422 Fallback Verification
+
+    This is a safety-gated function that only allows fault injection when:
+    1. settings.enable_fault_injection is True
+    2. settings.is_staging is True (NEVER in production)
+    3. repo is in internal_repos_whitelist (prevents interference with other staging flows)
+    4. Random check passes based on fault_injection_422_rate
+
+    Args:
+        settings: Application settings object
+        repo_full_name: Repository in owner/repo format (e.g., 'RC918/morningai')
+
+    Returns:
+        True if fault should be injected, False otherwise
+    """
+    import random
+
+    # Safety gate 1: Must have fault injection enabled
+    if not getattr(settings, 'enable_fault_injection', False):
+        return False
+
+    # Safety gate 2: Must be in staging environment (NEVER production)
+    if not getattr(settings, 'is_staging', False):
+        return False
+
+    # Safety gate 3: Must be an internal repo (prevents interference with other staging flows)
+    if not _is_repo_in_internal_whitelist(settings, repo_full_name):
+        return False
+
+    # Safety gate 4: Check injection rate (default 1.0 = always inject when enabled)
+    injection_rate = getattr(settings, 'fault_injection_422_rate', 1.0)
+    if random.random() > injection_rate:
+        return False
+
+    return True
+
+
 def post_pr_review(
     repo,
     pr_number: int,
@@ -669,6 +735,26 @@ def post_pr_review(
             result["posted_count"] = len(gh_comments)
             result["dry_run"] = True
             return result
+
+        # Phase B-B: Fault injection for 422 fallback verification (Staging only)
+        # This allows controlled testing of the fallback mechanism
+        # P2: Now limited to internal repos only to prevent interference with other staging flows
+        repo_full_name = getattr(repo, 'full_name', None)
+        if _should_inject_422_fault(settings, repo_full_name):
+            logger.warning(
+                "[GitHub][FAULT_INJECTION] Injecting 422 error for fallback testing",
+                extra={
+                    "operation": "fault_injection_422",
+                    "pr_number": pr_number,
+                    "comment_count": len(gh_comments),
+                    "repo": repo_full_name,
+                }
+            )
+            raise GithubException(
+                422,
+                {"message": "Validation Failed (FAULT_INJECTION)"},
+                None
+            )
 
         # Post the review
         pr.create_review(
