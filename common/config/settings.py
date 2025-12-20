@@ -1481,6 +1481,22 @@ class Settings(BaseSettings):
         description="Comma-separated list of repos where PR_UPDATED review is enabled. Empty string means all repos (if enable_pr_updated_review=True). Use for gradual rollout."
     )
 
+    # Phase B-B: Fault Injection for 422 Fallback Verification (Staging Only)
+    # Enables controlled testing of the 422 fallback mechanism
+    enable_fault_injection: bool = Field(
+        default=False,
+        alias="ENABLE_FAULT_INJECTION",
+        description="Enable fault injection for testing fallback mechanisms. Only works when is_staging=True. Use with caution."
+    )
+
+    fault_injection_422_rate: float = Field(
+        default=1.0,
+        alias="FAULT_INJECTION_422_RATE",
+        ge=0.0,
+        le=1.0,
+        description="Rate at which to inject 422 errors (0.0-1.0). Only applies when enable_fault_injection=True and is_staging=True."
+    )
+
     # Phase 3 #1822: Meta Agent Integration (Integrated Development Tools)
     enable_meta_agent: bool = Field(
         default=False,
