@@ -9,11 +9,64 @@ in the database. Used by both the orchestrator (for writing) and monitoring tool
 Phase 1 Monitoring: Replaces ephemeral JSONL files with persistent database storage.
 """
 import logging
+import uuid
+import re
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional, Any
 from .db_client import get_client
 
 logger = logging.getLogger(__name__)
+
+# Namespace UUID for deterministic trace_id mapping (RFC 4122 DNS namespace)
+TRACE_ID_NAMESPACE = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')
+
+
+def normalize_trace_id_to_uuid(trace_id: str) -> str:
+    """
+    Normalize trace_id to a valid UUID for database storage.
+
+    Uses a two-stage approach:
+    1. First try to extract a valid UUID from the string (handles prefixed UUIDs)
+    2. If no UUID found, generate a deterministic UUID using uuid5
+
+    This ensures backward compatibility with old format trace_ids (e.g., webhook-github-e2771cea)
+    while also supporting new format trace_ids with full UUIDs.
+
+    Args:
+        trace_id: Original trace_id string (may or may not contain a UUID)
+
+    Returns:
+        Valid UUID string in canonical format
+    """
+    if not trace_id:
+        # Use deterministic UUID for empty string to aggregate all empty trace_id events
+        return str(uuid.uuid5(TRACE_ID_NAMESPACE, ""))
+
+    # Fast path: try as-is first (pure UUID)
+    try:
+        return str(uuid.UUID(trace_id))
+    except (ValueError, AttributeError):
+        pass
+
+    # Search for UUID pattern in the string (handles prefixed UUIDs like webhook-github-{uuid})
+    uuid_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+    matches = re.findall(uuid_pattern, trace_id)
+
+    if matches:
+        validated = uuid.UUID(matches[0])
+        logger.debug(
+            f"[Planner Events Store] UUID extracted from trace_id: '{trace_id}' -> '{validated}'"
+        )
+        return str(validated)
+
+    # Fallback: generate deterministic UUID from original string using uuid5
+    # This ensures the same trace_id always maps to the same UUID
+    deterministic_uuid = uuid.uuid5(TRACE_ID_NAMESPACE, trace_id)
+    logger.info(
+        f"[Planner Events Store] No UUID found in trace_id, using deterministic mapping: "
+        f"'{trace_id}' -> '{deterministic_uuid}'"
+    )
+    return str(deterministic_uuid)
 
 
 def insert_planner_event(
@@ -51,8 +104,11 @@ def insert_planner_event(
         # Convert datetime to ISO format string for Supabase
         timestamp_str = timestamp.isoformat() if isinstance(timestamp, datetime) else timestamp
 
+        # Normalize trace_id to valid UUID for database storage
+        normalized_trace_id = normalize_trace_id_to_uuid(trace_id)
+
         data = {
-            "trace_id": trace_id,
+            "trace_id": normalized_trace_id,
             "goal": goal,
             "planner_type": planner_type,
             "task_type": task_type,
@@ -107,7 +163,9 @@ def query_planner_events(
 
         # Apply filters
         if trace_id:
-            query = query.eq("trace_id", trace_id)
+            # Normalize trace_id for consistent querying
+            normalized_trace_id = normalize_trace_id_to_uuid(trace_id)
+            query = query.eq("trace_id", normalized_trace_id)
 
         if planner_type_filter:
             query = query.eq("planner_type", planner_type_filter)
