@@ -564,6 +564,7 @@ class EventNormalizer:
         # Generate task ID with full UUID for DB compatibility
         # Format: webhook-{source}-{full_uuid}
         # The db_writer.normalize_and_validate_uuid() will extract the UUID portion
+        # Fix verified: PR #2777
         import uuid
         task_uuid = str(uuid.uuid4())
         task_id = f"webhook-{event.source.value}-{task_uuid}"
