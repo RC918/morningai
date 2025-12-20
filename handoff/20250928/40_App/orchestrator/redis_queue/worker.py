@@ -2179,13 +2179,16 @@ if __name__ == "__main__":
                         "worker_ttl": 600,
                         "result_ttl": 86400,
                         "serializer": "JSONSerializer",
-                        "max_jobs": MAX_JOBS
+                        "max_jobs": MAX_JOBS,
+                        "with_scheduler": True
                     }
                 )
                 # max_jobs: Worker exits after processing this many jobs
                 # This allows container orchestrator (Render) to restart the worker,
                 # clearing accumulated memory from LangGraph MemorySaver checkpoints
-                worker.work(max_jobs=MAX_JOBS)
+                # with_scheduler: Enable RQ scheduler for enqueue_in() delayed jobs
+                # Required for PR_UPDATED debounce mechanism (Phase B-B)
+                worker.work(max_jobs=MAX_JOBS, with_scheduler=True)
                 consecutive_readonly_count = 0
                 should_exit = True
                 break
