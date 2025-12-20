@@ -1241,10 +1241,15 @@ def governance_advisor_node(state: AgentState) -> AgentState:
 
         agent = get_governance_agent()
 
+        # Resolve agent_type to UUID for DB operations
+        agent_uuid = None
+        if agent.reputation_engine:
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid("orchestrator")
+
         advisory = agent.analyze_task(
             task_type=task_type,
             trace_id=trace_id,
-            agent_id="orchestrator",
+            agent_id=agent_uuid or "orchestrator",
             file_paths=[],
             operations=plan,
             content=goal,
@@ -1441,8 +1446,14 @@ def permission_advisor_node(state: AgentState) -> AgentState:
 
         agent = get_governance_agent()
 
+        # Resolve agent_type to UUID for DB operations
+        agent_identifier = state.get("agent_id", "orchestrator")
+        agent_uuid = None
+        if agent.reputation_engine:
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid(agent_identifier)
+
         advisory = agent.analyze_permissions(
-            agent_id=state.get("agent_id", "orchestrator"),
+            agent_id=agent_uuid or agent_identifier,
             operations=plan,
             environment=state.get("environment", "sandbox")
         )
@@ -1530,16 +1541,21 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
 
         agent = get_governance_agent()
 
+        # Resolve agent_type to UUID for DB operations
+        agent_uuid = None
+        if agent.reputation_engine:
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid("orchestrator")
+
         reputation_data = {
-            "agent_id": "orchestrator",
+            "agent_id": agent_uuid or "orchestrator",
             "score": 100,
             "level": "trusted",
             "history": []
         }
 
-        if agent.reputation_engine:
+        if agent.reputation_engine and agent_uuid:
             try:
-                reputation_data = agent.reputation_engine.get_reputation("orchestrator") or reputation_data
+                reputation_data = agent.reputation_engine.get_reputation(agent_uuid) or reputation_data
             except Exception as e:
                 logger.warning(f"[ReputationAdvisor] ReputationEngine query failed: {e}")
 
@@ -1547,7 +1563,7 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
         level = reputation_data.get("level", "trusted")
 
         state["reputation_advisory"] = {
-            "agent_id": reputation_data.get("agent_id", "orchestrator"),
+            "agent_id": reputation_data.get("agent_id", agent_uuid or "orchestrator"),
             "score": score,
             "level": level,
             "history": reputation_data.get("history", []),

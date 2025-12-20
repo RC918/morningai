@@ -1,5 +1,6 @@
 """Reputation Engine - Agent reputation scoring and management"""
 import os
+import uuid
 import yaml
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -8,11 +9,21 @@ from datetime import datetime, timedelta
 from common.config.settings import settings
 
 
+def _is_valid_uuid(value: str) -> bool:
+    """Check if a string is a valid UUID."""
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 class ReputationEngine:
     """Manages agent reputation scores and permission levels"""
     
     def __init__(self, supabase_client=None, policies_path: Optional[str] = None):
         self.supabase = supabase_client
+        self._agent_uuid_cache: Dict[str, str] = {}  # Cache: agent_type -> agent_uuid
         
         if policies_path is None:
             # Check settings first (centralized configuration)
@@ -69,6 +80,45 @@ class ReputationEngine:
         except Exception as e:
             print(f"[ReputationEngine] Supabase unavailable: {e}")
             return None
+    
+    def resolve_agent_uuid(self, agent_identifier: str) -> Optional[str]:
+        """
+        Resolve an agent identifier to a valid UUID.
+        
+        This method handles the common case where callers pass an agent_type string
+        (e.g., "orchestrator", "ops_agent") instead of a UUID. It will:
+        1. Return the identifier as-is if it's already a valid UUID
+        2. Look up or create the agent by agent_type and return the UUID
+        3. Use in-memory caching to avoid repeated DB lookups
+        
+        Args:
+            agent_identifier: Either a UUID string or an agent_type string
+            
+        Returns:
+            A valid UUID string, or None if resolution fails
+        """
+        if not agent_identifier:
+            return None
+        
+        # If it's already a valid UUID, return it directly
+        if _is_valid_uuid(agent_identifier):
+            return agent_identifier
+        
+        # Check cache first
+        if agent_identifier in self._agent_uuid_cache:
+            return self._agent_uuid_cache[agent_identifier]
+        
+        # Treat as agent_type and look up/create the agent
+        agent_uuid = self.get_or_create_agent(agent_identifier)
+        
+        if agent_uuid:
+            # Cache the mapping for future lookups
+            self._agent_uuid_cache[agent_identifier] = agent_uuid
+            print(f"[ReputationEngine] Resolved agent_type '{agent_identifier}' to UUID '{agent_uuid}'")
+        else:
+            print(f"[ReputationEngine] Failed to resolve agent_identifier '{agent_identifier}' to UUID")
+        
+        return agent_uuid
     
     def get_or_create_agent(self, agent_type: str) -> Optional[str]:
         """Get or create agent reputation record"""
