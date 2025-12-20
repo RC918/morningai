@@ -573,13 +573,15 @@ def run_orchestrator_task(
         
         if _rollout_tracker:
             try:
+                # Issue #2737: Pass task_type for FAQ latency monitoring
                 _rollout_tracker.record_langgraph_task(
                     trace_id=task_id,
                     success=execution_success,
                     latency_ms=elapsed_ms,
-                    is_5xx_error=False
+                    is_5xx_error=False,
+                    task_type=task_type
                 )
-                logger.debug(f"Rollout tracker recorded: mode=langgraph, latency={elapsed_ms:.2f}ms, success={execution_success}")
+                logger.debug(f"Rollout tracker recorded: mode=langgraph, latency={elapsed_ms:.2f}ms, success={execution_success}, task_type={task_type}")
             except Exception as e:
                 logger.warning(f"Failed to record rollout tracker metrics: {e}")
         
@@ -637,11 +639,13 @@ def run_orchestrator_task(
         
         if _rollout_tracker:
             try:
+                # Issue #2737: Pass task_type for FAQ latency monitoring in error path
                 _rollout_tracker.record_langgraph_task(
                     trace_id=task_id,
                     success=False,
                     latency_ms=None,
-                    is_5xx_error=True
+                    is_5xx_error=True,
+                    task_type=task_type
                 )
             except Exception as tracker_error:
                 logger.warning(f"Failed to record rollout tracker error: {tracker_error}")
@@ -1843,8 +1847,6 @@ if __name__ == "__main__":
         extra={
             "operation": "startup",
             "flags": {
-                "use_langgraph": settings.use_langgraph,
-                "use_langgraph_percent": getattr(settings, 'use_langgraph_percent', 0),
                 "use_llm_planner": getattr(settings, 'use_llm_planner', False),
                 "canary_metrics_enabled": getattr(settings, 'canary_metrics_enabled', True),
                 "canary_alerting_enabled": getattr(settings, 'canary_alerting_enabled', True),
