@@ -2361,6 +2361,8 @@ def reviewer_node(state: AgentState) -> AgentState:
                 diff_content = None
                 diff_truncated = False
                 diff_files = None
+                # Phase 2: Capture head_sha for line drift protection
+                diff_head_sha = None
 
                 if pr_number:
                     try:
@@ -2371,6 +2373,8 @@ def reviewer_node(state: AgentState) -> AgentState:
                                 diff_content = diff_data.get("diff", "")
                                 diff_truncated = diff_data.get("truncated", False)
                                 diff_files = diff_data.get("files", [])
+                                # Phase 2: Capture head_sha for line drift protection
+                                diff_head_sha = diff_data.get("head_sha")
                                 # Phase B-B: Extract truncation_info for metrics
                                 truncation_info = diff_data.get("truncation_info", {})
                                 github_total_files = truncation_info.get(
@@ -2522,6 +2526,10 @@ def reviewer_node(state: AgentState) -> AgentState:
                     if diff_content:
                         state["diff_content"] = diff_content
                         state["diff_truncated"] = diff_truncated
+                        # Phase 2: Store head_sha for line drift protection
+                        # publisher_node will compare this with current head_sha
+                        if diff_head_sha:
+                            state["diff_head_sha"] = diff_head_sha
 
                     llm_decision = llm_review.get("decision", "needs_changes")
                     llm_summary = llm_review.get("summary", "")
@@ -2924,7 +2932,10 @@ def publisher_node(state: AgentState) -> AgentState:
     # This prevents 422 errors from GitHub when line numbers are invalid
     diff_content = state.get("diff_content")
     diff_truncated = state.get("diff_truncated", False)
+    # Phase 2: Get stored head_sha for line drift protection
+    stored_head_sha = state.get("diff_head_sha")
     downgraded_count = 0
+    line_drift_detected = False
 
     if diff_content and inline_comments:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
@@ -2972,24 +2983,71 @@ def publisher_node(state: AgentState) -> AgentState:
         # Phase B-B Telemetry: Store downgrade reasons in state
         state["publish_result"]["downgrade_reasons"] = downgrade_reasons
 
+    # Phase 2: Line drift protection - check if PR head has changed since review
+    # MUST run before any comment posting to detect drift early
+    # If head_sha changed, new commits were pushed and line numbers may be stale
+    if stored_head_sha and pr_number and inline_comments:
+        try:
+            from tools.github_api import get_repo
+            repo = get_repo()
+            if repo:
+                pr = repo.get_pull(pr_number)
+                current_head_sha = pr.head.sha
+                if current_head_sha != stored_head_sha:
+                    line_drift_detected = True
+                    logger.warning(
+                        "[Publisher] Line drift detected - PR head changed since review",
+                        extra={
+                            "operation": "publisher",
+                            "trace_id": trace_id,
+                            "pr_number": pr_number,
+                            "stored_head_sha": stored_head_sha[:8],
+                            "current_head_sha": current_head_sha[:8],
+                            "inline_comment_count": len(inline_comments)
+                        }
+                    )
+                    # Conservative strategy: downgrade all inline comments to file-level
+                    # This prevents 422 errors from stale line numbers
+                    drift_downgrade_count = len(inline_comments)
+                    file_level_comments.extend(inline_comments)
+                    inline_comments = []
+                    state["publish_result"]["line_drift_detected"] = True
+                    # Store only drift-related downgrades (separate from validation downgrades)
+                    state["publish_result"]["line_drift_downgraded"] = drift_downgrade_count
+        except Exception as drift_check_error:
+            # Fail-open: if we can't check head_sha, proceed with posting
+            logger.warning(
+                f"[Publisher] Failed to check line drift: {drift_check_error}",
+                extra={
+                    "operation": "publisher",
+                    "trace_id": trace_id,
+                    "error": str(drift_check_error)
+                }
+            )
+
+    # Unified file-level delivery path
+    # Handles: (1) no inline comments after validation, (2) all comments downgraded due to drift
     if not inline_comments:
-        # Phase 1 Quick Win: Deliver file-level comments in review body instead of skipping
         if file_level_comments and pr_number:
             logger.info("[Publisher] No inline-eligible comments, publishing file-level in review body", extra={
                 "operation": "publisher",
                 "trace_id": trace_id,
                 "pr_number": pr_number,
-                "file_level_count": len(file_level_comments)
+                "file_level_count": len(file_level_comments),
+                "line_drift_detected": line_drift_detected
             })
             try:
                 from tools.github_api import get_repo, post_pr_review
 
                 # Build review body with file-level comments as markdown appendix
                 file_level_body = "## MorningAI Code Review\n\n"
+                if line_drift_detected:
+                    file_level_body += "*Note: New commits detected since review. Comments delivered as file-level for safety.*\n\n"
                 file_level_body += "### File-Level Comments\n\n"
                 for comment in file_level_comments:
-                    file_path = comment.get("file", comment.get("path", "General"))
-                    message = comment.get("message", comment.get("body", ""))
+                    # P3 Follow-up: Simplified field access (schema guarantees canonical fields)
+                    file_path = comment.get("file", "General")
+                    message = comment.get("message", "")
                     severity = comment.get("severity", "info")
                     file_level_body += f"**{file_path}** ({severity})\n{message}\n\n"
 
@@ -3008,14 +3066,16 @@ def publisher_node(state: AgentState) -> AgentState:
 
                 if result.get("success"):
                     mode = "[DRY-RUN]" if result.get("dry_run") else ""
+                    drift_note = "[LINE-DRIFT]" if line_drift_detected else ""
                     state["messages"] = state.get("messages", []) + [
-                        AIMessage(content=f"Review published {mode}: {len(file_level_comments)} file-level comments in review body")
+                        AIMessage(content=f"Review published {mode}{drift_note}: {len(file_level_comments)} file-level comments in review body")
                     ]
                     logger.info("[Publisher] File-level comments published in review body", extra={
                         "operation": "publisher",
                         "trace_id": trace_id,
                         "pr_number": pr_number,
                         "file_level_count": len(file_level_comments),
+                        "line_drift_detected": line_drift_detected,
                         "dry_run": result.get("dry_run", False)
                     })
             except Exception as e:
@@ -3040,13 +3100,14 @@ def publisher_node(state: AgentState) -> AgentState:
         metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
         return state
 
-    # Post to GitHub
+    # Post inline comments to GitHub
     state["publish_result"]["attempted"] = True
 
     try:
         from tools.github_api import get_repo, post_pr_review
 
         repo = get_repo()
+
         result = post_pr_review(
             repo=repo,
             pr_number=pr_number,
