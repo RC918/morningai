@@ -3045,8 +3045,9 @@ def publisher_node(state: AgentState) -> AgentState:
                     file_level_body += "*Note: New commits detected since review. Comments delivered as file-level for safety.*\n\n"
                 file_level_body += "### File-Level Comments\n\n"
                 for comment in file_level_comments:
-                    file_path = comment.get("file", comment.get("path", "General"))
-                    message = comment.get("message", comment.get("body", ""))
+                    # P3 Follow-up: Simplified field access (schema guarantees canonical fields)
+                    file_path = comment.get("file", "General")
+                    message = comment.get("message", "")
                     severity = comment.get("severity", "info")
                     file_level_body += f"**{file_path}** ({severity})\n{message}\n\n"
 

@@ -309,14 +309,9 @@ class LLMReviewerAdapter:
                 base_quality_score, base_severity, fallback_reason="llm_json_parse_failed"
             )
         except Exception as e:
-            # Determine fallback reason based on exception type
-            error_str = str(e).lower()
-            if "timeout" in error_str:
-                fallback_reason = "llm_timeout"
-            elif "connection" in error_str or "network" in error_str:
-                fallback_reason = "llm_connection_error"
-            else:
-                fallback_reason = "llm_api_error"
+            # P2 Follow-up: Determine fallback reason based on exception type
+            # Prefer checking exception types over string matching for robustness
+            fallback_reason = self._classify_exception(e)
 
             logger.error(
                 f"[LLM Reviewer] Review failed ({fallback_reason}): {e}",
@@ -738,6 +733,44 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             content = content[start:end + 1]
 
         return content.strip()
+
+    def _classify_exception(self, e: Exception) -> str:
+        """
+        Classify exception to determine fallback reason.
+
+        P2 Follow-up: Uses exception type checking instead of string matching
+        for more robust error classification.
+
+        Args:
+            e: The exception to classify
+
+        Returns:
+            Fallback reason string: llm_timeout, llm_connection_error, or llm_api_error
+        """
+        # Check exception type first (more robust than string matching)
+        exception_type = type(e).__name__.lower()
+
+        # Timeout exceptions
+        if any(timeout_type in exception_type for timeout_type in [
+            'timeout', 'timedout', 'readtimeout', 'connecttimeout'
+        ]):
+            return "llm_timeout"
+
+        # Connection exceptions (excluding 'http' to avoid misclassifying HTTPStatusError)
+        if any(conn_type in exception_type for conn_type in [
+            'connection', 'network', 'socket', 'dns', 'ssl'
+        ]):
+            return "llm_connection_error"
+
+        # Check exception message as fallback (for wrapped exceptions)
+        error_str = str(e).lower()
+        if "timeout" in error_str:
+            return "llm_timeout"
+        if any(conn_word in error_str for conn_word in ["connection", "network", "socket"]):
+            return "llm_connection_error"
+
+        # Default to API error for other exceptions
+        return "llm_api_error"
 
     def _get_fallback_result(
         self,
