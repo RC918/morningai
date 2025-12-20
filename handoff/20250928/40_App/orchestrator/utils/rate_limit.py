@@ -1,4 +1,5 @@
 """Rate limiting utilities for Orchestrator PR creation"""
+import json
 import logging
 import redis
 import time
@@ -543,7 +544,7 @@ def check_pr_updated_debounce(
         if was_set:
             r.set(
                 latest_payload_key,
-                str(payload_data),
+                json.dumps(payload_data),
                 ex=job_ttl + PR_UPDATED_PENDING_KEY_TTL_BUFFER
             )
             logger.info(
@@ -569,7 +570,7 @@ def check_pr_updated_debounce(
             event_count = 1
             if existing_payload:
                 try:
-                    existing_data = eval(existing_payload)
+                    existing_data = json.loads(existing_payload)
                     event_count = existing_data.get("event_count", 0) + 1
                 except Exception:
                     pass
@@ -577,7 +578,7 @@ def check_pr_updated_debounce(
             payload_data["event_count"] = event_count
             r.set(
                 latest_payload_key,
-                str(payload_data),
+                json.dumps(payload_data),
                 ex=job_ttl + PR_UPDATED_PENDING_KEY_TTL_BUFFER
             )
 
@@ -725,7 +726,7 @@ def get_pr_updated_latest_payload(
         payload_str = r.get(latest_payload_key)
 
         if payload_str:
-            return eval(payload_str)
+            return json.loads(payload_str)
         return None
 
     except Exception as e:
