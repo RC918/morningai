@@ -292,6 +292,7 @@ def get_pr_diff(
             - files: list[dict] - List of changed files with metadata
             - truncated: bool - Whether truncation was applied
             - truncation_info: dict - Details about what was truncated
+            - head_sha: str | None - PR head commit SHA for line drift protection
             - error: str | None - Error message if fetch failed
     """
     result = {
@@ -310,6 +311,8 @@ def get_pr_diff(
             "ignored_file_count": 0,
             "ignored_filenames": []
         },
+        # Phase 2: Capture head_sha for line drift protection
+        "head_sha": None,
         "error": None
     }
 
@@ -320,6 +323,11 @@ def get_pr_diff(
             return result
 
         pr = repo.get_pull(pr_number)
+
+        # Phase 2: Capture head_sha for line drift protection
+        # This allows publisher_node to detect if new commits were pushed
+        # between reviewer_node and publisher_node execution
+        result["head_sha"] = pr.head.sha
 
         # Get list of changed files
         all_files = list(pr.get_files())
