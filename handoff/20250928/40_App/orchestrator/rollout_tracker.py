@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 TASK_TYPE_FAQ = "faq"
 TASK_TYPE_GENERAL = "general"
 
+# TEST: This line should trigger CI Guard - record_simple_task is forbidden
+TEST_FORBIDDEN_SYMBOL = "record_simple_task"
+
 # Mode constants for metrics
 _MODE_LANGGRAPH = "langgraph"
 _MODE_LANGGRAPH_FAQ = "langgraph.faq"
