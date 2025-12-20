@@ -35,7 +35,60 @@ try:
 except ImportError:
     from utils.rate_limit import check_ai_reviewer_rate_limit
 
+try:
+    from common.config.settings import settings
+except ImportError:
+    settings = None
+
 logger = logging.getLogger(__name__)
+
+
+def is_internal_repo_allowed(repo: str) -> bool:
+    """
+    Check if an internal repo is allowed for AI review in Staging.
+
+    Phase B-B: Internal Repo Dogfooding
+    This enables MorningAI to review its own code in Staging environment.
+
+    Preconditions (all must be true):
+    1. settings object is available
+    2. allow_internal_repos_in_staging is True
+    3. is_staging environment is True
+    4. repo is in internal_repos_whitelist
+
+    Args:
+        repo: Repository in owner/repo format (e.g., 'RC918/morningai')
+
+    Returns:
+        True if the repo is an internal repo and dogfooding is enabled in Staging
+    """
+    if not settings:
+        return False
+
+    # Gather all preconditions using getattr for robustness
+    is_staging_env = getattr(settings, 'is_staging', False)
+    allow_internal = getattr(settings, 'allow_internal_repos_in_staging', False)
+    whitelist_str = getattr(settings, 'internal_repos_whitelist', '')
+
+    # Dogfooding is only allowed when all preconditions are met
+    if not (allow_internal and is_staging_env and whitelist_str):
+        return False
+
+    # Parse whitelist and check if repo is allowed
+    whitelist = {r.strip() for r in whitelist_str.split(',') if r.strip()}
+    is_allowed = repo in whitelist
+
+    if is_allowed:
+        logger.info(
+            "[EventNormalizer] Internal repo allowed for AI review (dogfooding)",
+            extra={
+                "operation": "internal_repo_dogfooding",
+                "repo": repo,
+                "is_staging": is_staging_env,
+            }
+        )
+
+    return is_allowed
 
 
 @dataclass
@@ -242,6 +295,7 @@ class EventNormalizer:
 
         Issue: #2209 - 修復 AI Reviewer 評論接收機制
         Issue: #2254 - is_actionable observability
+        Phase B-B: Internal Repo Dogfooding support
         """
         is_ai_reviewer = bool(event.metadata.get("is_ai_reviewer"))
         bot_name = event.metadata.get("review_source", "unknown") if is_ai_reviewer else None
@@ -250,6 +304,7 @@ class EventNormalizer:
         matched_keywords: List[str] = []
         is_actionable_result = False
         actionable_reason = ""
+        is_internal_repo = is_internal_repo_allowed(repo)
 
         # Check if event type is in actionable list
         if event.event_type in self.ACTIONABLE_EVENT_TYPES:
@@ -305,6 +360,22 @@ class EventNormalizer:
                     "repo": repo,
                     "pr_number": pr_number,
                     "matched_keywords": matched_keywords,
+                    "actionable_reason": actionable_reason,
+                    "is_internal_repo": is_internal_repo,
+                }
+            )
+
+        # Phase B-B: Log internal repo events for dogfooding observability
+        if is_internal_repo:
+            logger.info(
+                "[EventNormalizer] Internal repo event processed (dogfooding)",
+                extra={
+                    "operation": "internal_repo_event",
+                    "event_id": event.event_id,
+                    "is_actionable": is_actionable_result,
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "event_type": event.event_type.value,
                     "actionable_reason": actionable_reason,
                 }
             )
