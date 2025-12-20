@@ -31,9 +31,9 @@ from .handlers.slack_handler import SlackWebhookHandler
 from .comment_triage import CommentTriageAgent, CommentTriageResult
 
 try:
-    from ..utils.rate_limit import check_ai_reviewer_rate_limit
+    from ..utils.rate_limit import check_ai_reviewer_rate_limit, check_pr_updated_debounce
 except ImportError:
-    from utils.rate_limit import check_ai_reviewer_rate_limit
+    from utils.rate_limit import check_ai_reviewer_rate_limit, check_pr_updated_debounce
 
 try:
     from common.config.settings import settings
@@ -89,6 +89,77 @@ def is_internal_repo_allowed(repo: str) -> bool:
         )
 
     return is_allowed
+
+
+def is_pr_updated_allowed(repo: str, pr_number: int, redis_url: str = None) -> tuple:
+    """
+    Check if a PR_UPDATED event should be processed.
+
+    Phase B-B: PR_UPDATED Event Support with Debounce/Throttle
+    This enables AI review on PR updates (push events) with cost protection.
+
+    Preconditions (all must be true):
+    1. settings.enable_pr_updated_review is True
+    2. repo is in pr_updated_repos_whitelist (or whitelist is empty = all repos)
+    3. Debounce check passes (not within debounce window)
+    4. Throttle check passes (not reviewed too recently)
+
+    Args:
+        repo: Repository in owner/repo format (e.g., 'RC918/morningai')
+        pr_number: Pull request number
+        redis_url: Optional Redis URL for debounce/throttle tracking
+
+    Returns:
+        Tuple of (is_allowed: bool, reason: str)
+    """
+    if not settings:
+        return False, "settings_unavailable"
+
+    # Check if PR_UPDATED review is enabled
+    enable_pr_updated = getattr(settings, 'enable_pr_updated_review', False)
+    if not enable_pr_updated:
+        return False, "pr_updated_review_disabled"
+
+    # Check whitelist (empty whitelist = all repos allowed)
+    whitelist_str = getattr(settings, 'pr_updated_repos_whitelist', '')
+    if whitelist_str:
+        whitelist = {r.strip() for r in whitelist_str.split(',') if r.strip()}
+        if repo not in whitelist:
+            return False, "repo_not_in_whitelist"
+
+    # Check debounce/throttle
+    debounce_seconds = getattr(settings, 'pr_updated_debounce_seconds', 30)
+    throttle_seconds = getattr(settings, 'pr_updated_throttle_seconds', 600)
+
+    debounce_result = check_pr_updated_debounce(
+        repo=repo,
+        pr_number=pr_number,
+        debounce_seconds=debounce_seconds,
+        throttle_seconds=throttle_seconds,
+        redis_url=redis_url,
+    )
+
+    if not debounce_result.should_process:
+        logger.info(
+            "[EventNormalizer] PR_UPDATED event debounced/throttled",
+            extra={
+                "operation": "pr_updated_debounce_check",
+                "repo": repo,
+                "pr_number": pr_number,
+                "reason": debounce_result.reason,
+            }
+        )
+        return False, debounce_result.reason
+
+    logger.info(
+        "[EventNormalizer] PR_UPDATED event allowed",
+        extra={
+            "operation": "pr_updated_allowed",
+            "repo": repo,
+            "pr_number": pr_number,
+        }
+    )
+    return True, "allowed"
 
 
 @dataclass
@@ -310,6 +381,45 @@ class EventNormalizer:
         if event.event_type in self.ACTIONABLE_EVENT_TYPES:
             is_actionable_result = True
             actionable_reason = "event_type_actionable"
+
+        # Phase B-B: Check if PR_UPDATED event is allowed (with debounce/throttle)
+        # PR_UPDATED is NOT in ACTIONABLE_EVENT_TYPES by default to prevent cost explosion
+        # It requires explicit enablement via settings and passes debounce/throttle checks
+        elif event.event_type == WebhookEventType.PR_UPDATED:
+            try:
+                pr_number_int = int(pr_number) if pr_number != "unknown" else 0
+            except (ValueError, TypeError):
+                pr_number_int = 0
+
+            if pr_number_int > 0:
+                pr_updated_allowed, pr_updated_reason = is_pr_updated_allowed(
+                    repo=repo,
+                    pr_number=pr_number_int,
+                )
+                if pr_updated_allowed:
+                    is_actionable_result = True
+                    actionable_reason = f"pr_updated_allowed:{pr_updated_reason}"
+                    logger.info(
+                        "[EventNormalizer] PR_UPDATED event is actionable",
+                        extra={
+                            "operation": "pr_updated_actionable",
+                            "event_id": event.event_id,
+                            "repo": repo,
+                            "pr_number": pr_number,
+                        }
+                    )
+                else:
+                    logger.debug(
+                        "[EventNormalizer] PR_UPDATED event not actionable: %s",
+                        pr_updated_reason,
+                        extra={
+                            "operation": "pr_updated_not_actionable",
+                            "event_id": event.event_id,
+                            "repo": repo,
+                            "pr_number": pr_number,
+                            "reason": pr_updated_reason,
+                        }
+                    )
 
         # Check if event is from an AI reviewer (always actionable)
         # Issue: #2209 - AI reviewer events should be processed

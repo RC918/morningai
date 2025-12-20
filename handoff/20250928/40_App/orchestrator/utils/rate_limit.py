@@ -417,6 +417,224 @@ def check_ai_reviewer_rate_limit(
         )
 
 
+@dataclass
+class PRUpdatedDebounceResult:
+    """Result of PR_UPDATED debounce check"""
+    should_process: bool
+    reason: str
+    pr_key: str
+    last_processed_at: Optional[float] = None
+    pending_since: Optional[float] = None
+
+
+def check_pr_updated_debounce(
+    repo: str,
+    pr_number: int,
+    debounce_seconds: int = 30,
+    throttle_seconds: int = 600,
+    redis_url: Optional[str] = None
+) -> PRUpdatedDebounceResult:
+    """
+    Check if a PR_UPDATED event should be processed using debounce/throttle.
+
+    Phase B-B: PR_UPDATED Event Support with Debounce/Throttle
+
+    Uses "last-event-wins" debounce pattern:
+    1. Store pending event with timestamp in Redis
+    2. If within debounce window, overwrite pending event (don't enqueue new job)
+    3. After debounce window expires, process the latest event
+    4. Throttle: Ensure minimum time between actual reviews
+
+    Args:
+        repo: Repository identifier (e.g., "owner/repo")
+        pr_number: Pull request number
+        debounce_seconds: Debounce window in seconds (default: 30)
+        throttle_seconds: Minimum time between reviews (default: 600 = 10 min)
+        redis_url: Redis connection URL (optional)
+
+    Returns:
+        PRUpdatedDebounceResult with should_process flag and reason
+    """
+    pr_key = f"pr_updated:{repo}:{pr_number}"
+    pending_key = f"{pr_key}:pending"
+    last_processed_key = f"{pr_key}:last_processed"
+
+    try:
+        if redis_url:
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
+        else:
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+        current_time = time.time()
+
+        # Check throttle: Was this PR reviewed recently?
+        last_processed = r.get(last_processed_key)
+        if last_processed:
+            last_processed_time = float(last_processed)
+            time_since_last = current_time - last_processed_time
+            if time_since_last < throttle_seconds:
+                logger.info(
+                    "[PRUpdatedDebounce] Throttled - PR was reviewed recently",
+                    extra={
+                        "operation": "pr_updated_debounce_throttled",
+                        "repo": repo,
+                        "pr_number": pr_number,
+                        "time_since_last": time_since_last,
+                        "throttle_seconds": throttle_seconds,
+                    }
+                )
+                return PRUpdatedDebounceResult(
+                    should_process=False,
+                    reason=f"throttled: last review {int(time_since_last)}s ago",
+                    pr_key=pr_key,
+                    last_processed_at=last_processed_time,
+                )
+
+        # Check debounce: Is there a pending event?
+        pending = r.get(pending_key)
+        if pending:
+            pending_time = float(pending)
+            time_since_pending = current_time - pending_time
+
+            if time_since_pending < debounce_seconds:
+                # Within debounce window - update pending timestamp, don't process
+                r.set(pending_key, str(current_time), ex=debounce_seconds + 10)
+                logger.debug(
+                    "[PRUpdatedDebounce] Debounced - updating pending event",
+                    extra={
+                        "operation": "pr_updated_debounce_updated",
+                        "repo": repo,
+                        "pr_number": pr_number,
+                        "time_since_pending": time_since_pending,
+                        "debounce_seconds": debounce_seconds,
+                    }
+                )
+                return PRUpdatedDebounceResult(
+                    should_process=False,
+                    reason=f"debounced: pending event {int(time_since_pending)}s ago",
+                    pr_key=pr_key,
+                    pending_since=pending_time,
+                )
+            else:
+                # Debounce window expired - process this event
+                r.delete(pending_key)
+                r.set(last_processed_key, str(current_time), ex=throttle_seconds + 60)
+                logger.info(
+                    "[PRUpdatedDebounce] Processing - debounce window expired",
+                    extra={
+                        "operation": "pr_updated_debounce_process",
+                        "repo": repo,
+                        "pr_number": pr_number,
+                        "time_since_pending": time_since_pending,
+                    }
+                )
+                return PRUpdatedDebounceResult(
+                    should_process=True,
+                    reason="debounce_expired",
+                    pr_key=pr_key,
+                )
+        else:
+            # No pending event - set pending and schedule delayed processing
+            r.set(pending_key, str(current_time), ex=debounce_seconds + 10)
+            logger.debug(
+                "[PRUpdatedDebounce] New pending event set",
+                extra={
+                    "operation": "pr_updated_debounce_pending",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "debounce_seconds": debounce_seconds,
+                }
+            )
+            return PRUpdatedDebounceResult(
+                should_process=False,
+                reason="pending: first event, waiting for debounce",
+                pr_key=pr_key,
+                pending_since=current_time,
+            )
+
+    except redis.ConnectionError as e:
+        logger.warning(
+            "[PRUpdatedDebounce] Redis unavailable, allowing request",
+            extra={
+                "operation": "pr_updated_debounce_redis_error",
+                "error": str(e),
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+        return PRUpdatedDebounceResult(
+            should_process=True,
+            reason="redis_unavailable",
+            pr_key=pr_key,
+        )
+    except Exception as e:
+        logger.warning(
+            "[PRUpdatedDebounce] Unexpected error, allowing request",
+            extra={
+                "operation": "pr_updated_debounce_error",
+                "error": str(e),
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+        return PRUpdatedDebounceResult(
+            should_process=True,
+            reason="error",
+            pr_key=pr_key,
+        )
+
+
+def mark_pr_updated_processed(
+    repo: str,
+    pr_number: int,
+    throttle_seconds: int = 600,
+    redis_url: Optional[str] = None
+) -> None:
+    """
+    Mark a PR_UPDATED event as processed (for throttle tracking).
+
+    Call this after successfully processing a PR_UPDATED review.
+
+    Args:
+        repo: Repository identifier
+        pr_number: Pull request number
+        throttle_seconds: Throttle window for TTL
+        redis_url: Redis connection URL (optional)
+    """
+    pr_key = f"pr_updated:{repo}:{pr_number}"
+    last_processed_key = f"{pr_key}:last_processed"
+    pending_key = f"{pr_key}:pending"
+
+    try:
+        if redis_url:
+            r = redis.Redis.from_url(redis_url, decode_responses=True)
+        else:
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+        current_time = time.time()
+        r.set(last_processed_key, str(current_time), ex=throttle_seconds + 60)
+        r.delete(pending_key)
+
+        logger.debug(
+            "[PRUpdatedDebounce] Marked as processed",
+            extra={
+                "operation": "pr_updated_mark_processed",
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+    except Exception as e:
+        logger.warning(
+            "[PRUpdatedDebounce] Failed to mark as processed",
+            extra={
+                "operation": "pr_updated_mark_processed_error",
+                "error": str(e),
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+
+
 def get_ai_reviewer_rate_limit_counts(
     pr_id: Optional[str] = None,
     repo: Optional[str] = None,

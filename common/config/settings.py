@@ -1451,6 +1451,36 @@ class Settings(BaseSettings):
         description="Comma-separated list of internal repos allowed for AI review in Staging (e.g., 'RC918/morningai,RC918/other-repo')"
     )
 
+    # Phase B-B: PR_UPDATED Event Support with Debounce/Throttle
+    # Enables AI review on PR updates (push events) with debounce to prevent cost explosion
+    enable_pr_updated_review: bool = Field(
+        default=False,
+        alias="ENABLE_PR_UPDATED_REVIEW",
+        description="Enable AI review workflow for PR_UPDATED events (synchronize/edited). Requires debounce to prevent cost explosion from rapid pushes."
+    )
+
+    pr_updated_debounce_seconds: int = Field(
+        default=30,
+        alias="PR_UPDATED_DEBOUNCE_SECONDS",
+        ge=5,
+        le=300,
+        description="Debounce window in seconds for PR_UPDATED events. Only the last event within this window will trigger a review. Default: 30 seconds."
+    )
+
+    pr_updated_throttle_seconds: int = Field(
+        default=600,
+        alias="PR_UPDATED_THROTTLE_SECONDS",
+        ge=60,
+        le=3600,
+        description="Minimum time between PR_UPDATED reviews for the same PR. Prevents excessive reviews on active PRs. Default: 10 minutes (600 seconds)."
+    )
+
+    pr_updated_repos_whitelist: str = Field(
+        default="",
+        alias="PR_UPDATED_REPOS_WHITELIST",
+        description="Comma-separated list of repos where PR_UPDATED review is enabled. Empty string means all repos (if enable_pr_updated_review=True). Use for gradual rollout."
+    )
+
     # Phase 3 #1822: Meta Agent Integration (Integrated Development Tools)
     enable_meta_agent: bool = Field(
         default=False,
