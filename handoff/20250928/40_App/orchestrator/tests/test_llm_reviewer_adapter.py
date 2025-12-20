@@ -396,6 +396,101 @@ Hope this helps!'''
         assert result["severity"] == "none"
         assert result["decision"] == "approve"
 
+    # P2 Follow-up: Tests for _classify_exception method
+    def test_classify_exception_timeout_by_type(self):
+        """Test timeout classification by exception type name"""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        # Create custom exception classes to test type-based classification
+        class TimeoutError(Exception):
+            pass
+
+        class ReadTimeoutError(Exception):
+            pass
+
+        class ConnectTimeoutError(Exception):
+            pass
+
+        assert adapter._classify_exception(TimeoutError("test")) == "llm_timeout"
+        assert adapter._classify_exception(ReadTimeoutError("test")) == "llm_timeout"
+        assert adapter._classify_exception(ConnectTimeoutError("test")) == "llm_timeout"
+
+    def test_classify_exception_connection_by_type(self):
+        """Test connection error classification by exception type name"""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        class ConnectionError(Exception):
+            pass
+
+        class NetworkError(Exception):
+            pass
+
+        class SocketError(Exception):
+            pass
+
+        class SSLError(Exception):
+            pass
+
+        assert adapter._classify_exception(ConnectionError("test")) == "llm_connection_error"
+        assert adapter._classify_exception(NetworkError("test")) == "llm_connection_error"
+        assert adapter._classify_exception(SocketError("test")) == "llm_connection_error"
+        assert adapter._classify_exception(SSLError("test")) == "llm_connection_error"
+
+    def test_classify_exception_http_status_error_as_api_error(self):
+        """Test that HTTPStatusError is classified as llm_api_error, not connection_error"""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        # HTTPStatusError should NOT be classified as connection_error
+        # because 'http' was removed from connection type keywords
+        class HTTPStatusError(Exception):
+            pass
+
+        class HTTPError(Exception):
+            pass
+
+        # These should be classified as API errors, not connection errors
+        assert adapter._classify_exception(HTTPStatusError("401 Unauthorized")) == "llm_api_error"
+        assert adapter._classify_exception(HTTPError("500 Internal Server Error")) == "llm_api_error"
+
+    def test_classify_exception_timeout_by_message(self):
+        """Test timeout classification by exception message (fallback)"""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        # Generic exception with timeout in message
+        assert adapter._classify_exception(Exception("Request timeout after 30s")) == "llm_timeout"
+        assert adapter._classify_exception(Exception("Connection timeout occurred")) == "llm_timeout"
+
+    def test_classify_exception_connection_by_message(self):
+        """Test connection error classification by exception message (fallback)"""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        # Generic exception with connection keywords in message
+        assert adapter._classify_exception(Exception("Connection refused")) == "llm_connection_error"
+        assert adapter._classify_exception(Exception("Network unreachable")) == "llm_connection_error"
+        assert adapter._classify_exception(Exception("Socket closed unexpectedly")) == "llm_connection_error"
+
+    def test_classify_exception_api_error_default(self):
+        """Test that unknown exceptions default to llm_api_error"""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        # Generic exceptions without timeout/connection keywords
+        assert adapter._classify_exception(Exception("API rate limit exceeded")) == "llm_api_error"
+        assert adapter._classify_exception(Exception("Invalid API key")) == "llm_api_error"
+        assert adapter._classify_exception(ValueError("Invalid response format")) == "llm_api_error"
+        assert adapter._classify_exception(RuntimeError("Unknown error")) == "llm_api_error"
+
 
 class TestConvenienceFunction:
     """Test suite for convenience function"""
