@@ -28,6 +28,14 @@ from orchestrator_metrics import LATENCY_BUCKETS_MS
 
 logger = logging.getLogger(__name__)
 
+# Task type constants (Issue #2737)
+TASK_TYPE_FAQ = "faq"
+TASK_TYPE_GENERAL = "general"
+
+# Mode constants for metrics
+_MODE_LANGGRAPH = "langgraph"
+_MODE_LANGGRAPH_FAQ = "langgraph.faq"
+
 
 class RolloutStage(Enum):
     """Rollout stages for LangGraph deployment"""
@@ -335,7 +343,8 @@ class RolloutTracker:
         trace_id: str,
         success: bool,
         latency_ms: Optional[float] = None,
-        is_5xx_error: bool = False
+        is_5xx_error: bool = False,
+        task_type: str = "general"
     ) -> None:
         """
         Record a LangGraph task execution
@@ -358,28 +367,45 @@ class RolloutTracker:
                 See Issue #2286 for the refactoring that ensures this value is
                 calculated once and shared between _canary_metrics and _rollout_tracker.
             is_5xx_error: Whether this was a 5xx error
+            task_type: Task type for latency segmentation (default: "general").
+                Supported types: "faq", "general", "review", etc.
+                FAQ tasks are tracked separately for latency monitoring (Issue #2737)
+                since they previously used Simple Mode for low latency.
         """
         if not self.enabled:
             return
 
         try:
             # Record task count
-            self._safe_incr(self._get_minute_key("langgraph.total"))
+            self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.total"))
 
             if success:
-                self._safe_incr(self._get_minute_key("langgraph.success"))
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.success"))
                 self._update_circuit_breaker_success()
             else:
-                self._safe_incr(self._get_minute_key("langgraph.failure"))
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.failure"))
                 reason = "5xx_error" if is_5xx_error else "task_failure"
                 self._update_circuit_breaker_failure(reason)
 
             if is_5xx_error:
-                self._safe_incr(self._get_minute_key("langgraph.error_5xx"))
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.error_5xx"))
 
-            # Record latency bucket
+            # Issue #2737: Track FAQ-specific counts (independent of latency)
+            if task_type == TASK_TYPE_FAQ:
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.total"))
+                if success:
+                    self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.success"))
+                else:
+                    self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.failure"))
+                if is_5xx_error:
+                    self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.error_5xx"))
+
+            # Record latency bucket (overall)
             if latency_ms is not None:
-                self._record_latency("langgraph", latency_ms)
+                self._record_latency(_MODE_LANGGRAPH, latency_ms)
+                # Issue #2737: Track FAQ-specific latency for monitoring
+                if task_type == TASK_TYPE_FAQ:
+                    self._record_latency(_MODE_LANGGRAPH_FAQ, latency_ms)
 
             logger.debug(
                 "[RolloutTracker] Recorded LangGraph task",
@@ -387,7 +413,8 @@ class RolloutTracker:
                     "trace_id": trace_id,
                     "success": success,
                     "latency_ms": latency_ms,
-                    "is_5xx_error": is_5xx_error
+                    "is_5xx_error": is_5xx_error,
+                    "task_type": task_type
                 }
             )
         except Exception as e:
@@ -1060,6 +1087,42 @@ class RolloutTracker:
             recommendations=recommendations
         )
 
+    # ==================== FAQ Latency Monitoring (Issue #2737) ====================
+
+    def _get_faq_metrics(self, window_minutes: int = 15) -> Dict[str, Any]:
+        """
+        Get FAQ-specific latency metrics for monitoring
+
+        Args:
+            window_minutes: Time window for evaluation
+
+        Returns:
+            Dict with FAQ latency metrics including counts and percentiles
+        """
+        if not self.enabled:
+            return {
+                "total": 0,
+                "success": 0,
+                "failure": 0,
+                "success_rate": None,
+                "latency_percentiles": {"p50": None, "p95": None, "p99": None}
+            }
+
+        # Reuse _get_mode_metrics for consistent metric retrieval (Issue #2737)
+        metrics = self._get_mode_metrics(_MODE_LANGGRAPH_FAQ, window_minutes)
+
+        return {
+            "total": metrics.total_tasks,
+            "success": metrics.success_count,
+            "failure": metrics.failure_count,
+            "success_rate": metrics.success_rate if metrics.total_tasks > 0 else None,
+            "latency_percentiles": {
+                "p50": metrics.p50_latency_ms,
+                "p95": metrics.p95_latency_ms,
+                "p99": metrics.p99_latency_ms
+            }
+        }
+
     # ==================== Dashboard Summary ====================
 
     def get_dashboard_summary(self, current_percent: int, window_minutes: int = 15) -> Dict[str, Any]:
@@ -1076,6 +1139,9 @@ class RolloutTracker:
         comparison = self.get_comparison(window_minutes)
         health = self.get_rollout_health(current_percent, window_minutes)
         slo_result = self.evaluate_slo_compliance(window_minutes)
+
+        # Issue #2737: Add FAQ-specific latency metrics
+        faq_metrics = self._get_faq_metrics(window_minutes)
 
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1095,7 +1161,8 @@ class RolloutTracker:
             "stage_requirements": {
                 stage.name: req.to_dict()
                 for stage, req in STAGE_REQUIREMENTS.items()
-            }
+            },
+            "faq_latency": faq_metrics
         }
 
 
