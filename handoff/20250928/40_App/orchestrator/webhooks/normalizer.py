@@ -687,6 +687,13 @@ class EventNormalizer:
         if event.assignees:
             context["assignees"] = event.assignees
 
+        # Phase B-B: Pass PR_UPDATED debounce metadata to task context
+        # This enables the webhook handler to enqueue delayed jobs
+        if event.metadata.get("pr_updated_should_schedule_job"):
+            context["pr_updated_should_schedule_job"] = event.metadata["pr_updated_should_schedule_job"]
+            context["pr_updated_job_token"] = event.metadata.get("pr_updated_job_token")
+            context["pr_updated_debounce_seconds"] = event.metadata.get("pr_updated_debounce_seconds")
+
         return context
 
     def batch_process(

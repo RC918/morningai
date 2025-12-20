@@ -1673,6 +1673,176 @@ vm_cleanup_thread = None
 VM_CLEANUP_INTERVAL = settings.vm_cleanup_interval_seconds
 
 
+@job(RQ_QUEUE_NAME, connection=redis_client_rq, retry=Retry(max=2, interval=[10, 30]), timeout=JOB_TIMEOUT)
+def run_pr_updated_delayed_task(
+    task_id: str,
+    repo: str,
+    pr_number: int,
+    job_token: str,
+    debounce_seconds: int,
+    goal_text: str,
+    context: Optional[Dict[str, Any]] = None,
+):
+    """
+    Execute a delayed PR_UPDATED review task after debounce window.
+
+    This implements the "sleep inside job" pattern for PR_UPDATED debounce:
+    1. Sleep for debounce_seconds to allow rapid pushes to coalesce
+    2. Verify job token is still valid (no newer job scheduled)
+    3. Read latest payload from Redis (may have been updated by subsequent events)
+    4. Execute the orchestrator review task
+    5. Mark as processed for throttle tracking
+
+    Issue: Phase B-B - PR_UPDATED support with debounce/throttle
+
+    Args:
+        task_id: Unique task identifier
+        repo: Repository in owner/repo format
+        pr_number: Pull request number
+        job_token: Token to verify this job is still active
+        debounce_seconds: Seconds to sleep before processing
+        goal_text: Review goal text
+        context: Optional context dict with PR info
+
+    Returns:
+        dict: {"success": bool, "task_id": str, "reason": str, ...}
+    """
+    from utils.rate_limit import (
+        verify_pr_updated_job_token,
+        get_pr_updated_latest_payload,
+        mark_pr_updated_processed,
+    )
+
+    start_time = time.time()
+
+    logger.info(
+        "[PRUpdatedDelayed] Starting delayed PR_UPDATED task",
+        extra={
+            "operation": "run_pr_updated_delayed_task",
+            "task_id": task_id,
+            "repo": repo,
+            "pr_number": pr_number,
+            "job_token": job_token,
+            "debounce_seconds": debounce_seconds,
+        }
+    )
+
+    if SENTRY_DSN:
+        sentry_sdk.set_tag("trace_id", task_id)
+        sentry_sdk.set_tag("task_id", task_id)
+        sentry_sdk.set_tag("operation", "pr_updated_delayed_task")
+
+    try:
+        logger.info(
+            "[PRUpdatedDelayed] Sleeping for debounce window",
+            extra={
+                "operation": "pr_updated_debounce_sleep",
+                "task_id": task_id,
+                "debounce_seconds": debounce_seconds,
+            }
+        )
+        time.sleep(debounce_seconds)
+
+        if not verify_pr_updated_job_token(repo, pr_number, job_token):
+            logger.info(
+                "[PRUpdatedDelayed] Job token invalid - newer job exists, exiting",
+                extra={
+                    "operation": "pr_updated_token_invalid",
+                    "task_id": task_id,
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "job_token": job_token,
+                }
+            )
+            return {
+                "success": False,
+                "task_id": task_id,
+                "reason": "token_invalid",
+                "message": "Newer job scheduled, this job is stale",
+            }
+
+        latest_payload = get_pr_updated_latest_payload(repo, pr_number)
+        if latest_payload:
+            logger.info(
+                "[PRUpdatedDelayed] Retrieved latest payload",
+                extra={
+                    "operation": "pr_updated_latest_payload",
+                    "task_id": task_id,
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "event_count": latest_payload.get("event_count", 1),
+                }
+            )
+
+        logger.info(
+            "[PRUpdatedDelayed] Executing orchestrator review",
+            extra={
+                "operation": "pr_updated_execute_review",
+                "task_id": task_id,
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+
+        review_context = context or {}
+        review_context["pr_updated_event"] = True
+        review_context["pr_updated_event_count"] = latest_payload.get("event_count", 1) if latest_payload else 1
+
+        from langgraph_orchestrator import run_orchestrator
+        result = run_orchestrator(
+            question=goal_text,
+            repo=repo,
+            trace_id=task_id,
+            context=review_context,
+        )
+
+        throttle_seconds = getattr(settings, 'pr_updated_throttle_seconds', 600)
+        mark_pr_updated_processed(repo, pr_number, throttle_seconds)
+
+        execution_time_ms = int((time.time() - start_time) * 1000)
+
+        logger.info(
+            "[PRUpdatedDelayed] Task completed successfully",
+            extra={
+                "operation": "pr_updated_task_complete",
+                "task_id": task_id,
+                "repo": repo,
+                "pr_number": pr_number,
+                "execution_time_ms": execution_time_ms,
+            }
+        )
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "reason": "completed",
+            "pr_url": result.get("pr_url") if isinstance(result, dict) else None,
+            "execution_time_ms": execution_time_ms,
+        }
+
+    except Exception as e:
+        error_msg = str(e)
+        execution_time_ms = int((time.time() - start_time) * 1000)
+
+        logger.error(
+            "[PRUpdatedDelayed] Task failed",
+            extra={
+                "operation": "pr_updated_task_failed",
+                "task_id": task_id,
+                "repo": repo,
+                "pr_number": pr_number,
+                "error": error_msg,
+                "execution_time_ms": execution_time_ms,
+            },
+            exc_info=True
+        )
+
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+
+        raise
+
+
 def run_vm_cleanup_scheduler():
     """
     Background thread to periodically clean up stale VM entries.
