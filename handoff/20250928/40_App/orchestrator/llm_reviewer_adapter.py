@@ -756,9 +756,9 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         ]):
             return "llm_timeout"
 
-        # Connection exceptions
+        # Connection exceptions (excluding 'http' to avoid misclassifying HTTPStatusError)
         if any(conn_type in exception_type for conn_type in [
-            'connection', 'network', 'socket', 'dns', 'ssl', 'http'
+            'connection', 'network', 'socket', 'dns', 'ssl'
         ]):
             return "llm_connection_error"
 
