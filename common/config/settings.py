@@ -1437,6 +1437,20 @@ class Settings(BaseSettings):
         description="Allow mock governance for testing"
     )
 
+    # Phase B-B: Internal Repo Dogfooding (Staging Only)
+    # Allows MorningAI to review its own code in Staging environment
+    allow_internal_repos_in_staging: bool = Field(
+        default=False,
+        alias="ALLOW_INTERNAL_REPOS_IN_STAGING",
+        description="Allow AI review workflow to process internal repos (RC918/morningai) in Staging. Enables dogfooding - MorningAI reviewing its own code."
+    )
+
+    internal_repos_whitelist: str = Field(
+        default="RC918/morningai",
+        alias="INTERNAL_REPOS_WHITELIST",
+        description="Comma-separated list of internal repos allowed for AI review in Staging (e.g., 'RC918/morningai,RC918/other-repo')"
+    )
+
     # Phase 3 #1822: Meta Agent Integration (Integrated Development Tools)
     enable_meta_agent: bool = Field(
         default=False,
