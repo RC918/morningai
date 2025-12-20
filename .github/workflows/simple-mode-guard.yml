@@ -65,15 +65,15 @@ jobs:
           # Get the diff for this PR - check ADDED lines only (lines starting with +)
           # Use diff-filter=AM to include both Added and Modified files
           # Use explicit base and head SHAs to avoid issues with merge commits
+          # Filter to only Python files in relevant directories
           echo "Comparing $BASE_SHA..$HEAD_SHA"
-          git diff "$BASE_SHA".."$HEAD_SHA" --diff-filter=AM -U0 -- \
-            'handoff/20250928/40_App/orchestrator/**/*.py' \
-            'handoff/20250928/40_App/api-backend/**/*.py' \
-            'common/**/*.py' \
+          git diff "$BASE_SHA".."$HEAD_SHA" --diff-filter=AM -U0 -- "*.py" \
+            | grep -E '^diff --git.*(orchestrator|api-backend|common).*\.py' -A 1000000 \
             | grep '^+' | grep -v '^+++' > added_lines.txt || true
           
           echo "Added lines found:"
           cat added_lines.txt || echo "(none)"
+          echo "---"
           
           VIOLATIONS=0
           VIOLATION_DETAILS=""
