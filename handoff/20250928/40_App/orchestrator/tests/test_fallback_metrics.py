@@ -37,6 +37,7 @@ class MockSettings:
         enable_github_review_posting=True,
         github_review_posting_dry_run=False,
         github_review_posting_max_comments=10,
+        internal_repos_whitelist="RC918/morningai",
     ):
         self.enable_fault_injection = enable_fault_injection
         self.is_staging = is_staging
@@ -44,11 +45,15 @@ class MockSettings:
         self.enable_github_review_posting = enable_github_review_posting
         self.github_review_posting_dry_run = github_review_posting_dry_run
         self.github_review_posting_max_comments = github_review_posting_max_comments
+        self.internal_repos_whitelist = internal_repos_whitelist
 
 
-@pytest.mark.skipif(not HAS_GITHUB, reason="PyGithub not installed")
 class TestShouldInject422Fault:
-    """Tests for _should_inject_422_fault() safety gates"""
+    """Tests for _should_inject_422_fault() safety gates
+
+    P2 Update: Now tests 4 safety gates including internal repo whitelist.
+    Removed PyGithub dependency to enable CI coverage.
+    """
 
     def test_returns_false_when_fault_injection_disabled(self):
         """Fault injection disabled should return False"""
@@ -57,9 +62,10 @@ class TestShouldInject422Fault:
         settings = MockSettings(
             enable_fault_injection=False,
             is_staging=True,
-            fault_injection_422_rate=1.0
+            fault_injection_422_rate=1.0,
+            internal_repos_whitelist="RC918/morningai"
         )
-        assert _should_inject_422_fault(settings) is False
+        assert _should_inject_422_fault(settings, "RC918/morningai") is False
 
     def test_returns_false_when_not_staging(self):
         """Non-staging environment should return False (safety gate)"""
@@ -68,9 +74,47 @@ class TestShouldInject422Fault:
         settings = MockSettings(
             enable_fault_injection=True,
             is_staging=False,
-            fault_injection_422_rate=1.0
+            fault_injection_422_rate=1.0,
+            internal_repos_whitelist="RC918/morningai"
         )
-        assert _should_inject_422_fault(settings) is False
+        assert _should_inject_422_fault(settings, "RC918/morningai") is False
+
+    def test_returns_false_when_repo_not_in_whitelist(self):
+        """Repo not in whitelist should return False (safety gate 3)"""
+        from tools.github_api import _should_inject_422_fault
+
+        settings = MockSettings(
+            enable_fault_injection=True,
+            is_staging=True,
+            fault_injection_422_rate=1.0,
+            internal_repos_whitelist="RC918/morningai"
+        )
+        # External repo should not trigger fault injection
+        assert _should_inject_422_fault(settings, "external/repo") is False
+
+    def test_returns_false_when_whitelist_empty(self):
+        """Empty whitelist should return False"""
+        from tools.github_api import _should_inject_422_fault
+
+        settings = MockSettings(
+            enable_fault_injection=True,
+            is_staging=True,
+            fault_injection_422_rate=1.0,
+            internal_repos_whitelist=""
+        )
+        assert _should_inject_422_fault(settings, "RC918/morningai") is False
+
+    def test_returns_false_when_repo_is_none(self):
+        """None repo should return False"""
+        from tools.github_api import _should_inject_422_fault
+
+        settings = MockSettings(
+            enable_fault_injection=True,
+            is_staging=True,
+            fault_injection_422_rate=1.0,
+            internal_repos_whitelist="RC918/morningai"
+        )
+        assert _should_inject_422_fault(settings, None) is False
 
     def test_returns_false_when_rate_is_zero(self):
         """Zero injection rate should return False"""
@@ -79,10 +123,11 @@ class TestShouldInject422Fault:
         settings = MockSettings(
             enable_fault_injection=True,
             is_staging=True,
-            fault_injection_422_rate=0.0
+            fault_injection_422_rate=0.0,
+            internal_repos_whitelist="RC918/morningai"
         )
         # With rate=0.0, random.random() > 0.0 is always True, so returns False
-        assert _should_inject_422_fault(settings) is False
+        assert _should_inject_422_fault(settings, "RC918/morningai") is False
 
     def test_returns_true_when_all_conditions_met(self):
         """All conditions met with rate=1.0 should return True"""
@@ -91,10 +136,11 @@ class TestShouldInject422Fault:
         settings = MockSettings(
             enable_fault_injection=True,
             is_staging=True,
-            fault_injection_422_rate=1.0
+            fault_injection_422_rate=1.0,
+            internal_repos_whitelist="RC918/morningai"
         )
         # With rate=1.0, random.random() > 1.0 is always False, so returns True
-        assert _should_inject_422_fault(settings) is True
+        assert _should_inject_422_fault(settings, "RC918/morningai") is True
 
     def test_respects_injection_rate(self):
         """Injection rate should be respected (probabilistic test)"""
@@ -103,14 +149,29 @@ class TestShouldInject422Fault:
         settings = MockSettings(
             enable_fault_injection=True,
             is_staging=True,
-            fault_injection_422_rate=0.5
+            fault_injection_422_rate=0.5,
+            internal_repos_whitelist="RC918/morningai"
         )
 
         # Run multiple times and check that we get both True and False
-        results = [_should_inject_422_fault(settings) for _ in range(100)]
+        results = [_should_inject_422_fault(settings, "RC918/morningai") for _ in range(100)]
         # With 50% rate, we should get some True and some False
         assert True in results
         assert False in results
+
+    def test_whitelist_with_multiple_repos(self):
+        """Whitelist with multiple repos should work correctly"""
+        from tools.github_api import _should_inject_422_fault
+
+        settings = MockSettings(
+            enable_fault_injection=True,
+            is_staging=True,
+            fault_injection_422_rate=1.0,
+            internal_repos_whitelist="RC918/morningai, RC918/other-repo"
+        )
+        assert _should_inject_422_fault(settings, "RC918/morningai") is True
+        assert _should_inject_422_fault(settings, "RC918/other-repo") is True
+        assert _should_inject_422_fault(settings, "external/repo") is False
 
 
 class TestFallbackMetricsRecording:
@@ -255,9 +316,88 @@ class TestDeliveryRateCalculation:
         assert summary["kpis"]["delivery_rate"] == 0
 
 
+class TestIsRepoInInternalWhitelist:
+    """Tests for _is_repo_in_internal_whitelist() helper function
+
+    P2: New test class for the internal repo whitelist helper.
+    """
+
+    def test_returns_false_when_repo_is_none(self):
+        """None repo should return False"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        settings = MockSettings(internal_repos_whitelist="RC918/morningai")
+        assert _is_repo_in_internal_whitelist(settings, None) is False
+
+    def test_returns_false_when_repo_is_empty(self):
+        """Empty repo should return False"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        settings = MockSettings(internal_repos_whitelist="RC918/morningai")
+        assert _is_repo_in_internal_whitelist(settings, "") is False
+
+    def test_returns_false_when_whitelist_is_empty(self):
+        """Empty whitelist should return False"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        settings = MockSettings(internal_repos_whitelist="")
+        assert _is_repo_in_internal_whitelist(settings, "RC918/morningai") is False
+
+    def test_returns_false_when_repo_not_in_whitelist(self):
+        """Repo not in whitelist should return False"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        settings = MockSettings(internal_repos_whitelist="RC918/morningai")
+        assert _is_repo_in_internal_whitelist(settings, "external/repo") is False
+
+    def test_returns_true_when_repo_in_whitelist(self):
+        """Repo in whitelist should return True"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        settings = MockSettings(internal_repos_whitelist="RC918/morningai")
+        assert _is_repo_in_internal_whitelist(settings, "RC918/morningai") is True
+
+    def test_handles_multiple_repos_in_whitelist(self):
+        """Multiple repos in whitelist should all be recognized"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        settings = MockSettings(
+            internal_repos_whitelist="RC918/morningai,RC918/other-repo,RC918/third"
+        )
+        assert _is_repo_in_internal_whitelist(settings, "RC918/morningai") is True
+        assert _is_repo_in_internal_whitelist(settings, "RC918/other-repo") is True
+        assert _is_repo_in_internal_whitelist(settings, "RC918/third") is True
+        assert _is_repo_in_internal_whitelist(settings, "external/repo") is False
+
+    def test_handles_whitespace_in_whitelist(self):
+        """Whitespace around repo names should be trimmed"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        settings = MockSettings(
+            internal_repos_whitelist="  RC918/morningai  ,  RC918/other-repo  "
+        )
+        assert _is_repo_in_internal_whitelist(settings, "RC918/morningai") is True
+        assert _is_repo_in_internal_whitelist(settings, "RC918/other-repo") is True
+
+    def test_handles_missing_whitelist_attribute(self):
+        """Missing whitelist attribute should return False"""
+        from tools.github_api import _is_repo_in_internal_whitelist
+
+        # Create a settings object without internal_repos_whitelist
+        class SettingsWithoutWhitelist:
+            pass
+
+        settings = SettingsWithoutWhitelist()
+        assert _is_repo_in_internal_whitelist(settings, "RC918/morningai") is False
+
+
 @pytest.mark.skipif(not HAS_GITHUB, reason="PyGithub not installed")
 class TestFaultInjectionIntegration:
-    """Integration tests for fault injection triggering fallback"""
+    """Integration tests for fault injection triggering fallback
+
+    Note: These tests require PyGithub for GithubException.
+    P2: Updated to include internal_repos_whitelist and mock_repo.full_name.
+    """
 
     def test_fault_injection_triggers_fallback_path(self):
         """Fault injection should trigger the 422 fallback path"""
@@ -267,10 +407,12 @@ class TestFaultInjectionIntegration:
             fault_injection_422_rate=1.0,
             enable_github_review_posting=True,
             github_review_posting_dry_run=False,
-            github_review_posting_max_comments=10
+            github_review_posting_max_comments=10,
+            internal_repos_whitelist="RC918/morningai"
         )
 
         mock_repo = MagicMock()
+        mock_repo.full_name = "RC918/morningai"
         mock_pr = MagicMock()
         mock_repo.get_pull.return_value = mock_pr
 
@@ -312,10 +454,12 @@ class TestFaultInjectionIntegration:
             fault_injection_422_rate=1.0,
             enable_github_review_posting=True,
             github_review_posting_dry_run=False,
-            github_review_posting_max_comments=10
+            github_review_posting_max_comments=10,
+            internal_repos_whitelist="RC918/morningai"
         )
 
         mock_repo = MagicMock()
+        mock_repo.full_name = "RC918/morningai"
         mock_pr = MagicMock()
         mock_repo.get_pull.return_value = mock_pr
 
@@ -331,6 +475,43 @@ class TestFaultInjectionIntegration:
             )
 
             # Should succeed normally (no fallback)
+            assert result["success"] is True
+            assert result.get("downgraded") is not True
+            # create_review should be called once with inline comments
+            assert mock_pr.create_review.call_count == 1
+            # Verify it was called with comments parameter
+            call_kwargs = mock_pr.create_review.call_args[1]
+            assert "comments" in call_kwargs
+
+    def test_fault_injection_skipped_for_external_repo(self):
+        """Fault injection should be skipped for repos not in whitelist"""
+        mock_settings = MockSettings(
+            enable_fault_injection=True,
+            is_staging=True,
+            fault_injection_422_rate=1.0,
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10,
+            internal_repos_whitelist="RC918/morningai"
+        )
+
+        mock_repo = MagicMock()
+        mock_repo.full_name = "external/repo"  # Not in whitelist
+        mock_pr = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import post_pr_review
+
+            result = post_pr_review(
+                repo=mock_repo,
+                pr_number=123,
+                comments=[
+                    {"file": "test.py", "end_line": 10, "message": "Test 1"},
+                ]
+            )
+
+            # Should succeed normally (no fallback, no fault injection)
             assert result["success"] is True
             assert result.get("downgraded") is not True
             # create_review should be called once with inline comments
