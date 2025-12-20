@@ -71,6 +71,30 @@ These tests are now collected by the `orchestrator-integration-tests` CI workflo
 - Includes Redis service for real integration tests
 - Results uploaded as artifacts
 
+### Test Markers
+
+Tests are marked for selective execution and flaky test monitoring:
+
+| Marker | Description | Usage |
+|--------|-------------|-------|
+| `@pytest.mark.concurrency` | Multi-threading tests (potential flakiness) | `pytest -m concurrency` |
+| `@pytest.mark.integration` | Tests requiring real Redis | `pytest -m integration` |
+
+### Graduation Plan
+
+The CI workflow follows a staged approach to becoming a required check:
+
+| Stage | Status | Criteria | Target Date |
+|-------|--------|----------|-------------|
+| **Stage 0** | Current | Non-blocking via `continue-on-error: true` | Now |
+| **Stage 1** | Pending | Remove `continue-on-error`, observable but non-required | 2025-01-15 or 10 consecutive greens |
+| **Stage 2** | Pending | Add to required checks | Flake rate < 1%, 20+ consecutive greens |
+
+**Success Criteria:**
+- p95 runtime < 5 minutes
+- Flake rate < 1% (< 1 failure per 100 runs)
+- No blocking failures for 2 consecutive weeks
+
 ## Related Issues
 
 - Issue #2280 - Integrate RolloutTracker to worker.py

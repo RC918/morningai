@@ -1,4 +1,25 @@
 name: Orchestrator Integration Tests
+# ============================================================================
+# GRADUATION PLAN (Issue #2650)
+# ============================================================================
+# Stage 0 (Current): Non-blocking via continue-on-error: true
+#   - Tests run but don't block PRs
+#   - Flaky tests are tracked via test markers (@pytest.mark.concurrency)
+#
+# Stage 1 (Target: 2025-01-15 or after 10 consecutive green merge_group runs):
+#   - Remove continue-on-error: true
+#   - Tests become observable but still non-required
+#   - Monitor flake rate in CI summary
+#
+# Stage 2 (Target: flake rate < 1% over 2 weeks, 20+ consecutive greens):
+#   - Add to required checks in branch protection
+#   - Full integration into CI pipeline
+#
+# Success Criteria:
+#   - p95 runtime < 5 minutes
+#   - Flake rate < 1% (< 1 failure per 100 runs)
+#   - No blocking failures for 2 consecutive weeks
+# ============================================================================
 
 on:
   workflow_dispatch:
@@ -23,7 +44,8 @@ jobs:
     name: Redis Queue Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Non-required initially - doesn't block PRs
+    # Stage 0: Non-blocking - remove this line when graduating to Stage 1
+    # Target removal date: 2025-01-15 (see GRADUATION PLAN above)
     continue-on-error: true
     
     services:
@@ -78,7 +100,7 @@ jobs:
           pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/test_fault_injection.py \
             -v --tb=short --disable-warnings \
             --timeout=120 \
-            --junitxml=fault-injection-test-results.xml || true
+            --junitxml=fault-injection-test-results.xml
         env:
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0

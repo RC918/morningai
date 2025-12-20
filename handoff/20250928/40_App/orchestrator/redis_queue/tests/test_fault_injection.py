@@ -9,18 +9,28 @@ adverse conditions. These tests cover:
 3. Edge Cases: Long-running job timeout, clock skew scenarios
 
 Issue: #2650 (Add redis_queue integration tests to CI and implement fault injection tests)
+
+Test Markers:
+- @pytest.mark.concurrency: Tests involving multi-threading (potential flakiness)
+- @pytest.mark.integration: Tests requiring real Redis connection
 """
 
 import pytest
 import threading
+import logging
 from unittest.mock import MagicMock
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import redis
 
 
 class TestConcurrencyFaultInjection:
-    """Tests for multi-worker race conditions and concurrent access patterns."""
+    """Tests for multi-worker race conditions and concurrent access patterns.
 
+    Note: These tests use threading and may be sensitive to CI environment
+    resource constraints. Marked with @pytest.mark.concurrency for monitoring.
+    """
+
+    @pytest.mark.concurrency
     def test_concurrent_record_langgraph_task_calls(self):
         """Test that concurrent record_langgraph_task calls don't corrupt state.
 
@@ -63,7 +73,10 @@ class TestConcurrencyFaultInjection:
 
         assert len(errors) == 0, f"Errors during concurrent execution: {errors}"
         assert call_count[0] == 50, f"Expected 50 calls, got {call_count[0]}"
+        # Verify pipeline was called for each task
+        assert mock_redis.pipeline.call_count >= 50
 
+    @pytest.mark.concurrency
     def test_concurrent_circuit_breaker_state_transitions(self):
         """Test circuit breaker state consistency under concurrent access.
 
@@ -101,10 +114,12 @@ class TestConcurrencyFaultInjection:
             t.join()
 
         assert len(errors) == 0, f"Errors during concurrent state transitions: {errors}"
+        # Circuit breaker should be in a valid state (HALF_OPEN or transitioned to CLOSED)
         assert tracker._circuit_breaker.state in [
             CircuitState.HALF_OPEN, CircuitState.CLOSED
-        ], "Circuit breaker should be in valid state"
+        ], f"Invalid circuit breaker state: {tracker._circuit_breaker.state}"
 
+    @pytest.mark.concurrency
     def test_concurrent_check_circuit_breaker_reads(self):
         """Test that concurrent check_circuit_breaker reads are thread-safe."""
         from rollout_tracker import RolloutTracker, CircuitState
@@ -130,13 +145,16 @@ class TestConcurrencyFaultInjection:
 
 
 class TestRedisFailureFaultInjection:
-    """Tests for Redis failure scenarios and recovery behavior."""
+    """Tests for Redis failure scenarios and recovery behavior.
 
-    def test_redis_connection_timeout_handling(self):
+    RolloutTracker handles Redis errors internally (logs warning, continues).
+    These tests verify graceful degradation without crashing.
+    """
+
+    def test_redis_connection_timeout_handling(self, caplog):
         """Test behavior when Redis connection times out during record_langgraph_task.
 
-        Verifies that the tracker handles connection timeouts gracefully without
-        crashing or corrupting internal state.
+        Verifies: Tracker logs warning, doesn't crash, state remains valid.
         """
         from rollout_tracker import RolloutTracker, CircuitState
 
@@ -144,24 +162,30 @@ class TestRedisFailureFaultInjection:
         mock_redis.pipeline.side_effect = redis.ConnectionError("Connection timed out")
 
         tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
-        initial_state = tracker._circuit_breaker.state
 
-        try:
+        with caplog.at_level(logging.WARNING):
+            # Should not raise - RolloutTracker handles Redis errors internally
             tracker.record_langgraph_task(
                 trace_id="test-timeout",
                 success=True,
                 latency_ms=100.0
             )
-        except redis.ConnectionError:
-            pass
 
-        assert tracker._circuit_breaker.state == initial_state or \
-               tracker._circuit_breaker.state in [CircuitState.CLOSED, CircuitState.HALF_OPEN, CircuitState.OPEN]
+        # Verify warning was logged
+        assert any("Failed to" in record.message for record in caplog.records), \
+            "Expected warning log for Redis failure"
+        # State should remain valid
+        assert tracker._circuit_breaker.state in [
+            CircuitState.CLOSED, CircuitState.HALF_OPEN, CircuitState.OPEN
+        ]
+        # Tracker should still be enabled
+        assert tracker.enabled is True
 
-    def test_redis_pipeline_partial_failure(self):
-        """Test behavior when some pipeline commands succeed but others fail.
+    def test_redis_pipeline_partial_failure(self, caplog):
+        """Test behavior when pipeline execution fails.
 
-        Simulates a scenario where Redis pipeline execution partially fails.
+        Simulates a scenario where Redis pipeline execution fails.
+        Verifies: Tracker logs warning, remains functional.
         """
         from rollout_tracker import RolloutTracker
 
@@ -174,25 +198,28 @@ class TestRedisFailureFaultInjection:
 
         tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
 
-        try:
+        with caplog.at_level(logging.WARNING):
             tracker.record_langgraph_task(
                 trace_id="test-partial-failure",
                 success=True,
                 latency_ms=100.0
             )
-        except redis.RedisError:
-            pass
 
+        # Tracker should remain enabled and functional
         assert tracker.enabled is True
+        # Pipeline should have been called
+        mock_redis.pipeline.assert_called()
 
-    def test_redis_reconnection_after_temporary_outage(self):
+    def test_redis_reconnection_after_temporary_outage(self, caplog):
         """Test that tracker recovers after temporary Redis outage.
 
         Simulates Redis becoming unavailable and then recovering.
+        Verifies: First calls fail gracefully, later calls succeed.
         """
         from rollout_tracker import RolloutTracker
 
         call_count = [0]
+        success_count = [0]
 
         def pipeline_side_effect(*args, **kwargs):
             call_count[0] += 1
@@ -201,6 +228,7 @@ class TestRedisFailureFaultInjection:
             mock_pipeline = MagicMock()
             mock_pipeline.__enter__ = MagicMock(return_value=mock_pipeline)
             mock_pipeline.__exit__ = MagicMock(return_value=False)
+            success_count[0] += 1
             return mock_pipeline
 
         mock_redis = MagicMock()
@@ -208,24 +236,24 @@ class TestRedisFailureFaultInjection:
 
         tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
 
-        for i in range(3):
-            try:
+        with caplog.at_level(logging.WARNING):
+            for i in range(3):
                 tracker.record_langgraph_task(
                     trace_id=f"test-reconnect-{i}",
                     success=True,
                     latency_ms=100.0
                 )
-            except redis.ConnectionError:
-                pass
 
-        # The tracker may call pipeline multiple times per record_langgraph_task
-        # so we just verify it was called at least 3 times
-        assert call_count[0] >= 3, f"Should have attempted at least 3 pipeline operations, got {call_count[0]}"
+        # Verify pipeline was called multiple times
+        assert call_count[0] >= 3, f"Expected at least 3 pipeline calls, got {call_count[0]}"
+        # Verify at least one success after recovery
+        assert success_count[0] >= 1, "Expected at least one successful pipeline after recovery"
 
-    def test_redis_memory_pressure_handling(self):
+    def test_redis_memory_pressure_handling(self, caplog):
         """Test behavior when Redis reports memory pressure (OOM).
 
         Simulates Redis returning OOM error during write operations.
+        Verifies: Tracker logs warning, remains functional.
         """
         from rollout_tracker import RolloutTracker
 
@@ -233,21 +261,24 @@ class TestRedisFailureFaultInjection:
         mock_pipeline = MagicMock()
         mock_pipeline.__enter__ = MagicMock(return_value=mock_pipeline)
         mock_pipeline.__exit__ = MagicMock(return_value=False)
-        mock_pipeline.execute.side_effect = redis.ResponseError("OOM command not allowed when used memory > 'maxmemory'")
+        mock_pipeline.execute.side_effect = redis.ResponseError(
+            "OOM command not allowed when used memory > 'maxmemory'"
+        )
         mock_redis.pipeline.return_value = mock_pipeline
 
         tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
 
-        try:
+        with caplog.at_level(logging.WARNING):
             tracker.record_langgraph_task(
                 trace_id="test-oom",
                 success=True,
                 latency_ms=100.0
             )
-        except redis.ResponseError:
-            pass
 
+        # Tracker should remain enabled
         assert tracker.enabled is True
+        # Pipeline should have been called
+        mock_redis.pipeline.assert_called()
 
 
 class TestEdgeCaseFaultInjection:
@@ -438,6 +469,7 @@ class TestRealRedisIntegration:
     """Integration tests that require a real Redis connection.
 
     These tests are skipped if Redis is not available.
+    Marked with @pytest.mark.integration for selective execution.
     """
 
     @pytest.fixture
@@ -449,10 +481,13 @@ class TestRealRedisIntegration:
             client = redis.from_url(redis_url)
             client.ping()
             yield client
-            client.flushdb()
+            # Clean up test keys only (safer than flushdb)
+            for key in client.keys("metrics:rollout:*"):
+                client.delete(key)
         except redis.ConnectionError:
             pytest.skip("Redis not available for integration tests")
 
+    @pytest.mark.integration
     def test_real_redis_record_and_retrieve(self, redis_client):
         """Test recording and retrieving metrics with real Redis."""
         from rollout_tracker import RolloutTracker
@@ -468,12 +503,16 @@ class TestRealRedisIntegration:
         keys = redis_client.keys("metrics:rollout:*")
         assert len(keys) > 0, "Should have created Redis keys"
 
+    @pytest.mark.integration
+    @pytest.mark.concurrency
     def test_real_redis_concurrent_writes(self, redis_client):
         """Test concurrent writes to real Redis."""
         from rollout_tracker import RolloutTracker
 
         tracker = RolloutTracker(redis_client=redis_client, enabled=True)
         errors = []
+        success_count = [0]
+        lock = threading.Lock()
 
         def write_task(i):
             try:
@@ -482,8 +521,11 @@ class TestRealRedisIntegration:
                     success=True,
                     latency_ms=100.0 + i
                 )
+                with lock:
+                    success_count[0] += 1
             except Exception as e:
-                errors.append(str(e))
+                with lock:
+                    errors.append(str(e))
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = [executor.submit(write_task, i) for i in range(50)]
@@ -491,7 +533,9 @@ class TestRealRedisIntegration:
                 future.result()
 
         assert len(errors) == 0, f"Errors during concurrent writes: {errors}"
+        assert success_count[0] == 50, f"Expected 50 successful writes, got {success_count[0]}"
 
+    @pytest.mark.integration
     def test_real_redis_circuit_breaker_persistence(self, redis_client):
         """Test circuit breaker state persistence with real Redis."""
         from rollout_tracker import RolloutTracker, CircuitState
