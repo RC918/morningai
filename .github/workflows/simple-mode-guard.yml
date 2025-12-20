@@ -59,37 +59,38 @@ jobs:
           echo "## Simple Mode Guard Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Get the diff for this PR (only added lines)
-          git diff origin/main...HEAD --diff-filter=A -U0 -- \
-            'handoff/20250928/40_App/orchestrator/*.py' \
+          # Get the diff for this PR - check ADDED lines only (lines starting with +)
+          # Use diff-filter=AM to include both Added and Modified files
+          git diff origin/main...HEAD --diff-filter=AM -U0 -- \
+            'handoff/20250928/40_App/orchestrator/**/*.py' \
             'handoff/20250928/40_App/api-backend/**/*.py' \
             'common/**/*.py' \
-            > diff.txt || true
+            | grep '^+' | grep -v '^+++' > added_lines.txt || true
           
           VIOLATIONS=0
           VIOLATION_DETAILS=""
           
-          # Check for forbidden symbols (excluding comments and documentation)
+          # Check for forbidden symbols in ADDED lines only (excluding comments and documentation)
           # Pattern 1: record_simple_task (method name)
-          if grep -n "record_simple_task" diff.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" > /dev/null 2>&1; then
+          if grep "record_simple_task" added_lines.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" | grep -v "# TODO:" > /dev/null 2>&1; then
             VIOLATIONS=$((VIOLATIONS + 1))
             VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`record_simple_task\` method reference found"
           fi
           
           # Pattern 2: "Simple Mode" string (case insensitive, excluding comments)
-          if grep -in '"Simple Mode"' diff.txt | grep -v "NOTE:" | grep -v "deprecated" | grep -v "removed" > /dev/null 2>&1; then
+          if grep -i '"Simple Mode"' added_lines.txt | grep -v "NOTE:" | grep -v "deprecated" | grep -v "removed" > /dev/null 2>&1; then
             VIOLATIONS=$((VIOLATIONS + 1))
             VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \"Simple Mode\" string literal found"
           fi
           
           # Pattern 3: USE_LANGGRAPH_PERCENT (obsolete env var)
-          if grep -n "USE_LANGGRAPH_PERCENT" diff.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" > /dev/null 2>&1; then
+          if grep "USE_LANGGRAPH_PERCENT" added_lines.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" | grep -v "# TODO:" > /dev/null 2>&1; then
             VIOLATIONS=$((VIOLATIONS + 1))
             VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`USE_LANGGRAPH_PERCENT\` env var reference found"
           fi
           
           # Pattern 4: use_langgraph_percent (obsolete setting)
-          if grep -n "use_langgraph_percent" diff.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" > /dev/null 2>&1; then
+          if grep "use_langgraph_percent" added_lines.txt | grep -v "NOTE:" | grep -v "#.*removed" | grep -v "# NOTE" | grep -v "# TODO:" > /dev/null 2>&1; then
             VIOLATIONS=$((VIOLATIONS + 1))
             VIOLATION_DETAILS="${VIOLATION_DETAILS}\n- \`use_langgraph_percent\` setting reference found"
           fi
