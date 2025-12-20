@@ -41,12 +41,8 @@ class TestRolloutTrackerIntegration:
         assert hasattr(RolloutTracker, "record_langgraph_task")
         assert callable(getattr(RolloutTracker, "record_langgraph_task"))
 
-    def test_rollout_tracker_has_record_simple_task(self):
-        """Test that RolloutTracker has record_simple_task method."""
-        from rollout_tracker import RolloutTracker
-
-        assert hasattr(RolloutTracker, "record_simple_task")
-        assert callable(getattr(RolloutTracker, "record_simple_task"))
+    # NOTE: test_rollout_tracker_has_record_simple_task was removed in Issue #2651 after LangGraph 100% rollout (2025-12-15)
+    # TODO: Remove this comment after 2026-01-15 (one release cycle)
 
     def test_rollout_tracker_has_get_circuit_breaker_state(self):
         """Test that RolloutTracker has get_circuit_breaker_state method."""
@@ -149,29 +145,8 @@ class TestRolloutTrackerRecordMethods:
             is_5xx_error=True
         )
 
-    def test_record_simple_task_can_be_called_without_error(self):
-        """Test that record_simple_task can be called without error when disabled."""
-        from rollout_tracker import RolloutTracker
-
-        tracker = RolloutTracker(redis_client=None, enabled=False)
-
-        tracker.record_simple_task(
-            trace_id="test-trace-789",
-            success=True,
-            latency_ms=100.0
-        )
-
-    def test_record_simple_task_failure_can_be_called_without_error(self):
-        """Test that record_simple_task failure can be called without error when disabled."""
-        from rollout_tracker import RolloutTracker
-
-        tracker = RolloutTracker(redis_client=None, enabled=False)
-
-        tracker.record_simple_task(
-            trace_id="test-trace-abc",
-            success=False,
-            latency_ms=200.0
-        )
+    # NOTE: test_record_simple_task_can_be_called_without_error was removed in Issue #2651 after LangGraph 100% rollout
+    # NOTE: test_record_simple_task_failure_can_be_called_without_error was removed in Issue #2651 after LangGraph 100% rollout
 
 
 class TestRolloutTrackerCircuitBreakerFallback:
@@ -294,39 +269,8 @@ class TestRolloutTrackerEnabledWithRedis:
         mock_redis.pipeline.assert_called()
         mock_pipeline.execute.assert_called()
 
-    def test_record_simple_task_success_writes_to_redis(self):
-        """Test that record_simple_task writes to Redis when enabled."""
-        from rollout_tracker import RolloutTracker
-
-        mock_redis, mock_pipeline = self._create_mock_redis()
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
-
-        tracker.record_simple_task(
-            trace_id="test-trace-003",
-            success=True,
-            latency_ms=100.0
-        )
-
-        mock_redis.pipeline.assert_called()
-        mock_pipeline.set.assert_called()
-        mock_pipeline.incrby.assert_called()
-        mock_pipeline.execute.assert_called()
-
-    def test_record_simple_task_failure_writes_to_redis(self):
-        """Test that record_simple_task failure writes to Redis when enabled."""
-        from rollout_tracker import RolloutTracker
-
-        mock_redis, mock_pipeline = self._create_mock_redis()
-        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
-
-        tracker.record_simple_task(
-            trace_id="test-trace-004",
-            success=False,
-            latency_ms=200.0
-        )
-
-        mock_redis.pipeline.assert_called()
-        mock_pipeline.execute.assert_called()
+    # NOTE: test_record_simple_task_success_writes_to_redis was removed in Issue #2651 after LangGraph 100% rollout
+    # NOTE: test_record_simple_task_failure_writes_to_redis was removed in Issue #2651 after LangGraph 100% rollout
 
     def test_enabled_tracker_with_redis_client_is_enabled(self):
         """Test that tracker is enabled when redis_client is provided and enabled=True."""
