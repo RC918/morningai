@@ -39,7 +39,8 @@ def normalize_trace_id_to_uuid(trace_id: str) -> str:
         Valid UUID string in canonical format
     """
     if not trace_id:
-        return str(uuid.uuid4())
+        # Use deterministic UUID for empty string to aggregate all empty trace_id events
+        return str(uuid.uuid5(TRACE_ID_NAMESPACE, ""))
 
     # Fast path: try as-is first (pure UUID)
     try:
@@ -61,7 +62,7 @@ def normalize_trace_id_to_uuid(trace_id: str) -> str:
     # Fallback: generate deterministic UUID from original string using uuid5
     # This ensures the same trace_id always maps to the same UUID
     deterministic_uuid = uuid.uuid5(TRACE_ID_NAMESPACE, trace_id)
-    logger.warning(
+    logger.info(
         f"[Planner Events Store] No UUID found in trace_id, using deterministic mapping: "
         f"'{trace_id}' -> '{deterministic_uuid}'"
     )

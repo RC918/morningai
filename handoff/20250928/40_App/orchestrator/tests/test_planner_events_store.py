@@ -45,10 +45,13 @@ class TestNormalizeTraceIdToUuid:
         result2 = normalize_trace_id_to_uuid("webhook-github-75c37705")
         assert result1 != result2
 
-    def test_empty_string_generates_random_uuid(self):
-        """Test that empty string generates a random UUID"""
-        result = normalize_trace_id_to_uuid("")
-        assert len(result) == 36
+    def test_empty_string_generates_deterministic_uuid(self):
+        """Test that empty string generates a deterministic UUID"""
+        result1 = normalize_trace_id_to_uuid("")
+        result2 = normalize_trace_id_to_uuid("")
+        assert len(result1) == 36
+        # Empty string should always map to the same UUID (deterministic)
+        assert result1 == result2
 
 
 class TestInsertPlannerEvent:
