@@ -15,6 +15,7 @@ from typing import Optional
 
 from flask import Blueprint, jsonify, request
 from middleware.auth_middleware import admin_required
+from common.config.settings import get_settings
 
 DEFAULT_WINDOW_MINUTES = 15
 MIN_WINDOW_MINUTES = 1
@@ -76,12 +77,12 @@ def _parse_window_minutes(window_param: Optional[str]) -> int:
 
 
 def _get_current_rollout_percent() -> int:
-    """Get current LangGraph rollout percentage.
-    
-    Returns 100 since LangGraph is now 100% rolled out and the
-    use_langgraph_percent setting has been removed from Settings.
-    """
-    return 100
+    """Get current LangGraph rollout percentage from settings"""
+    try:
+        return get_settings().use_langgraph_percent
+    except Exception as e:
+        logger.warning(f"Failed to get rollout percent from settings: {e}")
+        return 0
 
 
 def _get_tracker_or_503():
