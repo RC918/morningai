@@ -754,3 +754,228 @@ class TestWebhookErrorHandling:
                 content_type="application/json"
             )
             assert response.status_code == 500
+
+
+class TestEnqueuePRUpdatedDelayedTask:
+    """Tests for the _enqueue_pr_updated_delayed_task helper function.
+
+    Issue: Phase B-B - PR_UPDATED support with debounce/throttle
+    """
+
+    def test_enqueue_pr_updated_delayed_task_success(self):
+        """Should enqueue delayed task with correct parameters."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-pr-updated-123"
+        mock_task.goal_text = "Review PR changes"
+        mock_task.context = {
+            "repo": "owner/repo",
+            "resource_id": 42,
+            "pr_updated_job_token": "token-abc",
+            "pr_updated_debounce_seconds": 30,
+        }
+
+        mock_job = MagicMock()
+        mock_job.id = "job-pr-updated-123"
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.rq_queue_name = "orchestrator"
+            mock_settings.github_repo = None
+
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis_class.from_url.return_value = mock_redis
+
+                with patch("rq.Queue") as mock_queue_class:
+                    mock_queue = MagicMock()
+                    mock_queue.enqueue.return_value = mock_job
+                    mock_queue_class.return_value = mock_queue
+
+                    with patch("src.routes.webhooks.run_pr_updated_delayed_task") as mock_worker_func:
+                        result = _enqueue_pr_updated_delayed_task(mock_task)
+
+                        assert result == "job-pr-updated-123"
+                        mock_queue.enqueue.assert_called_once()
+
+                        call_args = mock_queue.enqueue.call_args
+                        assert call_args[0][0] == mock_worker_func
+                        assert call_args[0][1] == "task-pr-updated-123"
+                        assert call_args[0][2] == "owner/repo"
+                        assert call_args[0][3] == 42
+                        assert call_args[0][4] == "token-abc"
+                        assert call_args[0][5] == 30
+                        assert call_args[0][6] == "Review PR changes"
+                        assert call_args[1]["job_id"] == "task-pr-updated-123"
+                        assert call_args[1]["ttl"] == 30 + 600
+
+    def test_enqueue_pr_updated_delayed_task_no_redis_url(self):
+        """Should return None when Redis URL is not configured."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.context = {"repo": "owner/repo", "resource_id": 42}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = None
+            result = _enqueue_pr_updated_delayed_task(mock_task)
+            assert result is None
+
+    def test_enqueue_pr_updated_delayed_task_no_repo(self):
+        """Should return None when no repository is specified."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.context = {"resource_id": 42, "pr_updated_job_token": "token"}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = None
+
+            with patch("redis.Redis"):
+                result = _enqueue_pr_updated_delayed_task(mock_task)
+                assert result is None
+
+    def test_enqueue_pr_updated_delayed_task_no_pr_number(self):
+        """Should return None when no PR number is specified."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.context = {"repo": "owner/repo", "pr_updated_job_token": "token"}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = None
+
+            with patch("redis.Redis"):
+                result = _enqueue_pr_updated_delayed_task(mock_task)
+                assert result is None
+
+    def test_enqueue_pr_updated_delayed_task_invalid_pr_number(self):
+        """Should return None when PR number is not a valid integer."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.context = {
+            "repo": "owner/repo",
+            "resource_id": "not-a-number",
+            "pr_updated_job_token": "token"
+        }
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = None
+
+            with patch("redis.Redis"):
+                result = _enqueue_pr_updated_delayed_task(mock_task)
+                assert result is None
+
+    def test_enqueue_pr_updated_delayed_task_no_job_token(self):
+        """Should return None when no job token is specified."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.context = {"repo": "owner/repo", "resource_id": 42}
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.github_repo = None
+
+            with patch("redis.Redis"):
+                result = _enqueue_pr_updated_delayed_task(mock_task)
+                assert result is None
+
+    def test_enqueue_pr_updated_delayed_task_uses_default_debounce(self):
+        """Should use default debounce_seconds when not specified."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.goal_text = "Review"
+        mock_task.context = {
+            "repo": "owner/repo",
+            "resource_id": 42,
+            "pr_updated_job_token": "token",
+        }
+
+        mock_job = MagicMock()
+        mock_job.id = "job-123"
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.rq_queue_name = "orchestrator"
+            mock_settings.github_repo = None
+
+            with patch("redis.Redis"):
+                with patch("rq.Queue") as mock_queue_class:
+                    mock_queue = MagicMock()
+                    mock_queue.enqueue.return_value = mock_job
+                    mock_queue_class.return_value = mock_queue
+
+                    with patch("src.routes.webhooks.run_pr_updated_delayed_task"):
+                        result = _enqueue_pr_updated_delayed_task(mock_task)
+
+                        assert result == "job-123"
+                        call_args = mock_queue.enqueue.call_args
+                        assert call_args[0][5] == 30
+                        assert call_args[1]["ttl"] == 30 + 600
+
+    def test_enqueue_pr_updated_delayed_task_redis_error(self):
+        """Should return None on Redis connection error."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.context = {
+            "repo": "owner/repo",
+            "resource_id": 42,
+            "pr_updated_job_token": "token",
+        }
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+
+            with patch("redis.Redis") as mock_redis:
+                mock_redis.from_url.side_effect = Exception("Connection failed")
+                result = _enqueue_pr_updated_delayed_task(mock_task)
+                assert result is None
+
+    def test_enqueue_pr_updated_delayed_task_uses_fallback_repo(self):
+        """Should use settings.github_repo when context.repo is not set."""
+        from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+
+        mock_task = MagicMock()
+        mock_task.task_id = "task-123"
+        mock_task.goal_text = "Review"
+        mock_task.context = {
+            "resource_id": 42,
+            "pr_updated_job_token": "token",
+            "pr_updated_debounce_seconds": 15,
+        }
+
+        mock_job = MagicMock()
+        mock_job.id = "job-123"
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            mock_settings.rq_queue_name = "orchestrator"
+            mock_settings.github_repo = "fallback/repo"
+
+            with patch("redis.Redis"):
+                with patch("rq.Queue") as mock_queue_class:
+                    mock_queue = MagicMock()
+                    mock_queue.enqueue.return_value = mock_job
+                    mock_queue_class.return_value = mock_queue
+
+                    with patch("src.routes.webhooks.run_pr_updated_delayed_task"):
+                        result = _enqueue_pr_updated_delayed_task(mock_task)
+
+                        assert result == "job-123"
+                        call_args = mock_queue.enqueue.call_args
+                        assert call_args[0][2] == "fallback/repo"
