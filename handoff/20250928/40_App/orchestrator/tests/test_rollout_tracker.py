@@ -1299,3 +1299,53 @@ class TestFAQLatencyMonitoring:
 
         faq_keys = [k for k in set_keys if "faq" in k]
         assert len(faq_keys) == 0, "Default task_type should not record FAQ metrics"
+
+    def test_faq_counts_tracked_without_latency(self):
+        """Test that FAQ counts are tracked even when latency_ms is None."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="faq-no-latency",
+            success=True,
+            latency_ms=None,
+            task_type="faq"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        faq_total_keys = [k for k in set_keys if "faq.total" in k]
+        faq_success_keys = [k for k in set_keys if "faq.success" in k]
+        faq_latency_keys = [k for k in set_keys if "faq" in k and "latency_bucket" in k]
+
+        assert len(faq_total_keys) >= 1, "FAQ total should be tracked without latency"
+        assert len(faq_success_keys) >= 1, "FAQ success should be tracked without latency"
+        assert len(faq_latency_keys) == 0, "FAQ latency bucket should NOT be tracked without latency"
+
+    def test_faq_5xx_error_tracked(self):
+        """Test that FAQ 5xx errors are tracked correctly."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="faq-5xx-error",
+            success=False,
+            latency_ms=None,
+            is_5xx_error=True,
+            task_type="faq"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        faq_5xx_keys = [k for k in set_keys if "faq.error_5xx" in k]
+        assert len(faq_5xx_keys) >= 1, "FAQ 5xx error should be tracked"

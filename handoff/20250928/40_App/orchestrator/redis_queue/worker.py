@@ -639,11 +639,13 @@ def run_orchestrator_task(
         
         if _rollout_tracker:
             try:
+                # Issue #2737: Pass task_type for FAQ latency monitoring in error path
                 _rollout_tracker.record_langgraph_task(
                     trace_id=task_id,
                     success=False,
                     latency_ms=None,
-                    is_5xx_error=True
+                    is_5xx_error=True,
+                    task_type=task_type
                 )
             except Exception as tracker_error:
                 logger.warning(f"Failed to record rollout tracker error: {tracker_error}")

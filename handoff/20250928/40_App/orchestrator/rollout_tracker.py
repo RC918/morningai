@@ -28,6 +28,14 @@ from orchestrator_metrics import LATENCY_BUCKETS_MS
 
 logger = logging.getLogger(__name__)
 
+# Task type constants (Issue #2737)
+TASK_TYPE_FAQ = "faq"
+TASK_TYPE_GENERAL = "general"
+
+# Mode constants for metrics
+_MODE_LANGGRAPH = "langgraph"
+_MODE_LANGGRAPH_FAQ = "langgraph.faq"
+
 
 class RolloutStage(Enum):
     """Rollout stages for LangGraph deployment"""
@@ -369,31 +377,35 @@ class RolloutTracker:
 
         try:
             # Record task count
-            self._safe_incr(self._get_minute_key("langgraph.total"))
+            self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.total"))
 
             if success:
-                self._safe_incr(self._get_minute_key("langgraph.success"))
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.success"))
                 self._update_circuit_breaker_success()
             else:
-                self._safe_incr(self._get_minute_key("langgraph.failure"))
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.failure"))
                 reason = "5xx_error" if is_5xx_error else "task_failure"
                 self._update_circuit_breaker_failure(reason)
 
             if is_5xx_error:
-                self._safe_incr(self._get_minute_key("langgraph.error_5xx"))
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH}.error_5xx"))
+
+            # Issue #2737: Track FAQ-specific counts (independent of latency)
+            if task_type == TASK_TYPE_FAQ:
+                self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.total"))
+                if success:
+                    self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.success"))
+                else:
+                    self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.failure"))
+                if is_5xx_error:
+                    self._safe_incr(self._get_minute_key(f"{_MODE_LANGGRAPH_FAQ}.error_5xx"))
 
             # Record latency bucket (overall)
             if latency_ms is not None:
-                self._record_latency("langgraph", latency_ms)
+                self._record_latency(_MODE_LANGGRAPH, latency_ms)
                 # Issue #2737: Track FAQ-specific latency for monitoring
-                # after Simple Mode removal
-                if task_type == "faq":
-                    self._record_latency("langgraph.faq", latency_ms)
-                    self._safe_incr(self._get_minute_key("langgraph.faq.total"))
-                    if success:
-                        self._safe_incr(self._get_minute_key("langgraph.faq.success"))
-                    else:
-                        self._safe_incr(self._get_minute_key("langgraph.faq.failure"))
+                if task_type == TASK_TYPE_FAQ:
+                    self._record_latency(_MODE_LANGGRAPH_FAQ, latency_ms)
 
             logger.debug(
                 "[RolloutTracker] Recorded LangGraph task",
@@ -1096,22 +1108,19 @@ class RolloutTracker:
                 "latency_percentiles": {"p50": None, "p95": None, "p99": None}
             }
 
-        total = self._get_window_count("langgraph.faq.total", window_minutes)
-        success = self._get_window_count("langgraph.faq.success", window_minutes)
-        failure = self._get_window_count("langgraph.faq.failure", window_minutes)
-
-        success_rate = None
-        if total > 0:
-            success_rate = round((success / total) * 100, 2)
-
-        latency_percentiles = self._get_latency_percentiles("langgraph.faq", window_minutes)
+        # Reuse _get_mode_metrics for consistent metric retrieval (Issue #2737)
+        metrics = self._get_mode_metrics(_MODE_LANGGRAPH_FAQ, window_minutes)
 
         return {
-            "total": total,
-            "success": success,
-            "failure": failure,
-            "success_rate": success_rate,
-            "latency_percentiles": latency_percentiles
+            "total": metrics.total_tasks,
+            "success": metrics.success_count,
+            "failure": metrics.failure_count,
+            "success_rate": metrics.success_rate if metrics.total_tasks > 0 else None,
+            "latency_percentiles": {
+                "p50": metrics.p50_latency_ms,
+                "p95": metrics.p95_latency_ms,
+                "p99": metrics.p99_latency_ms
+            }
         }
 
     # ==================== Dashboard Summary ====================
