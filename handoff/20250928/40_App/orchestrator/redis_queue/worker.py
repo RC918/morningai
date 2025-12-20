@@ -573,13 +573,15 @@ def run_orchestrator_task(
         
         if _rollout_tracker:
             try:
+                # Issue #2737: Pass task_type for FAQ latency monitoring
                 _rollout_tracker.record_langgraph_task(
                     trace_id=task_id,
                     success=execution_success,
                     latency_ms=elapsed_ms,
-                    is_5xx_error=False
+                    is_5xx_error=False,
+                    task_type=task_type
                 )
-                logger.debug(f"Rollout tracker recorded: mode=langgraph, latency={elapsed_ms:.2f}ms, success={execution_success}")
+                logger.debug(f"Rollout tracker recorded: mode=langgraph, latency={elapsed_ms:.2f}ms, success={execution_success}, task_type={task_type}")
             except Exception as e:
                 logger.warning(f"Failed to record rollout tracker metrics: {e}")
         
