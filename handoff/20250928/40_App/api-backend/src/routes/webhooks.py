@@ -309,12 +309,14 @@ def _enqueue_pr_updated_delayed_task(task):
     """
     Enqueue a PR_UPDATED task with delayed execution for debounce.
 
-    This implements the "sleep inside job" pattern:
-    - First PR_UPDATED event schedules a delayed job
-    - Job sleeps for debounce_seconds, then processes the review
+    This implements the non-blocking delayed scheduling pattern:
+    - First PR_UPDATED event schedules a delayed job using enqueue_in()
+    - Job is automatically enqueued after debounce_seconds (no worker blocking)
     - Subsequent events only update the payload in Redis (no new job)
+    - Worker checks if new push happened within debounce window
 
     Issue: Phase B-B - PR_UPDATED support with debounce/throttle
+    CTO Decision: Prohibit time.sleep() inside worker - use enqueue_in() instead
 
     Args:
         task: NormalizedTask from EventNormalizer with PR_UPDATED metadata
@@ -323,6 +325,7 @@ def _enqueue_pr_updated_delayed_task(task):
         Job ID if enqueued successfully, None otherwise
     """
     try:
+        from datetime import timedelta
         from redis import Redis
         from rq import Queue
         from rq.serializers import JSONSerializer
@@ -374,7 +377,11 @@ def _enqueue_pr_updated_delayed_task(task):
 
         debounce_seconds = task.context.get("pr_updated_debounce_seconds", 30)
 
-        job = queue.enqueue(
+        # Use enqueue_in for non-blocking delayed scheduling
+        # Job will be automatically enqueued after debounce_seconds
+        # This avoids blocking worker threads with time.sleep()
+        job = queue.enqueue_in(
+            timedelta(seconds=debounce_seconds),
             run_pr_updated_delayed_task,
             task.task_id,
             repo,
@@ -390,7 +397,7 @@ def _enqueue_pr_updated_delayed_task(task):
         )
 
         logger.info(
-            "[Webhooks] Enqueued PR_UPDATED delayed task %s as job %s for repo %s PR #%s (debounce=%ds)",
+            "[Webhooks] Scheduled PR_UPDATED delayed task %s as job %s for repo %s PR #%s (delay=%ds, non-blocking)",
             task.task_id,
             job.id,
             repo,

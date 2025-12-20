@@ -763,8 +763,9 @@ class TestEnqueuePRUpdatedDelayedTask:
     """
 
     def test_enqueue_pr_updated_delayed_task_success(self):
-        """Should enqueue delayed task with correct parameters."""
+        """Should schedule delayed task with enqueue_in for non-blocking debounce."""
         from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+        from datetime import timedelta
 
         mock_task = MagicMock()
         mock_task.task_id = "task-pr-updated-123"
@@ -790,23 +791,29 @@ class TestEnqueuePRUpdatedDelayedTask:
 
                 with patch("rq.Queue") as mock_queue_class:
                     mock_queue = MagicMock()
-                    mock_queue.enqueue.return_value = mock_job
+                    # Now using enqueue_in instead of enqueue
+                    mock_queue.enqueue_in.return_value = mock_job
                     mock_queue_class.return_value = mock_queue
 
                     with patch("redis_queue.worker.run_pr_updated_delayed_task") as mock_worker_func:
                         result = _enqueue_pr_updated_delayed_task(mock_task)
 
                         assert result == "job-pr-updated-123"
-                        mock_queue.enqueue.assert_called_once()
+                        # Verify enqueue_in is called (non-blocking delayed scheduling)
+                        mock_queue.enqueue_in.assert_called_once()
 
-                        call_args = mock_queue.enqueue.call_args
-                        assert call_args[0][0] == mock_worker_func
-                        assert call_args[0][1] == "task-pr-updated-123"
-                        assert call_args[0][2] == "owner/repo"
-                        assert call_args[0][3] == 42
-                        assert call_args[0][4] == "token-abc"
-                        assert call_args[0][5] == 30
-                        assert call_args[0][6] == "Review PR changes"
+                        call_args = mock_queue.enqueue_in.call_args
+                        # First arg is timedelta for delay
+                        assert call_args[0][0] == timedelta(seconds=30)
+                        # Second arg is the worker function
+                        assert call_args[0][1] == mock_worker_func
+                        # Remaining positional args
+                        assert call_args[0][2] == "task-pr-updated-123"
+                        assert call_args[0][3] == "owner/repo"
+                        assert call_args[0][4] == 42
+                        assert call_args[0][5] == "token-abc"
+                        assert call_args[0][6] == 30
+                        assert call_args[0][7] == "Review PR changes"
                         assert call_args[1]["job_id"] == "task-pr-updated-123"
                         assert call_args[1]["ttl"] == 30 + 600
 
@@ -894,6 +901,7 @@ class TestEnqueuePRUpdatedDelayedTask:
     def test_enqueue_pr_updated_delayed_task_uses_default_debounce(self):
         """Should use default debounce_seconds when not specified."""
         from src.routes.webhooks import _enqueue_pr_updated_delayed_task
+        from datetime import timedelta
 
         mock_task = MagicMock()
         mock_task.task_id = "task-123"
@@ -915,15 +923,18 @@ class TestEnqueuePRUpdatedDelayedTask:
             with patch("redis.Redis"):
                 with patch("rq.Queue") as mock_queue_class:
                     mock_queue = MagicMock()
-                    mock_queue.enqueue.return_value = mock_job
+                    mock_queue.enqueue_in.return_value = mock_job
                     mock_queue_class.return_value = mock_queue
 
                     with patch("redis_queue.worker.run_pr_updated_delayed_task"):
                         result = _enqueue_pr_updated_delayed_task(mock_task)
 
                         assert result == "job-123"
-                        call_args = mock_queue.enqueue.call_args
-                        assert call_args[0][5] == 30
+                        call_args = mock_queue.enqueue_in.call_args
+                        # First arg is timedelta with default 30 seconds
+                        assert call_args[0][0] == timedelta(seconds=30)
+                        # debounce_seconds is passed as 6th positional arg (index 6)
+                        assert call_args[0][6] == 30
                         assert call_args[1]["ttl"] == 30 + 600
 
     def test_enqueue_pr_updated_delayed_task_redis_error(self):
@@ -970,12 +981,13 @@ class TestEnqueuePRUpdatedDelayedTask:
             with patch("redis.Redis"):
                 with patch("rq.Queue") as mock_queue_class:
                     mock_queue = MagicMock()
-                    mock_queue.enqueue.return_value = mock_job
+                    mock_queue.enqueue_in.return_value = mock_job
                     mock_queue_class.return_value = mock_queue
 
                     with patch("redis_queue.worker.run_pr_updated_delayed_task"):
                         result = _enqueue_pr_updated_delayed_task(mock_task)
 
                         assert result == "job-123"
-                        call_args = mock_queue.enqueue.call_args
-                        assert call_args[0][2] == "fallback/repo"
+                        call_args = mock_queue.enqueue_in.call_args
+                        # repo is the 3rd positional arg (index 3)
+                        assert call_args[0][3] == "fallback/repo"

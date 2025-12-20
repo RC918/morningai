@@ -1686,21 +1686,23 @@ def run_pr_updated_delayed_task(
     """
     Execute a delayed PR_UPDATED review task after debounce window.
 
-    This implements the "sleep inside job" pattern for PR_UPDATED debounce:
-    1. Sleep for debounce_seconds to allow rapid pushes to coalesce
+    This implements the non-blocking delayed scheduling pattern:
+    1. Job is enqueued via enqueue_in() - no worker blocking
     2. Verify job token is still valid (no newer job scheduled)
-    3. Read latest payload from Redis (may have been updated by subsequent events)
-    4. Execute the orchestrator review task
-    5. Mark as processed for throttle tracking
+    3. Check if new push happened within debounce window (true debounce)
+    4. Read latest payload from Redis (may have been updated by subsequent events)
+    5. Execute the orchestrator review task
+    6. Mark as processed for throttle tracking
 
     Issue: Phase B-B - PR_UPDATED support with debounce/throttle
+    CTO Decision: Prohibit time.sleep() inside worker - use enqueue_in() instead
 
     Args:
         task_id: Unique task identifier
         repo: Repository in owner/repo format
         pr_number: Pull request number
         job_token: Token to verify this job is still active
-        debounce_seconds: Seconds to sleep before processing
+        debounce_seconds: Debounce window (used for checking if new push happened)
         goal_text: Review goal text
         context: Optional context dict with PR info
 
@@ -1733,16 +1735,9 @@ def run_pr_updated_delayed_task(
         sentry_sdk.set_tag("operation", "pr_updated_delayed_task")
 
     try:
-        logger.info(
-            "[PRUpdatedDelayed] Sleeping for debounce window",
-            extra={
-                "operation": "pr_updated_debounce_sleep",
-                "task_id": task_id,
-                "debounce_seconds": debounce_seconds,
-            }
-        )
-        time.sleep(debounce_seconds)
-
+        # Step 1: Verify job token is still valid (no newer job scheduled)
+        # This is the primary debounce mechanism - if a new push happened,
+        # a new job was scheduled and this token is now invalid
         if not verify_pr_updated_job_token(repo, pr_number, job_token):
             logger.info(
                 "[PRUpdatedDelayed] Job token invalid - newer job exists, exiting",
@@ -1761,6 +1756,7 @@ def run_pr_updated_delayed_task(
                 "message": "Newer job scheduled, this job is stale",
             }
 
+        # Step 2: Get latest payload and check for recent pushes (true debounce)
         latest_payload = get_pr_updated_latest_payload(repo, pr_number)
         if latest_payload:
             logger.info(
@@ -1771,9 +1767,36 @@ def run_pr_updated_delayed_task(
                     "repo": repo,
                     "pr_number": pr_number,
                     "event_count": latest_payload.get("event_count", 1),
+                    "updated_at": latest_payload.get("updated_at"),
                 }
             )
 
+            # Check if a new push happened within the debounce window
+            # If updated_at is more recent than (now - debounce_seconds), skip
+            # This handles the case where a new push happened but token wasn't updated yet
+            updated_at = latest_payload.get("updated_at")
+            if updated_at:
+                time_since_update = time.time() - updated_at
+                if time_since_update < debounce_seconds:
+                    logger.info(
+                        "[PRUpdatedDelayed] Recent push detected within debounce window, exiting",
+                        extra={
+                            "operation": "pr_updated_recent_push",
+                            "task_id": task_id,
+                            "repo": repo,
+                            "pr_number": pr_number,
+                            "time_since_update": time_since_update,
+                            "debounce_seconds": debounce_seconds,
+                        }
+                    )
+                    return {
+                        "success": False,
+                        "task_id": task_id,
+                        "reason": "recent_push",
+                        "message": f"New push detected {time_since_update:.1f}s ago, within debounce window",
+                    }
+
+        # Step 3: Execute orchestrator review
         logger.info(
             "[PRUpdatedDelayed] Executing orchestrator review",
             extra={
