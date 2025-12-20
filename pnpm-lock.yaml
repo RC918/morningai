@@ -20175,3 +20175,5 @@ snapshots:
       immer: 9.0.21
       react: 19.2.0
       use-sync-external-store: 1.6.0(react@19.2.0)
+
+# C-lite telemetry test - lockfile-only PR verification 1766204545
