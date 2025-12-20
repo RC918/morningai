@@ -1847,8 +1847,6 @@ if __name__ == "__main__":
         extra={
             "operation": "startup",
             "flags": {
-                "use_langgraph": settings.use_langgraph,
-                "use_langgraph_percent": getattr(settings, 'use_langgraph_percent', 0),
                 "use_llm_planner": getattr(settings, 'use_llm_planner', False),
                 "canary_metrics_enabled": getattr(settings, 'canary_metrics_enabled', True),
                 "canary_alerting_enabled": getattr(settings, 'canary_alerting_enabled', True),
