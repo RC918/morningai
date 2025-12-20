@@ -1826,7 +1826,7 @@ def run_pr_updated_delayed_task(
                             redis_url = getattr(settings, 'redis_url', None)
                             if redis_url:
                                 redis_client = Redis.from_url(redis_url, decode_responses=False)
-                                queue_name = getattr(settings, 'rq_queue_name', 'orchestrator')
+                                queue_name = getattr(settings, 'rq_queue_name', None) or 'orchestrator'
                                 queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
                                 
                                 # Use same job_id to replace/deduplicate
