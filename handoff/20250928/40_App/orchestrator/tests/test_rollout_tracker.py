@@ -1137,3 +1137,215 @@ class TestCircuitBreakerBlackBox:
 
         assert tracker.get_circuit_breaker_state().state == CircuitState.CLOSED
         assert tracker.check_circuit_breaker() is True
+
+
+class TestFAQLatencyMonitoring:
+    """Tests for FAQ latency monitoring - Issue #2737"""
+
+    def test_record_langgraph_task_with_faq_task_type(self):
+        """Test that FAQ task type records FAQ-specific metrics."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="faq-task-1",
+            success=True,
+            latency_ms=1500.0,
+            task_type="faq"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+        incrby_calls = mock_pipe.incrby.call_args_list
+        incrby_keys = [call[0][0] for call in incrby_calls]
+
+        assert any("langgraph.faq.total" in key for key in set_keys)
+        assert any("langgraph.faq.success" in key for key in set_keys)
+        assert any("langgraph.faq.total" in key for key in incrby_keys)
+        assert any("langgraph.faq.success" in key for key in incrby_keys)
+
+    def test_record_langgraph_task_with_general_task_type(self):
+        """Test that general task type does not record FAQ-specific metrics."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="general-task-1",
+            success=True,
+            latency_ms=2000.0,
+            task_type="general"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+        incrby_calls = mock_pipe.incrby.call_args_list
+        incrby_keys = [call[0][0] for call in incrby_calls]
+
+        faq_set_keys = [k for k in set_keys if "faq" in k]
+        faq_incrby_keys = [k for k in incrby_keys if "faq" in k]
+        assert len(faq_set_keys) == 0, "Should not record FAQ metrics for general tasks"
+        assert len(faq_incrby_keys) == 0, "Should not record FAQ metrics for general tasks"
+
+    def test_record_langgraph_task_faq_failure(self):
+        """Test that FAQ task failures are recorded correctly."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="faq-fail-1",
+            success=False,
+            latency_ms=3000.0,
+            task_type="faq"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+        incrby_calls = mock_pipe.incrby.call_args_list
+        incrby_keys = [call[0][0] for call in incrby_calls]
+
+        assert any("langgraph.faq.failure" in key for key in set_keys)
+        assert any("langgraph.faq.failure" in key for key in incrby_keys)
+
+    def test_get_faq_metrics_returns_correct_structure(self):
+        """Test that _get_faq_metrics returns correct structure."""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        metrics = tracker._get_faq_metrics(window_minutes=15)
+
+        assert "total" in metrics
+        assert "success" in metrics
+        assert "failure" in metrics
+        assert "success_rate" in metrics
+        assert "latency_percentiles" in metrics
+        assert "p50" in metrics["latency_percentiles"]
+        assert "p95" in metrics["latency_percentiles"]
+        assert "p99" in metrics["latency_percentiles"]
+
+    def test_get_faq_metrics_disabled_tracker(self):
+        """Test that disabled tracker returns empty FAQ metrics."""
+        tracker = RolloutTracker(redis_client=None, enabled=False)
+        metrics = tracker._get_faq_metrics(window_minutes=15)
+
+        assert metrics["total"] == 0
+        assert metrics["success"] == 0
+        assert metrics["failure"] == 0
+        assert metrics["success_rate"] is None
+
+    def test_dashboard_summary_includes_faq_latency(self):
+        """Test that dashboard summary includes faq_latency section."""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True)
+        summary = tracker.get_dashboard_summary(current_percent=100, window_minutes=15)
+
+        assert "faq_latency" in summary
+        assert "total" in summary["faq_latency"]
+        assert "success" in summary["faq_latency"]
+        assert "failure" in summary["faq_latency"]
+        assert "latency_percentiles" in summary["faq_latency"]
+
+    def test_faq_latency_records_in_correct_bucket(self):
+        """Test that FAQ latency is recorded in correct histogram bucket."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="faq-bucket-test",
+            success=True,
+            latency_ms=750.0,
+            task_type="faq"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        faq_latency_keys = [k for k in set_keys if "latency_bucket" in k and "faq" in k]
+        assert len(faq_latency_keys) >= 1, "Should record FAQ latency bucket"
+
+    def test_task_type_default_is_general(self):
+        """Test that default task_type is 'general' (no FAQ metrics recorded)."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="default-type-test",
+            success=True,
+            latency_ms=1000.0
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        faq_keys = [k for k in set_keys if "faq" in k]
+        assert len(faq_keys) == 0, "Default task_type should not record FAQ metrics"
+
+    def test_faq_counts_tracked_without_latency(self):
+        """Test that FAQ counts are tracked even when latency_ms is None."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="faq-no-latency",
+            success=True,
+            latency_ms=None,
+            task_type="faq"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        faq_total_keys = [k for k in set_keys if "faq.total" in k]
+        faq_success_keys = [k for k in set_keys if "faq.success" in k]
+        faq_latency_keys = [k for k in set_keys if "faq" in k and "latency_bucket" in k]
+
+        assert len(faq_total_keys) >= 1, "FAQ total should be tracked without latency"
+        assert len(faq_success_keys) >= 1, "FAQ success should be tracked without latency"
+        assert len(faq_latency_keys) == 0, "FAQ latency bucket should NOT be tracked without latency"
+
+    def test_faq_5xx_error_tracked(self):
+        """Test that FAQ 5xx errors are tracked correctly."""
+        mock_redis = MagicMock()
+        mock_pipe = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipe)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=None)
+        mock_redis.get.return_value = None
+
+        tracker = RolloutTracker(redis_client=mock_redis, enabled=True, ttl_seconds=86400)
+        tracker.record_langgraph_task(
+            trace_id="faq-5xx-error",
+            success=False,
+            latency_ms=None,
+            is_5xx_error=True,
+            task_type="faq"
+        )
+
+        set_calls = mock_pipe.set.call_args_list
+        set_keys = [call[0][0] for call in set_calls]
+
+        faq_5xx_keys = [k for k in set_keys if "faq.error_5xx" in k]
+        assert len(faq_5xx_keys) >= 1, "FAQ 5xx error should be tracked"
