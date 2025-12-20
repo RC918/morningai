@@ -5,9 +5,68 @@ import redis
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+def _get_redis_key_prefix() -> str:
+    """
+    Get the Redis key prefix from settings, normalized to not have trailing colon.
+
+    Returns empty string if settings import fails (legacy behavior fallback).
+    Normalizes prefix to ensure no double-colon issues (e.g., "stg:" -> "stg").
+    """
+    try:
+        from common.config.settings import settings
+        prefix = getattr(settings, 'redis_key_prefix', None) or ""
+        # Normalize: remove trailing colon if present (we add it in key construction)
+        return prefix.rstrip(":")
+    except ImportError:
+        return ""
+
+
+def _get_pr_updated_keys(repo: str, pr_number: int) -> Tuple[str, str]:
+    """
+    Get both prefixed and legacy PR key base names.
+
+    Returns:
+        Tuple of (prefixed_pr_key, legacy_pr_key)
+        - prefixed_pr_key: Key with REDIS_KEY_PREFIX (e.g., "morningai:pr_updated:owner/repo:123")
+        - legacy_pr_key: Key without prefix (e.g., "pr_updated:owner/repo:123")
+
+    The prefixed key is used for new writes; legacy key is checked for backward compatibility
+    to avoid breaking in-flight jobs during deployment.
+    """
+    prefix = _get_redis_key_prefix()
+    legacy_pr_key = f"pr_updated:{repo}:{pr_number}"
+    if prefix:
+        prefixed_pr_key = f"{prefix}:{legacy_pr_key}"
+    else:
+        prefixed_pr_key = legacy_pr_key
+    return prefixed_pr_key, legacy_pr_key
+
+
+def _get_with_legacy_fallback(r, prefixed_key: str, legacy_key: str) -> Optional[str]:
+    """
+    Get a value from Redis, checking prefixed key first, then legacy key.
+
+    This helper reduces code duplication for the "prefixed-first, legacy-fallback"
+    pattern used throughout the PR_UPDATED debounce functions.
+
+    Args:
+        r: Redis client instance
+        prefixed_key: The prefixed key to check first
+        legacy_key: The legacy key to check as fallback
+
+    Returns:
+        The value from Redis, or None if not found in either key
+    """
+    value = r.get(prefixed_key)
+    # Fallback to legacy key if prefixed key is not found and they are different
+    if value is None and prefixed_key != legacy_key:
+        value = r.get(legacy_key)
+    return value
 
 
 def check_pr_rate_limit(
@@ -486,6 +545,10 @@ def check_pr_updated_debounce(
     CRITICAL FIX: Single push now triggers review after debounce window.
     Previous implementation required a second event to trigger processing.
 
+    Environment Isolation: Uses REDIS_KEY_PREFIX to separate production/staging keys.
+    Backward Compatibility: Checks both prefixed and legacy keys to avoid breaking
+    in-flight jobs during deployment.
+
     Args:
         repo: Repository identifier (e.g., "owner/repo")
         pr_number: Pull request number
@@ -501,16 +564,20 @@ def check_pr_updated_debounce(
         - job_token: Token to pass to delayed job for verification
         - reason: Human-readable explanation
     """
-    pr_key = f"pr_updated:{repo}:{pr_number}"
+    pr_key, legacy_pr_key = _get_pr_updated_keys(repo, pr_number)
     job_scheduled_key = f"{pr_key}:job_scheduled"
     last_processed_key = f"{pr_key}:last_processed"
     latest_payload_key = f"{pr_key}:latest_payload"
+    legacy_job_scheduled_key = f"{legacy_pr_key}:job_scheduled"
+    legacy_last_processed_key = f"{legacy_pr_key}:last_processed"
+    legacy_latest_payload_key = f"{legacy_pr_key}:latest_payload"
 
     try:
         r = _get_redis_client(redis_url)
         current_time = time.time()
 
-        last_processed = r.get(last_processed_key)
+        # Check throttle: prefixed first, then legacy fallback
+        last_processed = _get_with_legacy_fallback(r, last_processed_key, legacy_last_processed_key)
         if last_processed:
             last_processed_time = float(last_processed)
             time_since_last = current_time - last_processed_time
@@ -536,6 +603,54 @@ def check_pr_updated_debounce(
         job_ttl = debounce_seconds + job_timeout + PR_UPDATED_JOB_SCHEDULED_TTL_BUFFER
         job_token = str(uuid.uuid4())
 
+        # Check if legacy job exists (backward compatibility during deployment)
+        # If legacy job exists, don't schedule new prefixed job to avoid duplicates
+        legacy_job_exists = False
+        if pr_key != legacy_pr_key:
+            legacy_job_exists = r.exists(legacy_job_scheduled_key) > 0
+
+        if legacy_job_exists:
+            # Legacy job in progress - update legacy payload and extend TTL
+            existing_payload = r.get(legacy_latest_payload_key)
+            event_count = 1
+            if existing_payload:
+                try:
+                    existing_data = json.loads(existing_payload)
+                    event_count = existing_data.get("event_count", 0) + 1
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            payload_data = {
+                "repo": repo,
+                "pr_number": pr_number,
+                "updated_at": current_time,
+                "event_count": event_count,
+            }
+            r.set(
+                legacy_latest_payload_key,
+                json.dumps(payload_data),
+                ex=job_ttl + PR_UPDATED_PENDING_KEY_TTL_BUFFER
+            )
+            r.expire(legacy_job_scheduled_key, job_ttl)
+
+            logger.debug(
+                "[PRUpdatedDebounce] Legacy job in progress - updating legacy payload",
+                extra={
+                    "operation": "pr_updated_debounce_legacy_update",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "event_count": event_count,
+                    "legacy_key": legacy_pr_key,
+                }
+            )
+            return PRUpdatedDebounceResult(
+                should_process=False,
+                should_schedule_job=False,
+                reason=f"debounced: legacy job in progress (event #{event_count})",
+                pr_key=pr_key,
+            )
+
+        # Try to set prefixed job_scheduled key
         was_set = r.set(job_scheduled_key, job_token, nx=True, ex=job_ttl)
 
         payload_data = {
@@ -559,6 +674,7 @@ def check_pr_updated_debounce(
                     "pr_number": pr_number,
                     "job_token": job_token,
                     "debounce_seconds": debounce_seconds,
+                    "pr_key": pr_key,
                 }
             )
             return PRUpdatedDebounceResult(
@@ -576,7 +692,7 @@ def check_pr_updated_debounce(
                 try:
                     existing_data = json.loads(existing_payload)
                     event_count = existing_data.get("event_count", 0) + 1
-                except Exception:
+                except (json.JSONDecodeError, TypeError):
                     pass
 
             payload_data["event_count"] = event_count
@@ -617,11 +733,12 @@ def check_pr_updated_debounce(
                 "pr_number": pr_number,
             }
         )
+        pr_key_fallback, _ = _get_pr_updated_keys(repo, pr_number)
         return PRUpdatedDebounceResult(
             should_process=False,
             should_schedule_job=False,
             reason="redis_unavailable: skipped (fail-closed)",
-            pr_key=f"pr_updated:{repo}:{pr_number}",
+            pr_key=pr_key_fallback,
         )
     except Exception as e:
         logger.warning(
@@ -633,11 +750,12 @@ def check_pr_updated_debounce(
                 "pr_number": pr_number,
             }
         )
+        pr_key_fallback, _ = _get_pr_updated_keys(repo, pr_number)
         return PRUpdatedDebounceResult(
             should_process=False,
             should_schedule_job=False,
             reason="error: skipped (fail-closed)",
-            pr_key=f"pr_updated:{repo}:{pr_number}",
+            pr_key=pr_key_fallback,
         )
 
 
@@ -653,6 +771,9 @@ def verify_pr_updated_job_token(
     Call this at the start of the delayed job to prevent stale jobs
     from processing if a newer job was scheduled.
 
+    Environment Isolation: Uses REDIS_KEY_PREFIX to separate production/staging keys.
+    Backward Compatibility: Checks both prefixed and legacy keys.
+
     Args:
         repo: Repository identifier
         pr_number: Pull request number
@@ -662,12 +783,15 @@ def verify_pr_updated_job_token(
     Returns:
         True if this job should proceed, False if it should exit
     """
-    pr_key = f"pr_updated:{repo}:{pr_number}"
+    pr_key, legacy_pr_key = _get_pr_updated_keys(repo, pr_number)
     job_scheduled_key = f"{pr_key}:job_scheduled"
+    legacy_job_scheduled_key = f"{legacy_pr_key}:job_scheduled"
 
     try:
         r = _get_redis_client(redis_url)
-        current_token = r.get(job_scheduled_key)
+
+        # Check prefixed key first, then legacy fallback
+        current_token = _get_with_legacy_fallback(r, job_scheduled_key, legacy_job_scheduled_key)
 
         if current_token is None:
             logger.warning(
@@ -719,6 +843,9 @@ def get_pr_updated_latest_payload(
 
     Call this in the delayed job after sleep to get the most recent event data.
 
+    Environment Isolation: Uses REDIS_KEY_PREFIX to separate production/staging keys.
+    Backward Compatibility: Checks both prefixed and legacy keys.
+
     Args:
         repo: Repository identifier
         pr_number: Pull request number
@@ -727,12 +854,15 @@ def get_pr_updated_latest_payload(
     Returns:
         Dict with latest payload data, or None if not found
     """
-    pr_key = f"pr_updated:{repo}:{pr_number}"
+    pr_key, legacy_pr_key = _get_pr_updated_keys(repo, pr_number)
     latest_payload_key = f"{pr_key}:latest_payload"
+    legacy_latest_payload_key = f"{legacy_pr_key}:latest_payload"
 
     try:
         r = _get_redis_client(redis_url)
-        payload_str = r.get(latest_payload_key)
+
+        # Check prefixed key first, then legacy fallback
+        payload_str = _get_with_legacy_fallback(r, latest_payload_key, legacy_latest_payload_key)
 
         if payload_str:
             return json.loads(payload_str)
@@ -763,16 +893,21 @@ def mark_pr_updated_processed(
     Call this after successfully processing a PR_UPDATED review.
     Clears the job_scheduled key and sets last_processed timestamp.
 
+    Environment Isolation: Uses REDIS_KEY_PREFIX to separate production/staging keys.
+    Backward Compatibility: Cleans up both prefixed and legacy keys.
+
     Args:
         repo: Repository identifier
         pr_number: Pull request number
         throttle_seconds: Throttle window for TTL
         redis_url: Redis connection URL (uses settings.redis_url if None)
     """
-    pr_key = f"pr_updated:{repo}:{pr_number}"
+    pr_key, legacy_pr_key = _get_pr_updated_keys(repo, pr_number)
     last_processed_key = f"{pr_key}:last_processed"
     job_scheduled_key = f"{pr_key}:job_scheduled"
     latest_payload_key = f"{pr_key}:latest_payload"
+    legacy_job_scheduled_key = f"{legacy_pr_key}:job_scheduled"
+    legacy_latest_payload_key = f"{legacy_pr_key}:latest_payload"
 
     try:
         r = _get_redis_client(redis_url)
@@ -784,8 +919,13 @@ def mark_pr_updated_processed(
             str(current_time),
             ex=throttle_seconds + PR_UPDATED_THROTTLE_KEY_TTL_BUFFER
         )
+        # Clean up prefixed keys
         pipeline.delete(job_scheduled_key)
         pipeline.delete(latest_payload_key)
+        # Also clean up legacy keys (backward compatibility)
+        if pr_key != legacy_pr_key:
+            pipeline.delete(legacy_job_scheduled_key)
+            pipeline.delete(legacy_latest_payload_key)
         pipeline.execute()
 
         logger.info(
@@ -794,6 +934,7 @@ def mark_pr_updated_processed(
                 "operation": "pr_updated_mark_processed",
                 "repo": repo,
                 "pr_number": pr_number,
+                "pr_key": pr_key,
             }
         )
     except Exception as e:
@@ -882,6 +1023,8 @@ def increment_reschedule_count(
     P2 Robustness: Prevents infinite reschedule loops by limiting
     the number of times a single job can reschedule itself.
 
+    Environment Isolation: Uses REDIS_KEY_PREFIX to separate production/staging keys.
+
     Args:
         repo: Repository identifier
         pr_number: Pull request number
@@ -894,7 +1037,7 @@ def increment_reschedule_count(
         - current_count: Current reschedule count after increment
         - exceeded_limit: True if count exceeds PR_UPDATED_MAX_RESCHEDULE_COUNT
     """
-    pr_key = f"pr_updated:{repo}:{pr_number}"
+    pr_key, _ = _get_pr_updated_keys(repo, pr_number)
     reschedule_count_key = f"{pr_key}:reschedule_count:{job_token}"
 
     try:
