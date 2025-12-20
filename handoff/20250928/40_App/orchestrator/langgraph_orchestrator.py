@@ -209,15 +209,60 @@ def get_checkpointer():
     Factory function to create the appropriate checkpointer based on configuration.
 
     Returns:
+        - PostgresSaver if USE_POSTGRES_CHECKPOINTER=true and DATABASE_URL is configured
         - RedisSaver if USE_REDIS_CHECKPOINTER=true and REDIS_URL is configured
         - MemorySaver as fallback (default)
 
     Configuration:
+        - USE_POSTGRES_CHECKPOINTER: Enable PostgreSQL-based checkpointer (default: false)
+        - DATABASE_URL: PostgreSQL connection URL (required for PostgreSQL checkpointer)
         - USE_REDIS_CHECKPOINTER: Enable Redis-based checkpointer (default: false)
         - REDIS_CHECKPOINTER_TTL: TTL in seconds for checkpoint entries (default: 86400)
         - REDIS_URL: Redis connection URL (required for Redis checkpointer)
+
+    Note:
+        PostgreSQL checkpointer is recommended over Redis for Upstash Redis,
+        which doesn't support RediSearch (required by langgraph-checkpoint-redis).
     """
     import os
+
+    use_postgres = settings.use_postgres_checkpointer
+    database_url = settings.database_url or os.environ.get("DATABASE_URL")
+
+    if use_postgres and database_url:
+        try:
+            from langgraph.checkpoint.postgres import PostgresSaver
+
+            checkpointer = PostgresSaver.from_conn_string(database_url)
+            checkpointer.setup()
+
+            logger.info(
+                "Using PostgreSQL checkpointer for LangGraph state persistence",
+                extra={
+                    "operation": "get_checkpointer",
+                    "checkpointer_type": "postgres",
+                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
+                }
+            )
+
+            return checkpointer
+
+        except ImportError as e:
+            logger.warning(
+                f"langgraph-checkpoint-postgres not installed, trying Redis checkpointer: {e}",
+                extra={
+                    "operation": "get_checkpointer",
+                    "error": str(e)
+                }
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize PostgreSQL checkpointer, trying Redis checkpointer: {e}",
+                extra={
+                    "operation": "get_checkpointer",
+                    "error": str(e)
+                }
+            )
 
     use_redis = settings.use_redis_checkpointer
     redis_url = settings.redis_url or os.environ.get("REDIS_URL")
@@ -228,8 +273,6 @@ def get_checkpointer():
 
             ttl_seconds = settings.redis_checkpointer_ttl
 
-            # Build TTL configuration dict for RedisSaver
-            # RedisSaver expects TTL in minutes, so convert from seconds
             ttl_config = None
             if ttl_seconds and ttl_seconds > 0:
                 ttl_minutes = ttl_seconds / 60
@@ -238,7 +281,6 @@ def get_checkpointer():
                     "refresh_on_read": True
                 }
 
-            # Create RedisSaver with TTL configuration
             checkpointer = RedisSaver(redis_url=redis_url, ttl=ttl_config)
             checkpointer.setup()
 
@@ -272,12 +314,13 @@ def get_checkpointer():
                 }
             )
 
-    # Fallback to in-memory checkpointer
     logger.info(
         "Using in-memory MemorySaver for LangGraph state persistence",
         extra={
             "operation": "get_checkpointer",
             "checkpointer_type": "memory",
+            "use_postgres_configured": use_postgres,
+            "database_url_available": bool(database_url),
             "use_redis_configured": use_redis,
             "redis_url_available": bool(redis_url)
         }

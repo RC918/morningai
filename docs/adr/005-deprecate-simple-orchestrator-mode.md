@@ -2,11 +2,12 @@
 
 ## Status
 
-Accepted
+**Completed** - Simple Mode code removed on 2025-12-15 (Issue #2651)
 
 ## Date
 
-2025-12-03
+2025-12-03 (Initial decision)
+2025-12-15 (Code removal completed)
 
 ## Context
 
@@ -78,9 +79,30 @@ See `docs/runbooks/canary_rollback.md` for detailed rollback procedure.
 - FAQ tasks exempt from LangGraph to preserve low-latency path
 - Rollback procedure documented and tested
 
+## Completion (2025-12-15)
+
+LangGraph reached 100% rollout on 2025-12-14. The following cleanup was performed in Issue #2651:
+
+### Code Removed
+- `record_simple_task` method from `RolloutTracker` class
+- Related unit tests and integration tests
+- Canary verification sections from `POST_DEPLOY_SMOKE_TEST_CHECKLIST.md`
+
+### CI Guard Added
+- `simple-mode-guard.yml` workflow prevents reintroduction of:
+  - `record_simple_task` method references
+  - "Simple Mode" string literals
+  - `USE_LANGGRAPH_PERCENT` / `use_langgraph_percent` settings
+
+### Remaining Cleanup (Future)
+- Remove `NOTE: removed in Issue #2651` comments after one release cycle (~2026-01-15)
+- Archive `canary_rollback.md` runbook (no longer applicable)
+- Remove canary-related environment variables from `render.yaml`
+
 ## Related
 
 - Issue: #1814 [P2] LangGraph Mode Full Switch
-- Runbook: `docs/runbooks/canary_rollback.md`
+- Issue: #2651 Remove Simple Mode code after LangGraph 100% rollout
+- Runbook: `docs/runbooks/canary_rollback.md` (archived)
 - Monitoring: `tools/monitoring/canary_dashboard.py`
 - Phase 3 Guide: `docs/ops/PHASE3_STAGING_ROLLOUT_GUIDE.md`

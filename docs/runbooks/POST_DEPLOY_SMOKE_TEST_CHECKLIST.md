@@ -1,6 +1,6 @@
 # Post-Deploy & Rollback Smoke Test Checklist
 
-**Last Updated**: 2025-12-10  
+**Last Updated**: 2025-12-15  
 **Document Owner**: Engineering Team  
 **Purpose**: Standardized verification procedure after deployments or rollbacks
 
@@ -8,12 +8,11 @@
 
 ## Overview
 
-This checklist provides a unified, ordered set of verification steps to run after any deployment or rollback operation. It consolidates checks from multiple systems (RLS, LangGraph canary, backend health) into a single actionable procedure.
+This checklist provides a unified, ordered set of verification steps to run after any deployment or rollback operation. It consolidates checks from multiple systems (RLS, backend health) into a single actionable procedure.
 
 **When to use this checklist**:
 - After deploying RLS Phase 2 migrations
 - After executing RLS Quick Rollback or Full Rollback
-- After LangGraph canary rollback
 - After any production deployment
 - After emergency reverts
 
@@ -27,12 +26,10 @@ Use this table to quickly identify which sections are required for your scenario
 
 | Scenario | Required Sections | Optional Sections |
 |----------|-------------------|-------------------|
-| **General prod deploy** | Section 1, Section 4 | Section 5 |
-| **RLS deploy** | Section 1, Section 2, Section 4 | Section 5 |
-| **RLS quick rollback** | Section 1, Section 2, Section 4 | Section 5 |
-| **RLS full rollback** | Section 1, Section 2, Section 4 | Section 5 |
-| **Canary rollout** | Section 1, Section 3, Section 4 | Section 5 |
-| **Canary rollback** | Section 1, Section 3, Section 4 | Section 5 |
+| **General prod deploy** | Section 1, Section 3 | Section 4 |
+| **RLS deploy** | Section 1, Section 2, Section 3 | Section 4 |
+| **RLS quick rollback** | Section 1, Section 2, Section 3 | Section 4 |
+| **RLS full rollback** | Section 1, Section 2, Section 3 | Section 4 |
 
 ---
 
@@ -45,7 +42,6 @@ The following matrix classifies all checks by priority and automation status. Us
 | Backend health (`/healthz` + key APIs) | **Must-pass** | Workflow | Every prod deploy | `post-deploy-health-assertions.yml` |
 | Application smoke (`/healthz`, `/api/billing/plans`) | **Must-pass** | Workflow | Every prod deploy | `agent-mvp-smoke.yml` |
 | RLS Supabase health (RLS enabled, policies) | **Must-pass** | Workflow | RLS deploy/rollback | `rls-supabase-health.yml` |
-| LangGraph canary metrics | **Must-pass** (canary) | Manual | Canary rollout/rollback | Canary dashboard |
 | Agent FAQ endpoint | Optional | Workflow | On-demand | `agent-mvp-smoke.yml` |
 | Sentry integration test | Optional | Workflow | On-demand | `agent-mvp-smoke.yml` |
 | Observability scan (Sentry, logs) | Optional | Manual | After major deploy | Sentry, Render |
@@ -77,17 +73,6 @@ The following conditions should trigger immediate rollback consideration. These 
 | RLS disabled | Any critical table (`agent_tasks`, `tenants`, `user_profiles`) has `rowsecurity = false` | `rls-supabase-health.yml` | P0 - Follow [RLS Quick Rollback](../RLS_DEPLOYMENT_STATUS.md#step-1-quick-rollback-policy-only---first-response) |
 | Missing policies | TRUE tenant isolation policies < 4 | `rls-supabase-health.yml` | P0 - Follow RLS Quick Rollback |
 | Permission errors | Widespread user reports of "permission denied" or data access issues | User reports | P0 - Follow RLS Quick Rollback |
-
-### LangGraph Canary Rollback Triggers
-
-As defined in [Canary Rollback Runbook](./canary_rollback.md):
-
-| Trigger | Threshold | Source | Action |
-|---------|-----------|--------|--------|
-| p95 latency breach | > 2500ms | Canary dashboard | Follow canary rollback |
-| 5xx error rate breach | > 1.0% | Canary dashboard | Follow canary rollback |
-| Planner failure rate breach | > 5.0% | Canary dashboard | Follow canary rollback |
-| SLO compliance | `canary.slo_compliance.all_ok = false` | Canary dashboard | Follow canary rollback |
 
 ---
 
@@ -192,47 +177,11 @@ WHERE proname IN ('get_user_tenant_id', 'current_user_tenant_id');
 
 ---
 
-## Section 3: LangGraph Canary Verification [MUST-PASS for canary changes]
-
-These checks verify LangGraph canary deployment status. **Must pass for any canary rollout or rollback.**
-
-### 3.1 Canary Metrics Dashboard
-
-**URL**: [https://api.morningai.app/api/phase7/monitoring/dashboard](https://api.morningai.app/api/phase7/monitoring/dashboard)
-
-**Check via curl**:
-```bash
-curl -sS https://api.morningai.app/api/phase7/monitoring/dashboard | jq '.'
-```
-
-**Key metrics to verify**:
-- [ ] `canary.flags.use_langgraph_percent` matches expected value (0 after rollback)
-- [ ] `canary.slo_compliance.all_ok` is `true`
-- [ ] `canary.rates.error_5xx_rate` < 1.0%
-- [ ] `canary.rates.failure_rate` < 5.0%
-
-### 3.2 After Canary Rollback
-
-If you just executed a canary rollback, verify:
-
-- [ ] `USE_LANGGRAPH_PERCENT=0` in Render environment
-- [ ] Worker logs show "Using simple orchestrator" (not "Using LangGraph orchestrator")
-- [ ] `canary.counts.decisions_langgraph` stopped incrementing
-- [ ] `canary.counts.decisions_simple` continues incrementing
-
-**Reference**: [Canary Rollback Runbook](./canary_rollback.md)
-
-**Status**: [ ] PASS / [ ] FAIL / [ ] N/A (canary not in use)
-
-> **Gating**: If any canary check fails, **do not proceed**. Follow [Canary Rollback Runbook](./canary_rollback.md).
-
----
-
-## Section 4: Application Smoke Tests [MUST-PASS]
+## Section 3: Application Smoke Tests [MUST-PASS]
 
 These checks verify core application functionality. **Core endpoints must pass.**
 
-### 4.1 Automated Smoke Test (GitHub Action)
+### 3.1 Automated Smoke Test (GitHub Action)
 
 **Workflow**: `agent-mvp-smoke.yml`  
 **Trigger**: Automatic on push to main, or manual via workflow_dispatch
@@ -248,7 +197,7 @@ These checks verify core application functionality. **Core endpoints must pass.*
 - [ ] `/api/billing/plans` returns 200
 - [ ] (Optional) `/api/agent/faq` returns 202
 
-### 4.2 Manual Functional Test
+### 3.2 Manual Functional Test
 
 If automated tests are unavailable, perform these manual checks:
 
@@ -271,11 +220,11 @@ If automated tests are unavailable, perform these manual checks:
 
 ---
 
-## Section 5: Observability Verification [OPTIONAL]
+## Section 4: Observability Verification [OPTIONAL]
 
 These checks verify monitoring and alerting are operational. **Recommended after major deployments or incidents.**
 
-### 5.1 Sentry Integration
+### 4.1 Sentry Integration
 
 **Dashboard**: [Sentry Project](https://sentry.io) (requires login)
 
@@ -284,7 +233,7 @@ These checks verify monitoring and alerting are operational. **Recommended after
 - [ ] No spike in error rate
 - [ ] No unhandled exceptions related to recent changes
 
-### 5.2 Render Logs
+### 4.2 Render Logs
 
 **Dashboard**: [Render Dashboard](https://dashboard.render.com)
 
@@ -304,8 +253,8 @@ These checks verify monitoring and alerting are operational. **Recommended after
 Run these sections in order:
 1. [ ] Section 1: Backend Health Verification
 2. [ ] Section 2: RLS Verification (critical)
-3. [ ] Section 4: Application Smoke Tests
-4. [ ] Section 5: Observability Verification
+3. [ ] Section 3: Application Smoke Tests
+4. [ ] Section 4: Observability Verification
 
 **Reference**: [RLS Deployment Status](../RLS_DEPLOYMENT_STATUS.md)
 
@@ -314,7 +263,7 @@ Run these sections in order:
 Run these sections in order:
 1. [ ] Section 2.2: Manual RLS Verification (confirm policies reverted)
 2. [ ] Section 1: Backend Health Verification
-3. [ ] Section 4: Application Smoke Tests
+3. [ ] Section 3: Application Smoke Tests
 
 **Expected state after Quick Rollback**:
 - RLS still enabled on tables
@@ -326,23 +275,13 @@ Run these sections in order:
 Run these sections in order:
 1. [ ] Section 2.2: Manual RLS Verification (confirm schema reverted)
 2. [ ] Section 1: Backend Health Verification
-3. [ ] Section 4: Application Smoke Tests
-4. [ ] Section 5: Observability Verification
+3. [ ] Section 3: Application Smoke Tests
+4. [ ] Section 4: Observability Verification
 
 **Expected state after Full Rollback**:
 - `tenant_id` column removed from `agent_tasks`
 - RLS policies reverted to Phase 1
 - Application should be functional
-
-### After LangGraph Canary Rollback
-
-Run these sections in order:
-1. [ ] Section 3: LangGraph Canary Verification (critical)
-2. [ ] Section 1: Backend Health Verification
-3. [ ] Section 4: Application Smoke Tests
-4. [ ] Section 5: Observability Verification
-
-**Reference**: [Canary Rollback Runbook](./canary_rollback.md)
 
 ---
 
@@ -354,7 +293,6 @@ If any **must-pass** check fails:
 2. **Document the failure**: Note which check failed and the error message
 3. **Check rollback triggers**: If threshold is met, initiate appropriate rollback:
    - RLS issues: [RLS Deployment Status](../RLS_DEPLOYMENT_STATUS.md)
-   - Canary issues: [Canary Rollback Runbook](./canary_rollback.md)
 4. **Notify stakeholders**: Post in #engineering Slack channel
 5. **Create incident report**: Document timeline, impact, and resolution
 
@@ -394,6 +332,7 @@ After running the checklist, record the results below. This log serves as an aud
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-15 | Remove LangGraph canary sections after 100% rollout (Issue #2651) | Devin |
 | 2025-12-10 | Add Scenario Selector, gating statements, fix table list, improve URL formatting | Devin |
 | 2025-12-10 | Add Verification Matrix, Rollback Triggers, Execution Log; classify checks as must-pass/optional | Devin |
 | 2025-12-10 | Initial document creation | Devin |

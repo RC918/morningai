@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Simple Mode Orchestrator Deprecated** (Issue #2651, PR #2767)
+  - **Date**: 2025-12-15
+  - **Reason**: LangGraph reached 100% rollout on 2025-12-14
+  - **Impact**: All orchestrator tasks now use LangGraph exclusively
+  - **Code Removed**:
+    - `record_simple_task` method from `RolloutTracker` class
+    - Related unit tests and integration tests for Simple Mode
+    - Canary verification sections from `POST_DEPLOY_SMOKE_TEST_CHECKLIST.md`
+  - **CI Guard Added**: `simple-mode-guard.yml` workflow prevents reintroduction of deprecated symbols
+  - **Reference**: [ADR-005: Deprecate Simple Orchestrator Mode](docs/adr/005-deprecate-simple-orchestrator-mode.md)
+
 ### Changed
 - **Documentation Migration (Epic #2374 Phase 3)** - Major reorganization of root directory documentation
   - **PR #2584 (PR6)**: Moved 13 CTO reports from root to `docs/reports/cto/`
