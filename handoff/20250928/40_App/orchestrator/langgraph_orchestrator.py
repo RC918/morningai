@@ -3080,11 +3080,12 @@ def publisher_node(state: AgentState) -> AgentState:
                     )
                     # Conservative strategy: downgrade all inline comments to file-level
                     # This prevents 422 errors from stale line numbers
+                    drift_downgrade_count = len(inline_comments)
                     file_level_comments.extend(inline_comments)
-                    downgraded_count += len(inline_comments)
                     inline_comments = []
                     state["publish_result"]["line_drift_detected"] = True
-                    state["publish_result"]["line_drift_downgraded"] = downgraded_count
+                    # Store only drift-related downgrades (separate from validation downgrades)
+                    state["publish_result"]["line_drift_downgraded"] = drift_downgrade_count
             except Exception as drift_check_error:
                 # Fail-open: if we can't check head_sha, proceed with posting
                 logger.warning(
