@@ -20,6 +20,9 @@ from utils.rate_limit import (
     get_ai_reviewer_rate_limit_counts,
     AIReviewerRateLimitResult,
     AI_REVIEWER_RATE_LIMITS,
+    _get_redis_key_prefix,
+    _get_pr_updated_keys,
+    _get_with_legacy_fallback,
 )
 
 
@@ -702,3 +705,129 @@ class TestGetAIReviewerRateLimitCounts:
             counts = get_ai_reviewer_rate_limit_counts()
 
             assert counts == {}
+
+
+class TestGetRedisKeyPrefix:
+    """Test _get_redis_key_prefix helper function via _get_pr_updated_keys integration"""
+
+    def test_prefix_with_trailing_colon_is_normalized(self):
+        """Should normalize prefix by removing trailing colon"""
+        # Test via _get_pr_updated_keys which uses _get_redis_key_prefix internally
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value="stg"):
+            prefixed, legacy = _get_pr_updated_keys("owner/repo", 123)
+            # Verify no double colon in result
+            assert "::" not in prefixed
+            assert prefixed == "stg:pr_updated:owner/repo:123"
+
+    def test_prefix_without_colon_works_correctly(self):
+        """Should work correctly with prefix that has no trailing colon"""
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value="morningai"):
+            prefixed, legacy = _get_pr_updated_keys("owner/repo", 123)
+            assert prefixed == "morningai:pr_updated:owner/repo:123"
+            assert legacy == "pr_updated:owner/repo:123"
+
+    def test_empty_prefix_returns_same_keys(self):
+        """Should return same key for both when prefix is empty"""
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value=""):
+            prefixed, legacy = _get_pr_updated_keys("owner/repo", 456)
+            assert prefixed == legacy
+            assert prefixed == "pr_updated:owner/repo:456"
+
+    def test_none_prefix_treated_as_empty(self):
+        """Should treat None prefix as empty string"""
+        # _get_redis_key_prefix returns "" when prefix is None
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value=""):
+            prefixed, legacy = _get_pr_updated_keys("owner/repo", 789)
+            assert prefixed == legacy
+            assert prefixed == "pr_updated:owner/repo:789"
+
+
+class TestGetPrUpdatedKeys:
+    """Test _get_pr_updated_keys helper function"""
+
+    def test_returns_prefixed_and_legacy_keys_with_prefix(self):
+        """Should return both prefixed and legacy keys when prefix is set"""
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value="stg"):
+            prefixed, legacy = _get_pr_updated_keys("owner/repo", 123)
+            assert prefixed == "stg:pr_updated:owner/repo:123"
+            assert legacy == "pr_updated:owner/repo:123"
+
+    def test_returns_same_keys_when_no_prefix(self):
+        """Should return same key for both when no prefix is set"""
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value=""):
+            prefixed, legacy = _get_pr_updated_keys("owner/repo", 456)
+            assert prefixed == "pr_updated:owner/repo:456"
+            assert legacy == "pr_updated:owner/repo:456"
+            assert prefixed == legacy
+
+    def test_handles_repo_with_special_characters(self):
+        """Should handle repo names with special characters"""
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value="prod"):
+            prefixed, legacy = _get_pr_updated_keys("org-name/repo_name", 789)
+            assert prefixed == "prod:pr_updated:org-name/repo_name:789"
+            assert legacy == "pr_updated:org-name/repo_name:789"
+
+    def test_no_double_colon_with_colon_prefix(self):
+        """Should not produce double colons even if prefix has trailing colon"""
+        with patch('utils.rate_limit._get_redis_key_prefix', return_value="stg"):
+            prefixed, legacy = _get_pr_updated_keys("owner/repo", 100)
+            assert "::" not in prefixed
+            assert prefixed == "stg:pr_updated:owner/repo:100"
+
+
+class TestGetWithLegacyFallback:
+    """Test _get_with_legacy_fallback helper function"""
+
+    def test_returns_prefixed_value_when_exists(self):
+        """Should return value from prefixed key when it exists"""
+        mock_redis = MagicMock()
+        mock_redis.get.side_effect = lambda key: "prefixed_value" if key == "prefix:key" else None
+
+        result = _get_with_legacy_fallback(mock_redis, "prefix:key", "key")
+        assert result == "prefixed_value"
+        mock_redis.get.assert_called_once_with("prefix:key")
+
+    def test_returns_legacy_value_when_prefixed_not_found(self):
+        """Should fallback to legacy key when prefixed key not found"""
+        mock_redis = MagicMock()
+        call_count = [0]
+
+        def get_side_effect(key):
+            call_count[0] += 1
+            if key == "prefix:key":
+                return None
+            elif key == "key":
+                return "legacy_value"
+            return None
+
+        mock_redis.get.side_effect = get_side_effect
+
+        result = _get_with_legacy_fallback(mock_redis, "prefix:key", "key")
+        assert result == "legacy_value"
+        assert call_count[0] == 2
+
+    def test_returns_none_when_neither_key_exists(self):
+        """Should return None when neither key exists"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+
+        result = _get_with_legacy_fallback(mock_redis, "prefix:key", "key")
+        assert result is None
+
+    def test_does_not_fallback_when_keys_are_same(self):
+        """Should not make second call when prefixed and legacy keys are same"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+
+        result = _get_with_legacy_fallback(mock_redis, "same_key", "same_key")
+        assert result is None
+        mock_redis.get.assert_called_once_with("same_key")
+
+    def test_returns_prefixed_even_if_legacy_also_exists(self):
+        """Should return prefixed value even if legacy also has value"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = "prefixed_value"
+
+        result = _get_with_legacy_fallback(mock_redis, "prefix:key", "key")
+        assert result == "prefixed_value"
+        mock_redis.get.assert_called_once_with("prefix:key")

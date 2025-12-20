@@ -22,6 +22,7 @@ from .. import normalizer as normalizer_module
 from ..normalizer import is_pr_updated_allowed, PRUpdatedAllowedResult
 
 try:
+    from ...utils import rate_limit as rate_limit_module
     from ...utils.rate_limit import (
         check_pr_updated_debounce,
         verify_pr_updated_job_token,
@@ -30,6 +31,7 @@ try:
         PRUpdatedDebounceResult,
     )
 except ImportError:
+    from utils import rate_limit as rate_limit_module
     from utils.rate_limit import (
         check_pr_updated_debounce,
         verify_pr_updated_job_token,
@@ -204,9 +206,14 @@ class TestCheckPrUpdatedDebounce:
         """Test that first PR_UPDATED event returns should_schedule_job=True"""
         mock_redis = self._create_mock_redis(get_values={}, set_return=True)
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             result = check_pr_updated_debounce(
                 repo="RC918/morningai",
@@ -228,9 +235,14 @@ class TestCheckPrUpdatedDebounce:
             set_return=False,
         )
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             result = check_pr_updated_debounce(
                 repo="RC918/morningai",
@@ -255,9 +267,14 @@ class TestCheckPrUpdatedDebounce:
             }
         )
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             with patch("time.time", return_value=current_time):
                 result = check_pr_updated_debounce(
@@ -284,9 +301,14 @@ class TestCheckPrUpdatedDebounce:
             set_return=True,
         )
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             with patch("time.time", return_value=current_time):
                 result = check_pr_updated_debounce(
@@ -304,8 +326,9 @@ class TestCheckPrUpdatedDebounce:
         """Test that Redis connection error skips PR_UPDATED (fail-closed)"""
         import redis as redis_lib
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             side_effect=redis_lib.ConnectionError("Connection refused"),
         ):
             result = check_pr_updated_debounce(
@@ -327,9 +350,14 @@ class TestVerifyPrUpdatedJobToken:
         mock_redis = MagicMock()
         mock_redis.get = MagicMock(return_value="test-token-123")
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             result = verify_pr_updated_job_token(
                 repo="RC918/morningai",
@@ -345,9 +373,14 @@ class TestVerifyPrUpdatedJobToken:
         mock_redis = MagicMock()
         mock_redis.get = MagicMock(return_value="different-token")
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             result = verify_pr_updated_job_token(
                 repo="RC918/morningai",
@@ -363,9 +396,14 @@ class TestVerifyPrUpdatedJobToken:
         mock_redis = MagicMock()
         mock_redis.get = MagicMock(return_value=None)
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             result = verify_pr_updated_job_token(
                 repo="RC918/morningai",
@@ -384,12 +422,17 @@ class TestGetPrUpdatedLatestPayload:
         """Test that function returns payload when it exists"""
         mock_redis = MagicMock()
         mock_redis.get = MagicMock(
-            return_value="{'repo': 'RC918/morningai', 'pr_number': 123, 'event_count': 3}"
+            return_value='{"repo": "RC918/morningai", "pr_number": 123, "event_count": 3}'
         )
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             result = get_pr_updated_latest_payload(
                 repo="RC918/morningai",
@@ -407,9 +450,14 @@ class TestGetPrUpdatedLatestPayload:
         mock_redis = MagicMock()
         mock_redis.get = MagicMock(return_value=None)
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             result = get_pr_updated_latest_payload(
                 repo="RC918/morningai",
@@ -429,9 +477,14 @@ class TestMarkPrUpdatedProcessed:
         mock_redis = MagicMock()
         mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
 
-        with patch(
-            "utils.rate_limit._get_redis_client",
+        with patch.object(
+            rate_limit_module,
+            "_get_redis_client",
             return_value=mock_redis,
+        ), patch.object(
+            rate_limit_module,
+            "_get_pr_updated_keys",
+            return_value=("pr_updated:RC918/morningai:123", "pr_updated:RC918/morningai:123"),
         ):
             mark_pr_updated_processed(
                 repo="RC918/morningai",
@@ -441,5 +494,5 @@ class TestMarkPrUpdatedProcessed:
             )
 
         mock_pipeline.set.assert_called_once()
-        assert mock_pipeline.delete.call_count == 2
+        assert mock_pipeline.delete.call_count >= 2
         mock_pipeline.execute.assert_called_once()

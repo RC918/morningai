@@ -47,6 +47,28 @@ def _get_pr_updated_keys(repo: str, pr_number: int) -> Tuple[str, str]:
     return prefixed_pr_key, legacy_pr_key
 
 
+def _get_with_legacy_fallback(r, prefixed_key: str, legacy_key: str) -> Optional[str]:
+    """
+    Get a value from Redis, checking prefixed key first, then legacy key.
+
+    This helper reduces code duplication for the "prefixed-first, legacy-fallback"
+    pattern used throughout the PR_UPDATED debounce functions.
+
+    Args:
+        r: Redis client instance
+        prefixed_key: The prefixed key to check first
+        legacy_key: The legacy key to check as fallback
+
+    Returns:
+        The value from Redis, or None if not found in either key
+    """
+    value = r.get(prefixed_key)
+    # Fallback to legacy key if prefixed key is not found and they are different
+    if value is None and prefixed_key != legacy_key:
+        value = r.get(legacy_key)
+    return value
+
+
 def check_pr_rate_limit(
     trace_id: str,
     max_per_hour: int = 10,
@@ -555,9 +577,7 @@ def check_pr_updated_debounce(
         current_time = time.time()
 
         # Check throttle: prefixed first, then legacy fallback
-        last_processed = r.get(last_processed_key)
-        if not last_processed and pr_key != legacy_pr_key:
-            last_processed = r.get(legacy_last_processed_key)
+        last_processed = _get_with_legacy_fallback(r, last_processed_key, legacy_last_processed_key)
         if last_processed:
             last_processed_time = float(last_processed)
             time_since_last = current_time - last_processed_time
@@ -597,7 +617,7 @@ def check_pr_updated_debounce(
                 try:
                     existing_data = json.loads(existing_payload)
                     event_count = existing_data.get("event_count", 0) + 1
-                except Exception:
+                except (json.JSONDecodeError, TypeError):
                     pass
 
             payload_data = {
@@ -672,7 +692,7 @@ def check_pr_updated_debounce(
                 try:
                     existing_data = json.loads(existing_payload)
                     event_count = existing_data.get("event_count", 0) + 1
-                except Exception:
+                except (json.JSONDecodeError, TypeError):
                     pass
 
             payload_data["event_count"] = event_count
@@ -771,9 +791,7 @@ def verify_pr_updated_job_token(
         r = _get_redis_client(redis_url)
 
         # Check prefixed key first, then legacy fallback
-        current_token = r.get(job_scheduled_key)
-        if current_token is None and pr_key != legacy_pr_key:
-            current_token = r.get(legacy_job_scheduled_key)
+        current_token = _get_with_legacy_fallback(r, job_scheduled_key, legacy_job_scheduled_key)
 
         if current_token is None:
             logger.warning(
@@ -844,9 +862,7 @@ def get_pr_updated_latest_payload(
         r = _get_redis_client(redis_url)
 
         # Check prefixed key first, then legacy fallback
-        payload_str = r.get(latest_payload_key)
-        if not payload_str and pr_key != legacy_pr_key:
-            payload_str = r.get(legacy_latest_payload_key)
+        payload_str = _get_with_legacy_fallback(r, latest_payload_key, legacy_latest_payload_key)
 
         if payload_str:
             return json.loads(payload_str)
