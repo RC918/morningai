@@ -38,22 +38,62 @@ pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/ -v
 | `test_rollout_tracker_integration.py` | RolloutTracker integration tests including enabled=True + Redis scenarios |
 | `test_meta_agent_worker.py` | Meta agent worker integration tests |
 
-## Not Covered Yet (Known Gaps)
+## Fault Injection Tests (Issue #2650)
 
-The following scenarios are not yet covered by automated tests and represent areas for future improvement:
+The `test_fault_injection.py` module provides comprehensive fault injection tests covering:
 
-| Category | Scenario | Risk Level | Notes |
-|----------|----------|------------|-------|
-| **Concurrency** | Multi-worker race conditions | Medium | Multiple workers updating same Redis keys simultaneously |
-| **Concurrency** | Multi-process circuit breaker state | Medium | Circuit breaker state consistency across processes |
-| **Redis Failures** | Connection timeout handling | High | Redis unavailable during `record_langgraph_task()` |
-| **Redis Failures** | Network partition recovery | Medium | Reconnection behavior after temporary outage |
-| **Redis Failures** | Pipeline partial failure | Low | Some commands succeed, others fail in pipeline |
-| **Edge Cases** | Long-running job timeout | Low | Jobs exceeding expected duration |
-| **Edge Cases** | Redis memory pressure | Low | Behavior when Redis approaches memory limit |
-| **Edge Cases** | Clock skew between workers | Low | Time-based cooldown with unsynchronized clocks |
+| Category | Test Class | Scenarios Covered |
+|----------|------------|-------------------|
+| **Concurrency** | `TestConcurrencyFaultInjection` | Multi-worker race conditions, concurrent circuit breaker state transitions, thread-safe reads |
+| **Redis Failures** | `TestRedisFailureFaultInjection` | Connection timeout, pipeline partial failure, reconnection after outage, memory pressure (OOM) |
+| **Edge Cases** | `TestEdgeCaseFaultInjection` | Long-running tasks, zero/negative latency, empty/long/unicode trace IDs |
+| **Circuit Breaker** | `TestCircuitBreakerFaultInjection` | Consecutive failures, half-open probe requests, cooldown expiry |
+| **Real Redis** | `TestRealRedisIntegration` | Real Redis record/retrieve, concurrent writes, circuit breaker persistence |
 
-These gaps are tracked for future work. Contributions welcome.
+### Running Fault Injection Tests
+
+```bash
+# Run all fault injection tests
+pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/test_fault_injection.py -v
+
+# Run specific test class
+pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/test_fault_injection.py::TestConcurrencyFaultInjection -v
+
+# Run with real Redis (requires REDIS_URL)
+REDIS_URL=redis://localhost:6379/0 pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/test_fault_injection.py::TestRealRedisIntegration -v
+```
+
+## CI Integration (Issue #2650)
+
+These tests are now collected by the `orchestrator-integration-tests` CI workflow:
+- Runs on merge queue and push to main
+- Non-blocking (doesn't fail PRs)
+- Includes Redis service for real integration tests
+- Results uploaded as artifacts
+
+### Test Markers
+
+Tests are marked for selective execution and flaky test monitoring:
+
+| Marker | Description | Usage |
+|--------|-------------|-------|
+| `@pytest.mark.concurrency` | Multi-threading tests (potential flakiness) | `pytest -m concurrency` |
+| `@pytest.mark.integration` | Tests requiring real Redis | `pytest -m integration` |
+
+### Graduation Plan
+
+The CI workflow follows a staged approach to becoming a required check:
+
+| Stage | Status | Criteria | Target Date |
+|-------|--------|----------|-------------|
+| **Stage 0** | Current | Non-blocking via `continue-on-error: true` | Now |
+| **Stage 1** | Pending | Remove `continue-on-error`, observable but non-required | 2025-01-15 or 10 consecutive greens |
+| **Stage 2** | Pending | Add to required checks | Flake rate < 1%, 20+ consecutive greens |
+
+**Success Criteria:**
+- p95 runtime < 5 minutes
+- Flake rate < 1% (< 1 failure per 100 runs)
+- No blocking failures for 2 consecutive weeks
 
 ## Related Issues
 
