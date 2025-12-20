@@ -944,59 +944,6 @@ def increment_reschedule_count(
         return 0, False
 
 
-def extend_job_scheduled_ttl(
-    repo: str,
-    pr_number: int,
-    ttl_seconds: int,
-    redis_url: Optional[str] = None
-) -> bool:
-    """
-    Extend the TTL of the job_scheduled_key for a PR.
-
-    P2 Robustness: Prevents token expiration during long push sequences.
-    Called when subsequent PR_UPDATED events occur to extend the TTL.
-
-    Args:
-        repo: Repository identifier
-        pr_number: Pull request number
-        ttl_seconds: New TTL in seconds
-        redis_url: Redis connection URL (uses settings.redis_url if None)
-
-    Returns:
-        True if TTL was extended, False otherwise
-    """
-    pr_key = f"pr_updated:{repo}:{pr_number}"
-    job_scheduled_key = f"{pr_key}:job_scheduled"
-
-    try:
-        r = _get_redis_client(redis_url)
-        result = r.expire(job_scheduled_key, ttl_seconds)
-
-        if result:
-            logger.debug(
-                "[PRUpdatedDebounce] Extended job_scheduled_key TTL",
-                extra={
-                    "operation": "pr_updated_extend_ttl",
-                    "repo": repo,
-                    "pr_number": pr_number,
-                    "ttl_seconds": ttl_seconds,
-                }
-            )
-        return bool(result)
-
-    except Exception as e:
-        logger.warning(
-            "[PRUpdatedDebounce] Failed to extend TTL",
-            extra={
-                "operation": "pr_updated_extend_ttl_error",
-                "error": str(e),
-                "repo": repo,
-                "pr_number": pr_number,
-            }
-        )
-        return False
-
-
 def check_rq_scheduler_health(redis_url: Optional[str] = None) -> Dict[str, Any]:
     """
     Check if RQ Scheduler is running and healthy.
@@ -1009,35 +956,46 @@ def check_rq_scheduler_health(redis_url: Optional[str] = None) -> Dict[str, Any]
 
     Returns:
         Dict with health status:
-        - healthy: True if scheduler appears to be running
+        - healthy: True if scheduler appears to be running (scheduler_key_exists=True)
         - scheduler_key_exists: True if scheduler registry key exists
         - scheduled_jobs_count: Number of jobs in scheduled queue
+        - queue_name: The queue name used for health check
         - error: Error message if check failed
     """
+    try:
+        from common.config.settings import settings
+        queue_name = getattr(settings, 'rq_queue_name', 'orchestrator')
+    except ImportError:
+        queue_name = 'orchestrator'
+
     result: Dict[str, Any] = {
         "healthy": False,
         "scheduler_key_exists": False,
         "scheduled_jobs_count": 0,
+        "queue_name": queue_name,
         "error": None,
     }
 
     try:
         r = _get_redis_client(redis_url)
 
-        scheduler_key = "rq:scheduler:orchestrator"
+        scheduler_key = f"rq:scheduler:{queue_name}"
         result["scheduler_key_exists"] = r.exists(scheduler_key) > 0
 
-        scheduled_registry_key = "rq:scheduled:orchestrator"
+        scheduled_registry_key = f"rq:scheduled:{queue_name}"
         result["scheduled_jobs_count"] = r.zcard(scheduled_registry_key)
 
-        result["healthy"] = True
+        # healthy=True only if scheduler key exists (scheduler is running)
+        result["healthy"] = result["scheduler_key_exists"]
 
         logger.info(
             "[RQSchedulerHealth] Health check completed",
             extra={
                 "operation": "rq_scheduler_health_check",
+                "healthy": result["healthy"],
                 "scheduler_key_exists": result["scheduler_key_exists"],
                 "scheduled_jobs_count": result["scheduled_jobs_count"],
+                "queue_name": queue_name,
             }
         )
 
@@ -1048,6 +1006,7 @@ def check_rq_scheduler_health(redis_url: Optional[str] = None) -> Dict[str, Any]
             extra={
                 "operation": "rq_scheduler_health_check_error",
                 "error": str(e),
+                "queue_name": queue_name,
             }
         )
 
