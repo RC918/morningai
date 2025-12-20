@@ -563,3 +563,231 @@ class TestReadOnlyErrorHandling:
 
         assert settings.redis_readonly_sleep_seconds == 15
         assert settings.redis_readonly_max_retries == 20
+
+
+class TestRunPRUpdatedDelayedTask:
+    """Test run_pr_updated_delayed_task function (Phase B-B PR_UPDATED debounce)
+
+    These tests mock the internal imports to avoid requiring langgraph to be installed.
+    The function imports run_orchestrator inside the function body, so we use patch.dict
+    on sys.modules to provide a mock module.
+    """
+
+    def test_pr_updated_delayed_task_token_invalid_exits(self):
+        """Test that invalid token causes early exit without running orchestrator"""
+        import sys
+        from unittest.mock import Mock, patch, MagicMock
+
+        mock_langgraph_module = MagicMock()
+        mock_run_orchestrator = Mock()
+        mock_langgraph_module.run_orchestrator = mock_run_orchestrator
+
+        with patch.dict(sys.modules, {'langgraph_orchestrator': mock_langgraph_module}):
+            with patch('redis_queue.worker.time.sleep') as mock_sleep:
+                with patch('utils.rate_limit.verify_pr_updated_job_token') as mock_verify_token:
+                    with patch('utils.rate_limit.get_pr_updated_latest_payload') as mock_get_payload:
+                        with patch('utils.rate_limit.mark_pr_updated_processed') as mock_mark_processed:
+                            from redis_queue.worker import run_pr_updated_delayed_task
+
+                            mock_verify_token.return_value = False
+
+                            result = run_pr_updated_delayed_task(
+                                task_id="task-stale-123",
+                                repo="owner/repo",
+                                pr_number=42,
+                                job_token="old-token",
+                                debounce_seconds=30,
+                                goal_text="Review PR changes",
+                                context=None
+                            )
+
+                            assert result["success"] is False
+                            assert result["task_id"] == "task-stale-123"
+                            assert result["reason"] == "token_invalid"
+                            assert "Newer job scheduled" in result["message"]
+
+                            mock_sleep.assert_called_once_with(30)
+                            mock_verify_token.assert_called_once_with("owner/repo", 42, "old-token")
+                            mock_get_payload.assert_not_called()
+                            mock_run_orchestrator.assert_not_called()
+                            mock_mark_processed.assert_not_called()
+
+    def test_pr_updated_delayed_task_success(self):
+        """Test successful PR_UPDATED delayed task execution"""
+        import sys
+        from unittest.mock import Mock, patch, MagicMock
+
+        mock_langgraph_module = MagicMock()
+        mock_run_orchestrator = Mock(return_value={
+            "pr_url": "https://github.com/owner/repo/pull/42",
+            "ci_state": "success",
+            "trace_id": "trace-pr-updated"
+        })
+        mock_langgraph_module.run_orchestrator = mock_run_orchestrator
+
+        with patch.dict(sys.modules, {'langgraph_orchestrator': mock_langgraph_module}):
+            with patch('redis_queue.worker.time.sleep') as mock_sleep:
+                with patch('utils.rate_limit.verify_pr_updated_job_token') as mock_verify_token:
+                    with patch('utils.rate_limit.get_pr_updated_latest_payload') as mock_get_payload:
+                        with patch('utils.rate_limit.mark_pr_updated_processed') as mock_mark_processed:
+                            from redis_queue.worker import run_pr_updated_delayed_task
+
+                            mock_verify_token.return_value = True
+                            mock_get_payload.return_value = {"event_count": 3, "sha": "abc123"}
+
+                            result = run_pr_updated_delayed_task(
+                                task_id="task-pr-updated-123",
+                                repo="owner/repo",
+                                pr_number=42,
+                                job_token="token-abc",
+                                debounce_seconds=30,
+                                goal_text="Review PR changes",
+                                context={"resource_id": 42}
+                            )
+
+                            assert result["success"] is True
+                            assert result["task_id"] == "task-pr-updated-123"
+                            assert result["reason"] == "completed"
+                            assert result["pr_url"] == "https://github.com/owner/repo/pull/42"
+
+                            mock_sleep.assert_called_once_with(30)
+                            mock_verify_token.assert_called_once_with("owner/repo", 42, "token-abc")
+                            mock_get_payload.assert_called_once_with("owner/repo", 42)
+                            mock_mark_processed.assert_called_once()
+
+    def test_pr_updated_delayed_task_reads_latest_payload(self):
+        """Test that latest payload is read and passed to orchestrator"""
+        import sys
+        from unittest.mock import Mock, patch, MagicMock
+
+        mock_langgraph_module = MagicMock()
+        mock_run_orchestrator = Mock(return_value={"pr_url": "https://github.com/pr/1"})
+        mock_langgraph_module.run_orchestrator = mock_run_orchestrator
+
+        with patch.dict(sys.modules, {'langgraph_orchestrator': mock_langgraph_module}):
+            with patch('redis_queue.worker.time.sleep'):
+                with patch('utils.rate_limit.verify_pr_updated_job_token') as mock_verify_token:
+                    with patch('utils.rate_limit.get_pr_updated_latest_payload') as mock_get_payload:
+                        with patch('utils.rate_limit.mark_pr_updated_processed'):
+                            from redis_queue.worker import run_pr_updated_delayed_task
+
+                            mock_verify_token.return_value = True
+                            mock_get_payload.return_value = {"event_count": 5, "sha": "latest-sha"}
+
+                            run_pr_updated_delayed_task(
+                                task_id="task-latest-payload",
+                                repo="owner/repo",
+                                pr_number=99,
+                                job_token="valid-token",
+                                debounce_seconds=15,
+                                goal_text="Review",
+                                context={"original": "context"}
+                            )
+
+                            call_args = mock_run_orchestrator.call_args
+                            context_passed = call_args[1]["context"]
+                            assert context_passed["pr_updated_event"] is True
+                            assert context_passed["pr_updated_event_count"] == 5
+                            assert context_passed["original"] == "context"
+
+    def test_pr_updated_delayed_task_handles_missing_payload(self):
+        """Test that task continues even if latest payload is None"""
+        import sys
+        from unittest.mock import Mock, patch, MagicMock
+
+        mock_langgraph_module = MagicMock()
+        mock_run_orchestrator = Mock(return_value={"pr_url": "https://github.com/pr/1"})
+        mock_langgraph_module.run_orchestrator = mock_run_orchestrator
+
+        with patch.dict(sys.modules, {'langgraph_orchestrator': mock_langgraph_module}):
+            with patch('redis_queue.worker.time.sleep'):
+                with patch('utils.rate_limit.verify_pr_updated_job_token') as mock_verify_token:
+                    with patch('utils.rate_limit.get_pr_updated_latest_payload') as mock_get_payload:
+                        with patch('utils.rate_limit.mark_pr_updated_processed'):
+                            from redis_queue.worker import run_pr_updated_delayed_task
+
+                            mock_verify_token.return_value = True
+                            mock_get_payload.return_value = None
+
+                            result = run_pr_updated_delayed_task(
+                                task_id="task-no-payload",
+                                repo="owner/repo",
+                                pr_number=50,
+                                job_token="valid-token",
+                                debounce_seconds=10,
+                                goal_text="Review",
+                                context=None
+                            )
+
+                            assert result["success"] is True
+                            mock_run_orchestrator.assert_called_once()
+
+                            call_args = mock_run_orchestrator.call_args
+                            context_passed = call_args[1]["context"]
+                            assert context_passed["pr_updated_event_count"] == 1
+
+    def test_pr_updated_delayed_task_calls_mark_processed(self):
+        """Test that mark_pr_updated_processed is called after successful review"""
+        import sys
+        from unittest.mock import Mock, patch, MagicMock
+
+        mock_langgraph_module = MagicMock()
+        mock_run_orchestrator = Mock(return_value={"pr_url": "https://github.com/pr/1"})
+        mock_langgraph_module.run_orchestrator = mock_run_orchestrator
+
+        with patch.dict(sys.modules, {'langgraph_orchestrator': mock_langgraph_module}):
+            with patch('redis_queue.worker.time.sleep'):
+                with patch('utils.rate_limit.verify_pr_updated_job_token') as mock_verify_token:
+                    with patch('utils.rate_limit.get_pr_updated_latest_payload') as mock_get_payload:
+                        with patch('utils.rate_limit.mark_pr_updated_processed') as mock_mark_processed:
+                            from redis_queue.worker import run_pr_updated_delayed_task
+
+                            mock_verify_token.return_value = True
+                            mock_get_payload.return_value = None
+
+                            run_pr_updated_delayed_task(
+                                task_id="task-mark-processed",
+                                repo="owner/repo",
+                                pr_number=77,
+                                job_token="valid-token",
+                                debounce_seconds=20,
+                                goal_text="Review",
+                                context=None
+                            )
+
+                            mock_mark_processed.assert_called_once()
+                            call_args = mock_mark_processed.call_args[0]
+                            assert call_args[0] == "owner/repo"
+                            assert call_args[1] == 77
+
+    def test_pr_updated_delayed_task_propagates_orchestrator_error(self):
+        """Test that orchestrator errors are propagated (not swallowed)"""
+        import sys
+        from unittest.mock import Mock, patch, MagicMock
+
+        mock_langgraph_module = MagicMock()
+        mock_run_orchestrator = Mock(side_effect=Exception("Orchestrator failed"))
+        mock_langgraph_module.run_orchestrator = mock_run_orchestrator
+
+        with patch.dict(sys.modules, {'langgraph_orchestrator': mock_langgraph_module}):
+            with patch('redis_queue.worker.time.sleep'):
+                with patch('utils.rate_limit.verify_pr_updated_job_token') as mock_verify_token:
+                    with patch('utils.rate_limit.get_pr_updated_latest_payload') as mock_get_payload:
+                        with patch('utils.rate_limit.mark_pr_updated_processed') as mock_mark_processed:
+                            from redis_queue.worker import run_pr_updated_delayed_task
+
+                            mock_verify_token.return_value = True
+                            mock_get_payload.return_value = None
+
+                            with pytest.raises(Exception, match="Orchestrator failed"):
+                                run_pr_updated_delayed_task(
+                                    task_id="task-error",
+                                    repo="owner/repo",
+                                    pr_number=88,
+                                    job_token="valid-token",
+                                    debounce_seconds=5,
+                                    goal_text="Review",
+                                    context=None
+                                )
+
+                            mock_mark_processed.assert_not_called()
