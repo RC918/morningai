@@ -2543,9 +2543,12 @@ def reviewer_node(state: AgentState) -> AgentState:
                         "review_time_ms": llm_review.get("review_time_ms", 0)
                     })
                 else:
-                    logger.info("[Reviewer] LLM not available, using CI-only review", extra={
+                    # Phase 1 Quick Win: Distinguish fallback reasons in logs
+                    fallback_reason = llm_review.get("fallback_reason", "llm_unavailable")
+                    logger.info(f"[Reviewer] LLM fallback ({fallback_reason}), using CI-only review", extra={
                         "operation": "reviewer",
-                        "trace_id": trace_id
+                        "trace_id": trace_id,
+                        "fallback_reason": fallback_reason
                     })
 
             except Exception as llm_error:
@@ -2970,15 +2973,69 @@ def publisher_node(state: AgentState) -> AgentState:
         state["publish_result"]["downgrade_reasons"] = downgrade_reasons
 
     if not inline_comments:
-        logger.info("[Publisher] No inline-eligible comments to publish", extra={
-            "operation": "publisher",
-            "trace_id": trace_id,
-            "pr_number": pr_number
-        })
-        state["publish_result"]["skipped_count"] = len(file_level_comments)
-        state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"No inline-eligible comments to publish ({len(file_level_comments)} file-level only)")
-        ]
+        # Phase 1 Quick Win: Deliver file-level comments in review body instead of skipping
+        if file_level_comments and pr_number:
+            logger.info("[Publisher] No inline-eligible comments, publishing file-level in review body", extra={
+                "operation": "publisher",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "file_level_count": len(file_level_comments)
+            })
+            try:
+                from tools.github_api import get_repo, post_pr_review
+
+                # Build review body with file-level comments as markdown appendix
+                file_level_body = "## MorningAI Code Review\n\n"
+                file_level_body += "### File-Level Comments\n\n"
+                for comment in file_level_comments:
+                    file_path = comment.get("file", comment.get("path", "General"))
+                    message = comment.get("message", comment.get("body", ""))
+                    severity = comment.get("severity", "info")
+                    file_level_body += f"**{file_path}** ({severity})\n{message}\n\n"
+
+                repo = get_repo()
+                result = post_pr_review(
+                    repo=repo,
+                    pr_number=pr_number,
+                    comments=[],
+                    summary=file_level_body
+                )
+
+                state["publish_result"]["success"] = result.get("success", False)
+                state["publish_result"]["posted_count"] = 0
+                state["publish_result"]["file_level_in_body"] = len(file_level_comments)
+                state["publish_result"]["dry_run"] = result.get("dry_run", False)
+
+                if result.get("success"):
+                    mode = "[DRY-RUN]" if result.get("dry_run") else ""
+                    state["messages"] = state.get("messages", []) + [
+                        AIMessage(content=f"Review published {mode}: {len(file_level_comments)} file-level comments in review body")
+                    ]
+                    logger.info("[Publisher] File-level comments published in review body", extra={
+                        "operation": "publisher",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "file_level_count": len(file_level_comments),
+                        "dry_run": result.get("dry_run", False)
+                    })
+            except Exception as e:
+                logger.warning(f"[Publisher] Failed to publish file-level comments: {e}", extra={
+                    "operation": "publisher",
+                    "trace_id": trace_id,
+                    "error": str(e)
+                })
+                state["publish_result"]["error"] = str(e)
+        else:
+            logger.info("[Publisher] No comments to publish", extra={
+                "operation": "publisher",
+                "trace_id": trace_id,
+                "pr_number": pr_number
+            })
+            state["publish_result"]["skipped_count"] = len(file_level_comments)
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content="No comments to publish")
+            ]
+
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
         return state

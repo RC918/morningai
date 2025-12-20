@@ -293,17 +293,44 @@ class LLMReviewerAdapter:
                 "diff_aware": has_diff
             }
 
-        except Exception as e:
+        except json.JSONDecodeError as e:
+            # Phase 1 Quick Win: Distinguish JSON parse failures from LLM unavailability
             logger.error(
-                f"[LLM Reviewer] Review failed: {e}",
+                f"[LLM Reviewer] LLM JSON parse failed: {e}",
                 extra={
                     "operation": "llm_reviewer",
                     "trace_id": self.trace_id,
-                    "error": str(e)
+                    "error": str(e),
+                    "error_type": "json_parse_failed"
                 },
                 exc_info=True
             )
-            return self._get_fallback_result(base_quality_score, base_severity)
+            return self._get_fallback_result(
+                base_quality_score, base_severity, fallback_reason="llm_json_parse_failed"
+            )
+        except Exception as e:
+            # Determine fallback reason based on exception type
+            error_str = str(e).lower()
+            if "timeout" in error_str:
+                fallback_reason = "llm_timeout"
+            elif "connection" in error_str or "network" in error_str:
+                fallback_reason = "llm_connection_error"
+            else:
+                fallback_reason = "llm_api_error"
+
+            logger.error(
+                f"[LLM Reviewer] Review failed ({fallback_reason}): {e}",
+                extra={
+                    "operation": "llm_reviewer",
+                    "trace_id": self.trace_id,
+                    "error": str(e),
+                    "error_type": fallback_reason
+                },
+                exc_info=True
+            )
+            return self._get_fallback_result(
+                base_quality_score, base_severity, fallback_reason=fallback_reason
+            )
 
     def _call_llm(
         self,
@@ -366,13 +393,15 @@ class LLMReviewerAdapter:
                 logger.info(f"[LLM Reviewer] Using JSON mode for trace_id={self.trace_id}")
 
             # Build kwargs for provider-specific parameters
+            # Phase 1 Quick Win: Increase max_tokens to prevent JSON truncation
+            # Previous value of 1000 caused truncated JSON responses for longer reviews
             generate_kwargs = {
                 "prompt": user_prompt,
                 "system_prompt": system_prompt,
                 "temperature": 0.5,
-                "max_tokens": 1000,
+                "max_tokens": 4000,
                 "json_mode": use_json_mode,
-                "timeout": 20
+                "timeout": 30
             }
 
             # Add thinking_level for Gemini 3 models based on reasoning_mode_enabled setting
@@ -713,33 +742,47 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
     def _get_fallback_result(
         self,
         base_quality_score: int,
-        base_severity: str
+        base_severity: str,
+        fallback_reason: str = "llm_unavailable"
     ) -> Dict[str, Any]:
         """
-        Get fallback result when LLM is unavailable
+        Get fallback result when LLM review fails
 
         Args:
             base_quality_score: Base quality score from CI-only review
             base_severity: Base severity from CI-only review
+            fallback_reason: Reason for fallback (llm_unavailable, llm_json_parse_failed,
+                           llm_timeout, llm_connection_error, llm_api_error)
 
         Returns:
-            Dict with fallback review results
+            Dict with fallback review results including fallback_reason
         """
         if base_severity == "none":
             decision = "approve"
         else:
             decision = "needs_changes"
 
+        # Phase 1 Quick Win: Generate descriptive summary based on fallback reason
+        reason_summaries = {
+            "llm_unavailable": "LLM review unavailable, using CI-based assessment",
+            "llm_json_parse_failed": "LLM response parsing failed, using CI-based assessment",
+            "llm_timeout": "LLM request timed out, using CI-based assessment",
+            "llm_connection_error": "LLM connection failed, using CI-based assessment",
+            "llm_api_error": "LLM API error occurred, using CI-based assessment"
+        }
+        summary = reason_summaries.get(fallback_reason, reason_summaries["llm_unavailable"])
+
         return {
             "quality_score": base_quality_score,
             "severity": base_severity,
-            "summary": "LLM review unavailable, using CI-based assessment",
+            "summary": summary,
             "decision": decision,
             "comments": [],
             "llm_used": False,
             "provider": None,
             "review_time_ms": 0,
-            "diff_aware": False
+            "diff_aware": False,
+            "fallback_reason": fallback_reason
         }
 
 
