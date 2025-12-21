@@ -149,7 +149,7 @@ class TestIsExperimentActive:
             assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is False
 
     def test_gemini3_experiment_active_without_kill_switch(self):
-        """Test Gemini 3 experiments are active when kill switch is off (Phase 4)"""
+        """Test Gemini 3 planner experiment is active when kill switch is off (Phase 4)"""
         manager = ExperimentManager(environment="staging")
 
         # Mock settings with DISABLE_GEMINI3=False
@@ -157,9 +157,10 @@ class TestIsExperimentActive:
         mock_settings.disable_gemini3 = False
 
         with patch.dict("sys.modules", {"common.config.settings": MagicMock(settings=mock_settings)}):
-            # Gemini 3 experiments should be active
+            # Gemini 3 planner experiment should be active
             assert manager.is_experiment_active("gemini3_planner_10pct_staging") is True
-            assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is True
+            # Gemini 3 reviewer experiment is disabled (LLMReviewerAdapter now uses task-based routing)
+            assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is False
 
 
 class TestGetVariant:
@@ -194,11 +195,24 @@ class TestGetVariant:
         assert len(variants) == 2
 
     def test_get_variant_100_percent_treatment(self):
-        """Test 100% treatment returns treatment for all"""
-        manager = ExperimentManager(environment="staging")
+        """Test 100% treatment returns treatment for all (using custom enabled config)"""
+        # Create a custom 100% treatment experiment since gemini_reviewer_staging_only is now disabled
+        config = ExperimentConfig(
+            name="test_100_percent",
+            description="Test 100% treatment",
+            treatment_percent=100,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="test"
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_100_percent": config}
+        )
 
         for i in range(10):
-            variant = manager.get_variant("gemini_reviewer_staging_only", f"trace-{i}")
+            variant = manager.get_variant("test_100_percent", f"trace-{i}")
             assert variant == "treatment"
 
     def test_get_variant_0_percent_treatment(self):
@@ -246,10 +260,23 @@ class TestGetProviderForExperiment:
         assert provider == "openai"
 
     def test_get_provider_treatment(self):
-        """Test getting treatment provider for 100% experiment"""
-        manager = ExperimentManager(environment="staging")
+        """Test getting treatment provider for 100% experiment (using custom enabled config)"""
+        # Create a custom 100% treatment experiment since gemini_reviewer_staging_only is now disabled
+        config = ExperimentConfig(
+            name="test_treatment_provider",
+            description="Test treatment provider",
+            treatment_percent=100,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="test"
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_treatment_provider": config}
+        )
         provider = manager.get_provider_for_experiment(
-            "gemini_reviewer_staging_only",
+            "test_treatment_provider",
             "trace-123"
         )
         assert provider == "gemini"
@@ -280,15 +307,14 @@ class TestGetExperimentForComponent:
         assert result["provider"] in ["openai", "gemini"]
 
     def test_get_experiment_for_reviewer(self):
-        """Test getting experiment for reviewer component"""
+        """Test getting experiment for reviewer component returns None (experiments disabled)"""
+        # Both gemini_reviewer_staging_only and gemini3_reviewer_5pct_staging are now disabled
+        # because LLMReviewerAdapter uses task-based routing via RoutingEngine
         manager = ExperimentManager(environment="staging")
         result = manager.get_experiment_for_component("reviewer", "trace-123")
 
-        assert result is not None
-        assert result["experiment_name"] == "gemini_reviewer_staging_only"
-        assert result["component"] == "reviewer"
-        assert result["variant"] == "treatment"
-        assert result["provider"] == "gemini"
+        # No active experiment for reviewer component
+        assert result is None
 
     def test_get_experiment_for_unknown_component(self):
         """Test getting experiment for unknown component returns None"""
@@ -350,9 +376,12 @@ class TestListActiveExperiments:
         manager = ExperimentManager(environment="staging")
         active = manager.list_active_experiments()
 
-        # gemini3_planner_10pct_staging is enabled, gemini_planner_10pct_staging is disabled
+        # gemini3_planner_10pct_staging is enabled
+        # gemini_reviewer_staging_only and gemini3_reviewer_5pct_staging are disabled
+        # (LLMReviewerAdapter now uses task-based routing via RoutingEngine)
         assert "gemini3_planner_10pct_staging" in active
-        assert "gemini_reviewer_staging_only" in active
+        assert "gemini_reviewer_staging_only" not in active
+        assert "gemini3_reviewer_5pct_staging" not in active
 
     def test_list_active_experiments_production(self):
         """Test listing active experiments in production (should be empty)"""
