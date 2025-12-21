@@ -18,97 +18,97 @@
 **Recent PRs (Dec 13 - Dec 20, 2025)** (198 PRs merged):
 
 *EPIC B: PR_UPDATED Event Support & Phase BB Robustness:*
-- **PR #2789** (Merged): feat(phase-bb): P2 technical debt - extract helper, narrow exceptions, add tests
+- **[PR #2789](https://github.com/RC918/morningai/pull/2789)** (Merged): feat(phase-bb): P2 technical debt - extract helper, narrow exceptions, add tests
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2788** (Merged): feat(epic-b): Phase 2 - Line drift protection with head_sha tracking
+- **[PR #2788](https://github.com/RC918/morningai/pull/2788)** (Merged): feat(epic-b): Phase 2 - Line drift protection with head_sha tracking
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2786** (Merged): feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
+- **[PR #2786](https://github.com/RC918/morningai/pull/2786)** (Merged): feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
   - Path: `handoff/20250928/40_App/orchestrator/`
   - New env var: `REDIS_KEY_PREFIX` for multi-environment Redis key isolation
-- **PR #2785** (Merged): feat(epic-b): Phase 1 Quick Wins - LLM reliability and file-level comments delivery
+- **[PR #2785](https://github.com/RC918/morningai/pull/2785)** (Merged): feat(epic-b): Phase 1 Quick Wins - LLM reliability and file-level comments delivery
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2769** (Merged): feat(phase-bb): add PR_UPDATED event support with debounce/throttle
+- **[PR #2769](https://github.com/RC918/morningai/pull/2769)** (Merged): feat(phase-bb): add PR_UPDATED event support with debounce/throttle
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2768** (Merged): feat(phase-bb): add 422 fault injection for fallback verification
+- **[PR #2768](https://github.com/RC918/morningai/pull/2768)** (Merged): feat(phase-bb): add 422 fault injection for fallback verification
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2741** (Merged): feat(phase-bb): add C-lite telemetry for EPIC B KPIs
+- **[PR #2741](https://github.com/RC918/morningai/pull/2741)** (Merged): feat(phase-bb): add C-lite telemetry for EPIC B KPIs
   - Path: `handoff/20250928/40_App/orchestrator/`
 
 *LangGraph 100% Rollout & Simple Mode Removal:*
-- **PR #2767** (Merged): chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
+- **[PR #2767](https://github.com/RC918/morningai/pull/2767)** (Merged): chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - **MAJOR**: Complete removal of Simple Mode code - LangGraph is now the only orchestration mode
-- **PR #2771** (Merged): feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
+- **[PR #2771](https://github.com/RC918/morningai/pull/2771)** (Merged): feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2766** (Merged): chore: remove deprecated rollout API endpoints
+- **[PR #2766](https://github.com/RC918/morningai/pull/2766)** (Merged): chore: remove deprecated rollout API endpoints
   - Path: `handoff/20250928/40_App/api-backend/`
-- **PR #2742** (Merged): test(orchestrator): add E2E and circuit breaker tests for LangGraph-only mode (#2736)
+- **[PR #2742](https://github.com/RC918/morningai/pull/2742)** (Merged): test(orchestrator): add E2E and circuit breaker tests for LangGraph-only mode (#2736)
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2740** (Merged): test(orchestrator): remove obsolete Simple Mode tests (#2738)
+- **[PR #2740](https://github.com/RC918/morningai/pull/2740)** (Merged): test(orchestrator): remove obsolete Simple Mode tests (#2738)
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2720** (Merged): feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
+- **[PR #2720](https://github.com/RC918/morningai/pull/2720)** (Merged): feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
   - Path: `handoff/20250928/40_App/orchestrator/`
 
 *EPIC B: Inline Code Review (Phase B-1 to B-3):*
-- **PR #2714** (Merged): feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
+- **[PR #2714](https://github.com/RC918/morningai/pull/2714)** (Merged): feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
-- **PR #2710** (Merged): feat(diff): add ignore list and secrets redaction (Phase B-2.5)
+- **[PR #2710](https://github.com/RC918/morningai/pull/2710)** (Merged): feat(diff): add ignore list and secrets redaction (Phase B-2.5)
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2701** (Merged): feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
+- **[PR #2701](https://github.com/RC918/morningai/pull/2701)** (Merged): feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
-- **PR #2693** (Merged): feat(reviewer): add review comment schema with start_line/end_line support (EPIC B Phase B-2)
+- **[PR #2693](https://github.com/RC918/morningai/pull/2693)** (Merged): feat(reviewer): add review comment schema with start_line/end_line support (EPIC B Phase B-2)
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2692** (Merged): feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
+- **[PR #2692](https://github.com/RC918/morningai/pull/2692)** (Merged): feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
   - Path: `handoff/20250928/40_App/orchestrator/`
 
 *Agent Architecture & Routing:*
-- **PR #2783** (Merged): fix(governance): resolve agent_type to UUID for ReputationEngine DB operations
+- **[PR #2783](https://github.com/RC918/morningai/pull/2783)** (Merged): fix(governance): resolve agent_type to UUID for ReputationEngine DB operations
   - Path: `handoff/20250928/40_App/orchestrator/governance/reputation_engine.py`
-- **PR #2674** (Merged): feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
+- **[PR #2674](https://github.com/RC918/morningai/pull/2674)** (Merged): feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2665** (Merged): feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
+- **[PR #2665](https://github.com/RC918/morningai/pull/2665)** (Merged): feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2659** (Merged): feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
+- **[PR #2659](https://github.com/RC918/morningai/pull/2659)** (Merged): feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
   - Path: `handoff/20250928/40_App/orchestrator/`
 
 *CI/CD Infrastructure & Qwen Workflow:*
-- **PR #2779** (Merged): feat(tests): add CI integration tests and fault injection tests (#2650)
+- **[PR #2779](https://github.com/RC918/morningai/pull/2779)** (Merged): feat(tests): add CI integration tests and fault injection tests (#2650)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/tests/`
-- **PR #2774** (Merged): refactor(ci): extract CI Guard to testable script with resource limits
+- **[PR #2774](https://github.com/RC918/morningai/pull/2774)** (Merged): refactor(ci): extract CI Guard to testable script with resource limits
   - Path: `.github/workflows/`, `scripts/ci/`
-- **PR #2593** (Merged): feat(typescript): add strict mode baseline system (TS-1, TS-2)
+- **[PR #2593](https://github.com/RC918/morningai/pull/2593)** (Merged): feat(typescript): add strict mode baseline system (TS-1, TS-2)
   - Path: `scripts/`, `.github/workflows/`
-- **PR #2583** (Merged): feat(ci): add lockfile sync check to prevent dev/CI/prod drift
+- **[PR #2583](https://github.com/RC918/morningai/pull/2583)** (Merged): feat(ci): add lockfile sync check to prevent dev/CI/prod drift
   - Path: `.github/workflows/`
-- **PR #2540** (Merged): feat: add Qwen AI code review workflow for all PRs
+- **[PR #2540](https://github.com/RC918/morningai/pull/2540)** (Merged): feat: add Qwen AI code review workflow for all PRs
   - Path: `.github/workflows/qwen-pr-review.yml`
 
 *Design System & UI Components (Epic #2304):*
-- **PR #2508** (Merged): feat(governance): establish design system governance rules (#2303)
+- **[PR #2508](https://github.com/RC918/morningai/pull/2508)** (Merged): feat(governance): establish design system governance rules (#2303)
   - Path: `docs/`, `packages/shared-ui/`
-- **PR #2434** (Merged): feat(shared-ui): Issue #2296 - Add SettingsCard component
+- **[PR #2434](https://github.com/RC918/morningai/pull/2434)** (Merged): feat(shared-ui): Issue #2296 - Add SettingsCard component
   - Path: `packages/shared-ui/`
-- **PR #2426** (Merged): feat(shared-ui): Issue #2295 - Add MetricCard component
+- **[PR #2426](https://github.com/RC918/morningai/pull/2426)** (Merged): feat(shared-ui): Issue #2295 - Add MetricCard component
   - Path: `packages/shared-ui/`
-- **PR #2402** (Merged): feat(shared-ui): Issue #2293 - Add StatusCard component
+- **[PR #2402](https://github.com/RC918/morningai/pull/2402)** (Merged): feat(shared-ui): Issue #2293 - Add StatusCard component
   - Path: `packages/shared-ui/`
-- **PR #2359** (Merged): feat(design-system): Implement Epic #2304 Phase 0-1 (UI/UX Foundation + Core)
+- **[PR #2359](https://github.com/RC918/morningai/pull/2359)** (Merged): feat(design-system): Implement Epic #2304 Phase 0-1 (UI/UX Foundation + Core)
   - Path: `packages/shared-ui/`
 
 *Backend Refactoring (api-backend main.py):*
-- **PR #2489** (Merged): [PR1.5] Extract App Factory Pattern to create_app()
+- **[PR #2489](https://github.com/RC918/morningai/pull/2489)** (Merged): [PR1.5] Extract App Factory Pattern to create_app()
   - Path: `handoff/20250928/40_App/api-backend/src/main.py`
-- **PR #2485** (Merged): [PR1f] Extract Sentry initialization to src/extensions/sentry.py
+- **[PR #2485](https://github.com/RC918/morningai/pull/2485)** (Merged): [PR1f] Extract Sentry initialization to src/extensions/sentry.py
   - Path: `handoff/20250928/40_App/api-backend/src/extensions/sentry.py`
-- **PR #2481** (Merged): [PR1e] Extract Database Initialization to src/extensions/database.py
+- **[PR #2481](https://github.com/RC918/morningai/pull/2481)** (Merged): [PR1e] Extract Database Initialization to src/extensions/database.py
   - Path: `handoff/20250928/40_App/api-backend/src/extensions/database.py`
-- **PR #2448** (Merged): [PR1b] Extract CORS middleware to src/middleware/cors.py
+- **[PR #2448](https://github.com/RC918/morningai/pull/2448)** (Merged): [PR1b] Extract CORS middleware to src/middleware/cors.py
   - Path: `handoff/20250928/40_App/api-backend/src/middleware/cors.py`
 
 *Owner Console Features:*
-- **PR #2569** (Merged): feat(sessions): add IDE Activity panel for real-time file monitoring (#2241)
+- **[PR #2569](https://github.com/RC918/morningai/pull/2569)** (Merged): feat(sessions): add IDE Activity panel for real-time file monitoring (#2241)
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2563** (Merged): feat(dx): implement multiple PR templates (#2477)
+- **[PR #2563](https://github.com/RC918/morningai/pull/2563)** (Merged): feat(dx): implement multiple PR templates (#2477)
   - Path: `.github/PULL_REQUEST_TEMPLATE/`
 
 *Dependency Updates (28 PRs):*
@@ -119,428 +119,428 @@
 **Recent PRs (Dec 10 - Dec 12, 2025)**:
 
 *RLS & Deployment:*
-- **PR #2336** (Merged): fix(api-backend): make Sentry initialization conditional based on SENTRY_DSN
+- **[PR #2336](https://github.com/RC918/morningai/pull/2336)** (Merged): fix(api-backend): make Sentry initialization conditional based on SENTRY_DSN
   - Path: `handoff/20250928/40_App/api-backend/src/sentry_integration.py`
-- **PR #2339** (Merged): docs: add MorningAI deep analysis report and update RLS deployment status
+- **[PR #2339](https://github.com/RC918/morningai/pull/2339)** (Merged): docs: add MorningAI deep analysis report and update RLS deployment status
   - Path: `docs/MORNINGAI_深度解析報告_2025-12-12.md`, `docs/RLS_DEPLOYMENT_STATUS.md`
   - RLS TRUE tenant isolation deployed to Staging and Production
 
 **Recent PRs (Dec 7 - Dec 9, 2025)**:
 
 *DeepWiki Integration:*
-- **PR #2156** (Merged): feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
+- **[PR #2156](https://github.com/RC918/morningai/pull/2156)** (Merged): feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
-- **PR #2157** (Merged): feat(orchestrator): integrate DeepWiki with AutonomousExecutor
+- **[PR #2157](https://github.com/RC918/morningai/pull/2157)** (Merged): feat(orchestrator): integrate DeepWiki with AutonomousExecutor
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2164** (Merged): fix(deepwiki): add retry logic and rate limiting
+- **[PR #2164](https://github.com/RC918/morningai/pull/2164)** (Merged): fix(deepwiki): add retry logic and rate limiting
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2163** (Merged): feat(api): add DeepWiki API endpoints for knowledge base queries
+- **[PR #2163](https://github.com/RC918/morningai/pull/2163)** (Merged): feat(api): add DeepWiki API endpoints for knowledge base queries
   - Path: `handoff/20250928/40_App/api-backend/`
-- **PR #2169** (Merged): feat(owner-console): add SessionInsights component for DeepWiki insights
+- **[PR #2169](https://github.com/RC918/morningai/pull/2169)** (Merged): feat(owner-console): add SessionInsights component for DeepWiki insights
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
 
 *Sessions UI & HITL Optimization:*
-- **PR #2170** (Merged): feat(owner-console): HITL approval UI/UX optimization
+- **[PR #2170](https://github.com/RC918/morningai/pull/2170)** (Merged): feat(owner-console): HITL approval UI/UX optimization
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2173** (Merged): feat(i18n): add SessionInsights translation keys and unit tests
+- **[PR #2173](https://github.com/RC918/morningai/pull/2173)** (Merged): feat(i18n): add SessionInsights translation keys and unit tests
   - Path: `handoff/20250928/40_App/owner-console/src/i18n/`
-- **PR #2175** (Merged): feat(owner-console): add SessionCommandInput for interactive session commands
+- **[PR #2175](https://github.com/RC918/morningai/pull/2175)** (Merged): feat(owner-console): add SessionCommandInput for interactive session commands
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2182** (Merged): refactor(owner-console): tidy SessionCommandInput constants and props
+- **[PR #2182](https://github.com/RC918/morningai/pull/2182)** (Merged): refactor(owner-console): tidy SessionCommandInput constants and props
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2188** (Merged): test(owner-console): add unit tests for SessionCommandInput
+- **[PR #2188](https://github.com/RC918/morningai/pull/2188)** (Merged): test(owner-console): add unit tests for SessionCommandInput
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2189** (Merged): feat(owner-console): persist command history with localStorage
+- **[PR #2189](https://github.com/RC918/morningai/pull/2189)** (Merged): feat(owner-console): persist command history with localStorage
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2225** (Merged): fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
+- **[PR #2225](https://github.com/RC918/morningai/pull/2225)** (Merged): fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2234** (Merged): fix(owner-console): fix console warnings and session card layout issues
+- **[PR #2234](https://github.com/RC918/morningai/pull/2234)** (Merged): fix(owner-console): fix console warnings and session card layout issues
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2279** (Merged): feat(owner-console): add SessionStatusCard component with standardized design spec
+- **[PR #2279](https://github.com/RC918/morningai/pull/2279)** (Merged): feat(owner-console): add SessionStatusCard component with standardized design spec
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
 
 *CSRF Token Management:*
-- **PR #2237** (Merged): fix(owner-console): fix CSRF token sync issue causing 403 errors
+- **[PR #2237](https://github.com/RC918/morningai/pull/2237)** (Merged): fix(owner-console): fix CSRF token sync issue causing 403 errors
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
-- **PR #2238** (Merged): refactor(owner-console): unify CSRF token management
+- **[PR #2238](https://github.com/RC918/morningai/pull/2238)** (Merged): refactor(owner-console): unify CSRF token management
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
-- **PR #2239** (Merged): docs(owner-console): add CSRF token mode selection warning
+- **[PR #2239](https://github.com/RC918/morningai/pull/2239)** (Merged): docs(owner-console): add CSRF token mode selection warning
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
-- **PR #2240** (Merged): docs(owner-console): add warning comment for CSRF token mode selection
+- **[PR #2240](https://github.com/RC918/morningai/pull/2240)** (Merged): docs(owner-console): add warning comment for CSRF token mode selection
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
 
 *AI Reviewer & Comment Triage:*
-- **PR #2244** (Merged): feat(orchestrator): fix AI Reviewer comment intake mechanism
+- **[PR #2244](https://github.com/RC918/morningai/pull/2244)** (Merged): feat(orchestrator): fix AI Reviewer comment intake mechanism
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
-- **PR #2246** (Merged): feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+- **[PR #2246](https://github.com/RC918/morningai/pull/2246)** (Merged): feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
   - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py` (new file)
 
 *Review Follow-up & Internal Reviewer (Phase 7):*
-- **PR #2257** (Merged): feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+- **[PR #2257](https://github.com/RC918/morningai/pull/2257)** (Merged): feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py` (new file)
-- **PR #2262** (Merged): feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+- **[PR #2262](https://github.com/RC918/morningai/pull/2262)** (Merged): feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py` (new file)
-- **PR #2267** (Merged): refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
+- **[PR #2267](https://github.com/RC918/morningai/pull/2267)** (Merged): refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
-- **PR #2268** (Merged): feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
+- **[PR #2268](https://github.com/RC918/morningai/pull/2268)** (Merged): feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
-- **PR #2269** (Merged): docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
+- **[PR #2269](https://github.com/RC918/morningai/pull/2269)** (Merged): docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
   - Path: `handoff/20250928/40_App/orchestrator/docs/` (new documentation)
 
 *Multi-Signal Trigger & Rollout Tracker (Phase 7):*
-- **PR #2275** (Merged): feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+- **[PR #2275](https://github.com/RC918/morningai/pull/2275)** (Merged): feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
   - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py` (new file)
-- **PR #2278** (Merged): feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+- **[PR #2278](https://github.com/RC918/morningai/pull/2278)** (Merged): feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
   - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py` (new file)
-- **PR #2284** (Merged): feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+- **[PR #2284](https://github.com/RC918/morningai/pull/2284)** (Merged): feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
-- **PR #2288** (Merged): docs: update milestones document with Dec 2025 progress (Issue #2215)
+- **[PR #2288](https://github.com/RC918/morningai/pull/2288)** (Merged): docs: update milestones document with Dec 2025 progress (Issue #2215)
   - Path: `docs/MILESTONES.md`
 
 *Owner Console UI Refactoring:*
-- **PR #2245** (Merged): refactor(owner-console): move settings and logout to user dropdown menu
+- **[PR #2245](https://github.com/RC918/morningai/pull/2245)** (Merged): refactor(owner-console): move settings and logout to user dropdown menu
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2256** (Merged): refactor(owner-console): DashboardHeader cleanup and testing
+- **[PR #2256](https://github.com/RC918/morningai/pull/2256)** (Merged): refactor(owner-console): DashboardHeader cleanup and testing
   - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.jsx`
-- **PR #2261** (Merged): refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
+- **[PR #2261](https://github.com/RC918/morningai/pull/2261)** (Merged): refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
   - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`
-- **PR #2266** (Merged): refactor(owner-console): implement single-layer Header + Sidebar architecture
+- **[PR #2266](https://github.com/RC918/morningai/pull/2266)** (Merged): refactor(owner-console): implement single-layer Header + Sidebar architecture
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
-- **PR #2270** (Merged): fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
+- **[PR #2270](https://github.com/RC918/morningai/pull/2270)** (Merged): fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
   - Path: `packages/shared-ui/src/components/ui/tooltip.tsx`
 
 *CI/CD & Testing Infrastructure:*
-- **PR #2174** (Merged): feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
+- **[PR #2174](https://github.com/RC918/morningai/pull/2174)** (Merged): feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
   - Path: `.github/workflows/`
-- **PR #2183** (Merged): fix(orchestrator): fix failing tests in visual_verification and project_engineer
+- **[PR #2183](https://github.com/RC918/morningai/pull/2183)** (Merged): fix(orchestrator): fix failing tests in visual_verification and project_engineer
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2190** (Merged): fix(orchestrator): increase performance test threshold for planner node
+- **[PR #2190](https://github.com/RC918/morningai/pull/2190)** (Merged): fix(orchestrator): increase performance test threshold for planner node
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2194** (Merged): fix(orchestrator): add rate limit mock to TestExecute tests
+- **[PR #2194](https://github.com/RC918/morningai/pull/2194)** (Merged): fix(orchestrator): add rate limit mock to TestExecute tests
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2200** (Merged): test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
+- **[PR #2200](https://github.com/RC918/morningai/pull/2200)** (Merged): test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
   - Path: `handoff/20250928/40_App/orchestrator/tests/`
-- **PR #2233** (Merged): test(api-backend): add comprehensive tests for sentry_integration.py
+- **[PR #2233](https://github.com/RC918/morningai/pull/2233)** (Merged): test(api-backend): add comprehensive tests for sentry_integration.py
   - Path: `handoff/20250928/40_App/api-backend/`
-- **PR #2235** (Merged): test(orchestrator): add security rules tests for project_engineer/agent.py
+- **[PR #2235](https://github.com/RC918/morningai/pull/2235)** (Merged): test(orchestrator): add security rules tests for project_engineer/agent.py
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2236** (Merged): test(owner-console): add comprehensive tests for LoginPage component
+- **[PR #2236](https://github.com/RC918/morningai/pull/2236)** (Merged): test(owner-console): add comprehensive tests for LoginPage component
   - Path: `handoff/20250928/40_App/owner-console/src/pages/`
 
 *Backend & Infrastructure:*
-- **PR #2184** (Merged): feat(api-backend): add /api/sessions/{id}/command endpoint
+- **[PR #2184](https://github.com/RC918/morningai/pull/2184)** (Merged): feat(api-backend): add /api/sessions/{id}/command endpoint
   - Path: `handoff/20250928/40_App/api-backend/`
-- **PR #2197** (Merged): feat(orchestrator): add A/B testing metrics collection and analysis framework
+- **[PR #2197](https://github.com/RC918/morningai/pull/2197)** (Merged): feat(orchestrator): add A/B testing metrics collection and analysis framework
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2204** (Merged): fix: reduce noisy Sentry alerts for expected error conditions
+- **[PR #2204](https://github.com/RC918/morningai/pull/2204)** (Merged): fix: reduce noisy Sentry alerts for expected error conditions
   - Path: `handoff/20250928/40_App/api-backend/`
-- **PR #2218** (Merged): feat(orchestrator): complete Wave 1 Phase 7 prerequisites
+- **[PR #2218](https://github.com/RC918/morningai/pull/2218)** (Merged): feat(orchestrator): complete Wave 1 Phase 7 prerequisites
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2224** (Merged): feat(orchestrator): add retry and rate limiting to OutboundNotifier
+- **[PR #2224](https://github.com/RC918/morningai/pull/2224)** (Merged): feat(orchestrator): add retry and rate limiting to OutboundNotifier
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2231** (Merged): feat(orchestrator): Wave 3 Failure Learning Enhancement
+- **[PR #2231](https://github.com/RC918/morningai/pull/2231)** (Merged): feat(orchestrator): Wave 3 Failure Learning Enhancement
   - Path: `handoff/20250928/40_App/orchestrator/`
-- **PR #2232** (Merged): fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+- **[PR #2232](https://github.com/RC918/morningai/pull/2232)** (Merged): fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
   - Path: `handoff/20250928/40_App/api-backend/`
 
 *Documentation:*
-- **PR #2193** (Merged): docs: align documentation with actual implementation
+- **[PR #2193](https://github.com/RC918/morningai/pull/2193)** (Merged): docs: align documentation with actual implementation
   - Path: `docs/`
 
 **Recent PRs (Dec 6 - Dec 7, 2025)**:
 
 *VSCode/MCP Integration & Meta-Agent Production Wiring:*
-- **PR #2114** (Merged): feat(meta-agent): integrate VSCodeIDEService into production code
+- **[PR #2114](https://github.com/RC918/morningai/pull/2114)** (Merged): feat(meta-agent): integrate VSCodeIDEService into production code
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py` (major update)
   - New: VM/IDE lifecycle management integrated into AutonomousExecutor
-- **PR #2067** (Merged): feat(meta-agent): implement MCP HTTP client for cloud IDE integration
+- **[PR #2067](https://github.com/RC918/morningai/pull/2067)** (Merged): feat(meta-agent): implement MCP HTTP client for cloud IDE integration
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py` (core implementation)
-- **PR #2106** (Merged): perf(vscode-ide): share aiohttp ClientSession for connection reuse
-- **PR #2102** (Merged): refactor(vscode-ide): extract constants and use exponential backoff
-- **PR #2077** (Merged): security(vscode-ide): truncate error logs to prevent sensitive data leakage
+- **[PR #2106](https://github.com/RC918/morningai/pull/2106)** (Merged): perf(vscode-ide): share aiohttp ClientSession for connection reuse
+- **[PR #2102](https://github.com/RC918/morningai/pull/2102)** (Merged): refactor(vscode-ide): extract constants and use exponential backoff
+- **[PR #2077](https://github.com/RC918/morningai/pull/2077)** (Merged): security(vscode-ide): truncate error logs to prevent sensitive data leakage
 
 *VSCode/MCP Documentation & Infrastructure:*
-- **PR #2101** (Merged): docs(meta-agent): add Tier 2 VSCode/VM documentation
+- **[PR #2101](https://github.com/RC918/morningai/pull/2101)** (Merged): docs(meta-agent): add Tier 2 VSCode/VM documentation
   - Path: `handoff/20250928/40_App/orchestrator/docs/` (new directory)
   - New files: `TERMINAL_ACCESS.md`, `VM_LOCKING_DESIGN.md`, `VM_PROVISIONER_LIFECYCLE.md`
-- **PR #2115** (Merged): docs(orchestrator): add cross-process limitation note and environment settings
-- **PR #2110** (Merged): test(vscode-ide): use mocker.patch.object() for cleaner test mocking
+- **[PR #2115](https://github.com/RC918/morningai/pull/2115)** (Merged): docs(orchestrator): add cross-process limitation note and environment settings
+- **[PR #2110](https://github.com/RC918/morningai/pull/2110)** (Merged): test(vscode-ide): use mocker.patch.object() for cleaner test mocking
   - Path: `handoff/20250928/40_App/orchestrator/requirements-test.txt` (added pytest-mock)
 
 *Documentation Auto-Generation Security:*
-- **PR #2103** (Merged): refactor(orchestrator): improve documentation auto-generation security
+- **[PR #2103](https://github.com/RC918/morningai/pull/2103)** (Merged): refactor(orchestrator): improve documentation auto-generation security
   - New env var: `ORCHESTRATOR_DOCS_MAX_PRS_PER_HOUR` (integer, default: 3)
 
 *Owner Console Sessions UI & Performance:*
-- **PR #2063** (Merged): feat(owner-console): integrate ConfidenceApproval and FileDiffViewer
-- **PR #2088** (Merged): refactor(owner-console): Sessions.jsx defensive code improvements
-- **PR #2089** (Merged): perf(owner-console): optimize FCP with lazy loading
-- **PR #2087** (Merged): a11y(owner-console): improve keyboard accessibility for drag-and-drop
+- **[PR #2063](https://github.com/RC918/morningai/pull/2063)** (Merged): feat(owner-console): integrate ConfidenceApproval and FileDiffViewer
+- **[PR #2088](https://github.com/RC918/morningai/pull/2088)** (Merged): refactor(owner-console): Sessions.jsx defensive code improvements
+- **[PR #2089](https://github.com/RC918/morningai/pull/2089)** (Merged): perf(owner-console): optimize FCP with lazy loading
+- **[PR #2087](https://github.com/RC918/morningai/pull/2087)** (Merged): a11y(owner-console): improve keyboard accessibility for drag-and-drop
 
 *Design System & Storybook:*
-- **PR #2068** (Merged): fix(owner-console): add base tokens to @theme for shared-ui Switch
-- **PR #2084** (Merged): docs(shared-ui): add Switch Storybook visual verification story
+- **[PR #2068](https://github.com/RC918/morningai/pull/2068)** (Merged): fix(owner-console): add base tokens to @theme for shared-ui Switch
+- **[PR #2084](https://github.com/RC918/morningai/pull/2084)** (Merged): docs(shared-ui): add Switch Storybook visual verification story
   - Path: `packages/shared-ui/src/components/ui/switch.stories.tsx` (new file)
-- **PR #2083** (Merged): docs(owner-console): add Storybook stories for task plan components
-- **PR #2061** (Merged): chore(owner-console): remove dead theme.css file
+- **[PR #2083](https://github.com/RC918/morningai/pull/2083)** (Merged): docs(owner-console): add Storybook stories for task plan components
+- **[PR #2061](https://github.com/RC918/morningai/pull/2061)** (Merged): chore(owner-console): remove dead theme.css file
   - Path: `handoff/20250928/40_App/owner-console/src/styles/theme.css` (removed)
 
 *Security & Testing:*
-- **PR #2052** (Merged): fix(meta-agent): add TOCTOU defense in save_state()
-- **PR #2078** (Merged): test(owner-console): add XSS protection tests for TestResultsPanel
-- **PR #2079** (Merged): test(orchestrator): add unit tests for update_error_fix_pair
+- **[PR #2052](https://github.com/RC918/morningai/pull/2052)** (Merged): fix(meta-agent): add TOCTOU defense in save_state()
+- **[PR #2078](https://github.com/RC918/morningai/pull/2078)** (Merged): test(owner-console): add XSS protection tests for TestResultsPanel
+- **[PR #2079](https://github.com/RC918/morningai/pull/2079)** (Merged): test(orchestrator): add unit tests for update_error_fix_pair
 
 **Recent PRs (Dec 8 - Dec 9, 2025)**:
 
 *DeepWiki Integration:*
-- **PR #2156** (Merged): feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
+- **[PR #2156](https://github.com/RC918/morningai/pull/2156)** (Merged): feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
-- **PR #2157** (Merged): feat(orchestrator): integrate DeepWiki with AutonomousExecutor
-- **PR #2164** (Merged): fix(deepwiki): add retry logic and rate limiting
-- **PR #2163** (Merged): feat(api): add DeepWiki API endpoints for knowledge base queries
+- **[PR #2157](https://github.com/RC918/morningai/pull/2157)** (Merged): feat(orchestrator): integrate DeepWiki with AutonomousExecutor
+- **[PR #2164](https://github.com/RC918/morningai/pull/2164)** (Merged): fix(deepwiki): add retry logic and rate limiting
+- **[PR #2163](https://github.com/RC918/morningai/pull/2163)** (Merged): feat(api): add DeepWiki API endpoints for knowledge base queries
   - Path: `handoff/20250928/40_App/api-backend/`
-- **PR #2169** (Merged): feat(owner-console): add SessionInsights component for DeepWiki insights
+- **[PR #2169](https://github.com/RC918/morningai/pull/2169)** (Merged): feat(owner-console): add SessionInsights component for DeepWiki insights
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
 
 *Sessions UI & HITL Optimization:*
-- **PR #2170** (Merged): feat(owner-console): HITL approval UI/UX optimization
-- **PR #2173** (Merged): feat(i18n): add SessionInsights translation keys and unit tests
-- **PR #2175** (Merged): feat(owner-console): add SessionCommandInput for interactive session commands
-- **PR #2182** (Merged): refactor(owner-console): tidy SessionCommandInput constants and props
-- **PR #2188** (Merged): test(owner-console): add unit tests for SessionCommandInput
-- **PR #2189** (Merged): feat(owner-console): persist command history with localStorage
-- **PR #2225** (Merged): fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
-- **PR #2234** (Merged): fix(owner-console): fix console warnings and session card layout issues
-- **PR #2279** (Merged): feat(owner-console): add SessionStatusCard component with standardized design spec
+- **[PR #2170](https://github.com/RC918/morningai/pull/2170)** (Merged): feat(owner-console): HITL approval UI/UX optimization
+- **[PR #2173](https://github.com/RC918/morningai/pull/2173)** (Merged): feat(i18n): add SessionInsights translation keys and unit tests
+- **[PR #2175](https://github.com/RC918/morningai/pull/2175)** (Merged): feat(owner-console): add SessionCommandInput for interactive session commands
+- **[PR #2182](https://github.com/RC918/morningai/pull/2182)** (Merged): refactor(owner-console): tidy SessionCommandInput constants and props
+- **[PR #2188](https://github.com/RC918/morningai/pull/2188)** (Merged): test(owner-console): add unit tests for SessionCommandInput
+- **[PR #2189](https://github.com/RC918/morningai/pull/2189)** (Merged): feat(owner-console): persist command history with localStorage
+- **[PR #2225](https://github.com/RC918/morningai/pull/2225)** (Merged): fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
+- **[PR #2234](https://github.com/RC918/morningai/pull/2234)** (Merged): fix(owner-console): fix console warnings and session card layout issues
+- **[PR #2279](https://github.com/RC918/morningai/pull/2279)** (Merged): feat(owner-console): add SessionStatusCard component with standardized design spec
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
 
 *CSRF Token Management:*
-- **PR #2237** (Merged): fix(owner-console): fix CSRF token sync issue causing 403 errors
+- **[PR #2237](https://github.com/RC918/morningai/pull/2237)** (Merged): fix(owner-console): fix CSRF token sync issue causing 403 errors
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
-- **PR #2238** (Merged): refactor(owner-console): unify CSRF token management
-- **PR #2239** (Merged): docs(owner-console): add CSRF token mode selection warning
-- **PR #2240** (Merged): docs(owner-console): add warning comment for CSRF token mode selection
+- **[PR #2238](https://github.com/RC918/morningai/pull/2238)** (Merged): refactor(owner-console): unify CSRF token management
+- **[PR #2239](https://github.com/RC918/morningai/pull/2239)** (Merged): docs(owner-console): add CSRF token mode selection warning
+- **[PR #2240](https://github.com/RC918/morningai/pull/2240)** (Merged): docs(owner-console): add warning comment for CSRF token mode selection
 
 *AI Reviewer & Comment Triage:*
-- **PR #2244** (Merged): feat(orchestrator): fix AI Reviewer comment intake mechanism
+- **[PR #2244](https://github.com/RC918/morningai/pull/2244)** (Merged): feat(orchestrator): fix AI Reviewer comment intake mechanism
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
-- **PR #2246** (Merged): feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+- **[PR #2246](https://github.com/RC918/morningai/pull/2246)** (Merged): feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
   - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py` (new file)
 
 *Review Follow-up & Internal Reviewer (Phase 7 - Issue #2211, #2212):*
-- **PR #2257** (Merged): feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+- **[PR #2257](https://github.com/RC918/morningai/pull/2257)** (Merged): feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py` (new file)
-- **PR #2262** (Merged): feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+- **[PR #2262](https://github.com/RC918/morningai/pull/2262)** (Merged): feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py` (new file)
-- **PR #2267** (Merged): refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
-- **PR #2268** (Merged): feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
-- **PR #2269** (Merged): docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
+- **[PR #2267](https://github.com/RC918/morningai/pull/2267)** (Merged): refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
+- **[PR #2268](https://github.com/RC918/morningai/pull/2268)** (Merged): feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
+- **[PR #2269](https://github.com/RC918/morningai/pull/2269)** (Merged): docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
   - Path: `handoff/20250928/40_App/orchestrator/docs/` (new documentation)
 
 *Multi-Signal Trigger & Rollout Tracker (Phase 7 - Issue #2213, #2214):*
-- **PR #2275** (Merged): feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+- **[PR #2275](https://github.com/RC918/morningai/pull/2275)** (Merged): feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
   - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py` (new file)
-- **PR #2278** (Merged): feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+- **[PR #2278](https://github.com/RC918/morningai/pull/2278)** (Merged): feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
   - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py` (new file)
-- **PR #2284** (Merged): feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+- **[PR #2284](https://github.com/RC918/morningai/pull/2284)** (Merged): feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
-- **PR #2288** (Merged): docs: update milestones document with Dec 2025 progress (Issue #2215)
+- **[PR #2288](https://github.com/RC918/morningai/pull/2288)** (Merged): docs: update milestones document with Dec 2025 progress (Issue #2215)
   - Path: `docs/MILESTONES.md`
 
 *Owner Console UI Refactoring:*
-- **PR #2245** (Merged): refactor(owner-console): move settings and logout to user dropdown menu
-- **PR #2256** (Merged): refactor(owner-console): DashboardHeader cleanup and testing
+- **[PR #2245](https://github.com/RC918/morningai/pull/2245)** (Merged): refactor(owner-console): move settings and logout to user dropdown menu
+- **[PR #2256](https://github.com/RC918/morningai/pull/2256)** (Merged): refactor(owner-console): DashboardHeader cleanup and testing
   - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.jsx`
-- **PR #2261** (Merged): refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
+- **[PR #2261](https://github.com/RC918/morningai/pull/2261)** (Merged): refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
   - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`
-- **PR #2266** (Merged): refactor(owner-console): implement single-layer Header + Sidebar architecture
-- **PR #2270** (Merged): fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
+- **[PR #2266](https://github.com/RC918/morningai/pull/2266)** (Merged): refactor(owner-console): implement single-layer Header + Sidebar architecture
+- **[PR #2270](https://github.com/RC918/morningai/pull/2270)** (Merged): fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
   - Path: `packages/shared-ui/src/components/ui/tooltip.tsx`
 
 *CI/CD & Testing Infrastructure:*
-- **PR #2174** (Merged): feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
+- **[PR #2174](https://github.com/RC918/morningai/pull/2174)** (Merged): feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
   - Path: `.github/workflows/`
-- **PR #2183** (Merged): fix(orchestrator): fix failing tests in visual_verification and project_engineer
-- **PR #2190** (Merged): fix(orchestrator): increase performance test threshold for planner node
-- **PR #2194** (Merged): fix(orchestrator): add rate limit mock to TestExecute tests
-- **PR #2200** (Merged): test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
+- **[PR #2183](https://github.com/RC918/morningai/pull/2183)** (Merged): fix(orchestrator): fix failing tests in visual_verification and project_engineer
+- **[PR #2190](https://github.com/RC918/morningai/pull/2190)** (Merged): fix(orchestrator): increase performance test threshold for planner node
+- **[PR #2194](https://github.com/RC918/morningai/pull/2194)** (Merged): fix(orchestrator): add rate limit mock to TestExecute tests
+- **[PR #2200](https://github.com/RC918/morningai/pull/2200)** (Merged): test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
   - Path: `handoff/20250928/40_App/orchestrator/tests/`
-- **PR #2233** (Merged): test(api-backend): add comprehensive tests for sentry_integration.py
-- **PR #2235** (Merged): test(orchestrator): add security rules tests for project_engineer/agent.py
-- **PR #2236** (Merged): test(owner-console): add comprehensive tests for LoginPage component
+- **[PR #2233](https://github.com/RC918/morningai/pull/2233)** (Merged): test(api-backend): add comprehensive tests for sentry_integration.py
+- **[PR #2235](https://github.com/RC918/morningai/pull/2235)** (Merged): test(orchestrator): add security rules tests for project_engineer/agent.py
+- **[PR #2236](https://github.com/RC918/morningai/pull/2236)** (Merged): test(owner-console): add comprehensive tests for LoginPage component
 
 *Backend & Infrastructure:*
-- **PR #2184** (Merged): feat(api-backend): add /api/sessions/{id}/command endpoint
+- **[PR #2184](https://github.com/RC918/morningai/pull/2184)** (Merged): feat(api-backend): add /api/sessions/{id}/command endpoint
   - Path: `handoff/20250928/40_App/api-backend/`
-- **PR #2197** (Merged): feat(orchestrator): add A/B testing metrics collection and analysis framework
-- **PR #2204** (Merged): fix: reduce noisy Sentry alerts for expected error conditions
-- **PR #2218** (Merged): feat(orchestrator): complete Wave 1 Phase 7 prerequisites
-- **PR #2224** (Merged): feat(orchestrator): add retry and rate limiting to OutboundNotifier
-- **PR #2231** (Merged): feat(orchestrator): Wave 3 Failure Learning Enhancement
-- **PR #2232** (Merged): fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+- **[PR #2197](https://github.com/RC918/morningai/pull/2197)** (Merged): feat(orchestrator): add A/B testing metrics collection and analysis framework
+- **[PR #2204](https://github.com/RC918/morningai/pull/2204)** (Merged): fix: reduce noisy Sentry alerts for expected error conditions
+- **[PR #2218](https://github.com/RC918/morningai/pull/2218)** (Merged): feat(orchestrator): complete Wave 1 Phase 7 prerequisites
+- **[PR #2224](https://github.com/RC918/morningai/pull/2224)** (Merged): feat(orchestrator): add retry and rate limiting to OutboundNotifier
+- **[PR #2231](https://github.com/RC918/morningai/pull/2231)** (Merged): feat(orchestrator): Wave 3 Failure Learning Enhancement
+- **[PR #2232](https://github.com/RC918/morningai/pull/2232)** (Merged): fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
   - Path: `handoff/20250928/40_App/api-backend/`
 
 *Documentation:*
-- **PR #2193** (Merged): docs: align documentation with actual implementation
+- **[PR #2193](https://github.com/RC918/morningai/pull/2193)** (Merged): docs: align documentation with actual implementation
 
 **Recent PRs (Dec 3 - Dec 5, 2025)**:
 
 *Refactor Agent & TS Strict Mode Automation:*
-- **PR #1886** (Merged): Phase 4 - Refactor Agent for TS Strict Mode Automation
+- **[PR #1886](https://github.com/RC918/morningai/pull/1886)** (Merged): Phase 4 - Refactor Agent for TS Strict Mode Automation
   - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/` (new directory)
   - New env vars: `REFACTOR_AGENT_ENABLED`, `REFACTOR_AGENT_ERRORS_PER_RUN`, `REFACTOR_AGENT_AUTO_PR`
-- **PR #1897** (Merged): LLM Integration for Refactor Agent Code Fix Generation
-- **PR #1903** (Merged): File Modification Implementation for Refactor Agent
-- **PR #1908** (Merged): PR Automation for Refactor Agent
-- **PR #1913** (Merged): Nightly Cron Job Setup + Grammar/Optimization Improvements
+- **[PR #1897](https://github.com/RC918/morningai/pull/1897)** (Merged): LLM Integration for Refactor Agent Code Fix Generation
+- **[PR #1903](https://github.com/RC918/morningai/pull/1903)** (Merged): File Modification Implementation for Refactor Agent
+- **[PR #1908](https://github.com/RC918/morningai/pull/1908)** (Merged): PR Automation for Refactor Agent
+- **[PR #1913](https://github.com/RC918/morningai/pull/1913)** (Merged): Nightly Cron Job Setup + Grammar/Optimization Improvements
   - Path: `.github/workflows/refactor-agent-nightly.yml` (new workflow)
 
 *Task Queue Reliability (Ops Agent):*
-- **PR #1907** (Merged): Fix infinite loop for unassigned tasks
+- **[PR #1907](https://github.com/RC918/morningai/pull/1907)** (Merged): Fix infinite loop for unassigned tasks
   - Path: `agents/ops_agent/worker.py`
-- **PR #1912** (Merged): Implement task status update and assigned_to validation
+- **[PR #1912](https://github.com/RC918/morningai/pull/1912)** (Merged): Implement task status update and assigned_to validation
   - Path: `agents/ops_agent/worker.py`, `orchestrator/task_queue/redis_queue.py`
-- **PR #1914** (Merged): Add automated tests for task routing (#1909, #1910)
+- **[PR #1914](https://github.com/RC918/morningai/pull/1914)** (Merged): Add automated tests for task routing (#1909, #1910)
   - Path: `agents/ops_agent/tests/test_task_routing.py` (new file)
-- **PR #1934** (Merged): Use pytest pythonpath instead of sys.path.insert
+- **[PR #1934](https://github.com/RC918/morningai/pull/1934)** (Merged): Use pytest pythonpath instead of sys.path.insert
 
 *Owner Console Page Standardization (Phase 1 Complete):*
-- **PR #1863** (Merged): Standardize AgentGovernance page layout
-- **PR #1867** (Merged): Standardize TenantManagement page layout
-- **PR #1879** (Merged): Standardize SystemMonitoring page layout
-- **PR #1883** (Merged): Standardize UXMetrics page layout
-- **PR #1885** (Merged): Standardize AIPolicies page layout
-- **PR #1894** (Merged): Standardize ApprovalQueue page layout
-- **PR #1900** (Merged): Standardize FailureExperimentDashboard and PlatformSettings pages
-- **PR #1906** (Merged): Move language switcher to navbar
+- **[PR #1863](https://github.com/RC918/morningai/pull/1863)** (Merged): Standardize AgentGovernance page layout
+- **[PR #1867](https://github.com/RC918/morningai/pull/1867)** (Merged): Standardize TenantManagement page layout
+- **[PR #1879](https://github.com/RC918/morningai/pull/1879)** (Merged): Standardize SystemMonitoring page layout
+- **[PR #1883](https://github.com/RC918/morningai/pull/1883)** (Merged): Standardize UXMetrics page layout
+- **[PR #1885](https://github.com/RC918/morningai/pull/1885)** (Merged): Standardize AIPolicies page layout
+- **[PR #1894](https://github.com/RC918/morningai/pull/1894)** (Merged): Standardize ApprovalQueue page layout
+- **[PR #1900](https://github.com/RC918/morningai/pull/1900)** (Merged): Standardize FailureExperimentDashboard and PlatformSettings pages
+- **[PR #1906](https://github.com/RC918/morningai/pull/1906)** (Merged): Move language switcher to navbar
 
 *Shared UI Components:*
-- **PR #1884** (Merged): Implement PageScaffold component
-- **PR #1887** (Merged): Implement SectionTemplate component
-- **PR #1853** (Merged): Add iotask foundation components (Phase 1)
-- **PR #1856** (Merged): Phase 2 - AdminShell three-column layout support
+- **[PR #1884](https://github.com/RC918/morningai/pull/1884)** (Merged): Implement PageScaffold component
+- **[PR #1887](https://github.com/RC918/morningai/pull/1887)** (Merged): Implement SectionTemplate component
+- **[PR #1853](https://github.com/RC918/morningai/pull/1853)** (Merged): Add iotask foundation components (Phase 1)
+- **[PR #1856](https://github.com/RC918/morningai/pull/1856)** (Merged): Phase 2 - AdminShell three-column layout support
 
 *Security & Memory (Phase 1-2):*
-- **PR #1826** (Merged): Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3
-- **PR #1830** (Merged): Phase 1 Follow-up Issues
-- **PR #1831** (Merged): Phase 2 P0 - pgvector Similarity Search and Error-Fix Pairs
-- **PR #1836** (Merged): Phase 2 P1 - Observer Node for Failure Knowledge Base
+- **[PR #1826](https://github.com/RC918/morningai/pull/1826)** (Merged): Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3
+- **[PR #1830](https://github.com/RC918/morningai/pull/1830)** (Merged): Phase 1 Follow-up Issues
+- **[PR #1831](https://github.com/RC918/morningai/pull/1831)** (Merged): Phase 2 P0 - pgvector Similarity Search and Error-Fix Pairs
+- **[PR #1836](https://github.com/RC918/morningai/pull/1836)** (Merged): Phase 2 P1 - Observer Node for Failure Knowledge Base
 
 *Orchestrator Enhancements:*
-- **PR #1852** (Merged): Phase 3 P2 - LangGraph Mode Full Switchover
-- **PR #1854** (Merged): Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
-- **PR #1857** (Merged): Phase 3 P3 - PM Agent + Ops Agent
-- **PR #1862** (Merged): Phase 3 P4 - Background Queue Principles Enhancement
-- **PR #1866** (Merged): Phase 3 Follow-up Issues
+- **[PR #1852](https://github.com/RC918/morningai/pull/1852)** (Merged): Phase 3 P2 - LangGraph Mode Full Switchover
+- **[PR #1854](https://github.com/RC918/morningai/pull/1854)** (Merged): Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
+- **[PR #1857](https://github.com/RC918/morningai/pull/1857)** (Merged): Phase 3 P3 - PM Agent + Ops Agent
+- **[PR #1862](https://github.com/RC918/morningai/pull/1862)** (Merged): Phase 3 P4 - Background Queue Principles Enhancement
+- **[PR #1866](https://github.com/RC918/morningai/pull/1866)** (Merged): Phase 3 Follow-up Issues
 
 *ESLint Spacing Rules:*
-- **PR #1892** (Merged): Add ESLint rule for standardized spacing utilities
+- **[PR #1892](https://github.com/RC918/morningai/pull/1892)** (Merged): Add ESLint rule for standardized spacing utilities
   - Path: `handoff/20250928/40_App/owner-console/eslint-rules/no-non-standard-spacing.js` (new file)
-- **PR #1901** (Merged): Cleanup 29 spacing violations
-- **PR #1904** (Merged): Upgrade spacing ESLint rule to error mode (Phase 3)
+- **[PR #1901](https://github.com/RC918/morningai/pull/1901)** (Merged): Cleanup 29 spacing violations
+- **[PR #1904](https://github.com/RC918/morningai/pull/1904)** (Merged): Upgrade spacing ESLint rule to error mode (Phase 3)
 
 *Migrations & Infrastructure:*
-- **PR #1871** (Merged): Phase 4 - Unified Migration Management
-- **PR #1895** (Merged): DRY refactoring for run_migrations.sh
-- **PR #1881** (Merged): Update secrets config to use new key names
-- **PR #1882** (Merged): Upgrade vulnerable packages and expand CI scanning coverage
+- **[PR #1871](https://github.com/RC918/morningai/pull/1871)** (Merged): Phase 4 - Unified Migration Management
+- **[PR #1895](https://github.com/RC918/morningai/pull/1895)** (Merged): DRY refactoring for run_migrations.sh
+- **[PR #1881](https://github.com/RC918/morningai/pull/1881)** (Merged): Update secrets config to use new key names
+- **[PR #1882](https://github.com/RC918/morningai/pull/1882)** (Merged): Upgrade vulnerable packages and expand CI scanning coverage
 
 **Recent PRs (Dec 2 - Dec 3, 2025)**:
 
 *Experimentation & Reasoning Mode:*
-- **PR #1804** (Merged): Phase 4 Production Rollout - Increase experiment percentages and add kill switch
+- **[PR #1804](https://github.com/RC918/morningai/pull/1804)** (Merged): Phase 4 Production Rollout - Increase experiment percentages and add kill switch
   - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`, `common/config/settings.py`
   - New env var: `DISABLE_GEMINI3` (boolean) - Emergency kill switch
-- **PR #1803** (Merged): Phase 3 Remaining Items - Gemini 3 fallback, parametrize tests, CI gate
+- **[PR #1803](https://github.com/RC918/morningai/pull/1803)** (Merged): Phase 3 Remaining Items - Gemini 3 fallback, parametrize tests, CI gate
   - Path: `.github/workflows/gemini3-reviewer-gate.yml` (new workflow)
-- **PR #1794** (Merged): Phase 3.1 Hardening - Add REASONING_MODE_ENABLED schema and unit tests
+- **[PR #1794](https://github.com/RC918/morningai/pull/1794)** (Merged): Phase 3.1 Hardening - Add REASONING_MODE_ENABLED schema and unit tests
   - Path: `config/env.schema.yaml`, `common/config/settings.py`
   - New env var: `REASONING_MODE_ENABLED` (boolean)
-- **PR #1793** (Merged): Phase 3 - Reasoning mode toggle and Gemini 3 reviewer experiment
+- **[PR #1793](https://github.com/RC918/morningai/pull/1793)** (Merged): Phase 3 - Reasoning mode toggle and Gemini 3 reviewer experiment
   - Path: `handoff/20250928/40_App/orchestrator/llm/adapters/llm_reviewer_adapter.py`
-- **PR #1792** (Merged): Redis Checkpointer - LangGraph state persistence
+- **[PR #1792](https://github.com/RC918/morningai/pull/1792)** (Merged): Redis Checkpointer - LangGraph state persistence
   - Path: `handoff/20250928/40_App/orchestrator/redis_checkpointer.py` (new file), `graph.py`
-- **PR #1791** (Merged): FAQ Routing - Route FAQ tasks via simple path, bypass LangGraph
+- **[PR #1791](https://github.com/RC918/morningai/pull/1791)** (Merged): FAQ Routing - Route FAQ tasks via simple path, bypass LangGraph
   - Path: `handoff/20250928/40_App/orchestrator/graph.py`
 
 *Configuration & Secrets Hardening:*
-- **PR #1800** (Merged): Migrate os.getenv to settings.py for Tier 1 production code
+- **[PR #1800](https://github.com/RC918/morningai/pull/1800)** (Merged): Migrate os.getenv to settings.py for Tier 1 production code
   - Path: `handoff/20250928/40_App/orchestrator/`, `common/config/settings.py`
-- **PR #1798** (Merged): Migrate WORKER_HEARTBEAT_INTERVAL and WORKER_HEARTBEAT_TTL to settings.py
+- **[PR #1798](https://github.com/RC918/morningai/pull/1798)** (Merged): Migrate WORKER_HEARTBEAT_INTERVAL and WORKER_HEARTBEAT_TTL to settings.py
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
   - New env vars: `WORKER_HEARTBEAT_INTERVAL` (60s), `WORKER_HEARTBEAT_TTL` (180s)
-- **PR #1797** (Merged): Migrate RQ_MAX_JOBS to settings.py and add secrets hardening
+- **[PR #1797](https://github.com/RC918/morningai/pull/1797)** (Merged): Migrate RQ_MAX_JOBS to settings.py and add secrets hardening
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
-- **PR #1795** (Merged): Remove deprecated SECRET_KEY and MASTER_KEY
+- **[PR #1795](https://github.com/RC918/morningai/pull/1795)** (Merged): Remove deprecated SECRET_KEY and MASTER_KEY
   - Path: `config/env.schema.yaml`
-- **PR #1790** (Merged): Add RQ_MAX_JOBS env var for worker memory management
+- **[PR #1790](https://github.com/RC918/morningai/pull/1790)** (Merged): Add RQ_MAX_JOBS env var for worker memory management
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - New env var: `RQ_MAX_JOBS` (integer, default 0)
 
 *UI/UX & Design System:*
-- **PR #1802** (Merged): Storybook Stories for DashboardHeader and Sidebar
+- **[PR #1802](https://github.com/RC918/morningai/pull/1802)** (Merged): Storybook Stories for DashboardHeader and Sidebar
   - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.stories.tsx`, `Sidebar.stories.tsx`
-- **PR #1801** (Merged): Phase 3-4 Completion - iotask Component Styling and Progress Bars
+- **[PR #1801](https://github.com/RC918/morningai/pull/1801)** (Merged): Phase 3-4 Completion - iotask Component Styling and Progress Bars
   - Path: `packages/shared-ui/src/components/ui/button.tsx`, `badge.tsx`, `card.tsx`, `input.tsx`, `progress.tsx`
-- **PR #1796** (Merged): iotask Design System Upgrade - Phase 1-4
+- **[PR #1796](https://github.com/RC918/morningai/pull/1796)** (Merged): iotask Design System Upgrade - Phase 1-4
   - Path: `packages/shared-ui/src/tokens.json`, `handoff/20250928/40_App/owner-console/src/components/`
 
 **Recent PRs (Nov 29 - Dec 1, 2025)**:
-- **PR #1788** (Merged): Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
+- **[PR #1788](https://github.com/RC918/morningai/pull/1788)** (Merged): Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
   - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
-- **PR #1787** (Merged): Sentry Error Prevention - Add defensive checks for graceful degradation
+- **[PR #1787](https://github.com/RC918/morningai/pull/1787)** (Merged): Sentry Error Prevention - Add defensive checks for graceful degradation
   - Path: `handoff/20250928/40_App/orchestrator/persistence/db_client.py`, `db_writer.py`, `auth_middleware.py`
-- **PR #1785** (Merged): Real Metrics Aggregation - Implement experiment comparison (Tier 1)
+- **[PR #1785](https://github.com/RC918/morningai/pull/1785)** (Merged): Real Metrics Aggregation - Implement experiment comparison (Tier 1)
   - Path: `handoff/20250928/40_App/orchestrator/persistence/planner_events_store.py`
   - Migration: `migrations/030_create_planner_metrics_rpc.sql`
-- **PR #1781** (Merged): ORCHESTRATOR_DRY_RUN Flag - Skip PR creation in dry run mode
+- **[PR #1781](https://github.com/RC918/morningai/pull/1781)** (Merged): ORCHESTRATOR_DRY_RUN Flag - Skip PR creation in dry run mode
   - Path: `handoff/20250928/40_App/orchestrator/graph.py`
-- **PR #1780** (Merged): OpenAI SDK Upgrade - Fix httpx 0.28 proxies compatibility
+- **[PR #1780](https://github.com/RC918/morningai/pull/1780)** (Merged): OpenAI SDK Upgrade - Fix httpx 0.28 proxies compatibility
   - Path: `handoff/20250928/40_App/orchestrator/requirements.txt`
-- **PR #1778** (Merged): 401 Retry Logic - Proactive token expiry check for owner-console
+- **[PR #1778](https://github.com/RC918/morningai/pull/1778)** (Merged): 401 Retry Logic - Proactive token expiry check for owner-console
   - Path: `handoff/20250928/40_App/owner-console/src/lib/auth.ts`, `api-client.ts`
 
 **Gemini 3 SDK Migration (Nov 29-30, 2025)**:
-- **PR #1761** (Merged): Gemini Provider Migration - Migrate to google-genai SDK (Phase 1)
+- **[PR #1761](https://github.com/RC918/morningai/pull/1761)** (Merged): Gemini Provider Migration - Migrate to google-genai SDK (Phase 1)
   - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
-- **PR #1762** (Merged): Gemini Fallback Model Update - Change from gemini-pro to gemini-2.0-flash
-- **PR #1763** (Merged): Gemini 3 Phase 2 - thinking_level support and new experiments
-- **PR #1765** (Merged): Enable gemini3_planner_10pct_staging experiment
+- **[PR #1762](https://github.com/RC918/morningai/pull/1762)** (Merged): Gemini Fallback Model Update - Change from gemini-pro to gemini-2.0-flash
+- **[PR #1763](https://github.com/RC918/morningai/pull/1763)** (Merged): Gemini 3 Phase 2 - thinking_level support and new experiments
+- **[PR #1765](https://github.com/RC918/morningai/pull/1765)** (Merged): Enable gemini3_planner_10pct_staging experiment
 
 **AI Governance & Security (Nov 28-29, 2025)**:
-- **PR #1741** (Merged): Three-tier Permission Architecture (Phase 6 PR-5)
+- **[PR #1741](https://github.com/RC918/morningai/pull/1741)** (Merged): Three-tier Permission Architecture (Phase 6 PR-5)
   - Path: `handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py`
   - Migration: `migrations/028_add_platform_admin_support.sql`
-- **PR #1746** (Merged): SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
-- **PR #1748** (Merged): LangGraph Enforcement Integration (PR-2)
-- **PR #1749** (Merged): Simple Mode Policy Observability (PR-3)
-- **PR #1751** (Merged): Blessed Configurations Documentation (PR-4)
+- **[PR #1746](https://github.com/RC918/morningai/pull/1746)** (Merged): SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
+- **[PR #1748](https://github.com/RC918/morningai/pull/1748)** (Merged): LangGraph Enforcement Integration (PR-2)
+- **[PR #1749](https://github.com/RC918/morningai/pull/1749)** (Merged): Simple Mode Policy Observability (PR-3)
+- **[PR #1751](https://github.com/RC918/morningai/pull/1751)** (Merged): Blessed Configurations Documentation (PR-4)
   - Path: `config/blessed_configs.yaml`
-- **PR #1753** (Merged): Config Validation Script and CI (PR-5)
+- **[PR #1753](https://github.com/RC918/morningai/pull/1753)** (Merged): Config Validation Script and CI (PR-5)
   - Path: `scripts/validate_blessed_configs.py`, `.github/workflows/validate-blessed-configs.yml`
 
 **CI/CD Improvements (Nov 28-29, 2025)**:
-- **PR #1756** (Merged): Unified Migration Runner (PR-6)
+- **[PR #1756](https://github.com/RC918/morningai/pull/1756)** (Merged): Unified Migration Runner (PR-6)
   - Path: `scripts/run_migrations.sh`
-- **PR #1757** (Merged): Migration Health Check CI (PR-7)
+- **[PR #1757](https://github.com/RC918/morningai/pull/1757)** (Merged): Migration Health Check CI (PR-7)
   - Path: `.github/workflows/migration-health-check.yml`
-- **PR #1767** (Merged): Coverage Trend Tracking
+- **[PR #1767](https://github.com/RC918/morningai/pull/1767)** (Merged): Coverage Trend Tracking
   - Path: `.github/workflows/coverage-trend.yml`
 
 **Previous PRs (Nov 25-26, 2025)**:
-- **PR #1548** (Merged): Frontend Dashboard Code Splitting - 20% bundle reduction + Lighthouse CI color-contrast fix
+- **[PR #1548](https://github.com/RC918/morningai/pull/1548)** (Merged): Frontend Dashboard Code Splitting - 20% bundle reduction + Lighthouse CI color-contrast fix
   - Path: `handoff/20250928/40_App/frontend-dashboard/`
-- **PR #1562** (Merged): RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
+- **[PR #1562](https://github.com/RC918/morningai/pull/1562)** (Merged): RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
 
 **Previous PRs (Nov 18-23, 2025)**:
-- **PR #1350** (Merged): E2E Testing Infrastructure - 32 Playwright tests, route handler isolation, API mocking
-- **PR #1398** (Merged): Production Path Discovery - `MORNINGAI_REPO_PATH` env var, 4-layer fallback
-- **PR #1399** (Merged): Backend Test Environment - Python 3.12, Redis service, PyJWT conflict resolution
-- **PR #1480** (Merged): Pydantic Alias System - 23 critical environment variable aliases (Nov 23)
-- **PR #1452** (Merged): Redis Mapping Sanitization - Prevent NoneType DataError (Nov 23)
-- **PR #1455** (Merged): AgentExecutionLogs Accessibility - 6 critical a11y violations resolved (Nov 23)
-- **PR #1437** (Merged): i18n Error Fixes - 10 i18n errors fixed in owner-console (Nov 23)
+- **[PR #1350](https://github.com/RC918/morningai/pull/1350)** (Merged): E2E Testing Infrastructure - 32 Playwright tests, route handler isolation, API mocking
+- **[PR #1398](https://github.com/RC918/morningai/pull/1398)** (Merged): Production Path Discovery - `MORNINGAI_REPO_PATH` env var, 4-layer fallback
+- **[PR #1399](https://github.com/RC918/morningai/pull/1399)** (Merged): Backend Test Environment - Python 3.12, Redis service, PyJWT conflict resolution
+- **[PR #1480](https://github.com/RC918/morningai/pull/1480)** (Merged): Pydantic Alias System - 23 critical environment variable aliases (Nov 23)
+- **[PR #1452](https://github.com/RC918/morningai/pull/1452)** (Merged): Redis Mapping Sanitization - Prevent NoneType DataError (Nov 23)
+- **[PR #1455](https://github.com/RC918/morningai/pull/1455)** (Merged): AgentExecutionLogs Accessibility - 6 critical a11y violations resolved (Nov 23)
+- **[PR #1437](https://github.com/RC918/morningai/pull/1437)** (Merged): i18n Error Fixes - 10 i18n errors fixed in owner-console (Nov 23)
 
 ---
 
@@ -592,7 +592,7 @@ This document provides a comprehensive overview of the MorningAI project structu
 ### Technology Stack
 
 **Backend**:
-- Python 3.12 (unified across all CI workflows as of PR #1399)
+- Python 3.12 (unified across all CI workflows as of [PR #1399](https://github.com/RC918/morningai/pull/1399))
 - Flask
 - SQLAlchemy
 - PostgreSQL (Supabase)
@@ -714,7 +714,7 @@ The following 18 production backend modules are located in the root directory as
 .github/
 ├── workflows/                 # CI/CD workflows
 │   ├── backend.yml           # Backend CI (pytest + coverage, Python 3.12, Redis service)
-│   ├── test-apps.yml         # App Tests (API Backend, Orchestrator, Frontend - unified with backend.yml as of PR #1399)
+│   ├── test-apps.yml         # App Tests (API Backend, Orchestrator, Frontend - unified with backend.yml as of [PR #1399](https://github.com/RC918/morningai/pull/1399))
 │   ├── frontend.yml          # Frontend CI (build + lint + E2E tests)
 │   ├── staging-deploy.yml    # Staging deployment
 │   ├── agent-mvp-e2e.yml     # Agent E2E tests
@@ -844,7 +844,7 @@ handoff/20250928/40_App/
 │
 ├── owner-console/        # Owner management console
 │   ├── src/             # Source code
-│   ├── e2e/             # E2E tests (Playwright, 32 tests - added PR #1350)
+│   ├── e2e/             # E2E tests (Playwright, 32 tests - added [PR #1350](https://github.com/RC918/morningai/pull/1350))
 │   │   ├── auth.setup.ts           # Authentication setup
 │   │   ├── agent-execution-logs.spec.ts  # 10 test cases
 │   │   ├── system-monitoring.spec.ts     # 8 test cases

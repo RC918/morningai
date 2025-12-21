@@ -54,663 +54,663 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 **Recent Improvements (Dec 13 - Dec 20, 2025)** (198 PRs merged):
 
 *EPIC B: PR_UPDATED Event Support & Phase BB Robustness (21 PRs):*
-- **PR #2789**: feat(phase-bb): P2 technical debt - extract helper, narrow exceptions, add tests
+- **[PR #2789](https://github.com/RC918/morningai/pull/2789)**: feat(phase-bb): P2 technical debt - extract helper, narrow exceptions, add tests
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Technical debt reduction with helper extraction and narrowed exception handling
-- **PR #2788**: feat(epic-b): Phase 2 - Line drift protection with head_sha tracking
+- **[PR #2788](https://github.com/RC918/morningai/pull/2788)**: feat(epic-b): Phase 2 - Line drift protection with head_sha tracking
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Prevents stale comments by tracking head_sha for line drift detection
-- **PR #2787**: refactor(epic-b): P2/P3 follow-up improvements for Phase 1 Quick Wins
+- **[PR #2787](https://github.com/RC918/morningai/pull/2787)**: refactor(epic-b): P2/P3 follow-up improvements for Phase 1 Quick Wins
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Follow-up improvements for LLM reliability and file-level comments
-- **PR #2786**: feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
+- **[PR #2786](https://github.com/RC918/morningai/pull/2786)**: feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: New env var `REDIS_KEY_PREFIX` for multi-environment Redis key isolation
-- **PR #2785**: feat(epic-b): Phase 1 Quick Wins - LLM reliability and file-level comments delivery
+- **[PR #2785](https://github.com/RC918/morningai/pull/2785)**: feat(epic-b): Phase 1 Quick Wins - LLM reliability and file-level comments delivery
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Improved LLM reliability and file-level comment delivery
-- **PR #2784**: fix(phase-bb): use consistent queue_name pattern with None handling in worker.py
+- **[PR #2784](https://github.com/RC918/morningai/pull/2784)**: fix(phase-bb): use consistent queue_name pattern with None handling in worker.py
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - Impact: Consistent queue naming pattern with proper None handling
-- **PR #2782**: feat(phase-bb): add P2 robustness improvements for debounce mechanism
+- **[PR #2782](https://github.com/RC918/morningai/pull/2782)**: feat(phase-bb): add P2 robustness improvements for debounce mechanism
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Enhanced debounce mechanism robustness
-- **PR #2781**: refactor(phase-bb): implement non-blocking debounce with self-rescheduling
+- **[PR #2781](https://github.com/RC918/morningai/pull/2781)**: refactor(phase-bb): implement non-blocking debounce with self-rescheduling
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Non-blocking debounce implementation with self-rescheduling
-- **PR #2776**: feat(phase-bb): implement PR_UPDATED delayed job integration
+- **[PR #2776](https://github.com/RC918/morningai/pull/2776)**: feat(phase-bb): implement PR_UPDATED delayed job integration
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Delayed job integration for PR_UPDATED events
-- **PR #2769**: feat(phase-bb): add PR_UPDATED event support with debounce/throttle
+- **[PR #2769](https://github.com/RC918/morningai/pull/2769)**: feat(phase-bb): add PR_UPDATED event support with debounce/throttle
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Core PR_UPDATED event support with debounce and throttle mechanisms
-- **PR #2768**: feat(phase-bb): add 422 fault injection for fallback verification
+- **[PR #2768](https://github.com/RC918/morningai/pull/2768)**: feat(phase-bb): add 422 fault injection for fallback verification
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Fault injection for testing fallback behavior
-- **PR #2770**: feat: restrict 422 fault injection to internal repos only (P2 follow-up)
+- **[PR #2770](https://github.com/RC918/morningai/pull/2770)**: feat: restrict 422 fault injection to internal repos only (P2 follow-up)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Security restriction for fault injection to internal repos only
-- **PR #2763**: feat(phase-bb): enable internal repo dogfooding in Staging
+- **[PR #2763](https://github.com/RC918/morningai/pull/2763)**: feat(phase-bb): enable internal repo dogfooding in Staging
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Internal repo dogfooding enabled in Staging environment
-- **PR #2741**: feat(phase-bb): add C-lite telemetry for EPIC B KPIs
+- **[PR #2741](https://github.com/RC918/morningai/pull/2741)**: feat(phase-bb): add C-lite telemetry for EPIC B KPIs
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: C-lite telemetry for EPIC B key performance indicators
-- **PR #2735**: fix(phase-bb): fix header case-sensitivity, empty string trap, and add automation bot allowlist
+- **[PR #2735](https://github.com/RC918/morningai/pull/2735)**: fix(phase-bb): fix header case-sensitivity, empty string trap, and add automation bot allowlist
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Header case-sensitivity fix and automation bot allowlist
-- **PR #2732**: fix(phase-bb): add context observability fields to diagnose pr_number=0
+- **[PR #2732](https://github.com/RC918/morningai/pull/2732)**: fix(phase-bb): add context observability fields to diagnose pr_number=0
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Enhanced observability for debugging pr_number=0 issues
-- **PR #2730**: fix(phase-bb): use single quotes for pr_url to preserve JSON format
+- **[PR #2730](https://github.com/RC918/morningai/pull/2730)**: fix(phase-bb): use single quotes for pr_url to preserve JSON format
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: JSON format preservation for pr_url
-- **PR #2726**: fix(phase-bb): put key fields in log message for observability
+- **[PR #2726](https://github.com/RC918/morningai/pull/2726)**: fix(phase-bb): put key fields in log message for observability
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Improved log observability with key fields
-- **PR #2721**: fix(phase-bb): pass PR context from webhook to LangGraph orchestrator
+- **[PR #2721](https://github.com/RC918/morningai/pull/2721)**: fix(phase-bb): pass PR context from webhook to LangGraph orchestrator
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: PR context passing from webhook to orchestrator
-- **PR #2716**: feat(telemetry): add Phase B-B staging verification fields
+- **[PR #2716](https://github.com/RC918/morningai/pull/2716)**: feat(telemetry): add Phase B-B staging verification fields
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Staging verification telemetry fields
 
 *LangGraph 100% Rollout & Simple Mode Removal (14 PRs):*
-- **PR #2767**: chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
+- **[PR #2767](https://github.com/RC918/morningai/pull/2767)**: chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: **MAJOR**: Complete removal of Simple Mode code - LangGraph is now the only orchestration mode
-- **PR #2771**: feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
+- **[PR #2771](https://github.com/RC918/morningai/pull/2771)**: feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: PostgreSQL checkpointer support for LangGraph state persistence
-- **PR #2772**: test(checkpointer): add unit tests for get_checkpointer priority and fallback
+- **[PR #2772](https://github.com/RC918/morningai/pull/2772)**: test(checkpointer): add unit tests for get_checkpointer priority and fallback
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Checkpointer priority and fallback test coverage
-- **PR #2775**: test(checkpointer): add P3 success path and fallback tests
+- **[PR #2775](https://github.com/RC918/morningai/pull/2775)**: test(checkpointer): add P3 success path and fallback tests
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: P3 success path and fallback test coverage
-- **PR #2766**: chore: remove deprecated rollout API endpoints
+- **[PR #2766](https://github.com/RC918/morningai/pull/2766)**: chore: remove deprecated rollout API endpoints
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Deprecated rollout API endpoints removed
-- **PR #2765**: fix(rollout): remove obsolete use_langgraph_percent reference
+- **[PR #2765](https://github.com/RC918/morningai/pull/2765)**: fix(rollout): remove obsolete use_langgraph_percent reference
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Cleanup of obsolete rollout percentage references
-- **PR #2757**: fix(worker): remove obsolete use_langgraph settings reference
+- **[PR #2757](https://github.com/RC918/morningai/pull/2757)**: fix(worker): remove obsolete use_langgraph settings reference
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - Impact: Cleanup of obsolete settings references
-- **PR #2754**: feat(orchestrator): add FAQ latency monitoring (#2737)
+- **[PR #2754](https://github.com/RC918/morningai/pull/2754)**: feat(orchestrator): add FAQ latency monitoring (#2737)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: FAQ latency monitoring for performance tracking
-- **PR #2742**: test(orchestrator): add E2E and circuit breaker tests for LangGraph-only mode (#2736)
+- **[PR #2742](https://github.com/RC918/morningai/pull/2742)**: test(orchestrator): add E2E and circuit breaker tests for LangGraph-only mode (#2736)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: E2E and circuit breaker tests for LangGraph-only mode
-- **PR #2740**: test(orchestrator): remove obsolete Simple Mode tests (#2738)
+- **[PR #2740](https://github.com/RC918/morningai/pull/2740)**: test(orchestrator): remove obsolete Simple Mode tests (#2738)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Cleanup of obsolete Simple Mode tests
-- **PR #2720**: feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
+- **[PR #2720](https://github.com/RC918/morningai/pull/2720)**: feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: **MAJOR**: Simple Mode removal - LangGraph becomes the only mode
-- **PR #2644**: feat(tests): add RolloutTracker enabled=True + Redis integration tests (#2641)
+- **[PR #2644](https://github.com/RC918/morningai/pull/2644)**: feat(tests): add RolloutTracker enabled=True + Redis integration tests (#2641)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: RolloutTracker integration tests
-- **PR #2611**: refactor(rollout): adopt helper functions in endpoints (#2605)
+- **[PR #2611](https://github.com/RC918/morningai/pull/2611)**: refactor(rollout): adopt helper functions in endpoints (#2605)
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Rollout endpoint refactoring with helper functions
-- **PR #2597**: feat(phase4a): implement LangGraph rollout pre-rollout telemetry and controls (#2285, #2282, #2281, #2283)
+- **[PR #2597](https://github.com/RC918/morningai/pull/2597)**: feat(phase4a): implement LangGraph rollout pre-rollout telemetry and controls (#2285, #2282, #2281, #2283)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Pre-rollout telemetry and controls for LangGraph
 
 *EPIC B: Inline Code Review (Phase B-1 to B-3) (8 PRs):*
-- **PR #2714**: feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
+- **[PR #2714](https://github.com/RC918/morningai/pull/2714)**: feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
   - Impact: Inline comment validation with line number semantics
-- **PR #2710**: feat(diff): add ignore list and secrets redaction (Phase B-2.5)
+- **[PR #2710](https://github.com/RC918/morningai/pull/2710)**: feat(diff): add ignore list and secrets redaction (Phase B-2.5)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Diff ignore list and secrets redaction for security
-- **PR #2707**: test(publisher): add comprehensive unit tests for post_pr_review and publisher_node (Issue #2706)
+- **[PR #2707](https://github.com/RC918/morningai/pull/2707)**: test(publisher): add comprehensive unit tests for post_pr_review and publisher_node (Issue #2706)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Comprehensive publisher node test coverage
-- **PR #2701**: feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
+- **[PR #2701](https://github.com/RC918/morningai/pull/2701)**: feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
   - Impact: GitHub inline comment posting capability
-- **PR #2698**: feat(reviewer): add schema versioning and reduce log noise (#2696, #2697)
+- **[PR #2698](https://github.com/RC918/morningai/pull/2698)**: feat(reviewer): add schema versioning and reduce log noise (#2696, #2697)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Schema versioning and reduced log noise
-- **PR #2693**: feat(reviewer): add review comment schema with start_line/end_line support (EPIC B Phase B-2)
+- **[PR #2693](https://github.com/RC918/morningai/pull/2693)**: feat(reviewer): add review comment schema with start_line/end_line support (EPIC B Phase B-2)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Review comment schema with line range support
-- **PR #2692**: feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
+- **[PR #2692](https://github.com/RC918/morningai/pull/2692)**: feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Diff-aware code review implementation
 
 *Agent Architecture & Routing (12 PRs):*
-- **PR #2783**: fix(governance): resolve agent_type to UUID for ReputationEngine DB operations
+- **[PR #2783](https://github.com/RC918/morningai/pull/2783)**: fix(governance): resolve agent_type to UUID for ReputationEngine DB operations
   - Path: `handoff/20250928/40_App/orchestrator/governance/reputation_engine.py`
   - Impact: UUID resolution for ReputationEngine DB operations
-- **PR #2680**: feat(agents): add RefactorAgentV2 migration validation
+- **[PR #2680](https://github.com/RC918/morningai/pull/2680)**: feat(agents): add RefactorAgentV2 migration validation
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: RefactorAgentV2 migration validation
-- **PR #2674**: feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
+- **[PR #2674](https://github.com/RC918/morningai/pull/2674)**: feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: BaseAgent with dynamic routing and Telemetry v2
-- **PR #2666**: feat(refactor-agent): Add TS2307 environment health check
+- **[PR #2666](https://github.com/RC918/morningai/pull/2666)**: feat(refactor-agent): Add TS2307 environment health check
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: TypeScript TS2307 environment health check
-- **PR #2665**: feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
+- **[PR #2665](https://github.com/RC918/morningai/pull/2665)**: feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Routing Policy v1.1 for multi-model LLM selection
-- **PR #2659**: feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
+- **[PR #2659](https://github.com/RC918/morningai/pull/2659)**: feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Qwen3 provider adapters for AliCloud and SiliconFlow
-- **PR #2657**: fix: Improve Refactor Agent reliability with environment setup and validation gates
+- **[PR #2657](https://github.com/RC918/morningai/pull/2657)**: fix: Improve Refactor Agent reliability with environment setup and validation gates
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Refactor Agent reliability improvements
-- **PR #2691**: test(routing): add direct unit tests for _adjust_tier_for_context()
+- **[PR #2691](https://github.com/RC918/morningai/pull/2691)**: test(routing): add direct unit tests for _adjust_tier_for_context()
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Routing tier adjustment test coverage
-- **PR #2688**: test(routing): add type error handling and multi-threading safety tests
+- **[PR #2688](https://github.com/RC918/morningai/pull/2688)**: test(routing): add type error handling and multi-threading safety tests
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Routing type error and multi-threading safety tests
-- **PR #2683**: test(routing): add context size boundary and edge case tests
+- **[PR #2683](https://github.com/RC918/morningai/pull/2683)**: test(routing): add context size boundary and edge case tests
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Routing context size boundary tests
-- **PR #2682**: test(routing): add routing_policy.json loading and error handling tests
+- **[PR #2682](https://github.com/RC918/morningai/pull/2682)**: test(routing): add routing_policy.json loading and error handling tests
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Routing policy loading tests
-- **PR #2684**: test(agents): add E2E tests and TelemetryEvent JSON schema validation
+- **[PR #2684](https://github.com/RC918/morningai/pull/2684)**: test(agents): add E2E tests and TelemetryEvent JSON schema validation
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Agent E2E tests and telemetry validation
 
 *CI/CD Infrastructure & Qwen Workflow (25 PRs):*
-- **PR #2779**: feat(tests): add CI integration tests and fault injection tests (#2650)
+- **[PR #2779](https://github.com/RC918/morningai/pull/2779)**: feat(tests): add CI integration tests and fault injection tests (#2650)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/tests/`
   - Impact: CI integration tests and fault injection tests
-- **PR #2774**: refactor(ci): extract CI Guard to testable script with resource limits
+- **[PR #2774](https://github.com/RC918/morningai/pull/2774)**: refactor(ci): extract CI Guard to testable script with resource limits
   - Path: `.github/workflows/`, `scripts/ci/`
   - Impact: CI Guard extraction to testable script
-- **PR #2598**: ci(pr8): add PR title convention check and documentation
+- **[PR #2598](https://github.com/RC918/morningai/pull/2598)**: ci(pr8): add PR title convention check and documentation
   - Path: `.github/workflows/`
   - Impact: PR title convention enforcement
-- **PR #2596**: perf(typescript): implement batch baseline updates for efficiency
+- **[PR #2596](https://github.com/RC918/morningai/pull/2596)**: perf(typescript): implement batch baseline updates for efficiency
   - Path: `scripts/`
   - Impact: Batch baseline updates for TypeScript strict mode
-- **PR #2593**: feat(typescript): add strict mode baseline system (TS-1, TS-2)
+- **[PR #2593](https://github.com/RC918/morningai/pull/2593)**: feat(typescript): add strict mode baseline system (TS-1, TS-2)
   - Path: `scripts/`, `.github/workflows/`
   - Impact: TypeScript strict mode baseline system
-- **PR #2583**: feat(ci): add lockfile sync check to prevent dev/CI/prod drift
+- **[PR #2583](https://github.com/RC918/morningai/pull/2583)**: feat(ci): add lockfile sync check to prevent dev/CI/prod drift
   - Path: `.github/workflows/`
   - Impact: Lockfile sync check to prevent environment drift
-- **PR #2577**: test(env-reference): add unit tests and CI sync check
+- **[PR #2577](https://github.com/RC918/morningai/pull/2577)**: test(env-reference): add unit tests and CI sync check
   - Path: `scripts/`, `.github/workflows/`
   - Impact: ENV_REFERENCE.md sync check
-- **PR #2572**: fix(ci): resolve Playwright version mismatch in computed-style-check job
+- **[PR #2572](https://github.com/RC918/morningai/pull/2572)**: fix(ci): resolve Playwright version mismatch in computed-style-check job
   - Path: `.github/workflows/`
   - Impact: Playwright version mismatch fix
-- **PR #2561**: feat: add Qwen workflow tests, docs, and disable automatic review
+- **[PR #2561](https://github.com/RC918/morningai/pull/2561)**: feat: add Qwen workflow tests, docs, and disable automatic review
   - Path: `.github/workflows/qwen-pr-review.yml`
   - Impact: Qwen workflow tests and documentation
-- **PR #2565**: fix(ci): Fix YAML syntax error in qwen-pr-review.yml
+- **[PR #2565](https://github.com/RC918/morningai/pull/2565)**: fix(ci): Fix YAML syntax error in qwen-pr-review.yml
   - Path: `.github/workflows/qwen-pr-review.yml`
   - Impact: YAML syntax fix
-- **PR #2553**: fix(ci): Handle Dependabot PR permissions and update shared-ui baseline to 0
+- **[PR #2553](https://github.com/RC918/morningai/pull/2553)**: fix(ci): Handle Dependabot PR permissions and update shared-ui baseline to 0
   - Path: `.github/workflows/`
   - Impact: Dependabot PR permissions handling
-- **PR #2550**: feat(ci): add Storybook coverage detection CI (#2512)
+- **[PR #2550](https://github.com/RC918/morningai/pull/2550)**: feat(ci): add Storybook coverage detection CI (#2512)
   - Path: `.github/workflows/`
   - Impact: Storybook coverage detection
-- **PR #2540**: feat: add Qwen AI code review workflow for all PRs
+- **[PR #2540](https://github.com/RC918/morningai/pull/2540)**: feat: add Qwen AI code review workflow for all PRs
   - Path: `.github/workflows/qwen-pr-review.yml`
   - Impact: Qwen AI code review workflow
-- **PR #2541**: feat(ci): add legacy component detection CI (#2513)
+- **[PR #2541](https://github.com/RC918/morningai/pull/2541)**: feat(ci): add legacy component detection CI (#2513)
   - Path: `.github/workflows/`
   - Impact: Legacy component detection
-- **PR #2538**: feat(ci): add bundle size script fallback coverage tests (#2476)
+- **[PR #2538](https://github.com/RC918/morningai/pull/2538)**: feat(ci): add bundle size script fallback coverage tests (#2476)
   - Path: `.github/workflows/`
   - Impact: Bundle size script fallback tests
-- **PR #2536**: fix(ci): Improve Dependabot PR Compatibility
+- **[PR #2536](https://github.com/RC918/morningai/pull/2536)**: fix(ci): Improve Dependabot PR Compatibility
   - Path: `.github/workflows/`
   - Impact: Dependabot PR compatibility improvements
-- **PR #2515**: feat(ci): add PR template path validation CI (#2514)
+- **[PR #2515](https://github.com/RC918/morningai/pull/2515)**: feat(ci): add PR template path validation CI (#2514)
   - Path: `.github/workflows/`
   - Impact: PR template path validation
-- **PR #2511**: [P2] Improve Ruff lint infrastructure with official action and auto-upgrade
+- **[PR #2511](https://github.com/RC918/morningai/pull/2511)**: [P2] Improve Ruff lint infrastructure with official action and auto-upgrade
   - Path: `.github/workflows/`
   - Impact: Ruff lint infrastructure improvements
-- **PR #2507**: [P2] Pin Ruff Version to 0.8.6 for CI Stability
+- **[PR #2507](https://github.com/RC918/morningai/pull/2507)**: [P2] Pin Ruff Version to 0.8.6 for CI Stability
   - Path: `.github/workflows/`
   - Impact: Ruff version pinning for stability
-- **PR #2503**: [P1] Add Ruff Lint Gate to CI Workflow (Blocking Mode)
+- **[PR #2503](https://github.com/RC918/morningai/pull/2503)**: [P1] Add Ruff Lint Gate to CI Workflow (Blocking Mode)
   - Path: `.github/workflows/`
   - Impact: Ruff lint gate in blocking mode
 
 *Design System & UI Components (Epic #2304) (30 PRs):*
-- **PR #2508**: feat(governance): establish design system governance rules (#2303)
+- **[PR #2508](https://github.com/RC918/morningai/pull/2508)**: feat(governance): establish design system governance rules (#2303)
   - Path: `docs/`, `packages/shared-ui/`
   - Impact: Design system governance rules
-- **PR #2506**: docs: update UI/UX documentation with card archetypes and Apple Kit guide (#2302)
+- **[PR #2506](https://github.com/RC918/morningai/pull/2506)**: docs: update UI/UX documentation with card archetypes and Apple Kit guide (#2302)
   - Path: `docs/`
   - Impact: UI/UX documentation with card archetypes
-- **PR #2504**: test(shared-ui): add unit tests for dashboard components (#2301)
+- **[PR #2504](https://github.com/RC918/morningai/pull/2504)**: test(shared-ui): add unit tests for dashboard components (#2301)
   - Path: `packages/shared-ui/`
   - Impact: Dashboard component tests
-- **PR #2499**: feat(shared-ui): add Storybook stories for dashboard and UI components (#2300)
+- **[PR #2499](https://github.com/RC918/morningai/pull/2499)**: feat(shared-ui): add Storybook stories for dashboard and UI components (#2300)
   - Path: `packages/shared-ui/`
   - Impact: Storybook stories for dashboard components
-- **PR #2492**: feat(owner-console): Phase 2-2c - Migrate UXMetrics summary cards to StatCard
+- **[PR #2492](https://github.com/RC918/morningai/pull/2492)**: feat(owner-console): Phase 2-2c - Migrate UXMetrics summary cards to StatCard
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: UXMetrics migration to StatCard
-- **PR #2487**: refactor(owner-console): data-driven StatCards in AgentEvaluationDashboard (#2486)
+- **[PR #2487](https://github.com/RC918/morningai/pull/2487)**: refactor(owner-console): data-driven StatCards in AgentEvaluationDashboard (#2486)
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: Data-driven StatCards
-- **PR #2484**: feat(owner-console): Phase 2-1d - Cleanup unused Card imports and migrate AgentEvaluationDashboard
+- **[PR #2484](https://github.com/RC918/morningai/pull/2484)**: feat(owner-console): Phase 2-1d - Cleanup unused Card imports and migrate AgentEvaluationDashboard
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: Card import cleanup
-- **PR #2482**: feat(owner-console): Phase 2-1c - Migrate FailureExperimentDashboard + SectionCard icon prop
+- **[PR #2482](https://github.com/RC918/morningai/pull/2482)**: feat(owner-console): Phase 2-1c - Migrate FailureExperimentDashboard + SectionCard icon prop
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: FailureExperimentDashboard migration
-- **PR #2480**: feat(owner-console): Phase 2-1b - Migrate PlatformSettings to SettingsCard
+- **[PR #2480](https://github.com/RC918/morningai/pull/2480)**: feat(owner-console): Phase 2-1b - Migrate PlatformSettings to SettingsCard
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: PlatformSettings migration
-- **PR #2478**: feat(frontend-dashboard): Phase 2-1a - Migrate TwoFAStatusCard to SettingsCard
+- **[PR #2478](https://github.com/RC918/morningai/pull/2478)**: feat(frontend-dashboard): Phase 2-1a - Migrate TwoFAStatusCard to SettingsCard
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: TwoFAStatusCard migration
-- **PR #2434**: feat(shared-ui): Issue #2296 - Add SettingsCard component for settings sections
+- **[PR #2434](https://github.com/RC918/morningai/pull/2434)**: feat(shared-ui): Issue #2296 - Add SettingsCard component for settings sections
   - Path: `packages/shared-ui/`
   - Impact: SettingsCard component
-- **PR #2426**: feat(shared-ui): Issue #2295 - Add MetricCard component for entity summary metrics
+- **[PR #2426](https://github.com/RC918/morningai/pull/2426)**: feat(shared-ui): Issue #2295 - Add MetricCard component for entity summary metrics
   - Path: `packages/shared-ui/`
   - Impact: MetricCard component
-- **PR #2403**: feat(design-tokens): Issue #2294 - Define card icon specification tokens
+- **[PR #2403](https://github.com/RC918/morningai/pull/2403)**: feat(design-tokens): Issue #2294 - Define card icon specification tokens
   - Path: `packages/shared-ui/`
   - Impact: Card icon specification tokens
-- **PR #2402**: feat(shared-ui): Issue #2293 - Add StatusCard component for Phase 1
+- **[PR #2402](https://github.com/RC918/morningai/pull/2402)**: feat(shared-ui): Issue #2293 - Add StatusCard component for Phase 1
   - Path: `packages/shared-ui/`
   - Impact: StatusCard component
-- **PR #2399**: refactor(design-system): replace hardcoded colors in spring-animations.css and micro-interactions.css (Phase 4 #2393)
+- **[PR #2399](https://github.com/RC918/morningai/pull/2399)**: refactor(design-system): replace hardcoded colors in spring-animations.css and micro-interactions.css (Phase 4 #2393)
   - Path: `packages/shared-ui/`
   - Impact: Hardcoded color replacement
-- **PR #2398**: refactor(design-system): replace hardcoded colors in materials.css and motion-governance.css (Phase 3 #2393)
+- **[PR #2398](https://github.com/RC918/morningai/pull/2398)**: refactor(design-system): replace hardcoded colors in materials.css and motion-governance.css (Phase 3 #2393)
   - Path: `packages/shared-ui/`
   - Impact: Hardcoded color replacement
-- **PR #2395**: feat(storybook): add stories for 10 missing components to improve coverage
+- **[PR #2395](https://github.com/RC918/morningai/pull/2395)**: feat(storybook): add stories for 10 missing components to improve coverage
   - Path: `packages/shared-ui/`
   - Impact: Storybook coverage improvement
-- **PR #2394**: refactor(design-system): replace hardcoded colors with CSS variables (Phase 2 #2393)
+- **[PR #2394](https://github.com/RC918/morningai/pull/2394)**: refactor(design-system): replace hardcoded colors with CSS variables (Phase 2 #2393)
   - Path: `packages/shared-ui/`
   - Impact: CSS variable adoption
-- **PR #2392**: refactor(a11y): reduce hardcoded colors in accessibility.css and theme-apple.css
+- **[PR #2392](https://github.com/RC918/morningai/pull/2392)**: refactor(a11y): reduce hardcoded colors in accessibility.css and theme-apple.css
   - Path: `packages/shared-ui/`
   - Impact: Accessibility color improvements
-- **PR #2390**: refactor(a11y): Issue #2387 - Improve accessibility test quality
+- **[PR #2390](https://github.com/RC918/morningai/pull/2390)**: refactor(a11y): Issue #2387 - Improve accessibility test quality
   - Path: `packages/shared-ui/`
   - Impact: Accessibility test quality
-- **PR #2384**: feat(a11y): Epic #2304 Phase 2-3 - Add 3+ accessibility test files
+- **[PR #2384](https://github.com/RC918/morningai/pull/2384)**: feat(a11y): Epic #2304 Phase 2-3 - Add 3+ accessibility test files
   - Path: `packages/shared-ui/`
   - Impact: Accessibility test files
-- **PR #2372**: feat(a11y): Issue #2292 - Define missing CSS variables for Accessibility Tokens
+- **[PR #2372](https://github.com/RC918/morningai/pull/2372)**: feat(a11y): Issue #2292 - Define missing CSS variables for Accessibility Tokens
   - Path: `packages/shared-ui/`
   - Impact: Accessibility CSS variables
-- **PR #2369**: fix(a11y): Issue #2367 & #2368 - Replace white colors and resolve focus-visible conflict
+- **[PR #2369](https://github.com/RC918/morningai/pull/2369)**: fix(a11y): Issue #2367 & #2368 - Replace white colors and resolve focus-visible conflict
   - Path: `packages/shared-ui/`
   - Impact: Accessibility color and focus fixes
-- **PR #2362**: feat(design-tokens): Issue #2291 - Design Token source unification
+- **[PR #2362](https://github.com/RC918/morningai/pull/2362)**: feat(design-tokens): Issue #2291 - Design Token source unification
   - Path: `packages/shared-ui/`
   - Impact: Design token unification
-- **PR #2359**: feat(design-system): Implement Epic #2304 Phase 0-1 (UI/UX Foundation + Core)
+- **[PR #2359](https://github.com/RC918/morningai/pull/2359)**: feat(design-system): Implement Epic #2304 Phase 0-1 (UI/UX Foundation + Core)
   - Path: `packages/shared-ui/`
   - Impact: UI/UX foundation implementation
 
 *Backend Refactoring (api-backend main.py) (15 PRs):*
-- **PR #2500**: [PR1.7] Cleanup: Remove _register_inline_routes() empty function
+- **[PR #2500](https://github.com/RC918/morningai/pull/2500)**: [PR1.7] Cleanup: Remove _register_inline_routes() empty function
   - Path: `handoff/20250928/40_App/api-backend/src/main.py`
   - Impact: Empty function cleanup
-- **PR #2498**: [PR1.6d] Extract Health/Static routes to src/routes/health_static.py
+- **[PR #2498](https://github.com/RC918/morningai/pull/2498)**: [PR1.6d] Extract Health/Static routes to src/routes/health_static.py
   - Path: `handoff/20250928/40_App/api-backend/src/routes/health_static.py`
   - Impact: Health/Static routes extraction
-- **PR #2496**: [PR1.6c] Extract Dashboard/Reports/Settings routes to src/routes/dashboard_reports.py
+- **[PR #2496](https://github.com/RC918/morningai/pull/2496)**: [PR1.6c] Extract Dashboard/Reports/Settings routes to src/routes/dashboard_reports.py
   - Path: `handoff/20250928/40_App/api-backend/src/routes/dashboard_reports.py`
   - Impact: Dashboard routes extraction
-- **PR #2493**: [PR1.6b] Extract Phase 7 routes to src/routes/phase7.py
+- **[PR #2493](https://github.com/RC918/morningai/pull/2493)**: [PR1.6b] Extract Phase 7 routes to src/routes/phase7.py
   - Path: `handoff/20250928/40_App/api-backend/src/routes/phase7.py`
   - Impact: Phase 7 routes extraction
-- **PR #2491**: [PR1.6a] Extract Phase 4-6 routes to src/routes/phase456.py
+- **[PR #2491](https://github.com/RC918/morningai/pull/2491)**: [PR1.6a] Extract Phase 4-6 routes to src/routes/phase456.py
   - Path: `handoff/20250928/40_App/api-backend/src/routes/phase456.py`
   - Impact: Phase 4-6 routes extraction
-- **PR #2489**: [PR1.5] Extract App Factory Pattern to create_app()
+- **[PR #2489](https://github.com/RC918/morningai/pull/2489)**: [PR1.5] Extract App Factory Pattern to create_app()
   - Path: `handoff/20250928/40_App/api-backend/src/main.py`
   - Impact: App factory pattern extraction
-- **PR #2485**: [PR1f] Extract Sentry initialization to src/extensions/sentry.py
+- **[PR #2485](https://github.com/RC918/morningai/pull/2485)**: [PR1f] Extract Sentry initialization to src/extensions/sentry.py
   - Path: `handoff/20250928/40_App/api-backend/src/extensions/sentry.py`
   - Impact: Sentry initialization extraction
-- **PR #2481**: [PR1e] Extract Database Initialization to src/extensions/database.py
+- **[PR #2481](https://github.com/RC918/morningai/pull/2481)**: [PR1e] Extract Database Initialization to src/extensions/database.py
   - Path: `handoff/20250928/40_App/api-backend/src/extensions/database.py`
   - Impact: Database initialization extraction
-- **PR #2479**: [PR1d] Extract Error handlers to src/middleware/error_handlers.py
+- **[PR #2479](https://github.com/RC918/morningai/pull/2479)**: [PR1d] Extract Error handlers to src/middleware/error_handlers.py
   - Path: `handoff/20250928/40_App/api-backend/src/middleware/error_handlers.py`
   - Impact: Error handlers extraction
-- **PR #2466**: [PR1c] Extract Blueprint registration to src/routes/__init__.py
+- **[PR #2466](https://github.com/RC918/morningai/pull/2466)**: [PR1c] Extract Blueprint registration to src/routes/__init__.py
   - Path: `handoff/20250928/40_App/api-backend/src/routes/__init__.py`
   - Impact: Blueprint registration extraction
-- **PR #2448**: [PR1b] Extract CORS middleware to src/middleware/cors.py
+- **[PR #2448](https://github.com/RC918/morningai/pull/2448)**: [PR1b] Extract CORS middleware to src/middleware/cors.py
   - Path: `handoff/20250928/40_App/api-backend/src/middleware/cors.py`
   - Impact: CORS middleware extraction
-- **PR #2447**: [PR1a] Extract _as_bool to src/utils/helpers.py
+- **[PR #2447](https://github.com/RC918/morningai/pull/2447)**: [PR1a] Extract _as_bool to src/utils/helpers.py
   - Path: `handoff/20250928/40_App/api-backend/src/utils/helpers.py`
   - Impact: Helper function extraction
-- **PR #2446**: [Phase 1 Pre-work] Add contract tests for main.py refactoring
+- **[PR #2446](https://github.com/RC918/morningai/pull/2446)**: [Phase 1 Pre-work] Add contract tests for main.py refactoring
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Contract tests for refactoring
-- **PR #2444**: [Phase 1] Add main.py refactoring plan document
+- **[PR #2444](https://github.com/RC918/morningai/pull/2444)**: [Phase 1] Add main.py refactoring plan document
   - Path: `docs/`
   - Impact: Refactoring plan documentation
-- **PR #2437**: [PR0] Add regression guards: route-map test, settings reload fixture (#2375)
+- **[PR #2437](https://github.com/RC918/morningai/pull/2437)**: [PR0] Add regression guards: route-map test, settings reload fixture (#2375)
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Regression guards
 
 *Dependency Updates (28 PRs):*
-- **PR #2638**: chore(deps): Bump actions/setup-node from 4 to 6
-- **PR #2637**: chore(deps): Bump actions/checkout from 4 to 6
-- **PR #2618**: chore(deps): Bump sentry-sdk from 2.19.2 to 2.48.0 in api-backend
-- **PR #2617**: chore(deps): Bump pyjwt from 2.8.0 to 2.10.1 in api-backend
-- **PR #2616**: chore(deps): Bump alembic from 1.13.1 to 1.17.2 in api-backend
-- **PR #2639**: chore(deps): Bump tj-actions/changed-files from 44 to 47
-- **PR #2636**: chore(deps): Bump peter-evans/create-pull-request from 6 to 8
-- **PR #2635**: chore(deps): Bump stefanzweifel/git-auto-commit-action from 5 to 7
-- **PR #2621**: chore(deps): Update redis requirement from <6.0.0 to <7.0.0 in api-backend
-- **PR #2624**: chore(deps): Bump aiohttp from 3.9.1 to 3.13.2 in orchestrator
-- **PR #2623**: chore(deps): Update openai requirement from <2.0.0 to <3.0.0 in orchestrator
-- **PR #2622**: chore(deps): Bump sentry-sdk from 2.19.2 to 2.48.0 in orchestrator
-- **PR #2615**: chore(deps): Bump click from 8.2.1 to 8.3.1 in api-backend
-- **PR #2620**: chore(deps): Bump requests from 2.32.3 to 2.32.5 in orchestrator
-- **PR #2619**: chore(deps): Bump python-dotenv from 1.0.1 to 1.2.1 in orchestrator
-- **PR #2613**: chore(deps): add orchestrator to Dependabot configuration
-- **PR #2578**: fix(deps): align React versions with pnpm overrides (single source of truth)
-- **PR #2519**: chore(deps): Bump playwright from 1.48.0 to 1.57.0 in api-backend
-- **PR #2516**: chore(deps): Bump argon2-cffi from 23.1.0 to 25.1.0 in api-backend
-- **PR #2530**: chore(deps): Bump actions/upload-artifact from 4 to 6
-- **PR #2531**: chore(deps): Bump npm-minor-patch group in owner-console with 40 updates
-- **PR #2529**: chore(deps): Bump dawidd6/action-download-artifact from 3 to 11
-- **PR #2528**: chore(deps): Bump pnpm/action-setup from 2 to 4
-- **PR #2521**: chore(deps): Bump npm-minor-patch group in shared-ui with 25 updates
-- **PR #2526**: chore(deps): Bump trufflesecurity/trufflehog from 3.82.13 to 3.92.3
-- **PR #2517**: chore(deps): Bump flask-cors from 6.0.0 to 6.0.2 in api-backend
-- **PR #2640**: fix(deps): Epic #2427 P2 items - dev dependencies and jwt guard
-- **PR #2649**: feat(tests): add black-box circuit breaker tests and document redis_queue/tests
+- **[PR #2638](https://github.com/RC918/morningai/pull/2638)**: chore(deps): Bump actions/setup-node from 4 to 6
+- **[PR #2637](https://github.com/RC918/morningai/pull/2637)**: chore(deps): Bump actions/checkout from 4 to 6
+- **[PR #2618](https://github.com/RC918/morningai/pull/2618)**: chore(deps): Bump sentry-sdk from 2.19.2 to 2.48.0 in api-backend
+- **[PR #2617](https://github.com/RC918/morningai/pull/2617)**: chore(deps): Bump pyjwt from 2.8.0 to 2.10.1 in api-backend
+- **[PR #2616](https://github.com/RC918/morningai/pull/2616)**: chore(deps): Bump alembic from 1.13.1 to 1.17.2 in api-backend
+- **[PR #2639](https://github.com/RC918/morningai/pull/2639)**: chore(deps): Bump tj-actions/changed-files from 44 to 47
+- **[PR #2636](https://github.com/RC918/morningai/pull/2636)**: chore(deps): Bump peter-evans/create-pull-request from 6 to 8
+- **[PR #2635](https://github.com/RC918/morningai/pull/2635)**: chore(deps): Bump stefanzweifel/git-auto-commit-action from 5 to 7
+- **[PR #2621](https://github.com/RC918/morningai/pull/2621)**: chore(deps): Update redis requirement from <6.0.0 to <7.0.0 in api-backend
+- **[PR #2624](https://github.com/RC918/morningai/pull/2624)**: chore(deps): Bump aiohttp from 3.9.1 to 3.13.2 in orchestrator
+- **[PR #2623](https://github.com/RC918/morningai/pull/2623)**: chore(deps): Update openai requirement from <2.0.0 to <3.0.0 in orchestrator
+- **[PR #2622](https://github.com/RC918/morningai/pull/2622)**: chore(deps): Bump sentry-sdk from 2.19.2 to 2.48.0 in orchestrator
+- **[PR #2615](https://github.com/RC918/morningai/pull/2615)**: chore(deps): Bump click from 8.2.1 to 8.3.1 in api-backend
+- **[PR #2620](https://github.com/RC918/morningai/pull/2620)**: chore(deps): Bump requests from 2.32.3 to 2.32.5 in orchestrator
+- **[PR #2619](https://github.com/RC918/morningai/pull/2619)**: chore(deps): Bump python-dotenv from 1.0.1 to 1.2.1 in orchestrator
+- **[PR #2613](https://github.com/RC918/morningai/pull/2613)**: chore(deps): add orchestrator to Dependabot configuration
+- **[PR #2578](https://github.com/RC918/morningai/pull/2578)**: fix(deps): align React versions with pnpm overrides (single source of truth)
+- **[PR #2519](https://github.com/RC918/morningai/pull/2519)**: chore(deps): Bump playwright from 1.48.0 to 1.57.0 in api-backend
+- **[PR #2516](https://github.com/RC918/morningai/pull/2516)**: chore(deps): Bump argon2-cffi from 23.1.0 to 25.1.0 in api-backend
+- **[PR #2530](https://github.com/RC918/morningai/pull/2530)**: chore(deps): Bump actions/upload-artifact from 4 to 6
+- **[PR #2531](https://github.com/RC918/morningai/pull/2531)**: chore(deps): Bump npm-minor-patch group in owner-console with 40 updates
+- **[PR #2529](https://github.com/RC918/morningai/pull/2529)**: chore(deps): Bump dawidd6/action-download-artifact from 3 to 11
+- **[PR #2528](https://github.com/RC918/morningai/pull/2528)**: chore(deps): Bump pnpm/action-setup from 2 to 4
+- **[PR #2521](https://github.com/RC918/morningai/pull/2521)**: chore(deps): Bump npm-minor-patch group in shared-ui with 25 updates
+- **[PR #2526](https://github.com/RC918/morningai/pull/2526)**: chore(deps): Bump trufflesecurity/trufflehog from 3.82.13 to 3.92.3
+- **[PR #2517](https://github.com/RC918/morningai/pull/2517)**: chore(deps): Bump flask-cors from 6.0.0 to 6.0.2 in api-backend
+- **[PR #2640](https://github.com/RC918/morningai/pull/2640)**: fix(deps): Epic #2427 P2 items - dev dependencies and jwt guard
+- **[PR #2649](https://github.com/RC918/morningai/pull/2649)**: feat(tests): add black-box circuit breaker tests and document redis_queue/tests
 
 *Orchestrator Infrastructure & Task Storage (10 PRs):*
-- **PR #2391**: feat(orchestrator): add Redis integration tests and env schema for Task Storage (#2259)
+- **[PR #2391](https://github.com/RC918/morningai/pull/2391)**: feat(orchestrator): add Redis integration tests and env schema for Task Storage (#2259)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Redis integration tests for Task Storage
-- **PR #2385**: feat(orchestrator): implement Task Storage Migration with Repository pattern (#2259)
+- **[PR #2385](https://github.com/RC918/morningai/pull/2385)**: feat(orchestrator): implement Task Storage Migration with Repository pattern (#2259)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Task Storage Migration with Repository pattern
-- **PR #2373**: feat(orchestrator): implement P3 enhancements (#2248, #2249, #2250, #2255)
+- **[PR #2373](https://github.com/RC918/morningai/pull/2373)**: feat(orchestrator): implement P3 enhancements (#2248, #2249, #2250, #2255)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: P3 enhancements
-- **PR #2370**: refactor(orchestrator): extract _create_base_initial_state helper (#2260)
+- **[PR #2370](https://github.com/RC918/morningai/pull/2370)**: refactor(orchestrator): extract _create_base_initial_state helper (#2260)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Initial state helper extraction
-- **PR #2401**: refactor(orchestrator): calculate elapsed_ms once for metrics (Issue #2286)
+- **[PR #2401](https://github.com/RC918/morningai/pull/2401)**: refactor(orchestrator): calculate elapsed_ms once for metrics (Issue #2286)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Metrics calculation optimization
-- **PR #2396**: feat(api): add review_follow_up metrics to /metrics endpoint (#2259)
+- **[PR #2396](https://github.com/RC918/morningai/pull/2396)**: feat(api): add review_follow_up metrics to /metrics endpoint (#2259)
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Review follow-up metrics
 
 *VSCode IDE Integration (6 PRs):*
-- **PR #2366**: docs(vscode): add CI config, OS matrix, and cross-references (#2363, #2364, #2365)
+- **[PR #2366](https://github.com/RC918/morningai/pull/2366)**: docs(vscode): add CI config, OS matrix, and cross-references (#2363, #2364, #2365)
   - Path: `handoff/20250928/40_App/orchestrator/docs/`
   - Impact: VSCode CI documentation
-- **PR #2361**: docs(orchestrator): add VSCode IDE test strategy and edge case coverage (#2352)
+- **[PR #2361](https://github.com/RC918/morningai/pull/2361)**: docs(orchestrator): add VSCode IDE test strategy and edge case coverage (#2352)
   - Path: `handoff/20250928/40_App/orchestrator/docs/`
   - Impact: VSCode IDE test strategy
-- **PR #2360**: feat(orchestrator): add Resource monitoring for VSCode IDE (#2353)
+- **[PR #2360](https://github.com/RC918/morningai/pull/2360)**: feat(orchestrator): add Resource monitoring for VSCode IDE (#2353)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: VSCode IDE resource monitoring
-- **PR #2358**: feat(orchestrator): add Extension auto-install for VSCode IDE (#2353)
+- **[PR #2358](https://github.com/RC918/morningai/pull/2358)**: feat(orchestrator): add Extension auto-install for VSCode IDE (#2353)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: VSCode extension auto-install
-- **PR #2357**: feat(orchestrator): add CORS / iframe support for VSCode IDE (#2353)
+- **[PR #2357](https://github.com/RC918/morningai/pull/2357)**: feat(orchestrator): add CORS / iframe support for VSCode IDE (#2353)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: VSCode CORS/iframe support
 
 *Documentation & Architecture (12 PRs):*
-- **PR #2658**: feat(docs): add architecture manifest and verification (Epic #2465 Phase 0+1)
+- **[PR #2658](https://github.com/RC918/morningai/pull/2658)**: feat(docs): add architecture manifest and verification (Epic #2465 Phase 0+1)
   - Path: `docs/`
   - Impact: Architecture manifest and verification
-- **PR #2664**: docs(cleanup): fix 12 pre-existing documentation errors (Issue #2661)
+- **[PR #2664](https://github.com/RC918/morningai/pull/2664)**: docs(cleanup): fix 12 pre-existing documentation errors (Issue #2661)
   - Path: `docs/`
   - Impact: Documentation error fixes
-- **PR #2681**: docs: document DashScope regional endpoints (China vs International)
+- **[PR #2681](https://github.com/RC918/morningai/pull/2681)**: docs: document DashScope regional endpoints (China vs International)
   - Path: `docs/`
   - Impact: DashScope regional endpoint documentation
-- **PR #2668**: test: add unit tests for verify_architecture_manifest.py exclusion patterns (Issue #2667)
+- **[PR #2668](https://github.com/RC918/morningai/pull/2668)**: test: add unit tests for verify_architecture_manifest.py exclusion patterns (Issue #2667)
   - Path: `scripts/`
   - Impact: Architecture manifest verification tests
-- **PR #2589**: docs(pr7-followup): add migration records, README checker, and CHANGELOG update
+- **[PR #2589](https://github.com/RC918/morningai/pull/2589)**: docs(pr7-followup): add migration records, README checker, and CHANGELOG update
   - Path: `docs/`
   - Impact: Migration records and README checker
-- **PR #2587**: docs(pr7): move coverage and other reports to docs/reports/ directory
+- **[PR #2587](https://github.com/RC918/morningai/pull/2587)**: docs(pr7): move coverage and other reports to docs/reports/ directory
   - Path: `docs/reports/`
   - Impact: Report directory organization
-- **PR #2584**: docs(pr6): move CTO reports to docs/reports/cto/ directory
+- **[PR #2584](https://github.com/RC918/morningai/pull/2584)**: docs(pr6): move CTO reports to docs/reports/cto/ directory
   - Path: `docs/reports/cto/`
   - Impact: CTO report organization
-- **PR #2575**: feat(docs): add auto-generated ENV_REFERENCE.md from env.schema.yaml (#2406)
+- **[PR #2575](https://github.com/RC918/morningai/pull/2575)**: feat(docs): add auto-generated ENV_REFERENCE.md from env.schema.yaml (#2406)
   - Path: `docs/ENV_REFERENCE.md`
   - Impact: Auto-generated environment reference
-- **PR #2574**: chore(phase3b): complete Phase 3B - Coverage Gate and Compliance docs
+- **[PR #2574](https://github.com/RC918/morningai/pull/2574)**: chore(phase3b): complete Phase 3B - Coverage Gate and Compliance docs
   - Path: `docs/`
   - Impact: Coverage gate and compliance documentation
-- **PR #2501**: [Phase 1.7 Follow-up] Documentation updates and lint configuration recommendations
+- **[PR #2501](https://github.com/RC918/morningai/pull/2501)**: [Phase 1.7 Follow-up] Documentation updates and lint configuration recommendations
   - Path: `docs/`
   - Impact: Documentation updates
-- **PR #2495**: docs: add frontend-dashboard carve-out rules for Phase 2 completion
+- **[PR #2495](https://github.com/RC918/morningai/pull/2495)**: docs: add frontend-dashboard carve-out rules for Phase 2 completion
   - Path: `docs/`
   - Impact: Frontend dashboard carve-out rules
-- **PR #2400**: docs: clarify Epic #2304 Phase structure to prevent confusion
+- **[PR #2400](https://github.com/RC918/morningai/pull/2400)**: docs: clarify Epic #2304 Phase structure to prevent confusion
   - Path: `docs/`
   - Impact: Epic phase structure clarification
 
 *Settings & Environment Configuration (6 PRs):*
-- **PR #2570**: feat(settings): convert auth_service.py import-time constants to use-time accessors (#2380)
+- **[PR #2570](https://github.com/RC918/morningai/pull/2570)**: feat(settings): convert auth_service.py import-time constants to use-time accessors (#2380)
   - Path: `handoff/20250928/40_App/api-backend/src/services/auth_service.py`
   - Impact: Import-time to use-time accessor conversion
-- **PR #2568**: feat(settings): unify os.getenv calls with centralized settings (#2379)
+- **[PR #2568](https://github.com/RC918/morningai/pull/2568)**: feat(settings): unify os.getenv calls with centralized settings (#2379)
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Centralized settings unification
-- **PR #2435**: [PR0d] CORS single authority source refactor
+- **[PR #2435](https://github.com/RC918/morningai/pull/2435)**: [PR0d] CORS single authority source refactor
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: CORS single authority source
-- **PR #2425**: [PR0a] PyJWT/jwt dependency consistency guard (#2404)
+- **[PR #2425](https://github.com/RC918/morningai/pull/2425)**: [PR0a] PyJWT/jwt dependency consistency guard (#2404)
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: JWT dependency consistency
-- **PR #2414**: [PR0b] Docs corrections and CORS_DEBUG documentation
+- **[PR #2414](https://github.com/RC918/morningai/pull/2414)**: [PR0b] Docs corrections and CORS_DEBUG documentation
   - Path: `docs/`
   - Impact: CORS_DEBUG documentation
-- **PR #2412**: [PR0c] Gate CORS DEBUG logging with env flag and sanitize output
+- **[PR #2412](https://github.com/RC918/morningai/pull/2412)**: [PR0c] Gate CORS DEBUG logging with env flag and sanitize output
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: CORS DEBUG logging gate
 
 *Owner Console Features (8 PRs):*
-- **PR #2569**: feat(sessions): add IDE Activity panel for real-time file monitoring (#2241)
+- **[PR #2569](https://github.com/RC918/morningai/pull/2569)**: feat(sessions): add IDE Activity panel for real-time file monitoring (#2241)
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: IDE Activity panel for real-time file monitoring
-- **PR #2563**: feat(dx): implement multiple PR templates (#2477)
+- **[PR #2563](https://github.com/RC918/morningai/pull/2563)**: feat(dx): implement multiple PR templates (#2477)
   - Path: `.github/PULL_REQUEST_TEMPLATE/`
   - Impact: Multiple PR templates
-- **PR #2562**: fix(vercel): disable deployments for gh-pages-storybook branch
+- **[PR #2562](https://github.com/RC918/morningai/pull/2562)**: fix(vercel): disable deployments for gh-pages-storybook branch
   - Path: `vercel.json`
   - Impact: Vercel deployment configuration
-- **PR #2544**: [Tech Debt] Fix shared-ui TypeScript strict errors - Reduce baseline to 0
+- **[PR #2544](https://github.com/RC918/morningai/pull/2544)**: [Tech Debt] Fix shared-ui TypeScript strict errors - Reduce baseline to 0
   - Path: `packages/shared-ui/`
   - Impact: TypeScript strict error fixes
-- **PR #2539**: [Tech Debt] Fix owner-console TypeScript strict errors - Achieve baseline 0
+- **[PR #2539](https://github.com/RC918/morningai/pull/2539)**: [Tech Debt] Fix owner-console TypeScript strict errors - Achieve baseline 0
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: TypeScript strict error fixes
-- **PR #2449**: feat(phase2): Phase 2-0 Plumbing PR - audit scripts and templates
+- **[PR #2449](https://github.com/RC918/morningai/pull/2449)**: feat(phase2): Phase 2-0 Plumbing PR - audit scripts and templates
   - Path: `scripts/`
   - Impact: Audit scripts and templates
-- **PR #2463**: feat(audit): improve audit script robustness (#2454, #2456, #2460)
+- **[PR #2463](https://github.com/RC918/morningai/pull/2463)**: feat(audit): improve audit script robustness (#2454, #2456, #2460)
   - Path: `scripts/`
   - Impact: Audit script robustness
-- **PR #2445**: feat(audit): implement match-based counting and cross-platform docs (#2440, #2441)
+- **[PR #2445](https://github.com/RC918/morningai/pull/2445)**: feat(audit): implement match-based counting and cross-platform docs (#2440, #2441)
   - Path: `scripts/`
   - Impact: Match-based counting
 
 *Refactor Agent & TypeScript Tooling (10 PRs):*
-- **PR #2606**: feat(refactor-agent): TS-3 follow-up improvements - unit tests, duplicate PR check, and refactoring
+- **[PR #2606](https://github.com/RC918/morningai/pull/2606)**: feat(refactor-agent): TS-3 follow-up improvements - unit tests, duplicate PR check, and refactoring
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Refactor Agent TS-3 improvements
-- **PR #2607**: fix(workflow): pass REFACTOR_AGENT_AUTO_PR env var to Python script
+- **[PR #2607](https://github.com/RC918/morningai/pull/2607)**: fix(workflow): pass REFACTOR_AGENT_AUTO_PR env var to Python script
   - Path: `.github/workflows/`
   - Impact: Refactor Agent workflow fix
-- **PR #2603**: fix(refactor-agent): enable PR creation in run_refactor (TS-3)
+- **[PR #2603](https://github.com/RC918/morningai/pull/2603)**: fix(refactor-agent): enable PR creation in run_refactor (TS-3)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Refactor Agent PR creation
-- **PR #2601**: fix(critical): add missing current_percent parameter to rollout API endpoints
+- **[PR #2601](https://github.com/RC918/morningai/pull/2601)**: fix(critical): add missing current_percent parameter to rollout API endpoints
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Critical rollout API fix
-- **PR #2604**: feat(rollout): implement follow-up issues #2602, #2599, #2600
+- **[PR #2604](https://github.com/RC918/morningai/pull/2604)**: feat(rollout): implement follow-up issues #2602, #2599, #2600
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Rollout follow-up issues
-- **PR #2592**: feat(scripts): parameterize update_workspace_version and add library tests (#2590, #2591)
+- **[PR #2592](https://github.com/RC918/morningai/pull/2592)**: feat(scripts): parameterize update_workspace_version and add library tests (#2590, #2591)
   - Path: `scripts/`
   - Impact: Workspace version script parameterization
-- **PR #2588**: feat(scripts): add automated React version sync tool (#2580)
+- **[PR #2588](https://github.com/RC918/morningai/pull/2588)**: feat(scripts): add automated React version sync tool (#2580)
   - Path: `scripts/`
   - Impact: Automated React version sync
-- **PR #2586**: feat(tests): add regression tests for verify_system_state.sh (#2581)
+- **[PR #2586](https://github.com/RC918/morningai/pull/2586)**: feat(tests): add regression tests for verify_system_state.sh (#2581)
   - Path: `tests/`
   - Impact: System state verification tests
-- **PR #2612**: fix(ts): Automated TS strict mode fixes (1 error) - 2025-12-17
+- **[PR #2612](https://github.com/RC918/morningai/pull/2612)**: fix(ts): Automated TS strict mode fixes (1 error) - 2025-12-17
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: Automated TypeScript strict mode fix
-- **PR #2614**: feat(tests): complete Phase 4B - fix test assertion and add integration tests (#2280, #2287)
+- **[PR #2614](https://github.com/RC918/morningai/pull/2614)**: feat(tests): complete Phase 4B - fix test assertion and add integration tests (#2280, #2287)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Phase 4B test completion
 
 *Other Notable PRs:*
-- **PR #2780**: fix(planner-events): add UUID normalization for trace_id DB compatibility
+- **[PR #2780](https://github.com/RC918/morningai/pull/2780)**: fix(planner-events): add UUID normalization for trace_id DB compatibility
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: UUID normalization for trace_id
-- **PR #2777**: fix(webhooks): use full UUID in task_id for DB compatibility
+- **[PR #2777](https://github.com/RC918/morningai/pull/2777)**: fix(webhooks): use full UUID in task_id for DB compatibility
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Full UUID in task_id
-- **PR #2733**: fix: harden Redis resilience against ReadOnlyError during maintenance
+- **[PR #2733](https://github.com/RC918/morningai/pull/2733)**: fix: harden Redis resilience against ReadOnlyError during maintenance
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Redis resilience hardening
-- **PR #2689**: fix(render): use sync:false for CORS_ORIGINS to prevent Dashboard override
+- **[PR #2689](https://github.com/RC918/morningai/pull/2689)**: fix(render): use sync:false for CORS_ORIGINS to prevent Dashboard override
   - Path: `render.yaml`
   - Impact: CORS_ORIGINS sync configuration
-- **PR #2690**: test(telemetry): improve validator with timestamp format and bool exclusion
+- **[PR #2690](https://github.com/RC918/morningai/pull/2690)**: test(telemetry): improve validator with timestamp format and bool exclusion
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Telemetry validator improvements
-- **PR #2645**: fix(test): explicitly extend jest-dom matchers for CI compatibility
+- **[PR #2645](https://github.com/RC918/morningai/pull/2645)**: fix(test): explicitly extend jest-dom matchers for CI compatibility
   - Path: `handoff/20250928/40_App/owner-console/`
   - Impact: Jest-dom matchers extension
-- **PR #2646**: test(orchestrator): add tests to reach 50% coverage (Issue #2423)
+- **[PR #2646](https://github.com/RC918/morningai/pull/2646)**: test(orchestrator): add tests to reach 50% coverage (Issue #2423)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Orchestrator coverage improvement
-- **PR #2397**: fix(shared-ui): slider accessibility labeling
+- **[PR #2397](https://github.com/RC918/morningai/pull/2397)**: fix(shared-ui): slider accessibility labeling
   - Path: `packages/shared-ui/`
   - Impact: Slider accessibility fix
-- **PR #2415**: refactor: use small icons without containers and add deltaPositive neutral option
+- **[PR #2415](https://github.com/RC918/morningai/pull/2415)**: refactor: use small icons without containers and add deltaPositive neutral option
   - Path: `packages/shared-ui/`
   - Impact: Icon and delta display improvements
-- **PR #2424**: [P2] Docs and test improvements (#2419, #2420, #2421, #2422)
+- **[PR #2424](https://github.com/RC918/morningai/pull/2424)**: [P2] Docs and test improvements (#2419, #2420, #2421, #2422)
   - Path: `docs/`
   - Impact: Documentation and test improvements
 
 **Recent Improvements (Dec 6 - Dec 7, 2025)**:
 
 *VSCode/MCP Integration & Meta-Agent Production Wiring:*
-- **PR #2114**: feat(meta-agent): integrate VSCodeIDEService into production code
+- **[PR #2114](https://github.com/RC918/morningai/pull/2114)**: feat(meta-agent): integrate VSCodeIDEService into production code
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
   - Impact: Wires VMProvisioner and VSCodeIDEService into AutonomousExecutor; adds VM/IDE lifecycle management with 11 integration tests
   - Merged: 2025-12-07
-- **PR #2067**: feat(meta-agent): implement MCP HTTP client for cloud IDE integration
+- **[PR #2067](https://github.com/RC918/morningai/pull/2067)**: feat(meta-agent): implement MCP HTTP client for cloud IDE integration
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
   - Impact: Core MCP HTTP client implementation for VSCode IDE integration
   - Merged: 2025-12-06
-- **PR #2106**: perf(vscode-ide): share aiohttp ClientSession for connection reuse
+- **[PR #2106](https://github.com/RC918/morningai/pull/2106)**: perf(vscode-ide): share aiohttp ClientSession for connection reuse
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
   - Impact: TCP connection pooling and DNS caching for improved MCP performance
   - Merged: 2025-12-07
-- **PR #2102**: refactor(vscode-ide): extract constants and use exponential backoff
+- **[PR #2102](https://github.com/RC918/morningai/pull/2102)**: refactor(vscode-ide): extract constants and use exponential backoff
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
   - Impact: Configurable MCP timeouts, retries, and error log truncation constants
   - Merged: 2025-12-07
-- **PR #2077**: security(vscode-ide): truncate error logs to prevent sensitive data leakage
+- **[PR #2077](https://github.com/RC918/morningai/pull/2077)**: security(vscode-ide): truncate error logs to prevent sensitive data leakage
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
   - Impact: Error logs truncated to 500 chars to prevent credential leakage
   - Merged: 2025-12-06
 
 *VSCode/MCP Documentation & Infrastructure:*
-- **PR #2101**: docs(meta-agent): add Tier 2 VSCode/VM documentation and infrastructure
+- **[PR #2101](https://github.com/RC918/morningai/pull/2101)**: docs(meta-agent): add Tier 2 VSCode/VM documentation and infrastructure
   - Path: `handoff/20250928/40_App/orchestrator/docs/` (new directory)
   - Impact: Adds `TERMINAL_ACCESS.md`, `VM_LOCKING_DESIGN.md`, `VM_PROVISIONER_LIFECYCLE.md`
   - Merged: 2025-12-07
-- **PR #2115**: docs(orchestrator): add cross-process limitation note and environment settings
+- **[PR #2115](https://github.com/RC918/morningai/pull/2115)**: docs(orchestrator): add cross-process limitation note and environment settings
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vm_provisioner.py`, `orchestrator/docs/TERMINAL_ACCESS.md`
   - Impact: Documents VM provisioning cross-process limitations and terminal capability environment settings
   - Merged: 2025-12-07
-- **PR #2110**: test(vscode-ide): use mocker.patch.object() for cleaner test mocking
+- **[PR #2110](https://github.com/RC918/morningai/pull/2110)**: test(vscode-ide): use mocker.patch.object() for cleaner test mocking
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/tests/test_vscode_ide.py`
   - Impact: Improved test isolation with pytest-mock; added to `requirements-test.txt`
   - Merged: 2025-12-07
 
 *Documentation Auto-Generation Security:*
-- **PR #2103**: refactor(orchestrator): improve documentation auto-generation security and quality control
+- **[PR #2103](https://github.com/RC918/morningai/pull/2103)**: refactor(orchestrator): improve documentation auto-generation security and quality control
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Adds `ORCHESTRATOR_DOCS_MAX_PRS_PER_HOUR` env var (default 3); prevents conflicting FAQ PRs with topic slug generation and content validation
   - Merged: 2025-12-07
 
 *Owner Console Sessions UI & Performance:*
-- **PR #2063**: feat(owner-console): integrate ConfidenceApproval and FileDiffViewer into Sessions UI
+- **[PR #2063](https://github.com/RC918/morningai/pull/2063)**: feat(owner-console): integrate ConfidenceApproval and FileDiffViewer into Sessions UI
   - Path: `handoff/20250928/40_App/owner-console/src/pages/Sessions.jsx`
   - Impact: Sessions page now displays confidence scores and file diffs
   - Merged: 2025-12-06
-- **PR #2088**: refactor(owner-console): Sessions.jsx defensive code improvements
+- **[PR #2088](https://github.com/RC918/morningai/pull/2088)**: refactor(owner-console): Sessions.jsx defensive code improvements
   - Path: `handoff/20250928/40_App/owner-console/src/pages/Sessions.jsx`
   - Impact: Extracts `MEDIUM_CONFIDENCE_THRESHOLD` constant; improves null safety
   - Merged: 2025-12-07
-- **PR #2089**: perf(owner-console): optimize FCP with lazy loading for task plan components
+- **[PR #2089](https://github.com/RC918/morningai/pull/2089)**: perf(owner-console): optimize FCP with lazy loading for task plan components
   - Path: `handoff/20250928/40_App/owner-console/src/pages/Sessions.jsx`
   - Impact: Lazy-loaded TaskPlanViewer and TaskPlanEditor for faster initial paint
   - Merged: 2025-12-07
-- **PR #2087**: a11y(owner-console): improve keyboard accessibility for drag-and-drop task reordering
+- **[PR #2087](https://github.com/RC918/morningai/pull/2087)**: a11y(owner-console): improve keyboard accessibility for drag-and-drop task reordering
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Keyboard navigation support for task reordering
   - Merged: 2025-12-07
 
 *Design System & Storybook:*
-- **PR #2068**: fix(owner-console): add base tokens to @theme and @source for shared-ui Switch
+- **[PR #2068](https://github.com/RC918/morningai/pull/2068)**: fix(owner-console): add base tokens to @theme and @source for shared-ui Switch
   - Path: `handoff/20250928/40_App/owner-console/src/index.css`
   - Impact: Fixes Switch component visibility in dark/light modes
   - Merged: 2025-12-07
-- **PR #2084**: docs(shared-ui): add Switch Storybook visual verification story
+- **[PR #2084](https://github.com/RC918/morningai/pull/2084)**: docs(shared-ui): add Switch Storybook visual verification story
   - Path: `packages/shared-ui/src/components/ui/switch.stories.tsx`
   - Impact: Visual regression testing for Switch component states
   - Merged: 2025-12-07
-- **PR #2083**: docs(owner-console): add Storybook stories for task plan components
+- **[PR #2083](https://github.com/RC918/morningai/pull/2083)**: docs(owner-console): add Storybook stories for task plan components
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Storybook coverage for TaskPlanViewer and TaskPlanEditor
   - Merged: 2025-12-07
-- **PR #2061**: chore(owner-console): remove dead theme.css file
+- **[PR #2061](https://github.com/RC918/morningai/pull/2061)**: chore(owner-console): remove dead theme.css file
   - Path: `handoff/20250928/40_App/owner-console/src/styles/theme.css` (removed)
   - Impact: Cleanup of unused CSS file
   - Merged: 2025-12-06
 
 *Security & Testing:*
-- **PR #2052**: fix(meta-agent): add TOCTOU defense in save_state()
+- **[PR #2052](https://github.com/RC918/morningai/pull/2052)**: fix(meta-agent): add TOCTOU defense in save_state()
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/state_persistence.py`
   - Impact: Atomic file writes prevent race conditions in state persistence
   - Merged: 2025-12-06
-- **PR #2078**: test(owner-console): add XSS protection tests for TestResultsPanel
+- **[PR #2078](https://github.com/RC918/morningai/pull/2078)**: test(owner-console): add XSS protection tests for TestResultsPanel
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Security tests for XSS prevention in test results display
   - Merged: 2025-12-07
-- **PR #2079**: test(orchestrator): add unit tests for update_error_fix_pair
+- **[PR #2079](https://github.com/RC918/morningai/pull/2079)**: test(orchestrator): add unit tests for update_error_fix_pair
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Improved test coverage for error-fix pair functionality
   - Merged: 2025-12-07
@@ -718,221 +718,221 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 **Recent Improvements (Dec 7 - Dec 9, 2025)**:
 
 *DeepWiki Integration:*
-- **PR #2156**: feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
+- **[PR #2156](https://github.com/RC918/morningai/pull/2156)**: feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
   - Impact: DeepWiki knowledge base integration for enhanced session context
   - Merged: 2025-12-07
-- **PR #2157**: feat(orchestrator): integrate DeepWiki with AutonomousExecutor
+- **[PR #2157](https://github.com/RC918/morningai/pull/2157)**: feat(orchestrator): integrate DeepWiki with AutonomousExecutor
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Full DeepWiki orchestrator integration
   - Merged: 2025-12-07
-- **PR #2164**: fix(deepwiki): add retry logic and rate limiting
+- **[PR #2164](https://github.com/RC918/morningai/pull/2164)**: fix(deepwiki): add retry logic and rate limiting
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Improved reliability with retry logic and rate limiting for DeepWiki API calls
   - Merged: 2025-12-07
-- **PR #2163**: feat(api): add DeepWiki API endpoints for knowledge base queries
+- **[PR #2163](https://github.com/RC918/morningai/pull/2163)**: feat(api): add DeepWiki API endpoints for knowledge base queries
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: New API endpoints for DeepWiki knowledge base queries
   - Merged: 2025-12-07
-- **PR #2169**: feat(owner-console): add SessionInsights component for DeepWiki insights
+- **[PR #2169](https://github.com/RC918/morningai/pull/2169)**: feat(owner-console): add SessionInsights component for DeepWiki insights
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: UI component for displaying DeepWiki session insights
   - Merged: 2025-12-07
 
 *Sessions UI & HITL Optimization:*
-- **PR #2170**: feat(owner-console): HITL approval UI/UX optimization
+- **[PR #2170](https://github.com/RC918/morningai/pull/2170)**: feat(owner-console): HITL approval UI/UX optimization
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Improved Human-in-the-Loop approval workflow UX
   - Merged: 2025-12-07
-- **PR #2173**: feat(i18n): add SessionInsights translation keys and unit tests
+- **[PR #2173](https://github.com/RC918/morningai/pull/2173)**: feat(i18n): add SessionInsights translation keys and unit tests
   - Path: `handoff/20250928/40_App/owner-console/src/i18n/`
   - Impact: Internationalization support for SessionInsights component
   - Merged: 2025-12-08
-- **PR #2175**: feat(owner-console): add SessionCommandInput for interactive session commands
+- **[PR #2175](https://github.com/RC918/morningai/pull/2175)**: feat(owner-console): add SessionCommandInput for interactive session commands
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: New interactive command input for session management
   - Merged: 2025-12-08
-- **PR #2182**: refactor(owner-console): tidy SessionCommandInput constants and props
+- **[PR #2182](https://github.com/RC918/morningai/pull/2182)**: refactor(owner-console): tidy SessionCommandInput constants and props
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Code cleanup and improved prop definitions
   - Merged: 2025-12-08
-- **PR #2188**: test(owner-console): add unit tests for SessionCommandInput
+- **[PR #2188](https://github.com/RC918/morningai/pull/2188)**: test(owner-console): add unit tests for SessionCommandInput
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Test coverage for SessionCommandInput component
   - Merged: 2025-12-08
-- **PR #2189**: feat(owner-console): persist command history with localStorage
+- **[PR #2189](https://github.com/RC918/morningai/pull/2189)**: feat(owner-console): persist command history with localStorage
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Command history persistence across sessions
   - Merged: 2025-12-08
-- **PR #2225**: fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
+- **[PR #2225](https://github.com/RC918/morningai/pull/2225)**: fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Fixed Temporal Dead Zone error and improved auto-refresh behavior
   - Merged: 2025-12-08
-- **PR #2234**: fix(owner-console): fix console warnings and session card layout issues
+- **[PR #2234](https://github.com/RC918/morningai/pull/2234)**: fix(owner-console): fix console warnings and session card layout issues
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Fixed console warnings and improved session card layout
   - Merged: 2025-12-08
-- **PR #2279**: feat(owner-console): add SessionStatusCard component with standardized design spec
+- **[PR #2279](https://github.com/RC918/morningai/pull/2279)**: feat(owner-console): add SessionStatusCard component with standardized design spec
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: New standardized SessionStatusCard component for consistent UI
   - Merged: 2025-12-09
 
 *CSRF Token Management:*
-- **PR #2237**: fix(owner-console): fix CSRF token sync issue causing 403 errors
+- **[PR #2237](https://github.com/RC918/morningai/pull/2237)**: fix(owner-console): fix CSRF token sync issue causing 403 errors
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - Impact: Fixed CSRF token synchronization preventing 403 errors
   - Merged: 2025-12-08
-- **PR #2238**: refactor(owner-console): unify CSRF token management
+- **[PR #2238](https://github.com/RC918/morningai/pull/2238)**: refactor(owner-console): unify CSRF token management
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - Impact: Unified CSRF token management with Auth and API Client modes
   - Merged: 2025-12-08
-- **PR #2239**: docs(owner-console): add CSRF token mode selection warning
+- **[PR #2239](https://github.com/RC918/morningai/pull/2239)**: docs(owner-console): add CSRF token mode selection warning
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - Impact: Added documentation warning for CSRF token mode selection
   - Merged: 2025-12-09
-- **PR #2240**: docs(owner-console): add warning comment for CSRF token mode selection
+- **[PR #2240](https://github.com/RC918/morningai/pull/2240)**: docs(owner-console): add warning comment for CSRF token mode selection
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - Impact: Follow-up documentation for CSRF token mode selection
   - Merged: 2025-12-09
 
 *AI Reviewer & Comment Triage:*
-- **PR #2244**: feat(orchestrator): fix AI Reviewer comment intake mechanism
+- **[PR #2244](https://github.com/RC918/morningai/pull/2244)**: feat(orchestrator): fix AI Reviewer comment intake mechanism
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
   - Impact: Fixed AI Reviewer bot whitelist and comment intake mechanism
   - Merged: 2025-12-09
-- **PR #2246**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+- **[PR #2246](https://github.com/RC918/morningai/pull/2246)**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
   - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py`
   - Impact: New Comment Triage Agent for categorizing and prioritizing AI reviewer comments
   - Merged: 2025-12-09
 
 *Review Follow-up & Internal Reviewer:*
-- **PR #2257**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+- **[PR #2257](https://github.com/RC918/morningai/pull/2257)**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py`
   - Impact: New Review Follow-up Mode for tracking and addressing review comments
   - Merged: 2025-12-09
-- **PR #2262**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+- **[PR #2262](https://github.com/RC918/morningai/pull/2262)**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
   - Impact: Internal Reviewer Agent with re-review capability for quality assurance
   - Merged: 2025-12-09
-- **PR #2267**: refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
+- **[PR #2267](https://github.com/RC918/morningai/pull/2267)**: refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
   - Impact: Added required field validation for internal review node
   - Merged: 2025-12-09
-- **PR #2268**: feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
+- **[PR #2268](https://github.com/RC918/morningai/pull/2268)**: feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
   - Impact: Configurable PARTIAL agreement policy for internal reviews
   - Merged: 2025-12-09
-- **PR #2269**: docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
+- **[PR #2269](https://github.com/RC918/morningai/pull/2269)**: docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
   - Path: `handoff/20250928/40_App/orchestrator/docs/`
   - Impact: Documentation clarifying node responsibilities
   - Merged: 2025-12-09
 
 *Multi-Signal Trigger & Rollout Tracker (Phase 7 Completion):*
-- **PR #2275**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+- **[PR #2275](https://github.com/RC918/morningai/pull/2275)**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
   - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py`
   - Impact: Multi-signal trigger system for automated workflow initiation
   - Merged: 2025-12-09
-- **PR #2278**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+- **[PR #2278](https://github.com/RC918/morningai/pull/2278)**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
   - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py`
   - Impact: LangGraph rollout tracking with metrics and dashboard support
   - Merged: 2025-12-09
-- **PR #2284**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+- **[PR #2284](https://github.com/RC918/morningai/pull/2284)**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - Impact: RolloutTracker integration into worker for production monitoring
   - Merged: 2025-12-09
-- **PR #2288**: docs: update milestones document with Dec 2025 progress (Issue #2215)
+- **[PR #2288](https://github.com/RC918/morningai/pull/2288)**: docs: update milestones document with Dec 2025 progress (Issue #2215)
   - Path: `docs/MILESTONES.md`
   - Impact: Updated milestones document with Phase 7 completion status
   - Merged: 2025-12-09
 
 *Owner Console UI Refactoring:*
-- **PR #2245**: refactor(owner-console): move settings and logout to user dropdown menu
+- **[PR #2245](https://github.com/RC918/morningai/pull/2245)**: refactor(owner-console): move settings and logout to user dropdown menu
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Improved navigation UX with user dropdown menu
   - Merged: 2025-12-09
-- **PR #2256**: refactor(owner-console): DashboardHeader cleanup and testing
+- **[PR #2256](https://github.com/RC918/morningai/pull/2256)**: refactor(owner-console): DashboardHeader cleanup and testing
   - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.jsx`
   - Impact: Code cleanup and improved test coverage for DashboardHeader
   - Merged: 2025-12-09
-- **PR #2261**: refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
+- **[PR #2261](https://github.com/RC918/morningai/pull/2261)**: refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
   - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`
   - Impact: Improved Sidebar UX with single-line items and tooltips
   - Merged: 2025-12-09
-- **PR #2266**: refactor(owner-console): implement single-layer Header + Sidebar architecture
+- **[PR #2266](https://github.com/RC918/morningai/pull/2266)**: refactor(owner-console): implement single-layer Header + Sidebar architecture
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Simplified Header and Sidebar architecture
   - Merged: 2025-12-09
-- **PR #2270**: fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
+- **[PR #2270](https://github.com/RC918/morningai/pull/2270)**: fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
   - Path: `packages/shared-ui/src/components/ui/tooltip.tsx`
   - Impact: Enhanced Tooltip component with customizable arrow styling
   - Merged: 2025-12-09
 
 *CI/CD & Testing Infrastructure:*
-- **PR #2174**: feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
+- **[PR #2174](https://github.com/RC918/morningai/pull/2174)**: feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
   - Path: `.github/workflows/`
   - Impact: TypeScript Strict Mode baseline tracking across all packages
   - Merged: 2025-12-08
-- **PR #2183**: fix(orchestrator): fix failing tests in visual_verification and project_engineer
+- **[PR #2183](https://github.com/RC918/morningai/pull/2183)**: fix(orchestrator): fix failing tests in visual_verification and project_engineer
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Fixed failing tests in visual verification and project engineer modules
   - Merged: 2025-12-08
-- **PR #2190**: fix(orchestrator): increase performance test threshold for planner node
+- **[PR #2190](https://github.com/RC918/morningai/pull/2190)**: fix(orchestrator): increase performance test threshold for planner node
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Adjusted performance test thresholds for planner node
   - Merged: 2025-12-08
-- **PR #2194**: fix(orchestrator): add rate limit mock to TestExecute tests
+- **[PR #2194](https://github.com/RC918/morningai/pull/2194)**: fix(orchestrator): add rate limit mock to TestExecute tests
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Fixed test flakiness with rate limit mocking
   - Merged: 2025-12-08
-- **PR #2200**: test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
+- **[PR #2200](https://github.com/RC918/morningai/pull/2200)**: test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
   - Path: `handoff/20250928/40_App/orchestrator/tests/`
   - Impact: Comprehensive test coverage for LangGraph orchestrator
   - Merged: 2025-12-08
-- **PR #2233**: test(api-backend): add comprehensive tests for sentry_integration.py
+- **[PR #2233](https://github.com/RC918/morningai/pull/2233)**: test(api-backend): add comprehensive tests for sentry_integration.py
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Test coverage for Sentry integration module
   - Merged: 2025-12-08
-- **PR #2235**: test(orchestrator): add security rules tests for project_engineer/agent.py
+- **[PR #2235](https://github.com/RC918/morningai/pull/2235)**: test(orchestrator): add security rules tests for project_engineer/agent.py
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Security rules test coverage for project engineer agent
   - Merged: 2025-12-08
-- **PR #2236**: test(owner-console): add comprehensive tests for LoginPage component
+- **[PR #2236](https://github.com/RC918/morningai/pull/2236)**: test(owner-console): add comprehensive tests for LoginPage component
   - Path: `handoff/20250928/40_App/owner-console/src/pages/`
   - Impact: Test coverage for LoginPage component
   - Merged: 2025-12-08
 
 *Backend & Infrastructure:*
-- **PR #2184**: feat(api-backend): add /api/sessions/{id}/command endpoint
+- **[PR #2184](https://github.com/RC918/morningai/pull/2184)**: feat(api-backend): add /api/sessions/{id}/command endpoint
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: New API endpoint for session command execution
   - Merged: 2025-12-08
-- **PR #2197**: feat(orchestrator): add A/B testing metrics collection and analysis framework
+- **[PR #2197](https://github.com/RC918/morningai/pull/2197)**: feat(orchestrator): add A/B testing metrics collection and analysis framework
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: A/B testing metrics framework for experiment analysis
   - Merged: 2025-12-08
-- **PR #2204**: fix: reduce noisy Sentry alerts for expected error conditions
+- **[PR #2204](https://github.com/RC918/morningai/pull/2204)**: fix: reduce noisy Sentry alerts for expected error conditions
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Reduced Sentry noise by filtering expected errors
   - Merged: 2025-12-08
-- **PR #2218**: feat(orchestrator): complete Wave 1 Phase 7 prerequisites
+- **[PR #2218](https://github.com/RC918/morningai/pull/2218)**: feat(orchestrator): complete Wave 1 Phase 7 prerequisites
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Completed Wave 1 prerequisites for Phase 7
   - Merged: 2025-12-08
-- **PR #2224**: feat(orchestrator): add retry and rate limiting to OutboundNotifier
+- **[PR #2224](https://github.com/RC918/morningai/pull/2224)**: feat(orchestrator): add retry and rate limiting to OutboundNotifier
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Improved reliability for outbound notifications
   - Merged: 2025-12-08
-- **PR #2231**: feat(orchestrator): Wave 3 Failure Learning Enhancement
+- **[PR #2231](https://github.com/RC918/morningai/pull/2231)**: feat(orchestrator): Wave 3 Failure Learning Enhancement
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Enhanced failure learning capabilities
   - Merged: 2025-12-08
-- **PR #2232**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+- **[PR #2232](https://github.com/RC918/morningai/pull/2232)**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
   - Path: `handoff/20250928/40_App/api-backend/`
   - Impact: Fixed Redis scan_iter compatibility for Upstash
   - Merged: 2025-12-08
 
 *Documentation:*
-- **PR #2193**: docs: align documentation with actual implementation
+- **[PR #2193](https://github.com/RC918/morningai/pull/2193)**: docs: align documentation with actual implementation
   - Path: `docs/`
   - Impact: Documentation alignment with current implementation
   - Merged: 2025-12-08
@@ -940,156 +940,156 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 **Recent Improvements (Dec 3 - Dec 5, 2025)**:
 
 *Refactor Agent & TS Strict Mode Automation:*
-- **PR #1886**: Phase 4 - Refactor Agent for TS Strict Mode Automation
+- **[PR #1886](https://github.com/RC918/morningai/pull/1886)**: Phase 4 - Refactor Agent for TS Strict Mode Automation
   - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/`, `config/env.schema.yaml`, `.env.example`
   - Impact: Introduces Refactor Agent with automated TS strict-mode fixes; adds `REFACTOR_AGENT_ENABLED`, `REFACTOR_AGENT_ERRORS_PER_RUN`, `REFACTOR_AGENT_AUTO_PR` env vars
   - Merged: 2025-12-04
-- **PR #1897**: LLM Integration for Refactor Agent Code Fix Generation
+- **[PR #1897](https://github.com/RC918/morningai/pull/1897)**: LLM Integration for Refactor Agent Code Fix Generation
   - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
   - Impact: Adds LLM-powered code fix generation for TS strict mode violations
   - Merged: 2025-12-04
-- **PR #1903**: File Modification Implementation for Refactor Agent
+- **[PR #1903](https://github.com/RC918/morningai/pull/1903)**: File Modification Implementation for Refactor Agent
   - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
   - Impact: Enables actual file modifications for automated fixes
   - Merged: 2025-12-04
-- **PR #1908**: PR Automation for Refactor Agent
+- **[PR #1908](https://github.com/RC918/morningai/pull/1908)**: PR Automation for Refactor Agent
   - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
   - Impact: Automatically creates PRs for refactor fixes
   - Merged: 2025-12-05
-- **PR #1913**: Nightly Cron Job Setup + Grammar/Optimization Improvements
+- **[PR #1913](https://github.com/RC918/morningai/pull/1913)**: Nightly Cron Job Setup + Grammar/Optimization Improvements
   - Path: `.github/workflows/refactor-agent-nightly.yml`
   - Impact: Adds nightly cron job for automated TS strict mode fixes
   - Merged: 2025-12-05
 
 *Task Queue Reliability (Ops Agent):*
-- **PR #1907**: Fix infinite loop for unassigned tasks
+- **[PR #1907](https://github.com/RC918/morningai/pull/1907)**: Fix infinite loop for unassigned tasks
   - Path: `agents/ops_agent/worker.py`
   - Impact: Prevents busy-loop when `assigned_to` is missing; tasks without assignment are now skipped with warning
   - Merged: 2025-12-05
-- **PR #1912**: Implement task status update and assigned_to validation
+- **[PR #1912](https://github.com/RC918/morningai/pull/1912)**: Implement task status update and assigned_to validation
   - Path: `agents/ops_agent/worker.py`, `orchestrator/task_queue/redis_queue.py`
   - Impact: Misrouted tasks marked FAILED with `task.failed` event; enqueue without `assigned_to` logs warning
   - Merged: 2025-12-05
-- **PR #1914**: Add automated tests for task routing (#1909, #1910)
+- **[PR #1914](https://github.com/RC918/morningai/pull/1914)**: Add automated tests for task routing (#1909, #1910)
   - Path: `agents/ops_agent/tests/test_task_routing.py`
   - Impact: 8 new tests for task routing behavior (4 misrouted + 3 enqueue warning + 1 integration)
   - Merged: 2025-12-05
-- **PR #1934**: Use pytest pythonpath instead of sys.path.insert
+- **[PR #1934](https://github.com/RC918/morningai/pull/1934)**: Use pytest pythonpath instead of sys.path.insert
   - Path: `agents/ops_agent/tests/test_task_routing.py`
   - Impact: Cleaner test setup using pytest.ini pythonpath configuration
   - Merged: 2025-12-05
 
 *Owner Console Page Standardization (Phase 1 Complete):*
-- **PR #1863**: Standardize AgentGovernance page layout & fix Dashboard title i18n
+- **[PR #1863](https://github.com/RC918/morningai/pull/1863)**: Standardize AgentGovernance page layout & fix Dashboard title i18n
   - Path: `handoff/20250928/40_App/owner-console/src/pages/AgentGovernance.jsx`
   - Impact: Unified layout with PageScaffold/SectionTemplate
   - Merged: 2025-12-04
-- **PR #1867**: Standardize TenantManagement page layout
+- **[PR #1867](https://github.com/RC918/morningai/pull/1867)**: Standardize TenantManagement page layout
   - Path: `handoff/20250928/40_App/owner-console/src/pages/TenantManagement.jsx`
   - Merged: 2025-12-04
-- **PR #1879**: Standardize SystemMonitoring page layout
+- **[PR #1879](https://github.com/RC918/morningai/pull/1879)**: Standardize SystemMonitoring page layout
   - Path: `handoff/20250928/40_App/owner-console/src/pages/SystemMonitoring.jsx`
   - Merged: 2025-12-04
-- **PR #1883**: Standardize UXMetrics page layout
+- **[PR #1883](https://github.com/RC918/morningai/pull/1883)**: Standardize UXMetrics page layout
   - Path: `handoff/20250928/40_App/owner-console/src/pages/UXMetrics.jsx`
   - Merged: 2025-12-04
-- **PR #1885**: Standardize AIPolicies page layout
+- **[PR #1885](https://github.com/RC918/morningai/pull/1885)**: Standardize AIPolicies page layout
   - Path: `handoff/20250928/40_App/owner-console/src/pages/AIPolicies.jsx`
   - Merged: 2025-12-04
-- **PR #1894**: Standardize ApprovalQueue page layout
+- **[PR #1894](https://github.com/RC918/morningai/pull/1894)**: Standardize ApprovalQueue page layout
   - Path: `handoff/20250928/40_App/owner-console/src/pages/ApprovalQueue.jsx`
   - Merged: 2025-12-04
-- **PR #1900**: Standardize FailureExperimentDashboard and PlatformSettings pages
+- **[PR #1900](https://github.com/RC918/morningai/pull/1900)**: Standardize FailureExperimentDashboard and PlatformSettings pages
   - Path: `handoff/20250928/40_App/owner-console/src/pages/FailureExperimentDashboard.jsx`, `PlatformSettings.jsx`
   - Merged: 2025-12-04
-- **PR #1906**: Move language switcher to navbar and remove duplicate user info
+- **[PR #1906](https://github.com/RC918/morningai/pull/1906)**: Move language switcher to navbar and remove duplicate user info
   - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`, `DashboardHeader.jsx`
   - Impact: Improved navigation UX with language switcher in navbar
   - Merged: 2025-12-04
 
 *Shared UI Components:*
-- **PR #1884**: Implement PageScaffold component
+- **[PR #1884](https://github.com/RC918/morningai/pull/1884)**: Implement PageScaffold component
   - Path: `packages/shared-ui/src/components/`
   - Impact: Canonical layout primitive for Owner Console pages
   - Merged: 2025-12-04
-- **PR #1887**: Implement SectionTemplate component
+- **[PR #1887](https://github.com/RC918/morningai/pull/1887)**: Implement SectionTemplate component
   - Path: `packages/shared-ui/src/components/`
   - Impact: Standardized section layout for dashboard cards
   - Merged: 2025-12-04
-- **PR #1853**: Add iotask foundation components (Phase 1)
+- **[PR #1853](https://github.com/RC918/morningai/pull/1853)**: Add iotask foundation components (Phase 1)
   - Path: `packages/shared-ui/src/components/`
   - Merged: 2025-12-04
-- **PR #1856**: Phase 2 - AdminShell three-column layout support
+- **[PR #1856](https://github.com/RC918/morningai/pull/1856)**: Phase 2 - AdminShell three-column layout support
   - Path: `packages/shared-ui/src/components/`
   - Merged: 2025-12-04
 
 *Security & Memory (Phase 1-2):*
-- **PR #1826**: Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3, Monitoring & E2E Tests
+- **[PR #1826](https://github.com/RC918/morningai/pull/1826)**: Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3, Monitoring & E2E Tests
   - Path: `handoff/20250928/40_App/api-backend/`, `migrations/`
   - Impact: Enhanced RLS enforcement and security monitoring
   - Merged: 2025-12-03
-- **PR #1830**: Phase 1 Follow-up Issues - Settings, validate_task(), False Positive Evaluation
+- **[PR #1830](https://github.com/RC918/morningai/pull/1830)**: Phase 1 Follow-up Issues - Settings, validate_task(), False Positive Evaluation
   - Path: `common/config/settings.py`, `handoff/20250928/40_App/orchestrator/`
   - Merged: 2025-12-03
-- **PR #1831**: Phase 2 P0 - pgvector Similarity Search and Error-Fix Pairs
+- **[PR #1831](https://github.com/RC918/morningai/pull/1831)**: Phase 2 P0 - pgvector Similarity Search and Error-Fix Pairs
   - Path: `handoff/20250928/40_App/orchestrator/persistence/`
   - Impact: Vector similarity search for failure knowledge base
   - Merged: 2025-12-03
-- **PR #1836**: Phase 2 P1 - Observer Node for Failure Knowledge Base
+- **[PR #1836](https://github.com/RC918/morningai/pull/1836)**: Phase 2 P1 - Observer Node for Failure Knowledge Base
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: Observes and records failures for knowledge base
   - Merged: 2025-12-03
 
 *Orchestrator Enhancements:*
-- **PR #1852**: Phase 3 P2 - LangGraph Mode Full Switchover
+- **[PR #1852](https://github.com/RC918/morningai/pull/1852)**: Phase 3 P2 - LangGraph Mode Full Switchover
   - Path: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`, `graph.py`
   - Impact: Full LangGraph mode support with canary routing
   - Merged: 2025-12-04
-- **PR #1854**: Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
+- **[PR #1854](https://github.com/RC918/morningai/pull/1854)**: Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: HITL approval for high-risk operations
   - Merged: 2025-12-04
-- **PR #1857**: Phase 3 P3 - PM Agent + Ops Agent
+- **[PR #1857](https://github.com/RC918/morningai/pull/1857)**: Phase 3 P3 - PM Agent + Ops Agent
   - Path: `handoff/20250928/40_App/orchestrator/`
   - Impact: PM Agent and Ops Agent integration
   - Merged: 2025-12-04
-- **PR #1862**: Phase 3 P4 - Background Queue Principles Enhancement
+- **[PR #1862](https://github.com/RC918/morningai/pull/1862)**: Phase 3 P4 - Background Queue Principles Enhancement
   - Path: `handoff/20250928/40_App/orchestrator/`, `docs/BACKGROUND_QUEUE_PRINCIPLES.md`
   - Impact: Enhanced queue principles documentation
   - Merged: 2025-12-04
-- **PR #1866**: Phase 3 Follow-up Issues (#1858, #1859, #1860, #1861, #1864, #1865)
+- **[PR #1866](https://github.com/RC918/morningai/pull/1866)**: Phase 3 Follow-up Issues (#1858, #1859, #1860, #1861, #1864, #1865)
   - Path: `handoff/20250928/40_App/orchestrator/`, `config/env.schema.yaml`
   - Impact: Multiple orchestrator improvements and fixes
   - Merged: 2025-12-04
 
 *ESLint Spacing Rules:*
-- **PR #1892**: Add ESLint rule for standardized spacing utilities
+- **[PR #1892](https://github.com/RC918/morningai/pull/1892)**: Add ESLint rule for standardized spacing utilities
   - Path: `handoff/20250928/40_App/owner-console/eslint-rules/no-non-standard-spacing.js`
   - Impact: Custom ESLint rule to enforce design system spacing tokens
   - Merged: 2025-12-04
-- **PR #1901**: Cleanup 29 spacing violations to match design system scale
+- **[PR #1901](https://github.com/RC918/morningai/pull/1901)**: Cleanup 29 spacing violations to match design system scale
   - Path: `handoff/20250928/40_App/owner-console/src/`
   - Impact: Fixed 29 spacing violations across Owner Console
   - Merged: 2025-12-04
-- **PR #1904**: Upgrade spacing ESLint rule to error mode (Phase 3)
+- **[PR #1904](https://github.com/RC918/morningai/pull/1904)**: Upgrade spacing ESLint rule to error mode (Phase 3)
   - Path: `handoff/20250928/40_App/owner-console/eslint.config.js`
   - Impact: Spacing violations now block builds
   - Merged: 2025-12-04
 
 *Migrations & Infrastructure:*
-- **PR #1871**: Phase 4 - Unified Migration Management
+- **[PR #1871](https://github.com/RC918/morningai/pull/1871)**: Phase 4 - Unified Migration Management
   - Path: `scripts/run_migrations.sh`
   - Impact: DRY refactoring for migration runner
   - Merged: 2025-12-04
-- **PR #1895**: DRY refactoring for run_migrations.sh
+- **[PR #1895](https://github.com/RC918/morningai/pull/1895)**: DRY refactoring for run_migrations.sh
   - Path: `scripts/run_migrations.sh`
   - Impact: Cleaner migration script with better error handling
   - Merged: 2025-12-04
-- **PR #1881**: Update secrets config to use new key names (FLASK_SECRET_KEY, ENCRYPTION_MASTER_KEY)
+- **[PR #1881](https://github.com/RC918/morningai/pull/1881)**: Update secrets config to use new key names (FLASK_SECRET_KEY, ENCRYPTION_MASTER_KEY)
   - Path: `config/env.schema.yaml`
   - Impact: Standardized secret key naming
   - Merged: 2025-12-04
-- **PR #1882**: Upgrade vulnerable packages and expand CI scanning coverage
+- **[PR #1882](https://github.com/RC918/morningai/pull/1882)**: Upgrade vulnerable packages and expand CI scanning coverage
   - Path: `agents/*/requirements.txt`, `.github/workflows/secret-scanning.yml`
   - Impact: Security vulnerability fixes and expanded CI scanning
   - Merged: 2025-12-04
@@ -1097,186 +1097,186 @@ Building the world's most advanced autonomous AI agent orchestration platform th
 **Recent Improvements (Dec 2 - Dec 3, 2025)**:
 
 *Experimentation & Reasoning Mode:*
-- **PR #1804**: Phase 4 Production Rollout - Increase experiment percentages and add kill switch
+- **[PR #1804](https://github.com/RC918/morningai/pull/1804)**: Phase 4 Production Rollout - Increase experiment percentages and add kill switch
   - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`, `common/config/settings.py`, `config/env.schema.yaml`
   - Impact: Raises gemini3_planner_staging from 10% to 25%, gemini3_reviewer_staging from 5% to 10%; adds `DISABLE_GEMINI3` kill switch for emergency rollback
   - Merged: 2025-12-03
-- **PR #1803**: Phase 3 Remaining Items - Gemini 3 fallback, parametrize tests, CI gate
+- **[PR #1803](https://github.com/RC918/morningai/pull/1803)**: Phase 3 Remaining Items - Gemini 3 fallback, parametrize tests, CI gate
   - Path: `.github/workflows/gemini3-reviewer-gate.yml`, `handoff/20250928/40_App/orchestrator/tests/test_llm_planner_adapter.py`, `test_llm_reviewer_adapter.py`
   - Impact: Adds Gemini 3 reviewer gate CI workflow and consolidates test patterns
   - Merged: 2025-12-03
-- **PR #1794**: Phase 3.1 Hardening - Add REASONING_MODE_ENABLED schema and unit tests
+- **[PR #1794](https://github.com/RC918/morningai/pull/1794)**: Phase 3.1 Hardening - Add REASONING_MODE_ENABLED schema and unit tests
   - Path: `config/env.schema.yaml`, `common/config/settings.py`
   - Impact: Adds `REASONING_MODE_ENABLED` env var for controlling Gemini 3 thinking_level
   - Merged: 2025-12-02
-- **PR #1793**: Phase 3 - Reasoning mode toggle and Gemini 3 reviewer experiment
+- **[PR #1793](https://github.com/RC918/morningai/pull/1793)**: Phase 3 - Reasoning mode toggle and Gemini 3 reviewer experiment
   - Path: `handoff/20250928/40_App/orchestrator/llm/adapters/llm_reviewer_adapter.py`
   - Impact: Enables reasoning mode toggle and gemini3_reviewer_5pct_staging experiment
   - Merged: 2025-12-02
-- **PR #1792**: Redis Checkpointer - LangGraph state persistence
+- **[PR #1792](https://github.com/RC918/morningai/pull/1792)**: Redis Checkpointer - LangGraph state persistence
   - Path: `handoff/20250928/40_App/orchestrator/redis_checkpointer.py`, `graph.py`
   - Impact: Adds Redis-based checkpointer for LangGraph state persistence with configurable TTL
   - Merged: 2025-12-02
-- **PR #1791**: FAQ Routing - Route FAQ tasks via simple path, bypass LangGraph
+- **[PR #1791](https://github.com/RC918/morningai/pull/1791)**: FAQ Routing - Route FAQ tasks via simple path, bypass LangGraph
   - Path: `handoff/20250928/40_App/orchestrator/graph.py`
   - Impact: FAQ tasks now use simple mode (~95% traffic) for faster response
   - Merged: 2025-12-02
 
 *Configuration & Secrets Hardening:*
-- **PR #1800**: Migrate os.getenv to settings.py for Tier 1 production code
+- **[PR #1800](https://github.com/RC918/morningai/pull/1800)**: Migrate os.getenv to settings.py for Tier 1 production code
   - Path: `handoff/20250928/40_App/orchestrator/`, `common/config/settings.py`
   - Impact: Centralizes environment variable access through Pydantic settings
   - Merged: 2025-12-03
-- **PR #1798**: Migrate WORKER_HEARTBEAT_INTERVAL and WORKER_HEARTBEAT_TTL to settings.py
+- **[PR #1798](https://github.com/RC918/morningai/pull/1798)**: Migrate WORKER_HEARTBEAT_INTERVAL and WORKER_HEARTBEAT_TTL to settings.py
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
   - Impact: Adds `WORKER_HEARTBEAT_INTERVAL` (60s) and `WORKER_HEARTBEAT_TTL` (180s) env vars
   - Merged: 2025-12-02
-- **PR #1797**: Migrate RQ_MAX_JOBS to settings.py and add secrets hardening
+- **[PR #1797](https://github.com/RC918/morningai/pull/1797)**: Migrate RQ_MAX_JOBS to settings.py and add secrets hardening
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
   - Impact: Adds `RQ_MAX_JOBS` env var for worker memory management; hardens `FLASK_SECRET_KEY` and `ENCRYPTION_MASTER_KEY`
   - Merged: 2025-12-02
-- **PR #1795**: Remove deprecated SECRET_KEY and MASTER_KEY
+- **[PR #1795](https://github.com/RC918/morningai/pull/1795)**: Remove deprecated SECRET_KEY and MASTER_KEY
   - Path: `config/env.schema.yaml`
   - Impact: Removes legacy `SECRET_KEY` and `MASTER_KEY` in favor of `FLASK_SECRET_KEY` and `ENCRYPTION_MASTER_KEY`
   - Merged: 2025-12-02
-- **PR #1790**: Add RQ_MAX_JOBS env var for worker memory management
+- **[PR #1790](https://github.com/RC918/morningai/pull/1790)**: Add RQ_MAX_JOBS env var for worker memory management
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - Impact: Worker restarts after processing N jobs to prevent OOM from LangGraph checkpoints
   - Merged: 2025-12-02
 
 *UI/UX & Design System:*
-- **PR #1802**: Storybook Stories for DashboardHeader and Sidebar
+- **[PR #1802](https://github.com/RC918/morningai/pull/1802)**: Storybook Stories for DashboardHeader and Sidebar
   - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.stories.tsx`, `Sidebar.stories.tsx`
   - Impact: Adds 21 Storybook stories for visual documentation of layout components
   - Merged: 2025-12-03
-- **PR #1801**: Phase 3-4 Completion - iotask Component Styling and Progress Bars
+- **[PR #1801](https://github.com/RC918/morningai/pull/1801)**: Phase 3-4 Completion - iotask Component Styling and Progress Bars
   - Path: `packages/shared-ui/src/components/ui/button.tsx`, `badge.tsx`, `card.tsx`, `input.tsx`, `progress.tsx`
   - Impact: Updates Button, Badge, Card, Input, Progress components with iotask design system
   - Merged: 2025-12-03
-- **PR #1796**: iotask Design System Upgrade - Phase 1-4
+- **[PR #1796](https://github.com/RC918/morningai/pull/1796)**: iotask Design System Upgrade - Phase 1-4
   - Path: `packages/shared-ui/src/tokens.json`, `handoff/20250928/40_App/owner-console/src/components/`
   - Impact: Updates design tokens to iotask color palette; adds DashboardHeader component; dark theme Sidebar
   - Merged: 2025-12-02
 
 **Recent Improvements (Nov 29 - Dec 1, 2025)**:
-- **PR #1788**: Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
+- **[PR #1788](https://github.com/RC918/morningai/pull/1788)**: Failure Memory Integration - Wire failure knowledge base into failure recorder (Phase 5 PR-1)
   - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
   - Impact: Failures now persist to Supabase `failure_memory` table for long-term knowledge base
   - Merged: 2025-12-01
-- **PR #1787**: Sentry Error Prevention - Add defensive checks for graceful degradation
+- **[PR #1787](https://github.com/RC918/morningai/pull/1787)**: Sentry Error Prevention - Add defensive checks for graceful degradation
   - Path: `handoff/20250928/40_App/orchestrator/persistence/db_client.py`, `db_writer.py`, `auth_middleware.py`
   - Impact: Supabase unavailability no longer crashes the application
   - Merged: 2025-12-01
-- **PR #1785**: Real Metrics Aggregation - Implement experiment comparison (Tier 1)
+- **[PR #1785](https://github.com/RC918/morningai/pull/1785)**: Real Metrics Aggregation - Implement experiment comparison (Tier 1)
   - Path: `handoff/20250928/40_App/orchestrator/persistence/planner_events_store.py`
   - Impact: RPC-based metrics aggregation for experiment comparison
   - Migration: `migrations/030_create_planner_metrics_rpc.sql`
   - Merged: 2025-12-01
-- **PR #1784**: Remove Stale egg-info - Fix old openai version reference
+- **[PR #1784](https://github.com/RC918/morningai/pull/1784)**: Remove Stale egg-info - Fix old openai version reference
   - Path: `handoff/20250928/40_App/orchestrator/morningai_orchestrator.egg-info/` (deleted)
   - Impact: Clean up stale package metadata
   - Merged: 2025-12-01
-- **PR #1781**: ORCHESTRATOR_DRY_RUN Flag - Skip PR creation in dry run mode
+- **[PR #1781](https://github.com/RC918/morningai/pull/1781)**: ORCHESTRATOR_DRY_RUN Flag - Skip PR creation in dry run mode
   - Path: `handoff/20250928/40_App/orchestrator/graph.py`
   - Impact: Enable testing without creating actual PRs
   - Merged: 2025-11-30
-- **PR #1780**: OpenAI SDK Upgrade - Fix httpx 0.28 proxies compatibility
+- **[PR #1780](https://github.com/RC918/morningai/pull/1780)**: OpenAI SDK Upgrade - Fix httpx 0.28 proxies compatibility
   - Path: `handoff/20250928/40_App/orchestrator/requirements.txt`
   - Impact: Resolve SDK compatibility issues
   - Merged: 2025-11-30
-- **PR #1778**: 401 Retry Logic - Proactive token expiry check for owner-console
+- **[PR #1778](https://github.com/RC918/morningai/pull/1778)**: 401 Retry Logic - Proactive token expiry check for owner-console
   - Path: `handoff/20250928/40_App/owner-console/src/lib/auth.ts`, `api-client.ts`
   - Impact: Auto-refresh token when in-memory token is lost after page reload
   - Merged: 2025-11-30
 
 **Gemini 3 SDK Migration (Nov 29-30, 2025)**:
-- **PR #1761**: Gemini Provider Migration - Migrate to google-genai SDK (Phase 1)
+- **[PR #1761](https://github.com/RC918/morningai/pull/1761)**: Gemini Provider Migration - Migrate to google-genai SDK (Phase 1)
   - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
   - Impact: Use official Google GenAI SDK instead of legacy API
-- **PR #1762**: Gemini Fallback Model Update - Change from gemini-pro to gemini-2.0-flash
+- **[PR #1762](https://github.com/RC918/morningai/pull/1762)**: Gemini Fallback Model Update - Change from gemini-pro to gemini-2.0-flash
   - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
   - Impact: Use latest Gemini model as fallback
-- **PR #1763**: Gemini 3 Phase 2 - thinking_level support and new experiments
+- **[PR #1763](https://github.com/RC918/morningai/pull/1763)**: Gemini 3 Phase 2 - thinking_level support and new experiments
   - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`, `experiment_manager.py`
   - Impact: Enable thinking_level=high for complex reasoning tasks (API parameter, not env var)
-- **PR #1765**: Enable gemini3_planner_10pct_staging experiment
+- **[PR #1765](https://github.com/RC918/morningai/pull/1765)**: Enable gemini3_planner_10pct_staging experiment
   - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`
   - Impact: 10% staging traffic uses Gemini 3 planner
 
 **AI Governance & Security (Nov 28-29, 2025)**:
-- **PR #1741**: Three-tier Permission Architecture (Phase 6 PR-5)
+- **[PR #1741](https://github.com/RC918/morningai/pull/1741)**: Three-tier Permission Architecture (Phase 6 PR-5)
   - Path: `handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py`
   - Migration: `migrations/028_add_platform_admin_support.sql`
   - Impact: Platform admin, tenant admin, user permission levels
-- **PR #1746**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
+- **[PR #1746](https://github.com/RC918/morningai/pull/1746)**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
   - Impact: Configurable security enforcement (advisory/block_critical/block_all)
-- **PR #1748**: LangGraph Enforcement Integration (PR-2)
+- **[PR #1748](https://github.com/RC918/morningai/pull/1748)**: LangGraph Enforcement Integration (PR-2)
   - Path: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`
   - Impact: Security policy enforcement in LangGraph workflows
-- **PR #1749**: Simple Mode Policy Observability (PR-3)
+- **[PR #1749](https://github.com/RC918/morningai/pull/1749)**: Simple Mode Policy Observability (PR-3)
   - Path: `handoff/20250928/40_App/orchestrator/graph.py`
   - Impact: Policy violation logging in Simple mode
-- **PR #1751**: Blessed Configurations Documentation (PR-4)
+- **[PR #1751](https://github.com/RC918/morningai/pull/1751)**: Blessed Configurations Documentation (PR-4)
   - Path: `config/blessed_configs.yaml`
   - Impact: Documented approved configuration combinations
-- **PR #1753**: Config Validation Script and CI (PR-5)
+- **[PR #1753](https://github.com/RC918/morningai/pull/1753)**: Config Validation Script and CI (PR-5)
   - Path: `scripts/validate_blessed_configs.py`, `.github/workflows/validate-blessed-configs.yml`
   - Impact: CI validation of configuration against blessed configs
 
 **CI/CD Improvements (Nov 28-29, 2025)**:
-- **PR #1756**: Unified Migration Runner (PR-6)
+- **[PR #1756](https://github.com/RC918/morningai/pull/1756)**: Unified Migration Runner (PR-6)
   - Path: `scripts/run_migrations.sh`
   - Impact: Single script for running all migrations
-- **PR #1757**: Migration Health Check CI (PR-7)
+- **[PR #1757](https://github.com/RC918/morningai/pull/1757)**: Migration Health Check CI (PR-7)
   - Path: `.github/workflows/migration-health-check.yml`
   - Impact: CI workflow to validate migration health
-- **PR #1767**: Coverage Trend Tracking
+- **[PR #1767](https://github.com/RC918/morningai/pull/1767)**: Coverage Trend Tracking
   - Path: `.github/workflows/coverage-trend.yml`
   - Impact: Track coverage trends over time
-- **PR #1766**: Migration 029 - Fix Security Advisor warnings
+- **[PR #1766](https://github.com/RC918/morningai/pull/1766)**: Migration 029 - Fix Security Advisor warnings
   - Path: `migrations/029_fix_reputation_security_warnings.sql`
   - Impact: Fix reputation system security warnings
 
 **Documentation (Nov 29, 2025)**:
-- **PR #1759**: Gemini 3 Integration Design Document
+- **[PR #1759](https://github.com/RC918/morningai/pull/1759)**: Gemini 3 Integration Design Document
   - Path: `docs/gemini3_integration.md`
   - Impact: Comprehensive design document for Gemini 3 integration
-- **PR #1760**: /config/summary Endpoint (PR-10)
+- **[PR #1760](https://github.com/RC918/morningai/pull/1760)**: /config/summary Endpoint (PR-10)
   - Path: `handoff/20250928/40_App/api-backend/src/routes/experiments.py`
   - Impact: Configuration visibility endpoint
 
 **Previous Improvements (Nov 25-26, 2025)**:
-- **PR #1548**: Frontend Dashboard Code Splitting - 20% bundle reduction + Lighthouse CI color-contrast fix
+- **[PR #1548](https://github.com/RC918/morningai/pull/1548)**: Frontend Dashboard Code Splitting - 20% bundle reduction + Lighthouse CI color-contrast fix
   - Path: `handoff/20250928/40_App/frontend-dashboard/`
   - Impact: Improved performance and accessibility compliance
-- **PR #1562**: RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
+- **[PR #1562](https://github.com/RC918/morningai/pull/1562)**: RQ Job Timeout Configuration - Added `RQ_JOB_TIMEOUT` environment variable
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - Impact: Configurable job timeout for long-running tasks (default: 3600s)
 
 **Previous Improvements (Nov 18-23, 2025)**:
-- **PR #1350**: E2E Testing Infrastructure - Fixed 21 failing tests, implemented route handler isolation, added comprehensive API mocking
+- **[PR #1350](https://github.com/RC918/morningai/pull/1350)**: E2E Testing Infrastructure - Fixed 21 failing tests, implemented route handler isolation, added comprehensive API mocking
   - Path: `handoff/20250928/40_App/owner-console/e2e/`
   - Result: 32 E2E tests passing (11→32), 55/55 CI checks passing
-- **PR #1398**: Production Path Discovery - Replaced hardcoded repo path with 4-layer fallback mechanism
+- **[PR #1398](https://github.com/RC918/morningai/pull/1398)**: Production Path Discovery - Replaced hardcoded repo path with 4-layer fallback mechanism
   - Path: `handoff/20250928/40_App/orchestrator/context_manager.py`
   - Added: `MORNINGAI_REPO_PATH` environment variable for production/staging
-- **PR #1399**: Backend Test Environment - Unified Python 3.12, added Redis service, fixed PyJWT conflicts
+- **[PR #1399](https://github.com/RC918/morningai/pull/1399)**: Backend Test Environment - Unified Python 3.12, added Redis service, fixed PyJWT conflicts
   - Path: `.github/workflows/test-apps.yml`
   - Result: Backend tests now consistent across all CI workflows
-- **PR #1480**: Pydantic Alias System - Added 23 critical environment variable aliases (Nov 23)
+- **[PR #1480](https://github.com/RC918/morningai/pull/1480)**: Pydantic Alias System - Added 23 critical environment variable aliases (Nov 23)
   - Path: `common/config/settings.py`
   - Fixed: `FLASK_SECRET_KEY`, `ENCRYPTION_MASTER_KEY`, `STRIPE_WEBHOOK_SECRET_KEY` aliases
   - Impact: Backward compatibility improvements, standardized configuration naming
-- **PR #1452**: Redis Mapping Sanitization - Prevent NoneType DataError (Nov 23)
+- **[PR #1452](https://github.com/RC918/morningai/pull/1452)**: Redis Mapping Sanitization - Prevent NoneType DataError (Nov 23)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - Added: `sanitize_redis_mapping()` function to filter None values
   - Impact: Improved worker heartbeat and task status update stability
-- **PR #1455**: AgentExecutionLogs Accessibility Fixes - Resolved 6 critical a11y violations (Nov 23)
+- **[PR #1455](https://github.com/RC918/morningai/pull/1455)**: AgentExecutionLogs Accessibility Fixes - Resolved 6 critical a11y violations (Nov 23)
   - Path: `handoff/20250928/40_App/owner-console/src/components/AgentExecutionLogs.tsx`
   - Fixed: Pagination controls, table headers, ARIA labels
   - Impact: Enhanced Owner Console accessibility standards
-- **PR #1437**: i18n Error Fixes - Fixed 10 i18n errors in owner-console (Nov 23)
+- **[PR #1437](https://github.com/RC918/morningai/pull/1437)**: i18n Error Fixes - Fixed 10 i18n errors in owner-console (Nov 23)
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - Enabled: ESLint blocking to prevent future i18n regressions
   - Impact: Improved internationalization quality and consistency
@@ -1889,7 +1889,7 @@ python scripts/generate-env-examples.py
 python scripts/check-env-drift.py
 
 # 4. Verify secret inventory matches schema (security operations)
-python scripts/verify_secret_inventory.py  # (Added in PR #1084)
+python scripts/verify_secret_inventory.py  # (Added in [PR #1084](https://github.com/RC918/morningai/pull/1084))
 ```
 
 **Key Points**:
@@ -1898,7 +1898,7 @@ python scripts/verify_secret_inventory.py  # (Added in PR #1084)
 - ✅ CI automatically checks for drift on every PR
 - ✅ See [Secret Rotation Policy](./SECRET_ROTATION_POLICY.md) for security operations
 
-**Recent Additions (PR #1398)**:
+**Recent Additions ([PR #1398](https://github.com/RC918/morningai/pull/1398))**:
 - `MORNINGAI_REPO_PATH`: Repository root path for production/staging environments
   - Required in Render.com deployments: `/opt/render/project/src`
   - Falls back to git detection or marker-based discovery in development
@@ -2342,7 +2342,7 @@ pnpm test:coverage
 
 #### Visual Regression Testing (VRT)
 
-**Status:** ✅ Re-enabled November 2025 (PR #1288; related: #1287 frontend tests, #1293 Storybook test-runner)
+**Status:** ✅ Re-enabled November 2025 ([PR #1288](https://github.com/RC918/morningai/pull/1288); related: #1287 frontend tests, #1293 Storybook test-runner)
 
 **What is VRT?**
 - Automated visual comparison of UI screenshots
@@ -2927,12 +2927,12 @@ grep "max-w-md" dist/assets/index-*.css
 2. Reinstall dependencies: `pnpm install`
 3. Rebuild: `pnpm build`
 4. Check that `theme.css` contains `--max-width-*` tokens
-5. Verify no CSS overrides in `index.css` (hotfix was removed in PR #1308)
+5. Verify no CSS overrides in `index.css` (hotfix was removed in [PR #1308](https://github.com/RC918/morningai/pull/1308))
 
 **Related Documentation**:
 - **Detailed tracking doc**: `docs/TAILWIND_V4_MAX_WIDTH_ISSUE.md` (comprehensive 259-line analysis)
-- **PR #1303**: Initial hotfix with CSS overrides
-- **PR #1308**: Root cause fix with dedicated --max-width-* tokens
+- **[PR #1303](https://github.com/RC918/morningai/pull/1303)**: Initial hotfix with CSS overrides
+- **[PR #1308](https://github.com/RC918/morningai/pull/1308)**: Root cause fix with dedicated --max-width-* tokens
 - **Regression test**: `e2e/max-width-regression.spec.ts`
 
 **Risk Note**: Tailwind v4 token resolution behavior is based on observation, not official documentation. Future Tailwind v4 versions may change this behavior. Monitor for updates when upgrading Tailwind.
