@@ -1,0 +1,66 @@
+name: Migration Consistency Check
+
+on:
+  pull_request:
+    paths:
+      - 'migrations/**'
+      - 'agents/*/migrations/**'
+      - 'scripts/validate_migrations.py'
+  push:
+    branches:
+      - main
+    paths:
+      - 'migrations/**'
+      - 'agents/*/migrations/**'
+      - 'scripts/validate_migrations.py'
+  workflow_dispatch:
+
+jobs:
+  validate-migrations:
+    name: Validate migration files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run migration validation
+        run: |
+          echo "Running migration validation..."
+          python scripts/validate_migrations.py
+
+      - name: Generate summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # Migration Consistency Check
+
+          **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Triggered by**: ${{ github.event_name }}
+          **Branch**: ${{ github.head_ref || github.ref_name }}
+
+          ## Checks Performed
+
+          - No duplicate migration numbers
+          - Contiguous migration numbering (no gaps)
+          - No rogue migrations outside allowed directories
+          - Consistent naming format (NNN_lowercase_with_underscores.sql)
+
+          ## Allowed Migration Directories
+
+          - \`migrations/\` (main Supabase migrations)
+          - \`agents/dev_agent/migrations/\`
+          - \`agents/faq_agent/migrations/\`
+          - \`agents/ops_agent/migrations/\`
+          - \`docs/database/migrations/\` (documentation examples)
+
+          ---
+
+          *This check runs on PRs that modify migration files.*
+          EOF

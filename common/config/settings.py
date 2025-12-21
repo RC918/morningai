@@ -577,9 +577,9 @@ class Settings(BaseSettings):
         return self.siliconflow_api_key_secret.get_secret_value() if self.siliconflow_api_key_secret else None
 
     dashscope_base_url: str = Field(
-        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        default="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
         alias="DASHSCOPE_BASE_URL",
-        description="AliCloud DashScope API base URL (EPIC #2594)"
+        description="AliCloud DashScope API base URL - international endpoint (EPIC #2594)"
     )
 
     siliconflow_base_url: str = Field(
