@@ -1,4 +1,5 @@
 """Reputation Engine - Agent reputation scoring and management"""
+import logging
 import os
 import uuid
 import yaml
@@ -7,6 +8,8 @@ from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta
 
 from common.config.settings import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _is_valid_uuid(value: str) -> bool:
@@ -59,7 +62,7 @@ class ReputationEngine:
             with open(path, 'r') as f:
                 return yaml.safe_load(f)
         except Exception as e:
-            print(f"[ReputationEngine] Error loading policies: {e}")
+            logger.warning(f"[ReputationEngine] Error loading policies: {e}")
             return {}
     
     def _get_supabase(self):
@@ -75,10 +78,10 @@ class ReputationEngine:
                 from persistence.db_client import get_client
                 return get_client()
             except Exception as e:
-                print(f"[ReputationEngine] Supabase unavailable: {e}")
+                logger.warning(f"[ReputationEngine] Supabase unavailable: {e}")
                 return None
         except Exception as e:
-            print(f"[ReputationEngine] Supabase unavailable: {e}")
+            logger.warning(f"[ReputationEngine] Supabase unavailable: {e}")
             return None
     
     def resolve_agent_uuid(self, agent_identifier: str) -> Optional[str]:
@@ -114,9 +117,9 @@ class ReputationEngine:
         if agent_uuid:
             # Cache the mapping for future lookups
             self._agent_uuid_cache[agent_identifier] = agent_uuid
-            print(f"[ReputationEngine] Resolved agent_type '{agent_identifier}' to UUID '{agent_uuid}'")
+            logger.info(f"[ReputationEngine] Resolved agent_type '{agent_identifier}' to UUID '{agent_uuid}'")
         else:
-            print(f"[ReputationEngine] Failed to resolve agent_identifier '{agent_identifier}' to UUID")
+            logger.warning(f"[ReputationEngine] Failed to resolve agent_identifier '{agent_identifier}' to UUID")
         
         return agent_uuid
     
@@ -144,7 +147,7 @@ class ReputationEngine:
             
             return None
         except Exception as e:
-            print(f"[ReputationEngine] Error getting/creating agent: {e}")
+            logger.error(f"[ReputationEngine] Error getting/creating agent: {e}")
             return None
     
     def record_event(
@@ -158,7 +161,7 @@ class ReputationEngine:
         """Record a reputation event"""
         supabase = self._get_supabase()
         if not supabase:
-            print(f"[ReputationEngine] Supabase unavailable, skipping event recording")
+            logger.warning("[ReputationEngine] Supabase unavailable, skipping event recording")
             return False
         
         delta = self.scoring_rules.get(event_type, 0)
@@ -173,10 +176,10 @@ class ReputationEngine:
                 'p_metadata': metadata
             }).execute()
             
-            print(f"[ReputationEngine] Recorded {event_type} for {agent_id}: delta={delta}")
+            logger.info(f"[ReputationEngine] Recorded {event_type} for {agent_id}: delta={delta}")
             return True
         except Exception as e:
-            print(f"[ReputationEngine] Error recording event: {e}")
+            logger.error(f"[ReputationEngine] Error recording event: {e}")
             return False
     
     def get_reputation(self, agent_id: str) -> Optional[Dict]:
@@ -194,7 +197,7 @@ class ReputationEngine:
                 return response.data
             return None
         except Exception as e:
-            print(f"[ReputationEngine] Error getting reputation: {e}")
+            logger.error(f"[ReputationEngine] Error getting reputation: {e}")
             return None
     
     def get_permission_level(self, agent_id: str) -> str:
@@ -210,7 +213,7 @@ class ReputationEngine:
                 return response.data['permission_level']
             return 'sandbox_only'
         except Exception as e:
-            print(f"[ReputationEngine] Error getting permission level: {e}")
+            logger.error(f"[ReputationEngine] Error getting permission level: {e}")
             return 'sandbox_only'
     
     def get_reputation_score(self, agent_id: str) -> int:
@@ -226,7 +229,7 @@ class ReputationEngine:
                 return response.data['reputation_score']
             return 100
         except Exception as e:
-            print(f"[ReputationEngine] Error getting reputation score: {e}")
+            logger.error(f"[ReputationEngine] Error getting reputation score: {e}")
             return 100
     
     def update_permission_level(self, agent_id: str) -> str:
@@ -244,7 +247,7 @@ class ReputationEngine:
                 return response.data
             return 'sandbox_only'
         except Exception as e:
-            print(f"[ReputationEngine] Error updating permission level: {e}")
+            logger.error(f"[ReputationEngine] Error updating permission level: {e}")
             return 'sandbox_only'
     
     def get_allowed_operations(self, agent_id: str) -> list:
@@ -275,7 +278,7 @@ class ReputationEngine:
             
             return response.data if response.data else []
         except Exception as e:
-            print(f"[ReputationEngine] Error getting recent events: {e}")
+            logger.error(f"[ReputationEngine] Error getting recent events: {e}")
             return []
     
     def get_leaderboard(self, limit: int = 10) -> list:
@@ -293,7 +296,7 @@ class ReputationEngine:
             
             return response.data if response.data else []
         except Exception as e:
-            print(f"[ReputationEngine] Error getting leaderboard: {e}")
+            logger.error(f"[ReputationEngine] Error getting leaderboard: {e}")
             return []
     
     def apply_decay(self, agent_id: str) -> bool:
@@ -342,12 +345,12 @@ class ReputationEngine:
                     reason=f"Inactive for {days_inactive} days, decayed by {decay_amount} points"
                 )
                 
-                print(f"[ReputationEngine] Applied decay to {agent_id}: {current_score} -> {new_score}")
+                logger.info(f"[ReputationEngine] Applied decay to {agent_id}: {current_score} -> {new_score}")
                 return True
             
             return False
         except Exception as e:
-            print(f"[ReputationEngine] Error applying decay: {e}")
+            logger.error(f"[ReputationEngine] Error applying decay: {e}")
             return False
     
     def get_statistics(self) -> Dict:
@@ -382,7 +385,7 @@ class ReputationEngine:
                 'low_reputation_agents': len([a for a in agents if a['reputation_score'] < 90])
             }
         except Exception as e:
-            print(f"[ReputationEngine] Error getting statistics: {e}")
+            logger.error(f"[ReputationEngine] Error getting statistics: {e}")
             return {}
 
 
