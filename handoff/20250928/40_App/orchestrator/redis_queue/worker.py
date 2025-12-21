@@ -1843,6 +1843,7 @@ def run_pr_updated_delayed_task(
                                     context,
                                     job_id=f"{task_id}-reschedule",  # New job_id to avoid conflict
                                     ttl=remaining_seconds + 600,
+                                    job_timeout=settings.rq_job_timeout,
                                     result_ttl=86400,
                                     failure_ttl=3600,
                                 )

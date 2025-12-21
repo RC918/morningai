@@ -287,6 +287,7 @@ def _enqueue_task(task):
             task.context,  # Pass context containing resource_id (PR number), url, etc.
             job_id=task.task_id,
             ttl=600,
+            job_timeout=settings.rq_job_timeout,
             result_ttl=86400,
             failure_ttl=3600,
         )
@@ -392,6 +393,7 @@ def _enqueue_pr_updated_delayed_task(task):
             task.context,
             job_id=task.task_id,
             ttl=debounce_seconds + 600,
+            job_timeout=settings.rq_job_timeout,
             result_ttl=86400,
             failure_ttl=3600,
         )
@@ -478,6 +480,7 @@ def _enqueue_meta_agent_task(task):
             meta_agent_context,
             job_id=task.task_id,
             ttl=1800,  # 30 minutes for autonomous execution
+            job_timeout=1800,  # 30 minutes for autonomous execution
             result_ttl=86400,
             failure_ttl=3600,
         )
