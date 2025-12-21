@@ -55,7 +55,7 @@ jobs:
               CASE WHEN rowsecurity THEN 'ENABLED' ELSE 'DISABLED' END as rls_status
             FROM pg_tables 
             WHERE schemaname = 'public' 
-            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles')
+            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles', 'planner_events')
             ORDER BY tablename;
           " | while IFS='|' read -r table status; do
             if [ "$status" = "DISABLED" ]; then
@@ -200,7 +200,7 @@ jobs:
           
           ## Checks Performed
           
-          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles)
+          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles, planner_events)
           - RLS policy count on agent_tasks
           - TRUE tenant isolation policies present
           - Default tenant exists
@@ -254,7 +254,7 @@ jobs:
               CASE WHEN rowsecurity THEN 'ENABLED' ELSE 'DISABLED' END as rls_status
             FROM pg_tables 
             WHERE schemaname = 'public' 
-            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles')
+            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles', 'planner_events')
             ORDER BY tablename;
           " | while IFS='|' read -r table status; do
             if [ "$status" = "DISABLED" ]; then
@@ -341,7 +341,7 @@ jobs:
           
           ## Checks Performed
           
-          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles)
+          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles, planner_events)
           - RLS policy count on agent_tasks
           - TRUE tenant isolation policies present
           
