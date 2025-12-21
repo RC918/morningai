@@ -63,6 +63,7 @@ class AliCloudProvider(BaseLLMProvider):
         "qwen-plus-latest",
         "qwen-turbo",
         "qwen-turbo-latest",
+        "qwen3-235b-a22b",  # Qwen3 MoE flagship model
     ]
 
     def __init__(self, model: Optional[str] = None):
