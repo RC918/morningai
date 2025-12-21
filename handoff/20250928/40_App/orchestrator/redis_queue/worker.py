@@ -1831,7 +1831,6 @@ def run_pr_updated_delayed_task(
                                 
                                 # Use same job_id to replace/deduplicate
                                 # RQ will handle job replacement when using same job_id
-                                # Fix: Add job_timeout to ensure RQ uses configured timeout
                                 new_job = queue.enqueue_in(
                                     timedelta(seconds=remaining_seconds),
                                     run_pr_updated_delayed_task,

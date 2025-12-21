@@ -278,7 +278,6 @@ def _enqueue_task(task):
 
         # Enqueue the task
         # Issue: Phase B-B - Pass task.context to worker for PR info
-        # Fix: Add job_timeout to ensure RQ uses configured timeout instead of default 180s
         job = queue.enqueue(
             run_orchestrator_task,
             task.task_id,
@@ -287,10 +286,10 @@ def _enqueue_task(task):
             "webhook",
             task.context,  # Pass context containing resource_id (PR number), url, etc.
             job_id=task.task_id,
-            ttl=settings.rq_task_ttl,
+            ttl=600,
             job_timeout=settings.rq_job_timeout,
-            result_ttl=settings.rq_result_ttl,
-            failure_ttl=settings.rq_failure_ttl,
+            result_ttl=86400,
+            failure_ttl=3600,
         )
 
         logger.info(
@@ -382,7 +381,6 @@ def _enqueue_pr_updated_delayed_task(task):
         # Use enqueue_in for non-blocking delayed scheduling
         # Job will be automatically enqueued after debounce_seconds
         # This avoids blocking worker threads with time.sleep()
-        # Fix: Add job_timeout to ensure RQ uses configured timeout instead of default 180s
         job = queue.enqueue_in(
             timedelta(seconds=debounce_seconds),
             run_pr_updated_delayed_task,
@@ -394,10 +392,10 @@ def _enqueue_pr_updated_delayed_task(task):
             task.goal_text,
             task.context,
             job_id=task.task_id,
-            ttl=debounce_seconds + settings.rq_task_ttl,
+            ttl=debounce_seconds + 600,
             job_timeout=settings.rq_job_timeout,
-            result_ttl=settings.rq_result_ttl,
-            failure_ttl=settings.rq_failure_ttl,
+            result_ttl=86400,
+            failure_ttl=3600,
         )
 
         logger.info(
@@ -473,8 +471,6 @@ def _enqueue_meta_agent_task(task):
         }
 
         # Enqueue the task
-        # Fix: Add job_timeout to ensure RQ uses configured timeout instead of default 180s
-        # Meta agent tasks use 1800s (30 min) timeout for autonomous execution
         job = queue.enqueue(
             run_meta_agent_task,
             task.task_id,
@@ -485,8 +481,8 @@ def _enqueue_meta_agent_task(task):
             job_id=task.task_id,
             ttl=1800,  # 30 minutes for autonomous execution
             job_timeout=1800,  # 30 minutes for autonomous execution
-            result_ttl=settings.rq_result_ttl,
-            failure_ttl=settings.rq_failure_ttl,
+            result_ttl=86400,
+            failure_ttl=3600,
         )
 
         logger.info(
