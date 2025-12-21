@@ -32,6 +32,7 @@ Reference:
 """
 import logging
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 
 from common.config.settings import settings
 from .base import BaseLLMProvider, LLMResponse
@@ -86,8 +87,18 @@ class AliCloudProvider(BaseLLMProvider):
             from openai import OpenAI
 
             base_url = settings.dashscope_base_url
-            is_intl = "dashscope-intl" in base_url
-            region = "international" if is_intl else "china"
+            parsed = urlparse(base_url)
+            hostname = parsed.hostname
+            if not hostname and base_url:
+                parsed = urlparse("https://" + base_url)
+                hostname = parsed.hostname
+
+            if hostname == "dashscope-intl.aliyuncs.com":
+                region = "international"
+            elif hostname == "dashscope.aliyuncs.com":
+                region = "china"
+            else:
+                region = "custom"
 
             logger.info(
                 f"[AliCloud] Initializing DashScope client with {region} endpoint",
