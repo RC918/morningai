@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 220
+- **Total Variables**: 221
 - **Required**: 21
-- **Optional**: 199
+- **Optional**: 200
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -27,7 +27,7 @@
 - [Security](#security) (12 variables)
 - [Database](#database) (9 variables)
 - [Cloud Services](#cloud-services) (14 variables)
-- [Infrastructure](#infrastructure) (20 variables)
+- [Infrastructure](#infrastructure) (21 variables)
 - [Monitoring](#monitoring) (14 variables)
 - [Integration](#integration) (19 variables)
 - [Worker](#worker) (6 variables)
@@ -578,7 +578,8 @@ Secondary Vercel token for testing/sandbox environments (optional)
 | `GUNICORN_LOG_LEVEL` | string (debug, info, warning, error, critical) | No | info | PUBLIC |
 | `GUNICORN_RELOAD` | boolean | No | false | PUBLIC |
 | `ORCHESTRATOR_SHUTDOWN_TIMEOUT` | integer | No | 30 | PUBLIC |
-| `USE_REDIS_CHECKPOINTER` | boolean | No | false (development=False, production=True, staging=True) | PUBLIC |
+| `USE_POSTGRES_CHECKPOINTER` | boolean | No | false (development=False, production=True, staging=True) | PUBLIC |
+| `USE_REDIS_CHECKPOINTER` | boolean | No | false (development=False, production=False, staging=False) | PUBLIC |
 | `REDIS_CHECKPOINTER_TTL` | integer | No | 86400 | PUBLIC |
 | `REVIEW_FOLLOW_UP_STORE_BACKEND` | string | No | in_memory (development=in_memory, production=redis, staging=redis) | PUBLIC |
 | `REVIEW_FOLLOW_UP_TASK_TTL` | integer | No | 2592000 | PUBLIC |
@@ -670,6 +671,23 @@ Graceful shutdown timeout in seconds
 - **Default**: `30`
 - **Security Level**: PUBLIC
 
+#### `USE_POSTGRES_CHECKPOINTER`
+
+Use PostgreSQL-based checkpointer for LangGraph state persistence. Recommended over Redis for Upstash (which doesn't support RediSearch). Requires DATABASE_URL.
+
+- **Type**: boolean
+- **Required**: No
+- **Default**: `false`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> PR #2771: PostgreSQL checkpointer is the recommended option for LangGraph state persistence when using Upstash Redis, which does not support RediSearch (required by langgraph-checkpoint-redis). When enabled, LangGraph workflow state is persisted to PostgreSQL using the existing Supabase database. Checkpointer priority: PostgreSQL → Redis → MemorySaver. Uses langgraph-checkpoint-postgres package (>=2.0.0). Requires DATABASE_URL to be configured.
+
+**Environment-specific values**:
+- development: `False`
+- production: `True`
+- staging: `True`
+
 #### `USE_REDIS_CHECKPOINTER`
 
 Use Redis-based checkpointer for LangGraph state persistence instead of in-memory MemorySaver. Enables cross-process state recovery.
@@ -680,12 +698,12 @@ Use Redis-based checkpointer for LangGraph state persistence instead of in-memor
 - **Security Level**: PUBLIC
 
 **Notes**:
-> When enabled, LangGraph workflow state is persisted to Redis instead of in-memory storage. This allows state recovery after process restarts and enables distributed workflows. Requires REDIS_URL to be configured. Uses langgraph-checkpoint-redis package.
+> When enabled, LangGraph workflow state is persisted to Redis instead of in-memory storage. This allows state recovery after process restarts and enables distributed workflows. Requires REDIS_URL to be configured. Uses langgraph-checkpoint-redis package. Note: Upstash Redis does not support RediSearch, so USE_POSTGRES_CHECKPOINTER is recommended instead.
 
 **Environment-specific values**:
 - development: `False`
-- production: `True`
-- staging: `True`
+- production: `False`
+- staging: `False`
 
 #### `REDIS_CHECKPOINTER_TTL`
 
