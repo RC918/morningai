@@ -1280,13 +1280,13 @@ def governance_advisor_node(state: AgentState) -> AgentState:
         logger.info("[GovernanceAdvisor] Analysis complete", extra={
             "operation": "governance_advisor",
             "trace_id": trace_id,
-            "is_compliant": advisory.is_compliant,
-            "risk_level": advisory.overall_risk.value,
-            "findings_count": len(advisory.findings)
+            "is_compliant": advisory_dict["is_compliant"],
+            "risk_level": advisory_dict["overall_risk"],
+            "findings_count": len(advisory_dict["findings"])
         })
 
         state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Governance analysis: risk={advisory.overall_risk.value}, findings={len(advisory.findings)}, compliant={advisory.is_compliant}")
+            AIMessage(content=f"Governance analysis: risk={advisory_dict['overall_risk']}, findings={len(advisory_dict['findings'])}, compliant={advisory_dict['is_compliant']}")
         ]
 
     except ImportError as e:
