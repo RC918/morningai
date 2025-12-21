@@ -168,6 +168,25 @@ EPIC D (Coder Agent Family)
 ## Source Document
 
 The complete Wish Pool v2 Blueprint is available at:
-`/home/ubuntu/attachments/bd3591ee-3543-4878-aa3d-01aaf00349d1/v2_extracted/生態系許願池v2/《MorningAI — 全生態系 Blueprint（2025 Final）》.md`
+[MorningAI_Ecosystem_Blueprint_2025_Final.md](./MorningAI_Ecosystem_Blueprint_2025_Final.md)
 
 This North Star document is a living summary that maps the vision to current implementation progress.
+
+---
+
+## Document Maintenance
+
+**Primary Maintainer**: Ryan Chen (@RC918) with Devin AI assistance
+
+**Sync Policy**:
+- This summary document (`ECOSYSTEM_WISHPOOL_V2.md`) should be updated whenever EPIC status changes
+- The full Blueprint (`MorningAI_Ecosystem_Blueprint_2025_Final.md`) is the authoritative source for architectural vision
+- Any changes to the Blueprint should be reflected in this summary within the same PR
+
+---
+
+## ChangeLog
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2025-12-21 | Ryan Chen (@RC918) | Initial version with EPIC A/B/C/D mapping |
