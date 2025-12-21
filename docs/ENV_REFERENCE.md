@@ -1928,7 +1928,7 @@ Enable LLM-powered planner in LangGraph orchestrator (Phase 1)
 > - false (default): Static planning (hardcoded steps)
 > - true: LLM-powered dynamic planning (GPT-4 generates execution steps)
 > Requires OPENAI_API_KEY to be set for LLM operations.
-> Only effective when USE_LANGGRAPH=true or USE_LANGGRAPH_PERCENT>0.
+> Note: LangGraph is now the only orchestrator mode (Issue #2651).
 
 #### `USE_CODE_GENERATION`
 
@@ -1957,7 +1957,7 @@ Percentage of tasks to use code generation workflow (0-100, for canary rollout)
 **Notes**:
 > Canary rollout mechanism for code generation workflow. Takes precedence over USE_CODE_GENERATION.
 > Example: 10 = 10% of tasks use code generation, 90% use standard workflow.
-> Uses same MD5 hash routing as USE_LANGGRAPH_PERCENT for deterministic task assignment.
+> Uses MD5 hash routing for deterministic task assignment.
 
 #### `ENABLE_PROJECT_ENGINEER_CODEGEN`
 
