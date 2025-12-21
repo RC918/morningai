@@ -1095,7 +1095,7 @@ AliCloud DashScope API key for Qwen models (EPIC
 
 #### `DASHSCOPE_BASE_URL`
 
-AliCloud DashScope API base URL (EPIC
+AliCloud DashScope API base URL - international endpoint (EPIC
 
 - **Type**: url
 - **Required**: No
