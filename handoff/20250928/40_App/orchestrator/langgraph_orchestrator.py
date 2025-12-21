@@ -223,6 +223,12 @@ def get_checkpointer():
     Note:
         PostgreSQL checkpointer is recommended over Redis for Upstash Redis,
         which doesn't support RediSearch (required by langgraph-checkpoint-redis).
+
+    Fix (Dec 2025):
+        PostgresSaver.from_conn_string() returns a context manager in langgraph-checkpoint-postgres>=2.0.0.
+        We use psycopg.connect() directly with autocommit=True and row_factory=dict_row as required
+        by the PostgresSaver implementation. This allows us to control the connection lifecycle
+        and avoid the context manager issue.
     """
     import os
 
@@ -231,9 +237,12 @@ def get_checkpointer():
 
     if use_postgres and database_url:
         try:
+            import psycopg
+            from psycopg.rows import dict_row
             from langgraph.checkpoint.postgres import PostgresSaver
 
-            checkpointer = PostgresSaver.from_conn_string(database_url)
+            conn = psycopg.connect(database_url, autocommit=True, row_factory=dict_row)
+            checkpointer = PostgresSaver(conn)
             checkpointer.setup()
 
             logger.info(
@@ -249,7 +258,7 @@ def get_checkpointer():
 
         except ImportError as e:
             logger.warning(
-                f"langgraph-checkpoint-postgres not installed, trying Redis checkpointer: {e}",
+                f"langgraph-checkpoint-postgres or psycopg not installed, trying Redis checkpointer: {e}",
                 extra={
                     "operation": "get_checkpointer",
                     "error": str(e)
