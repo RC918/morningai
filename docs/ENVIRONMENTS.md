@@ -27,540 +27,540 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 **近期重要更新** (2025-12-13 至 2025-12-20) - 198 PRs merged:
 
 *EPIC B: PR_UPDATED Event Support & Phase BB Robustness:*
-- **PR #2786**: feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
+- **[PR #2786](https://github.com/RC918/morningai/pull/2786)**: feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：新增 `REDIS_KEY_PREFIX` 環境變數用於多環境 Redis key 隔離
-- **PR #2769**: feat(phase-bb): add PR_UPDATED event support with debounce/throttle
+- **[PR #2769](https://github.com/RC918/morningai/pull/2769)**: feat(phase-bb): add PR_UPDATED event support with debounce/throttle
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：PR_UPDATED 事件支援，含防抖和節流機制
-- **PR #2768**: feat(phase-bb): add 422 fault injection for fallback verification
+- **[PR #2768](https://github.com/RC918/morningai/pull/2768)**: feat(phase-bb): add 422 fault injection for fallback verification
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：422 故障注入用於驗證 fallback 行為
-- **PR #2741**: feat(phase-bb): add C-lite telemetry for EPIC B KPIs
+- **[PR #2741](https://github.com/RC918/morningai/pull/2741)**: feat(phase-bb): add C-lite telemetry for EPIC B KPIs
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：C-lite 遙測用於 EPIC B 關鍵績效指標
 
 *LangGraph 100% Rollout & Simple Mode 移除:*
-- **PR #2767**: chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
+- **[PR #2767](https://github.com/RC918/morningai/pull/2767)**: chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：**重大變更** - 完全移除 Simple Mode 程式碼，LangGraph 成為唯一的編排模式
-- **PR #2771**: feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
+- **[PR #2771](https://github.com/RC918/morningai/pull/2771)**: feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：PostgreSQL checkpointer 支援 LangGraph 狀態持久化
-- **PR #2766**: chore: remove deprecated rollout API endpoints
+- **[PR #2766](https://github.com/RC918/morningai/pull/2766)**: chore: remove deprecated rollout API endpoints
   - Path: `handoff/20250928/40_App/api-backend/`
   - 影響：移除已棄用的 rollout API 端點
-- **PR #2720**: feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
+- **[PR #2720](https://github.com/RC918/morningai/pull/2720)**: feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：Simple Mode 移除，LangGraph 成為唯一模式
 
 *EPIC B: Inline Code Review (Phase B-1 to B-3):*
-- **PR #2714**: feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
+- **[PR #2714](https://github.com/RC918/morningai/pull/2714)**: feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
   - 影響：行內評論驗證和行號語義
-- **PR #2701**: feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
+- **[PR #2701](https://github.com/RC918/morningai/pull/2701)**: feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
   - 影響：GitHub 行內評論發布功能
-- **PR #2692**: feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
+- **[PR #2692](https://github.com/RC918/morningai/pull/2692)**: feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：差異感知程式碼審查實作
 
 *Agent Architecture & Routing:*
-- **PR #2674**: feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
+- **[PR #2674](https://github.com/RC918/morningai/pull/2674)**: feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：BaseAgent 動態路由和 Telemetry v2
-- **PR #2665**: feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
+- **[PR #2665](https://github.com/RC918/morningai/pull/2665)**: feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：Routing Policy v1.1 多模型 LLM 選擇
-- **PR #2659**: feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
+- **[PR #2659](https://github.com/RC918/morningai/pull/2659)**: feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：Qwen3 provider adapters 支援 AliCloud 和 SiliconFlow
 
 *CI/CD Infrastructure:*
-- **PR #2779**: feat(tests): add CI integration tests and fault injection tests (#2650)
+- **[PR #2779](https://github.com/RC918/morningai/pull/2779)**: feat(tests): add CI integration tests and fault injection tests (#2650)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/tests/`
   - 影響：CI 整合測試和故障注入測試
-- **PR #2774**: refactor(ci): extract CI Guard to testable script with resource limits
+- **[PR #2774](https://github.com/RC918/morningai/pull/2774)**: refactor(ci): extract CI Guard to testable script with resource limits
   - Path: `.github/workflows/`, `scripts/ci/`
   - 影響：CI Guard 提取為可測試腳本
-- **PR #2593**: feat(typescript): add strict mode baseline system (TS-1, TS-2)
+- **[PR #2593](https://github.com/RC918/morningai/pull/2593)**: feat(typescript): add strict mode baseline system (TS-1, TS-2)
   - Path: `scripts/`, `.github/workflows/`
   - 影響：TypeScript strict mode 基線系統
-- **PR #2540**: feat: add Qwen AI code review workflow for all PRs
+- **[PR #2540](https://github.com/RC918/morningai/pull/2540)**: feat: add Qwen AI code review workflow for all PRs
   - Path: `.github/workflows/qwen-pr-review.yml`
   - 影響：Qwen AI 程式碼審查工作流程
 
 *新增環境變數 (Dec 13-20, 2025):*
-- `REDIS_KEY_PREFIX` (string, optional): Redis key 前綴用於多環境隔離 (PR #2786)
-- PostgreSQL checkpointer 相關設定 (PR #2771)
+- `REDIS_KEY_PREFIX` (string, optional): Redis key 前綴用於多環境隔離 ([PR #2786](https://github.com/RC918/morningai/pull/2786))
+- PostgreSQL checkpointer 相關設定 ([PR #2771](https://github.com/RC918/morningai/pull/2771))
 
 **近期重要更新** (2025-12-07 至 2025-12-09):
 
 *DeepWiki 整合:*
-- **PR #2156**: feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
+- **[PR #2156](https://github.com/RC918/morningai/pull/2156)**: feat(deepwiki): integrate DeepWiki session insights into AutonomousExecutor
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
   - 影響：DeepWiki 知識庫整合，增強 session 上下文
-- **PR #2157**: feat(orchestrator): integrate DeepWiki with AutonomousExecutor
+- **[PR #2157](https://github.com/RC918/morningai/pull/2157)**: feat(orchestrator): integrate DeepWiki with AutonomousExecutor
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：完整的 DeepWiki orchestrator 整合
-- **PR #2164**: fix(deepwiki): add retry logic and rate limiting
+- **[PR #2164](https://github.com/RC918/morningai/pull/2164)**: fix(deepwiki): add retry logic and rate limiting
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：改善 DeepWiki API 呼叫的可靠性，新增重試邏輯和速率限制
-- **PR #2163**: feat(api): add DeepWiki API endpoints for knowledge base queries
+- **[PR #2163](https://github.com/RC918/morningai/pull/2163)**: feat(api): add DeepWiki API endpoints for knowledge base queries
   - Path: `handoff/20250928/40_App/api-backend/`
   - 影響：新增 DeepWiki 知識庫查詢 API 端點
-- **PR #2169**: feat(owner-console): add SessionInsights component for DeepWiki insights
+- **[PR #2169](https://github.com/RC918/morningai/pull/2169)**: feat(owner-console): add SessionInsights component for DeepWiki insights
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：顯示 DeepWiki session 洞察的 UI 元件
 
 *Sessions UI 與 HITL 優化:*
-- **PR #2170**: feat(owner-console): HITL approval UI/UX optimization
+- **[PR #2170](https://github.com/RC918/morningai/pull/2170)**: feat(owner-console): HITL approval UI/UX optimization
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：改善 Human-in-the-Loop 審批工作流程 UX
-- **PR #2173**: feat(i18n): add SessionInsights translation keys and unit tests
+- **[PR #2173](https://github.com/RC918/morningai/pull/2173)**: feat(i18n): add SessionInsights translation keys and unit tests
   - Path: `handoff/20250928/40_App/owner-console/src/i18n/`
   - 影響：SessionInsights 元件的國際化支援
-- **PR #2175**: feat(owner-console): add SessionCommandInput for interactive session commands
+- **[PR #2175](https://github.com/RC918/morningai/pull/2175)**: feat(owner-console): add SessionCommandInput for interactive session commands
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：新增互動式命令輸入用於 session 管理
-- **PR #2182**: refactor(owner-console): tidy SessionCommandInput constants and props
+- **[PR #2182](https://github.com/RC918/morningai/pull/2182)**: refactor(owner-console): tidy SessionCommandInput constants and props
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：程式碼清理和改善 prop 定義
-- **PR #2188**: test(owner-console): add unit tests for SessionCommandInput
+- **[PR #2188](https://github.com/RC918/morningai/pull/2188)**: test(owner-console): add unit tests for SessionCommandInput
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：SessionCommandInput 元件的測試覆蓋
-- **PR #2189**: feat(owner-console): persist command history with localStorage
+- **[PR #2189](https://github.com/RC918/morningai/pull/2189)**: feat(owner-console): persist command history with localStorage
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：跨 session 的命令歷史持久化
-- **PR #2225**: fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
+- **[PR #2225](https://github.com/RC918/morningai/pull/2225)**: fix(owner-console): fix ApprovalQueue TDZ error and improve auto-refresh
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：修復 Temporal Dead Zone 錯誤並改善自動刷新行為
-- **PR #2234**: fix(owner-console): fix console warnings and session card layout issues
+- **[PR #2234](https://github.com/RC918/morningai/pull/2234)**: fix(owner-console): fix console warnings and session card layout issues
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：修復 console 警告並改善 session 卡片佈局
-- **PR #2279**: feat(owner-console): add SessionStatusCard component with standardized design spec
+- **[PR #2279](https://github.com/RC918/morningai/pull/2279)**: feat(owner-console): add SessionStatusCard component with standardized design spec
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：新增標準化 SessionStatusCard 元件以保持 UI 一致性
 
 *CSRF Token 管理:*
-- **PR #2237**: fix(owner-console): fix CSRF token sync issue causing 403 errors
+- **[PR #2237](https://github.com/RC918/morningai/pull/2237)**: fix(owner-console): fix CSRF token sync issue causing 403 errors
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - 影響：修復 CSRF token 同步問題，防止 403 錯誤
-- **PR #2238**: refactor(owner-console): unify CSRF token management
+- **[PR #2238](https://github.com/RC918/morningai/pull/2238)**: refactor(owner-console): unify CSRF token management
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - 影響：統一 CSRF token 管理，支援 Auth 和 API Client 模式
-- **PR #2239**: docs(owner-console): add CSRF token mode selection warning
+- **[PR #2239](https://github.com/RC918/morningai/pull/2239)**: docs(owner-console): add CSRF token mode selection warning
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - 影響：新增 CSRF token 模式選擇警告文檔
-- **PR #2240**: docs(owner-console): add warning comment for CSRF token mode selection
+- **[PR #2240](https://github.com/RC918/morningai/pull/2240)**: docs(owner-console): add warning comment for CSRF token mode selection
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - 影響：CSRF token 模式選擇的後續文檔
 
 *AI Reviewer 與 Comment Triage:*
-- **PR #2244**: feat(orchestrator): fix AI Reviewer comment intake mechanism
+- **[PR #2244](https://github.com/RC918/morningai/pull/2244)**: feat(orchestrator): fix AI Reviewer comment intake mechanism
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
   - 影響：修復 AI Reviewer bot 白名單和評論接收機制
-- **PR #2246**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+- **[PR #2246](https://github.com/RC918/morningai/pull/2246)**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
   - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py`
   - 影響：新增 Comment Triage Agent 用於分類和優先處理 AI 審查評論
 
 *Review Follow-up 與 Internal Reviewer (Phase 7):*
-- **PR #2257**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+- **[PR #2257](https://github.com/RC918/morningai/pull/2257)**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py`
   - 影響：新增 Review Follow-up Mode 追蹤和處理審查評論
-- **PR #2262**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+- **[PR #2262](https://github.com/RC918/morningai/pull/2262)**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
   - 影響：Internal Reviewer Agent 具備重新審查能力
-- **PR #2267**: refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
+- **[PR #2267](https://github.com/RC918/morningai/pull/2267)**: refactor(orchestrator): add required field validation in internal_review_node (Issue #2263)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
   - 影響：新增 internal review node 的必填欄位驗證
-- **PR #2268**: feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
+- **[PR #2268](https://github.com/RC918/morningai/pull/2268)**: feat(orchestrator): add configurable PARTIAL agreement policy (Issue #2264)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
   - 影響：可配置的 PARTIAL 同意策略用於內部審查
-- **PR #2269**: docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
+- **[PR #2269](https://github.com/RC918/morningai/pull/2269)**: docs(orchestrator): document internal_review_node vs reviewer_node responsibilities (Issue #2265)
   - Path: `handoff/20250928/40_App/orchestrator/docs/`
   - 影響：文檔化節點職責分工
 
 *多信號觸發與 Rollout Tracker (Phase 7):*
-- **PR #2275**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+- **[PR #2275](https://github.com/RC918/morningai/pull/2275)**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
   - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py`
   - 影響：多信號觸發系統用於自動化工作流程啟動
-- **PR #2278**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+- **[PR #2278](https://github.com/RC918/morningai/pull/2278)**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
   - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py`
   - 影響：LangGraph 推出追蹤器，支援指標和儀表板
-- **PR #2284**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+- **[PR #2284](https://github.com/RC918/morningai/pull/2284)**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - 影響：RolloutTracker 整合到 worker 用於生產監控
-- **PR #2288**: docs: update milestones document with Dec 2025 progress (Issue #2215)
+- **[PR #2288](https://github.com/RC918/morningai/pull/2288)**: docs: update milestones document with Dec 2025 progress (Issue #2215)
   - Path: `docs/MILESTONES.md`
   - 影響：更新里程碑文件，Phase 7 完成狀態
 
 *Owner Console UI 重構:*
-- **PR #2245**: refactor(owner-console): move settings and logout to user dropdown menu
+- **[PR #2245](https://github.com/RC918/morningai/pull/2245)**: refactor(owner-console): move settings and logout to user dropdown menu
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：改善導航 UX，新增用戶下拉選單
-- **PR #2256**: refactor(owner-console): DashboardHeader cleanup and testing
+- **[PR #2256](https://github.com/RC918/morningai/pull/2256)**: refactor(owner-console): DashboardHeader cleanup and testing
   - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.jsx`
   - 影響：程式碼清理和改善 DashboardHeader 測試覆蓋
-- **PR #2261**: refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
+- **[PR #2261](https://github.com/RC918/morningai/pull/2261)**: refactor(owner-console): Sidebar UX optimization - single-line items and tooltips
   - Path: `handoff/20250928/40_App/owner-console/src/components/Sidebar.jsx`
   - 影響：改善 Sidebar UX，單行項目和工具提示
-- **PR #2266**: refactor(owner-console): implement single-layer Header + Sidebar architecture
+- **[PR #2266](https://github.com/RC918/morningai/pull/2266)**: refactor(owner-console): implement single-layer Header + Sidebar architecture
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：簡化 Header 和 Sidebar 架構
-- **PR #2270**: fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
+- **[PR #2270](https://github.com/RC918/morningai/pull/2270)**: fix(shared-ui): add arrowClassName prop to Tooltip for customizable arrow styling
   - Path: `packages/shared-ui/src/components/ui/tooltip.tsx`
   - 影響：增強 Tooltip 元件，支援自訂箭頭樣式
 
 *CI/CD 與測試基礎設施:*
-- **PR #2174**: feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
+- **[PR #2174](https://github.com/RC918/morningai/pull/2174)**: feat(ci): enable TypeScript Strict Mode baseline tracking for all packages
   - Path: `.github/workflows/`
   - 影響：所有套件的 TypeScript Strict Mode 基線追蹤
-- **PR #2183**: fix(orchestrator): fix failing tests in visual_verification and project_engineer
+- **[PR #2183](https://github.com/RC918/morningai/pull/2183)**: fix(orchestrator): fix failing tests in visual_verification and project_engineer
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：修復 visual verification 和 project engineer 模組的失敗測試
-- **PR #2190**: fix(orchestrator): increase performance test threshold for planner node
+- **[PR #2190](https://github.com/RC918/morningai/pull/2190)**: fix(orchestrator): increase performance test threshold for planner node
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：調整 planner node 的效能測試閾值
-- **PR #2194**: fix(orchestrator): add rate limit mock to TestExecute tests
+- **[PR #2194](https://github.com/RC918/morningai/pull/2194)**: fix(orchestrator): add rate limit mock to TestExecute tests
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：修復測試不穩定性，新增速率限制 mock
-- **PR #2200**: test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
+- **[PR #2200](https://github.com/RC918/morningai/pull/2200)**: test(orchestrator): add comprehensive tests for langgraph_orchestrator.py
   - Path: `handoff/20250928/40_App/orchestrator/tests/`
   - 影響：LangGraph orchestrator 的全面測試覆蓋
-- **PR #2233**: test(api-backend): add comprehensive tests for sentry_integration.py
+- **[PR #2233](https://github.com/RC918/morningai/pull/2233)**: test(api-backend): add comprehensive tests for sentry_integration.py
   - Path: `handoff/20250928/40_App/api-backend/`
   - 影響：Sentry 整合模組的測試覆蓋
-- **PR #2235**: test(orchestrator): add security rules tests for project_engineer/agent.py
+- **[PR #2235](https://github.com/RC918/morningai/pull/2235)**: test(orchestrator): add security rules tests for project_engineer/agent.py
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：project engineer agent 的安全規則測試覆蓋
-- **PR #2236**: test(owner-console): add comprehensive tests for LoginPage component
+- **[PR #2236](https://github.com/RC918/morningai/pull/2236)**: test(owner-console): add comprehensive tests for LoginPage component
   - Path: `handoff/20250928/40_App/owner-console/src/pages/`
   - 影響：LoginPage 元件的測試覆蓋
 
 *Backend 與基礎設施:*
-- **PR #2184**: feat(api-backend): add /api/sessions/{id}/command endpoint
+- **[PR #2184](https://github.com/RC918/morningai/pull/2184)**: feat(api-backend): add /api/sessions/{id}/command endpoint
   - Path: `handoff/20250928/40_App/api-backend/`
   - 影響：新增 session 命令執行 API 端點
-- **PR #2197**: feat(orchestrator): add A/B testing metrics collection and analysis framework
+- **[PR #2197](https://github.com/RC918/morningai/pull/2197)**: feat(orchestrator): add A/B testing metrics collection and analysis framework
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：A/B 測試指標框架用於實驗分析
-- **PR #2204**: fix: reduce noisy Sentry alerts for expected error conditions
+- **[PR #2204](https://github.com/RC918/morningai/pull/2204)**: fix: reduce noisy Sentry alerts for expected error conditions
   - Path: `handoff/20250928/40_App/api-backend/`
   - 影響：減少預期錯誤的 Sentry 警報噪音
-- **PR #2218**: feat(orchestrator): complete Wave 1 Phase 7 prerequisites
+- **[PR #2218](https://github.com/RC918/morningai/pull/2218)**: feat(orchestrator): complete Wave 1 Phase 7 prerequisites
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：完成 Phase 7 的 Wave 1 先決條件
-- **PR #2224**: feat(orchestrator): add retry and rate limiting to OutboundNotifier
+- **[PR #2224](https://github.com/RC918/morningai/pull/2224)**: feat(orchestrator): add retry and rate limiting to OutboundNotifier
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：改善出站通知的可靠性
-- **PR #2231**: feat(orchestrator): Wave 3 Failure Learning Enhancement
+- **[PR #2231](https://github.com/RC918/morningai/pull/2231)**: feat(orchestrator): Wave 3 Failure Learning Enhancement
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 影響：增強失敗學習能力
-- **PR #2232**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+- **[PR #2232](https://github.com/RC918/morningai/pull/2232)**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
   - Path: `handoff/20250928/40_App/api-backend/`
   - 影響：修復 Upstash Redis scan_iter 相容性
 
 *文檔:*
-- **PR #2193**: docs: align documentation with actual implementation
+- **[PR #2193](https://github.com/RC918/morningai/pull/2193)**: docs: align documentation with actual implementation
   - Path: `docs/`
   - 影響：文檔與當前實作對齊
 
 **近期重要更新** (2025-12-08 至 2025-12-09):
 
 *Phase 7: 生態系閉環 (AI Review Closed Loop) 完成:*
-- **PR #2257**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
+- **[PR #2257](https://github.com/RC918/morningai/pull/2257)**: feat(orchestrator): implement Review Follow-up Mode (Issue #2211)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_follow_up.py`
   - 影響：新增 Review Follow-up Mode 追蹤和處理審查評論
-- **PR #2262**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
+- **[PR #2262](https://github.com/RC918/morningai/pull/2262)**: feat(orchestrator): implement Internal Reviewer Agent re-review mechanism (Issue #2212)
   - Path: `handoff/20250928/40_App/orchestrator/nodes/internal_review_node.py`
   - 影響：Internal Reviewer Agent 具備重新審查能力
-- **PR #2275**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
+- **[PR #2275](https://github.com/RC918/morningai/pull/2275)**: feat(orchestrator): implement Multi-Signal Trigger System (Issue #2213)
   - Path: `handoff/20250928/40_App/orchestrator/multi_signal_trigger.py`
   - 影響：多信號觸發系統用於自動化工作流程啟動
-- **PR #2278**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
+- **[PR #2278](https://github.com/RC918/morningai/pull/2278)**: feat(orchestrator): implement LangGraph 100% Rollout Tracker (Issue #2214)
   - Path: `handoff/20250928/40_App/orchestrator/rollout_tracker.py`
   - 影響：LangGraph 推出追蹤器，支援指標和儀表板
-- **PR #2284**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
+- **[PR #2284](https://github.com/RC918/morningai/pull/2284)**: feat(orchestrator): integrate RolloutTracker into worker.py (Issue #2280)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - 影響：RolloutTracker 整合到 worker 用於生產監控
-- **PR #2288**: docs: update milestones document with Dec 2025 progress (Issue #2215)
+- **[PR #2288](https://github.com/RC918/morningai/pull/2288)**: docs: update milestones document with Dec 2025 progress (Issue #2215)
   - Path: `docs/MILESTONES.md`
   - 影響：更新里程碑文件，Phase 7 完成狀態
 
 *CSRF Token 管理統一:*
-- **PR #2237**: fix(owner-console): fix CSRF token sync issue causing 403 errors
+- **[PR #2237](https://github.com/RC918/morningai/pull/2237)**: fix(owner-console): fix CSRF token sync issue causing 403 errors
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - 影響：修復 CSRF token 同步問題，防止 403 錯誤
-- **PR #2238**: refactor(owner-console): unify CSRF token management
+- **[PR #2238](https://github.com/RC918/morningai/pull/2238)**: refactor(owner-console): unify CSRF token management
   - Path: `handoff/20250928/40_App/owner-console/src/lib/csrf-token.ts`
   - 影響：統一 CSRF token 管理，支援 Auth 和 API Client 模式
-- **PR #2239, #2240**: docs(owner-console): add CSRF token mode selection warning
+- **[PR #2239](https://github.com/RC918/morningai/pull/2239), #2240**: docs(owner-console): add CSRF token mode selection warning
   - 影響：新增 CSRF token 模式選擇警告文檔
 
 *AI Reviewer & Comment Triage:*
-- **PR #2244**: feat(orchestrator): fix AI Reviewer comment intake mechanism
+- **[PR #2244](https://github.com/RC918/morningai/pull/2244)**: feat(orchestrator): fix AI Reviewer comment intake mechanism
   - Path: `handoff/20250928/40_App/orchestrator/nodes/review_intake.py`
   - 影響：修復 AI Reviewer bot 白名單和評論接收機制
-- **PR #2246**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
+- **[PR #2246](https://github.com/RC918/morningai/pull/2246)**: feat(orchestrator): implement Comment Triage Agent for AI reviewer comments
   - Path: `handoff/20250928/40_App/orchestrator/nodes/comment_triage.py`
   - 影響：新增 Comment Triage Agent 用於分類和優先處理 AI 審查評論
 
 *Sessions UI & 基礎設施:*
-- **PR #2279**: feat(owner-console): add SessionStatusCard component with standardized design spec
+- **[PR #2279](https://github.com/RC918/morningai/pull/2279)**: feat(owner-console): add SessionStatusCard component with standardized design spec
   - Path: `handoff/20250928/40_App/owner-console/src/components/`
   - 影響：新增標準化 SessionStatusCard 元件
-- **PR #2232**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
+- **[PR #2232](https://github.com/RC918/morningai/pull/2232)**: fix(api-backend): add Upstash Redis adapter for scan_iter compatibility
   - Path: `handoff/20250928/40_App/api-backend/`
   - 影響：修復 Upstash Redis scan_iter 相容性
-- **PR #2204**: fix: reduce noisy Sentry alerts for expected error conditions
+- **[PR #2204](https://github.com/RC918/morningai/pull/2204)**: fix: reduce noisy Sentry alerts for expected error conditions
   - 影響：減少預期錯誤的 Sentry 警報噪音
 
 **近期重要更新** (2025-12-06 至 2025-12-07):
 
 *VSCode/MCP Integration & Meta-Agent Production Wiring:*
-- **PR #2114**: feat(meta-agent): integrate VSCodeIDEService into production code
+- **[PR #2114](https://github.com/RC918/morningai/pull/2114)**: feat(meta-agent): integrate VSCodeIDEService into production code
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/autonomous_executor.py`
   - 影響：將 VMProvisioner 和 VSCodeIDEService 整合到 AutonomousExecutor；新增 VM/IDE 生命週期管理
-- **PR #2067**: feat(meta-agent): implement MCP HTTP client for cloud IDE integration
+- **[PR #2067](https://github.com/RC918/morningai/pull/2067)**: feat(meta-agent): implement MCP HTTP client for cloud IDE integration
   - Path: `handoff/20250928/40_App/orchestrator/meta_agent/vscode_ide.py`
   - 影響：核心 MCP HTTP 客戶端實作
-- **PR #2106**: perf(vscode-ide): share aiohttp ClientSession for connection reuse
+- **[PR #2106](https://github.com/RC918/morningai/pull/2106)**: perf(vscode-ide): share aiohttp ClientSession for connection reuse
   - 影響：TCP 連線池和 DNS 快取以提升 MCP 效能
-- **PR #2102**: refactor(vscode-ide): extract constants and use exponential backoff
+- **[PR #2102](https://github.com/RC918/morningai/pull/2102)**: refactor(vscode-ide): extract constants and use exponential backoff
   - 影響：可配置的 MCP 超時、重試和錯誤日誌截斷常數
-- **PR #2077**: security(vscode-ide): truncate error logs to prevent sensitive data leakage
+- **[PR #2077](https://github.com/RC918/morningai/pull/2077)**: security(vscode-ide): truncate error logs to prevent sensitive data leakage
   - 影響：錯誤日誌截斷至 500 字元以防止憑證洩漏
 
 *VSCode/MCP Documentation & Infrastructure:*
-- **PR #2101**: docs(meta-agent): add Tier 2 VSCode/VM documentation
+- **[PR #2101](https://github.com/RC918/morningai/pull/2101)**: docs(meta-agent): add Tier 2 VSCode/VM documentation
   - Path: `handoff/20250928/40_App/orchestrator/docs/` (新目錄)
   - 新增檔案：`TERMINAL_ACCESS.md`, `VM_LOCKING_DESIGN.md`, `VM_PROVISIONER_LIFECYCLE.md`
-- **PR #2115**: docs(orchestrator): add cross-process limitation note and environment settings
+- **[PR #2115](https://github.com/RC918/morningai/pull/2115)**: docs(orchestrator): add cross-process limitation note and environment settings
   - 影響：記錄 VM 佈建的跨進程限制和終端機能力環境設定
-- **PR #2110**: test(vscode-ide): use mocker.patch.object() for cleaner test mocking
+- **[PR #2110](https://github.com/RC918/morningai/pull/2110)**: test(vscode-ide): use mocker.patch.object() for cleaner test mocking
   - Path: `handoff/20250928/40_App/orchestrator/requirements-test.txt` (新增 pytest-mock)
 
 *Documentation Auto-Generation Security:*
-- **PR #2103**: refactor(orchestrator): improve documentation auto-generation security
+- **[PR #2103](https://github.com/RC918/morningai/pull/2103)**: refactor(orchestrator): improve documentation auto-generation security
   - Path: `handoff/20250928/40_App/orchestrator/`
   - 新增環境變數：`ORCHESTRATOR_DOCS_MAX_PRS_PER_HOUR` (integer, default: 3) - 每小時最大文件 PR 數量限制
   - 影響：防止衝突的 FAQ PR；新增主題 slug 生成和內容驗證
 
 *Owner Console Sessions UI & Performance:*
-- **PR #2063**: feat(owner-console): integrate ConfidenceApproval and FileDiffViewer
+- **[PR #2063](https://github.com/RC918/morningai/pull/2063)**: feat(owner-console): integrate ConfidenceApproval and FileDiffViewer
   - 影響：Sessions 頁面現在顯示信心分數和檔案差異
-- **PR #2088**: refactor(owner-console): Sessions.jsx defensive code improvements
+- **[PR #2088](https://github.com/RC918/morningai/pull/2088)**: refactor(owner-console): Sessions.jsx defensive code improvements
   - 影響：提取 `MEDIUM_CONFIDENCE_THRESHOLD` 常數；改善 null 安全性
-- **PR #2089**: perf(owner-console): optimize FCP with lazy loading
+- **[PR #2089](https://github.com/RC918/morningai/pull/2089)**: perf(owner-console): optimize FCP with lazy loading
   - 影響：延遲載入 TaskPlanViewer 和 TaskPlanEditor 以加快首次繪製
-- **PR #2087**: a11y(owner-console): improve keyboard accessibility for drag-and-drop
+- **[PR #2087](https://github.com/RC918/morningai/pull/2087)**: a11y(owner-console): improve keyboard accessibility for drag-and-drop
   - 影響：任務重新排序的鍵盤導航支援
 
 *Design System & Storybook:*
-- **PR #2068**: fix(owner-console): add base tokens to @theme for shared-ui Switch
+- **[PR #2068](https://github.com/RC918/morningai/pull/2068)**: fix(owner-console): add base tokens to @theme for shared-ui Switch
   - 影響：修復 Switch 元件在深色/淺色模式下的可見性
-- **PR #2084**: docs(shared-ui): add Switch Storybook visual verification story
+- **[PR #2084](https://github.com/RC918/morningai/pull/2084)**: docs(shared-ui): add Switch Storybook visual verification story
   - Path: `packages/shared-ui/src/components/ui/switch.stories.tsx` (新檔案)
-- **PR #2083**: docs(owner-console): add Storybook stories for task plan components
-- **PR #2061**: chore(owner-console): remove dead theme.css file
+- **[PR #2083](https://github.com/RC918/morningai/pull/2083)**: docs(owner-console): add Storybook stories for task plan components
+- **[PR #2061](https://github.com/RC918/morningai/pull/2061)**: chore(owner-console): remove dead theme.css file
   - Path: `handoff/20250928/40_App/owner-console/src/styles/theme.css` (已移除)
 
 *Security & Testing:*
-- **PR #2052**: fix(meta-agent): add TOCTOU defense in save_state()
+- **[PR #2052](https://github.com/RC918/morningai/pull/2052)**: fix(meta-agent): add TOCTOU defense in save_state()
   - 影響：原子檔案寫入防止狀態持久化中的競爭條件
-- **PR #2078**: test(owner-console): add XSS protection tests for TestResultsPanel
-- **PR #2079**: test(orchestrator): add unit tests for update_error_fix_pair
+- **[PR #2078](https://github.com/RC918/morningai/pull/2078)**: test(owner-console): add XSS protection tests for TestResultsPanel
+- **[PR #2079](https://github.com/RC918/morningai/pull/2079)**: test(orchestrator): add unit tests for update_error_fix_pair
 
 **近期重要更新** (2025-12-03 至 2025-12-05):
 
 *Refactor Agent & TS Strict Mode Automation:*
-- **PR #1886**: Phase 4 - Refactor Agent for TS Strict Mode Automation
+- **[PR #1886](https://github.com/RC918/morningai/pull/1886)**: Phase 4 - Refactor Agent for TS Strict Mode Automation
   - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/`, `config/env.schema.yaml`, `.env.example`
   - 新增環境變數：`REFACTOR_AGENT_ENABLED` (boolean, default: true) - 啟用/停用 Refactor Agent
   - 新增環境變數：`REFACTOR_AGENT_ERRORS_PER_RUN` (integer, default: 10) - 每次執行修復的錯誤數量
   - 新增環境變數：`REFACTOR_AGENT_AUTO_PR` (boolean, default: true) - 自動建立 PR
   - 影響：引入自動化 TS strict mode 修復代理
-- **PR #1897**: LLM Integration for Refactor Agent Code Fix Generation
+- **[PR #1897](https://github.com/RC918/morningai/pull/1897)**: LLM Integration for Refactor Agent Code Fix Generation
   - Path: `handoff/20250928/40_App/orchestrator/refactor_agent/agent.py`
   - 影響：新增 LLM 驅動的程式碼修復生成
-- **PR #1903**: File Modification Implementation for Refactor Agent
+- **[PR #1903](https://github.com/RC918/morningai/pull/1903)**: File Modification Implementation for Refactor Agent
   - 影響：啟用實際檔案修改功能
-- **PR #1908**: PR Automation for Refactor Agent
+- **[PR #1908](https://github.com/RC918/morningai/pull/1908)**: PR Automation for Refactor Agent
   - 影響：自動建立修復 PR
-- **PR #1913**: Nightly Cron Job Setup + Grammar/Optimization Improvements
+- **[PR #1913](https://github.com/RC918/morningai/pull/1913)**: Nightly Cron Job Setup + Grammar/Optimization Improvements
   - Path: `.github/workflows/refactor-agent-nightly.yml`
   - 影響：新增每日定時執行的 cron job
 
 *Task Queue Reliability (Ops Agent):*
-- **PR #1907**: Fix infinite loop for unassigned tasks
+- **[PR #1907](https://github.com/RC918/morningai/pull/1907)**: Fix infinite loop for unassigned tasks
   - Path: `agents/ops_agent/worker.py`
   - 影響：修復 `assigned_to` 缺失時的無限循環問題
-- **PR #1912**: Implement task status update and assigned_to validation
+- **[PR #1912](https://github.com/RC918/morningai/pull/1912)**: Implement task status update and assigned_to validation
   - Path: `agents/ops_agent/worker.py`, `orchestrator/task_queue/redis_queue.py`
   - 影響：錯誤路由的任務標記為 FAILED 並發布 `task.failed` 事件；enqueue 時缺少 `assigned_to` 會記錄警告
-- **PR #1914**: Add automated tests for task routing (#1909, #1910)
+- **[PR #1914](https://github.com/RC918/morningai/pull/1914)**: Add automated tests for task routing (#1909, #1910)
   - Path: `agents/ops_agent/tests/test_task_routing.py`
   - 影響：新增 8 個任務路由測試（4 個錯誤路由 + 3 個 enqueue 警告 + 1 個整合測試）
-- **PR #1934**: Use pytest pythonpath instead of sys.path.insert
+- **[PR #1934](https://github.com/RC918/morningai/pull/1934)**: Use pytest pythonpath instead of sys.path.insert
   - 影響：使用 pytest.ini pythonpath 配置取代手動路徑設定
 
 *Owner Console Page Standardization (Phase 1 Complete):*
-- **PR #1863, #1867, #1879, #1883, #1885, #1894, #1900**: 標準化所有 Owner Console 頁面佈局
+- **[PR #1863](https://github.com/RC918/morningai/pull/1863), #1867, #1879, #1883, #1885, #1894, #1900**: 標準化所有 Owner Console 頁面佈局
   - 影響：統一使用 PageScaffold/SectionTemplate 元件
-- **PR #1906**: Move language switcher to navbar
+- **[PR #1906](https://github.com/RC918/morningai/pull/1906)**: Move language switcher to navbar
   - 影響：改善導航 UX
 
 *Shared UI Components:*
-- **PR #1884**: Implement PageScaffold component
-- **PR #1887**: Implement SectionTemplate component
-- **PR #1853**: Add iotask foundation components (Phase 1)
-- **PR #1856**: Phase 2 - AdminShell three-column layout support
+- **[PR #1884](https://github.com/RC918/morningai/pull/1884)**: Implement PageScaffold component
+- **[PR #1887](https://github.com/RC918/morningai/pull/1887)**: Implement SectionTemplate component
+- **[PR #1853](https://github.com/RC918/morningai/pull/1853)**: Add iotask foundation components (Phase 1)
+- **[PR #1856](https://github.com/RC918/morningai/pull/1856)**: Phase 2 - AdminShell three-column layout support
 
 *Security & Memory (Phase 1-2):*
-- **PR #1826**: Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3
-- **PR #1830, #1831, #1836**: Phase 1-2 Follow-up Issues and Observer Node
+- **[PR #1826](https://github.com/RC918/morningai/pull/1826)**: Phase 1 Security Foundation - RLS Hard Gate, Semantic Rules v3
+- **[PR #1830](https://github.com/RC918/morningai/pull/1830), #1831, #1836**: Phase 1-2 Follow-up Issues and Observer Node
 
 *Orchestrator Enhancements:*
-- **PR #1852**: Phase 3 P2 - LangGraph Mode Full Switchover
-- **PR #1854**: Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
-- **PR #1857**: Phase 3 P3 - PM Agent + Ops Agent
-- **PR #1862**: Phase 3 P4 - Background Queue Principles Enhancement
-- **PR #1866**: Phase 3 Follow-up Issues
+- **[PR #1852](https://github.com/RC918/morningai/pull/1852)**: Phase 3 P2 - LangGraph Mode Full Switchover
+- **[PR #1854](https://github.com/RC918/morningai/pull/1854)**: Phase 3 P2 - Human-in-the-Loop High-Risk Approval Workflow
+- **[PR #1857](https://github.com/RC918/morningai/pull/1857)**: Phase 3 P3 - PM Agent + Ops Agent
+- **[PR #1862](https://github.com/RC918/morningai/pull/1862)**: Phase 3 P4 - Background Queue Principles Enhancement
+- **[PR #1866](https://github.com/RC918/morningai/pull/1866)**: Phase 3 Follow-up Issues
 
 *ESLint Spacing Rules:*
-- **PR #1892**: Add ESLint rule for standardized spacing utilities
+- **[PR #1892](https://github.com/RC918/morningai/pull/1892)**: Add ESLint rule for standardized spacing utilities
   - Path: `handoff/20250928/40_App/owner-console/eslint-rules/no-non-standard-spacing.js`
-- **PR #1901**: Cleanup 29 spacing violations
-- **PR #1904**: Upgrade spacing ESLint rule to error mode (Phase 3)
+- **[PR #1901](https://github.com/RC918/morningai/pull/1901)**: Cleanup 29 spacing violations
+- **[PR #1904](https://github.com/RC918/morningai/pull/1904)**: Upgrade spacing ESLint rule to error mode (Phase 3)
 
 *Migrations & Infrastructure:*
-- **PR #1871, #1895**: Unified Migration Management and DRY refactoring
-- **PR #1881**: Update secrets config to use new key names
-- **PR #1882**: Upgrade vulnerable packages and expand CI scanning coverage
+- **[PR #1871](https://github.com/RC918/morningai/pull/1871), #1895**: Unified Migration Management and DRY refactoring
+- **[PR #1881](https://github.com/RC918/morningai/pull/1881)**: Update secrets config to use new key names
+- **[PR #1882](https://github.com/RC918/morningai/pull/1882)**: Upgrade vulnerable packages and expand CI scanning coverage
 
 **近期重要更新** (2025-12-02 至 2025-12-03):
 
 *實驗與推理模式:*
-- **PR #1804**: Phase 4 Production Rollout - 提高實驗百分比並新增緊急開關
+- **[PR #1804](https://github.com/RC918/morningai/pull/1804)**: Phase 4 Production Rollout - 提高實驗百分比並新增緊急開關
   - Path: `handoff/20250928/40_App/orchestrator/experiment_manager.py`, `common/config/settings.py`
   - 新增環境變數：`DISABLE_GEMINI3` (boolean) - 緊急回滾開關，啟用時所有 Gemini 3 流量轉至 OpenAI
   - 影響：gemini3_planner_staging 從 10% 提升至 25%，gemini3_reviewer_staging 從 5% 提升至 10%
-- **PR #1803**: Phase 3 Remaining Items - Gemini 3 fallback、參數化測試、CI gate
+- **[PR #1803](https://github.com/RC918/morningai/pull/1803)**: Phase 3 Remaining Items - Gemini 3 fallback、參數化測試、CI gate
   - Path: `.github/workflows/gemini3-reviewer-gate.yml`, `handoff/20250928/40_App/orchestrator/tests/test_llm_planner_adapter.py`, `test_llm_reviewer_adapter.py`
   - 影響：新增 Gemini 3 reviewer gate CI 工作流程，整合測試模式
-- **PR #1794**: Phase 3.1 Hardening - 新增 REASONING_MODE_ENABLED schema 和單元測試
+- **[PR #1794](https://github.com/RC918/morningai/pull/1794)**: Phase 3.1 Hardening - 新增 REASONING_MODE_ENABLED schema 和單元測試
   - Path: `config/env.schema.yaml`, `common/config/settings.py`
   - 新增環境變數：`REASONING_MODE_ENABLED` (boolean, default: false) - 控制 Gemini 3 的 thinking_level
-- **PR #1793**: Phase 3 - 推理模式切換和 Gemini 3 reviewer 實驗
+- **[PR #1793](https://github.com/RC918/morningai/pull/1793)**: Phase 3 - 推理模式切換和 Gemini 3 reviewer 實驗
   - Path: `handoff/20250928/40_App/orchestrator/llm/adapters/llm_reviewer_adapter.py`
   - 影響：啟用 gemini3_reviewer_5pct_staging 實驗
-- **PR #1792**: Redis Checkpointer - LangGraph 狀態持久化
+- **[PR #1792](https://github.com/RC918/morningai/pull/1792)**: Redis Checkpointer - LangGraph 狀態持久化
   - Path: `handoff/20250928/40_App/orchestrator/redis_checkpointer.py`, `graph.py`
   - 影響：新增 Redis 檢查點機制，支援可配置的 TTL
-- **PR #1791**: FAQ Routing - FAQ 任務走 simple path，繞過 LangGraph
+- **[PR #1791](https://github.com/RC918/morningai/pull/1791)**: FAQ Routing - FAQ 任務走 simple path，繞過 LangGraph
   - Path: `handoff/20250928/40_App/orchestrator/graph.py`
   - 影響：FAQ 任務使用 simple mode (~95% 流量) 以加快回應速度
 
 *配置與密鑰強化:*
-- **PR #1800**: 將 os.getenv 遷移到 settings.py (Tier 1 生產代碼)
+- **[PR #1800](https://github.com/RC918/morningai/pull/1800)**: 將 os.getenv 遷移到 settings.py (Tier 1 生產代碼)
   - Path: `handoff/20250928/40_App/orchestrator/`, `common/config/settings.py`
   - 影響：透過 Pydantic settings 集中管理環境變數存取
-- **PR #1798**: 將 WORKER_HEARTBEAT_INTERVAL 和 WORKER_HEARTBEAT_TTL 遷移到 settings.py
+- **[PR #1798](https://github.com/RC918/morningai/pull/1798)**: 將 WORKER_HEARTBEAT_INTERVAL 和 WORKER_HEARTBEAT_TTL 遷移到 settings.py
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
   - 新增環境變數：`WORKER_HEARTBEAT_INTERVAL` (integer, default: 60) - Worker 心跳間隔秒數
   - 新增環境變數：`WORKER_HEARTBEAT_TTL` (integer, default: 180) - 心跳 key 過期時間
-- **PR #1797**: 將 RQ_MAX_JOBS 遷移到 settings.py 並強化密鑰安全
+- **[PR #1797](https://github.com/RC918/morningai/pull/1797)**: 將 RQ_MAX_JOBS 遷移到 settings.py 並強化密鑰安全
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
   - 影響：強化 `FLASK_SECRET_KEY` 和 `ENCRYPTION_MASTER_KEY` 為生產環境必需
-- **PR #1795**: 移除已棄用的 SECRET_KEY 和 MASTER_KEY
+- **[PR #1795](https://github.com/RC918/morningai/pull/1795)**: 移除已棄用的 SECRET_KEY 和 MASTER_KEY
   - Path: `config/env.schema.yaml`
   - 影響：改用 `FLASK_SECRET_KEY` 和 `ENCRYPTION_MASTER_KEY`
-- **PR #1790**: 新增 RQ_MAX_JOBS 環境變數用於 Worker 記憶體管理
+- **[PR #1790](https://github.com/RC918/morningai/pull/1790)**: 新增 RQ_MAX_JOBS 環境變數用於 Worker 記憶體管理
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - 新增環境變數：`RQ_MAX_JOBS` (integer, default: 0) - Worker 處理 N 個任務後重啟以防止 OOM
 
 *UI/UX 與設計系統:*
-- **PR #1802**: 為 DashboardHeader 和 Sidebar 新增 Storybook stories
+- **[PR #1802](https://github.com/RC918/morningai/pull/1802)**: 為 DashboardHeader 和 Sidebar 新增 Storybook stories
   - Path: `handoff/20250928/40_App/owner-console/src/components/DashboardHeader.stories.tsx`, `Sidebar.stories.tsx`
-- **PR #1801**: Phase 3-4 完成 - iotask 元件樣式和進度條
+- **[PR #1801](https://github.com/RC918/morningai/pull/1801)**: Phase 3-4 完成 - iotask 元件樣式和進度條
   - Path: `packages/shared-ui/src/components/ui/button.tsx`, `badge.tsx`, `card.tsx`, `input.tsx`, `progress.tsx`
-- **PR #1796**: iotask 設計系統升級 - Phase 1-4
+- **[PR #1796](https://github.com/RC918/morningai/pull/1796)**: iotask 設計系統升級 - Phase 1-4
   - Path: `packages/shared-ui/src/tokens.json`, `handoff/20250928/40_App/owner-console/src/components/`
 
 **近期重要更新** (2025-11-29 至 2025-12-01):
-- **PR #1788**: Failure Memory Integration - 失敗知識庫整合到 failure recorder (Phase 5 PR-1)
+- **[PR #1788](https://github.com/RC918/morningai/pull/1788)**: Failure Memory Integration - 失敗知識庫整合到 failure recorder (Phase 5 PR-1)
   - Path: `handoff/20250928/40_App/orchestrator/failure_recorder.py`
   - 影響：失敗記錄持久化到 Supabase `failure_memory` 表
-- **PR #1787**: Sentry Error Prevention - 新增防禦性檢查實現優雅降級
+- **[PR #1787](https://github.com/RC918/morningai/pull/1787)**: Sentry Error Prevention - 新增防禦性檢查實現優雅降級
   - Path: `handoff/20250928/40_App/orchestrator/persistence/db_client.py`, `db_writer.py`, `auth_middleware.py`
   - 影響：Supabase 不可用時不再導致應用崩潰
-- **PR #1785**: Real Metrics Aggregation - 實驗比較的 RPC 聚合 (Tier 1)
+- **[PR #1785](https://github.com/RC918/morningai/pull/1785)**: Real Metrics Aggregation - 實驗比較的 RPC 聚合 (Tier 1)
   - Path: `handoff/20250928/40_App/orchestrator/persistence/planner_events_store.py`
   - Migration: `migrations/030_create_planner_metrics_rpc.sql`
-- **PR #1781**: ORCHESTRATOR_DRY_RUN Flag - 乾跑模式跳過 PR 創建
+- **[PR #1781](https://github.com/RC918/morningai/pull/1781)**: ORCHESTRATOR_DRY_RUN Flag - 乾跑模式跳過 PR 創建
   - Path: `handoff/20250928/40_App/orchestrator/graph.py`
   - 新增環境變數：`ORCHESTRATOR_DRY_RUN` (boolean)
-- **PR #1780**: OpenAI SDK Upgrade - 修復 httpx 0.28 proxies 相容性
+- **[PR #1780](https://github.com/RC918/morningai/pull/1780)**: OpenAI SDK Upgrade - 修復 httpx 0.28 proxies 相容性
   - Path: `handoff/20250928/40_App/orchestrator/requirements.txt`
-- **PR #1778**: 401 Retry Logic - owner-console 主動 token 過期檢查
+- **[PR #1778](https://github.com/RC918/morningai/pull/1778)**: 401 Retry Logic - owner-console 主動 token 過期檢查
   - Path: `handoff/20250928/40_App/owner-console/src/lib/auth.ts`, `api-client.ts`
 
 **Gemini 3 SDK 遷移** (2025-11-29 至 2025-11-30):
-- **PR #1761**: Gemini Provider Migration - 遷移到 google-genai SDK (Phase 1)
+- **[PR #1761](https://github.com/RC918/morningai/pull/1761)**: Gemini Provider Migration - 遷移到 google-genai SDK (Phase 1)
   - Path: `handoff/20250928/40_App/orchestrator/llm/providers/gemini_provider.py`
-- **PR #1762**: Gemini Fallback Model Update - 從 gemini-pro 改為 gemini-2.0-flash
-- **PR #1763**: Gemini 3 Phase 2 - thinking_level 支援和新實驗
+- **[PR #1762](https://github.com/RC918/morningai/pull/1762)**: Gemini Fallback Model Update - 從 gemini-pro 改為 gemini-2.0-flash
+- **[PR #1763](https://github.com/RC918/morningai/pull/1763)**: Gemini 3 Phase 2 - thinking_level 支援和新實驗
   - 新增 API 參數：`thinking_level` (string: low/medium/high) - 透過 API 請求傳遞，非環境變數
-- **PR #1765**: Enable gemini3_planner_10pct_staging 實驗
+- **[PR #1765](https://github.com/RC918/morningai/pull/1765)**: Enable gemini3_planner_10pct_staging 實驗
 
 **AI 治理與安全** (2025-11-28 至 2025-11-29):
-- **PR #1741**: Three-tier Permission Architecture (Phase 6 PR-5)
+- **[PR #1741](https://github.com/RC918/morningai/pull/1741)**: Three-tier Permission Architecture (Phase 6 PR-5)
   - Path: `handoff/20250928/40_App/api-backend/src/middleware/auth_middleware.py`
   - Migration: `migrations/028_add_platform_admin_support.sql`
-- **PR #1746**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
+- **[PR #1746](https://github.com/RC918/morningai/pull/1746)**: SECURITY_ENFORCEMENT_MODE Configuration (PR-1)
   - Path: `common/config/settings.py`, `config/env.schema.yaml`
   - 新增環境變數：`SECURITY_ENFORCEMENT_MODE` (string: advisory/block_critical/block_all)
-- **PR #1748**: LangGraph Enforcement Integration (PR-2)
-- **PR #1749**: Simple Mode Policy Observability (PR-3)
-- **PR #1751**: Blessed Configurations Documentation (PR-4)
+- **[PR #1748](https://github.com/RC918/morningai/pull/1748)**: LangGraph Enforcement Integration (PR-2)
+- **[PR #1749](https://github.com/RC918/morningai/pull/1749)**: Simple Mode Policy Observability (PR-3)
+- **[PR #1751](https://github.com/RC918/morningai/pull/1751)**: Blessed Configurations Documentation (PR-4)
   - Path: `config/blessed_configs.yaml`
-- **PR #1753**: Config Validation Script and CI (PR-5)
+- **[PR #1753](https://github.com/RC918/morningai/pull/1753)**: Config Validation Script and CI (PR-5)
   - Path: `scripts/validate_blessed_configs.py`, `.github/workflows/validate-blessed-configs.yml`
 
 **CI/CD 改進** (2025-11-28 至 2025-11-29):
-- **PR #1756**: Unified Migration Runner (PR-6)
+- **[PR #1756](https://github.com/RC918/morningai/pull/1756)**: Unified Migration Runner (PR-6)
   - Path: `scripts/run_migrations.sh`
-- **PR #1757**: Migration Health Check CI (PR-7)
+- **[PR #1757](https://github.com/RC918/morningai/pull/1757)**: Migration Health Check CI (PR-7)
   - Path: `.github/workflows/migration-health-check.yml`
-- **PR #1767**: Coverage Trend Tracking
+- **[PR #1767](https://github.com/RC918/morningai/pull/1767)**: Coverage Trend Tracking
   - Path: `.github/workflows/coverage-trend.yml`
-- **PR #1766**: Migration 029 - Fix Security Advisor warnings
+- **[PR #1766](https://github.com/RC918/morningai/pull/1766)**: Migration 029 - Fix Security Advisor warnings
   - Path: `migrations/029_fix_reputation_security_warnings.sql`
 
 **先前重要更新** (2025-11-25 至 2025-11-26):
-- **PR #1548**: Frontend Dashboard 代碼分割優化 - 20% bundle 減少 + Lighthouse CI color-contrast 修復
+- **[PR #1548](https://github.com/RC918/morningai/pull/1548)**: Frontend Dashboard 代碼分割優化 - 20% bundle 減少 + Lighthouse CI color-contrast 修復
   - Path: `handoff/20250928/40_App/frontend-dashboard/`
   - 影響：提升性能和無障礙合規性
-- **PR #1562**: RQ Job Timeout 配置 - 新增 `RQ_JOB_TIMEOUT` 環境變數
+- **[PR #1562](https://github.com/RC918/morningai/pull/1562)**: RQ Job Timeout 配置 - 新增 `RQ_JOB_TIMEOUT` 環境變數
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`, `config/env.schema.yaml`
   - 影響：可配置的任務超時時間（預設：3600 秒）
 
 **先前重要更新** (2025-11-18 至 2025-11-23):
-- **PR #1350**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking
+- **[PR #1350](https://github.com/RC918/morningai/pull/1350)**: E2E 測試基礎設施完成 - 32 Playwright 測試通過，route handler 隔離，完整 API mocking
   - Path: `handoff/20250928/40_App/owner-console/e2e/`
   - 測試改善: 11 passed → 32 passed (修復 21 個失敗測試)
-- **PR #1398**: 生產環境路徑發現機制 - 新增 `MORNINGAI_REPO_PATH` 環境變數
+- **[PR #1398](https://github.com/RC918/morningai/pull/1398)**: 生產環境路徑發現機制 - 新增 `MORNINGAI_REPO_PATH` 環境變數
   - Path: `handoff/20250928/40_App/orchestrator/context_manager.py`
   - 4 層 fallback: env var → git detection → marker-based discovery
-- **PR #1399**: Backend 測試環境統一 - Python 3.12, Redis service, PyJWT 衝突解決
+- **[PR #1399](https://github.com/RC918/morningai/pull/1399)**: Backend 測試環境統一 - Python 3.12, Redis service, PyJWT 衝突解決
   - Path: `.github/workflows/test-apps.yml`
   - 統一 backend.yml 和 test-apps.yml 配置
-- **PR #1480**: Pydantic 別名系統 - 新增 23 個關鍵環境變數別名 (2025-11-23)
+- **[PR #1480](https://github.com/RC918/morningai/pull/1480)**: Pydantic 別名系統 - 新增 23 個關鍵環境變數別名 (2025-11-23)
   - Path: `common/config/settings.py`
   - 修復：`FLASK_SECRET_KEY`, `ENCRYPTION_MASTER_KEY`, `STRIPE_WEBHOOK_SECRET_KEY` 別名
   - 影響：向後相容性改進，標準化配置命名
-- **PR #1452**: Redis 映射清理 - 防止 NoneType DataError (2025-11-23)
+- **[PR #1452](https://github.com/RC918/morningai/pull/1452)**: Redis 映射清理 - 防止 NoneType DataError (2025-11-23)
   - Path: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
   - 新增：`sanitize_redis_mapping()` 函數過濾 None 值
   - 影響：提升 Worker 心跳和任務狀態更新的穩定性
@@ -754,7 +754,7 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
 - **Deprecation**: Root `env_schema.yaml` is deprecated; use `config/env.schema.yaml` only
 - **Path**: `/home/ubuntu/repos/morningai/config/env.schema.yaml`
 
-**Recent Additions (PR #1398)**:
+**Recent Additions ([PR #1398](https://github.com/RC918/morningai/pull/1398))**:
 - **Deployment Category**: New category for deployment-specific variables
   - `MORNINGAI_REPO_PATH`: Repository root path for production/staging
     - Required in Render.com: `/opt/render/project/src`
@@ -904,7 +904,7 @@ LOG_LEVEL=INFO                          # Options: DEBUG, INFO, WARNING, ERROR, 
 GUNICORN_LOG_LEVEL=info                 # Options: debug, info, warning, error, critical
                                         # Supports any case: INFO/info/Info all work
 
-# Note: As of PR #1499, both LOG_LEVEL and GUNICORN_LOG_LEVEL support case-insensitive
+# Note: As of [PR #1499](https://github.com/RC918/morningai/pull/1499), both LOG_LEVEL and GUNICORN_LOG_LEVEL support case-insensitive
 # input. The validators automatically normalize to the correct case before validation.
 # This prevents ValidationError when environment variables use different casing.
 # See config/env.schema.yaml for default values and allowed choices.
@@ -919,7 +919,7 @@ GUNICORN_LOG_LEVEL=info                 # Options: debug, info, warning, error, 
 
 ## 環境變數別名系統（Pydantic Aliases）
 
-**Added**: 2025-11-23 (PR #1480)  
+**Added**: 2025-11-23 ([PR #1480](https://github.com/RC918/morningai/pull/1480))  
 **Path**: `common/config/settings.py:47-722`
 
 從 2025-11-23 起，配置系統通過 Pydantic BaseSettings 支援環境變數別名，確保向後相容性並標準化命名規範。這允許使用舊的環境變數名稱，同時逐步遷移到標準化的命名約定。
