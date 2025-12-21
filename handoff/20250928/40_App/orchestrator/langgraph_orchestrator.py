@@ -236,6 +236,7 @@ def get_checkpointer():
     database_url = settings.database_url or os.environ.get("DATABASE_URL")
 
     if use_postgres and database_url:
+        conn = None
         try:
             import psycopg
             from psycopg.rows import dict_row
@@ -265,6 +266,15 @@ def get_checkpointer():
                 }
             )
         except Exception as e:
+            if conn is not None:
+                try:
+                    conn.close()
+                    logger.info(
+                        "Closed PostgreSQL connection after setup failure",
+                        extra={"operation": "get_checkpointer"}
+                    )
+                except Exception:
+                    pass
             logger.error(
                 f"Failed to initialize PostgreSQL checkpointer, trying Redis checkpointer: {e}",
                 extra={
