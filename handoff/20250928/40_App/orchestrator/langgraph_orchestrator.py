@@ -1261,9 +1261,11 @@ def governance_advisor_node(state: AgentState) -> AgentState:
         agent = get_governance_agent()
 
         # Resolve agent_type to UUID for DB operations
+        # Use 'ops_agent' as the canonical agent_type for orchestrator operations
+        # Valid agent_types: ops_agent, dev_agent, pm_agent, growth_strategist, meta_agent
         agent_uuid = None
         if agent.reputation_engine:
-            agent_uuid = agent.reputation_engine.resolve_agent_uuid("orchestrator")
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid("ops_agent")
 
         # Fail-open: skip DB operations if UUID resolution fails
         if agent_uuid:
@@ -1480,7 +1482,9 @@ def permission_advisor_node(state: AgentState) -> AgentState:
         agent = get_governance_agent()
 
         # Resolve agent_type to UUID for DB operations
-        agent_identifier = state.get("agent_id", "orchestrator")
+        # Use 'ops_agent' as fallback - must be a valid agent_type from DB constraint
+        # Valid agent_types: ops_agent, dev_agent, pm_agent, growth_strategist, meta_agent
+        agent_identifier = state.get("agent_id", "ops_agent")
         agent_uuid = None
         if agent.reputation_engine:
             agent_uuid = agent.reputation_engine.resolve_agent_uuid(agent_identifier)
@@ -1595,9 +1599,11 @@ def reputation_advisor_node(state: AgentState) -> AgentState:
         agent = get_governance_agent()
 
         # Resolve agent_type to UUID for DB operations
+        # Use 'ops_agent' as the canonical agent_type for orchestrator operations
+        # Valid agent_types: ops_agent, dev_agent, pm_agent, growth_strategist, meta_agent
         agent_uuid = None
         if agent.reputation_engine:
-            agent_uuid = agent.reputation_engine.resolve_agent_uuid("orchestrator")
+            agent_uuid = agent.reputation_engine.resolve_agent_uuid("ops_agent")
 
         reputation_data = {
             "agent_id": agent_uuid,  # Allow None for data consistency
