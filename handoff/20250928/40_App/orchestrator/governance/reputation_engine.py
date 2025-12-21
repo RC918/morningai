@@ -1,4 +1,15 @@
-"""Reputation Engine - Agent reputation scoring and management"""
+"""
+Reputation Engine - Agent reputation scoring and management.
+
+This module provides the core reputation system for AI agents, including:
+- Agent UUID resolution and caching
+- Reputation score tracking and updates
+- Permission level management based on reputation
+- Event recording for reputation changes
+
+The reputation system enforces a whitelist of valid agent_types defined in
+the database constraint (migration 021_agent_reputation_system.sql).
+"""
 import os
 import uuid
 import yaml
