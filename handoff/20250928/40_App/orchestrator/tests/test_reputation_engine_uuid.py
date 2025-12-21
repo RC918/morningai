@@ -4,9 +4,11 @@ Tests for reputation_engine.py UUID resolution functions
 P2 Follow-up: Unit tests for resolve_agent_uuid() and _is_valid_uuid()
 Focus: Deterministic unit tests without external dependencies
 """
+import logging
 import pytest
 from unittest.mock import patch
 
+import governance.reputation_engine as re_mod
 from governance.reputation_engine import (
     _is_valid_uuid,
     ReputationEngine,
@@ -146,7 +148,7 @@ class TestResolveAgentUuid:
 
 
 class TestResolveAgentUuidLogging:
-    """Test logging behavior of resolve_agent_uuid"""
+    """Test logging behavior of resolve_agent_uuid using caplog.records"""
 
     @pytest.fixture
     def mock_engine(self):
@@ -156,26 +158,43 @@ class TestResolveAgentUuidLogging:
             return engine
 
     def test_logs_successful_resolution(self, mock_engine, caplog):
-        """Should log successful agent_type to UUID resolution"""
+        """Should log INFO with agent_type and UUID on successful resolution"""
         expected_uuid = "550e8400-e29b-41d4-a716-446655440000"
 
         with patch.object(mock_engine, 'get_or_create_agent', return_value=expected_uuid):
-            import logging
-            with caplog.at_level(logging.INFO):
+            with caplog.at_level(logging.INFO, logger=re_mod.logger.name):
                 mock_engine.resolve_agent_uuid("orchestrator")
 
-            # Check that resolution was logged (via logger or print)
-            # Note: After converting print to logger, this will capture the log
-            assert expected_uuid in str(mock_engine._agent_uuid_cache)
+            # Filter records by logger name
+            records = [r for r in caplog.records if r.name == re_mod.logger.name]
+
+            # Verify log level and message content
+            assert any(
+                r.levelno == logging.INFO
+                and "Resolved agent_type" in r.getMessage()
+                and "orchestrator" in r.getMessage()
+                and expected_uuid in r.getMessage()
+                for r in records
+            ), f"Expected INFO log with 'Resolved agent_type', 'orchestrator', and UUID. Got: {[r.getMessage() for r in records]}"
 
     def test_logs_failed_resolution(self, mock_engine, caplog):
-        """Should log failed agent_type resolution"""
+        """Should log WARNING with agent_identifier on failed resolution"""
         with patch.object(mock_engine, 'get_or_create_agent', return_value=None):
-            import logging
-            with caplog.at_level(logging.WARNING):
+            with caplog.at_level(logging.WARNING, logger=re_mod.logger.name):
                 result = mock_engine.resolve_agent_uuid("unknown_agent")
 
             assert result is None
+
+            # Filter records by logger name
+            records = [r for r in caplog.records if r.name == re_mod.logger.name]
+
+            # Verify log level and message content
+            assert any(
+                r.levelno == logging.WARNING
+                and "Failed to resolve" in r.getMessage()
+                and "unknown_agent" in r.getMessage()
+                for r in records
+            ), f"Expected WARNING log with 'Failed to resolve' and 'unknown_agent'. Got: {[r.getMessage() for r in records]}"
 
 
 class TestAgentUuidCacheIsolation:
