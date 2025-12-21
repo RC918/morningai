@@ -1003,7 +1003,7 @@ Latency alert threshold in milliseconds
 | `LLM_PROVIDER` | string (openai, gemini, auto) | No | openai | PUBLIC |
 | `GEMINI_API_KEY` | secret | No | - | CRITICAL |
 | `DASHSCOPE_API_KEY` | secret | No | - | CRITICAL |
-| `DASHSCOPE_BASE_URL` | url | No | https://dashscope.aliyuncs.com/compatible-mode/v1 | PUBLIC |
+| `DASHSCOPE_BASE_URL` | url | No | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | PUBLIC |
 | `SILICONFLOW_API_KEY` | secret | No | - | CRITICAL |
 | `SILICONFLOW_BASE_URL` | url | No | https://api.siliconflow.cn/v1 | PUBLIC |
 | `SLACK_WEBHOOK_URL` | url | No | - | SECRET |
@@ -1099,14 +1099,14 @@ AliCloud DashScope API base URL (EPIC
 
 - **Type**: url
 - **Required**: No
-- **Default**: `https://dashscope.aliyuncs.com/compatible-mode/v1`
+- **Default**: `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
 - **Security Level**: PUBLIC
 
 **Notes**:
 > OpenAI-compatible endpoint for DashScope API.
 > IMPORTANT: DashScope has TWO different regional endpoints:
-> - China (default): https://dashscope.aliyuncs.com/compatible-mode/v1
-> - International: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+> - International (default): https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+> - China: https://dashscope.aliyuncs.com/compatible-mode/v1
 > Your API key is region-specific! A China API key will NOT work with the International endpoint, and vice versa. Set this URL to match your API key region.
 
 #### `SILICONFLOW_API_KEY`

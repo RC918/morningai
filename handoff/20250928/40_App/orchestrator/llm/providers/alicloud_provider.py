@@ -11,12 +11,12 @@ Supports:
 
 Environment Variables:
 - DASHSCOPE_API_KEY: AliCloud DashScope API key
-- DASHSCOPE_BASE_URL: API endpoint (optional, defaults to China endpoint)
+- DASHSCOPE_BASE_URL: API endpoint (optional, defaults to international endpoint)
 
 IMPORTANT - Regional Endpoints:
 DashScope has TWO different endpoints with region-specific API keys:
-- China (default): https://dashscope.aliyuncs.com/compatible-mode/v1
-- International:   https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+- International (default): https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+- China:                   https://dashscope.aliyuncs.com/compatible-mode/v1
 
 Your API key is region-specific! A China API key will NOT work with the
 International endpoint, and vice versa. Set DASHSCOPE_BASE_URL to match
@@ -84,9 +84,24 @@ class AliCloudProvider(BaseLLMProvider):
                     "Please set DASHSCOPE_API_KEY environment variable."
                 )
             from openai import OpenAI
+
+            base_url = settings.dashscope_base_url
+            is_intl = "dashscope-intl" in base_url
+            region = "international" if is_intl else "china"
+
+            logger.info(
+                f"[AliCloud] Initializing DashScope client with {region} endpoint",
+                extra={
+                    "operation": "alicloud_client_init",
+                    "base_url": base_url,
+                    "region": region,
+                    "hint": "API keys are region-specific. If auth fails, verify endpoint matches key region."
+                }
+            )
+
             self._client = OpenAI(
                 api_key=settings.dashscope_api_key,
-                base_url=settings.dashscope_base_url
+                base_url=base_url
             )
         return self._client
 
