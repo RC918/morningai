@@ -318,6 +318,7 @@ def create_faq_task():
             "faq",
             job_id=task_id,
             ttl=600,
+            job_timeout=settings.rq_job_timeout,
             result_ttl=86400,
             failure_ttl=3600
         )
@@ -506,6 +507,7 @@ def create_project_engineer_task():
             tenant_id,
             job_id=task_id,
             ttl=600,
+            job_timeout=settings.rq_job_timeout,
             result_ttl=86400,
             failure_ttl=3600
         )
