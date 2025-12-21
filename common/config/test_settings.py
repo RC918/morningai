@@ -247,6 +247,60 @@ class TestPropertyMethods:
             assert instance.is_development is False
 
 
+class TestEnableOrchestratorBooleanParsing:
+    """Test ENABLE_ORCHESTRATOR boolean parsing with various formats.
+    
+    Addresses acceptance report recommendation: verify Pydantic Settings
+    handles all common boolean formats consistently with the previous
+    os.getenv() implementation.
+    
+    Pydantic-settings accepts: true/false, 1/0, yes/no, on/off (case-insensitive)
+    """
+    
+    def test_enable_orchestrator_true_formats(self):
+        """ENABLE_ORCHESTRATOR should accept various 'true' formats"""
+        true_values = ['true', 'True', 'TRUE', '1', 'yes', 'Yes', 'YES', 'on', 'On', 'ON']
+        
+        for value in true_values:
+            with patch.dict(os.environ, {'ENABLE_ORCHESTRATOR': value}):
+                instance = Settings()
+                assert instance.enable_orchestrator is True, \
+                    f"ENABLE_ORCHESTRATOR={value} should be True"
+    
+    def test_enable_orchestrator_false_formats(self):
+        """ENABLE_ORCHESTRATOR should accept various 'false' formats"""
+        false_values = ['false', 'False', 'FALSE', '0', 'no', 'No', 'NO', 'off', 'Off', 'OFF']
+        
+        for value in false_values:
+            with patch.dict(os.environ, {'ENABLE_ORCHESTRATOR': value}):
+                instance = Settings()
+                assert instance.enable_orchestrator is False, \
+                    f"ENABLE_ORCHESTRATOR={value} should be False"
+    
+    def test_enable_orchestrator_default_true(self):
+        """ENABLE_ORCHESTRATOR should default to True when not set"""
+        env_without_orchestrator = {k: v for k, v in os.environ.items() 
+                                    if k != 'ENABLE_ORCHESTRATOR'}
+        
+        with patch.dict(os.environ, env_without_orchestrator, clear=True):
+            instance = Settings()
+            assert instance.enable_orchestrator is True, \
+                "ENABLE_ORCHESTRATOR should default to True"
+    
+    def test_enable_orchestrator_empty_string_raises_validation_error(self):
+        """Empty string for ENABLE_ORCHESTRATOR raises ValidationError.
+        
+        Note: This differs from os.getenv() which would return empty string.
+        Pydantic-settings requires valid boolean values. Deployments should
+        either set a valid value or unset the variable entirely.
+        """
+        from pydantic import ValidationError
+        
+        with patch.dict(os.environ, {'ENABLE_ORCHESTRATOR': ''}):
+            with pytest.raises(ValidationError, match="bool_parsing"):
+                Settings()
+
+
 class TestEdgeCases:
     """Test edge cases and error handling"""
     

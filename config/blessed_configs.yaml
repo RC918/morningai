@@ -305,27 +305,16 @@ rollout_strategy:
         - "Continuous monitoring"
         - "Regular policy review"
 
+  # DEPRECATED: langgraph_migration completed 2025-12-18 (Issue #2651, #2767)
+  # LangGraph is now the only orchestrator mode (100% rollout complete)
+  # Simple Mode has been removed from the codebase
+  # This section is retained for historical reference only
   langgraph_migration:
-    phase_1:
-      description: "Current state - 5% canary"
-      production_percent: 5
-      staging: true
-      
-    phase_2:
-      description: "Increase canary after validation"
-      production_percent: 20
-      staging: true
-      criteria:
-        - "No increase in error rate"
-        - "Latency within 10% of Simple Mode"
-        - "All advisory nodes functioning correctly"
-        
-    phase_3:
-      description: "Majority traffic"
-      production_percent: 80
-      staging: true
-      
-    phase_4:
-      description: "Full migration"
+    status: "COMPLETED"
+    completed_date: "2025-12-18"
+    related_issues:
+      - "#2651 - Remove Simple Mode"
+      - "#2767 - LangGraph 100% rollout"
+    final_state:
       production_percent: 100
       staging: true
