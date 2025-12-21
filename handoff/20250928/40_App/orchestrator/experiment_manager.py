@@ -69,7 +69,7 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         treatment_provider="gemini",
         control_provider="openai",
         target_component="reviewer",
-        enabled=True
+        enabled=False  # Disabled: LLMReviewerAdapter now uses task-based routing via RoutingEngine
     ),
     # Gemini 3 specific experiments (Phase 2-4)
     "gemini3_planner_10pct_staging": ExperimentConfig(
@@ -91,7 +91,7 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         treatment_provider="gemini",
         control_provider="openai",
         target_component="reviewer",
-        enabled=True,  # Enabled for Phase 3-4 validation
+        enabled=False,  # Disabled: LLMReviewerAdapter now uses task-based routing via RoutingEngine
         treatment_model="gemini-3-pro-preview"
     ),
     # Production experiments (Phase 4) - disabled by default, enable after staging validation

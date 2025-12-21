@@ -31,7 +31,8 @@ import time
 from typing import Dict, Any, Optional
 
 from common.config.settings import settings
-from llm.client import get_client_for_component
+from llm.client import get_client_for_task
+from core.routing import TaskType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -159,33 +160,38 @@ class LLMReviewerAdapter:
     Adapter for LLM-powered code review in LangGraph orchestrator
 
     Features:
-    - Multi-provider LLM support via get_client_for_component (OpenAI, Gemini)
-    - A/B testing integration via ExperimentManager
+    - Multi-provider LLM support via get_client_for_task (task-based routing)
+    - RoutingEngine integration for policy-driven model selection
     - JSON response parsing with retry/repair logic
     - Graceful fallback on failure
     """
 
-    def __init__(self, trace_id: str):
+    def __init__(self, trace_id: str, risk_level: str = "medium"):
         """
         Initialize LLM reviewer adapter
 
         Args:
-            trace_id: Trace ID for experiment assignment and logging
+            trace_id: Trace ID for logging
+            risk_level: Risk level for routing decision ("high", "medium", "low")
         """
         self.trace_id = trace_id
         self.llm_client = None
         try:
-            self.llm_client = get_client_for_component(
-                component="reviewer",
-                trace_id=trace_id,
-                default_provider="openai"
+            # Use task-based routing via RoutingEngine instead of component-based
+            # This ensures Routing Policy is respected, not bypassed by ExperimentManager
+            self.llm_client = get_client_for_task(
+                task_type=TaskType.REVIEW,
+                risk_level=risk_level
             )
             logger.info(
-                f"[LLM Reviewer] Initialized with provider={self.llm_client.provider_name}",
+                f"[LLM Reviewer] Initialized with provider={self.llm_client.provider_name} via task-based routing",
                 extra={
                     "operation": "llm_reviewer_init",
                     "trace_id": trace_id,
-                    "provider": self.llm_client.provider_name
+                    "provider": self.llm_client.provider_name,
+                    "routing_method": "task_based",
+                    "task_type": TaskType.REVIEW.value,
+                    "risk_level": risk_level
                 }
             )
         except Exception as e:

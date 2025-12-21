@@ -55,7 +55,7 @@ jobs:
               CASE WHEN rowsecurity THEN 'ENABLED' ELSE 'DISABLED' END as rls_status
             FROM pg_tables 
             WHERE schemaname = 'public' 
-            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles')
+            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles', 'planner_events')
             ORDER BY tablename;
           " | while IFS='|' read -r table status; do
             if [ "$status" = "DISABLED" ]; then
@@ -188,6 +188,38 @@ jobs:
             echo "::warning::tenant_id column not found on agent_tasks - migration 003 may not be applied"
           fi
       
+      - name: Check planner_events table exists
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Checking for planner_events table..."
+          
+          TABLE_EXISTS=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT COUNT(*) FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = 'planner_events';
+          ")
+          
+          if [ "$TABLE_EXISTS" = "0" ]; then
+            echo "::warning::planner_events table does not exist - LLM Planner migrations may not be applied"
+            echo "This table is required for USE_LLM_PLANNER=true functionality."
+          else
+            echo "planner_events table exists"
+            
+            # Check RLS is enabled on planner_events
+            RLS_STATUS=$(psql "$DATABASE_URL" -t -A -c "
+              SELECT CASE WHEN rowsecurity THEN 'ENABLED' ELSE 'DISABLED' END
+              FROM pg_tables 
+              WHERE schemaname = 'public' AND tablename = 'planner_events';
+            ")
+            
+            if [ "$RLS_STATUS" = "DISABLED" ]; then
+              echo "::warning::RLS is DISABLED on planner_events - tenant isolation not enforced"
+            else
+              echo "RLS is $RLS_STATUS on planner_events"
+            fi
+          fi
+      
       - name: Generate staging summary
         if: always()
         run: |
@@ -200,11 +232,12 @@ jobs:
           
           ## Checks Performed
           
-          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles)
+          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles, planner_events)
           - RLS policy count on agent_tasks
           - TRUE tenant isolation policies present
           - Default tenant exists
           - tenant_id column on agent_tasks
+          - planner_events table exists with RLS enabled
           
           ## Next Steps
           
@@ -254,7 +287,7 @@ jobs:
               CASE WHEN rowsecurity THEN 'ENABLED' ELSE 'DISABLED' END as rls_status
             FROM pg_tables 
             WHERE schemaname = 'public' 
-            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles')
+            AND tablename IN ('agent_tasks', 'tenants', 'users', 'user_profiles', 'planner_events')
             ORDER BY tablename;
           " | while IFS='|' read -r table status; do
             if [ "$status" = "DISABLED" ]; then
@@ -341,7 +374,7 @@ jobs:
           
           ## Checks Performed
           
-          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles)
+          - RLS enabled on critical tables (agent_tasks, tenants, users, user_profiles, planner_events)
           - RLS policy count on agent_tasks
           - TRUE tenant isolation policies present
           
