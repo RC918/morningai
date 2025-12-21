@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2025-12-20
+> Last Updated: 2025-12-21
 
 ## Overview
 
@@ -11,8 +11,8 @@ EPIC B focuses on implementing intelligent PR review with inline comments, ensur
 | Phase | Status | PR |
 |-------|--------|-----|
 | Phase 1: Quick Wins | Completed | [#2785](https://github.com/RC918/morningai/pull/2785) |
-| Phase 2: Publishing Correctness | Completed | [#2788](https://github.com/RC918/morningai/pull/2788) |
-| Phase 3: Security & Reliability | Pending | - |
+| Phase 2: Publishing Correctness | Completed | [#2788](https://github.com/RC918/morningai/pull/2788), [#2803](https://github.com/RC918/morningai/pull/2803) |
+| Phase 3: Security & Reliability | In Progress | - |
 
 ---
 
@@ -56,29 +56,31 @@ Ensuring reviews are posted correctly despite line drift between review generati
 
 ---
 
-## Phase 3: Security & Reliability (Pending)
+## Phase 3: Security & Reliability (In Progress)
 
 Security improvements and additional reliability enhancements.
+
+### Implemented Items
+
+| Priority | Item | Description | Status |
+|----------|------|-------------|--------|
+| P1 | Secrets exposure mitigation | `state["diff_content"]` now sanitized before storage using `sanitize_diff_content()` | Done |
 
 ### Pending Items
 
 | Priority | Item | Description | Status |
 |----------|------|-------------|--------|
-| P1 | Secrets exposure mitigation | `state["diff_content"]` stores raw unsanitized diff which is persisted via LangGraph checkpointer | Pending |
 | P2 | commit_id validation | Verify if missing commit_id in `post_pr_review()` is root cause of 422 errors | Needs Investigation |
 | P2 | Code duplication refactor | Unify file-level delivery logic in publisher_node (Gemini feedback) | Pending |
 | P3 | JSON repair call | When JSON parse fails, retry with LLM to repair truncated JSON | Pending |
 
-### Security Audit Finding
+### Security Audit Finding (Resolved)
 
-**Issue**: `state["diff_content"]` stores the raw unsanitized diff content.
+**Issue**: `state["diff_content"]` stored the raw unsanitized diff content.
 
-**Risk**: This content is persisted via LangGraph checkpointer (PostgreSQL/Redis), potentially exposing secrets that appear in diffs.
+**Risk**: This content was persisted via LangGraph checkpointer (PostgreSQL/Redis), potentially exposing secrets that appear in diffs.
 
-**Recommended Fix Options**:
-1. Sanitize diff content before storing in state (using existing `sanitize_diff_content()`)
-2. Store only diff metadata/hash instead of full content
-3. Add TTL to checkpointer data to limit exposure window
+**Fix Applied**: Option 1 - Sanitize diff content before storing in state using existing `sanitize_diff_content()`. This preserves line numbers and diff structure while redacting potential secrets.
 
 ---
 
@@ -106,7 +108,8 @@ These items were completed before the Phase 1/2/3 structure was established:
 | [#2782](https://github.com/RC918/morningai/pull/2782) | P2 robustness improvements | Merged |
 | [#2783](https://github.com/RC918/morningai/pull/2783) | ReputationEngine UUID fix | Merged |
 | [#2785](https://github.com/RC918/morningai/pull/2785) | Phase 1 Quick Wins | Merged |
-| [#2788](https://github.com/RC918/morningai/pull/2788) | Phase 2 Line Drift Protection | Open |
+| [#2788](https://github.com/RC918/morningai/pull/2788) | Phase 2 Line Drift Protection | Merged |
+| [#2803](https://github.com/RC918/morningai/pull/2803) | P2 Follow-up Drift Metrics | Merged |
 
 ---
 
