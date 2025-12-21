@@ -87,18 +87,22 @@ class AliCloudProvider(BaseLLMProvider):
             from openai import OpenAI
 
             base_url = settings.dashscope_base_url
-            parsed = urlparse(base_url)
-            hostname = parsed.hostname
-            if not hostname and base_url:
-                parsed = urlparse("https://" + base_url)
-                hostname = parsed.hostname
 
-            if hostname == "dashscope-intl.aliyuncs.com":
-                region = "international"
-            elif hostname == "dashscope.aliyuncs.com":
-                region = "china"
-            else:
-                region = "custom"
+            # Determine region from hostname for logging purposes
+            region = "unknown"
+            if isinstance(base_url, str):
+                parsed = urlparse(base_url)
+                hostname = parsed.hostname
+                if not hostname and base_url:
+                    parsed = urlparse("https://" + base_url)
+                    hostname = parsed.hostname
+
+                if hostname == "dashscope-intl.aliyuncs.com":
+                    region = "international"
+                elif hostname == "dashscope.aliyuncs.com":
+                    region = "china"
+                else:
+                    region = "custom"
 
             logger.info(
                 f"[AliCloud] Initializing DashScope client with {region} endpoint",
