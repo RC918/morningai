@@ -92,7 +92,13 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 
 *新增環境變數 (Dec 13-20, 2025):*
 - `REDIS_KEY_PREFIX` (string, optional): Redis key 前綴用於多環境隔離 (PR #2786)
-- PostgreSQL checkpointer 相關設定 (PR #2771)
+- `USE_POSTGRES_CHECKPOINTER` (boolean, default: false): 啟用 PostgreSQL checkpointer 用於 LangGraph 狀態持久化 (PR #2771)
+  - **推薦用於 Upstash Redis**：Upstash 不支援 RediSearch，導致 Redis checkpointer 無法正常運作
+  - **需要 `DATABASE_URL`**：使用現有的 Supabase PostgreSQL 資料庫
+  - **Checkpointer 優先順序**：PostgreSQL → Redis → MemorySaver (in-memory)
+  - **依賴套件**：`langgraph-checkpoint-postgres>=2.0.0`
+  - **環境設定**：Production/Staging 建議設為 `true`，Development 可設為 `false`
+  - **相關日誌**：啟用時會記錄 `"Using PostgreSQL checkpointer for LangGraph state persistence"`
 
 **近期重要更新** (2025-12-07 至 2025-12-09):
 
