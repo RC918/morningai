@@ -18,6 +18,16 @@ def _is_valid_uuid(value: str) -> bool:
         return False
 
 
+# Valid agent_types as defined in DB constraint (migration 021_agent_reputation_system.sql)
+VALID_AGENT_TYPES = frozenset({
+    'dev_agent',
+    'ops_agent',
+    'pm_agent',
+    'growth_strategist',
+    'meta_agent',
+})
+
+
 class ReputationEngine:
     """Manages agent reputation scores and permission levels"""
     
@@ -121,7 +131,21 @@ class ReputationEngine:
         return agent_uuid
     
     def get_or_create_agent(self, agent_type: str) -> Optional[str]:
-        """Get or create agent reputation record"""
+        """Get or create agent reputation record.
+        
+        Args:
+            agent_type: Must be one of VALID_AGENT_TYPES (dev_agent, ops_agent, 
+                       pm_agent, growth_strategist, meta_agent)
+        
+        Returns:
+            Agent UUID if successful, None otherwise
+        """
+        # Validate agent_type to prevent DB constraint violations
+        if agent_type not in VALID_AGENT_TYPES:
+            print(f"[ReputationEngine] Invalid agent_type '{agent_type}'. "
+                  f"Valid types: {', '.join(sorted(VALID_AGENT_TYPES))}")
+            return None
+        
         supabase = self._get_supabase()
         if not supabase:
             return None
