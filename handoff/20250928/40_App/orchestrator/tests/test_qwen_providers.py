@@ -18,7 +18,7 @@ from llm.providers.alicloud_provider import AliCloudProvider
 from llm.providers.siliconflow_provider import SiliconFlowProvider
 from common.config.settings import settings
 
-DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 SILICONFLOW_BASE_URL = "https://api.siliconflow.cn/v1"
 
 
