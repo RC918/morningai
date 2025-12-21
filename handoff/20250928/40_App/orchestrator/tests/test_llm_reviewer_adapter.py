@@ -51,9 +51,10 @@ class TestSeverityHelpers:
 class TestLLMReviewerAdapter:
     """Test suite for LLM Reviewer Adapter"""
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_init_with_client(self, mock_get_client):
-        """Test initialization with LLM client"""
+        """Test initialization with LLM client via task-based routing"""
+        from core.routing import TaskType
         mock_client = MagicMock()
         mock_client.provider_name = "openai"
         mock_get_client.return_value = mock_client
@@ -62,12 +63,11 @@ class TestLLMReviewerAdapter:
 
         assert adapter.llm_client is not None
         mock_get_client.assert_called_once_with(
-            component="reviewer",
-            trace_id="test-trace",
-            default_provider="openai"
+            task_type=TaskType.REVIEW,
+            risk_level="medium"
         )
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_init_without_client(self, mock_get_client):
         """Test initialization when LLM client fails"""
         mock_get_client.side_effect = Exception("No API key")
@@ -76,7 +76,7 @@ class TestLLMReviewerAdapter:
 
         assert adapter.llm_client is None
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_no_client(self, mock_get_client):
         """Test review generation without LLM client"""
         mock_get_client.side_effect = Exception("No API key")
@@ -97,7 +97,7 @@ class TestLLMReviewerAdapter:
         assert result["severity"] == "none"
         assert result["provider"] is None
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_client_not_available(self, mock_get_client):
         """Test review generation when client is not available"""
         mock_client = MagicMock()
@@ -118,7 +118,7 @@ class TestLLMReviewerAdapter:
         assert result["llm_used"] is False
         assert result["quality_score"] == 80
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_success(self, mock_get_client):
         """Test successful LLM review generation"""
         mock_client = MagicMock()
@@ -157,7 +157,7 @@ class TestLLMReviewerAdapter:
         assert result["quality_score"] == 75
         assert result["severity"] == "low"
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_ci_ceiling(self, mock_get_client):
         """Test that CI score acts as ceiling for LLM score"""
         mock_client = MagicMock()
@@ -193,7 +193,7 @@ class TestLLMReviewerAdapter:
 
         assert result["quality_score"] == 80
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_severity_combination(self, mock_get_client):
         """Test that severities are combined (worse wins)"""
         mock_client = MagicMock()
@@ -229,7 +229,7 @@ class TestLLMReviewerAdapter:
 
         assert result["severity"] == "high"
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_with_comments(self, mock_get_client):
         """Test review generation with comments"""
         mock_client = MagicMock()
@@ -274,7 +274,7 @@ class TestLLMReviewerAdapter:
         assert len(result["comments"]) == 1
         assert result["comments"][0]["category"] == "security"
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_llm_exception(self, mock_get_client):
         """Test review generation when LLM raises exception"""
         mock_client = MagicMock()
@@ -298,7 +298,7 @@ class TestLLMReviewerAdapter:
         assert result["quality_score"] == 80
         assert result["severity"] == "none"
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_invalid_json(self, mock_get_client):
         """Test review generation with invalid JSON response"""
         mock_client = MagicMock()
@@ -495,7 +495,7 @@ Hope this helps!'''
 class TestConvenienceFunction:
     """Test suite for convenience function"""
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_llm_review_function(self, mock_get_client):
         """Test convenience function generate_llm_review"""
         mock_get_client.side_effect = Exception("No API key")
@@ -653,7 +653,7 @@ class TestReviewerNodeIntegration:
 
 class TestReasoningModeEnabled:
     """Test suite for reasoning_mode_enabled feature (Phase 3)
-    
+
     Uses pytest.mark.parametrize to consolidate duplicate test patterns.
     """
 
@@ -666,7 +666,7 @@ class TestReasoningModeEnabled:
         ids=["reasoning_disabled_low", "reasoning_enabled_high"]
     )
     @patch('llm_reviewer_adapter.settings')
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_gemini_thinking_level(
         self, mock_get_client, mock_settings,
         reasoning_mode_enabled, expected_thinking_level
@@ -710,7 +710,7 @@ class TestReasoningModeEnabled:
         assert call_args.kwargs["thinking_level"] == expected_thinking_level
 
     @patch('llm_reviewer_adapter.settings')
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_openai_no_thinking_level(self, mock_get_client, mock_settings):
         """Test that OpenAI provider does not receive thinking_level parameter"""
         mock_settings.reviewer_json_mode = True
@@ -750,7 +750,7 @@ class TestReasoningModeEnabled:
         call_args = mock_client.generate.call_args
         assert "thinking_level" not in call_args.kwargs
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_gemini_error_fallback(self, mock_get_client):
         """Test that Gemini errors fall back to CI-only review (existing behavior)"""
         mock_client = MagicMock()

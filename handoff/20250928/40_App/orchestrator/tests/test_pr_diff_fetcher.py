@@ -483,7 +483,7 @@ class TestGetPrDiff:
 class TestDiffAwareReviewIntegration:
     """Test suite for diff-aware review integration"""
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_with_diff(self, mock_get_client):
         """Test review generation with diff content"""
         from llm_reviewer_adapter import LLMReviewerAdapter
@@ -526,7 +526,7 @@ class TestDiffAwareReviewIntegration:
         assert result["llm_used"] is True
         assert result["diff_aware"] is True
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_without_diff(self, mock_get_client):
         """Test review generation without diff (metadata-only)"""
         from llm_reviewer_adapter import LLMReviewerAdapter
@@ -569,7 +569,7 @@ class TestDiffAwareReviewIntegration:
         assert result["llm_used"] is True
         assert result["diff_aware"] is False
 
-    @patch('llm_reviewer_adapter.get_client_for_component')
+    @patch('llm_reviewer_adapter.get_client_for_task')
     def test_generate_review_empty_diff(self, mock_get_client):
         """Test review generation with empty diff string"""
         from llm_reviewer_adapter import LLMReviewerAdapter
