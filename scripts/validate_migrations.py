@@ -39,6 +39,16 @@ ALLOWED_MIGRATION_DIRS = {
     "docs/database/migrations",
 }
 
+# Directories that get full validation (duplicates, gaps, naming)
+# vs auxiliary directories that only get duplicates + naming (no gap checks)
+MAIN_MIGRATION_DIR = "migrations"
+AUXILIARY_MIGRATION_DIRS = {
+    "agents/dev_agent/migrations",
+    "agents/faq_agent/migrations",
+    "agents/ops_agent/migrations",
+    "docs/database/migrations",
+}
+
 
 def find_migration_files(base_dir: Path) -> List[Tuple[Path, int, str]]:
     """
@@ -179,6 +189,50 @@ def check_naming_format(migrations: List[Tuple[Path, int, str]]) -> List[str]:
     return warnings
 
 
+def validate_directory(
+    repo_root: Path,
+    dir_path: str,
+    check_gaps: bool = True
+) -> Tuple[List[str], List[str], int]:
+    """
+    Validate migrations in a single directory.
+
+    Args:
+        repo_root: Path to repository root
+        dir_path: Relative path to migration directory
+        check_gaps: Whether to check for contiguous numbering
+
+    Returns:
+        Tuple of (errors, warnings, migration_count)
+    """
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    migrations_path = repo_root / dir_path
+    migrations = find_migration_files(migrations_path)
+
+    if not migrations:
+        return errors, warnings, 0
+
+    # Check duplicates (always)
+    dup_errors = check_duplicate_numbers(migrations)
+    for e in dup_errors:
+        errors.append(f"[{dir_path}] {e}")
+
+    # Check gaps (only for main directory)
+    if check_gaps:
+        gap_warnings = check_contiguous_numbering(migrations)
+        for w in gap_warnings:
+            warnings.append(f"[{dir_path}] {w}")
+
+    # Check naming format (always)
+    name_warnings = check_naming_format(migrations)
+    for w in name_warnings:
+        warnings.append(f"[{dir_path}] {w}")
+
+    return errors, warnings, len(migrations)
+
+
 def validate_migrations(repo_root: Path, strict: bool = False) -> int:
     """
     Run all migration validations.
@@ -195,36 +249,81 @@ def validate_migrations(repo_root: Path, strict: bool = False) -> int:
     print("=" * 60)
     print()
 
-    migrations_path = repo_root / MIGRATIONS_DIR
-    migrations = find_migration_files(migrations_path)
-
-    print(f"Found {len(migrations)} migration files in {MIGRATIONS_DIR}/")
-    print()
-
     all_errors: List[str] = []
     all_warnings: List[str] = []
+    total_migrations = 0
 
-    print("Checking for duplicate migration numbers...")
+    # Validate main migrations directory (full validation with gap checks)
+    print(f"Validating main directory: {MAIN_MIGRATION_DIR}/")
+    print("-" * 40)
+    migrations_path = repo_root / MIGRATIONS_DIR
+    migrations = find_migration_files(migrations_path)
+    print(f"  Found {len(migrations)} migration files")
+
+    print("  Checking for duplicate migration numbers...")
     errors = check_duplicate_numbers(migrations)
     all_errors.extend(errors)
     if errors:
         for e in errors:
-            print(f"  ERROR: {e}")
+            print(f"    ERROR: {e}")
     else:
-        print("  OK: No duplicate migration numbers")
-    print()
+        print("    OK: No duplicate migration numbers")
 
-    print("Checking for contiguous numbering...")
+    print("  Checking for contiguous numbering...")
     warnings = check_contiguous_numbering(migrations)
     all_warnings.extend(warnings)
     if warnings:
         for w in warnings:
-            print(f"  WARNING: {w}")
+            print(f"    WARNING: {w}")
     else:
-        print("  OK: Migration numbers are contiguous")
-    print()
+        print("    OK: Migration numbers are contiguous")
 
-    print("Checking for rogue migrations outside canonical directories...")
+    print("  Checking naming format...")
+    warnings = check_naming_format(migrations)
+    all_warnings.extend(warnings)
+    if warnings:
+        for w in warnings:
+            print(f"    WARNING: {w}")
+    else:
+        print("    OK: All migrations follow naming convention")
+    print()
+    total_migrations += len(migrations)
+
+    # Validate auxiliary directories (duplicates + naming only, no gap checks)
+    for aux_dir in sorted(AUXILIARY_MIGRATION_DIRS):
+        aux_path = repo_root / aux_dir
+        if not aux_path.exists():
+            continue
+
+        print(f"Validating auxiliary directory: {aux_dir}/")
+        print("-" * 40)
+        errors, warnings, count = validate_directory(
+            repo_root, aux_dir, check_gaps=False
+        )
+        print(f"  Found {count} migration files")
+
+        if count == 0:
+            print("  (no migrations to validate)")
+            print()
+            continue
+
+        all_errors.extend(errors)
+        all_warnings.extend(warnings)
+        total_migrations += count
+
+        if errors:
+            for e in errors:
+                print(f"    ERROR: {e}")
+        if warnings:
+            for w in warnings:
+                print(f"    WARNING: {w}")
+        if not errors and not warnings:
+            print("    OK: All validations passed")
+        print()
+
+    # Check for rogue migrations
+    print("Checking for rogue migrations outside allowed directories...")
+    print("-" * 40)
     rogue_files = find_rogue_migrations(repo_root)
     if rogue_files:
         for f in rogue_files:
@@ -234,20 +333,11 @@ def validate_migrations(repo_root: Path, strict: bool = False) -> int:
         print("  OK: No rogue migrations found")
     print()
 
-    print("Checking naming format...")
-    warnings = check_naming_format(migrations)
-    all_warnings.extend(warnings)
-    if warnings:
-        for w in warnings:
-            print(f"  WARNING: {w}")
-    else:
-        print("  OK: All migrations follow naming convention")
-    print()
-
     print("=" * 60)
     print("Summary")
     print("=" * 60)
-    print(f"  Migrations checked: {len(migrations)}")
+    print(f"  Total migrations checked: {total_migrations}")
+    print(f"  Directories validated: {1 + len(AUXILIARY_MIGRATION_DIRS)}")
     print(f"  Errors: {len(all_errors)}")
     print(f"  Warnings: {len(all_warnings)}")
     print()
