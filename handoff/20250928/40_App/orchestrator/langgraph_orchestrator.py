@@ -3071,11 +3071,16 @@ def publisher_node(state: AgentState) -> AgentState:
                     state["publish_result"]["line_drift_downgraded"] = drift_downgrade_count
                     # P2 Follow-up: Record metrics for drift downgrade path
                     # This ensures inline comment delivery metrics are captured even when drift occurs
+                    # Metrics semantics:
+                    # - eligible_count: original inline-eligible before validation (funnel start)
+                    # - validated_count: comments that passed validation (drift_downgrade_count)
+                    # - downgraded_count: total downgrades (validation + drift)
+                    # - posted_count: 0 (no inline comments posted due to drift)
                     metrics.record_inline_comment_result(
                         trace_id=trace_id,
-                        eligible_count=drift_downgrade_count,
-                        validated_count=drift_downgrade_count,  # Already validated before drift check
-                        downgraded_count=drift_downgrade_count,
+                        eligible_count=inline_eligible_count,  # Original eligible before validation
+                        validated_count=drift_downgrade_count,  # Validated comments at drift time
+                        downgraded_count=downgraded_count + drift_downgrade_count,  # Total: validation + drift
                         posted_count=0,  # No inline comments posted due to drift
                         post_failed=False,
                         fallback_used=True,  # Comments delivered via file-level fallback
