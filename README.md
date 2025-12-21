@@ -2,6 +2,19 @@
 
 **Vision**: Building the world's most advanced autonomous AI agent orchestration platform that seamlessly integrates development, operations, and business intelligence with human-in-the-loop governance.
 
+> **North Star: Ecosystem Wish Pool v2**
+> 
+> MorningAI 的終極目標：打造一個能**自我規劃、自我編碼、自我審查、自我測試、自我部署、自我監控、自我修復**的 AI Software Engineering Factory。
+>
+> | Current EPIC | Target | Status |
+> |--------------|--------|--------|
+> | [EPIC A: Qwen Provider (#2594)](https://github.com/RC918/morningai/issues/2594) | Model Layer | In Progress |
+> | [EPIC B: Diff-Aware Review (#2595)](https://github.com/RC918/morningai/issues/2595) | Reviewer Agent | In Progress |
+> | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | Intelligence Layer | Planning |
+> | [EPIC D: Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | Coding Agent | Planning |
+>
+> See [Ecosystem Wish Pool v2](docs/north_star/ECOSYSTEM_WISHPOOL_V2.md) for the complete roadmap and [Full Blueprint](docs/north_star/MorningAI_Ecosystem_Blueprint_2025_Final.md) for the detailed architecture vision.
+
 > **🚀 Current Phase: Transformation to World-Class (Q4 2025 - Q2 2026)**  
 > We are evolving from MVP to a production-ready, enterprise-grade AI agent ecosystem.  
 > See [CTO Strategic Plan](docs/reports/cto/CTO_STRATEGIC_PLAN_MVP_TO_WORLD_CLASS.md) for our roadmap.
