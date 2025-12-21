@@ -2578,8 +2578,18 @@ def reviewer_node(state: AgentState) -> AgentState:
                     # Phase B-3.1: Store diff content in state for publisher validation
                     # This allows publisher_node to validate inline comments against
                     # the actual diff that was shown to the LLM
+                    # Phase 3: Sanitize diff before storing to prevent secrets exposure
+                    # via LangGraph checkpointer persistence (PostgreSQL/Redis)
                     if diff_content:
-                        state["diff_content"] = diff_content
+                        from llm_reviewer_adapter import sanitize_diff_content
+                        sanitized_diff, redaction_count = sanitize_diff_content(diff_content)
+                        if redaction_count > 0:
+                            logger.info("[Reviewer] Sanitized diff before state storage", extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "redaction_count": redaction_count
+                            })
+                        state["diff_content"] = sanitized_diff
                         state["diff_truncated"] = diff_truncated
                         # Phase 2: Store head_sha for line drift protection
                         # publisher_node will compare this with current head_sha
