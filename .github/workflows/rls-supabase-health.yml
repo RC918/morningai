@@ -220,6 +220,33 @@ jobs:
             fi
           fi
       
+      - name: Check for overly permissive RLS policies (Phase 2 anti-pattern)
+        if: steps.check_secrets.outputs.staging_configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          echo "Checking for overly permissive RLS policies..."
+          echo "Anti-pattern: authenticated_*_read USING (true) on tenant-scoped tables"
+          
+          # Check for policies that allow all authenticated users to read all data
+          # These should be replaced with tenant isolation or platform_admin policies
+          PERMISSIVE_POLICIES=$(psql "$DATABASE_URL" -t -A -c "
+            SELECT tablename || '.' || policyname
+            FROM pg_policies 
+            WHERE schemaname = 'public' 
+            AND tablename IN ('planner_events', 'memory', 'error_fix_pairs', 'failure_memory')
+            AND policyname LIKE 'authenticated_%_read'
+            AND qual = 'true';
+          ")
+          
+          if [ -n "$PERMISSIVE_POLICIES" ]; then
+            echo "::warning::Found overly permissive policies (should be tenant-isolated or platform_admin only):"
+            echo "$PERMISSIVE_POLICIES"
+            echo "Run migration 039 to fix these policies."
+          else
+            echo "No overly permissive policies found on tenant-scoped tables"
+          fi
+      
       - name: Generate staging summary
         if: always()
         run: |
@@ -238,6 +265,7 @@ jobs:
           - Default tenant exists
           - tenant_id column on agent_tasks
           - planner_events table exists with RLS enabled
+          - No overly permissive policies on tenant-scoped tables (Phase 2 anti-pattern check)
           
           ## Next Steps
           
