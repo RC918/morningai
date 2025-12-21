@@ -6,8 +6,6 @@ Phase 1.6 refactoring: PR1.6a - Add Phase 4-6 blueprint registration.
 """
 import logging
 
-from common.config.settings import settings
-
 logger = logging.getLogger(__name__)
 
 
@@ -62,6 +60,8 @@ def register_blueprints(
 
     # Conditional orchestrator blueprints
     # Uses typed Settings object instead of os.getenv for consistency (PR-2)
+    # Lazy import to avoid circular dependencies (per file docstring requirements)
+    from common.config.settings import settings
     if settings.enable_orchestrator:
         from src.routes.agent import bp as agent_bp
         from src.routes.agent_evaluation import bp as agent_evaluation_bp
