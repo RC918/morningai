@@ -3069,6 +3069,19 @@ def publisher_node(state: AgentState) -> AgentState:
                     state["publish_result"]["line_drift_detected"] = True
                     # Store only drift-related downgrades (separate from validation downgrades)
                     state["publish_result"]["line_drift_downgraded"] = drift_downgrade_count
+                    # P2 Follow-up: Record metrics for drift downgrade path
+                    # This ensures inline comment delivery metrics are captured even when drift occurs
+                    metrics.record_inline_comment_result(
+                        trace_id=trace_id,
+                        eligible_count=drift_downgrade_count,
+                        validated_count=drift_downgrade_count,  # Already validated before drift check
+                        downgraded_count=drift_downgrade_count,
+                        posted_count=0,  # No inline comments posted due to drift
+                        post_failed=False,
+                        fallback_used=True,  # Comments delivered via file-level fallback
+                        dry_run=settings.github_review_posting_dry_run,
+                        feature_disabled=False
+                    )
         except Exception as drift_check_error:
             # Fail-open: if we can't check head_sha, proceed with posting
             logger.warning(
