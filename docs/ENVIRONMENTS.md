@@ -1,11 +1,12 @@
 # MorningAI Environment Architecture
 
-**Last Updated**: 2025-12-09  
-**Document Version**: 2.8  
+**Last Updated**: 2025-12-20  
+**Document Version**: 2.9  
 **Related Documents**: 
 - [PROJECT_STRUCTURE_REPORT.md](PROJECT_STRUCTURE_REPORT.md) - 專案結構報告
 - [PROJECT_DEEP_ANALYSIS.md](../PROJECT_DEEP_ANALYSIS.md) - 深度解析報告
 - [ONBOARDING_GUIDE.md](./ONBOARDING_GUIDE.md) - 新人上手指南
+- [環境變數 Schema](../config/env.schema.yaml) - 環境變數配置的單一真源
 
 ---
 
@@ -20,6 +21,78 @@
 ## Overview
 
 MorningAI uses a multi-environment deployment architecture to ensure safe development, testing, and production workflows. This document provides a comprehensive overview of all environments, their configurations, and deployment processes.
+
+**LangGraph Status**: 100% Rollout Complete - Simple Mode removed (Dec 2025)
+
+**近期重要更新** (2025-12-13 至 2025-12-20) - 198 PRs merged:
+
+*EPIC B: PR_UPDATED Event Support & Phase BB Robustness:*
+- **PR #2786**: feat(phase-bb): add REDIS_KEY_PREFIX to pr_updated keys for environment isolation
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：新增 `REDIS_KEY_PREFIX` 環境變數用於多環境 Redis key 隔離
+- **PR #2769**: feat(phase-bb): add PR_UPDATED event support with debounce/throttle
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：PR_UPDATED 事件支援，含防抖和節流機制
+- **PR #2768**: feat(phase-bb): add 422 fault injection for fallback verification
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：422 故障注入用於驗證 fallback 行為
+- **PR #2741**: feat(phase-bb): add C-lite telemetry for EPIC B KPIs
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：C-lite 遙測用於 EPIC B 關鍵績效指標
+
+*LangGraph 100% Rollout & Simple Mode 移除:*
+- **PR #2767**: chore: remove Simple Mode code after LangGraph 100% rollout (#2651)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：**重大變更** - 完全移除 Simple Mode 程式碼，LangGraph 成為唯一的編排模式
+- **PR #2771**: feat(checkpointer): add PostgreSQL checkpointer support for LangGraph
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：PostgreSQL checkpointer 支援 LangGraph 狀態持久化
+- **PR #2766**: chore: remove deprecated rollout API endpoints
+  - Path: `handoff/20250928/40_App/api-backend/`
+  - 影響：移除已棄用的 rollout API 端點
+- **PR #2720**: feat(orchestrator): remove Simple Mode - LangGraph only (#2651)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：Simple Mode 移除，LangGraph 成為唯一模式
+
+*EPIC B: Inline Code Review (Phase B-1 to B-3):*
+- **PR #2714**: feat(publisher): add inline comment validation and line number semantics (Phase B-3.1)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
+  - 影響：行內評論驗證和行號語義
+- **PR #2701**: feat(publisher): add GitHub inline comment posting (EPIC B Phase B-3)
+  - Path: `handoff/20250928/40_App/orchestrator/nodes/publisher_node.py`
+  - 影響：GitHub 行內評論發布功能
+- **PR #2692**: feat(reviewer): implement diff-aware code review (EPIC B Phase B-1)
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：差異感知程式碼審查實作
+
+*Agent Architecture & Routing:*
+- **PR #2674**: feat(agents): implement BaseAgent with dynamic routing and Telemetry v2
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：BaseAgent 動態路由和 Telemetry v2
+- **PR #2665**: feat(routing): implement Routing Policy v1.1 for multi-model LLM selection
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：Routing Policy v1.1 多模型 LLM 選擇
+- **PR #2659**: feat(llm): add Qwen3 provider adapters for AliCloud and SiliconFlow
+  - Path: `handoff/20250928/40_App/orchestrator/`
+  - 影響：Qwen3 provider adapters 支援 AliCloud 和 SiliconFlow
+
+*CI/CD Infrastructure:*
+- **PR #2779**: feat(tests): add CI integration tests and fault injection tests (#2650)
+  - Path: `handoff/20250928/40_App/orchestrator/redis_queue/tests/`
+  - 影響：CI 整合測試和故障注入測試
+- **PR #2774**: refactor(ci): extract CI Guard to testable script with resource limits
+  - Path: `.github/workflows/`, `scripts/ci/`
+  - 影響：CI Guard 提取為可測試腳本
+- **PR #2593**: feat(typescript): add strict mode baseline system (TS-1, TS-2)
+  - Path: `scripts/`, `.github/workflows/`
+  - 影響：TypeScript strict mode 基線系統
+- **PR #2540**: feat: add Qwen AI code review workflow for all PRs
+  - Path: `.github/workflows/qwen-pr-review.yml`
+  - 影響：Qwen AI 程式碼審查工作流程
+
+*新增環境變數 (Dec 13-20, 2025):*
+- `REDIS_KEY_PREFIX` (string, optional): Redis key 前綴用於多環境隔離 (PR #2786)
+- PostgreSQL checkpointer 相關設定 (PR #2771)
 
 **近期重要更新** (2025-12-07 至 2025-12-09):
 

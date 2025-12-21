@@ -1,7 +1,8 @@
 # Monitoring Dashboard Troubleshooting Guide
 
-**Last Updated**: 2025-12-09  
-**Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)
+**Last Updated**: 2025-12-20  
+**Applies To**: Monitoring Dashboard v2 (`/api/phase7/monitoring/dashboard`)  
+**LangGraph Status**: 100% Rollout Complete - Simple Mode removed (Dec 2025)
 
 ---
 
