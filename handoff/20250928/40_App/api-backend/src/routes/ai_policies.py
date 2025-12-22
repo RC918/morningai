@@ -13,6 +13,9 @@ Provides CRUD endpoints for tenant-specific AI usage policies:
 import logging
 from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, admin_required
+from src.utils.optional_imports import missing
+
+logger = logging.getLogger(__name__)
 
 try:
     from orchestrator.governance.ai_policy import (
@@ -23,30 +26,17 @@ try:
     )
     AI_POLICY_AVAILABLE = True
 except Exception as e:
-    # Add diagnostics to understand which orchestrator is being imported
-    import sys
-    import importlib.util
-    print(f"Warning: AI Policy module not available: {e}")
-    print(f"DEBUG: sys.path order: {sys.path[:5]}")  # First 5 entries
-    orch_spec = importlib.util.find_spec("orchestrator")
-    if orch_spec:
-        print(f"DEBUG: orchestrator found at: {orch_spec.origin}")
-        print(f"DEBUG: orchestrator submodule_search_locations: {orch_spec.submodule_search_locations}")
-    else:
-        print("DEBUG: orchestrator not found in sys.path")
-    gov_spec = importlib.util.find_spec("orchestrator.governance")
-    if gov_spec:
-        print(f"DEBUG: orchestrator.governance found at: {gov_spec.origin}")
-    else:
-        print("DEBUG: orchestrator.governance not found")
+    logger.warning(f"AI Policy module not available: {e}")
     AI_POLICY_AVAILABLE = False
-    # Define stubs so tests can still patch these symbols
-    PolicyType = None
-    PolicyScope = None
-    PolicyStatus = None
-    get_ai_policy_manager = None
-
-logger = logging.getLogger(__name__)
+    # Use proxy objects that raise descriptive errors on attribute access
+    # instead of None which causes confusing AttributeError messages
+    _hint = "Check PYTHONPATH and orchestrator package installation"
+    PolicyType = missing("orchestrator.governance.ai_policy.PolicyType", hint=_hint)
+    PolicyScope = missing("orchestrator.governance.ai_policy.PolicyScope", hint=_hint)
+    PolicyStatus = missing("orchestrator.governance.ai_policy.PolicyStatus", hint=_hint)
+    get_ai_policy_manager = missing(
+        "orchestrator.governance.ai_policy.get_ai_policy_manager", hint=_hint
+    )
 
 bp = Blueprint('ai_policies', __name__, url_prefix='/api/ai-policies')
 
@@ -98,7 +88,12 @@ def is_user_platform_admin(user_id: str):
 
 
 def _parse_policy_type(policy_type_str):
-    """Parse and validate policy type string"""
+    """Parse and validate policy type string.
+    
+    Note: Caller must check AI_POLICY_AVAILABLE before calling this function.
+    """
+    if not AI_POLICY_AVAILABLE:
+        return None, "AI Policy system not available"
     if not policy_type_str:
         return None, None
     try:
@@ -108,7 +103,12 @@ def _parse_policy_type(policy_type_str):
 
 
 def _parse_policy_scope(scope_str):
-    """Parse and validate policy scope string"""
+    """Parse and validate policy scope string.
+    
+    Note: Caller must check AI_POLICY_AVAILABLE before calling this function.
+    """
+    if not AI_POLICY_AVAILABLE:
+        return None, "AI Policy system not available"
     if not scope_str:
         return PolicyScope.TENANT, None
     try:
@@ -118,7 +118,12 @@ def _parse_policy_scope(scope_str):
 
 
 def _parse_policy_status(status_str):
-    """Parse and validate policy status string"""
+    """Parse and validate policy status string.
+    
+    Note: Caller must check AI_POLICY_AVAILABLE before calling this function.
+    """
+    if not AI_POLICY_AVAILABLE:
+        return None, "AI Policy system not available"
     if not status_str:
         return PolicyStatus.DRAFT, None
     try:

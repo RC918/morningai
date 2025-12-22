@@ -12,6 +12,16 @@ to be on sys.path for these imports to work correctly.
 This module should be imported early in:
 - gunicorn.conf.py (production)
 - src/__init__.py or conftest.py (tests)
+
+Debug logging:
+    Set BOOTSTRAP_PATHS_DEBUG=1 to enable verbose debug output for
+    troubleshooting import resolution issues. This will log:
+    - sys.path modifications
+    - Module cache clearing
+    - Path resolution details
+    
+    WARNING: Debug output may include filesystem paths. Do not enable
+    in production unless actively debugging import issues.
 """
 import os
 import sys
@@ -19,6 +29,17 @@ import logging
 from pathlib import Path
 
 _logger = logging.getLogger(__name__)
+
+# Enable verbose debug logging via environment variable
+_DEBUG = os.environ.get('BOOTSTRAP_PATHS_DEBUG', '').lower() in ('1', 'true', 'yes')
+
+
+def _debug_log(message: str) -> None:
+    """Log debug message if BOOTSTRAP_PATHS_DEBUG is enabled."""
+    if _DEBUG:
+        _logger.info(f"[BOOTSTRAP_DEBUG] {message}")
+    else:
+        _logger.debug(message)
 
 
 def _normalize_path(path: str) -> str:
@@ -36,11 +57,18 @@ def _ensure_path_at_front(path: str, description: str) -> bool:
     normalized = _normalize_path(path)
     
     # Remove any existing occurrences of this path
+    original_len = len(sys.path)
     sys.path[:] = [p for p in sys.path if p and _normalize_path(p) != normalized]
+    removed_count = original_len - len(sys.path)
     
     # Insert at position 0 to ensure it's searched first
     sys.path.insert(0, normalized)
-    _logger.debug(f"bootstrap_paths: ensured {description}={normalized} at sys.path[0]")
+    
+    _debug_log(f"ensured {description}={normalized} at sys.path[0]")
+    if removed_count > 0:
+        _debug_log(f"removed {removed_count} duplicate occurrence(s) of {normalized}")
+    if _DEBUG:
+        _debug_log(f"sys.path[0:5] = {sys.path[:5]}")
     return True
 
 
@@ -56,9 +84,11 @@ def _clear_conflicting_orchestrator_modules():
         mod_name for mod_name in list(sys.modules.keys())
         if mod_name == 'orchestrator' or mod_name.startswith('orchestrator.')
     ]
+    if modules_to_remove:
+        _debug_log(f"clearing {len(modules_to_remove)} conflicting orchestrator module(s)")
     for mod_name in modules_to_remove:
         del sys.modules[mod_name]
-        _logger.debug(f"bootstrap_paths: cleared conflicting module {mod_name}")
+        _debug_log(f"cleared module: {mod_name}")
 
 
 def bootstrap_orchestrator_paths():
@@ -97,7 +127,7 @@ def bootstrap_orchestrator_paths():
     # because they may be needed for other imports (e.g., 'import common').
     _ensure_path_at_front(str(app_dir), "40_App (orchestrator parent)")
 
-    _logger.debug(f"bootstrap_paths: orchestrator imports enabled from {orchestrator_dir}")
+    _debug_log(f"orchestrator imports enabled from {orchestrator_dir}")
 
     return True
 
