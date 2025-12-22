@@ -3524,13 +3524,21 @@ def evaluation_node(state: AgentState) -> AgentState:
                 }
             )
 
+        regression_metrics = regression_result.get("metrics", {})
         logger.info("[Evaluation] Capability regression detection completed", extra={
             "operation": "evaluation",
             "trace_id": trace_id,
             "health_status": health_status,
             "has_regression": has_regression,
-            "success_rate": regression_result.get("metrics", {}).get("success_rate"),
-            "ci_pass_rate": regression_result.get("metrics", {}).get("ci_pass_rate")
+            "sample_count": regression_result.get("sample_count"),
+            "code_changing_count": regression_result.get("code_changing_count"),
+            "success_rate": regression_metrics.get("success_rate"),
+            "ci_pass_rate": regression_metrics.get("ci_pass_rate"),
+            "ci_observed_rate": regression_metrics.get("ci_observed_rate"),
+            "fixer_success_rate": regression_metrics.get("fixer_success_rate"),
+            "pr_creation_rate": regression_metrics.get("pr_creation_rate"),
+            "regressions": regression_result.get("regressions", []),
+            "thresholds": regression_result.get("thresholds", {})
         })
 
     except Exception as e:
@@ -3980,7 +3988,7 @@ def run_orchestrator(
     metrics.record_workflow_start(trace_id, goal)
 
     agent_eval = _get_agent_eval()
-    agent_eval.start_workflow_metrics(trace_id, goal)
+    agent_eval.start_workflow_metrics(trace_id, goal, task_type="default")
 
     app = create_orchestrator_graph()
 
@@ -4023,12 +4031,17 @@ def run_orchestrator(
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
 
+        ci_state = final_result.get("ci_state", "unknown")
         agent_eval.record_workflow_result(
             trace_id,
             status="success",
             pr_created=bool(final_result.get("pr_url")),
-            ci_passed=final_result.get("ci_state") == "success",
-            code_quality_score=result.get("code_quality_score", 100)
+            ci_passed=ci_state == "success",
+            code_quality_score=result.get("code_quality_score", 100),
+            pr_touched=bool(final_result.get("pr_url")),
+            pr_opened=bool(final_result.get("pr_url")),
+            code_changed=True,
+            ci_state=ci_state
         )
         agent_eval.complete_workflow_metrics(trace_id)
 
@@ -4056,7 +4069,11 @@ def run_orchestrator(
             trace_id,
             status="error",
             pr_created=False,
-            ci_passed=False
+            ci_passed=False,
+            pr_touched=False,
+            pr_opened=False,
+            code_changed=True,
+            ci_state="error"
         )
         agent_eval.complete_workflow_metrics(trace_id)
 
@@ -4122,7 +4139,7 @@ def run_review_follow_up_orchestrator(
     metrics.record_workflow_start(trace_id, goal)
 
     agent_eval = _get_agent_eval()
-    agent_eval.start_workflow_metrics(trace_id, goal)
+    agent_eval.start_workflow_metrics(trace_id, goal, task_type="review_follow_up")
 
     # Create graph with review_intake as entry point
     app = create_orchestrator_graph(entry_point="review_intake")
@@ -4166,12 +4183,17 @@ def run_review_follow_up_orchestrator(
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
 
+        ci_state = final_result.get("ci_state", "unknown")
         agent_eval.record_workflow_result(
             trace_id,
             status="success",
             pr_created=bool(final_result.get("pr_url")),
-            ci_passed=final_result.get("ci_state") == "success",
-            code_quality_score=result.get("code_quality_score", 100)
+            ci_passed=ci_state == "success",
+            code_quality_score=result.get("code_quality_score", 100),
+            pr_touched=bool(final_result.get("pr_url")),
+            pr_opened=False,
+            code_changed=True,
+            ci_state=ci_state
         )
         agent_eval.complete_workflow_metrics(trace_id)
 
@@ -4206,7 +4228,11 @@ def run_review_follow_up_orchestrator(
             trace_id,
             status="error",
             pr_created=False,
-            ci_passed=False
+            ci_passed=False,
+            pr_touched=False,
+            pr_opened=False,
+            code_changed=True,
+            ci_state="error"
         )
         agent_eval.complete_workflow_metrics(trace_id)
 
@@ -4276,7 +4302,7 @@ def run_internal_review_orchestrator(
     metrics.record_workflow_start(trace_id, goal)
 
     agent_eval = _get_agent_eval()
-    agent_eval.start_workflow_metrics(trace_id, goal)
+    agent_eval.start_workflow_metrics(trace_id, goal, task_type="internal_review")
 
     app = create_orchestrator_graph(entry_point="internal_review")
 
@@ -4336,8 +4362,12 @@ def run_internal_review_orchestrator(
             trace_id,
             status="success",
             pr_created=bool(final_result.get("pr_url")),
-            ci_passed=result.get("ci_state") == "success",
-            code_quality_score=result.get("code_quality_score", 100)
+            ci_passed=False,
+            code_quality_score=result.get("code_quality_score", 100),
+            pr_touched=bool(final_result.get("pr_url")),
+            pr_opened=False,
+            code_changed=False,
+            ci_state="unknown"
         )
         agent_eval.complete_workflow_metrics(trace_id)
 
@@ -4384,7 +4414,11 @@ def run_internal_review_orchestrator(
             trace_id,
             status="error",
             pr_created=False,
-            ci_passed=False
+            ci_passed=False,
+            pr_touched=False,
+            pr_opened=False,
+            code_changed=False,
+            ci_state="unknown"
         )
         agent_eval.complete_workflow_metrics(trace_id)
 
