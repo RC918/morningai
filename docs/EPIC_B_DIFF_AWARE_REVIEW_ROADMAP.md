@@ -1,6 +1,7 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
 > Last Updated: 2025-12-22
+> Integration Test: LLM JSON Repair verification (ENABLE_LLM_JSON_REPAIR=true)
 
 ## Overview
 
