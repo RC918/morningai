@@ -23,7 +23,22 @@ try:
     )
     AI_POLICY_AVAILABLE = True
 except Exception as e:
+    # Add diagnostics to understand which orchestrator is being imported
+    import sys
+    import importlib.util
     print(f"Warning: AI Policy module not available: {e}")
+    print(f"DEBUG: sys.path order: {sys.path[:5]}")  # First 5 entries
+    orch_spec = importlib.util.find_spec("orchestrator")
+    if orch_spec:
+        print(f"DEBUG: orchestrator found at: {orch_spec.origin}")
+        print(f"DEBUG: orchestrator submodule_search_locations: {orch_spec.submodule_search_locations}")
+    else:
+        print("DEBUG: orchestrator not found in sys.path")
+    gov_spec = importlib.util.find_spec("orchestrator.governance")
+    if gov_spec:
+        print(f"DEBUG: orchestrator.governance found at: {gov_spec.origin}")
+    else:
+        print("DEBUG: orchestrator.governance not found")
     AI_POLICY_AVAILABLE = False
     # Define stubs so tests can still patch these symbols
     PolicyType = None
