@@ -788,7 +788,8 @@ def post_pr_review(
                 commit_pinning_success = True
                 logger.info(
                     f"[GitHub] Using commit_id for review: {commit_id[:8]} "
-                    f"(commit_pinning_attempted=True, commit_pinning_success=True)",
+                    f"(commit_pinning_attempted={commit_pinning_attempted}, "
+                    f"commit_pinning_success={commit_pinning_success})",
                     extra={
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
@@ -801,7 +802,8 @@ def post_pr_review(
                 logger.warning(
                     f"[GitHub] Failed to get commit {commit_id[:8]}, "
                     f"proceeding without commit_id: {commit_error} "
-                    f"(commit_pinning_attempted=True, commit_pinning_success=False)",
+                    f"(commit_pinning_attempted={commit_pinning_attempted}, "
+                    f"commit_pinning_success={commit_pinning_success})",
                     extra={
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
