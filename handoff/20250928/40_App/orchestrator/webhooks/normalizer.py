@@ -40,14 +40,14 @@ try:
 except ImportError:
     settings = None
 
-logger = logging.getLogger(__name__)
-
-# Self-review marker used by the orchestrator to identify its own reviews
+# Import shared constants to prevent drift between github_api.py and normalizer.py
 # Issue: Self-Trigger Loop Prevention
-# When the orchestrator posts a review, it includes this hidden marker.
-# This allows us to detect and skip PR_REVIEWED events that were generated
-# by our own reviews, preventing the orchestrator from re-triggering itself.
-MORNINGAI_REVIEW_MARKER = "<!-- morningai:autogen-review -->"
+try:
+    from utils.constants import MORNINGAI_REVIEW_MARKER
+except ImportError:
+    from ..utils.constants import MORNINGAI_REVIEW_MARKER
+
+logger = logging.getLogger(__name__)
 
 
 def is_self_generated_review(event: "WebhookEvent") -> bool:

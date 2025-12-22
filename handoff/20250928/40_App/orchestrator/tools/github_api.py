@@ -17,21 +17,16 @@ from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# P2: Artifact Idempotency - Redis TTL for review deduplication keys
-# Reviews are deduplicated per PR + head SHA + reviewer version
-# TTL of 24 hours ensures keys don't accumulate indefinitely
-REVIEW_DEDUP_TTL_SECONDS = 86400  # 24 hours
-REVIEWER_VERSION = "v1"  # Increment when review logic changes significantly
+# Import shared constants to prevent drift between github_api.py and normalizer.py
+# Issue: Self-Trigger Loop Prevention
+from utils.constants import (
+    MORNINGAI_REVIEW_MARKER,
+    REVIEW_DEDUP_TTL_SECONDS,
+    REVIEWER_VERSION,
+)
 
 GITHUB_TOKEN = settings.agent_github_token or settings.github_token
 GITHUB_REPO = settings.github_repo or "RC918/morningai"
-
-# Self-review marker to prevent feedback loop
-# Issue: Self-Trigger Loop Prevention
-# When the orchestrator posts a review, it includes this hidden marker.
-# The webhook normalizer checks for this marker and skips PR_REVIEWED events
-# that contain it, preventing the orchestrator from re-triggering itself.
-MORNINGAI_REVIEW_MARKER = "<!-- morningai:autogen-review -->"
 
 
 def _check_review_already_posted(
@@ -819,23 +814,29 @@ def post_pr_review(
 
         pr = repo.get_pull(pr_number)
 
-        # P4: PR State Guard - Skip posting to closed/merged PRs
+        # P4: PR State Guard - Only post to open, unmerged PRs (allowlist approach)
         # Issue: Self-Trigger Loop Prevention
         # Reviews on merged PRs can still trigger PR_REVIEWED webhooks,
         # causing unnecessary resource consumption and potential loops.
-        # Note: We use explicit `is True` and `== "closed"` checks to avoid
-        # MagicMock truthiness issues in unit tests where pr.merged would be
-        # a truthy MagicMock object instead of a boolean.
-        if pr.state == "closed" or pr.merged is True:
+        #
+        # We use an allowlist approach (state must be "open") rather than a blocklist
+        # (state != "closed") to be more defensive against unknown/unexpected values.
+        # This ensures we only post reviews when we're certain the PR is in a valid state.
+        #
+        # Note: We use explicit `is True` check for merged to avoid MagicMock truthiness
+        # issues in unit tests where pr.merged would be a truthy MagicMock object.
+        pr_state = getattr(pr, 'state', None)
+        pr_merged = getattr(pr, 'merged', None)
+        if pr_state != "open" or pr_merged is True:
             logger.info(
-                f"[GitHub] Skipping review for closed/merged PR #{pr_number} "
-                f"(state={pr.state}, merged={pr.merged})",
+                f"[GitHub] Skipping review for non-open/merged PR #{pr_number} "
+                f"(state={pr_state}, merged={pr_merged})",
                 extra={
                     "operation": "post_pr_review_skipped",
                     "pr_number": pr_number,
-                    "pr_state": pr.state,
-                    "pr_merged": pr.merged,
-                    "reason": "pr_closed_or_merged"
+                    "pr_state": pr_state,
+                    "pr_merged": pr_merged,
+                    "reason": "pr_not_open_or_merged"
                 }
             )
             result["success"] = True
