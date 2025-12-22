@@ -26,15 +26,6 @@ except ImportError:
 # Try to import DeepWiki service
 DEEPWIKI_AVAILABLE = False
 try:
-    import sys
-    import os
-    # Add orchestrator path to sys.path for DeepWiki imports
-    orchestrator_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../orchestrator")
-    )
-    if orchestrator_path not in sys.path:
-        sys.path.insert(0, orchestrator_path)
-
     from deepwiki.service import (
         get_deepwiki_service,
         QueryType,

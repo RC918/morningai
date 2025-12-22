@@ -339,11 +339,6 @@ class MonitoringDashboard:
             redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
             redis_client = redis.from_url(redis_url, decode_responses=True)
             
-            import sys
-            orchestrator_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../orchestrator'))
-            if orchestrator_path not in sys.path:
-                sys.path.insert(0, orchestrator_path)
-            
             from metrics import create_canary_metrics
             
             canary_window_minutes = int(os.environ.get('CANARY_WINDOW_MINUTES', 15))
