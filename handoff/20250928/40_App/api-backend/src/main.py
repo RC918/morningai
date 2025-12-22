@@ -17,9 +17,8 @@ if str(repo_root) not in sys.path:
 app_dir = app_settings.orchestrator_path
 if not app_dir:
     # Point to 40_App directory (parent of orchestrator), not orchestrator itself
-    app_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../..")
-    )
+    # Use Path(__file__).resolve() to get absolute path regardless of how module is imported
+    app_dir = str(Path(__file__).resolve().parent.parent.parent)
 
 if os.path.exists(app_dir) and app_dir not in sys.path:
     sys.path.insert(0, app_dir)
