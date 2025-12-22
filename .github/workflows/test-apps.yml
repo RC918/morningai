@@ -64,7 +64,7 @@ jobs:
         run: |
           pytest tests/ -v --tb=short --disable-warnings -k "not test_vercel_preview_blocked_in_production"
         env:
-          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/handoff/20250928/40_App:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend
           REDIS_URL: redis://localhost:6379/0
           FLASK_ENV: testing
           TESTING: true
@@ -77,7 +77,7 @@ jobs:
         run: |
           pytest tests/test_cors_config.py::TestCORSHeadersMiddleware::test_vercel_preview_blocked_in_production -v --tb=short --disable-warnings
         env:
-          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/handoff/20250928/40_App:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend
           REDIS_URL: redis://localhost:6379/0
           FLASK_ENV: testing
           TESTING: true
