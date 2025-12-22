@@ -621,7 +621,8 @@ def post_pr_review(
     repo,
     pr_number: int,
     comments: list,
-    summary: str = "MorningAI Review"
+    summary: str = "MorningAI Review",
+    commit_id: str | None = None
 ) -> dict:
     """
     Post review comments to a GitHub PR as inline review comments.
@@ -632,6 +633,11 @@ def post_pr_review(
     This function posts review comments to GitHub using the Pull Request Review API.
     It supports both single-line and multi-line comments.
 
+    EPIC B Phase 3 P2: commit_id validation
+    When commit_id is provided, the review is pinned to that specific commit.
+    This prevents 422 errors caused by race conditions where new commits are
+    pushed between diff generation and review posting.
+
     Args:
         repo: GitHub repository object
         pr_number: Pull request number
@@ -641,6 +647,10 @@ def post_pr_review(
             - start_line: Start line number (optional, for multi-line)
             - message: Comment text (required)
         summary: Review summary text (default: "MorningAI Review")
+        commit_id: SHA of the commit to review (optional). When provided,
+            the review is pinned to this commit, preventing 422 errors
+            from race conditions. Should be the diff_head_sha captured
+            when the diff was fetched.
 
     Returns:
         dict with keys:
@@ -765,11 +775,46 @@ def post_pr_review(
             )
 
         # Post the review
-        pr.create_review(
-            body=summary,
-            event="COMMENT",
-            comments=gh_comments
-        )
+        # Phase 3 P2: Pass commit_id to pin review to specific commit
+        # This prevents 422 errors from race conditions where new commits
+        # are pushed between diff generation and review posting
+        commit_obj = None
+        if commit_id:
+            try:
+                commit_obj = repo.get_commit(commit_id)
+                logger.info(
+                    f"[GitHub] Using commit_id for review: {commit_id[:8]}",
+                    extra={
+                        "operation": "post_pr_review",
+                        "pr_number": pr_number,
+                        "commit_id": commit_id[:8]
+                    }
+                )
+            except Exception as commit_error:
+                logger.warning(
+                    f"[GitHub] Failed to get commit {commit_id[:8]}, "
+                    f"proceeding without commit_id: {commit_error}",
+                    extra={
+                        "operation": "post_pr_review",
+                        "pr_number": pr_number,
+                        "commit_id": commit_id[:8],
+                        "error": str(commit_error)
+                    }
+                )
+
+        if commit_obj:
+            pr.create_review(
+                commit=commit_obj,
+                body=summary,
+                event="COMMENT",
+                comments=gh_comments
+            )
+        else:
+            pr.create_review(
+                body=summary,
+                event="COMMENT",
+                comments=gh_comments
+            )
 
         result["success"] = True
         result["posted_count"] = len(gh_comments)
@@ -781,7 +826,8 @@ def post_pr_review(
                 "pr_number": pr_number,
                 "comment_count": len(gh_comments),
                 "skipped_count": result["skipped_count"],
-                "truncated_count": result["truncated_count"]
+                "truncated_count": result["truncated_count"],
+                "commit_id": commit_id[:8] if commit_id else None
             }
         )
 

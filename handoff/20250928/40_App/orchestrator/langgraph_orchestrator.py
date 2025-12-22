@@ -3216,11 +3216,15 @@ def publisher_node(state: AgentState) -> AgentState:
 
         repo = get_repo()
 
+        # Phase 3 P2: Pass commit_id to pin review to specific commit
+        # This prevents 422 errors from race conditions where new commits
+        # are pushed between diff generation and review posting
         result = post_pr_review(
             repo=repo,
             pr_number=pr_number,
             comments=inline_comments,
-            summary="MorningAI Code Review"
+            summary="MorningAI Code Review",
+            commit_id=stored_head_sha
         )
 
         state["publish_result"]["success"] = result.get("success", False)
