@@ -190,7 +190,7 @@ SEVERITY_TO_RISK = {v: k for k, v in RISK_SEVERITY.items()}
 NEVER_BLOCK_THRESHOLD = 5
 
 
-def evaluate_simple_mode_policy(
+def evaluate_execution_policy(
     trace_id: str,
     cost_risk: str = "info",
     rate_limit_risk: str = "info",
@@ -198,24 +198,27 @@ def evaluate_simple_mode_policy(
     repo: str = ""
 ) -> Dict[str, Any]:
     """
-    PR-3: Simple Mode Policy Observability
+    Policy Observability Telemetry for Core Executor (graph.execute)
 
-    Evaluates what the policy enforcement WOULD have done in Simple Mode.
-    This is observability-only - Simple Mode never blocks, but we record
-    what would have happened if enforcement was enabled.
+    Records policy evaluation metrics for monitoring and analysis. This function
+    is OBSERVABILITY-ONLY - it logs what would have happened under different
+    enforcement modes but does NOT block or gate execution. Actual enforcement
+    (budget exceeded, rate limited) is handled by the caller before invoking
+    this function.
 
-    Uses the same schema as LangGraph policy_enforcement_node for unified
-    observability across both orchestrator modes.
+    The return value is currently unused by callers; this function exists to
+    provide unified telemetry compatible with LangGraph's policy_enforcement_node
+    schema for cross-mode observability dashboards.
 
     Args:
-        trace_id: Unique task identifier
+        trace_id: Unique task identifier for correlation
         cost_risk: Risk level from cost evaluation (info/low/medium/high/critical)
-        rate_limit_risk: Risk level from rate limit check
-        goal: Task goal/description
+        rate_limit_risk: Risk level from rate limit check (info/low/medium/high/critical)
+        goal: Task goal/description (truncated to 100 chars in output)
         repo: Repository being operated on
 
     Returns:
-        Dict with policy evaluation results in unified schema
+        Dict with policy evaluation telemetry in unified schema (not used for enforcement)
     """
     from common.config.settings import get_settings
 
@@ -254,9 +257,9 @@ def evaluate_simple_mode_policy(
     threshold_name = SEVERITY_TO_RISK.get(threshold, "none")
 
     policy_event = {
-        "event_type": "simple_mode_policy_evaluation",
+        "event_type": "execution_policy_evaluation",
         "trace_id": trace_id,
-        "orchestrator_mode": "simple",
+        "orchestrator_mode": "langgraph",
         "enforcement_mode": mode,
         "advisor_risks": advisor_risks,
         "worst_advisor": worst_advisor,
@@ -272,9 +275,9 @@ def evaluate_simple_mode_policy(
     }
 
     logger.info(
-        "[SimpleMode][PolicyObservability] Policy evaluation",
+        "[Executor][PolicyObservability] Policy evaluation",
         extra={
-            "operation": "simple_mode_policy_evaluation",
+            "operation": "execution_policy_evaluation",
             "trace_id": trace_id,
             "enforcement_mode": mode,
             "worst_advisor": worst_advisor,
@@ -286,9 +289,9 @@ def evaluate_simple_mode_policy(
 
     if would_block:
         logger.warning(
-            "[SimpleMode][PolicyObservability] Would have blocked execution",
+            "[Executor][PolicyObservability] Would have blocked execution",
             extra={
-                "operation": "simple_mode_policy_would_block",
+                "operation": "execution_policy_would_block",
                 "trace_id": trace_id,
                 "enforcement_mode": mode,
                 "worst_advisor": worst_advisor,
@@ -324,7 +327,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     except CostBudgetExceeded as e:
         print(f"[Cost] Budget exceeded: {e}")
         cost_risk = "critical"
-        evaluate_simple_mode_policy(
+        evaluate_execution_policy(
             trace_id=trace_id,
             cost_risk=cost_risk,
             rate_limit_risk=rate_limit_risk,
@@ -341,7 +344,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     if not allowed:
         print(f"[Rate Limit] BLOCKED - Already created {count} docs PRs this hour (max: {docs_max_prs})")
         rate_limit_risk = "high"
-        evaluate_simple_mode_policy(
+        evaluate_execution_policy(
             trace_id=trace_id,
             cost_risk=cost_risk,
             rate_limit_risk=rate_limit_risk,
@@ -350,7 +353,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
         )
         return None, "rate_limited", trace_id
     
-    evaluate_simple_mode_policy(
+    evaluate_execution_policy(
         trace_id=trace_id,
         cost_risk=cost_risk,
         rate_limit_risk=rate_limit_risk,

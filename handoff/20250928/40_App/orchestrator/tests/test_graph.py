@@ -220,7 +220,7 @@ class TestExecuteDryRun:
     """Test execute function with ORCHESTRATOR_DRY_RUN flag"""
     
     @patch('graph.settings')
-    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.evaluate_execution_policy')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_cost_tracker')
     @patch('graph.get_reputation_engine')
@@ -255,7 +255,7 @@ class TestExecuteDryRun:
         assert returned_trace_id == trace_id
     
     @patch('graph.settings')
-    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.evaluate_execution_policy')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_cost_tracker')
     @patch('graph.get_reputation_engine')
@@ -292,7 +292,7 @@ class TestExecuteDryRun:
             mock_open_pr.assert_not_called()
     
     @patch('graph.settings')
-    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.evaluate_execution_policy')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_cost_tracker')
     @patch('graph.get_reputation_engine')
@@ -732,7 +732,7 @@ class TestExecuteDocsSafety:
     """Test execute function with docs safety features for Issue #2100"""
     
     @patch('graph.settings')
-    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.evaluate_execution_policy')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_cost_tracker')
     @patch('graph.get_reputation_engine')
@@ -763,7 +763,7 @@ class TestExecuteDocsSafety:
         assert call_args[1]['max_per_hour'] == 3
     
     @patch('graph.settings')
-    @patch('graph.evaluate_simple_mode_policy')
+    @patch('graph.evaluate_execution_policy')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_cost_tracker')
     @patch('graph.get_reputation_engine')
