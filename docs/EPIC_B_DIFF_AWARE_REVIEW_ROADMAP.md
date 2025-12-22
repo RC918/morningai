@@ -176,7 +176,7 @@ Before implementing P6, the following must be completed:
 | Prerequisite | Description | Status |
 |--------------|-------------|--------|
 | Integration Test | Automated "send review → receive webhook → verify no duplicate" flow | Pending |
-| Monitoring & Alerts | Verify P1-P4 stability | Pending |
+| Monitoring & Alerts | Verify P1-P3 stability | Pending |
 | GitHub App Identity Boundary | Migrate from PAT to GitHub App for proper permissions | Pending |
 
 ### Why Not Now
@@ -200,7 +200,7 @@ Before implementing P6, the following must be completed:
 
 **Recommended Milestone Order**:
 
-1. **Now**: Complete Integration Test + Monitoring/Alerts (verify P1-P4 stability)
+1. **Now**: Complete Integration Test + Monitoring/Alerts (verify P1-P3 stability)
 2. **Next**: Establish GitHub App identity boundary (P6 prerequisite)
 3. **Then**: P6 Checks API (dual-write strategy: send review for humans + check for machine gate)
 
