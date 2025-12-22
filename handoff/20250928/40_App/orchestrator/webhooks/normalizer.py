@@ -309,13 +309,16 @@ class EventNormalizer:
     }
 
     # Event types that are actionable (can trigger Meta Agent tasks)
+    # P0: PR_COMMENTED removed to prevent self-trigger loop (CTO decision 2025-12-22)
+    # MorningAI is a "one-way reviewer", not a "conversational chatbot"
+    # See: EPIC B - GitHub App migration for future Identity Filter support
     ACTIONABLE_EVENT_TYPES = {
         WebhookEventType.ISSUE_CREATED,
         WebhookEventType.ISSUE_COMMENTED,
         WebhookEventType.ISSUE_ASSIGNED,
         WebhookEventType.PR_OPENED,
         WebhookEventType.PR_REVIEWED,
-        WebhookEventType.PR_COMMENTED,
+        # WebhookEventType.PR_COMMENTED,  # DISABLED: causes self-trigger loop
         WebhookEventType.MENTION_RECEIVED,
         WebhookEventType.COMMAND_RECEIVED,
     }
@@ -471,6 +474,26 @@ class EventNormalizer:
         # When the orchestrator posts a review, GitHub sends a PR_REVIEWED webhook.
         # Without this check, we would process our own review and create an infinite loop.
         if is_self_generated_review(event):
+            return False
+
+        # P0: Disable PR_COMMENTED events entirely (CTO decision 2025-12-22)
+        # This is a hard block that cannot be bypassed by is_ai_reviewer or other logic.
+        # MorningAI is a "one-way reviewer", not a "conversational chatbot".
+        # Without this, inline review comments trigger webhooks that cause infinite loops.
+        # See: EPIC B - GitHub App migration for future Identity Filter support
+        if event.event_type == WebhookEventType.PR_COMMENTED:
+            repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+            logger.debug(
+                "[EventNormalizer] PR_COMMENTED event skipped (conversational review disabled)",
+                extra={
+                    "operation": "pr_commented_disabled",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "pr_number": event.resource_id or "unknown",
+                    "actor": event.actor_name,
+                    "reason": "no_conversational_review",
+                }
+            )
             return False
 
         is_ai_reviewer = bool(event.metadata.get("is_ai_reviewer"))
