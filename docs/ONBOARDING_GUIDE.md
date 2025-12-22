@@ -28,6 +28,10 @@ This guide will help you get started with the MorningAI project, understand the 
 - [`backend.yml`](.github/workflows/backend.yml) - Backend lint、測試、覆蓋率
 - [`frontend.yml`](.github/workflows/frontend.yml) - Frontend build、typecheck、E2E
 
+**實際案例**：
+- [PR #2767](https://github.com/RC918/morningai/pull/2767) - Simple Mode 移除。即使當時 README 仍描述「雙模式架構」，CI Guard (`simple-mode-guard.yml`) 已阻擋 Simple Mode 代碼，證明 CI 是真相來源。
+- [Issue #2651](https://github.com/RC918/morningai/issues/2651) - LangGraph 100% Rollout 決策記錄
+
 **範例**：如果 README 說「支援雙模式架構」，但 [`simple-mode-guard.yml`](.github/workflows/simple-mode-guard.yml) CI workflow 會阻擋 Simple Mode 代碼，則以 CI 為準 — Simple Mode 已被移除。
 
 **調查順序建議**：
