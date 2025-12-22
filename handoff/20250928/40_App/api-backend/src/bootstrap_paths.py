@@ -37,6 +37,37 @@ def _add_to_sys_path(path: str, description: str) -> bool:
     return False
 
 
+def _remove_conflicting_orchestrator_paths(correct_orchestrator_parent: Path):
+    """
+    Remove any sys.path entries that contain a conflicting orchestrator package.
+    
+    This is needed because there may be multiple 'orchestrator' directories in
+    the repo (e.g., repo root has one, 40_App has another). We need to ensure
+    only the correct one (40_App) is on sys.path.
+    """
+    correct_parent_str = str(correct_orchestrator_parent.resolve())
+    paths_to_remove = []
+    
+    for path_entry in sys.path:
+        if not path_entry:
+            continue
+        try:
+            path_obj = Path(path_entry).resolve()
+            orchestrator_candidate = path_obj / 'orchestrator'
+            # If this path contains an orchestrator directory but it's not our correct one
+            if orchestrator_candidate.is_dir() and str(path_obj) != correct_parent_str:
+                paths_to_remove.append(path_entry)
+                _logger.warning(
+                    f"bootstrap_paths: removing conflicting path {path_entry} "
+                    f"(contains orchestrator at {orchestrator_candidate})"
+                )
+        except (OSError, ValueError):
+            continue
+    
+    for path_entry in paths_to_remove:
+        sys.path.remove(path_entry)
+
+
 def _clear_conflicting_orchestrator_modules():
     """
     Remove any existing orchestrator module that might be from the wrong location.
@@ -46,7 +77,7 @@ def _clear_conflicting_orchestrator_modules():
     'import orchestrator' resolves to our repo's orchestrator package.
     """
     modules_to_remove = [
-        mod_name for mod_name in sys.modules.keys()
+        mod_name for mod_name in list(sys.modules.keys())
         if mod_name == 'orchestrator' or mod_name.startswith('orchestrator.')
     ]
     for mod_name in modules_to_remove:
@@ -81,10 +112,13 @@ def bootstrap_orchestrator_paths():
         )
         return False
 
-    # Clear any conflicting orchestrator modules first
+    # Remove any conflicting paths that contain a different orchestrator package
+    _remove_conflicting_orchestrator_paths(app_dir)
+    
+    # Clear any conflicting orchestrator modules from sys.modules
     _clear_conflicting_orchestrator_modules()
 
-    # Add 40_App to sys.path so 'import orchestrator' works
+    # Add 40_App to sys.path at position 0 so 'import orchestrator' works
     _add_to_sys_path(str(app_dir), "40_App (orchestrator parent)")
 
     _logger.debug(f"bootstrap_paths: orchestrator imports enabled from {orchestrator_dir}")
