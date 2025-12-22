@@ -38,6 +38,35 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# EPIC B Phase 3: Pre-compiled prompt injection patterns (MorningAI Code Review feedback)
+# These patterns detect common prompt injection attempts to prevent hijacking LLM repair prompts
+# Pre-compiled at module level for performance (avoids re-compilation on each call)
+PROMPT_INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Common instruction override attempts
+    re.compile(r'(?i)ignore\s+(all\s+)?previous\s+instructions?'),
+    re.compile(r'(?i)disregard\s+(all\s+)?previous\s+instructions?'),
+    re.compile(r'(?i)forget\s+(all\s+)?previous\s+instructions?'),
+    # Role manipulation attempts
+    re.compile(r'(?i)you\s+are\s+now\s+a'),
+    re.compile(r'(?i)act\s+as\s+if\s+you\s+are'),
+    re.compile(r'(?i)pretend\s+you\s+are'),
+    # Chat role markers (could be used to inject fake messages)
+    re.compile(r'(?i)system:\s*'),
+    re.compile(r'(?i)assistant:\s*'),
+    re.compile(r'(?i)user:\s*'),
+    # Model-specific control tokens (Llama, Mistral, ChatML formats)
+    re.compile(re.escape('[INST]')),
+    re.compile(re.escape('[/INST]')),
+    re.compile(re.escape('<<SYS>>')),
+    re.compile(re.escape('<</SYS>>')),
+    re.compile(re.escape('<|im_start|>')),
+    re.compile(re.escape('<|im_end|>')),
+    re.compile(re.escape('<|system|>')),
+    re.compile(re.escape('<|user|>')),
+    re.compile(re.escape('<|assistant|>')),
+)
+
+
 # Phase B-2.5: Secrets redaction patterns (#2703)
 # These patterns detect common secret formats to prevent leakage to LLM providers
 # Uses capturing groups to preserve original formatting (spaces, quotes, delimiters)
@@ -815,6 +844,10 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         EPIC B Phase 3: Prompt injection protection (MorningAI Code Review feedback)
         Removes or escapes potentially malicious content that could hijack the repair prompt.
 
+        Uses pre-compiled regex patterns from PROMPT_INJECTION_PATTERNS for performance.
+        Patterns include common instruction overrides, role manipulation attempts,
+        and model-specific control tokens (Llama [INST], Mistral <<SYS>>, ChatML <|im_start|>).
+
         Args:
             content: Raw broken JSON string
 
@@ -824,22 +857,9 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         if not content:
             return content
 
-        # Remove common prompt injection patterns
-        injection_patterns = [
-            r'(?i)ignore\s+(all\s+)?previous\s+instructions?',
-            r'(?i)disregard\s+(all\s+)?previous\s+instructions?',
-            r'(?i)forget\s+(all\s+)?previous\s+instructions?',
-            r'(?i)you\s+are\s+now\s+a',
-            r'(?i)act\s+as\s+if\s+you\s+are',
-            r'(?i)pretend\s+you\s+are',
-            r'(?i)system:\s*',
-            r'(?i)assistant:\s*',
-            r'(?i)user:\s*',
-        ]
-
         sanitized = content
-        for pattern in injection_patterns:
-            sanitized = re.sub(pattern, '[SANITIZED]', sanitized)
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            sanitized = pattern.sub('[SANITIZED]', sanitized)
 
         return sanitized
 
