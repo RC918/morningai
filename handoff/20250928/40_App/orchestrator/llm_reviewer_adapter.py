@@ -700,9 +700,9 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
 
     def _parse_json_with_retry(self, content: str, use_json_mode: bool) -> Dict[str, Any]:
         """
-        Parse JSON with retry and repair logic
+        Parse JSON with retry and repair logic.
 
-        EPIC B Phase 3 P3: Added LLM-based JSON repair for truncated responses
+        Three-stage repair: direct parse -> regex cleaning -> LLM repair (if enabled).
 
         Args:
             content: Raw LLM response
@@ -770,7 +770,7 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                     {"role": "user", "content": _REPAIR_JSON_PROMPT + truncated_input}
                 ],
                 temperature=0.0,  # Deterministic for repair
-                max_tokens=1000   # Limit output size
+                max_tokens=1000   # Output token budget (separate from input char truncation)
             )
             repair_time_ms = (time.time() - start_time) * 1000
 
