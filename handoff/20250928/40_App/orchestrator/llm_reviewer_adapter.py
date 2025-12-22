@@ -133,6 +133,23 @@ SEVERITY_ORDER = {
     "critical": 4,
 }
 
+# EPIC B Phase 3 P3: Module-level constant for JSON repair prompt
+# Moved from _repair_json_with_llm() for better code organization (Gemini feedback)
+_REPAIR_JSON_PROMPT = """You are a JSON repair assistant. The following JSON is malformed or truncated.
+Please complete and fix it to be valid JSON. Output ONLY the repaired JSON, nothing else.
+
+The JSON should have this structure:
+{
+  "quality_score": <integer 0-100>,
+  "severity": "<none|low|medium|high|critical>",
+  "summary": "<string>",
+  "decision": "<approve|needs_changes|request_changes>",
+  "comments": [{"file": "<path>", "line": <int or null>, "message": "<string>", "severity": "<string>"}]
+}
+
+Broken JSON:
+"""
+
 
 def combine_severity(ci_severity: str, llm_severity: str) -> str:
     """
@@ -713,7 +730,9 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
 
         # Third attempt: LLM-based repair (EPIC B Phase 3 P3)
         # Only attempt if feature is enabled and we have a client
-        if getattr(settings, 'enable_llm_json_repair', True) and self.llm_client:
+        # EPIC B Phase 3 P3: LLM repair disabled by default for safer rollout
+        # Enable via settings.enable_llm_json_repair = True after testing
+        if getattr(settings, 'enable_llm_json_repair', False) and self.llm_client:
             try:
                 repaired_json = self._repair_json_with_llm(content)
                 if repaired_json:
@@ -739,29 +758,16 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         Returns:
             Repaired JSON string, or None if repair fails
         """
-        repair_prompt = """You are a JSON repair assistant. The following JSON is malformed or truncated.
-Please complete and fix it to be valid JSON. Output ONLY the repaired JSON, nothing else.
-
-The JSON should have this structure:
-{
-  "quality_score": <integer 0-100>,
-  "severity": "<none|low|medium|high|critical>",
-  "summary": "<string>",
-  "decision": "<approve|needs_changes|request_changes>",
-  "comments": [{"file": "<path>", "line": <int or null>, "message": "<string>", "severity": "<string>"}]
-}
-
-Broken JSON:
-"""
         # Truncate broken JSON to avoid token limits (keep first 2000 chars)
-        truncated_input = broken_json[:2000] if len(broken_json) > 2000 else broken_json
+        # Python slicing handles out-of-bounds gracefully (Gemini feedback)
+        truncated_input = broken_json[:2000]
 
         try:
             start_time = time.time()
             response = self.llm_client.chat(
                 messages=[
                     {"role": "system", "content": "You are a JSON repair assistant. Output only valid JSON."},
-                    {"role": "user", "content": repair_prompt + truncated_input}
+                    {"role": "user", "content": _REPAIR_JSON_PROMPT + truncated_input}
                 ],
                 temperature=0.0,  # Deterministic for repair
                 max_tokens=1000   # Limit output size

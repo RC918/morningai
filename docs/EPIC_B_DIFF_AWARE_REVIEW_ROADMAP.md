@@ -67,7 +67,7 @@ Security improvements and additional reliability enhancements.
 | P1 | Secrets exposure mitigation | `state["diff_content"]` now sanitized before storage using `sanitize_diff_content()` | Done |
 | P2 | commit_id validation | Pass `commit_id` to `post_pr_review()` to pin review to specific commit, preventing 422 errors from race conditions | Done |
 | P2 | Code duplication refactor | Added `_build_file_level_appendix()` helper for unified file-level delivery. File-level comments now included in review body even when inline comments exist | Done |
-| P3 | JSON repair call | Three-stage repair: direct parse → regex clean → LLM repair. Feature flag: `enable_llm_json_repair` | Done |
+| P3 | JSON repair call | Three-stage repair: direct parse → regex clean → LLM repair. Feature flag: `enable_llm_json_repair` (default: False for safer rollout) | Done |
 
 ### Security Audit Finding (Resolved)
 

@@ -2890,7 +2890,7 @@ def should_fix_or_finalize(state: AgentState) -> str:
 
 
 def _build_file_level_appendix(
-    file_level_comments: list,
+    file_level_comments: list[dict],
     line_drift_detected: bool = False,
     max_comments: int = 10
 ) -> str:
@@ -2911,11 +2911,13 @@ def _build_file_level_appendix(
     if not file_level_comments:
         return ""
 
-    appendix = ""
-    if line_drift_detected:
-        appendix += "\n\n*Note: New commits detected since review. Comments delivered as file-level for safety.*"
+    # Use list + join for efficient string building (Gemini feedback)
+    parts: list[str] = []
 
-    appendix += "\n\n### File-Level Comments\n\n"
+    if line_drift_detected:
+        parts.append("\n\n*Note: New commits detected since review. Comments delivered as file-level for safety.*")
+
+    parts.append("\n\n### File-Level Comments\n\n")
 
     # Limit comments to prevent overly long review bodies
     comments_to_show = file_level_comments[:max_comments]
@@ -2925,12 +2927,12 @@ def _build_file_level_appendix(
         file_path = comment.get("file", "General")
         message = comment.get("message", "")
         severity = comment.get("severity", "info")
-        appendix += f"**{file_path}** ({severity})\n{message}\n\n"
+        parts.append(f"**{file_path}** ({severity})\n{message}\n\n")
 
     if truncated_count > 0:
-        appendix += f"*...and {truncated_count} more file-level comments (truncated)*\n\n"
+        parts.append(f"*...and {truncated_count} more file-level comments (truncated)*\n\n")
 
-    return appendix
+    return "".join(parts)
 
 
 def publisher_node(state: AgentState) -> AgentState:
