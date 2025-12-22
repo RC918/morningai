@@ -99,7 +99,7 @@ before transitioning to END state.
 import functools
 import logging
 import time
-from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict, Any
+from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict, Any, NotRequired
 from datetime import datetime
 import operator
 
@@ -2889,8 +2889,21 @@ def should_fix_or_finalize(state: AgentState) -> str:
     return outcome
 
 
+class FileLevelComment(TypedDict):
+    """
+    TypedDict for file-level comment structure.
+
+    EPIC B Phase 3: Structured type for file-level comments (MorningAI Code Review feedback)
+    Provides better IDE support and type safety for comment handling.
+    """
+    file: str
+    message: str
+    severity: NotRequired[str]
+    line: NotRequired[int]
+
+
 def _build_file_level_appendix(
-    file_level_comments: list[dict],
+    file_level_comments: list[FileLevelComment],
     line_drift_detected: bool = False,
     max_comments: int = 10
 ) -> str:
@@ -2901,7 +2914,7 @@ def _build_file_level_appendix(
     This helper ensures consistent formatting across all file-level delivery paths.
 
     Args:
-        file_level_comments: List of file-level comment dicts
+        file_level_comments: List of file-level comment dicts (see FileLevelComment TypedDict)
         line_drift_detected: Whether line drift was detected (adds note)
         max_comments: Maximum comments to include (default: 10)
 

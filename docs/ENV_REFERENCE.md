@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 221
+- **Total Variables**: 223
 - **Required**: 21
-- **Optional**: 200
+- **Optional**: 202
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -32,7 +32,7 @@
 - [Integration](#integration) (19 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
-- [Feature Flags](#feature-flags) (56 variables)
+- [Feature Flags](#feature-flags) (58 variables)
 - [Orchestrator](#orchestrator) (6 variables)
 - [Frontend](#frontend) (6 variables)
 - [Testing](#testing) (16 variables)
@@ -1710,6 +1710,8 @@ Application logging level
 | `ENABLE_DEEPWIKI` | boolean | No | false | PUBLIC |
 | `DEEPWIKI_MAX_SOURCES` | integer | No | 5 | PUBLIC |
 | `ENABLE_AGENT_EVAL` | boolean | No | true | PUBLIC |
+| `ENABLE_LLM_JSON_REPAIR` | boolean | No | false | PUBLIC |
+| `LLM_JSON_REPAIR_MAX_TOKENS` | integer | No | 1000 | PUBLIC |
 | `PROJECT_ENGINEER_FIXER_PERCENT` | integer | No | 0 | PUBLIC |
 | `AUTO_FIX_ENABLED` | boolean | No | false | PUBLIC |
 | `AUTO_FIX_CATEGORIES` | string | No | style,documentation | PUBLIC |
@@ -2108,6 +2110,38 @@ Enable agent evaluation metrics collection and capability regression detection (
 > Controls agent evaluation integration:
 > - true (default): Collect metrics and detect capability regression
 > - false: Disable evaluation (useful for debugging or reducing overhead)
+
+#### `ENABLE_LLM_JSON_REPAIR`
+
+Enable LLM-based JSON repair for truncated/malformed LLM responses (EPIC B Phase 3 P3)
+
+- **Type**: boolean
+- **Required**: No
+- **Default**: `false`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Controls LLM JSON repair in _parse_json_with_retry:
+> - false (default): Only use regex-based cleaning for malformed JSON
+> - true: Use LLM to repair truncated/malformed JSON as final fallback
+> Disabled by default for safer rollout. Enable in staging first to validate.
+> Related: LLM_JSON_REPAIR_MAX_TOKENS controls output token limit.
+
+#### `LLM_JSON_REPAIR_MAX_TOKENS`
+
+Max tokens for LLM JSON repair output (EPIC B Phase 3)
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `1000`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Controls the max_tokens parameter when calling LLM for JSON repair.
+> - 1000 (default): Sufficient for most review JSON structures
+> - Increase if repairs are being truncated
+> - Decrease to reduce cost/latency
+> Only used when ENABLE_LLM_JSON_REPAIR=true.
 
 #### `PROJECT_ENGINEER_FIXER_PERCENT`
 

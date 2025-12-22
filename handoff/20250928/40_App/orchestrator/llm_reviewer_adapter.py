@@ -38,6 +38,35 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# EPIC B Phase 3: Pre-compiled prompt injection patterns (MorningAI Code Review feedback)
+# These patterns detect common prompt injection attempts to prevent hijacking LLM repair prompts
+# Pre-compiled at module level for performance (avoids re-compilation on each call)
+PROMPT_INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Common instruction override attempts
+    re.compile(r'(?i)ignore\s+(all\s+)?previous\s+instructions?'),
+    re.compile(r'(?i)disregard\s+(all\s+)?previous\s+instructions?'),
+    re.compile(r'(?i)forget\s+(all\s+)?previous\s+instructions?'),
+    # Role manipulation attempts
+    re.compile(r'(?i)you\s+are\s+now\s+a'),
+    re.compile(r'(?i)act\s+as\s+if\s+you\s+are'),
+    re.compile(r'(?i)pretend\s+you\s+are'),
+    # Chat role markers (could be used to inject fake messages)
+    re.compile(r'(?i)system:\s*'),
+    re.compile(r'(?i)assistant:\s*'),
+    re.compile(r'(?i)user:\s*'),
+    # Model-specific control tokens (Llama, Mistral, ChatML formats)
+    re.compile(re.escape('[INST]')),
+    re.compile(re.escape('[/INST]')),
+    re.compile(re.escape('<<SYS>>')),
+    re.compile(re.escape('<</SYS>>')),
+    re.compile(re.escape('<|im_start|>')),
+    re.compile(re.escape('<|im_end|>')),
+    re.compile(re.escape('<|system|>')),
+    re.compile(re.escape('<|user|>')),
+    re.compile(re.escape('<|assistant|>')),
+)
+
+
 # Phase B-2.5: Secrets redaction patterns (#2703)
 # These patterns detect common secret formats to prevent leakage to LLM providers
 # Uses capturing groups to preserve original formatting (spaces, quotes, delimiters)
@@ -700,13 +729,19 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
 
     def _parse_json_with_retry(self, content: str, use_json_mode: bool) -> Dict[str, Any]:
         """
-        Parse JSON with retry and repair logic.
+        Parse JSON with three-stage retry and repair logic.
 
-        Three-stage repair: direct parse -> string cleaning -> LLM repair (if enabled).
+        EPIC B Phase 3 P3: Three-stage JSON repair pipeline:
+        1. Direct parse - Try json.loads() on raw content
+        2. String cleaning - Remove markdown blocks, extract JSON object
+        3. LLM repair - Use LLM to fix truncated/malformed JSON (if enabled via settings)
+
+        The LLM repair stage is controlled by settings.enable_llm_json_repair (default: False).
+        To enable: set ENABLE_LLM_JSON_REPAIR=true in environment.
 
         Args:
             content: Raw LLM response
-            use_json_mode: Whether JSON mode was used
+            use_json_mode: Whether JSON mode was used (affects logging only)
 
         Returns:
             Parsed review dict
@@ -730,9 +765,8 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
 
         # Third attempt: LLM-based repair (EPIC B Phase 3 P3)
         # Only attempt if feature is enabled and we have a client
-        # EPIC B Phase 3 P3: LLM repair disabled by default for safer rollout
         # Enable via settings.enable_llm_json_repair = True after testing
-        if getattr(settings, 'enable_llm_json_repair', False) and self.llm_client:
+        if settings.enable_llm_json_repair and self.llm_client:
             try:
                 repaired_json = self._repair_json_with_llm(content)
                 if repaired_json:
@@ -750,8 +784,6 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         """
         Use LLM to repair truncated or malformed JSON.
 
-        EPIC B Phase 3 P3: LLM-based JSON repair for truncated responses
-
         Args:
             broken_json: The malformed JSON string
 
@@ -762,15 +794,19 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         # Python slicing handles out-of-bounds gracefully (Gemini feedback)
         truncated_input = broken_json[:2000]
 
+        # Prompt injection protection: sanitize input to prevent malicious content
+        # from hijacking the repair prompt (MorningAI Code Review feedback)
+        sanitized_input = self._sanitize_json_input(truncated_input)
+
         try:
             start_time = time.time()
             response = self.llm_client.chat(
                 messages=[
                     {"role": "system", "content": "You are a JSON repair assistant. Output only valid JSON."},
-                    {"role": "user", "content": _REPAIR_JSON_PROMPT + truncated_input}
+                    {"role": "user", "content": _REPAIR_JSON_PROMPT + sanitized_input}
                 ],
                 temperature=0.0,  # Deterministic for repair
-                max_tokens=1000   # Output token budget
+                max_tokens=settings.llm_json_repair_max_tokens
             )
             repair_time_ms = (time.time() - start_time) * 1000
 
@@ -800,6 +836,32 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                 }
             )
             return None
+
+    def _sanitize_json_input(self, content: str) -> str:
+        """
+        Sanitize JSON input to prevent prompt injection attacks.
+
+        EPIC B Phase 3: Prompt injection protection (MorningAI Code Review feedback)
+        Removes or escapes potentially malicious content that could hijack the repair prompt.
+
+        Uses pre-compiled regex patterns from PROMPT_INJECTION_PATTERNS for performance.
+        Patterns include common instruction overrides, role manipulation attempts,
+        and model-specific control tokens (Llama [INST], Mistral <<SYS>>, ChatML <|im_start|>).
+
+        Args:
+            content: Raw broken JSON string
+
+        Returns:
+            Sanitized JSON string safe for LLM input
+        """
+        if not content:
+            return content
+
+        sanitized = content
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            sanitized = pattern.sub('[SANITIZED]', sanitized)
+
+        return sanitized
 
     def _clean_json_response(self, content: str) -> str:
         """
