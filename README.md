@@ -145,6 +145,8 @@ HTTP Request → API Backend → Redis Queue → Worker → LangGraph Orchestrat
 
 ### 架構圖
 
+> **Note**: The diagram includes a retry loop (fixer_node → executor_node) when CI fails.
+
 ```mermaid
 graph TB
     A[HTTP Request] --> B[API Backend<br/>morningai-backend-v2]
@@ -157,7 +159,7 @@ graph TB
     H --> I{CI Pass?}
     I -->|Yes| J[finalizer_node]
     I -->|No| K[fixer_node<br/>Auto-fix]
-    K --> G
+    K -->|Retry| G
     J --> L[Task Complete]
     
     style E fill:#fff4e1,stroke:#f57c00,stroke-width:3px

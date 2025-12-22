@@ -23,11 +23,16 @@ This guide will help you get started with the MorningAI project, understand the 
 | **Level 3** (參考) | 程式碼註解 (Comments) 與 Docstrings | 可能過期但通常準確 |
 | **Level 4** (僅供參考) | README 與外部文件 | 可能有延遲，以上層為準 |
 
-**範例**：如果 README 說「支援雙模式架構」，但 `simple-mode-guard.yml` CI workflow 會阻擋 Simple Mode 代碼，則以 CI 為準 — Simple Mode 已被移除。
+**關鍵 CI Workflows**：
+- [`simple-mode-guard.yml`](.github/workflows/simple-mode-guard.yml) - 防止重新引入已廢棄的 Simple Mode 代碼
+- [`backend.yml`](.github/workflows/backend.yml) - Backend lint、測試、覆蓋率
+- [`frontend.yml`](.github/workflows/frontend.yml) - Frontend build、typecheck、E2E
+
+**範例**：如果 README 說「支援雙模式架構」，但 [`simple-mode-guard.yml`](.github/workflows/simple-mode-guard.yml) CI workflow 會阻擋 Simple Mode 代碼，則以 CI 為準 — Simple Mode 已被移除。
 
 **調查順序建議**：
 1. 先查 `CHANGELOG.md` 和最近的 merged PRs
-2. 檢查相關的 CI workflows（如 `simple-mode-guard.yml`）
+2. 檢查相關的 CI workflows（如 [`simple-mode-guard.yml`](.github/workflows/simple-mode-guard.yml)）
 3. 再看 README 和其他文件做補充理解
 
 ---

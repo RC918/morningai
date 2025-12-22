@@ -198,23 +198,27 @@ def evaluate_execution_policy(
     repo: str = ""
 ) -> Dict[str, Any]:
     """
-    Policy Observability for Core Executor
+    Policy Observability Telemetry for Core Executor (graph.execute)
 
-    Evaluates policy enforcement for task execution. Records risk levels
-    and what would have happened if enforcement was enabled.
+    Records policy evaluation metrics for monitoring and analysis. This function
+    is OBSERVABILITY-ONLY - it logs what would have happened under different
+    enforcement modes but does NOT block or gate execution. Actual enforcement
+    (budget exceeded, rate limited) is handled by the caller before invoking
+    this function.
 
-    Uses the same schema as LangGraph policy_enforcement_node for unified
-    observability.
+    The return value is currently unused by callers; this function exists to
+    provide unified telemetry compatible with LangGraph's policy_enforcement_node
+    schema for cross-mode observability dashboards.
 
     Args:
-        trace_id: Unique task identifier
+        trace_id: Unique task identifier for correlation
         cost_risk: Risk level from cost evaluation (info/low/medium/high/critical)
-        rate_limit_risk: Risk level from rate limit check
-        goal: Task goal/description
+        rate_limit_risk: Risk level from rate limit check (info/low/medium/high/critical)
+        goal: Task goal/description (truncated to 100 chars in output)
         repo: Repository being operated on
 
     Returns:
-        Dict with policy evaluation results in unified schema
+        Dict with policy evaluation telemetry in unified schema (not used for enforcement)
     """
     from common.config.settings import get_settings
 
