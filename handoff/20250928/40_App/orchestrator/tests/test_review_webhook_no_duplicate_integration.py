@@ -266,9 +266,9 @@ class TestMarkerEmbeddingAndDetection:
             "morningai:autogen-review",
         ]
 
-        for partial_marker in partial_markers:
+        for i, partial_marker in enumerate(partial_markers):
             event = WebhookEvent(
-                event_id=f"test-partial-{hash(partial_marker)}",
+                event_id=f"test-partial-{i}",
                 source=WebhookSource.GITHUB,
                 event_type=WebhookEventType.PR_REVIEWED,
                 timestamp=datetime.now(timezone.utc),
@@ -517,5 +517,4 @@ Content with [SANITIZED] prompt injection removed.
         assert is_self_generated_review(event) is True
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+if __name__ == "__main__": pytest.main([__file__, "-v"])
