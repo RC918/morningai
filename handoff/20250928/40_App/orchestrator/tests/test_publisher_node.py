@@ -1060,7 +1060,10 @@ class TestReviewDedupFunctions:
         """When redis_url is None, should return (False, None) - Redis not configured"""
         mock_settings = MockSettings(redis_url=None)
 
-        with patch("common.config.settings.settings", mock_settings):
+        # Patch tools.github_api.settings directly because settings is imported at module level
+        # with "from common.config.settings import settings", so patching common.config.settings.settings
+        # doesn't affect the already-bound settings in tools.github_api
+        with patch("tools.github_api.settings", mock_settings):
             from tools.github_api import _check_review_already_posted
 
             already_posted, dedup_key = _check_review_already_posted(
