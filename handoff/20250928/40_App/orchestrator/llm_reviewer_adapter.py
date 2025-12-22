@@ -685,6 +685,8 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         """
         Parse JSON with retry and repair logic
 
+        EPIC B Phase 3 P3: Added LLM-based JSON repair for truncated responses
+
         Args:
             content: Raw LLM response
             use_json_mode: Whether JSON mode was used
@@ -693,20 +695,105 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             Parsed review dict
 
         Raises:
-            json.JSONDecodeError: If parsing fails after retry
+            json.JSONDecodeError: If parsing fails after all repair attempts
         """
+        # First attempt: direct parse
         try:
             return json.loads(content)
         except json.JSONDecodeError as e:
-            logger.warning(f"[LLM Reviewer] First parse attempt failed: {e}, attempting repair")
+            logger.warning(f"[LLM Reviewer] First parse attempt failed: {e}, attempting regex repair")
 
+        # Second attempt: regex-based cleaning
+        try:
+            cleaned_content = self._clean_json_response(content)
+            logger.info(f"[LLM Reviewer] Cleaned content for trace_id={self.trace_id}")
+            return json.loads(cleaned_content)
+        except json.JSONDecodeError as e2:
+            logger.warning(f"[LLM Reviewer] Regex repair failed: {e2}, attempting LLM repair")
+
+        # Third attempt: LLM-based repair (EPIC B Phase 3 P3)
+        # Only attempt if feature is enabled and we have a client
+        if getattr(settings, 'enable_llm_json_repair', True) and self.llm_client:
             try:
-                cleaned_content = self._clean_json_response(content)
-                logger.info(f"[LLM Reviewer] Cleaned content for trace_id={self.trace_id}")
-                return json.loads(cleaned_content)
-            except json.JSONDecodeError as e2:
-                logger.error(f"[LLM Reviewer] Failed to parse even after cleaning: {e2}")
-                raise e2
+                repaired_json = self._repair_json_with_llm(content)
+                if repaired_json:
+                    return json.loads(repaired_json)
+            except json.JSONDecodeError as e3:
+                logger.error(f"[LLM Reviewer] LLM repair also failed: {e3}")
+            except Exception as repair_error:
+                logger.warning(f"[LLM Reviewer] LLM repair error: {repair_error}")
+
+        # All repair attempts failed
+        logger.error("[LLM Reviewer] Failed to parse JSON after all repair attempts")
+        raise json.JSONDecodeError("All JSON repair attempts failed", content, 0)
+
+    def _repair_json_with_llm(self, broken_json: str) -> Optional[str]:
+        """
+        Use LLM to repair truncated or malformed JSON.
+
+        EPIC B Phase 3 P3: LLM-based JSON repair for truncated responses
+
+        Args:
+            broken_json: The malformed JSON string
+
+        Returns:
+            Repaired JSON string, or None if repair fails
+        """
+        repair_prompt = """You are a JSON repair assistant. The following JSON is malformed or truncated.
+Please complete and fix it to be valid JSON. Output ONLY the repaired JSON, nothing else.
+
+The JSON should have this structure:
+{
+  "quality_score": <integer 0-100>,
+  "severity": "<none|low|medium|high|critical>",
+  "summary": "<string>",
+  "decision": "<approve|needs_changes|request_changes>",
+  "comments": [{"file": "<path>", "line": <int or null>, "message": "<string>", "severity": "<string>"}]
+}
+
+Broken JSON:
+"""
+        # Truncate broken JSON to avoid token limits (keep first 2000 chars)
+        truncated_input = broken_json[:2000] if len(broken_json) > 2000 else broken_json
+
+        try:
+            start_time = time.time()
+            response = self.llm_client.chat(
+                messages=[
+                    {"role": "system", "content": "You are a JSON repair assistant. Output only valid JSON."},
+                    {"role": "user", "content": repair_prompt + truncated_input}
+                ],
+                temperature=0.0,  # Deterministic for repair
+                max_tokens=1000   # Limit output size
+            )
+            repair_time_ms = (time.time() - start_time) * 1000
+
+            repaired = response.content if hasattr(response, 'content') else str(response)
+            repaired = self._clean_json_response(repaired)
+
+            logger.info(
+                "[LLM Reviewer] JSON repair attempted",
+                extra={
+                    "operation": "llm_json_repair",
+                    "trace_id": self.trace_id,
+                    "repair_time_ms": repair_time_ms,
+                    "input_length": len(truncated_input),
+                    "output_length": len(repaired)
+                }
+            )
+
+            return repaired
+
+        except Exception as e:
+            logger.warning(
+                f"[LLM Reviewer] JSON repair LLM call failed: {e}",
+                extra={
+                    "operation": "llm_json_repair",
+                    "trace_id": self.trace_id,
+                    "error": str(e)
+                }
+            )
+            return None
 
     def _clean_json_response(self, content: str) -> str:
         """

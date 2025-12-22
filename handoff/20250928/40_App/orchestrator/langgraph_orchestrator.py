@@ -2889,6 +2889,50 @@ def should_fix_or_finalize(state: AgentState) -> str:
     return outcome
 
 
+def _build_file_level_appendix(
+    file_level_comments: list,
+    line_drift_detected: bool = False,
+    max_comments: int = 10
+) -> str:
+    """
+    Build markdown appendix for file-level comments.
+
+    EPIC B Phase 3 P2: Unified file-level delivery logic
+    This helper ensures consistent formatting across all file-level delivery paths.
+
+    Args:
+        file_level_comments: List of file-level comment dicts
+        line_drift_detected: Whether line drift was detected (adds note)
+        max_comments: Maximum comments to include (default: 10)
+
+    Returns:
+        Markdown string for file-level comments appendix
+    """
+    if not file_level_comments:
+        return ""
+
+    appendix = ""
+    if line_drift_detected:
+        appendix += "\n\n*Note: New commits detected since review. Comments delivered as file-level for safety.*"
+
+    appendix += "\n\n### File-Level Comments\n\n"
+
+    # Limit comments to prevent overly long review bodies
+    comments_to_show = file_level_comments[:max_comments]
+    truncated_count = len(file_level_comments) - len(comments_to_show)
+
+    for comment in comments_to_show:
+        file_path = comment.get("file", "General")
+        message = comment.get("message", "")
+        severity = comment.get("severity", "info")
+        appendix += f"**{file_path}** ({severity})\n{message}\n\n"
+
+    if truncated_count > 0:
+        appendix += f"*...and {truncated_count} more file-level comments (truncated)*\n\n"
+
+    return appendix
+
+
 def publisher_node(state: AgentState) -> AgentState:
     """
     Publisher node: Posts review comments to GitHub as inline PR review.
@@ -3147,17 +3191,12 @@ def publisher_node(state: AgentState) -> AgentState:
             try:
                 from tools.github_api import get_repo, post_pr_review
 
-                # Build review body with file-level comments as markdown appendix
-                file_level_body = "## MorningAI Code Review\n\n"
-                if line_drift_detected:
-                    file_level_body += "*Note: New commits detected since review. Comments delivered as file-level for safety.*\n\n"
-                file_level_body += "### File-Level Comments\n\n"
-                for comment in file_level_comments:
-                    # P3 Follow-up: Simplified field access (schema guarantees canonical fields)
-                    file_path = comment.get("file", "General")
-                    message = comment.get("message", "")
-                    severity = comment.get("severity", "info")
-                    file_level_body += f"**{file_path}** ({severity})\n{message}\n\n"
+                # EPIC B Phase 3 P2: Use unified helper for file-level appendix
+                file_level_body = "## MorningAI Code Review"
+                file_level_body += _build_file_level_appendix(
+                    file_level_comments,
+                    line_drift_detected=line_drift_detected
+                )
 
                 repo = get_repo()
                 result = post_pr_review(
@@ -3216,6 +3255,12 @@ def publisher_node(state: AgentState) -> AgentState:
 
         repo = get_repo()
 
+        # EPIC B Phase 3 P2: Build summary with file-level comments appendix
+        # This ensures file-level comments are delivered even when inline comments exist
+        review_summary = "## MorningAI Code Review"
+        if file_level_comments:
+            review_summary += _build_file_level_appendix(file_level_comments)
+
         # Phase 3 P2: Pass commit_id to pin review to specific commit
         # This prevents 422 errors from race conditions where new commits
         # are pushed between diff generation and review posting
@@ -3223,15 +3268,15 @@ def publisher_node(state: AgentState) -> AgentState:
             repo=repo,
             pr_number=pr_number,
             comments=inline_comments,
-            summary="MorningAI Code Review",
+            summary=review_summary,
             commit_id=stored_head_sha
         )
 
         state["publish_result"]["success"] = result.get("success", False)
         state["publish_result"]["posted_count"] = result.get("posted_count", 0)
-        state["publish_result"]["skipped_count"] = (
-            result.get("skipped_count", 0) + len(file_level_comments)
-        )
+        # EPIC B Phase 3 P2: file_level_comments are now delivered in body, not skipped
+        state["publish_result"]["file_level_in_body"] = len(file_level_comments)
+        state["publish_result"]["skipped_count"] = result.get("skipped_count", 0)
         state["publish_result"]["truncated_count"] = result.get("truncated_count", 0)
         state["publish_result"]["dry_run"] = result.get("dry_run", False)
         state["publish_result"]["downgraded"] = result.get("downgraded", False)
