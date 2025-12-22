@@ -702,7 +702,7 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         """
         Parse JSON with retry and repair logic.
 
-        Three-stage repair: direct parse -> regex cleaning -> LLM repair (if enabled).
+        Three-stage repair: direct parse -> string cleaning -> LLM repair (if enabled).
 
         Args:
             content: Raw LLM response
@@ -770,7 +770,7 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                     {"role": "user", "content": _REPAIR_JSON_PROMPT + truncated_input}
                 ],
                 temperature=0.0,  # Deterministic for repair
-                max_tokens=1000   # Output token budget (separate from input char truncation)
+                max_tokens=1000   # Output token budget
             )
             repair_time_ms = (time.time() - start_time) * 1000
 
