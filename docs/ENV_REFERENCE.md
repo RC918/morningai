@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 223
+- **Total Variables**: 224
 - **Required**: 21
-- **Optional**: 202
+- **Optional**: 203
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -39,7 +39,7 @@
 - [Payment](#payment) (3 variables)
 - [Agent Evaluation](#agent-evaluation) (5 variables)
 - [Deployment](#deployment) (1 variables)
-- [Debugging](#debugging) (1 variables)
+- [Debugging](#debugging) (2 variables)
 
 ## Authentication
 
@@ -3031,6 +3031,7 @@ Repository root path for production/staging deployments
 | Variable | Type | Required | Default | Security |
 |----------|------|----------|---------|----------|
 | `LOG_TOKEN_EXPIRY_ON_STARTUP` | boolean | No | false | LOW |
+| `BOOTSTRAP_PATHS_DEBUG` | boolean | No | false | LOW |
 
 ### Details
 
@@ -3042,3 +3043,19 @@ Enable debug logging of JWT token expiry configuration on startup
 - **Required**: No
 - **Default**: `false`
 - **Security Level**: LOW
+
+#### `BOOTSTRAP_PATHS_DEBUG`
+
+Enable verbose debug logging for sys.path bootstrap operations
+
+- **Type**: boolean
+- **Required**: No
+- **Default**: `false`
+- **Security Level**: LOW
+
+**Notes**:
+> Set to '1', 'true', or 'yes' to enable debug output for troubleshooting
+> orchestrator import resolution issues. Logs sys.path modifications,
+> module cache clearing, and path resolution details.
+> WARNING: Debug output may include filesystem paths. Do not enable
+> in production unless actively debugging import issues.

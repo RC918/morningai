@@ -62,53 +62,6 @@ jobs:
       - name: Run API Backend tests (development mode)
         working-directory: handoff/20250928/40_App/api-backend
         run: |
-          echo "=== DEBUG: orchestrator import resolution ==="
-          pip list | grep -i '^orchestrator' || echo "No pip orchestrator package found"
-          python <<'PYEOF'
-import sys
-import os
-import importlib.util
-import traceback
-
-print('PYTHONPATH env:', os.environ.get('PYTHONPATH', 'NOT SET'))
-print('sys.path[:15]:', sys.path[:15])
-print('cwd:', os.getcwd())
-
-# Check for orchestrator
-spec = importlib.util.find_spec('orchestrator')
-print('orchestrator spec:', spec)
-if spec:
-    print('orchestrator origin:', spec.origin)
-    print('orchestrator submodule_search_locations:', spec.submodule_search_locations)
-
-import orchestrator
-print('orchestrator.__file__:', orchestrator.__file__)
-print('orchestrator has __path__:', hasattr(orchestrator, '__path__'))
-if hasattr(orchestrator, '__path__'):
-    print('orchestrator.__path__:', list(orchestrator.__path__))
-
-# Check for orchestrator.webhooks
-webhooks_spec = importlib.util.find_spec('orchestrator.webhooks')
-print('orchestrator.webhooks spec:', webhooks_spec)
-
-# Try to import orchestrator.webhooks
-try:
-    import orchestrator.webhooks
-    print('orchestrator.webhooks imported successfully')
-    print('orchestrator.webhooks.__file__:', orchestrator.webhooks.__file__)
-except Exception as e:
-    print('Failed to import orchestrator.webhooks:', e)
-    traceback.print_exc()
-
-# Try to import orchestrator.webhooks.normalizer
-try:
-    import orchestrator.webhooks.normalizer
-    print('orchestrator.webhooks.normalizer imported successfully')
-except Exception as e:
-    print('Failed to import orchestrator.webhooks.normalizer:', e)
-    traceback.print_exc()
-PYEOF
-          echo "=== END DEBUG ==="
           pytest tests/ -v --tb=short --disable-warnings -k "not test_vercel_preview_blocked_in_production"
         env:
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}

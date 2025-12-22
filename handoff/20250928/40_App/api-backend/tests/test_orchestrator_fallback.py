@@ -98,11 +98,10 @@ class TestAIPoliciesEndpointFallback:
     @pytest.fixture
     def mock_jwt(self):
         """Mock JWT authentication to allow requests."""
-        with patch('src.middleware.auth_middleware.verify_jwt_token') as mock:
-            mock.return_value = {'sub': 'test-user-id', 'role': 'admin'}
-            with patch('src.middleware.auth_middleware.get_jwt_identity') as mock_identity:
-                mock_identity.return_value = 'test-user-id'
-                yield mock
+        # Mock the internal decode function that jwt_required uses
+        with patch('src.middleware.auth_middleware._decode_jwt_with_fallback') as mock:
+            mock.return_value = ({'sub': 'test-user-id', 'role': 'admin'}, None)
+            yield mock
     
     def test_list_policies_returns_503_when_unavailable(self, client, mock_jwt):
         """GET /api/ai-policies should return 503 when orchestrator unavailable."""
@@ -223,11 +222,10 @@ class TestGovernanceEndpointFallback:
     @pytest.fixture
     def mock_jwt(self):
         """Mock JWT authentication to allow requests."""
-        with patch('src.middleware.auth_middleware.verify_jwt_token') as mock:
-            mock.return_value = {'sub': 'test-user-id', 'role': 'admin'}
-            with patch('src.middleware.auth_middleware.get_jwt_identity') as mock_identity:
-                mock_identity.return_value = 'test-user-id'
-                yield mock
+        # Mock the internal decode function that jwt_required uses
+        with patch('src.middleware.auth_middleware._decode_jwt_with_fallback') as mock:
+            mock.return_value = ({'sub': 'test-user-id', 'role': 'admin'}, None)
+            yield mock
     
     def test_get_agents_returns_503_when_unavailable(self, client, mock_jwt):
         """GET /api/governance/agents should return 503 when governance unavailable."""
