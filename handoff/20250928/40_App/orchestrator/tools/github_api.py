@@ -1,6 +1,7 @@
 import os
 import logging
 import sys
+from typing import Optional
 from github import Github, GithubException, RateLimitExceededException, UnknownObjectException, BadCredentialsException
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,8 +17,135 @@ from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# P2: Artifact Idempotency - Redis TTL for review deduplication keys
+# Reviews are deduplicated per PR + head SHA + reviewer version
+# TTL of 24 hours ensures keys don't accumulate indefinitely
+REVIEW_DEDUP_TTL_SECONDS = 86400  # 24 hours
+REVIEWER_VERSION = "v1"  # Increment when review logic changes significantly
+
 GITHUB_TOKEN = settings.agent_github_token or settings.github_token
 GITHUB_REPO = settings.github_repo or "RC918/morningai"
+
+# Self-review marker to prevent feedback loop
+# Issue: Self-Trigger Loop Prevention
+# When the orchestrator posts a review, it includes this hidden marker.
+# The webhook normalizer checks for this marker and skips PR_REVIEWED events
+# that contain it, preventing the orchestrator from re-triggering itself.
+MORNINGAI_REVIEW_MARKER = "<!-- morningai:autogen-review -->"
+
+
+def _check_review_already_posted(
+    repo: str,
+    pr_number: int,
+    head_sha: Optional[str],
+) -> tuple[bool, Optional[str]]:
+    """
+    P2: Artifact Idempotency - Check if a review has already been posted for this PR+SHA.
+
+    Issue: Self-Trigger Loop Prevention
+    This provides platform-level protection against duplicate reviews by checking
+    a Redis key before posting. Even if the webhook normalizer fails to filter
+    a self-review, this check prevents duplicate posts.
+
+    Args:
+        repo: Repository in owner/repo format
+        pr_number: Pull request number
+        head_sha: Head commit SHA (if None, skips dedup check)
+
+    Returns:
+        Tuple of (already_posted: bool, dedup_key: str | None)
+        - already_posted: True if review was already posted for this SHA
+        - dedup_key: The Redis key used for deduplication (for logging)
+    """
+    if not head_sha:
+        # Can't deduplicate without SHA, allow posting
+        return False, None
+
+    try:
+        import redis
+        redis_url = getattr(settings, 'redis_url', None)
+        if not redis_url:
+            # Redis not configured, allow posting
+            return False, None
+
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
+
+        # Key format: review_posted:{repo}:{pr}:{head_sha}:{reviewer_version}
+        # This ensures we only post one review per PR+SHA+version combination
+        dedup_key = f"review_posted:{repo}:{pr_number}:{head_sha[:12]}:{REVIEWER_VERSION}"
+
+        # Check if key exists
+        if r.exists(dedup_key):
+            logger.info(
+                f"[GitHub] Review already posted for this SHA, skipping (dedup_key={dedup_key})",
+                extra={
+                    "operation": "review_dedup_hit",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "head_sha": head_sha[:12],
+                    "dedup_key": dedup_key,
+                }
+            )
+            return True, dedup_key
+
+        return False, dedup_key
+
+    except Exception as e:
+        # Redis error, allow posting (graceful degradation)
+        logger.warning(
+            f"[GitHub] Redis error during review dedup check, allowing post: {e}",
+            extra={
+                "operation": "review_dedup_error",
+                "repo": repo,
+                "pr_number": pr_number,
+                "error": str(e),
+            }
+        )
+        return False, None
+
+
+def _mark_review_posted(dedup_key: Optional[str]) -> None:
+    """
+    P2: Artifact Idempotency - Mark that a review has been posted.
+
+    Issue: Self-Trigger Loop Prevention
+    After successfully posting a review, we set the Redis key to prevent
+    duplicate posts for the same PR+SHA combination.
+
+    Args:
+        dedup_key: The Redis key to set (from _check_review_already_posted)
+    """
+    if not dedup_key:
+        return
+
+    try:
+        import redis
+        redis_url = getattr(settings, 'redis_url', None)
+        if not redis_url:
+            return
+
+        r = redis.Redis.from_url(redis_url, decode_responses=True)
+        r.setex(dedup_key, REVIEW_DEDUP_TTL_SECONDS, "1")
+
+        logger.debug(
+            f"[GitHub] Marked review as posted (dedup_key={dedup_key}, ttl={REVIEW_DEDUP_TTL_SECONDS}s)",
+            extra={
+                "operation": "review_dedup_set",
+                "dedup_key": dedup_key,
+                "ttl_seconds": REVIEW_DEDUP_TTL_SECONDS,
+            }
+        )
+
+    except Exception as e:
+        # Redis error, log but don't fail the review
+        logger.warning(
+            f"[GitHub] Failed to mark review as posted: {e}",
+            extra={
+                "operation": "review_dedup_set_error",
+                "dedup_key": dedup_key,
+                "error": str(e),
+            }
+        )
 
 @retry_with_backoff(
     max_retries=API_RETRY_CONFIG.max_retries,
@@ -691,6 +819,41 @@ def post_pr_review(
 
         pr = repo.get_pull(pr_number)
 
+        # P4: PR State Guard - Skip posting to closed/merged PRs
+        # Issue: Self-Trigger Loop Prevention
+        # Reviews on merged PRs can still trigger PR_REVIEWED webhooks,
+        # causing unnecessary resource consumption and potential loops.
+        if pr.state == "closed" or pr.merged:
+            logger.info(
+                f"[GitHub] Skipping review for closed/merged PR #{pr_number} "
+                f"(state={pr.state}, merged={pr.merged})",
+                extra={
+                    "operation": "post_pr_review_skipped",
+                    "pr_number": pr_number,
+                    "pr_state": pr.state,
+                    "pr_merged": pr.merged,
+                    "reason": "pr_closed_or_merged"
+                }
+            )
+            result["success"] = True
+            result["skipped_reason"] = "pr_closed_or_merged"
+            return result
+
+        # P2: Artifact Idempotency - Check if review already posted for this SHA
+        # Issue: Self-Trigger Loop Prevention
+        # This provides platform-level protection against duplicate reviews.
+        repo_full_name = f"{repo.owner.login}/{repo.name}"
+        already_posted, dedup_key = _check_review_already_posted(
+            repo=repo_full_name,
+            pr_number=pr_number,
+            head_sha=commit_id,
+        )
+        if already_posted:
+            result["success"] = True
+            result["skipped_reason"] = "review_already_posted"
+            result["dedup_key"] = dedup_key
+            return result
+
         # Truncate if over limit
         max_comments = settings.github_review_posting_max_comments
         if len(comments) > max_comments:
@@ -814,16 +977,22 @@ def post_pr_review(
                     }
                 )
 
+        # P1: Add self-review marker to prevent feedback loop
+        # Issue: Self-Trigger Loop Prevention
+        # The marker is added at the end of the review body so the webhook
+        # normalizer can detect and skip PR_REVIEWED events from our own reviews.
+        review_body_with_marker = f"{summary}\n\n{MORNINGAI_REVIEW_MARKER}"
+
         if commit_obj:
             pr.create_review(
                 commit=commit_obj,
-                body=summary,
+                body=review_body_with_marker,
                 event="COMMENT",
                 comments=gh_comments
             )
         else:
             pr.create_review(
-                body=summary,
+                body=review_body_with_marker,
                 event="COMMENT",
                 comments=gh_comments
             )
@@ -832,6 +1001,9 @@ def post_pr_review(
         result["posted_count"] = len(gh_comments)
         result["commit_pinning_attempted"] = commit_pinning_attempted
         result["commit_pinning_success"] = commit_pinning_success
+
+        # P2: Mark review as posted for artifact idempotency
+        _mark_review_posted(dedup_key)
 
         logger.info(
             f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments "
@@ -889,6 +1061,9 @@ def post_pr_review(
                     fallback_body += f"- **{c['path']}** (Line {line_info}):\n"
                     fallback_body += f"  {c['body']}\n\n"
 
+                # P1: Add self-review marker to fallback body as well
+                fallback_body += f"\n{MORNINGAI_REVIEW_MARKER}"
+
                 # Post review with body only (no inline comments)
                 pr.create_review(
                     body=fallback_body,
@@ -898,6 +1073,9 @@ def post_pr_review(
                 result["success"] = True
                 result["posted_count"] = len(gh_comments)
                 result["downgraded"] = True
+
+                # P2: Mark review as posted for artifact idempotency (fallback path)
+                _mark_review_posted(dedup_key)
 
                 logger.info(
                     f"[GitHub] Posted fallback review to PR #{pr_number} "
