@@ -850,3 +850,173 @@ class TestPublisherNodeIntegration:
 
                             assert result["publish_result"]["dry_run"] is True
                             assert "DRY-RUN" in result["messages"][-1].content
+
+
+class TestPostPrReviewCommitId:
+    """Tests for post_pr_review() commit_id parameter - EPIC B Phase 3 P2 follow-up"""
+
+    def test_commit_id_passed_to_create_review(self):
+        """When commit_id is provided, should pass commit object to create_review()"""
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+
+        captured_kwargs = [None]
+
+        def capture_create_review(**kwargs):
+            captured_kwargs[0] = kwargs
+
+        mock_pr.create_review.side_effect = capture_create_review
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import post_pr_review
+
+            result = post_pr_review(
+                repo=mock_repo,
+                pr_number=123,
+                comments=[{"file": "test.py", "end_line": 10, "message": "Test"}],
+                commit_id="abc123def456"
+            )
+
+            assert result["success"] is True
+            mock_repo.get_commit.assert_called_once_with("abc123def456")
+            assert captured_kwargs[0] is not None
+            assert captured_kwargs[0].get("commit") == mock_commit
+
+    def test_commit_id_none_does_not_call_get_commit(self):
+        """When commit_id is None, should not call get_commit()"""
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import post_pr_review
+
+            result = post_pr_review(
+                repo=mock_repo,
+                pr_number=123,
+                comments=[{"file": "test.py", "end_line": 10, "message": "Test"}],
+                commit_id=None
+            )
+
+            assert result["success"] is True
+            mock_repo.get_commit.assert_not_called()
+
+    def test_commit_id_get_commit_fails_proceeds_without_commit(self):
+        """When get_commit() fails, should proceed without commit (fail-open)"""
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.side_effect = GithubException(
+            404, {"message": "Commit not found"}, None
+        )
+
+        captured_kwargs = [None]
+
+        def capture_create_review(**kwargs):
+            captured_kwargs[0] = kwargs
+
+        mock_pr.create_review.side_effect = capture_create_review
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import post_pr_review
+
+            result = post_pr_review(
+                repo=mock_repo,
+                pr_number=123,
+                comments=[{"file": "test.py", "end_line": 10, "message": "Test"}],
+                commit_id="invalid_sha"
+            )
+
+            assert result["success"] is True
+            assert captured_kwargs[0] is not None
+            assert "commit" not in captured_kwargs[0]
+
+    def test_commit_id_unknown_object_exception_proceeds_without_commit(self):
+        """When get_commit() raises UnknownObjectException, should proceed without commit"""
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.side_effect = UnknownObjectException(
+            404, {"message": "Not Found"}, None
+        )
+
+        captured_kwargs = [None]
+
+        def capture_create_review(**kwargs):
+            captured_kwargs[0] = kwargs
+
+        mock_pr.create_review.side_effect = capture_create_review
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import post_pr_review
+
+            result = post_pr_review(
+                repo=mock_repo,
+                pr_number=123,
+                comments=[{"file": "test.py", "end_line": 10, "message": "Test"}],
+                commit_id="nonexistent_sha"
+            )
+
+            assert result["success"] is True
+            assert captured_kwargs[0] is not None
+            assert "commit" not in captured_kwargs[0]
+
+    def test_commit_id_logged_in_result(self):
+        """commit_id should be logged in the result extra fields"""
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch("tools.github_api.logger") as mock_logger:
+                from tools.github_api import post_pr_review
+
+                result = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=[{"file": "test.py", "end_line": 10, "message": "Test"}],
+                    commit_id="abc123def456"
+                )
+
+                assert result["success"] is True
+                # Verify commit_id was logged
+                info_calls = [call for call in mock_logger.info.call_args_list]
+                commit_logged = any(
+                    "commit_id" in str(call) for call in info_calls
+                )
+                assert commit_logged

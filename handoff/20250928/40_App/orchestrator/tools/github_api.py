@@ -779,18 +779,24 @@ def post_pr_review(
         # This prevents 422 errors from race conditions where new commits
         # are pushed between diff generation and review posting
         commit_obj = None
+        commit_pinning_attempted = False
+        commit_pinning_success = False
         if commit_id:
+            commit_pinning_attempted = True
             try:
                 commit_obj = repo.get_commit(commit_id)
+                commit_pinning_success = True
                 logger.info(
                     f"[GitHub] Using commit_id for review: {commit_id[:8]}",
                     extra={
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
-                        "commit_id": commit_id[:8]
+                        "commit_id": commit_id[:8],
+                        "commit_pinning_attempted": True,
+                        "commit_pinning_success": True
                     }
                 )
-            except Exception as commit_error:
+            except (GithubException, UnknownObjectException) as commit_error:
                 logger.warning(
                     f"[GitHub] Failed to get commit {commit_id[:8]}, "
                     f"proceeding without commit_id: {commit_error}",
@@ -798,6 +804,8 @@ def post_pr_review(
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
                         "commit_id": commit_id[:8],
+                        "commit_pinning_attempted": True,
+                        "commit_pinning_success": False,
                         "error": str(commit_error)
                     }
                 )
@@ -818,6 +826,8 @@ def post_pr_review(
 
         result["success"] = True
         result["posted_count"] = len(gh_comments)
+        result["commit_pinning_attempted"] = commit_pinning_attempted
+        result["commit_pinning_success"] = commit_pinning_success
 
         logger.info(
             f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments",
@@ -827,7 +837,9 @@ def post_pr_review(
                 "comment_count": len(gh_comments),
                 "skipped_count": result["skipped_count"],
                 "truncated_count": result["truncated_count"],
-                "commit_id": commit_id[:8] if commit_id else None
+                "commit_id": commit_id[:8] if commit_id else None,
+                "commit_pinning_attempted": commit_pinning_attempted,
+                "commit_pinning_success": commit_pinning_success
             }
         )
 
