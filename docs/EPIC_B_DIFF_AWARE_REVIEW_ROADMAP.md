@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2025-12-21
+> Last Updated: 2025-12-22
 
 ## Overview
 
@@ -12,7 +12,7 @@ EPIC B focuses on implementing intelligent PR review with inline comments, ensur
 |-------|--------|-----|
 | Phase 1: Quick Wins | Completed | [#2785](https://github.com/RC918/morningai/pull/2785) |
 | Phase 2: Publishing Correctness | Completed | [#2788](https://github.com/RC918/morningai/pull/2788), [#2803](https://github.com/RC918/morningai/pull/2803) |
-| Phase 3: Security & Reliability | In Progress | - |
+| Phase 3: Security & Reliability | Completed | [#2809](https://github.com/RC918/morningai/pull/2809), [#2829](https://github.com/RC918/morningai/pull/2829), [#2836](https://github.com/RC918/morningai/pull/2836) |
 
 ---
 
@@ -56,7 +56,7 @@ Ensuring reviews are posted correctly despite line drift between review generati
 
 ---
 
-## Phase 3: Security & Reliability (In Progress)
+## Phase 3: Security & Reliability (Completed)
 
 Security improvements and additional reliability enhancements.
 
@@ -65,14 +65,9 @@ Security improvements and additional reliability enhancements.
 | Priority | Item | Description | Status |
 |----------|------|-------------|--------|
 | P1 | Secrets exposure mitigation | `state["diff_content"]` now sanitized before storage using `sanitize_diff_content()` | Done |
-
-### Pending Items
-
-| Priority | Item | Description | Status |
-|----------|------|-------------|--------|
-| P2 | commit_id validation | Verify if missing commit_id in `post_pr_review()` is root cause of 422 errors | Needs Investigation |
-| P2 | Code duplication refactor | Unify file-level delivery logic in publisher_node (Gemini feedback) | Pending |
-| P3 | JSON repair call | When JSON parse fails, retry with LLM to repair truncated JSON | Pending |
+| P2 | commit_id validation | Pass `commit_id` to `post_pr_review()` to pin review to specific commit, preventing 422 errors from race conditions | Done |
+| P2 | Code duplication refactor | Added `_build_file_level_appendix()` helper for unified file-level delivery. File-level comments now included in review body even when inline comments exist | Done |
+| P3 | JSON repair call | Three-stage repair: direct parse → regex clean → LLM repair. Feature flag: `enable_llm_json_repair` (default: False for safer rollout) | Done |
 
 ### Security Audit Finding (Resolved)
 
@@ -110,6 +105,11 @@ These items were completed before the Phase 1/2/3 structure was established:
 | [#2785](https://github.com/RC918/morningai/pull/2785) | Phase 1 Quick Wins | Merged |
 | [#2788](https://github.com/RC918/morningai/pull/2788) | Phase 2 Line Drift Protection | Merged |
 | [#2803](https://github.com/RC918/morningai/pull/2803) | P2 Follow-up Drift Metrics | Merged |
+| [#2809](https://github.com/RC918/morningai/pull/2809) | Phase 3 P1 - Secrets Sanitization | Merged |
+| [#2829](https://github.com/RC918/morningai/pull/2829) | Phase 3 P2 - commit_id validation | Merged |
+| [#2831](https://github.com/RC918/morningai/pull/2831) | commit_pinning metrics logging | Merged |
+| [#2834](https://github.com/RC918/morningai/pull/2834) | extra dict variables fix | Merged |
+| [#2836](https://github.com/RC918/morningai/pull/2836) | Phase 3 P2/P3 - unified file-level delivery and LLM JSON repair | Open |
 
 ---
 
