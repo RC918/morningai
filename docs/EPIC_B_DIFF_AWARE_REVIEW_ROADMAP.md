@@ -13,6 +13,7 @@ EPIC B focuses on implementing intelligent PR review with inline comments, ensur
 | Phase 1: Quick Wins | Completed | [#2785](https://github.com/RC918/morningai/pull/2785) |
 | Phase 2: Publishing Correctness | Completed | [#2788](https://github.com/RC918/morningai/pull/2788), [#2803](https://github.com/RC918/morningai/pull/2803) |
 | Phase 3: Security & Reliability | Completed | [#2809](https://github.com/RC918/morningai/pull/2809), [#2829](https://github.com/RC918/morningai/pull/2829), [#2836](https://github.com/RC918/morningai/pull/2836) |
+| Phase 4: Checks API (P6) | Planned | - |
 
 ---
 
@@ -147,3 +148,62 @@ Before full production rollout, verify:
    - Inline comments are posted correctly
    - No drift note in review body
    - `line_drift_detected` is false in logs
+
+---
+
+## Phase 4: Checks API (P6) - Planned
+
+> **Status**: Planned - Not yet started
+> **Target**: 2026 Full-Auto PR Lifecycle
+
+### Overview
+
+Phase 4 extends the Reviewer output from PR Review Comments (human-readable) to GitHub Checks API (machine-readable), enabling automated branch protection gates and governance integration.
+
+### Blueprint Alignment
+
+| Blueprint Goal | P6 Relevance |
+|---------------|--------------|
+| "AI 自己審查" (Reviewer Agent) | Current PR Review API already satisfies |
+| "可機器治理、自動管理" (Governance Layer) | Checks API is better suited - single updatable artifact, status gate support |
+| "Full-Auto PR Lifecycle" (2026 Goal) | Checks API is essential - can be required by branch protection, read by automation systems |
+| "可預測性、安全性" (Ecosystem Guarantees) | Both approaches satisfy |
+
+### Prerequisites
+
+Before implementing P6, the following must be completed:
+
+| Prerequisite | Description | Status |
+|--------------|-------------|--------|
+| Integration Test | Automated "send review → receive webhook → verify no duplicate" flow | Pending |
+| Monitoring & Alerts | Verify P1-P4 stability | Pending |
+| GitHub App Identity Boundary | Migrate from PAT to GitHub App for proper permissions | Pending |
+
+### Why Not Now
+
+- **GitHub App Required**: Currently using PAT; Checks API requires GitHub App permissions
+- **Branch Protection Decision**: Need to decide if AI reviewer results should be used as merge gates
+- **Webhook Normalizer**: Need to confirm `check_run`/`check_suite` events won't create new loops
+- **UX Location Change**: Reviews appear in Conversation/Files changed (for humans); Checks appear in Checks tab (for machines)
+
+### Planned Items
+
+| Item | Description | Status |
+|------|-------------|--------|
+| P6-1 GitHub App Setup | Create GitHub App with `checks:write` permission | Planned |
+| P6-2 Checks API Integration | Implement `create_check_run()` and `update_check_run()` | Planned |
+| P6-3 Dual-Write Strategy | Feature flag to write both Review (human) + Check (machine gate) | Planned |
+| P6-4 Branch Protection Integration | Document how to configure branch protection with AI reviewer check | Planned |
+| P6-5 Webhook Handler Update | Handle `check_run`/`check_suite` events in normalizer | Planned |
+
+### Implementation Strategy
+
+**Recommended Milestone Order**:
+
+1. **Now**: Complete Integration Test + Monitoring/Alerts (verify P1-P4 stability)
+2. **Next**: Establish GitHub App identity boundary (P6 prerequisite)
+3. **Then**: P6 Checks API (dual-write strategy: send review for humans + check for machine gate)
+
+### Conclusion
+
+P6 is "Governance Interface for 2026 Full-Auto PR Lifecycle" - should be on roadmap but wait for prerequisites to be ready.
