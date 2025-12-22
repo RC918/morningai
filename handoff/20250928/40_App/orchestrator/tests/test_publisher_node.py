@@ -33,7 +33,8 @@ class MockSettings:
         github_review_posting_max_comments=10,
         agent_github_token="test-token",
         github_token="test-token",
-        github_repo="test/repo"
+        github_repo="test/repo",
+        redis_url=None  # Disable Redis dedup in tests
     ):
         self.enable_github_review_posting = enable_github_review_posting
         self.github_review_posting_dry_run = github_review_posting_dry_run
@@ -41,6 +42,20 @@ class MockSettings:
         self.agent_github_token = agent_github_token
         self.github_token = github_token
         self.github_repo = github_repo
+        self.redis_url = redis_url
+
+
+def create_mock_pr():
+    """
+    Create a mock PR object with proper state for testing.
+
+    P4: PR State Guard uses allowlist approach (state must be "open").
+    All mock PRs need explicit state="open" and merged=False to pass the guard.
+    """
+    mock_pr = MagicMock()
+    mock_pr.state = "open"
+    mock_pr.merged = False
+    return mock_pr
 
 
 class TestPostPrReviewFeatureFlags:
@@ -72,7 +87,7 @@ class TestPostPrReviewFeatureFlags:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         with patch("common.config.settings.settings", mock_settings):
@@ -98,7 +113,7 @@ class TestPostPrReviewFeatureFlags:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         with patch("common.config.settings.settings", mock_settings):
@@ -127,7 +142,7 @@ class TestPostPrReviewFallback:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         call_count = [0]
@@ -161,7 +176,7 @@ class TestPostPrReviewFallback:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         call_count = [0]
@@ -194,7 +209,7 @@ class TestPostPrReviewFallback:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         call_count = [0]
@@ -228,7 +243,7 @@ class TestPostPrReviewFallback:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         mock_pr.create_review.side_effect = [
@@ -259,7 +274,7 @@ class TestPostPrReviewFallback:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         call_count = [0]
@@ -308,7 +323,7 @@ class TestPostPrReviewOtherErrors:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
         mock_pr.create_review.side_effect = GithubException(401, {"message": "Unauthorized"}, None)
 
@@ -335,7 +350,7 @@ class TestPostPrReviewOtherErrors:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
         mock_pr.create_review.side_effect = GithubException(403, {"message": "Forbidden"}, None)
 
@@ -423,7 +438,7 @@ class TestPostPrReviewCommentProcessing:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         with patch("common.config.settings.settings", mock_settings):
@@ -453,7 +468,7 @@ class TestPostPrReviewCommentProcessing:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         comments = [
@@ -483,7 +498,7 @@ class TestPostPrReviewCommentProcessing:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         captured_comments = [None]
@@ -519,7 +534,7 @@ class TestPostPrReviewCommentProcessing:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         captured_comments = [None]
@@ -864,7 +879,7 @@ class TestPostPrReviewCommitId:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_commit = MagicMock()
         mock_repo.get_pull.return_value = mock_pr
         mock_repo.get_commit.return_value = mock_commit
@@ -900,7 +915,7 @@ class TestPostPrReviewCommitId:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
 
         with patch("common.config.settings.settings", mock_settings):
@@ -925,7 +940,7 @@ class TestPostPrReviewCommitId:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
         mock_repo.get_commit.side_effect = GithubException(
             404, {"message": "Commit not found"}, None
@@ -961,7 +976,7 @@ class TestPostPrReviewCommitId:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_repo.get_pull.return_value = mock_pr
         mock_repo.get_commit.side_effect = UnknownObjectException(
             404, {"message": "Not Found"}, None
@@ -997,7 +1012,7 @@ class TestPostPrReviewCommitId:
         )
 
         mock_repo = MagicMock()
-        mock_pr = MagicMock()
+        mock_pr = create_mock_pr()
         mock_commit = MagicMock()
         mock_repo.get_pull.return_value = mock_pr
         mock_repo.get_commit.return_value = mock_commit
@@ -1020,3 +1035,95 @@ class TestPostPrReviewCommitId:
                     "commit_id" in str(call) for call in info_calls
                 )
                 assert commit_logged
+
+
+class TestReviewDedupFunctions:
+    """Tests for _check_review_already_posted and _mark_review_posted - P2 Artifact Idempotency"""
+
+    def test_check_review_no_head_sha_returns_not_posted(self):
+        """When head_sha is None, should return (False, None) - can't deduplicate without SHA"""
+        mock_settings = MockSettings()
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import _check_review_already_posted
+
+            already_posted, dedup_key = _check_review_already_posted(
+                repo="test/repo",
+                pr_number=123,
+                head_sha=None,
+            )
+
+            assert already_posted is False
+            assert dedup_key is None
+
+    def test_check_review_no_redis_url_returns_not_posted(self):
+        """When redis_url is None, should return (False, None) - Redis not configured"""
+        mock_settings = MockSettings(redis_url=None)
+
+        # Patch tools.github_api.settings directly because settings is imported at module level
+        # with "from common.config.settings import settings", so patching common.config.settings.settings
+        # doesn't affect the already-bound settings in tools.github_api
+        with patch("tools.github_api.settings", mock_settings):
+            from tools.github_api import _check_review_already_posted
+
+            already_posted, dedup_key = _check_review_already_posted(
+                repo="test/repo",
+                pr_number=123,
+                head_sha="abc123def456",
+            )
+
+            assert already_posted is False
+            assert dedup_key is None
+
+    def test_check_review_redis_error_returns_not_posted_graceful_degradation(self):
+        """When Redis raises an error, should return (False, None) - graceful degradation"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch("redis.Redis.from_url", side_effect=Exception("Connection refused")):
+                from tools.github_api import _check_review_already_posted
+
+                already_posted, dedup_key = _check_review_already_posted(
+                    repo="test/repo",
+                    pr_number=123,
+                    head_sha="abc123def456",
+                )
+
+                assert already_posted is False
+                assert dedup_key is None
+
+    def test_mark_review_no_dedup_key_does_nothing(self):
+        """When dedup_key is None, should do nothing"""
+        mock_settings = MockSettings()
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import _mark_review_posted
+
+            # Should not raise any exception
+            _mark_review_posted(dedup_key=None)
+
+    def test_mark_review_no_redis_url_does_nothing(self):
+        """When redis_url is None, should do nothing"""
+        mock_settings = MockSettings(redis_url=None)
+
+        with patch("common.config.settings.settings", mock_settings):
+            from tools.github_api import _mark_review_posted
+
+            # Should not raise any exception
+            _mark_review_posted(dedup_key="review_posted:test/repo:123:abc123:v1")
+
+    def test_mark_review_redis_error_does_not_raise(self):
+        """When Redis raises an error, should not raise - graceful degradation"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_redis = MagicMock()
+        mock_redis.setex.side_effect = Exception("Connection refused")
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch("redis.Redis.from_url", return_value=mock_redis):
+                from tools.github_api import _mark_review_posted
+
+                # Should not raise any exception
+                _mark_review_posted(dedup_key="review_posted:test/repo:123:abc123:v1")
