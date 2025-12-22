@@ -25,6 +25,11 @@ try:
 except Exception as e:
     print(f"Warning: AI Policy module not available: {e}")
     AI_POLICY_AVAILABLE = False
+    # Define stubs so tests can still patch these symbols
+    PolicyType = None
+    PolicyScope = None
+    PolicyStatus = None
+    get_ai_policy_manager = None
 
 logger = logging.getLogger(__name__)
 

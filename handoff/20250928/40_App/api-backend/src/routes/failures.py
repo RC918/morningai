@@ -11,6 +11,9 @@ try:
 except Exception as e:
     logger.warning(f"Failure recorder module not available: {e}")
     FAILURE_RECORDER_AVAILABLE = False
+    # Define stubs so tests can still patch these symbols
+    init_failure_recorder_from_env = None
+    FailureRecorder = None
 
 try:
     from orchestrator.agent_eval_integration import init_agent_eval_from_env, AgentEvalIntegration
@@ -18,6 +21,9 @@ try:
 except Exception as e:
     logger.warning(f"Agent eval integration module not available: {e}")
     AGENT_EVAL_AVAILABLE = False
+    # Define stubs so tests can still patch these symbols
+    init_agent_eval_from_env = None
+    AgentEvalIntegration = None
 
 from src.middleware.auth_middleware import jwt_required  # noqa: E402
 

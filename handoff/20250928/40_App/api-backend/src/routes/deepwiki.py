@@ -33,6 +33,9 @@ try:
     DEEPWIKI_AVAILABLE = True
 except ImportError as e:
     logger.warning("DeepWiki service not available: %s", e)
+    # Define stubs so tests can still patch these symbols
+    get_deepwiki_service = None
+    QueryType = None
 
 bp = Blueprint('deepwiki', __name__, url_prefix='/api/deepwiki')
 

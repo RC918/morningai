@@ -14,6 +14,9 @@ try:
 except Exception as e:
     logger.warning(f"Experiment manager module not available: {e}")
     EXPERIMENT_MANAGER_AVAILABLE = False
+    # Define stubs so tests can still patch these symbols
+    get_experiment_manager = None
+    ExperimentManager = None
 
 try:
     from orchestrator.experiment_metrics import (
@@ -24,6 +27,9 @@ try:
 except Exception as e:
     logger.warning(f"Experiment metrics module not available: {e}")
     EXPERIMENT_METRICS_AVAILABLE = False
+    # Define stubs so tests can still patch these symbols
+    get_metrics_collector = None
+    get_experiment_analyzer = None
 
 try:
     from orchestrator.persistence.planner_events_store import get_metrics_by_provider
@@ -31,6 +37,8 @@ try:
 except Exception as e:
     logger.warning(f"Planner events store not available: {e}")
     METRICS_STORE_AVAILABLE = False
+    # Define stubs so tests can still patch these symbols
+    get_metrics_by_provider = None
 
 from src.middleware.auth_middleware import jwt_required  # noqa: E402
 
