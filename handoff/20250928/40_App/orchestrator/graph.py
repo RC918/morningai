@@ -257,9 +257,9 @@ def evaluate_execution_policy(
     threshold_name = SEVERITY_TO_RISK.get(threshold, "none")
 
     policy_event = {
-        "event_type": "simple_mode_policy_evaluation",
+        "event_type": "execution_policy_evaluation",
         "trace_id": trace_id,
-        "orchestrator_mode": "simple",
+        "orchestrator_mode": "langgraph",
         "enforcement_mode": mode,
         "advisor_risks": advisor_risks,
         "worst_advisor": worst_advisor,
@@ -275,9 +275,9 @@ def evaluate_execution_policy(
     }
 
     logger.info(
-        "[SimpleMode][PolicyObservability] Policy evaluation",
+        "[Executor][PolicyObservability] Policy evaluation",
         extra={
-            "operation": "simple_mode_policy_evaluation",
+            "operation": "execution_policy_evaluation",
             "trace_id": trace_id,
             "enforcement_mode": mode,
             "worst_advisor": worst_advisor,
@@ -289,9 +289,9 @@ def evaluate_execution_policy(
 
     if would_block:
         logger.warning(
-            "[SimpleMode][PolicyObservability] Would have blocked execution",
+            "[Executor][PolicyObservability] Would have blocked execution",
             extra={
-                "operation": "simple_mode_policy_would_block",
+                "operation": "execution_policy_would_block",
                 "trace_id": trace_id,
                 "enforcement_mode": mode,
                 "worst_advisor": worst_advisor,
