@@ -26,15 +26,6 @@ except ImportError:
 # Try to import DeepWiki service
 DEEPWIKI_AVAILABLE = False
 try:
-    import sys
-    import os
-    # Add orchestrator path to sys.path for DeepWiki imports
-    orchestrator_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../../orchestrator")
-    )
-    if orchestrator_path not in sys.path:
-        sys.path.insert(0, orchestrator_path)
-
     from deepwiki.service import (
         get_deepwiki_service,
         QueryType,
@@ -42,6 +33,9 @@ try:
     DEEPWIKI_AVAILABLE = True
 except ImportError as e:
     logger.warning("DeepWiki service not available: %s", e)
+    # Define stubs so tests can still patch these symbols
+    get_deepwiki_service = None
+    QueryType = None
 
 bp = Blueprint('deepwiki', __name__, url_prefix='/api/deepwiki')
 

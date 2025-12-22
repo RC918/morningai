@@ -24,6 +24,13 @@ src_dir = backend_dir / "src"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 
+# Add 40_App directory for 'import orchestrator.governance...' style imports
+# This must come BEFORE orchestrator_dir for correct import resolution
+app_dir = backend_dir.parent  # 40_App directory
+if str(app_dir) not in sys.path:
+    sys.path.insert(0, str(app_dir))
+
+# Add orchestrator directory for 'import persistence...' style imports (top-level)
 orchestrator_dir = backend_dir.parent / "orchestrator"
 if orchestrator_dir.exists() and str(orchestrator_dir) not in sys.path:
     sys.path.insert(0, str(orchestrator_dir))
