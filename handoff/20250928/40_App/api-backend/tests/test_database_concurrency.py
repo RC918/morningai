@@ -38,13 +38,17 @@ class TestDatabaseConcurrentInit:
         # Get the path to the api-backend directory
         backend_dir = Path(__file__).resolve().parent.parent
         src_dir = backend_dir / "src"
-        orchestrator_dir = backend_dir.parent / "orchestrator"
+        app_dir = backend_dir.parent  # 40_App directory (parent of orchestrator)
+        orchestrator_dir = app_dir / "orchestrator"
         
         # Build PYTHONPATH
+        # Note: app_dir (40_App) must be included for 'import orchestrator.governance...' to work
+        # orchestrator_dir is included for 'import persistence...' (top-level imports)
         pythonpath_parts = [
+            str(app_dir),  # For orchestrator.* imports
             str(src_dir),
             str(backend_dir),
-            str(orchestrator_dir),
+            str(orchestrator_dir),  # For persistence.* imports
         ]
         pythonpath = os.pathsep.join(pythonpath_parts)
         

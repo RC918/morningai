@@ -7,19 +7,30 @@ from common.config.settings import settings as app_settings, get_settings
 from pathlib import Path
 # Path calculation: main.py -> src/ -> api-backend/ -> 40_App/ -> 20250928/ -> handoff/ -> repo root
 repo_root = Path(__file__).resolve().parents[5]  # api-backend/src/main.py -> repo root
+# IMPORTANT: Use append() instead of insert(0) to avoid shadowing 40_App's orchestrator
+# The 40_App directory must remain at the front of sys.path for orchestrator imports
 if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
+    sys.path.append(str(repo_root))
     logging.basicConfig(level=logging.INFO)
-    logging.info(f"Added repo root to sys.path: {repo_root}")
+    logging.info(f"Added repo root to sys.path (appended): {repo_root}")
 
 # Add 40_App directory to sys.path so that 'orchestrator' package can be imported
 # The import 'from orchestrator.xxx' requires the parent of 'orchestrator' in sys.path
 app_dir = app_settings.orchestrator_path
-if not app_dir:
-    # Point to 40_App directory (parent of orchestrator), not orchestrator itself
-    app_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../..")
-    )
+if app_dir:
+    # Resolve relative paths to absolute paths using repo_root
+    app_dir_path = Path(app_dir)
+    if not app_dir_path.is_absolute():
+        app_dir_path = repo_root / app_dir
+    app_dir_path = app_dir_path.resolve()
+    # If path points to orchestrator directory, use its parent (40_App) for imports
+    if app_dir_path.name == 'orchestrator':
+        app_dir_path = app_dir_path.parent
+    app_dir = str(app_dir_path)
+else:
+    # Fallback: compute 40_App directory from this file's location
+    # Path: main.py -> src/ -> api-backend/ -> 40_App/
+    app_dir = str(Path(__file__).resolve().parent.parent.parent)
 
 if os.path.exists(app_dir) and app_dir not in sys.path:
     sys.path.insert(0, app_dir)
@@ -77,10 +88,12 @@ except ImportError as e:
 
 # Phase 4-6 API imports (module-level for availability flag)
 try:
-    morningai_root = os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..", ".."
-    )
-    sys.path.insert(0, morningai_root)
+    # Reuse repo_root computed at module top (line 9) instead of recomputing
+    # IMPORTANT: Use append() instead of insert(0) to avoid shadowing 40_App's orchestrator
+    # The 40_App directory must remain at the front of sys.path for orchestrator imports
+    repo_root_str = str(repo_root)
+    if repo_root_str not in sys.path:
+        sys.path.append(repo_root_str)
     from phase4_meta_agent_api import (
         api_meta_agent_ooda_cycle,
         api_create_langgraph_workflow,

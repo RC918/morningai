@@ -7,8 +7,6 @@ Issue: #1816
 Phase: Phase 3 - Autonomous Expansion
 """
 import logging
-import os
-import sys
 from datetime import datetime
 from functools import wraps
 from flask import Blueprint, jsonify, request
@@ -16,16 +14,6 @@ from flask import Blueprint, jsonify, request
 from src.middleware.auth_middleware import jwt_required, admin_required
 
 logger = logging.getLogger(__name__)
-
-# Setup paths for HITL module import
-# From routes/ -> src -> api-backend -> 40_App -> 20250928 -> handoff -> repo_root (6 levels)
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-orchestrator_path = os.path.join(project_root, 'handoff/20250928/40_App/orchestrator')
-if orchestrator_path not in sys.path:
-    sys.path.insert(0, orchestrator_path)
 
 try:
     from hitl import (  # noqa: E402
