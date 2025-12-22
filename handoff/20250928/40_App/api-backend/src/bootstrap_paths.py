@@ -32,8 +32,7 @@ def _add_to_sys_path(path: str, description: str) -> bool:
     normalized_sys_path = [_normalize_path(p) for p in sys.path if p]
     if normalized not in normalized_sys_path:
         sys.path.insert(0, normalized)
-        if os.getenv('DEBUG_IMPORTS'):
-            _logger.info(f"bootstrap_paths: added {description}={normalized}")
+        _logger.debug(f"bootstrap_paths: added {description}={normalized}")
         return True
     return False
 
@@ -52,8 +51,7 @@ def _clear_conflicting_orchestrator_modules():
     ]
     for mod_name in modules_to_remove:
         del sys.modules[mod_name]
-        if os.getenv('DEBUG_IMPORTS'):
-            _logger.info(f"bootstrap_paths: cleared conflicting module {mod_name}")
+        _logger.debug(f"bootstrap_paths: cleared conflicting module {mod_name}")
 
 
 def bootstrap_orchestrator_paths():
@@ -89,8 +87,7 @@ def bootstrap_orchestrator_paths():
     # Add 40_App to sys.path so 'import orchestrator' works
     _add_to_sys_path(str(app_dir), "40_App (orchestrator parent)")
 
-    if os.getenv('DEBUG_IMPORTS'):
-        _logger.info(f"bootstrap_paths: orchestrator imports enabled from {orchestrator_dir}")
+    _logger.debug(f"bootstrap_paths: orchestrator imports enabled from {orchestrator_dir}")
 
     return True
 

@@ -15,9 +15,19 @@ if str(repo_root) not in sys.path:
 # Add 40_App directory to sys.path so that 'orchestrator' package can be imported
 # The import 'from orchestrator.xxx' requires the parent of 'orchestrator' in sys.path
 app_dir = app_settings.orchestrator_path
-if not app_dir:
-    # Point to 40_App directory (parent of orchestrator), not orchestrator itself
-    # Use Path(__file__).resolve() to get absolute path regardless of how module is imported
+if app_dir:
+    # Resolve relative paths to absolute paths using repo_root
+    app_dir_path = Path(app_dir)
+    if not app_dir_path.is_absolute():
+        app_dir_path = repo_root / app_dir
+    app_dir_path = app_dir_path.resolve()
+    # If path points to orchestrator directory, use its parent (40_App) for imports
+    if app_dir_path.name == 'orchestrator':
+        app_dir_path = app_dir_path.parent
+    app_dir = str(app_dir_path)
+else:
+    # Fallback: compute 40_App directory from this file's location
+    # Path: main.py -> src/ -> api-backend/ -> 40_App/
     app_dir = str(Path(__file__).resolve().parent.parent.parent)
 
 if os.path.exists(app_dir) and app_dir not in sys.path:
