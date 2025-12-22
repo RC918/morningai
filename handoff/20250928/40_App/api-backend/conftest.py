@@ -7,6 +7,8 @@ so that the 'common' module can be imported during test collection.
 IMPORTANT: We also add 40_App to sys.path at position 0 AFTER repo root,
 so that 'import orchestrator' resolves to 40_App/orchestrator (which has
 the governance submodule) instead of repo-root/orchestrator (which doesn't).
+
+Note: The PYTHONPATH in CI is set to prioritize 40_App for orchestrator imports.
 """
 import os
 import sys
