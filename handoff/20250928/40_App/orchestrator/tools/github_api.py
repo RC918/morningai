@@ -794,8 +794,8 @@ def post_pr_review(
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
                         "commit_id": commit_id[:8],
-                        "commit_pinning_attempted": True,
-                        "commit_pinning_success": True
+                        "commit_pinning_attempted": commit_pinning_attempted,
+                        "commit_pinning_success": commit_pinning_success
                     }
                 )
             except (GithubException, UnknownObjectException) as commit_error:
@@ -808,8 +808,8 @@ def post_pr_review(
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
                         "commit_id": commit_id[:8],
-                        "commit_pinning_attempted": True,
-                        "commit_pinning_success": False,
+                        "commit_pinning_attempted": commit_pinning_attempted,
+                        "commit_pinning_success": commit_pinning_success,
                         "error": str(commit_error)
                     }
                 )
