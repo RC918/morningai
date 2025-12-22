@@ -7,10 +7,12 @@ from common.config.settings import settings as app_settings, get_settings
 from pathlib import Path
 # Path calculation: main.py -> src/ -> api-backend/ -> 40_App/ -> 20250928/ -> handoff/ -> repo root
 repo_root = Path(__file__).resolve().parents[5]  # api-backend/src/main.py -> repo root
+# IMPORTANT: Use append() instead of insert(0) to avoid shadowing 40_App's orchestrator
+# The 40_App directory must remain at the front of sys.path for orchestrator imports
 if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
+    sys.path.append(str(repo_root))
     logging.basicConfig(level=logging.INFO)
-    logging.info(f"Added repo root to sys.path: {repo_root}")
+    logging.info(f"Added repo root to sys.path (appended): {repo_root}")
 
 # Add 40_App directory to sys.path so that 'orchestrator' package can be imported
 # The import 'from orchestrator.xxx' requires the parent of 'orchestrator' in sys.path
