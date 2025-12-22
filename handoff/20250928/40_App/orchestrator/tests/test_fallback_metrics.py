@@ -38,6 +38,7 @@ class MockSettings:
         github_review_posting_dry_run=False,
         github_review_posting_max_comments=10,
         internal_repos_whitelist="RC918/morningai",
+        redis_url=None,  # Disable Redis dedup in tests
     ):
         self.enable_fault_injection = enable_fault_injection
         self.is_staging = is_staging
@@ -46,6 +47,7 @@ class MockSettings:
         self.github_review_posting_dry_run = github_review_posting_dry_run
         self.github_review_posting_max_comments = github_review_posting_max_comments
         self.internal_repos_whitelist = internal_repos_whitelist
+        self.redis_url = redis_url
 
 
 class TestShouldInject422Fault:

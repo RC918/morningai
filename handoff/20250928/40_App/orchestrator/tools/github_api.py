@@ -823,7 +823,10 @@ def post_pr_review(
         # Issue: Self-Trigger Loop Prevention
         # Reviews on merged PRs can still trigger PR_REVIEWED webhooks,
         # causing unnecessary resource consumption and potential loops.
-        if pr.state == "closed" or pr.merged:
+        # Note: We use explicit `is True` and `== "closed"` checks to avoid
+        # MagicMock truthiness issues in unit tests where pr.merged would be
+        # a truthy MagicMock object instead of a boolean.
+        if pr.state == "closed" or pr.merged is True:
             logger.info(
                 f"[GitHub] Skipping review for closed/merged PR #{pr_number} "
                 f"(state={pr.state}, merged={pr.merged})",

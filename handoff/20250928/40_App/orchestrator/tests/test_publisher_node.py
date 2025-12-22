@@ -33,7 +33,8 @@ class MockSettings:
         github_review_posting_max_comments=10,
         agent_github_token="test-token",
         github_token="test-token",
-        github_repo="test/repo"
+        github_repo="test/repo",
+        redis_url=None  # Disable Redis dedup in tests
     ):
         self.enable_github_review_posting = enable_github_review_posting
         self.github_review_posting_dry_run = github_review_posting_dry_run
@@ -41,6 +42,7 @@ class MockSettings:
         self.agent_github_token = agent_github_token
         self.github_token = github_token
         self.github_repo = github_repo
+        self.redis_url = redis_url
 
 
 class TestPostPrReviewFeatureFlags:
