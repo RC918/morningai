@@ -86,10 +86,12 @@ except ImportError as e:
 
 # Phase 4-6 API imports (module-level for availability flag)
 try:
-    morningai_root = os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..", ".."
-    )
-    sys.path.insert(0, morningai_root)
+    # Reuse repo_root computed at module top (line 9) instead of recomputing
+    # IMPORTANT: Use append() instead of insert(0) to avoid shadowing 40_App's orchestrator
+    # The 40_App directory must remain at the front of sys.path for orchestrator imports
+    repo_root_str = str(repo_root)
+    if repo_root_str not in sys.path:
+        sys.path.append(repo_root_str)
     from phase4_meta_agent_api import (
         api_meta_agent_ooda_cycle,
         api_create_langgraph_workflow,
