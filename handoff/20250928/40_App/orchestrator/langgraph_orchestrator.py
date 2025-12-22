@@ -4362,7 +4362,7 @@ def run_internal_review_orchestrator(
             trace_id,
             status="success",
             pr_created=bool(final_result.get("pr_url")),
-            ci_passed=result.get("ci_state") == "success",
+            ci_passed=False,
             code_quality_score=result.get("code_quality_score", 100),
             pr_touched=bool(final_result.get("pr_url")),
             pr_opened=False,

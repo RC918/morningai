@@ -560,6 +560,114 @@ class TestCapabilityRegressionDetection:
             assert result["metrics"]["ci_observed_rate"] == 100.0
             assert result["code_changing_count"] == 20
 
+    def test_detect_regression_workflow_combination(self):
+        """
+        Test regression detection with mixed workflow types (Issue #2832)
+
+        Verifies that review-only workflows (code_changed=False) don't affect
+        ci_pass_rate calculation, while code-changing workflows are correctly counted.
+        """
+        from agent_eval_integration import AgentEvalIntegration, EvalMetrics
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        mixed_metrics = [
+            EvalMetrics(
+                trace_id="trace-default-1",
+                goal="Default workflow 1",
+                task_type="default",
+                status="success",
+                pr_created=True,
+                ci_passed=True,
+                code_changed=True,
+                ci_checked=True
+            ),
+            EvalMetrics(
+                trace_id="trace-default-2",
+                goal="Default workflow 2",
+                task_type="default",
+                status="success",
+                pr_created=True,
+                ci_passed=True,
+                code_changed=True,
+                ci_checked=True
+            ),
+            EvalMetrics(
+                trace_id="trace-review-1",
+                goal="Internal review 1",
+                task_type="internal_review",
+                status="success",
+                pr_created=True,
+                ci_passed=False,
+                code_changed=False,
+                ci_checked=False
+            ),
+            EvalMetrics(
+                trace_id="trace-review-2",
+                goal="Internal review 2",
+                task_type="internal_review",
+                status="success",
+                pr_created=True,
+                ci_passed=False,
+                code_changed=False,
+                ci_checked=False
+            ),
+        ] * 3
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = mixed_metrics
+
+            result = integration.detect_capability_regression(
+                success_rate_threshold=70.0,
+                ci_pass_rate_threshold=80.0
+            )
+
+            assert result["has_regression"] is False
+            assert result["code_changing_count"] == 6
+            assert result["metrics"]["ci_pass_rate"] == 100.0
+            assert result["metrics"]["ci_observed_rate"] == 100.0
+
+    def test_detect_regression_empty_code_changing_workflows(self):
+        """
+        Test regression detection when all workflows are review-only (Issue #2832)
+
+        When code_changing_workflows is empty, ci_pass_rate should default to 100.0
+        to avoid false positive regression warnings.
+        """
+        from agent_eval_integration import AgentEvalIntegration, EvalMetrics
+
+        mock_redis = MagicMock()
+        integration = AgentEvalIntegration(redis_client=mock_redis, enabled=True)
+
+        review_only_metrics = [
+            EvalMetrics(
+                trace_id=f"trace-review-{i}",
+                goal=f"Internal review {i}",
+                task_type="internal_review",
+                status="success",
+                pr_created=True,
+                ci_passed=False,
+                code_changed=False,
+                ci_checked=False
+            )
+            for i in range(15)
+        ]
+
+        with patch.object(integration, 'list_metrics') as mock_list:
+            mock_list.return_value = review_only_metrics
+
+            result = integration.detect_capability_regression(
+                success_rate_threshold=70.0,
+                ci_pass_rate_threshold=80.0
+            )
+
+            assert result["has_regression"] is False
+            assert result["code_changing_count"] == 0
+            assert result["metrics"]["ci_pass_rate"] == 100.0
+            assert result["metrics"]["ci_observed_rate"] == 100.0
+            assert result["metrics"]["success_rate"] == 100.0
+
 
 class TestEvaluationReport:
     """Tests for evaluation report generation (Phase 2 PR-1813)"""
