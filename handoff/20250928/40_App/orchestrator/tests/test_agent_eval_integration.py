@@ -538,7 +538,9 @@ class TestCapabilityRegressionDetection:
                 pr_created=False,
                 ci_passed=False,
                 fixer_iterations=0,
-                fixer_success=False
+                fixer_success=False,
+                code_changed=True,
+                ci_checked=True
             )
             for i in range(20)
         ]
@@ -554,8 +556,9 @@ class TestCapabilityRegressionDetection:
             assert result["has_regression"] is True
             assert result["has_critical_regression"] is True
             assert any(r["severity"] == "critical" for r in result["regressions"])
-            # When no PRs created, ci_pass_rate should be 0.0 (not 100) - Gemini #11
             assert result["metrics"]["ci_pass_rate"] == 0.0
+            assert result["metrics"]["ci_observed_rate"] == 100.0
+            assert result["code_changing_count"] == 20
 
 
 class TestEvaluationReport:

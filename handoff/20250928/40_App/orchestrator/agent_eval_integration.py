@@ -35,6 +35,7 @@ class EvalMetrics:
     Attributes:
         trace_id: Unique workflow identifier
         goal: Original task goal
+        task_type: Type of workflow (default, review, internal_review, review_follow_up)
         start_time: Workflow start timestamp
         end_time: Workflow end timestamp
         duration_ms: Total execution time in milliseconds
@@ -45,14 +46,24 @@ class EvalMetrics:
         security_findings_count: Number of security findings
         governance_risk: Governance risk level from GovernanceAgent
         governance_findings_count: Number of governance findings
-        pr_created: Whether a PR was created
+        pr_created: Whether a PR was created (legacy, kept for backward compatibility)
+        pr_touched: Whether workflow touched a PR (has pr_url)
+        pr_opened: Whether workflow opened a NEW PR
+        code_changed: Whether workflow made code changes (executor/fixer wrote code)
+        ci_checked: Whether CI state was observed (not unknown/pending)
         ci_passed: Whether CI checks passed
         code_quality_score: Code quality score from reviewer (0-100)
         node_latencies: Per-node latency breakdown
         metadata: Additional context
+
+    Issue #2832: Enhanced metrics for accurate regression detection
+    - Added task_type to distinguish workflow types
+    - Added pr_touched, pr_opened, code_changed, ci_checked for semantic clarity
+    - ci_pass_rate should only be calculated on code_changed=True workflows
     """
     trace_id: str
     goal: str
+    task_type: str = "default"
     start_time: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     end_time: Optional[str] = None
     duration_ms: float = 0.0
@@ -64,6 +75,10 @@ class EvalMetrics:
     governance_risk: str = "info"
     governance_findings_count: int = 0
     pr_created: bool = False
+    pr_touched: bool = False
+    pr_opened: bool = False
+    code_changed: bool = False
+    ci_checked: bool = False
     ci_passed: bool = False
     code_quality_score: int = 100
     node_latencies: Dict[str, float] = field(default_factory=dict)
@@ -142,16 +157,24 @@ class AgentEvalIntegration:
         self.tasks_key = f"{key_prefix}:tasks"
         self._active_metrics: Dict[str, EvalMetrics] = {}
 
-    def start_workflow_metrics(self, trace_id: str, goal: str) -> Optional[EvalMetrics]:
+    def start_workflow_metrics(
+        self,
+        trace_id: str,
+        goal: str,
+        task_type: str = "default"
+    ) -> Optional[EvalMetrics]:
         """
         Start collecting metrics for a workflow
 
         Args:
             trace_id: Unique workflow identifier
             goal: Original task goal
+            task_type: Type of workflow (default, review, internal_review, review_follow_up)
 
         Returns:
             EvalMetrics instance if enabled, None otherwise
+
+        Issue #2832: Added task_type parameter for workflow classification
         """
         if not self.enabled:
             return None
@@ -159,11 +182,12 @@ class AgentEvalIntegration:
         metrics = EvalMetrics(
             trace_id=trace_id,
             goal=goal[:500],
+            task_type=task_type,
             start_time=datetime.utcnow().isoformat()
         )
         self._active_metrics[trace_id] = metrics
 
-        logger.debug(f"[AgentEval] Started metrics collection for {trace_id}")
+        logger.debug(f"[AgentEval] Started metrics collection for {trace_id}, task_type={task_type}")
         return metrics
 
     def record_node_latency(
@@ -264,7 +288,11 @@ class AgentEvalIntegration:
         status: str,
         pr_created: bool = False,
         ci_passed: bool = False,
-        code_quality_score: int = 100
+        code_quality_score: int = 100,
+        pr_touched: bool = False,
+        pr_opened: bool = False,
+        code_changed: bool = False,
+        ci_state: str = "unknown"
     ) -> None:
         """
         Record final workflow result
@@ -272,9 +300,17 @@ class AgentEvalIntegration:
         Args:
             trace_id: Workflow identifier
             status: Final status (success, error, timeout)
-            pr_created: Whether a PR was created
+            pr_created: Whether a PR was created (legacy, kept for backward compatibility)
             ci_passed: Whether CI checks passed
             code_quality_score: Code quality score (0-100)
+            pr_touched: Whether workflow touched a PR (has pr_url)
+            pr_opened: Whether workflow opened a NEW PR
+            code_changed: Whether workflow made code changes (executor/fixer wrote code)
+            ci_state: CI state string (success, failure, pending, unknown)
+
+        Issue #2832: Enhanced metrics for accurate regression detection
+        - Added pr_touched, pr_opened, code_changed for semantic clarity
+        - Added ci_state to derive ci_checked (not unknown/pending)
         """
         if not self.enabled or trace_id not in self._active_metrics:
             return
@@ -284,8 +320,15 @@ class AgentEvalIntegration:
         metrics.pr_created = pr_created
         metrics.ci_passed = ci_passed
         metrics.code_quality_score = code_quality_score
+        metrics.pr_touched = pr_touched
+        metrics.pr_opened = pr_opened
+        metrics.code_changed = code_changed
+        metrics.ci_checked = ci_state in ("success", "failure")
 
-        logger.debug(f"[AgentEval] Recorded result: status={status}, pr={pr_created}, ci={ci_passed}")
+        logger.debug(
+            f"[AgentEval] Recorded result: status={status}, pr_touched={pr_touched}, "
+            f"pr_opened={pr_opened}, code_changed={code_changed}, ci_checked={metrics.ci_checked}"
+        )
 
     def complete_workflow_metrics(self, trace_id: str) -> Optional[EvalMetrics]:
         """
@@ -686,14 +729,20 @@ class AgentEvalIntegration:
             total = len(metrics_list)
             success_count = sum(1 for m in metrics_list if m.status == "success")
             pr_created_count = sum(1 for m in metrics_list if m.pr_created)
-            ci_passed_count = sum(1 for m in metrics_list if m.ci_passed)
             fixer_success_count = sum(1 for m in metrics_list if m.fixer_success)
             tasks_with_fixer = sum(1 for m in metrics_list if m.fixer_iterations > 0)
 
+            code_changing_workflows = [m for m in metrics_list if m.code_changed]
+            ci_passed_count = sum(1 for m in code_changing_workflows if m.ci_passed)
+            ci_checked_count = sum(1 for m in code_changing_workflows if m.ci_checked)
+
             success_rate = (success_count / total) * 100 if total > 0 else 0
-            # When no PRs created, ci_pass_rate should be 0.0 (not 100) to avoid
-            # masking regression when agent stops creating PRs (Gemini #11)
-            ci_pass_rate = (ci_passed_count / pr_created_count) * 100 if pr_created_count > 0 else 0.0
+            if len(code_changing_workflows) > 0:
+                ci_pass_rate = (ci_passed_count / len(code_changing_workflows)) * 100
+                ci_observed_rate = (ci_checked_count / len(code_changing_workflows)) * 100
+            else:
+                ci_pass_rate = 100.0
+                ci_observed_rate = 100.0
             fixer_success_rate = (fixer_success_count / tasks_with_fixer) * 100 if tasks_with_fixer > 0 else 100
 
             regressions = []
@@ -743,10 +792,12 @@ class AgentEvalIntegration:
                 "has_critical_regression": has_critical,
                 "enabled": True,
                 "sample_count": total,
+                "code_changing_count": len(code_changing_workflows),
                 "regressions": regressions,
                 "metrics": {
                     "success_rate": round(success_rate, 2),
                     "ci_pass_rate": round(ci_pass_rate, 2),
+                    "ci_observed_rate": round(ci_observed_rate, 2),
                     "fixer_success_rate": round(fixer_success_rate, 2),
                     "pr_creation_rate": round((pr_created_count / total) * 100, 2) if total > 0 else 0
                 },
@@ -765,9 +816,14 @@ class AgentEvalIntegration:
                     extra={
                         "operation": "detect_regression",
                         "regressions": len(regressions),
+                        "regression_details": regressions,
                         "has_critical": has_critical,
                         "success_rate": success_rate,
-                        "ci_pass_rate": ci_pass_rate
+                        "ci_pass_rate": ci_pass_rate,
+                        "ci_observed_rate": ci_observed_rate,
+                        "code_changing_count": len(code_changing_workflows),
+                        "total_count": total,
+                        "metrics": result["metrics"]
                     }
                 )
             else:
@@ -776,7 +832,11 @@ class AgentEvalIntegration:
                     extra={
                         "operation": "detect_regression",
                         "success_rate": success_rate,
-                        "ci_pass_rate": ci_pass_rate
+                        "ci_pass_rate": ci_pass_rate,
+                        "ci_observed_rate": ci_observed_rate,
+                        "code_changing_count": len(code_changing_workflows),
+                        "total_count": total,
+                        "metrics": result["metrics"]
                     }
                 )
 
