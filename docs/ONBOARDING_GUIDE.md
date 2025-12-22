@@ -12,6 +12,26 @@ This guide will help you get started with the MorningAI project, understand the 
 
 ---
 
+## 如何理解本專案現況 (Hierarchy of Truth)
+
+> **重要**: 本專案迭代速度極快，文件可能會有延遲。若發生資訊衝突，請遵循以下「信任層級」：
+
+| Level | 來源 | 說明 |
+|-------|------|------|
+| **Level 1** (絕對真理) | CI Workflows (`.github/workflows/*.yml`) & Tests | 如果 CI 沒跑這個功能，它就不存在 |
+| **Level 2** (事實) | `CHANGELOG.md` 與最近 2 週的 Merged PRs | 反映實際已完成的變更 |
+| **Level 3** (參考) | 程式碼註解 (Comments) 與 Docstrings | 可能過期但通常準確 |
+| **Level 4** (僅供參考) | README 與外部文件 | 可能有延遲，以上層為準 |
+
+**範例**：如果 README 說「支援雙模式架構」，但 `simple-mode-guard.yml` CI workflow 會阻擋 Simple Mode 代碼，則以 CI 為準 — Simple Mode 已被移除。
+
+**調查順序建議**：
+1. 先查 `CHANGELOG.md` 和最近的 merged PRs
+2. 檢查相關的 CI workflows（如 `simple-mode-guard.yml`）
+3. 再看 README 和其他文件做補充理解
+
+---
+
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
@@ -1387,9 +1407,11 @@ Feature Branch → PR → main (Production)
 
 ## Orchestrator Architecture
 
-### Overview: Two Execution Modes
+> **重要**: Simple Mode 已於 2025-12-15 移除，LangGraph 是唯一的執行模式。詳見 [ADR-005](adr/005-deprecate-simple-orchestrator-mode.md)。
 
-MorningAI's orchestrator uses a **dual-mode architecture** with a shared core executor. Understanding this architecture is critical for new contributors to avoid confusion and rework.
+### Overview: LangGraph Single Mode Architecture
+
+MorningAI's orchestrator uses **LangGraph as the sole execution engine** (100% rollout completed 2025-12-14). All tasks flow through the LangGraph state machine.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1412,73 +1434,38 @@ MorningAI's orchestrator uses a **dual-mode architecture** with a shared core ex
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Worker (worker.py:366-400) - ROUTING DECISION               │
+│ Worker (worker.py) → LangGraph Orchestrator                  │
 │                                                              │
-│ if USE_LANGGRAPH=false and USE_LANGGRAPH_PERCENT > 0:      │
-│     task_hash = MD5(task_id) % 100                          │
-│     use_langgraph = (task_hash < USE_LANGGRAPH_PERCENT)    │
+│ All tasks use LangGraph (Simple Mode removed #2651)         │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│ LangGraph StateGraph (12 nodes)                              │
 │                                                              │
-│ Default: USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=0      │
-│ → Traffic split controlled by USE_LANGGRAPH_PERCENT        │
-│ → Staging: 15%, Production: 0% (configurable)              │
-└────────────────────┬───────────────────┬────────────────────┘
-                     │                   │
-       use_langgraph=true    use_langgraph=false
-                     │                   │
-                     ▼                   ▼
-        ┌─────────────────────┐  ┌──────────────────┐
-        │ LangGraph Mode      │  │ Simple Mode      │
-        │ (canary traffic)    │  │ (default traffic)│
-        └──────────┬──────────┘  └────────┬─────────┘
-                   │                      │
-                   ▼                      ▼
-        ┌──────────────────┐    ┌────────────────┐
-        │ langgraph_       │    │ graph.execute  │
-        │ orchestrator.py  │    │ (direct)       │
-        │   ↓              │    └────────────────┘
-        │ executor_node    │
-        │   ↓              │
-        │ graph.execute    │
-        └──────────────────┘
+│   planner_node → executor_node → ci_monitor_node            │
+│        ↓              ↓               ↓                      │
+│   (LLM/static)   graph.execute()   (CI check)               │
+│                       ↓               ↓                      │
+│                  fixer_node ← (if CI fails)                  │
+│                       ↓                                      │
+│                 finalizer_node → Task Complete               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Mode 1: Simple Mode (Default Traffic)
+### LangGraph Execution Flow
 
 **Files**:
-- Entry: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:399`
-- Executor: `handoff/20250928/40_App/orchestrator/graph.py`
-
-**Characteristics**:
-- ✅ **Fast**: Direct execution, no state machine overhead
-- ✅ **Stable**: Battle-tested, production-proven
-- ✅ **Stateless**: No retry logic, no CI monitoring
-- ❌ **Feature-frozen**: Only bug fixes accepted
-
-**When Used**:
-- `USE_LANGGRAPH=false` (default)
-- Task's MD5 hash % 100 >= `USE_LANGGRAPH_PERCENT`
-
-**Flow**:
-```
-Worker → graph.execute() → Create PR → Return result
-```
-
-### Mode 2: LangGraph Mode (Canary Traffic, Phase 1)
-
-**Files**:
-- Entry: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:396`
+- Entry: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
 - Orchestrator: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`
-- Executor: `handoff/20250928/40_App/orchestrator/graph.py:30` (shared!)
+- Core Executor: `handoff/20250928/40_App/orchestrator/graph.py`
 
 **Characteristics**:
-- ✅ **Stateful**: Full state machine with LangGraph
+- ✅ **Stateful**: Full state machine with LangGraph StateGraph
 - ✅ **Intelligent**: LLM-powered planning (when `USE_LLM_PLANNER=true`)
 - ✅ **Resilient**: Retry logic, error handling, CI monitoring
-- ✅ **Active Development**: New features go here
-
-**When Used**:
-- `USE_LANGGRAPH=true` (100% routing), OR
-- `USE_LANGGRAPH=false` + Task's MD5 hash % 100 < `USE_LANGGRAPH_PERCENT`
+- ✅ **Checkpointed**: Redis MemorySaver for pause/resume support
+- ✅ **Circuit Breaker**: Automatic degradation protection
 
 **Flow**:
 ```
@@ -1490,15 +1477,9 @@ Worker → langgraph_orchestrator.run_orchestrator()
   → finalizer_node
 ```
 
-### Shared Core: graph.execute()
+### Core Executor: graph.execute()
 
-**Critical Understanding**: `graph.execute()` is **NOT** just the "old Simple orchestrator" - it's the **shared execution engine** for both modes!
-
-**File**: `handoff/20250928/40_App/orchestrator/graph.py:30-155`
-
-**Used By**:
-1. **Simple Mode**: Direct call from `worker.py:399`
-2. **LangGraph Mode**: Called by `executor_node` in `langgraph_orchestrator.py:143`
+**File**: `handoff/20250928/40_App/orchestrator/graph.py`
 
 **What It Does**:
 - Cost tracking and budget enforcement
@@ -1508,50 +1489,22 @@ Worker → langgraph_orchestrator.run_orchestrator()
 - CI check monitoring
 - Test mode auto-cleanup
 
-**⚠️ Important**: Changes to `graph.execute()` affect **BOTH** modes. Always mention this in PR descriptions.
-
-### Routing Logic (Canary Deployment)
-
-**File**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:366-395`
-
-**Algorithm**:
-```python
-use_langgraph = settings.use_langgraph or False
-use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
-
-if not use_langgraph and use_langgraph_percent > 0:
-    # Canary logic: MD5 hash for deterministic routing
-    task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
-    task_percent = task_hash % 100  # 0-99 bucket
-    use_langgraph = task_percent < use_langgraph_percent
-```
-
-**Properties**:
-- **Deterministic**: Same task_id always routes to same mode
-- **Uniform**: MD5 ensures even distribution across 0-99 buckets
-- **Controllable**: Adjust `USE_LANGGRAPH_PERCENT` to change traffic split
-
-**Default Configuration**:
-```
-USE_LANGGRAPH = false              # Allow canary (not 100%)
-USE_LANGGRAPH_PERCENT = 0          # Default: 0% (100% Simple Mode)
-USE_LLM_PLANNER = false            # LangGraph uses static planner by default
-```
-
-**Environment-Specific Defaults** (from env.schema.yaml):
-- Development: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode)
-- Staging: `USE_LANGGRAPH_PERCENT=15` (15% LangGraph canary)
-- Production: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode, conservative)
-
-**Result**: Traffic split is fully configurable via environment variables.
+**⚠️ Important**: Changes to `graph.execute()` affect all task types. Always test thoroughly.
 
 ### Environment Variables
 
-| Variable | Default | Purpose | Affects |
-|----------|---------|---------|---------|
-| `USE_LANGGRAPH` | `false` | Force 100% LangGraph routing | Worker routing |
-| `USE_LANGGRAPH_PERCENT` | `0` | Canary percentage (0-100) | Worker routing |
-| `USE_LLM_PLANNER` | `false` | Use LLM vs static planner | LangGraph only |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `USE_LLM_PLANNER` | `false` | Use LLM vs static planner |
+| `USE_LLM_REVIEWER` | `false` | Enable LLM-powered code review |
+| `ENABLE_PROJECT_ENGINEER_FIXER` | `false` | Enable auto-fix mode |
+
+### CI Guard: Preventing Simple Mode Reintroduction
+
+The `simple-mode-guard.yml` workflow blocks PRs that introduce deprecated Simple Mode symbols:
+- `record_simple_task` method references
+- "Simple Mode" string literals (except in historical context)
+- `USE_LANGGRAPH_PERCENT` / `use_langgraph_percent` settings
 
 ### Feature Flags (Implemented but Default Disabled)
 

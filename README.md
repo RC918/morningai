@@ -116,32 +116,32 @@ MorningAI 採用三層分離架構，確保 Owner 和租戶的權限明確分割
 
 ## 🏗️ Orchestrator 架構
 
-MorningAI 使用雙模式 Orchestrator 架構，支持金絲雀部署和逐步遷移：
+MorningAI 使用 **LangGraph 單一模式架構**（Simple Mode 已於 2025-12-15 移除，詳見 [ADR-005](docs/adr/005-deprecate-simple-orchestrator-mode.md)）：
 
 ### 架構概覽
 
 ```
-HTTP Request → API Backend → Redis Queue → Worker (Routing Decision)
-                                                     ↓
-                                        ┌────────────┴────────────┐
-                                        ↓                         ↓
-                                  Simple Mode              LangGraph Mode
-                                  (default traffic)        (canary traffic)
-                                  Feature-frozen           Active development
-                                        ↓                         ↓
-                                        └────────────┬────────────┘
-                                                     ↓
-                                            graph.execute()
-                                            (Shared Core Executor)
+HTTP Request → API Backend → Redis Queue → Worker → LangGraph Orchestrator
+                                                           ↓
+                                                    ┌──────┴──────┐
+                                                    ↓             ↓
+                                              planner_node   executor_node
+                                              (LLM Planning)  (graph.execute)
+                                                    ↓             ↓
+                                              ci_monitor    fixer_node
+                                                    ↓             ↓
+                                              finalizer_node ←────┘
+                                                    ↓
+                                              Task Complete
 ```
 
 ### 關鍵特性
 
-- **雙模式架構**: Simple mode（穩定基線）+ LangGraph mode（創新路徑）
-- **金絲雀路由**: MD5-based 確定性路由，支持 0-100% 流量控制
-- **共享核心**: 兩種模式使用相同的 `graph.execute()` 執行引擎
-- **預設配置**: 100% Simple mode（`USE_LANGGRAPH_PERCENT=0`）
-- **Phase 1 推薦**: 設定 `USE_LANGGRAPH_PERCENT=5` 啟用 5% LangGraph 金絲雀
+- **LangGraph 單一模式**: 所有任務使用 LangGraph 狀態機執行（100% rollout 完成）
+- **12 節點 StateGraph**: planner → executor → ci_monitor → fixer → finalizer
+- **Redis MemorySaver**: 支援長時間任務的暫停/恢復
+- **Circuit Breaker**: 自動降級保護，防止連鎖故障
+- **CI Guard**: `simple-mode-guard.yml` 防止重新引入已廢棄的 Simple Mode 代碼
 
 ### 架構圖
 
@@ -150,25 +150,27 @@ graph TB
     A[HTTP Request] --> B[API Backend<br/>morningai-backend-v2]
     B --> C[Redis Queue<br/>orchestrator queue]
     C --> D[Worker<br/>morningai-agent-worker]
-    D --> E{Routing Decision<br/>MD5 Hash % 100}
-    E -->|"default traffic"| F[Simple Mode<br/>Feature-frozen]
-    E -->|"canary traffic"| G[LangGraph Mode<br/>Active development]
-    F --> H[graph.execute&#40;&#41;<br/>Shared Core Executor]
-    G --> I[LangGraph Workflow]
-    I --> H
-    H --> J[Task Execution]
+    D --> E[LangGraph Orchestrator]
+    E --> F[planner_node<br/>LLM Planning]
+    F --> G[executor_node<br/>graph.execute]
+    G --> H[ci_monitor_node<br/>CI Status Check]
+    H --> I{CI Pass?}
+    I -->|Yes| J[finalizer_node]
+    I -->|No| K[fixer_node<br/>Auto-fix]
+    K --> G
+    J --> L[Task Complete]
     
+    style E fill:#fff4e1,stroke:#f57c00,stroke-width:3px
+    style G fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
     style F fill:#e1f5ff,stroke:#0288d1,stroke-width:2px
-    style G fill:#fff4e1,stroke:#f57c00,stroke-width:2px
-    style H fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
-    style E fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style H fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
 ```
 
 ### 開發指南
 
-- ✅ **新功能**: 必須在 LangGraph mode 中實作
-- ✅ **Bug 修復**: Simple mode 只接受 bug 修復
-- ⚠️ **修改 graph.execute()**: 必須測試兩種模式
+- ✅ **新功能**: 在 LangGraph nodes 中實作
+- ✅ **核心執行**: `graph.execute()` 是共享執行引擎
+- ⚠️ **修改 graph.execute()**: 影響所有任務類型，需完整測試
 
 ### 詳細文檔
 
@@ -176,15 +178,15 @@ graph TB
 - 📋 [ORCHESTRATOR_QUICK_REFERENCE.md](docs/ORCHESTRATOR_QUICK_REFERENCE.md) - 快速參考卡片（一頁）
 - 📊 [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](docs/PROJECT_STRUCTURE_REPORT.md#orchestrator-system) - 架構詳解
 - ⚙️ [ENVIRONMENTS.md - Orchestrator Configuration](docs/ENVIRONMENTS.md#orchestrator-configuration) - 配置指南
+- 📝 [ADR-005: Deprecate Simple Mode](docs/adr/005-deprecate-simple-orchestrator-mode.md) - Simple Mode 移除決策記錄
 - 📝 [ADR-005: Dual Orchestrator Architecture](docs/adr/005-dual-orchestrator-architecture.md) - API vs Worker 分離
 - 📝 [ADR-002: Producer-Consumer Architecture](docs/adr/002-producer-consumer-architecture.md) - 生產者-消費者模式
-- 📝 [ADR-004: Shared Core Executor Pattern](docs/adr/004-shared-core-executor-pattern.md) - 共享核心執行器設計決策
 
-### 遷移路線圖
+### 遷移歷史
 
-- **Phase 1** (當前): 5% 金絲雀，LLM Planner 啟用
-- **Phase 2** (Q1 2026): 逐步增加到 100% LangGraph
-- **Phase 3** (Q2 2026): 重構 graph.py，移除 Simple mode
+> **已完成**: LangGraph 100% Rollout (2025-12-14)，Simple Mode 移除 (2025-12-15)
+> 
+> 詳見 [ADR-005](docs/adr/005-deprecate-simple-orchestrator-mode.md) 了解遷移決策與過程。
 
 ---
 

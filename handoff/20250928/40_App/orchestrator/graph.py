@@ -190,7 +190,7 @@ SEVERITY_TO_RISK = {v: k for k, v in RISK_SEVERITY.items()}
 NEVER_BLOCK_THRESHOLD = 5
 
 
-def evaluate_simple_mode_policy(
+def evaluate_execution_policy(
     trace_id: str,
     cost_risk: str = "info",
     rate_limit_risk: str = "info",
@@ -198,14 +198,13 @@ def evaluate_simple_mode_policy(
     repo: str = ""
 ) -> Dict[str, Any]:
     """
-    PR-3: Simple Mode Policy Observability
+    Policy Observability for Core Executor
 
-    Evaluates what the policy enforcement WOULD have done in Simple Mode.
-    This is observability-only - Simple Mode never blocks, but we record
-    what would have happened if enforcement was enabled.
+    Evaluates policy enforcement for task execution. Records risk levels
+    and what would have happened if enforcement was enabled.
 
     Uses the same schema as LangGraph policy_enforcement_node for unified
-    observability across both orchestrator modes.
+    observability.
 
     Args:
         trace_id: Unique task identifier
@@ -324,7 +323,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     except CostBudgetExceeded as e:
         print(f"[Cost] Budget exceeded: {e}")
         cost_risk = "critical"
-        evaluate_simple_mode_policy(
+        evaluate_execution_policy(
             trace_id=trace_id,
             cost_risk=cost_risk,
             rate_limit_risk=rate_limit_risk,
@@ -341,7 +340,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     if not allowed:
         print(f"[Rate Limit] BLOCKED - Already created {count} docs PRs this hour (max: {docs_max_prs})")
         rate_limit_risk = "high"
-        evaluate_simple_mode_policy(
+        evaluate_execution_policy(
             trace_id=trace_id,
             cost_risk=cost_risk,
             rate_limit_risk=rate_limit_risk,
@@ -350,7 +349,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
         )
         return None, "rate_limited", trace_id
     
-    evaluate_simple_mode_policy(
+    evaluate_execution_policy(
         trace_id=trace_id,
         cost_risk=cost_risk,
         rate_limit_risk=rate_limit_risk,
