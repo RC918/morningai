@@ -787,7 +787,8 @@ def post_pr_review(
                 commit_obj = repo.get_commit(commit_id)
                 commit_pinning_success = True
                 logger.info(
-                    f"[GitHub] Using commit_id for review: {commit_id[:8]}",
+                    f"[GitHub] Using commit_id for review: {commit_id[:8]} "
+                    f"(commit_pinning_attempted=True, commit_pinning_success=True)",
                     extra={
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
@@ -799,7 +800,8 @@ def post_pr_review(
             except (GithubException, UnknownObjectException) as commit_error:
                 logger.warning(
                     f"[GitHub] Failed to get commit {commit_id[:8]}, "
-                    f"proceeding without commit_id: {commit_error}",
+                    f"proceeding without commit_id: {commit_error} "
+                    f"(commit_pinning_attempted=True, commit_pinning_success=False)",
                     extra={
                         "operation": "post_pr_review",
                         "pr_number": pr_number,
@@ -830,7 +832,9 @@ def post_pr_review(
         result["commit_pinning_success"] = commit_pinning_success
 
         logger.info(
-            f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments",
+            f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments "
+            f"(commit_pinning_attempted={commit_pinning_attempted}, "
+            f"commit_pinning_success={commit_pinning_success})",
             extra={
                 "operation": "post_pr_review",
                 "pr_number": pr_number,
