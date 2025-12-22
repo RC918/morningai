@@ -517,7 +517,14 @@ def run_orchestrator_task(
         pr_url = result.get("pr_url", "")
         state = result.get("ci_state", "unknown")
         trace_id = result.get("trace_id", task_id)
-        execution_success = bool(pr_url)  # Success if PR was created
+        # Issue: Fix false-positive alerts for review workflows
+        # Previously: execution_success = bool(pr_url) marked review workflows as failures
+        # because they don't create new PRs. Now we use the orchestrator's actual status.
+        # A workflow is successful if:
+        # 1. It completed without error (status == "success"), OR
+        # 2. It was intentionally skipped (e.g., PR already merged/closed)
+        orchestrator_status = result.get("status", "unknown")
+        execution_success = orchestrator_status == "success"
         
         # Calculate elapsed_ms once for both _canary_metrics and _rollout_tracker (Issue #2286)
         elapsed_ms = (time.monotonic_ns() - start_time_ns) / 1_000_000
