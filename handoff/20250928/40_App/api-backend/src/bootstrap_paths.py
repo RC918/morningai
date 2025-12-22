@@ -26,46 +26,22 @@ def _normalize_path(path: str) -> str:
     return os.path.realpath(os.path.abspath(path))
 
 
-def _add_to_sys_path(path: str, description: str) -> bool:
-    """Add normalized path to sys.path if not already present."""
+def _ensure_path_at_front(path: str, description: str) -> bool:
+    """
+    Ensure normalized path is at position 0 of sys.path.
+    
+    If the path already exists elsewhere in sys.path, remove it first
+    then insert at position 0. This ensures this path wins any import races.
+    """
     normalized = _normalize_path(path)
-    normalized_sys_path = [_normalize_path(p) for p in sys.path if p]
-    if normalized not in normalized_sys_path:
-        sys.path.insert(0, normalized)
-        _logger.debug(f"bootstrap_paths: added {description}={normalized}")
-        return True
-    return False
-
-
-def _remove_conflicting_orchestrator_paths(correct_orchestrator_parent: Path):
-    """
-    Remove any sys.path entries that contain a conflicting orchestrator package.
     
-    This is needed because there may be multiple 'orchestrator' directories in
-    the repo (e.g., repo root has one, 40_App has another). We need to ensure
-    only the correct one (40_App) is on sys.path.
-    """
-    correct_parent_str = str(correct_orchestrator_parent.resolve())
-    paths_to_remove = []
+    # Remove any existing occurrences of this path
+    sys.path[:] = [p for p in sys.path if p and _normalize_path(p) != normalized]
     
-    for path_entry in sys.path:
-        if not path_entry:
-            continue
-        try:
-            path_obj = Path(path_entry).resolve()
-            orchestrator_candidate = path_obj / 'orchestrator'
-            # If this path contains an orchestrator directory but it's not our correct one
-            if orchestrator_candidate.is_dir() and str(path_obj) != correct_parent_str:
-                paths_to_remove.append(path_entry)
-                _logger.warning(
-                    f"bootstrap_paths: removing conflicting path {path_entry} "
-                    f"(contains orchestrator at {orchestrator_candidate})"
-                )
-        except (OSError, ValueError):
-            continue
-    
-    for path_entry in paths_to_remove:
-        sys.path.remove(path_entry)
+    # Insert at position 0 to ensure it's searched first
+    sys.path.insert(0, normalized)
+    _logger.debug(f"bootstrap_paths: ensured {description}={normalized} at sys.path[0]")
+    return True
 
 
 def _clear_conflicting_orchestrator_modules():
@@ -112,14 +88,14 @@ def bootstrap_orchestrator_paths():
         )
         return False
 
-    # Remove any conflicting paths that contain a different orchestrator package
-    _remove_conflicting_orchestrator_paths(app_dir)
-    
     # Clear any conflicting orchestrator modules from sys.modules
+    # This is needed in case orchestrator was already imported from the wrong location
     _clear_conflicting_orchestrator_modules()
 
-    # Add 40_App to sys.path at position 0 so 'import orchestrator' works
-    _add_to_sys_path(str(app_dir), "40_App (orchestrator parent)")
+    # Ensure 40_App is at position 0 in sys.path so it wins the import race
+    # for 'import orchestrator'. We don't remove other paths (like repo root)
+    # because they may be needed for other imports (e.g., 'import common').
+    _ensure_path_at_front(str(app_dir), "40_App (orchestrator parent)")
 
     _logger.debug(f"bootstrap_paths: orchestrator imports enabled from {orchestrator_dir}")
 
