@@ -1886,21 +1886,32 @@ class Settings(BaseSettings):
         return self
 
     def log_deprecation_warnings(self):
-        """Log warnings for deprecated variable usage"""
+        """Log warnings for deprecated variable usage.
+
+        This method checks for deprecated environment variables and emits
+        warnings when they are used. Each deprecated variable has:
+        - old_field: The deprecated field name in Settings
+        - new_field: The replacement field name in Settings
+        - old_env: The deprecated environment variable name
+        - new_env: The replacement environment variable name
+        - removal_date: The date after which support will be removed
+        """
         # SECRET_KEY and MASTER_KEY removed - deadline 2025-11-30 passed
-        # Only STRIPE_WEBHOOK_SECRET remains as deprecated
+        # Deprecated variables with their replacements and removal dates
         deprecated_vars = [
-            ("stripe_webhook_secret", "stripe_webhook_secret_key", "STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_KEY"),
+            # (old_field, new_field, old_env, new_env, removal_date)
+            ("stripe_webhook_secret", "stripe_webhook_secret_key", "STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_KEY", "2025-12-31"),
+            ("owner_password", "admin_password", "OWNER_PASSWORD", "ADMIN_PASSWORD", "2025-12-31"),
         ]
 
-        for old_field, new_field, old_env, new_env in deprecated_vars:
+        for old_field, new_field, old_env, new_env, removal_date in deprecated_vars:
             old_value = getattr(self, old_field, None)
             new_value = getattr(self, new_field, None)
 
             if old_value and not new_value:
                 warnings.warn(
                     f"{old_env} is deprecated. Please use {new_env} instead. "
-                    f"Support for {old_env} will be removed after 2025-12-31.",
+                    f"Support for {old_env} will be removed after {removal_date}.",
                     DeprecationWarning,
                     stacklevel=2
                 )
