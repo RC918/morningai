@@ -9,6 +9,7 @@ so that 'import orchestrator' resolves to 40_App/orchestrator (which has
 the governance submodule) instead of repo-root/orchestrator (which doesn't).
 
 Note: The PYTHONPATH in CI is set to prioritize 40_App for orchestrator imports.
+This ensures deterministic import resolution regardless of pytest's working directory.
 """
 import os
 import sys
