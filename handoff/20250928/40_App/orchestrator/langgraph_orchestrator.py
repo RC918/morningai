@@ -2448,29 +2448,46 @@ def reviewer_node(state: AgentState) -> AgentState:
                     try:
                         github_repo = get_repo()
                         if github_repo:
-                            pr_obj = github_repo.get_pull(pr_number)
-                            pr_state = getattr(pr_obj, 'state', None)
-                            pr_merged = getattr(pr_obj, 'merged', None)
-                            if pr_state != "open" or pr_merged is True:
-                                logger.info(
-                                    "[Reviewer] Skipping LLM review for non-open/merged PR",
+                            # Early PR state check (best-effort optimization)
+                            # Isolated try/except to avoid affecting diff fetch on API errors
+                            try:
+                                pr_obj = github_repo.get_pull(pr_number)
+                                pr_state = getattr(pr_obj, 'state', None)
+                                pr_merged = getattr(pr_obj, 'merged', None)
+                                if pr_state != "open" or pr_merged is True:
+                                    logger.info(
+                                        "[Reviewer] Skipping LLM review for non-open/merged PR",
+                                        extra={
+                                            "operation": "reviewer",
+                                            "trace_id": trace_id,
+                                            "pr_number": pr_number,
+                                            "pr_state": pr_state,
+                                            "pr_merged": pr_merged,
+                                            "reason": "pr_not_open_or_merged",
+                                            "outcome": "skipped"
+                                        }
+                                    )
+                                    state["review_skipped_reason"] = "pr_closed_or_merged"
+                                    state["messages"] = state.get("messages", []) + [
+                                        AIMessage(content=f"Review skipped: PR #{pr_number} is {pr_state} (merged={pr_merged})")
+                                    ]
+                                    latency_ms = (time.time() - start_time) * 1000
+                                    metrics.record_node_complete("reviewer", trace_id, success=True, latency_ms=latency_ms)
+                                    return state
+                            except Exception as pr_state_error:
+                                # Fail open: if PR state check fails, continue with LLM review
+                                # Publisher node's PR state guard will still catch merged/closed PRs
+                                logger.warning(
+                                    "[Reviewer] PR state check failed, continuing with review",
                                     extra={
                                         "operation": "reviewer",
                                         "trace_id": trace_id,
                                         "pr_number": pr_number,
-                                        "pr_state": pr_state,
-                                        "pr_merged": pr_merged,
-                                        "reason": "pr_not_open_or_merged",
-                                        "outcome": "skipped"
+                                        "error": str(pr_state_error),
+                                        "pr_state_check": "error",
+                                        "outcome": "continue"
                                     }
                                 )
-                                state["review_skipped_reason"] = "pr_closed_or_merged"
-                                state["messages"] = state.get("messages", []) + [
-                                    AIMessage(content=f"Review skipped: PR #{pr_number} is {pr_state} (merged={pr_merged})")
-                                ]
-                                latency_ms = (time.time() - start_time) * 1000
-                                metrics.record_node_complete("reviewer", trace_id, success=True, latency_ms=latency_ms)
-                                return state
                             diff_data = get_pr_diff(github_repo, pr_number)
                             if diff_data and not diff_data.get("error"):
                                 diff_content = diff_data.get("diff", "")
