@@ -38,6 +38,10 @@ class MockSettings:
         github_review_posting_dry_run=False,
         github_review_posting_max_comments=10,
         internal_repos_whitelist="RC918/morningai",
+        redis_url=None,  # Disable Redis dedup in tests
+        agent_github_token="mock_token",  # Required for github_api.py import
+        github_token="mock_token",  # Required for github_api.py import
+        github_repo="RC918/morningai",  # Required for github_api.py import
     ):
         self.enable_fault_injection = enable_fault_injection
         self.is_staging = is_staging
@@ -46,6 +50,10 @@ class MockSettings:
         self.github_review_posting_dry_run = github_review_posting_dry_run
         self.github_review_posting_max_comments = github_review_posting_max_comments
         self.internal_repos_whitelist = internal_repos_whitelist
+        self.redis_url = redis_url
+        self.agent_github_token = agent_github_token
+        self.github_token = github_token
+        self.github_repo = github_repo
 
 
 class TestShouldInject422Fault:
@@ -414,6 +422,9 @@ class TestFaultInjectionIntegration:
         mock_repo = MagicMock()
         mock_repo.full_name = "RC918/morningai"
         mock_pr = MagicMock()
+        # P4: PR State Guard requires state="open" and merged=False (allowlist approach)
+        mock_pr.state = "open"
+        mock_pr.merged = False
         mock_repo.get_pull.return_value = mock_pr
 
         # Track create_review calls
@@ -461,6 +472,9 @@ class TestFaultInjectionIntegration:
         mock_repo = MagicMock()
         mock_repo.full_name = "RC918/morningai"
         mock_pr = MagicMock()
+        # P4: PR State Guard requires state="open" and merged=False (allowlist approach)
+        mock_pr.state = "open"
+        mock_pr.merged = False
         mock_repo.get_pull.return_value = mock_pr
 
         with patch("common.config.settings.settings", mock_settings):
@@ -498,6 +512,9 @@ class TestFaultInjectionIntegration:
         mock_repo = MagicMock()
         mock_repo.full_name = "external/repo"  # Not in whitelist
         mock_pr = MagicMock()
+        # P4: PR State Guard requires state="open" and merged=False (allowlist approach)
+        mock_pr.state = "open"
+        mock_pr.merged = False
         mock_repo.get_pull.return_value = mock_pr
 
         with patch("common.config.settings.settings", mock_settings):

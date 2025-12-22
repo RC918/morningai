@@ -1154,6 +1154,18 @@ class Settings(BaseSettings):
         description="Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)"
     )
 
+    enable_llm_json_repair: bool = Field(
+        default=False,
+        alias="ENABLE_LLM_JSON_REPAIR",
+        description="Enable LLM-based JSON repair for truncated responses (EPIC B Phase 3 P3). Disabled by default for safer rollout."
+    )
+
+    llm_json_repair_max_tokens: int = Field(
+        default=1000,
+        alias="LLM_JSON_REPAIR_MAX_TOKENS",
+        description="Max tokens for LLM JSON repair output (EPIC B Phase 3). Tune based on model limits or cost."
+    )
+
     # Phase 3: Reasoning mode for Gemini 3 deep thinking
     reasoning_mode_enabled: bool = Field(
         default=False,
