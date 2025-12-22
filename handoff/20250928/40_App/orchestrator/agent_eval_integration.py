@@ -711,7 +711,10 @@ class AgentEvalIntegration:
                     "Check if there are new task types causing issues."
                 )
 
-            if ci_pass_rate < ci_pass_rate_threshold:
+            # Only check ci_pass_rate if there are PRs to evaluate.
+            # Review-only workflows (pr_created_count == 0) should not trigger
+            # ci_pass_rate regression warnings as they don't create PRs by design.
+            if pr_created_count > 0 and ci_pass_rate < ci_pass_rate_threshold:
                 regressions.append({
                     "type": "ci_pass_rate",
                     "current": ci_pass_rate,
@@ -760,14 +763,19 @@ class AgentEvalIntegration:
             }
 
             if has_regression:
+                regression_types = [r["type"] for r in regressions]
                 logger.warning(
-                    "[AgentEval] Capability regression detected",
+                    f"[AgentEval] Capability regression detected "
+                    f"(types={regression_types}, success_rate={success_rate:.1f}%, "
+                    f"ci_pass_rate={ci_pass_rate:.1f}%, pr_count={pr_created_count})",
                     extra={
                         "operation": "detect_regression",
                         "regressions": len(regressions),
+                        "regression_types": regression_types,
                         "has_critical": has_critical,
                         "success_rate": success_rate,
-                        "ci_pass_rate": ci_pass_rate
+                        "ci_pass_rate": ci_pass_rate,
+                        "pr_created_count": pr_created_count
                     }
                 )
             else:
