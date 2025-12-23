@@ -75,6 +75,7 @@ Before progressing to EPIC C (Flow Controller), the following criteria must be m
 - **JSON Reports**: Stored as GitHub Actions artifacts (90-day retention)
 - **Markdown Reports**: Appended to tracking issue #2859
 - **Status Cache**: Used for regression detection between runs
+- **Fallback Recovery**: If cache is lost, status is recovered from the last tracking issue comment
 
 ## Related Resources
 
