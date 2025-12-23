@@ -516,8 +516,8 @@ class TestCheckRegression:
         assert reason == "No regression detected (NEEDS ATTENTION -> NEEDS ATTENTION)"
 
     # --- Unknown status handling ---
-    def test_unknown_current_status_treated_as_worst(self):
-        """Unknown current status should be treated as worst severity."""
+    def test_invalid_current_status_triggers_regression(self):
+        """Invalid/unknown current status triggers regression notification."""
         notify, reason = check_regression("GOOD", "INVALID_STATUS", force_notify=False)
         assert notify is True
         assert "regressed" in reason

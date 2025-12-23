@@ -72,7 +72,7 @@ STATUS_SEVERITY = {
 
 def check_regression(
     prev_status: str, curr_status: str, force_notify: bool = False
-) -> tuple:
+) -> tuple[bool, str]:
     """
     Determine if a status change represents a regression requiring notification.
 
@@ -82,7 +82,9 @@ def check_regression(
         force_notify: If True, always notify regardless of regression
 
     Returns:
-        Tuple of (should_notify: bool, reason: str)
+        tuple[bool, str]: A tuple containing:
+            - should_notify (bool): True if notification should be sent
+            - reason (str): Human-readable explanation of the decision
 
     Examples:
         >>> check_regression("GOOD", "FAIR", False)
