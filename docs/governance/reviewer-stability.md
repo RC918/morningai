@@ -42,6 +42,8 @@ Where:
 - `slow_review_penalty`: +10 points if average latency > 5 minutes
 - `coverage_percent`: Reward for higher coverage (subtracted from score)
 
+Note: The score is clamped at 0 (negative values become 0). High coverage alone cannot produce a negative score.
+
 ## Monitoring Schedule
 
 - **Frequency**: Daily at 00:00 UTC
@@ -79,7 +81,25 @@ Before progressing to EPIC C (Flow Controller), the following criteria must be m
 - [Scorecard Tool](../../tools/reviewer_stability_scorecard.py)
 - [Tool Documentation](../../tools/README.md)
 - [Tracking Issue](https://github.com/RC918/morningai/issues/2859)
-- [Workflow](.github/workflows/reviewer-scorecard.yml)
+- [Workflow](../../.github/workflows/reviewer-scorecard.yml)
+
+## FAQ
+
+**Q: What does "UNKNOWN" status mean on the first run?**
+
+A: On the first workflow execution, there is no previous status to compare against. The system shows "UNKNOWN" as the previous status and establishes the current status as the baseline. No notification is sent on the first run since there is no regression to detect.
+
+**Q: How do I manually trigger the scorecard?**
+
+A: Go to Actions → "Reviewer Stability Scorecard" → "Run workflow". You can optionally enable "Force notification" to receive a @mention regardless of regression status.
+
+**Q: Where are the JSON artifacts stored?**
+
+A: JSON reports are stored as GitHub Actions artifacts with 90-day retention. Navigate to the workflow run and download the `scorecard-{run_id}` artifact. These are NOT committed to the repository.
+
+**Q: Why didn't I receive a notification?**
+
+A: Notifications are only sent on regression (status downgrade) or execution failure. If the status improved or stayed the same, no notification is sent. Use `force_notify` to test the notification mechanism.
 
 ## Changelog
 

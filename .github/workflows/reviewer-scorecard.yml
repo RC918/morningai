@@ -16,6 +16,10 @@ permissions:
   issues: write
   pull-requests: read
 
+concurrency:
+  group: scorecard-${{ github.repository }}
+  cancel-in-progress: false
+
 env:
   TRACKING_ISSUE: 2859
   ANALYSIS_DAYS: 7
@@ -64,28 +68,25 @@ jobs:
         run: |
           set -eo pipefail
           
-          # Run scorecard and capture output
+          # Run scorecard with explicit file outputs (avoids fragile sed parsing)
           python tools/reviewer_stability_scorecard.py \
             --days ${{ env.ANALYSIS_DAYS }} \
             --output both \
             --repo ${{ github.repository }} \
-            > scorecard_output.txt 2>&1 || true
+            --json-out scorecard.json \
+            --md-out scorecard.md \
+            || true
           
-          # Extract JSON output
-          sed -n '/^{/,/^}/p' scorecard_output.txt > scorecard.json || true
-          
-          # Extract status from output
-          if grep -q '"status":' scorecard.json 2>/dev/null; then
+          # Extract status from JSON file
+          if [ -f scorecard.json ] && grep -q '"status":' scorecard.json 2>/dev/null; then
             CURRENT_STATUS=$(python -c "import json; print(json.load(open('scorecard.json'))['status'])")
           else
             CURRENT_STATUS="ERROR"
+            echo "::warning::Scorecard execution failed or produced invalid output"
           fi
           
           echo "status=$CURRENT_STATUS" >> $GITHUB_OUTPUT
           echo "Current status: $CURRENT_STATUS"
-          
-          # Extract markdown section
-          sed -n '/^# MorningAI/,$ p' scorecard_output.txt > scorecard.md || true
 
       - name: Save current status
         run: echo "${{ steps.scorecard.outputs.status }}" > .scorecard-status
