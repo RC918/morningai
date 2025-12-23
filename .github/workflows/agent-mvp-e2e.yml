@@ -30,7 +30,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Use staging environment to avoid testing against production
-          # See: IaC automation PR plan - PR A
+          # This prevents E2E tests from hitting production endpoints
           BASE_URL: ${{ secrets.STAGING_API_URL }}
           JWT_SECRET_KEY: ${{ secrets.STAGING_JWT_SECRET_KEY }}
         run: |

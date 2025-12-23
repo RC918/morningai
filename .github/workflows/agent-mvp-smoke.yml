@@ -23,11 +23,11 @@ jobs:
       - name: Core smoke (healthz + billing)
         env:
           # Use staging environment to avoid testing against production
-          # See: IaC automation PR plan - PR A
-          BASE_URL: ${{ secrets.STAGING_API_URL }}
+          # Falls back to production if STAGING_API_URL is not configured
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
         run: |
           set -e
-          BASE="${BASE_URL:-https://morningai-backend-v2.onrender.com}"
+          BASE="${STAGING_API_URL:-https://morningai-backend-v2.onrender.com}"
           for ep in /healthz /api/billing/plans; do
             code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$ep")
             echo "$ep => $code"
@@ -37,10 +37,10 @@ jobs:
         if: ${{ github.event.inputs.check_agent_faq == 'true' }}
         env:
           # Use staging environment to avoid testing against production
-          BASE_URL: ${{ secrets.STAGING_API_URL }}
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
         run: |
           set -e
-          BASE="${BASE_URL:-https://morningai-backend-v2.onrender.com}"
+          BASE="${STAGING_API_URL:-https://morningai-backend-v2.onrender.com}"
           code=$(curl -s -o /dev/null -w "%{http_code}" \
                 -H 'Content-Type: application/json' \
                 -d '{"question":"Generate FAQ"}' \
