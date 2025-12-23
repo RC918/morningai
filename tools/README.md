@@ -80,9 +80,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Future Integration (P6)
+### Limitations & Future Improvements
 
-This scorecard will be integrated with GitHub Checks API (EPIC B Phase 4) to provide:
-- Automated status gates for PR merges
-- Machine-readable governance signals
+**Current limitations:**
+- No rate limit handling - GitHub API allows 5000 requests/hour for authenticated users. For repos with many PRs, consider using `--days` to limit scope.
+- Uses REST API with O(n) calls per PR - GraphQL could be more efficient for large-scale analysis.
+- Token security - ensure GITHUB_TOKEN is not logged in error messages.
+
+**Future improvements (P6):**
+- Integration with GitHub Checks API (EPIC B Phase 4) for automated status gates
+- Machine-readable governance signals for PR merge decisions
 - Dashboard integration for real-time monitoring
