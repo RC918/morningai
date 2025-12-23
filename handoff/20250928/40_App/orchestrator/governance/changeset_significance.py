@@ -100,17 +100,6 @@ LOW_SIGNIFICANCE_PATTERNS = [
     r"CHANGELOG",       # Changelog files
 ]
 
-# Patterns that indicate formatting-only changes
-FORMATTING_PATTERNS = [
-    r"^\s*$",                           # Empty lines
-    r"^\s+",                            # Leading whitespace only
-    r"\s+$",                            # Trailing whitespace only
-    r"^[-+]\s*#",                       # Comment lines
-    r"^[-+]\s*//",                      # Comment lines (JS/TS)
-    r"^[-+]\s*/\*",                     # Block comment start
-    r"^[-+]\s*\*/",                     # Block comment end
-]
-
 
 @dataclass
 class SignificanceResult:
