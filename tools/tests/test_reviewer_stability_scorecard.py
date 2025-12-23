@@ -21,11 +21,13 @@ from reviewer_stability_scorecard import (  # noqa: E402
     STATUS_GOOD_THRESHOLD,
     STATUS_FAIR_THRESHOLD,
     EXCELLENT_COVERAGE_THRESHOLD,
+    STATUS_SEVERITY,
     is_morningai_review,
     analyze_pr_reviews,
     compute_duplicates,
     compute_latency_stats,
     compute_health_score,
+    check_regression,
     check_rate_limit,
     RateLimitError,
 )
@@ -364,6 +366,177 @@ class TestCheckRateLimit:
         response.headers = {}
 
         check_rate_limit(response)
+
+
+class TestCheckRegression:
+    """Tests for the check_regression function (workflow regression detection)."""
+
+    # --- Force notify tests ---
+    def test_force_notify_always_notifies(self):
+        """Force notify should always return True regardless of status."""
+        notify, reason = check_regression("GOOD", "GOOD", force_notify=True)
+        assert notify is True
+        assert reason == "Force notification requested"
+
+    def test_force_notify_overrides_improvement(self):
+        """Force notify should notify even on improvement."""
+        notify, reason = check_regression("FAIR", "EXCELLENT", force_notify=True)
+        assert notify is True
+        assert reason == "Force notification requested"
+
+    # --- ERROR status tests ---
+    def test_error_status_always_notifies(self):
+        """ERROR status should always trigger notification."""
+        notify, reason = check_regression("GOOD", "ERROR", force_notify=False)
+        assert notify is True
+        assert reason == "Scorecard execution failed"
+
+    def test_error_from_unknown_notifies(self):
+        """ERROR status should notify even from UNKNOWN baseline."""
+        notify, reason = check_regression("UNKNOWN", "ERROR", force_notify=False)
+        assert notify is True
+        assert reason == "Scorecard execution failed"
+
+    # --- UNKNOWN baseline tests ---
+    def test_unknown_baseline_no_notify(self):
+        """First run (UNKNOWN baseline) should not notify."""
+        notify, reason = check_regression("UNKNOWN", "GOOD", force_notify=False)
+        assert notify is False
+        assert reason == "First run, establishing baseline"
+
+    def test_unknown_to_excellent_no_notify(self):
+        """UNKNOWN to EXCELLENT should not notify (establishing baseline)."""
+        notify, reason = check_regression("UNKNOWN", "EXCELLENT", force_notify=False)
+        assert notify is False
+        assert reason == "First run, establishing baseline"
+
+    def test_unknown_to_needs_attention_no_notify(self):
+        """UNKNOWN to NEEDS ATTENTION should not notify (establishing baseline)."""
+        notify, reason = check_regression("UNKNOWN", "NEEDS ATTENTION", force_notify=False)
+        assert notify is False
+        assert reason == "First run, establishing baseline"
+
+    # --- Regression tests (status worsens) ---
+    def test_excellent_to_good_regression(self):
+        """EXCELLENT to GOOD is a regression."""
+        notify, reason = check_regression("EXCELLENT", "GOOD", force_notify=False)
+        assert notify is True
+        assert reason == "Status regressed from EXCELLENT to GOOD"
+
+    def test_excellent_to_fair_regression(self):
+        """EXCELLENT to FAIR is a regression."""
+        notify, reason = check_regression("EXCELLENT", "FAIR", force_notify=False)
+        assert notify is True
+        assert reason == "Status regressed from EXCELLENT to FAIR"
+
+    def test_excellent_to_needs_attention_regression(self):
+        """EXCELLENT to NEEDS ATTENTION is a regression."""
+        notify, reason = check_regression("EXCELLENT", "NEEDS ATTENTION", force_notify=False)
+        assert notify is True
+        assert reason == "Status regressed from EXCELLENT to NEEDS ATTENTION"
+
+    def test_good_to_fair_regression(self):
+        """GOOD to FAIR is a regression."""
+        notify, reason = check_regression("GOOD", "FAIR", force_notify=False)
+        assert notify is True
+        assert reason == "Status regressed from GOOD to FAIR"
+
+    def test_good_to_needs_attention_regression(self):
+        """GOOD to NEEDS ATTENTION is a regression."""
+        notify, reason = check_regression("GOOD", "NEEDS ATTENTION", force_notify=False)
+        assert notify is True
+        assert reason == "Status regressed from GOOD to NEEDS ATTENTION"
+
+    def test_fair_to_needs_attention_regression(self):
+        """FAIR to NEEDS ATTENTION is a regression."""
+        notify, reason = check_regression("FAIR", "NEEDS ATTENTION", force_notify=False)
+        assert notify is True
+        assert reason == "Status regressed from FAIR to NEEDS ATTENTION"
+
+    # --- Improvement tests (status improves, no notify) ---
+    def test_good_to_excellent_improvement(self):
+        """GOOD to EXCELLENT is an improvement, no notify."""
+        notify, reason = check_regression("GOOD", "EXCELLENT", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (GOOD -> EXCELLENT)"
+
+    def test_fair_to_good_improvement(self):
+        """FAIR to GOOD is an improvement, no notify."""
+        notify, reason = check_regression("FAIR", "GOOD", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (FAIR -> GOOD)"
+
+    def test_fair_to_excellent_improvement(self):
+        """FAIR to EXCELLENT is an improvement, no notify."""
+        notify, reason = check_regression("FAIR", "EXCELLENT", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (FAIR -> EXCELLENT)"
+
+    def test_needs_attention_to_fair_improvement(self):
+        """NEEDS ATTENTION to FAIR is an improvement, no notify."""
+        notify, reason = check_regression("NEEDS ATTENTION", "FAIR", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (NEEDS ATTENTION -> FAIR)"
+
+    def test_needs_attention_to_good_improvement(self):
+        """NEEDS ATTENTION to GOOD is an improvement, no notify."""
+        notify, reason = check_regression("NEEDS ATTENTION", "GOOD", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (NEEDS ATTENTION -> GOOD)"
+
+    def test_needs_attention_to_excellent_improvement(self):
+        """NEEDS ATTENTION to EXCELLENT is an improvement, no notify."""
+        notify, reason = check_regression("NEEDS ATTENTION", "EXCELLENT", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (NEEDS ATTENTION -> EXCELLENT)"
+
+    # --- Same status tests (no change, no notify) ---
+    def test_excellent_to_excellent_no_change(self):
+        """EXCELLENT to EXCELLENT is no change, no notify."""
+        notify, reason = check_regression("EXCELLENT", "EXCELLENT", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (EXCELLENT -> EXCELLENT)"
+
+    def test_good_to_good_no_change(self):
+        """GOOD to GOOD is no change, no notify."""
+        notify, reason = check_regression("GOOD", "GOOD", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (GOOD -> GOOD)"
+
+    def test_fair_to_fair_no_change(self):
+        """FAIR to FAIR is no change, no notify."""
+        notify, reason = check_regression("FAIR", "FAIR", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (FAIR -> FAIR)"
+
+    def test_needs_attention_to_needs_attention_no_change(self):
+        """NEEDS ATTENTION to NEEDS ATTENTION is no change, no notify."""
+        notify, reason = check_regression("NEEDS ATTENTION", "NEEDS ATTENTION", force_notify=False)
+        assert notify is False
+        assert reason == "No regression detected (NEEDS ATTENTION -> NEEDS ATTENTION)"
+
+    # --- Unknown status handling ---
+    def test_unknown_current_status_treated_as_worst(self):
+        """Unknown current status should be treated as worst severity."""
+        notify, reason = check_regression("GOOD", "INVALID_STATUS", force_notify=False)
+        assert notify is True
+        assert "regressed" in reason
+
+
+class TestStatusSeverity:
+    """Tests for the STATUS_SEVERITY constant."""
+
+    def test_severity_ordering(self):
+        """Verify severity values are correctly ordered (lower = better)."""
+        assert STATUS_SEVERITY["EXCELLENT"] < STATUS_SEVERITY["GOOD"]
+        assert STATUS_SEVERITY["GOOD"] < STATUS_SEVERITY["FAIR"]
+        assert STATUS_SEVERITY["FAIR"] < STATUS_SEVERITY["NEEDS ATTENTION"]
+        assert STATUS_SEVERITY["NEEDS ATTENTION"] < STATUS_SEVERITY["ERROR"]
+
+    def test_all_statuses_defined(self):
+        """Verify all expected statuses are defined."""
+        expected = {"EXCELLENT", "GOOD", "FAIR", "NEEDS ATTENTION", "ERROR"}
+        assert set(STATUS_SEVERITY.keys()) == expected
 
 
 class TestConstants:

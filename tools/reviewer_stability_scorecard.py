@@ -60,6 +60,56 @@ STATUS_FAIR_THRESHOLD = 100
 EXCELLENT_COVERAGE_THRESHOLD = 50
 
 
+# Status severity mapping (lower = better)
+STATUS_SEVERITY = {
+    "EXCELLENT": 0,
+    "GOOD": 1,
+    "FAIR": 2,
+    "NEEDS ATTENTION": 3,
+    "ERROR": 4,
+}
+
+
+def check_regression(
+    prev_status: str, curr_status: str, force_notify: bool = False
+) -> tuple:
+    """
+    Determine if a status change represents a regression requiring notification.
+
+    Args:
+        prev_status: Previous health status (or "UNKNOWN" for first run)
+        curr_status: Current health status
+        force_notify: If True, always notify regardless of regression
+
+    Returns:
+        Tuple of (should_notify: bool, reason: str)
+
+    Examples:
+        >>> check_regression("GOOD", "FAIR", False)
+        (True, 'Status regressed from GOOD to FAIR')
+        >>> check_regression("FAIR", "GOOD", False)
+        (False, 'No regression detected (FAIR -> GOOD)')
+        >>> check_regression("UNKNOWN", "GOOD", False)
+        (False, 'First run, establishing baseline')
+    """
+    if force_notify:
+        return (True, "Force notification requested")
+
+    if curr_status == "ERROR":
+        return (True, "Scorecard execution failed")
+
+    if prev_status == "UNKNOWN":
+        return (False, "First run, establishing baseline")
+
+    prev_sev = STATUS_SEVERITY.get(prev_status, 5)
+    curr_sev = STATUS_SEVERITY.get(curr_status, 5)
+
+    if curr_sev > prev_sev:
+        return (True, f"Status regressed from {prev_status} to {curr_status}")
+
+    return (False, f"No regression detected ({prev_status} -> {curr_status})")
+
+
 class GitHubAPIError(Exception):
     """Custom exception for GitHub API errors."""
 
