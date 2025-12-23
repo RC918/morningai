@@ -421,6 +421,8 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     
     if quality_issues:
         issue_summary = ", ".join([f"{i.code}:{i.level.value}" for i in quality_issues[:5]])
+        if len(quality_issues) > 5:
+            issue_summary += f" ...(+{len(quality_issues) - 5} more)"
         logger.info(
             f"[GraphExecute] Quality issues found trace_id={trace_id} count={len(quality_issues)} issues=[{issue_summary}]",
             extra={"operation": "quality_issues", "trace_id": trace_id, "issue_count": len(quality_issues)}
