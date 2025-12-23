@@ -102,6 +102,10 @@ A: JSON reports are stored as GitHub Actions artifacts with 90-day retention. Na
 
 A: Notifications are only sent on regression (status downgrade) or execution failure. If the status improved or stayed the same, no notification is sent. Use `force_notify` to test the notification mechanism.
 
+**Q: How do I change the tracking issue?**
+
+A: Create a repository variable named `SCORECARD_TRACKING_ISSUE` with the new issue number. Go to Settings → Secrets and variables → Actions → Variables → New repository variable. The workflow will use this value instead of the default (#2859).
+
 ## Changelog
 
 | Date | Change |

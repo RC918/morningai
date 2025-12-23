@@ -21,7 +21,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TRACKING_ISSUE: 2859
+  # Use repo variable if set, otherwise fallback to hardcoded default
+  # To change: Settings > Secrets and variables > Actions > Variables > New repository variable
+  # Name: SCORECARD_TRACKING_ISSUE, Value: <issue_number>
+  TRACKING_ISSUE: ${{ vars.SCORECARD_TRACKING_ISSUE || '2859' }}
   ANALYSIS_DAYS: 7
   NOTIFY_USER: RC918
 
