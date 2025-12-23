@@ -28,7 +28,6 @@ import os
 import sys
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-# Note: typing imports removed - using built-in types for Python 3.9+
 
 try:
     import requests
@@ -43,12 +42,34 @@ MORNINGAI_REVIEW_MARKER = "<!-- morningai:autogen-review -->"
 DEFAULT_REPO = "RC918/morningai"
 DEFAULT_DAYS = 7
 API_BASE = "https://api.github.com"
+REQUEST_TIMEOUT = 30  # seconds
+
+# Health score weights (lower score = better)
+DUPLICATE_PENALTY = 50  # Points per duplicate review
+SLOW_REVIEW_PENALTY = 10  # Points if avg latency > 5 min
+SLOW_REVIEW_THRESHOLD_SECONDS = 300  # 5 minutes
+
+# Status thresholds
+STATUS_GOOD_THRESHOLD = 50
+STATUS_FAIR_THRESHOLD = 100
 
 
 class GitHubAPIError(Exception):
     """Custom exception for GitHub API errors."""
 
     pass
+
+
+class RateLimitError(GitHubAPIError):
+    """Raised when GitHub API rate limit is exceeded."""
+
+    def __init__(self, reset_time: int):
+        self.reset_time = reset_time
+        reset_dt = datetime.fromtimestamp(reset_time, tz=timezone.utc)
+        super().__init__(
+            f"GitHub API rate limit exceeded. Resets at {reset_dt.isoformat()}. "
+            f"Try reducing --days or wait until reset."
+        )
 
 
 def get_headers(token: str) -> dict:
@@ -58,6 +79,14 @@ def get_headers(token: str) -> dict:
         "Accept": "application/vnd.github.v3+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
+
+
+def check_rate_limit(response) -> None:
+    """Check response headers for rate limit and raise if exhausted."""
+    remaining = response.headers.get("X-RateLimit-Remaining")
+    if remaining is not None and int(remaining) == 0:
+        reset_time = int(response.headers.get("X-RateLimit-Reset", 0))
+        raise RateLimitError(reset_time)
 
 
 def get_recent_prs(
@@ -80,9 +109,15 @@ def get_recent_prs(
             "page": page,
         }
 
-        resp = requests.get(url, headers=get_headers(token), params=params)
+        resp = requests.get(
+            url, headers=get_headers(token), params=params, timeout=REQUEST_TIMEOUT
+        )
+        check_rate_limit(resp)
+
         if resp.status_code != 200:
-            raise GitHubAPIError(f"Failed to fetch PRs: {resp.status_code} {resp.text}")
+            raise GitHubAPIError(
+                f"Failed to fetch PRs: {resp.status_code} {resp.text}"
+            )
 
         prs = resp.json()
         if not prs:
@@ -111,7 +146,11 @@ def get_pr_reviews(token: str, repo: str, pr_number: int) -> list:
 
     while True:
         params = {"per_page": per_page, "page": page}
-        resp = requests.get(url, headers=get_headers(token), params=params)
+        resp = requests.get(
+            url, headers=get_headers(token), params=params, timeout=REQUEST_TIMEOUT
+        )
+        check_rate_limit(resp)
+
         if resp.status_code != 200:
             raise GitHubAPIError(
                 f"Failed to fetch reviews for PR #{pr_number}: {resp.status_code}"
@@ -140,38 +179,146 @@ def is_morningai_review(review: dict) -> bool:
     return MORNINGAI_REVIEW_MARKER in body
 
 
-def calculate_metrics(
-    token: str, repo: str, days: int
-) -> dict:
-    """Calculate reviewer stability metrics."""
+def analyze_pr_reviews(pr: dict, reviews: list) -> tuple:
+    """Analyze reviews for a single PR.
+
+    Returns:
+        Tuple of (pr_info dict, morningai_reviews list, latencies list)
+    """
+    pr_number = pr["number"]
+    pr_title = pr["title"][:50]
+    pr_created_at = datetime.fromisoformat(
+        pr["created_at"].replace("Z", "+00:00")
+    )
+    head_sha = pr["head"]["sha"]
+
+    morningai_reviews = [r for r in reviews if is_morningai_review(r)]
+
+    pr_info = {
+        "number": pr_number,
+        "title": pr_title,
+        "state": pr["state"],
+        "head_sha": head_sha[:7],
+        "total_reviews": len(reviews),
+        "morningai_reviews": len(morningai_reviews),
+        "morningai_review_commits": [],
+    }
+
+    latencies = []
+    for review in morningai_reviews:
+        commit_id = review.get("commit_id")
+        # Skip reviews with missing commit_id to avoid false duplicate detection
+        if commit_id:
+            pr_info["morningai_review_commits"].append(commit_id[:7])
+
+        submitted_at_str = review.get("submitted_at")
+        if submitted_at_str:
+            submitted_at = datetime.fromisoformat(
+                submitted_at_str.replace("Z", "+00:00")
+            )
+            latency = (submitted_at - pr_created_at).total_seconds()
+            if latency > 0:
+                latencies.append(latency)
+
+    return pr_info, morningai_reviews, latencies
+
+
+def compute_duplicates(reviews_by_commit: dict) -> tuple:
+    """Compute duplicate review statistics.
+
+    Returns:
+        Tuple of (duplicate_count, duplicate_commits list)
+    """
+    duplicate_count = 0
+    duplicate_commits = []
+
+    for commit_id, reviews_list in reviews_by_commit.items():
+        if len(reviews_list) > 1:
+            duplicate_count += len(reviews_list) - 1
+            duplicate_commits.append({
+                "commit_id": commit_id[:7] if commit_id else "unknown",
+                "review_count": len(reviews_list),
+                "pr_numbers": [r["pr_number"] for r in reviews_list],
+            })
+
+    return duplicate_count, duplicate_commits
+
+
+def compute_latency_stats(latencies: list) -> dict:
+    """Compute latency statistics from a list of latency values."""
+    if not latencies:
+        return {
+            "avg_latency_seconds": None,
+            "min_latency_seconds": None,
+            "max_latency_seconds": None,
+        }
+
+    return {
+        "avg_latency_seconds": round(sum(latencies) / len(latencies), 1),
+        "min_latency_seconds": round(min(latencies), 1),
+        "max_latency_seconds": round(max(latencies), 1),
+    }
+
+
+def compute_health_score(
+    duplicate_reviews: int,
+    coverage_percent: float,
+    avg_latency_seconds: float
+) -> tuple:
+    """Compute health score and status.
+
+    Health score is lower = better:
+    - Each duplicate review: +DUPLICATE_PENALTY points (heavy penalty)
+    - Review coverage: -1 point per % coverage (reward)
+    - Slow reviews (>SLOW_REVIEW_THRESHOLD_SECONDS avg): +SLOW_REVIEW_PENALTY points
+
+    Returns:
+        Tuple of (health_score, status)
+    """
+    health_score = 0
+    health_score += duplicate_reviews * DUPLICATE_PENALTY
+    health_score -= coverage_percent
+    if avg_latency_seconds and avg_latency_seconds > SLOW_REVIEW_THRESHOLD_SECONDS:
+        health_score += SLOW_REVIEW_PENALTY
+
+    health_score = max(0, health_score)
+
+    if health_score == 0 and duplicate_reviews == 0:
+        status = "EXCELLENT"
+    elif health_score < STATUS_GOOD_THRESHOLD:
+        status = "GOOD"
+    elif health_score < STATUS_FAIR_THRESHOLD:
+        status = "FAIR"
+    else:
+        status = "NEEDS ATTENTION"
+
+    return health_score, status
+
+
+def calculate_metrics(token: str, repo: str, days: int) -> dict:
+    """Calculate reviewer stability metrics.
+
+    This is the main orchestration function that:
+    1. Fetches PRs from GitHub
+    2. Analyzes reviews for each PR
+    3. Computes aggregate statistics
+    4. Returns a metrics dictionary
+    """
     print(f"Fetching PRs from {repo} updated in last {days} days...")
     prs = get_recent_prs(token, repo, days)
     print(f"Found {len(prs)} PRs")
 
-    metrics = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "repo": repo,
-        "days_analyzed": days,
-        "total_prs": len(prs),
-        "prs_with_morningai_review": 0,
-        "total_morningai_reviews": 0,
-        "duplicate_reviews": 0,
-        "duplicate_commits": [],
-        "review_latencies_seconds": [],
-        "prs_analyzed": [],
-    }
-
-    # Track reviews by commit_id for duplicate detection
+    # Initialize tracking structures
     reviews_by_commit: dict = defaultdict(list)
+    all_latencies = []
+    prs_with_review = 0
+    total_reviews = 0
+    prs_analyzed = []
 
+    # Analyze each PR
     for pr in prs:
         pr_number = pr["number"]
         pr_title = pr["title"][:50]
-        pr_created_at = datetime.fromisoformat(
-            pr["created_at"].replace("Z", "+00:00")
-        )
-        head_sha = pr["head"]["sha"]
-
         print(f"  Analyzing PR #{pr_number}: {pr_title}...")
 
         try:
@@ -180,102 +327,62 @@ def calculate_metrics(
             print(f"    Warning: {e}")
             continue
 
-        morningai_reviews = [r for r in reviews if is_morningai_review(r)]
-
-        pr_info = {
-            "number": pr_number,
-            "title": pr_title,
-            "state": pr["state"],
-            "head_sha": head_sha[:7],
-            "total_reviews": len(reviews),
-            "morningai_reviews": len(morningai_reviews),
-            "morningai_review_commits": [],
-        }
+        pr_info, morningai_reviews, latencies = analyze_pr_reviews(pr, reviews)
+        prs_analyzed.append(pr_info)
 
         if morningai_reviews:
-            metrics["prs_with_morningai_review"] += 1
-            metrics["total_morningai_reviews"] += len(morningai_reviews)
+            prs_with_review += 1
+            total_reviews += len(morningai_reviews)
+            all_latencies.extend(latencies)
 
+            # Track reviews by commit for duplicate detection
             for review in morningai_reviews:
-                commit_id = review.get("commit_id", "unknown")
-                submitted_at_str = review.get("submitted_at")
+                commit_id = review.get("commit_id")
+                if commit_id:  # Only track if commit_id exists
+                    reviews_by_commit[commit_id].append({
+                        "pr_number": pr_number,
+                        "review_id": review["id"],
+                        "submitted_at": review.get("submitted_at"),
+                    })
 
-                pr_info["morningai_review_commits"].append(commit_id[:7])
-                reviews_by_commit[commit_id].append({
-                    "pr_number": pr_number,
-                    "review_id": review["id"],
-                    "submitted_at": submitted_at_str,
-                })
+    # Compute aggregate statistics
+    total_prs = len(prs)
+    coverage_percent = (
+        round(100 * prs_with_review / total_prs, 1) if total_prs > 0 else 0.0
+    )
 
-                # Calculate latency from PR creation to review
-                if submitted_at_str:
-                    submitted_at = datetime.fromisoformat(
-                        submitted_at_str.replace("Z", "+00:00")
-                    )
-                    latency = (submitted_at - pr_created_at).total_seconds()
-                    if latency > 0:
-                        metrics["review_latencies_seconds"].append(latency)
+    duplicate_count, duplicate_commits = compute_duplicates(reviews_by_commit)
 
-        metrics["prs_analyzed"].append(pr_info)
-
-    # Calculate duplicate reviews (same commit reviewed multiple times)
-    for commit_id, reviews_list in reviews_by_commit.items():
-        if len(reviews_list) > 1:
-            metrics["duplicate_reviews"] += len(reviews_list) - 1
-            metrics["duplicate_commits"].append({
-                "commit_id": commit_id[:7],
-                "review_count": len(reviews_list),
-                "pr_numbers": [r["pr_number"] for r in reviews_list],
-            })
-
-    # Calculate summary statistics
-    if metrics["total_prs"] > 0:
-        metrics["review_coverage_percent"] = round(
-            100 * metrics["prs_with_morningai_review"] / metrics["total_prs"], 1
-        )
-    else:
-        metrics["review_coverage_percent"] = 0.0
-
-    if metrics["review_latencies_seconds"]:
-        latencies = metrics["review_latencies_seconds"]
-        metrics["avg_latency_seconds"] = round(sum(latencies) / len(latencies), 1)
-        metrics["min_latency_seconds"] = round(min(latencies), 1)
-        metrics["max_latency_seconds"] = round(max(latencies), 1)
-    else:
-        metrics["avg_latency_seconds"] = None
-        metrics["min_latency_seconds"] = None
-        metrics["max_latency_seconds"] = None
-
-    # Calculate duplicate rate
     total_reviewed_commits = len(reviews_by_commit)
-    if total_reviewed_commits > 0:
-        duplicate_commit_count = len(metrics["duplicate_commits"])
-        metrics["duplicate_rate_percent"] = round(
-            100 * duplicate_commit_count / total_reviewed_commits, 1
-        )
-    else:
-        metrics["duplicate_rate_percent"] = 0.0
+    duplicate_rate = (
+        round(100 * len(duplicate_commits) / total_reviewed_commits, 1)
+        if total_reviewed_commits > 0
+        else 0.0
+    )
 
-    # Health score calculation
-    # Lower is better: penalize duplicates heavily, reward coverage
-    health_score = 0
-    health_score += metrics["duplicate_reviews"] * 50  # Heavy penalty for duplicates
-    health_score -= metrics["review_coverage_percent"]  # Reward coverage
-    if metrics["avg_latency_seconds"] and metrics["avg_latency_seconds"] > 300:
-        health_score += 10  # Penalty for slow reviews (>5 min avg)
+    latency_stats = compute_latency_stats(all_latencies)
+    health_score, status = compute_health_score(
+        duplicate_count, coverage_percent, latency_stats["avg_latency_seconds"]
+    )
 
-    metrics["health_score"] = max(0, health_score)
-
-    if metrics["health_score"] == 0 and metrics["duplicate_reviews"] == 0:
-        metrics["status"] = "EXCELLENT"
-    elif metrics["health_score"] < 50:
-        metrics["status"] = "GOOD"
-    elif metrics["health_score"] < 100:
-        metrics["status"] = "FAIR"
-    else:
-        metrics["status"] = "NEEDS ATTENTION"
-
-    return metrics
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "repo": repo,
+        "days_analyzed": days,
+        "total_prs": total_prs,
+        "prs_with_morningai_review": prs_with_review,
+        "review_coverage_percent": coverage_percent,
+        "total_morningai_reviews": total_reviews,
+        "duplicate_reviews": duplicate_count,
+        "duplicate_rate_percent": duplicate_rate,
+        "duplicate_commits": duplicate_commits,
+        "health_score": health_score,
+        "status": status,
+        # Internal data (excluded from output but used for analysis)
+        "prs_analyzed": prs_analyzed,
+        "review_latencies_seconds": all_latencies,
+        **latency_stats,
+    }
 
 
 def format_markdown(metrics: dict) -> str:
