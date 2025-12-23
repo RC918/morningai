@@ -75,6 +75,7 @@ Before progressing to EPIC C (Flow Controller), the following criteria must be m
 - **JSON Reports**: Stored as GitHub Actions artifacts (90-day retention)
 - **Markdown Reports**: Appended to tracking issue #2859
 - **Status Cache**: Used for regression detection between runs
+- **Fallback Recovery**: If cache is lost, status is recovered from the last tracking issue comment
 
 ## Related Resources
 
@@ -100,6 +101,10 @@ A: JSON reports are stored as GitHub Actions artifacts with 90-day retention. Na
 **Q: Why didn't I receive a notification?**
 
 A: Notifications are only sent on regression (status downgrade) or execution failure. If the status improved or stayed the same, no notification is sent. Use `force_notify` to test the notification mechanism.
+
+**Q: How do I change the tracking issue?**
+
+A: Create a repository variable named `SCORECARD_TRACKING_ISSUE` with the new issue number. Go to Settings → Secrets and variables → Actions → Variables → New repository variable. The workflow will use this value instead of the default (#2859).
 
 ## Changelog
 

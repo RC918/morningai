@@ -21,7 +21,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TRACKING_ISSUE: 2859
+  # Use repo variable if set, otherwise fallback to hardcoded default
+  # To change: Settings > Secrets and variables > Actions > Variables > New repository variable
+  # Name: SCORECARD_TRACKING_ISSUE, Value: <issue_number>
+  TRACKING_ISSUE: ${{ vars.SCORECARD_TRACKING_ISSUE || '2859' }}
   ANALYSIS_DAYS: 7
   NOTIFY_USER: RC918
 
@@ -51,14 +54,32 @@ jobs:
 
       - name: Read previous status
         id: previous
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f .scorecard-status ]; then
             PREV_STATUS=$(cat .scorecard-status)
             echo "status=$PREV_STATUS" >> $GITHUB_OUTPUT
-            echo "Previous status: $PREV_STATUS"
+            echo "Previous status from cache: $PREV_STATUS"
           else
-            echo "status=UNKNOWN" >> $GITHUB_OUTPUT
-            echo "No previous status found"
+            echo "Cache miss - attempting to recover from tracking issue..."
+            # Fallback: parse last comment from tracking issue
+            # Comment format: **Status:** STATUS_VALUE
+            LAST_COMMENT=$(gh issue view ${{ env.TRACKING_ISSUE }} --comments --json comments -q '.comments[-1].body' 2>/dev/null || echo "")
+            if [ -n "$LAST_COMMENT" ]; then
+              # Extract status using grep - matches "**Status:** VALUE" pattern
+              PREV_STATUS=$(echo "$LAST_COMMENT" | grep -oP '\*\*Status:\*\* \K[A-Z ]+' | head -1 | xargs)
+              if [ -n "$PREV_STATUS" ] && echo "$PREV_STATUS" | grep -qE '^(EXCELLENT|GOOD|FAIR|NEEDS ATTENTION|ERROR)$'; then
+                echo "status=$PREV_STATUS" >> $GITHUB_OUTPUT
+                echo "Previous status recovered from tracking issue: $PREV_STATUS"
+              else
+                echo "status=UNKNOWN" >> $GITHUB_OUTPUT
+                echo "Could not parse status from last comment"
+              fi
+            else
+              echo "status=UNKNOWN" >> $GITHUB_OUTPUT
+              echo "No previous status found (first run)"
+            fi
           fi
 
       - name: Run scorecard
