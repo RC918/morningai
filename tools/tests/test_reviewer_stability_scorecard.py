@@ -20,6 +20,7 @@ from reviewer_stability_scorecard import (  # noqa: E402
     SLOW_REVIEW_THRESHOLD_SECONDS,
     STATUS_GOOD_THRESHOLD,
     STATUS_FAIR_THRESHOLD,
+    EXCELLENT_COVERAGE_THRESHOLD,
     is_morningai_review,
     analyze_pr_reviews,
     compute_duplicates,
@@ -243,6 +244,39 @@ class TestComputeHealthScore:
         assert score == 0
         assert status == "EXCELLENT"
 
+    def test_excellent_status_at_threshold(self):
+        """Coverage at exactly threshold should result in EXCELLENT status."""
+        score, status = compute_health_score(
+            duplicate_reviews=0,
+            coverage_percent=EXCELLENT_COVERAGE_THRESHOLD,
+            avg_latency_seconds=60.0,
+        )
+
+        assert score == 0
+        assert status == "EXCELLENT"
+
+    def test_low_coverage_not_excellent(self):
+        """Low coverage should NOT result in EXCELLENT even with score=0."""
+        score, status = compute_health_score(
+            duplicate_reviews=0,
+            coverage_percent=49.0,
+            avg_latency_seconds=60.0,
+        )
+
+        assert score == 0
+        assert status == "GOOD"
+
+    def test_zero_coverage_not_excellent(self):
+        """Zero coverage should NOT result in EXCELLENT even with score=0."""
+        score, status = compute_health_score(
+            duplicate_reviews=0,
+            coverage_percent=0.0,
+            avg_latency_seconds=60.0,
+        )
+
+        assert score == 0
+        assert status == "GOOD"
+
     def test_good_status(self):
         """Low score should result in GOOD status."""
         score, status = compute_health_score(
@@ -349,3 +383,4 @@ class TestConstants:
         """Threshold constants should have expected values."""
         assert STATUS_GOOD_THRESHOLD == 50
         assert STATUS_FAIR_THRESHOLD == 100
+        assert EXCELLENT_COVERAGE_THRESHOLD == 50

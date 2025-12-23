@@ -52,6 +52,7 @@ SLOW_REVIEW_THRESHOLD_SECONDS = 300  # 5 minutes
 # Status thresholds
 STATUS_GOOD_THRESHOLD = 50
 STATUS_FAIR_THRESHOLD = 100
+EXCELLENT_COVERAGE_THRESHOLD = 50  # Minimum coverage % for EXCELLENT status
 
 
 class GitHubAPIError(Exception):
@@ -90,9 +91,16 @@ def check_rate_limit(response) -> None:
 
 
 def get_recent_prs(
-    token: str, repo: str, days: int, state: str = "all"
+    session: requests.Session, repo: str, days: int, state: str = "all"
 ) -> list:
-    """Get PRs updated within the specified number of days."""
+    """Get PRs updated within the specified number of days.
+
+    Args:
+        session: requests.Session with auth headers configured
+        repo: Repository in owner/repo format
+        days: Number of days to look back
+        state: PR state filter (default: all)
+    """
     url = f"{API_BASE}/repos/{repo}/pulls"
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -109,9 +117,7 @@ def get_recent_prs(
             "page": page,
         }
 
-        resp = requests.get(
-            url, headers=get_headers(token), params=params, timeout=REQUEST_TIMEOUT
-        )
+        resp = session.get(url, params=params, timeout=REQUEST_TIMEOUT)
         check_rate_limit(resp)
 
         if resp.status_code != 200:
@@ -136,8 +142,14 @@ def get_recent_prs(
     return all_prs
 
 
-def get_pr_reviews(token: str, repo: str, pr_number: int) -> list:
-    """Get all reviews for a specific PR."""
+def get_pr_reviews(session: requests.Session, repo: str, pr_number: int) -> list:
+    """Get all reviews for a specific PR.
+
+    Args:
+        session: requests.Session with auth headers configured
+        repo: Repository in owner/repo format
+        pr_number: Pull request number
+    """
     url = f"{API_BASE}/repos/{repo}/pulls/{pr_number}/reviews"
 
     all_reviews = []
@@ -146,9 +158,7 @@ def get_pr_reviews(token: str, repo: str, pr_number: int) -> list:
 
     while True:
         params = {"per_page": per_page, "page": page}
-        resp = requests.get(
-            url, headers=get_headers(token), params=params, timeout=REQUEST_TIMEOUT
-        )
+        resp = session.get(url, params=params, timeout=REQUEST_TIMEOUT)
         check_rate_limit(resp)
 
         if resp.status_code != 200:
@@ -283,7 +293,10 @@ def compute_health_score(
 
     health_score = max(0, health_score)
 
-    if health_score == 0 and duplicate_reviews == 0:
+    # Issue #2851: EXCELLENT requires minimum coverage threshold
+    # 0% coverage should not be classified as EXCELLENT
+    if (health_score == 0 and duplicate_reviews == 0 and
+            coverage_percent >= EXCELLENT_COVERAGE_THRESHOLD):
         status = "EXCELLENT"
     elif health_score < STATUS_GOOD_THRESHOLD:
         status = "GOOD"
@@ -303,9 +316,15 @@ def calculate_metrics(token: str, repo: str, days: int) -> dict:
     2. Analyzes reviews for each PR
     3. Computes aggregate statistics
     4. Returns a metrics dictionary
+
+    Issue #2852: Uses requests.Session for connection reuse and better performance.
     """
+    # Issue #2852: Create session for connection pooling
+    session = requests.Session()
+    session.headers.update(get_headers(token))
+
     print(f"Fetching PRs from {repo} updated in last {days} days...")
-    prs = get_recent_prs(token, repo, days)
+    prs = get_recent_prs(session, repo, days)
     print(f"Found {len(prs)} PRs")
 
     # Initialize tracking structures
@@ -322,7 +341,7 @@ def calculate_metrics(token: str, repo: str, days: int) -> dict:
         print(f"  Analyzing PR #{pr_number}: {pr_title}...")
 
         try:
-            reviews = get_pr_reviews(token, repo, pr_number)
+            reviews = get_pr_reviews(session, repo, pr_number)
         except GitHubAPIError as e:
             print(f"    Warning: {e}")
             continue
@@ -447,7 +466,7 @@ def format_markdown(metrics: dict) -> str:
         "",
         "### Status Thresholds",
         "",
-        "- EXCELLENT: Score = 0, no duplicates",
+        f"- EXCELLENT: Score = 0, no duplicates, coverage >= {EXCELLENT_COVERAGE_THRESHOLD}%",
         "- GOOD: Score < 50",
         "- FAIR: Score < 100",
         "- NEEDS ATTENTION: Score >= 100",
