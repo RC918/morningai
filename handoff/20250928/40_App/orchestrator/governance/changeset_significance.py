@@ -51,6 +51,9 @@ class ChangeType(Enum):
     UNKNOWN = "unknown"                 # Cannot classify
 
 
+# Default minimum score for Value Gate (used as fallback if settings unavailable)
+DEFAULT_VALUE_GATE_MIN_SCORE = 30
+
 # Significance weights for each change type (0-100)
 CHANGE_TYPE_WEIGHTS = {
     ChangeType.FORMATTING: 5,
@@ -312,12 +315,14 @@ def calculate_significance_score(
     final_score = max(0, min(100, final_score))  # Clamp to 0-100
     
     # Determine if PR should be created
-    # Default threshold is 30 (configurable via VALUE_GATE_MIN_SCORE)
+    # Default threshold is configurable via VALUE_GATE_MIN_SCORE
     try:
         from common.config.settings import settings
-        min_score = getattr(settings, 'value_gate_min_score', 30) or 30
+        min_score = getattr(
+            settings, 'value_gate_min_score', DEFAULT_VALUE_GATE_MIN_SCORE
+        ) or DEFAULT_VALUE_GATE_MIN_SCORE
     except ImportError:
-        min_score = 30
+        min_score = DEFAULT_VALUE_GATE_MIN_SCORE
     
     should_create_pr = final_score >= min_score
     
