@@ -323,11 +323,20 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     cost_risk = "info"
     rate_limit_risk = "info"
     
+    # Log entry point for observability
+    logger.info(
+        f"[GraphExecute] Starting execution trace_id={trace_id} repo={repo_full}",
+        extra={"operation": "graph_execute_start", "trace_id": trace_id, "repo": repo_full}
+    )
+    
     try:
         cost_tracker.enforce_budget(trace_id, period='daily')
         cost_tracker.enforce_budget(trace_id, period='hourly')
     except CostBudgetExceeded as e:
-        print(f"[Cost] Budget exceeded: {e}")
+        logger.warning(
+            f"[GraphExecute] Budget exceeded trace_id={trace_id}: {e}",
+            extra={"operation": "budget_exceeded", "trace_id": trace_id, "error": str(e)}
+        )
         cost_risk = "critical"
         evaluate_execution_policy(
             trace_id=trace_id,
@@ -344,7 +353,10 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     docs_max_prs = settings.orchestrator_docs_max_prs_per_hour or 3
     allowed, count = check_pr_rate_limit(trace_id, max_per_hour=docs_max_prs, redis_url=settings.redis_url)
     if not allowed:
-        print(f"[Rate Limit] BLOCKED - Already created {count} docs PRs this hour (max: {docs_max_prs})")
+        logger.warning(
+            f"[GraphExecute] Rate limited trace_id={trace_id} count={count} max={docs_max_prs}",
+            extra={"operation": "rate_limited", "trace_id": trace_id, "count": count, "max": docs_max_prs}
+        )
         rate_limit_risk = "high"
         evaluate_execution_policy(
             trace_id=trace_id,
@@ -365,10 +377,8 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     
     is_dry_run = settings.orchestrator_dry_run or False
     if is_dry_run:
-        print(f"[DRY_RUN] Skipping PR creation for goal: {goal[:50]}...")
-        print(f"[DRY_RUN] trace_id={trace_id}, repo={repo_full}")
         logger.info(
-            "[DRY_RUN] Orchestrator dry run mode - skipping GitHub operations",
+            f"[GraphExecute] Dry run mode trace_id={trace_id} repo={repo_full} - skipping GitHub operations",
             extra={
                 "operation": "dry_run",
                 "trace_id": trace_id,
@@ -387,14 +397,20 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     
     try:
         faq_content = generate_faq_content(goal, trace_id, repo_full)
-        print(f"[GPT-4] Generated FAQ content ({len(faq_content)} chars)")
+        logger.info(
+            f"[GraphExecute] Generated FAQ content trace_id={trace_id} chars={len(faq_content)}",
+            extra={"operation": "faq_generated", "trace_id": trace_id, "content_length": len(faq_content)}
+        )
         
         estimated_tokens = len(faq_content) // 4  # Rough estimate: 4 chars per token
         estimated_cost = cost_tracker.estimate_cost(estimated_tokens, model='gpt-4')
         cost_tracker.track_usage(trace_id, estimated_tokens, estimated_cost, model='gpt-4', operation='faq_generation')
         
     except Exception as e:
-        print(f"[GPT-4] Failed to generate content: {e}, using fallback")
+        logger.warning(
+            f"[GraphExecute] FAQ generation failed trace_id={trace_id}: {e}, using fallback",
+            extra={"operation": "faq_generation_failed", "trace_id": trace_id, "error": str(e)}
+        )
         # Fallback is handled inside generate_faq_content
         faq_content = generate_faq_content(goal, trace_id, repo_full)
     
@@ -404,15 +420,20 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     has_warnings = any(issue.level == DocIssueLevel.WARNING for issue in quality_issues)
     
     if quality_issues:
-        print(f"[Quality] Found {len(quality_issues)} issue(s) in generated content:")
-        for issue in quality_issues:
-            print(f"  [{issue.level.value.upper()}] {issue.code}: {issue.message}")
+        issue_summary = ", ".join([f"{i.code}:{i.level.value}" for i in quality_issues[:5]])
+        logger.info(
+            f"[GraphExecute] Quality issues found trace_id={trace_id} count={len(quality_issues)} issues=[{issue_summary}]",
+            extra={"operation": "quality_issues", "trace_id": trace_id, "issue_count": len(quality_issues)}
+        )
     
     # Issue #2100: Default to test mode (now True by default in settings)
     # Force test mode if content has errors
     is_test_mode = settings.orchestrator_test_mode
     if has_errors and not is_test_mode:
-        print("[Quality] Forcing test mode due to content errors")
+        logger.info(
+            f"[GraphExecute] Forcing test mode trace_id={trace_id} due to content errors",
+            extra={"operation": "force_test_mode", "trace_id": trace_id}
+        )
         is_test_mode = True
     
     # Issue #2100: Use generated docs path instead of core FAQ.md
@@ -420,9 +441,8 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     
     # Safety check: Never overwrite protected core docs
     if is_protected_path(doc_file_path):
-        print(f"[Safety] BLOCKED - Cannot overwrite protected path: {doc_file_path}")
         logger.error(
-            "[Safety] Attempted to overwrite protected documentation",
+            f"[GraphExecute] Protected path blocked trace_id={trace_id} path={doc_file_path}",
             extra={
                 "operation": "protected_path_blocked",
                 "trace_id": trace_id,
@@ -446,12 +466,20 @@ new file mode 100644
         synthetic_diff += f"+{line}\n"
     
     value_gate_result = check_value_gate(synthetic_diff, goal=goal, trace_id=trace_id)
-    print(f"[ValueGate] Score: {value_gate_result.score}, Type: {value_gate_result.primary_change_type.value}")
+    logger.info(
+        f"[ValueGate] Evaluated trace_id={trace_id} score={value_gate_result.score} type={value_gate_result.primary_change_type.value} should_create={value_gate_result.should_create_pr}",
+        extra={
+            "operation": "value_gate_evaluated",
+            "trace_id": trace_id,
+            "score": value_gate_result.score,
+            "change_type": value_gate_result.primary_change_type.value,
+            "should_create_pr": value_gate_result.should_create_pr
+        }
+    )
     
     if not value_gate_result.should_create_pr:
-        print(f"[ValueGate] BLOCKED - {value_gate_result.downgrade_reason}: {value_gate_result.reasoning}")
         logger.warning(
-            "[ValueGate] PR creation blocked due to low significance",
+            f"[ValueGate] BLOCKED trace_id={trace_id} score={value_gate_result.score} reason={value_gate_result.downgrade_reason}",
             extra={
                 "operation": "value_gate_blocked",
                 "trace_id": trace_id,
@@ -477,12 +505,22 @@ new file mode 100644
         trace_id=trace_id
     )
     
+    # Log PRDedup check result
+    logger.info(
+        f"[PRDedup] Checked trace_id={trace_id} is_duplicate={dedup_result.is_duplicate} type={dedup_result.duplicate_type} similarity={dedup_result.similarity_score:.2f}",
+        extra={
+            "operation": "pr_dedup_checked",
+            "trace_id": trace_id,
+            "is_duplicate": dedup_result.is_duplicate,
+            "duplicate_type": dedup_result.duplicate_type,
+            "similarity_score": dedup_result.similarity_score
+        }
+    )
+    
     if dedup_result.is_duplicate:
-        print(f"[PRDedup] Duplicate detected: {dedup_result.duplicate_type} ({dedup_result.similarity_score:.2f})")
         if not dedup_result.should_create_pr:
-            print(f"[PRDedup] BLOCKED - {dedup_result.reasoning}")
             logger.warning(
-                "[PRDedup] PR creation blocked due to duplicate",
+                f"[PRDedup] BLOCKED trace_id={trace_id} type={dedup_result.duplicate_type} similarity={dedup_result.similarity_score:.2f}",
                 extra={
                     "operation": "pr_dedup_blocked",
                     "trace_id": trace_id,
@@ -540,7 +578,10 @@ Requested by: @RC918
         draft=is_test_mode,
         labels=labels
     )
-    print(f"[PR] {pr_url} (trace-id: {trace_id})")
+    logger.info(
+        f"[GraphExecute] PR created trace_id={trace_id} pr_url={pr_url} pr_num={pr_num}",
+        extra={"operation": "pr_created", "trace_id": trace_id, "pr_url": pr_url, "pr_num": pr_num}
+    )
     
     # Record PR creation for future deduplication (Memory v2 Short-term)
     record_pr_creation(
@@ -557,13 +598,21 @@ Requested by: @RC918
     # Issue #2100: Disable auto-merge for docs PRs (require human approval)
     # Production docs PRs require `orchestrator-approved` label before merge
     if not is_test_mode:
-        print(f"[Human Gate] Production docs PR requires '{LABEL_ORCHESTRATOR_APPROVED}' label for merge")
-        print("[Human Gate] Auto-merge disabled for documentation PRs (Issue #2100)")
+        logger.info(
+            f"[GraphExecute] Human gate enabled trace_id={trace_id} pr_num={pr_num} - requires '{LABEL_ORCHESTRATOR_APPROVED}' label",
+            extra={"operation": "human_gate_enabled", "trace_id": trace_id, "pr_num": pr_num}
+        )
     else:
-        print("[Test Mode] Skipping auto-merge for draft PR")
+        logger.info(
+            f"[GraphExecute] Test mode trace_id={trace_id} pr_num={pr_num} - skipping auto-merge for draft PR",
+            extra={"operation": "test_mode_draft", "trace_id": trace_id, "pr_num": pr_num}
+        )
     
     state, checks = get_pr_checks(repo, pr_num)
-    print(f"[CI] state={state} checks={checks}")
+    logger.info(
+        f"[GraphExecute] CI status trace_id={trace_id} state={state} checks={checks}",
+        extra={"operation": "ci_status", "trace_id": trace_id, "state": state, "checks": checks}
+    )
     
     if agent_id and state == "success":
         reputation_engine.record_event(agent_id, 'test_passed', trace_id=trace_id, reason='CI checks passed')
@@ -571,15 +620,22 @@ Requested by: @RC918
         reputation_engine.record_event(agent_id, 'test_failed', trace_id=trace_id, reason=f'CI checks failed: {state}')
     
     budget_status = cost_tracker.get_budget_status(trace_id, period='daily')
-    print(f"[Cost] Daily budget: {budget_status['usage']['usd']:.2f}/${budget_status['limits']['usd']:.2f} USD ({budget_status['percentages']['usd']:.1f}%)")
+    logger.info(
+        f"[GraphExecute] Budget status trace_id={trace_id} usage={budget_status['usage']['usd']:.2f} limit={budget_status['limits']['usd']:.2f} percent={budget_status['percentages']['usd']:.1f}",
+        extra={"operation": "budget_status", "trace_id": trace_id, "usage_usd": budget_status['usage']['usd'], "limit_usd": budget_status['limits']['usd']}
+    )
     
     if is_test_mode:
-        print(f"[Test Mode] PR #{pr_num} created as draft for testing")
-        print(f"[Test Mode] Auto-cleanup enabled after CI validation")
+        logger.info(
+            f"[GraphExecute] Test mode PR created trace_id={trace_id} pr_num={pr_num} - auto-cleanup enabled",
+            extra={"operation": "test_mode_pr_created", "trace_id": trace_id, "pr_num": pr_num}
+        )
         
         if state in ["success", "failure", "error"]:
-            print(f"[Test Mode] CI completed with state: {state}")
-            print(f"[Test Mode] Cleaning up test PR...")
+            logger.info(
+                f"[GraphExecute] Test mode cleanup trace_id={trace_id} ci_state={state}",
+                extra={"operation": "test_mode_cleanup", "trace_id": trace_id, "ci_state": state}
+            )
             
             cleanup_comment = f"""## Automated Test Cleanup
 
@@ -590,16 +646,25 @@ This PR was created in test mode and has completed CI validation.
 
 Closing this PR and cleaning up the branch.
 
-✅ Orchestrator system validation complete!
+Orchestrator system validation complete!
 """
             
             if close_pr(repo, pr_num, cleanup_comment):
-                print(f"[Test Mode] PR #{pr_num} closed")
+                logger.info(
+                    f"[GraphExecute] Test PR closed trace_id={trace_id} pr_num={pr_num}",
+                    extra={"operation": "test_pr_closed", "trace_id": trace_id, "pr_num": pr_num}
+                )
                 
                 if delete_branch(repo, branch):
-                    print(f"[Test Mode] Branch {branch} deleted")
+                    logger.info(
+                        f"[GraphExecute] Test branch deleted trace_id={trace_id} branch={branch}",
+                        extra={"operation": "test_branch_deleted", "trace_id": trace_id, "branch": branch}
+                    )
             else:
-                print(f"[Test Mode] Failed to cleanup, manual intervention required")
+                logger.warning(
+                    f"[GraphExecute] Test cleanup failed trace_id={trace_id} pr_num={pr_num} - manual intervention required",
+                    extra={"operation": "test_cleanup_failed", "trace_id": trace_id, "pr_num": pr_num}
+                )
     
     return pr_url, state, trace_id
 
