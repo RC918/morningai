@@ -1,0 +1,195 @@
+name: Reviewer Stability Scorecard
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # Daily at 00:00 UTC
+  workflow_dispatch:
+    inputs:
+      force_notify:
+        description: "Force notification regardless of regression"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: scorecard-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  TRACKING_ISSUE: 2859
+  ANALYSIS_DAYS: 7
+  NOTIFY_USER: RC918
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r tools/requirements.txt
+
+      - name: Restore previous status
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .scorecard-status
+          key: scorecard-status-${{ github.repository }}-
+          restore-keys: |
+            scorecard-status-${{ github.repository }}-
+
+      - name: Read previous status
+        id: previous
+        run: |
+          if [ -f .scorecard-status ]; then
+            PREV_STATUS=$(cat .scorecard-status)
+            echo "status=$PREV_STATUS" >> $GITHUB_OUTPUT
+            echo "Previous status: $PREV_STATUS"
+          else
+            echo "status=UNKNOWN" >> $GITHUB_OUTPUT
+            echo "No previous status found"
+          fi
+
+      - name: Run scorecard
+        id: scorecard
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          
+          # Run scorecard with explicit file outputs (avoids fragile sed parsing)
+          python tools/reviewer_stability_scorecard.py \
+            --days ${{ env.ANALYSIS_DAYS }} \
+            --output both \
+            --repo ${{ github.repository }} \
+            --json-out scorecard.json \
+            --md-out scorecard.md \
+            || true
+          
+          # Extract status from JSON file
+          if [ -f scorecard.json ] && grep -q '"status":' scorecard.json 2>/dev/null; then
+            CURRENT_STATUS=$(python -c "import json; print(json.load(open('scorecard.json'))['status'])")
+          else
+            CURRENT_STATUS="ERROR"
+            echo "::warning::Scorecard execution failed or produced invalid output"
+          fi
+          
+          echo "status=$CURRENT_STATUS" >> $GITHUB_OUTPUT
+          echo "Current status: $CURRENT_STATUS"
+
+      - name: Save current status
+        run: echo "${{ steps.scorecard.outputs.status }}" > .scorecard-status
+
+      - name: Update status cache
+        uses: actions/cache/save@v4
+        with:
+          path: .scorecard-status
+          key: scorecard-status-${{ github.repository }}-${{ github.run_id }}
+
+      - name: Upload JSON artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-${{ github.run_id }}
+          path: scorecard.json
+          retention-days: 90
+
+      - name: Check for regression
+        id: regression
+        run: |
+          PREV="${{ steps.previous.outputs.status }}"
+          CURR="${{ steps.scorecard.outputs.status }}"
+          FORCE="${{ inputs.force_notify }}"
+          
+          # Define status severity (lower = better)
+          get_severity() {
+            case "$1" in
+              "EXCELLENT") echo 0 ;;
+              "GOOD") echo 1 ;;
+              "FAIR") echo 2 ;;
+              "NEEDS ATTENTION") echo 3 ;;
+              "ERROR") echo 4 ;;
+              *) echo 5 ;;
+            esac
+          }
+          
+          PREV_SEV=$(get_severity "$PREV")
+          CURR_SEV=$(get_severity "$CURR")
+          
+          if [ "$FORCE" = "true" ]; then
+            echo "notify=true" >> $GITHUB_OUTPUT
+            echo "reason=Force notification requested" >> $GITHUB_OUTPUT
+          elif [ "$CURR" = "ERROR" ]; then
+            echo "notify=true" >> $GITHUB_OUTPUT
+            echo "reason=Scorecard execution failed" >> $GITHUB_OUTPUT
+          elif [ "$PREV" = "UNKNOWN" ]; then
+            echo "notify=false" >> $GITHUB_OUTPUT
+            echo "reason=First run, establishing baseline" >> $GITHUB_OUTPUT
+          elif [ "$CURR_SEV" -gt "$PREV_SEV" ]; then
+            echo "notify=true" >> $GITHUB_OUTPUT
+            echo "reason=Status regressed from $PREV to $CURR" >> $GITHUB_OUTPUT
+          else
+            echo "notify=false" >> $GITHUB_OUTPUT
+            echo "reason=No regression detected ($PREV -> $CURR)" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Regression check: $PREV -> $CURR"
+
+      - name: Post report to tracking issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
+          STATUS="${{ steps.scorecard.outputs.status }}"
+          PREV="${{ steps.previous.outputs.status }}"
+          NOTIFY="${{ steps.regression.outputs.notify }}"
+          REASON="${{ steps.regression.outputs.reason }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          # Build comment body
+          COMMENT="## Scorecard Report - $DATE\n\n"
+          COMMENT+="**Status:** $STATUS"
+          
+          if [ "$PREV" != "UNKNOWN" ]; then
+            COMMENT+=" (previous: $PREV)"
+          fi
+          COMMENT+="\n"
+          
+          if [ "$NOTIFY" = "true" ]; then
+            COMMENT+="\n> :warning: **Regression Alert:** $REASON\n"
+            COMMENT+="> cc @${{ env.NOTIFY_USER }}\n"
+          fi
+          
+          COMMENT+="\n<details>\n<summary>Full Report</summary>\n\n"
+          
+          if [ -f scorecard.md ] && [ -s scorecard.md ]; then
+            COMMENT+=$(cat scorecard.md)
+          else
+            COMMENT+="Report generation failed. Check [workflow run]($RUN_URL) for details."
+          fi
+          
+          COMMENT+="\n\n</details>\n\n"
+          COMMENT+="---\n"
+          COMMENT+="[Workflow Run]($RUN_URL) | [Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          
+          # Post comment to tracking issue
+          echo -e "$COMMENT" | gh issue comment ${{ env.TRACKING_ISSUE }} --body-file -
+
+      - name: Summary
+        run: |
+          echo "## Reviewer Stability Scorecard" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ steps.scorecard.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Previous:** ${{ steps.previous.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Regression:** ${{ steps.regression.outputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tracking Issue:** #${{ env.TRACKING_ISSUE }}" >> $GITHUB_STEP_SUMMARY

@@ -505,6 +505,18 @@ def main():
         default=None,
         help=f"Repository in owner/repo format (default: {DEFAULT_REPO})",
     )
+    parser.add_argument(
+        "--json-out",
+        type=str,
+        default=None,
+        help="Write JSON output to file (optional, for CI workflows)",
+    )
+    parser.add_argument(
+        "--md-out",
+        type=str,
+        default=None,
+        help="Write Markdown output to file (optional, for CI workflows)",
+    )
     args = parser.parse_args()
 
     token = os.environ.get("GITHUB_TOKEN")
@@ -528,17 +540,30 @@ def main():
     # Also remove raw latency list
     output_metrics.pop("review_latencies_seconds", None)
 
+    json_content = json.dumps(output_metrics, indent=2)
+    md_content = format_markdown(output_metrics)
+
+    if args.json_out:
+        with open(args.json_out, "w") as f:
+            f.write(json_content)
+        print(f"JSON output written to: {args.json_out}")
+
+    if args.md_out:
+        with open(args.md_out, "w") as f:
+            f.write(md_content)
+        print(f"Markdown output written to: {args.md_out}")
+
     if args.output in ("json", "both"):
         print("\n" + "=" * 60)
         print("JSON Output:")
         print("=" * 60)
-        print(json.dumps(output_metrics, indent=2))
+        print(json_content)
 
     if args.output in ("markdown", "both"):
         print("\n" + "=" * 60)
         print("Markdown Output:")
         print("=" * 60)
-        print(format_markdown(output_metrics))
+        print(md_content)
 
     # Exit with non-zero if status is bad
     if metrics["status"] == "NEEDS ATTENTION":
