@@ -89,3 +89,55 @@ except ImportError as e:
     PolicyStatus = None
     get_ai_policy_manager = None
     DEFAULT_POLICY_TEMPLATES = None
+
+try:
+    from .changeset_significance import (
+        check_value_gate,
+        get_changeset_hash,
+        analyze_diff,
+        calculate_significance_score,
+        SignificanceResult,
+        ChangeType,
+    )
+    __all__.extend([
+        'check_value_gate',
+        'get_changeset_hash',
+        'analyze_diff',
+        'calculate_significance_score',
+        'SignificanceResult',
+        'ChangeType',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import changeset_significance: {e}")
+    check_value_gate = None
+    get_changeset_hash = None
+    analyze_diff = None
+    calculate_significance_score = None
+    SignificanceResult = None
+    ChangeType = None
+
+try:
+    from .pr_deduplication import (
+        check_pr_deduplication,
+        record_pr_creation,
+        cleanup_old_records,
+        get_recent_pr_count,
+        DeduplicationResult,
+        PRRecord,
+    )
+    __all__.extend([
+        'check_pr_deduplication',
+        'record_pr_creation',
+        'cleanup_old_records',
+        'get_recent_pr_count',
+        'DeduplicationResult',
+        'PRRecord',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import pr_deduplication: {e}")
+    check_pr_deduplication = None
+    record_pr_creation = None
+    cleanup_old_records = None
+    get_recent_pr_count = None
+    DeduplicationResult = None
+    PRRecord = None

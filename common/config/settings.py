@@ -788,6 +788,57 @@ class Settings(BaseSettings):
         description="Skip PR creation in orchestrator, return synthetic results. Use in staging to avoid PR bombing."
     )
 
+    # Value Gate Settings (Publisher Node Governance)
+    # Blueprint: Flow Controller v3 + Safety Governor v2
+    enable_value_gate: bool = Field(
+        default=True,
+        alias="ENABLE_VALUE_GATE",
+        description="Enable Value Gate to prevent low-significance PRs. Part of Publisher Node governance."
+    )
+
+    value_gate_min_score: int = Field(
+        default=30,
+        ge=0,
+        le=100,
+        alias="VALUE_GATE_MIN_SCORE",
+        description="Minimum significance score (0-100) required to create a PR. Changes below this threshold are logged only."
+    )
+
+    value_gate_dry_run: bool = Field(
+        default=True,
+        alias="VALUE_GATE_DRY_RUN",
+        description="Log-only mode for Value Gate. When True, logs what would be blocked but allows PR creation."
+    )
+
+    # PR Deduplication Settings (Memory v2 Short-term)
+    # Blueprint: Memory v2 Layer 1 (Short-term Memory)
+    enable_pr_deduplication: bool = Field(
+        default=True,
+        alias="ENABLE_PR_DEDUPLICATION",
+        description="Enable PR deduplication to prevent duplicate/similar PRs. Part of Memory v2 short-term layer."
+    )
+
+    pr_dedup_window_seconds: int = Field(
+        default=3600,
+        ge=60,
+        alias="PR_DEDUP_WINDOW_SECONDS",
+        description="Time window in seconds for PR deduplication check (default: 3600 = 1 hour)."
+    )
+
+    pr_dedup_similarity_threshold: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        alias="PR_DEDUP_SIMILARITY_THRESHOLD",
+        description="Similarity threshold (0.0-1.0) for semantic/path deduplication. Higher = stricter matching."
+    )
+
+    pr_dedup_dry_run: bool = Field(
+        default=True,
+        alias="PR_DEDUP_DRY_RUN",
+        description="Log-only mode for PR deduplication. When True, logs duplicates but allows PR creation."
+    )
+
     use_redis_checkpointer: bool = Field(
         default=False,
         alias="USE_REDIS_CHECKPOINTER",

@@ -24,6 +24,8 @@ from llm.faq_generator import generate_faq_content
 from utils.rate_limit import check_pr_rate_limit
 from governance.cost_tracker import get_cost_tracker, CostBudgetExceeded
 from governance.reputation_engine import get_reputation_engine
+from governance.changeset_significance import check_value_gate, get_changeset_hash, analyze_diff
+from governance.pr_deduplication import check_pr_deduplication, record_pr_creation
 from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -429,6 +431,68 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
         )
         return None, "protected_path", trace_id
     
+    # ==========================================================================
+    # Value Gate Check (Publisher Node Governance)
+    # Blueprint: Flow Controller v3 + Safety Governor v2
+    # ==========================================================================
+    # Build a synthetic diff for value gate analysis
+    synthetic_diff = f"""diff --git a/{doc_file_path} b/{doc_file_path}
+new file mode 100644
+--- /dev/null
++++ b/{doc_file_path}
+@@ -0,0 +1,{len(faq_content.splitlines())} @@
+"""
+    for line in faq_content.splitlines():
+        synthetic_diff += f"+{line}\n"
+    
+    value_gate_result = check_value_gate(synthetic_diff, goal=goal, trace_id=trace_id)
+    print(f"[ValueGate] Score: {value_gate_result.score}, Type: {value_gate_result.primary_change_type.value}")
+    
+    if not value_gate_result.should_create_pr:
+        print(f"[ValueGate] BLOCKED - {value_gate_result.downgrade_reason}: {value_gate_result.reasoning}")
+        logger.warning(
+            "[ValueGate] PR creation blocked due to low significance",
+            extra={
+                "operation": "value_gate_blocked",
+                "trace_id": trace_id,
+                "score": value_gate_result.score,
+                "downgrade_reason": value_gate_result.downgrade_reason,
+                "goal": goal[:100]
+            }
+        )
+        return None, "value_gate_blocked", trace_id
+    
+    # ==========================================================================
+    # PR Deduplication Check (Memory v2 Short-term)
+    # Blueprint: Memory v2 Layer 1 (Short-term Memory)
+    # ==========================================================================
+    changeset_hash = get_changeset_hash(synthetic_diff)
+    file_paths = [doc_file_path]
+    
+    dedup_result = check_pr_deduplication(
+        goal=goal,
+        changeset_hash=changeset_hash,
+        file_paths=file_paths,
+        repo=repo_full,
+        trace_id=trace_id
+    )
+    
+    if dedup_result.is_duplicate:
+        print(f"[PRDedup] Duplicate detected: {dedup_result.duplicate_type} ({dedup_result.similarity_score:.2f})")
+        if not dedup_result.should_create_pr:
+            print(f"[PRDedup] BLOCKED - {dedup_result.reasoning}")
+            logger.warning(
+                "[PRDedup] PR creation blocked due to duplicate",
+                extra={
+                    "operation": "pr_dedup_blocked",
+                    "trace_id": trace_id,
+                    "duplicate_type": dedup_result.duplicate_type,
+                    "similarity_score": dedup_result.similarity_score,
+                    "goal": goal[:100]
+                }
+            )
+            return None, "duplicate_blocked", trace_id
+    
     commit_file(repo, branch, doc_file_path, faq_content, f"docs: add {topic_slug}.md (trace-id: {trace_id})")
     
     # Issue #2100: Build quality report for PR body
@@ -477,6 +541,18 @@ Requested by: @RC918
         labels=labels
     )
     print(f"[PR] {pr_url} (trace-id: {trace_id})")
+    
+    # Record PR creation for future deduplication (Memory v2 Short-term)
+    record_pr_creation(
+        trace_id=trace_id,
+        goal=goal,
+        changeset_hash=changeset_hash,
+        file_paths=file_paths,
+        repo=repo_full,
+        branch=branch,
+        pr_url=pr_url,
+        pr_number=pr_num
+    )
     
     # Issue #2100: Disable auto-merge for docs PRs (require human approval)
     # Production docs PRs require `orchestrator-approved` label before merge
