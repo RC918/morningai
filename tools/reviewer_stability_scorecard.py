@@ -52,6 +52,12 @@ SLOW_REVIEW_THRESHOLD_SECONDS = 300  # 5 minutes
 # Status thresholds
 STATUS_GOOD_THRESHOLD = 50
 STATUS_FAIR_THRESHOLD = 100
+# EXCELLENT_COVERAGE_THRESHOLD: Minimum coverage % required for EXCELLENT status.
+# Rationale: A repo with 0% MorningAI review coverage should not be classified
+# as EXCELLENT even if it has no duplicates and score=0. The 50% threshold
+# ensures meaningful reviewer adoption before granting the highest status.
+# See Issue #2851 for discussion.
+EXCELLENT_COVERAGE_THRESHOLD = 50
 
 
 class GitHubAPIError(Exception):
@@ -90,9 +96,16 @@ def check_rate_limit(response) -> None:
 
 
 def get_recent_prs(
-    token: str, repo: str, days: int, state: str = "all"
+    session: requests.Session, repo: str, days: int, state: str = "all"
 ) -> list:
-    """Get PRs updated within the specified number of days."""
+    """Get PRs updated within the specified number of days.
+
+    Args:
+        session: requests.Session with auth headers configured
+        repo: Repository in owner/repo format
+        days: Number of days to look back
+        state: PR state filter (default: all)
+    """
     url = f"{API_BASE}/repos/{repo}/pulls"
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -109,9 +122,7 @@ def get_recent_prs(
             "page": page,
         }
 
-        resp = requests.get(
-            url, headers=get_headers(token), params=params, timeout=REQUEST_TIMEOUT
-        )
+        resp = session.get(url, params=params, timeout=REQUEST_TIMEOUT)
         check_rate_limit(resp)
 
         if resp.status_code != 200:
@@ -136,8 +147,14 @@ def get_recent_prs(
     return all_prs
 
 
-def get_pr_reviews(token: str, repo: str, pr_number: int) -> list:
-    """Get all reviews for a specific PR."""
+def get_pr_reviews(session: requests.Session, repo: str, pr_number: int) -> list:
+    """Get all reviews for a specific PR.
+
+    Args:
+        session: requests.Session with auth headers configured
+        repo: Repository in owner/repo format
+        pr_number: Pull request number
+    """
     url = f"{API_BASE}/repos/{repo}/pulls/{pr_number}/reviews"
 
     all_reviews = []
@@ -146,9 +163,7 @@ def get_pr_reviews(token: str, repo: str, pr_number: int) -> list:
 
     while True:
         params = {"per_page": per_page, "page": page}
-        resp = requests.get(
-            url, headers=get_headers(token), params=params, timeout=REQUEST_TIMEOUT
-        )
+        resp = session.get(url, params=params, timeout=REQUEST_TIMEOUT)
         check_rate_limit(resp)
 
         if resp.status_code != 200:
@@ -283,7 +298,10 @@ def compute_health_score(
 
     health_score = max(0, health_score)
 
-    if health_score == 0 and duplicate_reviews == 0:
+    # Issue #2851: EXCELLENT requires minimum coverage threshold
+    # 0% coverage should not be classified as EXCELLENT
+    if (health_score == 0 and duplicate_reviews == 0 and
+            coverage_percent >= EXCELLENT_COVERAGE_THRESHOLD):
         status = "EXCELLENT"
     elif health_score < STATUS_GOOD_THRESHOLD:
         status = "GOOD"
@@ -303,49 +321,57 @@ def calculate_metrics(token: str, repo: str, days: int) -> dict:
     2. Analyzes reviews for each PR
     3. Computes aggregate statistics
     4. Returns a metrics dictionary
+
+    Issue #2852: Uses requests.Session for connection reuse and better performance.
+    Uses context manager for proper resource cleanup.
     """
-    print(f"Fetching PRs from {repo} updated in last {days} days...")
-    prs = get_recent_prs(token, repo, days)
-    print(f"Found {len(prs)} PRs")
+    # Issue #2852: Create session for connection pooling with context manager
+    # for proper cleanup (recommended by Gemini Code Assist)
+    with requests.Session() as session:
+        session.headers.update(get_headers(token))
 
-    # Initialize tracking structures
-    reviews_by_commit: dict = defaultdict(list)
-    all_latencies = []
-    prs_with_review = 0
-    total_reviews = 0
-    prs_analyzed = []
+        print(f"Fetching PRs from {repo} updated in last {days} days...")
+        prs = get_recent_prs(session, repo, days)
+        print(f"Found {len(prs)} PRs")
 
-    # Analyze each PR
-    for pr in prs:
-        pr_number = pr["number"]
-        pr_title = pr["title"][:50]
-        print(f"  Analyzing PR #{pr_number}: {pr_title}...")
+        # Initialize tracking structures
+        reviews_by_commit: dict = defaultdict(list)
+        all_latencies = []
+        prs_with_review = 0
+        total_reviews = 0
+        prs_analyzed = []
 
-        try:
-            reviews = get_pr_reviews(token, repo, pr_number)
-        except GitHubAPIError as e:
-            print(f"    Warning: {e}")
-            continue
+        # Analyze each PR
+        for pr in prs:
+            pr_number = pr["number"]
+            pr_title = pr["title"][:50]
+            print(f"  Analyzing PR #{pr_number}: {pr_title}...")
 
-        pr_info, morningai_reviews, latencies = analyze_pr_reviews(pr, reviews)
-        prs_analyzed.append(pr_info)
+            try:
+                reviews = get_pr_reviews(session, repo, pr_number)
+            except GitHubAPIError as e:
+                print(f"    Warning: {e}")
+                continue
 
-        if morningai_reviews:
-            prs_with_review += 1
-            total_reviews += len(morningai_reviews)
-            all_latencies.extend(latencies)
+            pr_info, morningai_reviews, latencies = analyze_pr_reviews(pr, reviews)
+            prs_analyzed.append(pr_info)
 
-            # Track reviews by commit for duplicate detection
-            for review in morningai_reviews:
-                commit_id = review.get("commit_id")
-                if commit_id:  # Only track if commit_id exists
-                    reviews_by_commit[commit_id].append({
-                        "pr_number": pr_number,
-                        "review_id": review["id"],
-                        "submitted_at": review.get("submitted_at"),
-                    })
+            if morningai_reviews:
+                prs_with_review += 1
+                total_reviews += len(morningai_reviews)
+                all_latencies.extend(latencies)
 
-    # Compute aggregate statistics
+                # Track reviews by commit for duplicate detection
+                for review in morningai_reviews:
+                    commit_id = review.get("commit_id")
+                    if commit_id:  # Only track if commit_id exists
+                        reviews_by_commit[commit_id].append({
+                            "pr_number": pr_number,
+                            "review_id": review["id"],
+                            "submitted_at": review.get("submitted_at"),
+                        })
+
+    # Compute aggregate statistics (outside session context - no more API calls)
     total_prs = len(prs)
     coverage_percent = (
         round(100 * prs_with_review / total_prs, 1) if total_prs > 0 else 0.0
@@ -447,7 +473,7 @@ def format_markdown(metrics: dict) -> str:
         "",
         "### Status Thresholds",
         "",
-        "- EXCELLENT: Score = 0, no duplicates",
+        f"- EXCELLENT: Score = 0, no duplicates, coverage >= {EXCELLENT_COVERAGE_THRESHOLD}%",
         "- GOOD: Score < 50",
         "- FAIR: Score < 100",
         "- NEEDS ATTENTION: Score >= 100",

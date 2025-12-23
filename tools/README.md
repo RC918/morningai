@@ -46,7 +46,7 @@ python tools/reviewer_stability_scorecard.py --repo RC918/morningai
 
 | Status | Criteria |
 |--------|----------|
-| EXCELLENT | Score = 0, no duplicates |
+| EXCELLENT | Score = 0, no duplicates, coverage >= 50% |
 | GOOD | Score < 50 |
 | FAIR | Score < 100 |
 | NEEDS ATTENTION | Score >= 100 |
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install requests
+      - run: pip install -r tools/requirements.txt
       - run: python tools/reviewer_stability_scorecard.py --output markdown
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
