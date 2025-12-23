@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 224
+- **Total Variables**: 225
 - **Required**: 21
-- **Optional**: 203
+- **Optional**: 204
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -35,7 +35,7 @@
 - [Feature Flags](#feature-flags) (58 variables)
 - [Orchestrator](#orchestrator) (6 variables)
 - [Frontend](#frontend) (6 variables)
-- [Testing](#testing) (16 variables)
+- [Testing](#testing) (17 variables)
 - [Payment](#payment) (3 variables)
 - [Agent Evaluation](#agent-evaluation) (5 variables)
 - [Deployment](#deployment) (1 variables)
@@ -2700,6 +2700,7 @@ Enable real backend API for Owner Console (defaults to true in production builds
 | `STAGING_API_URL` | url | No | - | PUBLIC |
 | `STAGING_TEST_EMAIL` | string | No | - | PUBLIC |
 | `STAGING_TEST_PASSWORD` | secret | No | - | SECRET |
+| `STAGING_JWT_SECRET_KEY` | secret | No | - | CRITICAL |
 | `FORCE_ENABLE_2FA_IN_TESTS` | boolean | No | false | PUBLIC |
 
 ### Details
@@ -2883,6 +2884,19 @@ Test user password for staging environment
 - **Required**: No
 - **Default**: `-`
 - **Security Level**: SECRET
+
+#### `STAGING_JWT_SECRET_KEY`
+
+JWT secret key for staging environment (used by E2E tests)
+
+- **Type**: secret
+- **Required**: No
+- **Default**: `-`
+- **Security Level**: CRITICAL
+
+**Notes**:
+> Used by agent-mvp-e2e.yml to generate JWT tokens for staging API authentication.
+> Must match the JWT_SECRET_KEY configured on the staging backend.
 
 #### `FORCE_ENABLE_2FA_IN_TESTS`
 
