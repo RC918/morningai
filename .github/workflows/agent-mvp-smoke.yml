@@ -21,9 +21,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Core smoke (healthz + billing)
+        env:
+          # Use staging environment to avoid testing against production
+          # Falls back to production if STAGING_API_URL is not configured
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
         run: |
           set -e
-          BASE="https://morningai-backend-v2.onrender.com"
+          BASE="${STAGING_API_URL:-https://morningai-backend-v2.onrender.com}"
           for ep in /healthz /api/billing/plans; do
             code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$ep")
             echo "$ep => $code"
@@ -31,9 +35,12 @@ jobs:
           done
       - name: (Optional) Agent FAQ smoke (expect 202)
         if: ${{ github.event.inputs.check_agent_faq == 'true' }}
+        env:
+          # Use staging environment to avoid testing against production
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
         run: |
           set -e
-          BASE="https://morningai-backend-v2.onrender.com"
+          BASE="${STAGING_API_URL:-https://morningai-backend-v2.onrender.com}"
           code=$(curl -s -o /dev/null -w "%{http_code}" \
                 -H 'Content-Type: application/json' \
                 -d '{"question":"Generate FAQ"}' \

@@ -29,8 +29,12 @@ jobs:
       - name: Run E2E Test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_URL: https://morningai-backend-v2.onrender.com
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          # Use staging environment to avoid testing against production
+          # This prevents E2E tests from hitting production endpoints
+          # NOTE: This workflow will FAIL if STAGING_API_URL or STAGING_JWT_SECRET_KEY
+          # secrets are not configured in GitHub Actions (no fallback to production)
+          BASE_URL: ${{ secrets.STAGING_API_URL }}
+          JWT_SECRET_KEY: ${{ secrets.STAGING_JWT_SECRET_KEY }}
         run: |
           python - <<'EOF'
           import os
