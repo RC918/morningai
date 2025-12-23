@@ -50,8 +50,10 @@ jobs:
           JWT_SECRET = os.environ['JWT_SECRET_KEY']
           
           # Generate analyst JWT token for authentication
+          # NOTE: user_id must be a valid UUID that exists in staging user_profiles table
+          # with a valid tenant_id assignment. See docs/E2E_SETUP.md for configuration.
           analyst_payload = {
-              'user_id': 2,
+              'user_id': '908a4141-95e8-4ff4-af55-3731e485003c',  # staging e2e test user UUID
               'username': 'e2e-analyst',
               'role': 'analyst',
               'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),
