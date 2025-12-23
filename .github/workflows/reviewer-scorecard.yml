@@ -41,7 +41,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .scorecard-status
-          key: scorecard-status-${{ github.repository }}
+          key: scorecard-status-${{ github.repository }}-
+          restore-keys: |
+            scorecard-status-${{ github.repository }}-
 
       - name: Read previous status
         id: previous
@@ -60,7 +62,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
+          set -eo pipefail
           
           # Run scorecard and capture output
           python tools/reviewer_stability_scorecard.py \
