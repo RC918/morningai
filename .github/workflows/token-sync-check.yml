@@ -151,13 +151,23 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Source: \`packages/shared-ui/src/tokens.json\`" >> $GITHUB_STEP_SUMMARY
       
+      - name: Find existing token sync comment
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-token-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: token-sync-check -->"
+
       - name: Comment on PR
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: token-sync-check
+          comment-id: ${{ steps.find-token-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: token-sync-check -->
             ## Token Sync Check
             
             **Status**: ${{ job.status == 'success' && 'Passed' || 'Failed' }}

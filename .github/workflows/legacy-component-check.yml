@@ -107,13 +107,23 @@ jobs:
             echo "files_scanned=0" >> $GITHUB_OUTPUT
           fi
 
+      - name: Find existing legacy component comment
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-legacy-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: legacy-component-check -->"
+
       - name: Comment on PR (violations detected)
         if: github.event_name == 'pull_request' && always() && steps.parse.outputs.violations != '0' && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: legacy-component-check
+          comment-id: ${{ steps.find-legacy-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: legacy-component-check -->
             ## Legacy Component Detection
             
             **Mode**: Warning (soft gate - not blocking)
@@ -147,8 +157,10 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: legacy-component-check
+          comment-id: ${{ steps.find-legacy-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: legacy-component-check -->
             ## Legacy Component Detection
             
             **Mode**: Warning (soft gate - not blocking)

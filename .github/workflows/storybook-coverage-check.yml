@@ -106,13 +106,23 @@ jobs:
             echo "coverage=0" >> $GITHUB_OUTPUT
           fi
 
+      - name: Find existing storybook coverage comment
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-storybook-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: storybook-coverage-check -->"
+
       - name: Comment on PR (missing stories detected)
         if: github.event_name == 'pull_request' && always() && steps.parse.outputs.missing != '0' && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: storybook-coverage-check
+          comment-id: ${{ steps.find-storybook-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: storybook-coverage-check -->
             ## Storybook Coverage Check
             
             **Mode**: Warning (soft gate - not blocking)
@@ -147,8 +157,10 @@ jobs:
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: storybook-coverage-check
+          comment-id: ${{ steps.find-storybook-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: storybook-coverage-check -->
             ## Storybook Coverage Check
             
             **Mode**: Warning (soft gate - not blocking)
