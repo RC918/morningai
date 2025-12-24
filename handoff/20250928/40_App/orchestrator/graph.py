@@ -543,6 +543,9 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     # Safety check: Never overwrite protected core docs
     # Note: doc_file_path is already defined above for atomic lease
     if is_protected_path(doc_file_path):
+        # Issue #2910: Release lease on early return to allow future retries
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
         logger.error(
             f"[GraphExecute] Protected path blocked trace_id={trace_id} path={doc_file_path}",
             extra={
@@ -580,6 +583,9 @@ new file mode 100644
     )
     
     if not value_gate_result.should_create_pr:
+        # Issue #2910: Release lease on early return to allow future retries
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
         logger.warning(
             f"[ValueGate] BLOCKED trace_id={trace_id} score={value_gate_result.score} reason={value_gate_result.downgrade_reason}",
             extra={
@@ -621,6 +627,9 @@ new file mode 100644
     
     if dedup_result.is_duplicate:
         if not dedup_result.should_create_pr:
+            # Issue #2910: Release lease on early return to allow future retries
+            if lease_acquired:
+                release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
             logger.warning(
                 f"[PRDedup] BLOCKED trace_id={trace_id} type={dedup_result.duplicate_type} similarity={dedup_result.similarity_score:.2f}",
                 extra={
