@@ -563,11 +563,34 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
             return True  # Duplicate, should skip
 
     except Exception as e:
-        # Redis error, allow processing (graceful degradation)
+        # Redis error, allow processing (graceful degradation / fail-open)
+        # Issue #2882: Add structured logging for fail-open observability
+        error_type = type(e).__name__
         logger.warning(
-            "[Webhooks] Redis error during webhook idempotency check, allowing: %s",
-            e,
+            "[Webhooks] Redis error during idempotency check, fail-open",
+            extra={
+                "delivery_id": delivery_id,
+                "error_type": error_type,
+                "error_message": str(e),
+                "fail_open": True,
+            }
         )
+
+        # Add Sentry breadcrumb for fail-open correlation
+        try:
+            import sentry_sdk
+            sentry_sdk.add_breadcrumb(
+                category="webhook.idempotency",
+                message="Fail-open due to Redis error",
+                level="warning",
+                data={
+                    "delivery_id": delivery_id,
+                    "error_type": error_type,
+                }
+            )
+        except ImportError:
+            pass  # Sentry not available, skip breadcrumb
+
         return False
 
 

@@ -1067,7 +1067,7 @@ class TestWebhookDeliveryIdempotency:
                 assert result is False  # Should process (graceful degradation)
 
     def test_idempotency_logs_warning_on_redis_error(self):
-        """Should log warning when Redis error occurs (fail-open observability)."""
+        """Should log warning with structured extra fields when Redis error occurs (#2882)."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
         with patch("src.routes.webhooks.settings") as mock_settings:
@@ -1080,8 +1080,53 @@ class TestWebhookDeliveryIdempotency:
                     # Verify warning is logged for observability (fail-open tracking)
                     mock_logger.warning.assert_called_once()
                     call_args = mock_logger.warning.call_args[0]
+                    call_kwargs = mock_logger.warning.call_args[1]
                     assert "Redis error" in call_args[0]
-                    assert "idempotency" in call_args[0].lower()
+                    assert "fail-open" in call_args[0].lower()
+
+                    # Issue #2882: Verify structured logging with extra fields
+                    assert "extra" in call_kwargs
+                    extra = call_kwargs["extra"]
+                    assert extra["delivery_id"] == "delivery-123"
+                    assert extra["error_type"] == "Exception"
+                    assert "Connection failed" in extra["error_message"]
+                    assert extra["fail_open"] is True
+
+    def test_idempotency_adds_sentry_breadcrumb_on_redis_error(self):
+        """Should add Sentry breadcrumb when Redis error occurs (#2882)."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis_class.from_url.side_effect = ValueError("Redis unavailable")
+                with patch("src.routes.webhooks.logger"):
+                    with patch("sentry_sdk.add_breadcrumb") as mock_breadcrumb:
+                        _check_webhook_delivery_idempotency("delivery-456")
+
+                        # Verify Sentry breadcrumb is added for fail-open correlation
+                        mock_breadcrumb.assert_called_once()
+                        call_kwargs = mock_breadcrumb.call_args[1]
+                        assert call_kwargs["category"] == "webhook.idempotency"
+                        assert "Fail-open" in call_kwargs["message"]
+                        assert call_kwargs["level"] == "warning"
+                        assert call_kwargs["data"]["delivery_id"] == "delivery-456"
+                        assert call_kwargs["data"]["error_type"] == "ValueError"
+
+    def test_idempotency_handles_sentry_import_error(self):
+        """Should gracefully handle when sentry_sdk is not available (#2882)."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis_class.from_url.side_effect = Exception("Connection failed")
+                with patch("src.routes.webhooks.logger"):
+                    # Simulate sentry_sdk not being available
+                    with patch.dict("sys.modules", {"sentry_sdk": None}):
+                        # Should not raise, just skip breadcrumb
+                        result = _check_webhook_delivery_idempotency("delivery-789")
+                        assert result is False  # Still allows processing (fail-open)
 
     def test_idempotency_logs_info_on_duplicate_detection(self):
         """Should log info when duplicate is detected (observability)."""
