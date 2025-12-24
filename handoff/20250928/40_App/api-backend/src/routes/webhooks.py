@@ -564,7 +564,7 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
 
     except Exception as e:
         # Redis error, allow processing (graceful degradation / fail-open)
-        # Issue #2882: Add structured logging for fail-open observability
+        # Issue #2882: Enhanced observability with structured logging + Sentry breadcrumbs
         error_type = type(e).__name__
         logger.warning(
             "[Webhooks] Redis error during idempotency check, fail-open",
