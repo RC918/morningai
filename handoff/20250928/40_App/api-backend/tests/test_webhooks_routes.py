@@ -1116,14 +1116,22 @@ class TestWebhookDeliveryIdempotency:
     def test_idempotency_handles_sentry_import_error(self):
         """Should gracefully handle when sentry_sdk is not available (#2882)."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "sentry_sdk":
+                raise ImportError("No module named 'sentry_sdk'")
+            return original_import(name, *args, **kwargs)
 
         with patch("src.routes.webhooks.settings") as mock_settings:
             mock_settings.redis_url = "redis://localhost:6379"
             with patch("redis.Redis") as mock_redis_class:
                 mock_redis_class.from_url.side_effect = Exception("Connection failed")
                 with patch("src.routes.webhooks.logger"):
-                    # Simulate sentry_sdk not being available
-                    with patch.dict("sys.modules", {"sentry_sdk": None}):
+                    # Explicitly raise ImportError when sentry_sdk is imported
+                    with patch.object(builtins, "__import__", side_effect=mock_import):
                         # Should not raise, just skip breadcrumb
                         result = _check_webhook_delivery_idempotency("delivery-789")
                         assert result is False  # Still allows processing (fail-open)
