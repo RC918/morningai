@@ -1,0 +1,59 @@
+name: Workflow Lint
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Lint GitHub Actions Workflows
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: Download actionlint
+        id: get_actionlint
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          echo "version=$(./actionlint --version)" >> $GITHUB_OUTPUT
+      
+      - name: Run actionlint
+        run: |
+          echo "Running actionlint $(./actionlint --version)"
+          ./actionlint -color
+      
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML syntax for all workflow files..."
+          pip install pyyaml
+          python -c "
+          import yaml
+          import sys
+          from pathlib import Path
+          
+          errors = []
+          for f in Path('.github/workflows').glob('*.yml'):
+              try:
+                  yaml.safe_load(f.read_text())
+                  print(f'OK: {f}')
+              except yaml.YAMLError as e:
+                  print(f'ERROR: {f}')
+                  print(f'  {e}')
+                  errors.append(str(f))
+          
+          if errors:
+              print(f'\nFailed files: {len(errors)}')
+              sys.exit(1)
+          else:
+              print(f'\nAll workflow files are valid YAML')
+          "
