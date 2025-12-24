@@ -1,14 +1,22 @@
 # .github/workflows/qwen-pr-review.yml
 #
-# Qwen AI Code Review Workflow
+# Qwen AI Code Review Workflow (STOPGAP - NOT Blueprint Reviewer Agent)
 # 
 # ============================================================================
-# STATUS: ENABLED (2025-12-24)
+# STATUS: DISABLED (2025-12-24)
 # ============================================================================
-# This workflow reviews all PRs using Qwen AI (qwen-plus model).
-# Works alongside Gemini Code Assist to provide dual AI review coverage.
+# REASON: This GitHub Actions workflow is NOT the MorningAI Reviewer Agent
+# defined in Wish Pool v2 Blueprint. It's a simplified stopgap that:
+# - Does NOT use the orchestrator-based LLMReviewerAdapter
+# - Does NOT have diff-aware prompts with line number semantics
+# - Does NOT have secrets redaction or prompt injection protection
+# - Does NOT integrate with Safety/Compliance layer
 #
-# To disable: comment out the pull_request trigger in the 'on:' section
+# The true MorningAI Reviewer Agent is in:
+# - orchestrator/llm_reviewer_adapter.py (LLMReviewerAdapter class)
+# - orchestrator/webhooks/internal_reviewer.py (InternalReviewerService)
+#
+# To re-enable: uncomment the pull_request trigger in the 'on:' section
 # ============================================================================
 #
 # This workflow reviews PRs using Qwen AI.
@@ -53,11 +61,12 @@
 name: "Qwen AI Code Review"
 
 on:
-  # Automatic PR review - reviews all PRs on open/sync/reopen
-  pull_request:
-    types: [opened, synchronize, reopened]
+  # DISABLED: Automatic PR review - not aligned with Blueprint Reviewer Agent
+  # Uncomment to re-enable (not recommended until orchestrator-based agent is ready)
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
   
-  # Manual trigger - for testing or one-off reviews
+  # Manual trigger only - for testing or one-off reviews
   workflow_dispatch:
     inputs:
       pr_number:
