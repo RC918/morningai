@@ -82,6 +82,8 @@ Every workflow comment must include a unique hidden marker at the beginning of t
 
 4. **Use step ID for find-comment**: The `id` field (e.g., `find-comment`) is used to reference the output
 
+5. **Handling Multiple Comments**: A single workflow can manage multiple distinct comments (e.g., `design-system-audit.yml` posts both audit results and coverage baseline). To do this, repeat the `find-comment` and `create-or-update-comment` steps for each unique comment marker. Ensure each `find-comment` step has a unique `id` so its output can be referenced correctly by the corresponding `create-or-update-comment` step.
+
 ## Security: Env Passthrough Pattern
 
 When using untrusted inputs (like PR title, branch name, or user-provided data) in shell scripts, always pass them through environment variables to prevent script injection attacks.
