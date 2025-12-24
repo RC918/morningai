@@ -50,6 +50,8 @@ jobs:
           pip uninstall -y jwt || true
           pip install pytest pytest-asyncio pytest-cov
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install dev/test dependencies (playwright, fakeredis, etc.) for CI tests
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
       
       - name: Verify PyJWT installation
         run: |
