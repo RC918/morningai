@@ -411,17 +411,28 @@ class TestRoutingEngineCandidateScoring:
         
         assert model_info.provider == "openai"
 
-    @patch('core.routing.engine.settings')
-    def test_find_available_model_uses_settings_weights(self, mock_settings):
-        """Test _find_available_model uses weights from settings"""
-        mock_settings.routing_cost_weight = 1.0
-        mock_settings.routing_preference_weight = 0.0
+    def test_score_candidate_weights_affect_ranking(self):
+        """Test that different weights produce different rankings"""
+        engine = RoutingEngine()
         
-        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+        # With cost_weight=1.0, preference_weight=0.0:
+        # alicloud: cost_score = 1.0 - 0.5 = 0.5
+        # openai: cost_score = 1.0 - 1.0 = 0.0
+        # alicloud should score higher
+        score_alicloud_cost = engine._score_candidate("alicloud", cost_weight=1.0, preference_weight=0.0)
+        score_openai_cost = engine._score_candidate("openai", cost_weight=1.0, preference_weight=0.0)
+        assert score_alicloud_cost > score_openai_cost
         
-        # With cost_weight=1.0, siliconflow (cost=0.6) should beat openai (cost=1.0)
-        # but alicloud (cost=0.5) should still win
-        model_info = engine.select_model(TaskType.PLANNING)
+        # With cost_weight=0.0, preference_weight=1.0:
+        # alicloud: preference = 1.0
+        # openai: preference = 0.7
+        # alicloud should still score higher (it wins on both axes)
+        score_alicloud_pref = engine._score_candidate("alicloud", cost_weight=0.0, preference_weight=1.0)
+        score_openai_pref = engine._score_candidate("openai", cost_weight=0.0, preference_weight=1.0)
+        assert score_alicloud_pref > score_openai_pref
         
-        # alicloud has lowest cost, should be selected
-        assert model_info.provider == "alicloud"
+        # Verify the actual scores match expected values
+        assert score_alicloud_cost == 0.5  # cost_score only
+        assert score_openai_cost == 0.0    # cost_score only
+        assert score_alicloud_pref == 1.0  # preference only
+        assert score_openai_pref == 0.7    # preference only
