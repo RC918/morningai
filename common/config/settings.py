@@ -838,6 +838,13 @@ class Settings(BaseSettings):
         alias="PR_DEDUP_DRY_RUN",
         description="Log-only mode for PR deduplication. When True, logs duplicates but allows PR creation."
     )
+    
+    pr_dedup_lease_ttl_seconds: int = Field(
+        default=300,
+        ge=60,
+        alias="PR_DEDUP_LEASE_TTL_SECONDS",
+        description="TTL in seconds for atomic PR creation lease. Prevents race condition duplicates. (default: 300 = 5 min)"
+    )
 
     # Issue #2872: Add LIMIT to zrangebyscore for performance
     pr_dedup_max_records: int = Field(

@@ -5,6 +5,7 @@ Blueprint Alignment:
 - Memory v2 (Layer 1 - Short-term): Tracks recent PR creations
 - Flow Controller v3: Called before PR creation in Publisher Node
 - Safety Governor v2: Prevents duplicate/similar PRs
+- Telemetry v2: Structured logging for dedup decisions (可預測性 guarantee)
 
 Purpose:
 Before creating a PR, check if a similar PR was recently created.
@@ -18,10 +19,13 @@ Feature Flags:
 - PR_DEDUP_WINDOW_SECONDS: Time window for dedup check (default: 3600 = 1 hour)
 - PR_DEDUP_SIMILARITY_THRESHOLD: Similarity threshold (default: 0.8)
 - PR_DEDUP_DRY_RUN: Log-only mode for testing (default: True)
+- PR_DEDUP_LEASE_TTL_SECONDS: Atomic lease TTL for race condition prevention (default: 300 = 5 min)
 
 Issue: Memory v2 Short-term Deduplication (垃圾PR Prevention)
+Fix: Atomic SETNX reservation to prevent race condition (Issue #2910)
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -35,7 +39,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_DEDUP_WINDOW_SECONDS = 3600  # 1 hour
 DEFAULT_SIMILARITY_THRESHOLD = 0.8
 DEFAULT_DEDUP_MAX_RECORDS = 100  # Issue #2872: Limit records fetched for performance
+DEFAULT_LEASE_TTL_SECONDS = 300  # 5 minutes - lease for atomic reservation
 REDIS_KEY_PREFIX = "orchestrator:pr_dedup"
+REDIS_LEASE_PREFIX = "orchestrator:pr_lease"
 
 
 @dataclass
@@ -581,3 +587,328 @@ def get_recent_pr_count(
         
     except Exception:
         return 0
+
+
+def generate_dedup_key(
+    repo: str,
+    doc_file_path: str,
+    source_pr_number: Optional[int] = None,
+    event_action: Optional[str] = None
+) -> str:
+    """
+    Generate a deterministic deduplication key.
+    
+    Blueprint Alignment:
+    - Memory v2 (Layer 1): Deterministic key for short-term dedup
+    - 可預測性 (Deterministic): Same input always produces same key
+    
+    Args:
+        repo: Repository (owner/repo format)
+        doc_file_path: Path to the generated doc file
+        source_pr_number: Optional source PR number that triggered this
+        event_action: Optional event action (opened, merged, etc.)
+        
+    Returns:
+        Deterministic dedup key string
+    """
+    components = [repo, doc_file_path]
+    if source_pr_number is not None:
+        components.append(str(source_pr_number))
+    if event_action:
+        components.append(event_action)
+    
+    key_string = ":".join(components)
+    key_hash = hashlib.sha256(key_string.encode()).hexdigest()[:16]
+    
+    return f"{repo}:{key_hash}"
+
+
+def _get_lease_key(dedup_key: str) -> str:
+    """Get Redis key for PR creation lease"""
+    try:
+        from common.config.settings import settings
+        prefix = getattr(settings, 'redis_key_prefix', '') or ''
+        prefix = prefix.rstrip(':')
+    except ImportError:
+        prefix = ''
+    
+    base_key = f"{REDIS_LEASE_PREFIX}:{dedup_key}"
+    return f"{prefix}:{base_key}" if prefix else base_key
+
+
+@dataclass
+class LeaseResult:
+    """Result of attempting to acquire a PR creation lease"""
+    acquired: bool
+    lease_key: str
+    holder: Optional[str] = None
+    ttl_remaining: Optional[int] = None
+    existing_pr_url: Optional[str] = None
+    existing_pr_number: Optional[int] = None
+    reason: str = ""
+
+
+def acquire_pr_lease(
+    dedup_key: str,
+    worker_id: str,
+    trace_id: str,
+    redis_url: Optional[str] = None
+) -> LeaseResult:
+    """
+    Attempt to acquire an atomic lease for PR creation.
+    
+    Blueprint Alignment:
+    - Memory v2 (Layer 1): Atomic short-term reservation
+    - Safety Governor v2: Prevents race condition duplicates
+    - Telemetry v2: Structured logging for lease decisions
+    
+    This uses Redis SETNX (SET if Not eXists) for atomic reservation.
+    If another worker already holds the lease, this will fail fast.
+    
+    Args:
+        dedup_key: Deterministic dedup key from generate_dedup_key()
+        worker_id: ID of the worker attempting to acquire lease
+        trace_id: Trace ID for logging
+        redis_url: Optional Redis URL override
+        
+    Returns:
+        LeaseResult with acquisition status
+    """
+    try:
+        r = _get_redis_client(redis_url)
+        if not r:
+            logger.warning("[PRDedup] Redis unavailable for lease, allowing PR creation (fail-open)", extra={
+                "operation": "pr_lease_acquire",
+                "trace_id": trace_id,
+                "dedup_key": dedup_key,
+                "result": "redis_unavailable"
+            })
+            return LeaseResult(
+                acquired=True,
+                lease_key=dedup_key,
+                reason="Redis unavailable, fail-open"
+            )
+        
+        try:
+            from common.config.settings import settings
+            ttl = getattr(settings, 'pr_dedup_lease_ttl_seconds', DEFAULT_LEASE_TTL_SECONDS)
+            ttl = ttl or DEFAULT_LEASE_TTL_SECONDS
+        except ImportError:
+            ttl = DEFAULT_LEASE_TTL_SECONDS
+        
+        lease_key = _get_lease_key(dedup_key)
+        lease_value = json.dumps({
+            "worker_id": worker_id,
+            "trace_id": trace_id,
+            "acquired_at": time.time(),
+            "status": "in_progress"
+        })
+        
+        acquired = r.set(lease_key, lease_value, nx=True, ex=ttl)
+        
+        if acquired:
+            logger.info("[PRDedup] Lease acquired", extra={
+                "operation": "pr_lease_acquire",
+                "trace_id": trace_id,
+                "dedup_key": dedup_key,
+                "worker_id": worker_id,
+                "ttl_seconds": ttl,
+                "result": "acquired"
+            })
+            return LeaseResult(
+                acquired=True,
+                lease_key=lease_key,
+                holder=worker_id,
+                ttl_remaining=ttl,
+                reason="Lease acquired successfully"
+            )
+        else:
+            existing = r.get(lease_key)
+            existing_data = json.loads(existing) if existing else {}
+            existing_holder = existing_data.get("worker_id", "unknown")
+            existing_trace = existing_data.get("trace_id", "unknown")
+            existing_status = existing_data.get("status", "unknown")
+            existing_pr_url = existing_data.get("pr_url")
+            existing_pr_number = existing_data.get("pr_number")
+            ttl_remaining = r.ttl(lease_key)
+            
+            logger.warning("[PRDedup] Lease already held by another worker", extra={
+                "operation": "pr_lease_acquire",
+                "trace_id": trace_id,
+                "dedup_key": dedup_key,
+                "worker_id": worker_id,
+                "existing_holder": existing_holder,
+                "existing_trace": existing_trace,
+                "existing_status": existing_status,
+                "ttl_remaining": ttl_remaining,
+                "result": "already_held"
+            })
+            return LeaseResult(
+                acquired=False,
+                lease_key=lease_key,
+                holder=existing_holder,
+                ttl_remaining=ttl_remaining,
+                existing_pr_url=existing_pr_url,
+                existing_pr_number=existing_pr_number,
+                reason=f"Lease held by {existing_holder} (trace: {existing_trace}, status: {existing_status})"
+            )
+            
+    except Exception as e:
+        logger.warning(f"[PRDedup] Error acquiring lease: {e}", extra={
+            "operation": "pr_lease_acquire_error",
+            "trace_id": trace_id,
+            "dedup_key": dedup_key,
+            "error": str(e)
+        })
+        return LeaseResult(
+            acquired=True,
+            lease_key=dedup_key,
+            reason=f"Error acquiring lease: {e}, fail-open"
+        )
+
+
+def release_pr_lease(
+    dedup_key: str,
+    trace_id: str,
+    redis_url: Optional[str] = None
+) -> bool:
+    """
+    Release a PR creation lease (used when PR creation fails).
+    
+    Args:
+        dedup_key: Deterministic dedup key
+        trace_id: Trace ID for logging
+        redis_url: Optional Redis URL override
+        
+    Returns:
+        True if released successfully
+    """
+    try:
+        r = _get_redis_client(redis_url)
+        if not r:
+            return False
+        
+        lease_key = _get_lease_key(dedup_key)
+        deleted = r.delete(lease_key)
+        
+        logger.info("[PRDedup] Lease released", extra={
+            "operation": "pr_lease_release",
+            "trace_id": trace_id,
+            "dedup_key": dedup_key,
+            "deleted": bool(deleted)
+        })
+        return bool(deleted)
+        
+    except Exception as e:
+        logger.warning(f"[PRDedup] Error releasing lease: {e}", extra={
+            "operation": "pr_lease_release_error",
+            "trace_id": trace_id,
+            "dedup_key": dedup_key,
+            "error": str(e)
+        })
+        return False
+
+
+def complete_pr_lease(
+    dedup_key: str,
+    trace_id: str,
+    pr_url: str,
+    pr_number: int,
+    redis_url: Optional[str] = None
+) -> bool:
+    """
+    Mark a PR creation lease as complete (PR successfully created).
+    
+    This updates the lease to "done" status with PR info and extends TTL
+    to the full dedup window, preventing duplicate PRs for the same content.
+    
+    Args:
+        dedup_key: Deterministic dedup key
+        trace_id: Trace ID for logging
+        pr_url: URL of the created PR
+        pr_number: Number of the created PR
+        redis_url: Optional Redis URL override
+        
+    Returns:
+        True if completed successfully
+    """
+    try:
+        r = _get_redis_client(redis_url)
+        if not r:
+            return False
+        
+        try:
+            from common.config.settings import settings
+            window = getattr(settings, 'pr_dedup_window_seconds', DEFAULT_DEDUP_WINDOW_SECONDS)
+            window = window or DEFAULT_DEDUP_WINDOW_SECONDS
+        except ImportError:
+            window = DEFAULT_DEDUP_WINDOW_SECONDS
+        
+        lease_key = _get_lease_key(dedup_key)
+        
+        existing = r.get(lease_key)
+        existing_data = json.loads(existing) if existing else {}
+        
+        completed_value = json.dumps({
+            "worker_id": existing_data.get("worker_id", "unknown"),
+            "trace_id": trace_id,
+            "acquired_at": existing_data.get("acquired_at", time.time()),
+            "completed_at": time.time(),
+            "status": "done",
+            "pr_url": pr_url,
+            "pr_number": pr_number
+        })
+        
+        r.set(lease_key, completed_value, ex=window)
+        
+        logger.info("[PRDedup] Lease completed with PR info", extra={
+            "operation": "pr_lease_complete",
+            "trace_id": trace_id,
+            "dedup_key": dedup_key,
+            "pr_url": pr_url,
+            "pr_number": pr_number,
+            "ttl_seconds": window
+        })
+        return True
+        
+    except Exception as e:
+        logger.warning(f"[PRDedup] Error completing lease: {e}", extra={
+            "operation": "pr_lease_complete_error",
+            "trace_id": trace_id,
+            "dedup_key": dedup_key,
+            "error": str(e)
+        })
+        return False
+
+
+def generate_deterministic_branch(
+    repo: str,
+    doc_file_path: str,
+    source_pr_number: Optional[int] = None
+) -> str:
+    """
+    Generate a deterministic branch name for PR creation.
+    
+    Blueprint Alignment:
+    - 可預測性 (Deterministic): Same input always produces same branch name
+    - This prevents multiple branches for the same content
+    
+    Args:
+        repo: Repository (owner/repo format)
+        doc_file_path: Path to the generated doc file
+        source_pr_number: Optional source PR number
+        
+    Returns:
+        Deterministic branch name
+    """
+    components = [repo, doc_file_path]
+    if source_pr_number is not None:
+        components.append(str(source_pr_number))
+    
+    key_string = ":".join(components)
+    branch_hash = hashlib.sha256(key_string.encode()).hexdigest()[:12]
+    
+    path_slug = doc_file_path.split("/")[-1].replace(".md", "")[:20]
+    path_slug = re.sub(r'[^a-zA-Z0-9-]', '-', path_slug).lower()
+    
+    return f"orchestrator/docs-{path_slug}-{branch_hash}"
