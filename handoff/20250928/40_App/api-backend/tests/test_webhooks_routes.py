@@ -991,3 +991,108 @@ class TestEnqueuePRUpdatedDelayedTask:
                         call_args = mock_queue.enqueue_in.call_args
                         # repo is the 3rd positional arg (index 3)
                         assert call_args[0][3] == "fallback/repo"
+
+
+class TestWebhookDeliveryIdempotency:
+    """Tests for webhook delivery idempotency (Issue #2879)."""
+
+    def test_idempotency_allows_new_delivery(self):
+        """Should allow processing of new webhook deliveries."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis.setnx.return_value = True  # Key was set (new delivery)
+                mock_redis_class.from_url.return_value = mock_redis
+
+                result = _check_webhook_delivery_idempotency("delivery-123")
+
+                assert result is False  # Should process (not a duplicate)
+                mock_redis.setnx.assert_called_once()
+                mock_redis.expire.assert_called_once()
+
+    def test_idempotency_blocks_duplicate_delivery(self):
+        """Should block processing of duplicate webhook deliveries."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis.setnx.return_value = False  # Key exists (duplicate)
+                mock_redis_class.from_url.return_value = mock_redis
+
+                result = _check_webhook_delivery_idempotency("delivery-123")
+
+                assert result is True  # Should skip (duplicate)
+                mock_redis.expire.assert_not_called()
+
+    def test_idempotency_allows_when_no_delivery_id(self):
+        """Should allow processing when delivery ID is missing."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        result = _check_webhook_delivery_idempotency("")
+        assert result is False
+
+        result = _check_webhook_delivery_idempotency("unknown")
+        assert result is False
+
+    def test_idempotency_allows_when_no_redis_url(self):
+        """Should allow processing when Redis is not configured."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = None
+
+            result = _check_webhook_delivery_idempotency("delivery-123")
+
+            assert result is False  # Should process (graceful degradation)
+
+    def test_idempotency_allows_on_redis_error(self):
+        """Should allow processing when Redis errors occur."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis_class.from_url.side_effect = Exception("Connection failed")
+
+                result = _check_webhook_delivery_idempotency("delivery-123")
+
+                assert result is False  # Should process (graceful degradation)
+
+    def test_github_webhook_returns_duplicate_response(self, client, mock_normalizer):
+        """Should return 200 with duplicate status for duplicate deliveries."""
+        with patch("src.routes.webhooks._check_webhook_delivery_idempotency", return_value=True):
+            response = client.post(
+                "/api/webhooks/github",
+                data=json.dumps({"action": "opened"}),
+                content_type="application/json",
+                headers={
+                    "X-GitHub-Event": "issues",
+                    "X-GitHub-Delivery": "duplicate-delivery-123"
+                }
+            )
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["status"] == "duplicate"
+            assert "duplicate-delivery-123" in data["message"]
+
+    def test_github_webhook_processes_new_delivery(self, client, mock_normalizer):
+        """Should process new webhook deliveries normally."""
+        with patch("src.routes.webhooks._check_webhook_delivery_idempotency", return_value=False):
+            with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+                response = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={
+                        "X-GitHub-Event": "issues",
+                        "X-GitHub-Delivery": "new-delivery-123"
+                    }
+                )
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data["success"] is True
