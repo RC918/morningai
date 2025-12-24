@@ -166,25 +166,25 @@ jobs:
         run: |
           cd handoff/20250928/40_App/api-backend
           echo "=== DEBUG: orchestrator import resolution ==="
-          python <<'PYEOF'
-import sys
-import importlib.util
-import os
-print('PYTHONPATH env:', os.environ.get('PYTHONPATH', 'NOT SET'))
-print('sys.path[:10]:', sys.path[:10])
-spec = importlib.util.find_spec('orchestrator')
-print('orchestrator spec:', spec)
-if spec:
-    print('orchestrator origin:', spec.origin)
-    print('orchestrator submodule_search_locations:', spec.submodule_search_locations)
-import orchestrator
-print('orchestrator.__file__:', orchestrator.__file__)
-print('orchestrator has __path__:', hasattr(orchestrator, '__path__'))
-if hasattr(orchestrator, '__path__'):
-    print('orchestrator.__path__:', list(orchestrator.__path__))
-webhooks_spec = importlib.util.find_spec('orchestrator.webhooks')
-print('orchestrator.webhooks spec:', webhooks_spec)
-PYEOF
+          python -c "
+          import sys
+          import importlib.util
+          import os
+          print('PYTHONPATH env:', os.environ.get('PYTHONPATH', 'NOT SET'))
+          print('sys.path[:10]:', sys.path[:10])
+          spec = importlib.util.find_spec('orchestrator')
+          print('orchestrator spec:', spec)
+          if spec:
+              print('orchestrator origin:', spec.origin)
+              print('orchestrator submodule_search_locations:', spec.submodule_search_locations)
+          import orchestrator
+          print('orchestrator.__file__:', orchestrator.__file__)
+          print('orchestrator has __path__:', hasattr(orchestrator, '__path__'))
+          if hasattr(orchestrator, '__path__'):
+              print('orchestrator.__path__:', list(orchestrator.__path__))
+          webhooks_spec = importlib.util.find_spec('orchestrator.webhooks')
+          print('orchestrator.webhooks spec:', webhooks_spec)
+          "
           echo "=== END DEBUG ==="
           python -m pytest --rootdir=. --cov=src --cov-report=term-missing --cov-report=xml --cov-report=json --cov-fail-under=80 -v
           echo "### Coverage Summary" >> $GITHUB_STEP_SUMMARY
