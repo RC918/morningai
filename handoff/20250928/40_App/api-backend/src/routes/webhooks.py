@@ -515,6 +515,62 @@ def webhook_health():
     })
 
 
+def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
+    """
+    Check if a webhook delivery has already been processed (idempotency check).
+
+    Issue: #2879 - Add idempotency to webhook handler
+    This prevents duplicate processing of the same webhook event, which can occur
+    due to GitHub retries, network issues, or race conditions.
+
+    Args:
+        delivery_id: The X-GitHub-Delivery header value (unique per delivery)
+
+    Returns:
+        True if this delivery was already processed (should skip)
+        False if this is a new delivery (should process)
+    """
+    if not delivery_id or delivery_id == "unknown":
+        # No delivery ID, can't deduplicate - allow processing
+        return False
+
+    try:
+        from redis import Redis
+        redis_url = settings.redis_url
+        if not redis_url:
+            # Redis not configured, allow processing
+            return False
+
+        redis_client = Redis.from_url(redis_url, decode_responses=True)
+
+        # Key format: webhook:delivery:{delivery_id}
+        # TTL: 7 days to handle delayed retries
+        dedup_key = f"webhook:delivery:{delivery_id}"
+        ttl_seconds = 7 * 24 * 60 * 60  # 7 days
+
+        # Use SET with NX and EX for atomic check-and-set with TTL
+        # This is more reliable than setnx + expire (no crash window)
+        # Returns True if key was set (new delivery), None if key exists (duplicate)
+        result = redis_client.set(dedup_key, "1", nx=True, ex=ttl_seconds)
+
+        if result:
+            return False  # New delivery, should process
+        else:
+            logger.info(
+                "[Webhooks] Duplicate webhook delivery detected, skipping: %s",
+                delivery_id,
+            )
+            return True  # Duplicate, should skip
+
+    except Exception as e:
+        # Redis error, allow processing (graceful degradation)
+        logger.warning(
+            "[Webhooks] Redis error during webhook idempotency check, allowing: %s",
+            e,
+        )
+        return False
+
+
 @bp.route("/github", methods=["POST"])
 @rate_limit_webhook
 def github_webhook():
@@ -538,6 +594,16 @@ def github_webhook():
     is_valid, error_response = check_payload_size()
     if not is_valid:
         return error_response
+
+    # Layer 1: Webhook Delivery Idempotency
+    # Issue: #2879 - Prevent duplicate processing of the same webhook event
+    delivery_id = request.headers.get("X-GitHub-Delivery", "unknown")
+    if _check_webhook_delivery_idempotency(delivery_id):
+        return jsonify({
+            "status": "duplicate",
+            "message": f"Webhook delivery {delivery_id} already processed",
+            "delivery_id": delivery_id,
+        }), 200
 
     try:
         normalizer = get_normalizer()
@@ -567,7 +633,6 @@ def github_webhook():
 
         # Log incoming webhook - use request.headers directly for case-insensitive access
         event_type = request.headers.get("X-GitHub-Event", "unknown")
-        delivery_id = request.headers.get("X-GitHub-Delivery", "unknown")
         logger.info(
             "[Webhooks] Received GitHub webhook: event=%s, delivery=%s",
             event_type,
