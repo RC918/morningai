@@ -147,7 +147,9 @@ This condition:
 
 After implementing or modifying a workflow comment, verify it works correctly:
 
-### Test Procedure
+### Test Procedure (Same-Repo PRs)
+
+For PRs from branches in the same repository:
 
 1. **Create a test PR** that triggers the workflow
 2. **Verify initial comment** appears with the hidden marker
@@ -157,12 +159,19 @@ After implementing or modifying a workflow comment, verify it works correctly:
    - Check there's only ONE comment with that marker
    - Check the content reflects the latest run
 
+### Test Procedure (Fork PRs)
+
+For PRs from forked repositories (fork PRs cannot post comments due to permission restrictions):
+
+1. **Create a PR from a fork** that triggers the workflow
+2. **Verify the workflow runs** without errors
+3. **Verify comment steps are skipped** (check workflow logs for "skipped" status on find-comment/create-or-update-comment steps)
+4. **Verify no permission errors** in the workflow output
+
 ### What to Look For
 
-- Only one comment per marker (no duplicates)
-- Comment timestamp updates on each push
-- Hidden marker is present at the start of the comment
-- Fork PRs don't show errors (they just skip commenting)
+- **Same-repo PRs**: Only one comment per marker (no duplicates), timestamp updates on each push, hidden marker present at start
+- **Fork PRs**: Comment steps skipped gracefully, no permission errors, workflow completes successfully
 
 ## Migration Notes
 
@@ -202,6 +211,76 @@ Replace with the peter-evans pattern. Note that:
 **Cause**: Missing fork guard condition.
 
 **Solution**: Add `github.event.pull_request.head.repo.fork == false` to the `if` condition.
+
+## Governance: Keeping Documentation in Sync
+
+To prevent documentation drift, follow these rules:
+
+1. **Any PR that adds or modifies PR-comment workflows must also update this document**, including:
+   - Adding new markers to the "Current Markers in Use" table
+   - Updating examples if patterns change
+   - Documenting any new security considerations
+
+2. **Review checklist for workflow PRs**:
+   - [ ] New marker added to the table (if applicable)
+   - [ ] Marker follows naming convention (kebab-case, descriptive)
+   - [ ] Fork guard condition included
+   - [ ] Env passthrough pattern used for untrusted inputs
+
+3. **Automated validation**: The `verify-docs.yml` workflow checks documentation consistency. Future enhancement: add marker table validation against actual workflow files (see Issue #2896).
+
+## Multi-Comment Workflow Example
+
+When a single workflow needs to post multiple distinct comments (like `design-system-audit.yml`), use separate find-comment/create-or-update-comment step pairs with unique IDs:
+
+```yaml
+# First comment: Audit Results
+- name: Find audit comment
+  if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+  uses: peter-evans/find-comment@v3
+  id: find-audit-comment
+  with:
+    issue-number: ${{ github.event.pull_request.number }}
+    body-includes: "<!-- id: design-system-audit -->"
+
+- name: Post audit comment
+  if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+  uses: peter-evans/create-or-update-comment@v4
+  with:
+    issue-number: ${{ github.event.pull_request.number }}
+    comment-id: ${{ steps.find-audit-comment.outputs.comment-id }}
+    edit-mode: replace
+    body: |
+      <!-- id: design-system-audit -->
+      ## Design System Audit Results
+      ...audit content...
+
+# Second comment: Coverage Baseline
+- name: Find coverage comment
+  if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+  uses: peter-evans/find-comment@v3
+  id: find-coverage-comment
+  with:
+    issue-number: ${{ github.event.pull_request.number }}
+    body-includes: "<!-- id: shared-ui-coverage-baseline -->"
+
+- name: Post coverage comment
+  if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+  uses: peter-evans/create-or-update-comment@v4
+  with:
+    issue-number: ${{ github.event.pull_request.number }}
+    comment-id: ${{ steps.find-coverage-comment.outputs.comment-id }}
+    edit-mode: replace
+    body: |
+      <!-- id: shared-ui-coverage-baseline -->
+      ## Coverage Baseline
+      ...coverage content...
+```
+
+Key points for multi-comment workflows:
+- Each `find-comment` step needs a **unique `id`** (e.g., `find-audit-comment`, `find-coverage-comment`)
+- Each `create-or-update-comment` references its corresponding find step via `steps.<unique-id>.outputs.comment-id`
+- Each comment has its own **unique marker**
 
 ## References
 
