@@ -548,13 +548,12 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
         dedup_key = f"webhook:delivery:{delivery_id}"
         ttl_seconds = 7 * 24 * 60 * 60  # 7 days
 
-        # Use SETNX for atomic check-and-set
-        # Returns True if key was set (new delivery), False if key exists (duplicate)
-        is_new = redis_client.setnx(dedup_key, "1")
+        # Use SET with NX and EX for atomic check-and-set with TTL
+        # This is more reliable than setnx + expire (no crash window)
+        # Returns True if key was set (new delivery), None if key exists (duplicate)
+        result = redis_client.set(dedup_key, "1", nx=True, ex=ttl_seconds)
 
-        if is_new:
-            # Set TTL on the key
-            redis_client.expire(dedup_key, ttl_seconds)
+        if result:
             return False  # New delivery, should process
         else:
             logger.info(

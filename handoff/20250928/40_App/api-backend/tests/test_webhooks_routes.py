@@ -1004,14 +1004,17 @@ class TestWebhookDeliveryIdempotency:
             mock_settings.redis_url = "redis://localhost:6379"
             with patch("redis.Redis") as mock_redis_class:
                 mock_redis = MagicMock()
-                mock_redis.setnx.return_value = True  # Key was set (new delivery)
+                mock_redis.set.return_value = True  # Key was set (new delivery)
                 mock_redis_class.from_url.return_value = mock_redis
 
                 result = _check_webhook_delivery_idempotency("delivery-123")
 
                 assert result is False  # Should process (not a duplicate)
-                mock_redis.setnx.assert_called_once()
-                mock_redis.expire.assert_called_once()
+                # Verify atomic SET with NX and EX was called
+                mock_redis.set.assert_called_once()
+                call_kwargs = mock_redis.set.call_args[1]
+                assert call_kwargs.get("nx") is True
+                assert call_kwargs.get("ex") == 7 * 24 * 60 * 60  # 7 days
 
     def test_idempotency_blocks_duplicate_delivery(self):
         """Should block processing of duplicate webhook deliveries."""
@@ -1021,13 +1024,13 @@ class TestWebhookDeliveryIdempotency:
             mock_settings.redis_url = "redis://localhost:6379"
             with patch("redis.Redis") as mock_redis_class:
                 mock_redis = MagicMock()
-                mock_redis.setnx.return_value = False  # Key exists (duplicate)
+                mock_redis.set.return_value = None  # Key exists (duplicate) - SET NX returns None
                 mock_redis_class.from_url.return_value = mock_redis
 
                 result = _check_webhook_delivery_idempotency("delivery-123")
 
                 assert result is True  # Should skip (duplicate)
-                mock_redis.expire.assert_not_called()
+                mock_redis.set.assert_called_once()
 
     def test_idempotency_allows_when_no_delivery_id(self):
         """Should allow processing when delivery ID is missing."""
