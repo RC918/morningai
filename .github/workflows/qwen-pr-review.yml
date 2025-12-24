@@ -12,9 +12,10 @@
 # - Does NOT have secrets redaction or prompt injection protection
 # - Does NOT integrate with Safety/Compliance layer
 #
-# The true MorningAI Reviewer Agent is in:
+# The true MorningAI Reviewer Agent (per Blueprint) should use:
 # - orchestrator/llm_reviewer_adapter.py (LLMReviewerAdapter class)
-# - orchestrator/webhooks/internal_reviewer.py (InternalReviewerService)
+# - Triggered via webhook -> orchestrator -> GitHub comment flow
+# Note: internal_reviewer.py is for "re-review after fixes", not external PR review
 #
 # To re-enable: uncomment the pull_request trigger in the 'on:' section
 # ============================================================================
