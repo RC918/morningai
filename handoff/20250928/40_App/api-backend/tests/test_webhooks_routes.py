@@ -1003,7 +1003,7 @@ class TestWebhookDeliveryIdempotency:
         mock_redis = MagicMock()
         mock_redis.set.return_value = True  # Key was set (new delivery)
 
-        with patch("src.routes.webhooks.get_redis_client", return_value=mock_redis):
+        with patch("utils.redis_client.get_redis_client", return_value=mock_redis):
             result = _check_webhook_delivery_idempotency("delivery-123")
 
             assert result is False  # Should process (not a duplicate)
@@ -1020,7 +1020,7 @@ class TestWebhookDeliveryIdempotency:
         mock_redis = MagicMock()
         mock_redis.set.return_value = None  # Key exists (duplicate) - SET NX returns None
 
-        with patch("src.routes.webhooks.get_redis_client", return_value=mock_redis):
+        with patch("utils.redis_client.get_redis_client", return_value=mock_redis):
             result = _check_webhook_delivery_idempotency("delivery-123")
 
             assert result is True  # Should skip (duplicate)
@@ -1041,7 +1041,7 @@ class TestWebhookDeliveryIdempotency:
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
         # get_redis_client raises ValueError when no Redis is configured
-        with patch("src.routes.webhooks.get_redis_client", side_effect=ValueError("No Redis configuration")):
+        with patch("utils.redis_client.get_redis_client", side_effect=ValueError("No Redis configuration")):
             result = _check_webhook_delivery_idempotency("delivery-123")
 
             assert result is False  # Should process (graceful degradation)
@@ -1051,7 +1051,7 @@ class TestWebhookDeliveryIdempotency:
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
         # get_redis_client raises exception on connection failure
-        with patch("src.routes.webhooks.get_redis_client", side_effect=Exception("Connection failed")):
+        with patch("utils.redis_client.get_redis_client", side_effect=Exception("Connection failed")):
             result = _check_webhook_delivery_idempotency("delivery-123")
 
             assert result is False  # Should process (graceful degradation)
@@ -1061,7 +1061,7 @@ class TestWebhookDeliveryIdempotency:
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
         # get_redis_client raises exception on connection failure
-        with patch("src.routes.webhooks.get_redis_client", side_effect=Exception("Connection failed")):
+        with patch("utils.redis_client.get_redis_client", side_effect=Exception("Connection failed")):
             with patch("src.routes.webhooks.logger") as mock_logger:
                 _check_webhook_delivery_idempotency("delivery-123")
 
@@ -1078,7 +1078,7 @@ class TestWebhookDeliveryIdempotency:
         mock_redis = MagicMock()
         mock_redis.set.return_value = None  # Duplicate
 
-        with patch("src.routes.webhooks.get_redis_client", return_value=mock_redis):
+        with patch("utils.redis_client.get_redis_client", return_value=mock_redis):
             with patch("src.routes.webhooks.logger") as mock_logger:
                 _check_webhook_delivery_idempotency("delivery-123")
 
