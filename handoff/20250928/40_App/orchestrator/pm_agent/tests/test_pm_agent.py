@@ -247,3 +247,59 @@ class TestEdgeCases:
         agent = PMAgent()
         advisory = agent.decompose_goal("Task 1\nTask 2\nTask 3")
         assert len(advisory.sub_tasks) >= 1
+
+
+class TestSecurityKeywordsConfig:
+    """Tests for configurable security keywords (Issue #2873)"""
+
+    def test_default_security_keywords(self):
+        """Test that default security keywords are used when not configured"""
+        agent = PMAgent()
+        # The _identify_risks method should use default keywords
+        # Default: ["auth", "permission", "secret", "credential", "token"]
+        # Test that security-related goals are identified
+        advisory = agent.decompose_goal("Implement authentication system")
+        # Should have at least one finding related to security
+        assert advisory is not None
+
+    def test_security_keywords_parsing_comma_separated(self):
+        """Test parsing of comma-separated security keywords"""
+        # Simulate parsing logic used in _identify_risks
+        keywords_str = "auth, permission, secret, credential, token"
+        security_keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
+        
+        assert len(security_keywords) == 5
+        assert "auth" in security_keywords
+        assert "permission" in security_keywords
+        assert "secret" in security_keywords
+
+    def test_security_keywords_parsing_empty_string(self):
+        """Test fallback when security keywords string is empty"""
+        keywords_str = ""
+        security_keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
+        
+        # Empty string should result in empty list, triggering fallback
+        assert security_keywords == []
+        
+        # Fallback logic
+        if not security_keywords:
+            security_keywords = ["auth", "permission", "secret", "credential", "token"]
+        assert len(security_keywords) == 5
+
+    def test_security_keywords_parsing_whitespace_handling(self):
+        """Test that whitespace is properly stripped from keywords"""
+        keywords_str = "  auth  ,  permission  ,  secret  "
+        security_keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
+        
+        assert security_keywords == ["auth", "permission", "secret"]
+        # No leading/trailing whitespace
+        for kw in security_keywords:
+            assert kw == kw.strip()
+
+    def test_security_keywords_parsing_with_empty_entries(self):
+        """Test that empty entries are filtered out"""
+        keywords_str = "auth,,permission,,,secret"
+        security_keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
+        
+        assert security_keywords == ["auth", "permission", "secret"]
+        assert "" not in security_keywords

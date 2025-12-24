@@ -106,6 +106,25 @@ DEFAULT_TIER_MODELS: Dict[Tier, List[tuple]] = {
     ],
 }
 
+# Issue #2874: Provider cost multipliers for best candidate selection
+# Lower values = more cost-effective (preferred when cost_weight > 0)
+# Values are relative cost per 1K tokens (normalized)
+DEFAULT_PROVIDER_COSTS: Dict[str, float] = {
+    "alicloud": 0.5,      # Most cost-effective
+    "siliconflow": 0.6,   # Very cost-effective
+    "gemini": 0.8,        # Moderate cost
+    "openai": 1.0,        # Baseline cost
+}
+
+# Issue #2874: Provider preference scores (higher = more preferred)
+# Used when multiple providers have similar costs
+DEFAULT_PROVIDER_PREFERENCES: Dict[str, float] = {
+    "alicloud": 1.0,      # Primary provider
+    "siliconflow": 0.9,   # Secondary provider
+    "gemini": 0.8,        # Tertiary provider
+    "openai": 0.7,        # Fallback provider
+}
+
 # Default task type to tier mappings
 DEFAULT_TASK_ROUTING: Dict[str, Dict[str, int]] = {
     "planning": {"tier": 0, "fallback": 1},
@@ -312,18 +331,91 @@ class RoutingEngine:
         return Tier.TIER_0
 
     def _find_available_model(self, tier: Tier) -> Optional[ModelInfo]:
-        """Find an available model in the specified tier"""
+        """
+        Find the best available model in the specified tier.
+        
+        Issue #2874: Improved candidate selection using scoring that considers:
+        - Provider cost (lower cost = higher score when cost_weight > 0)
+        - Provider preference (configurable preference order)
+        - Provider availability
+        
+        The scoring formula is:
+        score = (preference * preference_weight) + ((1 - cost) * cost_weight)
+        
+        Higher scores are better. The model with the highest score is selected.
+        """
         tier_models = self._tier_models.get(tier, [])
-
+        
+        if not tier_models:
+            return None
+        
+        # Get scoring weights from settings (Issue #2874)
+        try:
+            from common.config.settings import settings
+            cost_weight = getattr(settings, 'routing_cost_weight', 0.3)
+            preference_weight = getattr(settings, 'routing_preference_weight', 0.7)
+        except ImportError:
+            cost_weight = 0.3
+            preference_weight = 0.7
+        
+        # Score all available candidates
+        candidates = []
         for provider, model_name in tier_models:
             if self._is_provider_available(provider):
-                return ModelInfo(
-                    model_name=model_name,
-                    provider=provider,
-                    tier=tier
-                )
-
-        return None
+                score = self._score_candidate(provider, cost_weight, preference_weight)
+                candidates.append((score, provider, model_name))
+        
+        if not candidates:
+            return None
+        
+        # Select the best candidate (highest score)
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        best_score, best_provider, best_model = candidates[0]
+        
+        logger.debug(
+            f"[RoutingEngine] Selected {best_model} ({best_provider}) with score {best_score:.3f} "
+            f"from {len(candidates)} candidates in tier {tier.value}"
+        )
+        
+        return ModelInfo(
+            model_name=best_model,
+            provider=best_provider,
+            tier=tier
+        )
+    
+    def _score_candidate(
+        self,
+        provider: str,
+        cost_weight: float = 0.3,
+        preference_weight: float = 0.7
+    ) -> float:
+        """
+        Score a candidate provider for selection.
+        
+        Issue #2874: Improved best candidate selection scoring.
+        
+        Args:
+            provider: Provider name
+            cost_weight: Weight for cost factor (0-1)
+            preference_weight: Weight for preference factor (0-1)
+            
+        Returns:
+            Score between 0 and 1 (higher is better)
+        """
+        # Get cost (lower is better, so we invert it)
+        cost = DEFAULT_PROVIDER_COSTS.get(provider, 1.0)
+        cost_score = 1.0 - min(cost, 1.0)  # Invert so lower cost = higher score
+        
+        # Get preference (higher is better)
+        preference = DEFAULT_PROVIDER_PREFERENCES.get(provider, 0.5)
+        
+        # Calculate weighted score
+        total_weight = cost_weight + preference_weight
+        if total_weight == 0:
+            return preference  # Fallback to preference only
+        
+        score = (preference * preference_weight + cost_score * cost_weight) / total_weight
+        return score
 
     def _is_provider_available(self, provider: str) -> bool:
         """Check if a provider is available"""

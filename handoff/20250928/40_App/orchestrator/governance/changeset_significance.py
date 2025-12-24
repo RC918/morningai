@@ -159,7 +159,20 @@ def _classify_line_change(line: str) -> ChangeType:
         return ChangeType.IMPORT
     
     # Security-related keywords
-    security_keywords = ['password', 'secret', 'token', 'api_key', 'auth', 'credential']
+    # Issue #2873: Make security keywords configurable
+    # Includes normalization (lowercase, strip, dedupe) for robustness
+    try:
+        from common.config.settings import settings
+        keywords_str = getattr(settings, 'security_keywords', '')
+        # Parse, normalize (lowercase + strip), and dedupe keywords
+        security_keywords = list(dict.fromkeys(
+            kw.strip().lower() for kw in keywords_str.split(',') if kw.strip()
+        ))
+        if not security_keywords:
+            security_keywords = ['password', 'secret', 'token', 'api_key', 'auth', 'credential']
+    except (ImportError, AttributeError, Exception):
+        # Broad exception catch for robustness - fallback to defaults
+        security_keywords = ['password', 'secret', 'token', 'api_key', 'auth', 'credential']
     if any(kw in content.lower() for kw in security_keywords):
         return ChangeType.SECURITY
     

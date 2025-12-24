@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # Default configuration
 DEFAULT_DEDUP_WINDOW_SECONDS = 3600  # 1 hour
 DEFAULT_SIMILARITY_THRESHOLD = 0.8
+DEFAULT_DEDUP_MAX_RECORDS = 100  # Issue #2872: Limit records fetched for performance
 REDIS_KEY_PREFIX = "orchestrator:pr_dedup"
 
 
@@ -359,8 +360,26 @@ def check_pr_deduplication(
         key = _get_dedup_key(repo)
         
         # Get recent PR records within the time window
+        # Issue #2872: Add LIMIT to zrangebyscore for performance
         min_time = time.time() - window
-        records_json = r.zrangebyscore(key, min_time, '+inf')
+        try:
+            from common.config.settings import settings
+            max_records = getattr(settings, 'pr_dedup_max_records', DEFAULT_DEDUP_MAX_RECORDS)
+            max_records = max_records or DEFAULT_DEDUP_MAX_RECORDS
+        except ImportError:
+            max_records = DEFAULT_DEDUP_MAX_RECORDS
+        
+        # Use start=0, num=max_records to limit results (most recent first via zrevrangebyscore)
+        # This prevents fetching unbounded records which could cause memory issues.
+        #
+        # TRADE-OFF NOTE (Issue #2872):
+        # - By limiting to max_records (default: 100), we prioritize the most recent PRs
+        # - In high-volume scenarios where more than max_records PRs exist in the window,
+        #   older duplicates may be missed (false negatives)
+        # - This is an acceptable trade-off for performance vs. completeness
+        # - The order of results does NOT affect correctness since we check for ANY match
+        # - Adjust PR_DEDUP_MAX_RECORDS if your repo has very high PR volume
+        records_json = r.zrevrangebyscore(key, '+inf', min_time, start=0, num=max_records)
         
         if not records_json:
             logger.info("[PRDedup] No recent PRs found, allowing creation", extra={

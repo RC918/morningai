@@ -686,7 +686,20 @@ class PMAgent:
         risks = []
 
         # Check for security-related changes
-        security_keywords = ["auth", "permission", "secret", "credential", "token"]
+        # Issue #2873: Make security keywords configurable
+        # Includes normalization (lowercase, strip, dedupe) for robustness
+        try:
+            from common.config.settings import settings
+            keywords_str = getattr(settings, 'security_keywords', '')
+            # Parse, normalize (lowercase + strip), and dedupe keywords
+            security_keywords = list(dict.fromkeys(
+                kw.strip().lower() for kw in keywords_str.split(',') if kw.strip()
+            ))
+            if not security_keywords:
+                security_keywords = ["auth", "permission", "secret", "credential", "token"]
+        except (ImportError, AttributeError, Exception):
+            # Broad exception catch for robustness - fallback to defaults
+            security_keywords = ["auth", "permission", "secret", "credential", "token"]
         if any(kw in goal.lower() for kw in security_keywords):
             risks.append("Security-sensitive changes require careful review")
 

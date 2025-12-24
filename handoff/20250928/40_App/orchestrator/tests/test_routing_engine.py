@@ -334,3 +334,105 @@ class TestRoutingEngineIntegration:
         client = get_client_for_task(TaskType.UX_COPY)
 
         assert client.provider_name == "siliconflow"
+
+
+class TestRoutingEngineCandidateScoring:
+    """Tests for candidate scoring and selection (Issue #2874)"""
+
+    def test_score_candidate_default_weights(self):
+        """Test _score_candidate with default weights (0.3 cost, 0.7 preference)"""
+        engine = RoutingEngine()
+        
+        # alicloud: cost=0.5, preference=1.0
+        # cost_score = 1.0 - 0.5 = 0.5
+        # score = (1.0 * 0.7 + 0.5 * 0.3) / 1.0 = 0.85
+        score = engine._score_candidate("alicloud", cost_weight=0.3, preference_weight=0.7)
+        assert 0.84 <= score <= 0.86  # Allow small floating point variance
+
+    def test_score_candidate_cost_only(self):
+        """Test _score_candidate with cost_weight=1.0, preference_weight=0"""
+        engine = RoutingEngine()
+        
+        # alicloud: cost=0.5, cost_score = 0.5
+        score_alicloud = engine._score_candidate("alicloud", cost_weight=1.0, preference_weight=0.0)
+        # openai: cost=1.0, cost_score = 0.0
+        score_openai = engine._score_candidate("openai", cost_weight=1.0, preference_weight=0.0)
+        
+        # Lower cost provider should have higher score
+        assert score_alicloud > score_openai
+
+    def test_score_candidate_preference_only(self):
+        """Test _score_candidate with cost_weight=0, preference_weight=1.0"""
+        engine = RoutingEngine()
+        
+        # alicloud: preference=1.0
+        score_alicloud = engine._score_candidate("alicloud", cost_weight=0.0, preference_weight=1.0)
+        # openai: preference=0.7
+        score_openai = engine._score_candidate("openai", cost_weight=0.0, preference_weight=1.0)
+        
+        # Higher preference provider should have higher score
+        assert score_alicloud > score_openai
+        assert score_alicloud == 1.0
+        assert score_openai == 0.7
+
+    def test_score_candidate_zero_weights_fallback(self):
+        """Test _score_candidate falls back to preference when both weights are 0"""
+        engine = RoutingEngine()
+        
+        # When both weights are 0, should return preference value
+        score = engine._score_candidate("alicloud", cost_weight=0.0, preference_weight=0.0)
+        assert score == 1.0  # alicloud preference is 1.0
+
+    def test_score_candidate_unknown_provider(self):
+        """Test _score_candidate with unknown provider uses defaults"""
+        engine = RoutingEngine()
+        
+        # Unknown provider: cost=1.0 (default), preference=0.5 (default)
+        score = engine._score_candidate("unknown_provider", cost_weight=0.5, preference_weight=0.5)
+        # cost_score = 1.0 - 1.0 = 0.0
+        # score = (0.5 * 0.5 + 0.0 * 0.5) / 1.0 = 0.25
+        assert 0.24 <= score <= 0.26
+
+    def test_find_available_model_selects_highest_score(self):
+        """Test _find_available_model selects the candidate with highest score"""
+        engine = RoutingEngine(available_providers=["alicloud", "openai", "siliconflow"])
+        
+        # With default weights, alicloud should be selected (highest preference + good cost)
+        model_info = engine.select_model(TaskType.PLANNING)
+        
+        assert model_info.provider == "alicloud"
+
+    def test_find_available_model_respects_availability(self):
+        """Test _find_available_model only considers available providers"""
+        # Only openai available, even though alicloud has higher score
+        engine = RoutingEngine(available_providers=["openai"])
+        
+        model_info = engine.select_model(TaskType.PLANNING)
+        
+        assert model_info.provider == "openai"
+
+    def test_score_candidate_weights_affect_ranking(self):
+        """Test that different weights produce different rankings"""
+        engine = RoutingEngine()
+        
+        # With cost_weight=1.0, preference_weight=0.0:
+        # alicloud: cost_score = 1.0 - 0.5 = 0.5
+        # openai: cost_score = 1.0 - 1.0 = 0.0
+        # alicloud should score higher
+        score_alicloud_cost = engine._score_candidate("alicloud", cost_weight=1.0, preference_weight=0.0)
+        score_openai_cost = engine._score_candidate("openai", cost_weight=1.0, preference_weight=0.0)
+        assert score_alicloud_cost > score_openai_cost
+        
+        # With cost_weight=0.0, preference_weight=1.0:
+        # alicloud: preference = 1.0
+        # openai: preference = 0.7
+        # alicloud should still score higher (it wins on both axes)
+        score_alicloud_pref = engine._score_candidate("alicloud", cost_weight=0.0, preference_weight=1.0)
+        score_openai_pref = engine._score_candidate("openai", cost_weight=0.0, preference_weight=1.0)
+        assert score_alicloud_pref > score_openai_pref
+        
+        # Verify the actual scores match expected values
+        assert score_alicloud_cost == 0.5  # cost_score only
+        assert score_openai_cost == 0.0    # cost_score only
+        assert score_alicloud_pref == 1.0  # preference only
+        assert score_openai_pref == 0.7    # preference only

@@ -1,11 +1,30 @@
 """Violation Detector - Detect and prevent policy violations"""
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Pattern
 
 
 class ViolationError(Exception):
     """Raised when a violation is detected"""
     pass
+
+
+# Pre-compiled regex patterns for file access checks (Issue #2871)
+# Compiling once at module load avoids repeated compilation overhead
+SECRETS_FILE_PATTERNS: List[Pattern[str]] = [
+    re.compile(r'\.env', re.IGNORECASE),
+    re.compile(r'secrets', re.IGNORECASE),
+    re.compile(r'credentials', re.IGNORECASE),
+    re.compile(r'\.key$', re.IGNORECASE),
+    re.compile(r'\.pem$', re.IGNORECASE),
+    re.compile(r'\.p12$', re.IGNORECASE),
+]
+
+# Pre-compiled patterns for content sanitization
+REDACT_PATTERNS: List[tuple] = [
+    (re.compile(r'(SECRET|PASSWORD|TOKEN|KEY)[\s=:]+[^\s]+', re.IGNORECASE), r'\1=<REDACTED>'),
+    (re.compile(r'Bearer\s+[^\s]+', re.IGNORECASE), 'Bearer <REDACTED>'),
+    (re.compile(r'[A-Za-z0-9]{32,}'), '<REDACTED_TOKEN>'),
+]
 
 
 class ViolationDetector:
@@ -87,18 +106,12 @@ class ViolationDetector:
                     print(f"[ViolationDetector] Warning: {message}")
     
     def check_file_access(self, file_path: str) -> None:
-        """Check if file access violates policies"""
-        secrets_patterns = [
-            r'\.env',
-            r'secrets',
-            r'credentials',
-            r'\.key$',
-            r'\.pem$',
-            r'\.p12$'
-        ]
+        """Check if file access violates policies
         
-        for pattern in secrets_patterns:
-            if re.search(pattern, file_path, re.IGNORECASE):
+        Uses pre-compiled regex patterns (Issue #2871) for better performance.
+        """
+        for pattern in SECRETS_FILE_PATTERNS:
+            if pattern.search(file_path):
                 raise ViolationError(f"Attempted access to secrets file: {file_path}")
     
     def check_all(self, operation: str, content: str, metadata: Optional[Dict] = None) -> None:
@@ -115,16 +128,13 @@ class ViolationDetector:
         self.check_secrets_access(content)
     
     def sanitize_content(self, content: str) -> str:
-        """Sanitize content by removing potential secrets"""
-        redact_patterns = [
-            (r'(SECRET|PASSWORD|TOKEN|KEY)[\s=:]+[^\s]+', r'\1=<REDACTED>'),
-            (r'Bearer\s+[^\s]+', 'Bearer <REDACTED>'),
-            (r'[A-Za-z0-9]{32,}', '<REDACTED_TOKEN>'),
-        ]
+        """Sanitize content by removing potential secrets
         
+        Uses pre-compiled regex patterns (Issue #2871) for better performance.
+        """
         sanitized = content
-        for pattern, replacement in redact_patterns:
-            sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+        for pattern, replacement in REDACT_PATTERNS:
+            sanitized = pattern.sub(replacement, sanitized)
         
         return sanitized
     
