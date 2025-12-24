@@ -369,8 +369,16 @@ def check_pr_deduplication(
         except ImportError:
             max_records = DEFAULT_DEDUP_MAX_RECORDS
         
-        # Use start=0, num=max_records to limit results (most recent first via ZREVRANGEBYSCORE)
-        # This prevents fetching unbounded records which could cause memory issues
+        # Use start=0, num=max_records to limit results (most recent first via zrevrangebyscore)
+        # This prevents fetching unbounded records which could cause memory issues.
+        #
+        # TRADE-OFF NOTE (Issue #2872):
+        # - By limiting to max_records (default: 100), we prioritize the most recent PRs
+        # - In high-volume scenarios where more than max_records PRs exist in the window,
+        #   older duplicates may be missed (false negatives)
+        # - This is an acceptable trade-off for performance vs. completeness
+        # - The order of results does NOT affect correctness since we check for ANY match
+        # - Adjust PR_DEDUP_MAX_RECORDS if your repo has very high PR volume
         records_json = r.zrevrangebyscore(key, '+inf', min_time, start=0, num=max_records)
         
         if not records_json:
