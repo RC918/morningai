@@ -10,6 +10,6 @@ fakeredis==2.24.1
 playwright==1.57.0
 pytest-playwright==0.5.2
 
-# Additional test utilities
-pytest>=7.0.0
-pytest-cov>=4.0.0
+# Additional test utilities (pinned for reproducibility)
+pytest==8.4.2
+pytest-cov==6.0.0
