@@ -20,6 +20,16 @@ Blueprint Alignment:
 - Memory v2 (Layer 1): Atomic short-term reservation
 - Safety Governor v2: Prevents race condition duplicates
 - Telemetry v2: Structured logging for lease decisions
+
+Running Tests:
+- Local: Requires REDIS_URL environment variable (default: redis://localhost:6379/0)
+  ```
+  export REDIS_URL="redis://localhost:6379/0"
+  pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/test_pr_lease_integration.py -v
+  ```
+- CI: Uses Redis service container defined in orchestrator-integration-tests.yml
+- Note: In CI environment (CI=true), Redis connection failure will fail the test
+  rather than skip, to prevent silent CI misconfigurations.
 """
 
 import pytest
@@ -41,8 +51,13 @@ class TestPRLeaseIntegration:
 
     @pytest.fixture
     def redis_client(self):
-        """Create a real Redis client for integration tests."""
+        """Create a real Redis client for integration tests.
+
+        In CI environment (CI=true), Redis connection failure will fail the test
+        rather than skip, to prevent silent CI misconfigurations.
+        """
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        is_ci = os.environ.get("CI", "").lower() == "true"
         try:
             client = redis.from_url(redis_url, decode_responses=True)
             client.ping()
@@ -52,8 +67,11 @@ class TestPRLeaseIntegration:
                 client.delete(key)
             for key in client.keys("test:pr_lease:*"):
                 client.delete(key)
-        except redis.ConnectionError:
-            pytest.skip("Redis not available for integration tests")
+        except redis.ConnectionError as e:
+            if is_ci:
+                pytest.fail(f"Redis not available in CI environment: {e}")
+            else:
+                pytest.skip("Redis not available for integration tests")
 
     @pytest.fixture
     def unique_dedup_key(self):
@@ -116,7 +134,8 @@ class TestPRLeaseIntegration:
     def test_ttl_expiry_allows_reacquire(self, redis_client, unique_dedup_key):
         """Test that lease can be re-acquired after TTL expires.
 
-        Uses a short TTL (1 second) to verify expiry behavior.
+        Uses polling instead of fixed sleep to avoid CI flakiness under load.
+        Polls Redis TTL/existence with a generous deadline (5 seconds).
         """
         from governance.pr_deduplication import (
             acquire_pr_lease,
@@ -143,8 +162,14 @@ class TestPRLeaseIntegration:
         assert result1.acquired is False, "Should not acquire lease while held"
         assert result1.holder == "worker-1", "Should report correct holder"
 
-        # Wait for TTL to expire
-        time.sleep(1.5)
+        # Poll for TTL expiry instead of fixed sleep (avoids CI flakiness)
+        deadline = time.time() + 5.0  # 5 second deadline
+        while time.time() < deadline:
+            if not redis_client.exists(lease_key):
+                break
+            time.sleep(0.1)  # Poll every 100ms
+        else:
+            pytest.fail("Lease key did not expire within 5 second deadline")
 
         # Second attempt should succeed (lease expired)
         result2 = acquire_pr_lease(
