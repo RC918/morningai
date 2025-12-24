@@ -36,10 +36,8 @@ pyotp==2.9.0
 qrcode[pil]==7.4.2
 argon2-cffi==25.1.0
 
-# Testing dependencies
-fakeredis==2.24.1
-playwright==1.57.0
-pytest-playwright==0.5.2
+# Testing dependencies - moved to requirements-dev.txt to reduce production build size
+# See requirements-dev.txt for: fakeredis, playwright, pytest-playwright
 
 # System monitoring dependencies
 psutil==6.1.0

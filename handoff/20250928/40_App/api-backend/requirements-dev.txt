@@ -1,0 +1,15 @@
+# Development and testing dependencies
+# These are NOT installed during production builds to reduce bandwidth and build time
+# Install with: pip install -r requirements-dev.txt
+
+# Include production dependencies
+-r requirements.txt
+
+# Testing dependencies (~150MB+ including browser binaries)
+fakeredis==2.24.1
+playwright==1.57.0
+pytest-playwright==0.5.2
+
+# Additional test utilities
+pytest>=7.0.0
+pytest-cov>=4.0.0
