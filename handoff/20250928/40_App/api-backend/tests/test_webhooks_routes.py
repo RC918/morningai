@@ -1036,8 +1036,8 @@ class TestWebhookDeliveryIdempotency:
         result = _check_webhook_delivery_idempotency("unknown")
         assert result is False
 
-    def test_idempotency_allows_when_redis_not_configured(self):
-        """Should allow processing when Redis client raises ValueError (not configured)."""
+    def test_idempotency_allows_when_get_redis_client_raises_valueerror(self):
+        """Should allow processing when get_redis_client() raises ValueError (not configured)."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
         # get_redis_client raises ValueError when no Redis is configured

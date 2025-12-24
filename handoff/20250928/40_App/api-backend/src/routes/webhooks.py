@@ -535,6 +535,10 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
         return False
 
     try:
+        # Use shared Redis client singleton for:
+        # - Connection reuse (avoids creating new connection per request)
+        # - Consistent configuration across codebase
+        # - Supports both Upstash Redis (REST) and standard Redis (TCP)
         from utils.redis_client import get_redis_client
         redis_client = get_redis_client()
 
