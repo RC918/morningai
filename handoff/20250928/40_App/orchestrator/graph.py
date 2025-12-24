@@ -437,6 +437,7 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     # ==========================================================================
     # Atomic PR Lease (Issue #2910 - Race Condition Fix)
     # Blueprint: Memory v2 (Layer 1) + Safety Governor v2
+    # Only acquire lease when dedup is enabled AND dry-run is disabled
     # ==========================================================================
     # Generate deterministic dedup key and branch name
     dedup_key = generate_dedup_key(
@@ -453,30 +454,45 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
         source_pr_number=None
     )
     
-    # Acquire atomic lease before any side effects
-    worker_id = os.environ.get("WORKER_ID", f"worker-{os.getpid()}")
-    lease_result = acquire_pr_lease(
-        dedup_key=dedup_key,
-        worker_id=worker_id,
-        trace_id=trace_id
-    )
-    
-    if not lease_result.acquired:
-        logger.warning(
-            f"[GraphExecute] Lease not acquired trace_id={trace_id} holder={lease_result.holder}",
+    # Only acquire lease when dedup is enabled AND dry-run is disabled
+    # When dry-run is True (default), we log duplicates but allow PR creation
+    lease_acquired = False
+    if settings.enable_pr_deduplication and not settings.pr_dedup_dry_run:
+        worker_id = os.environ.get("WORKER_ID", f"worker-{os.getpid()}")
+        lease_result = acquire_pr_lease(
+            dedup_key=dedup_key,
+            worker_id=worker_id,
+            trace_id=trace_id
+        )
+        lease_acquired = lease_result.acquired
+        
+        if not lease_result.acquired:
+            logger.warning(
+                f"[GraphExecute] Lease not acquired trace_id={trace_id} holder={lease_result.holder}",
+                extra={
+                    "operation": "lease_blocked",
+                    "trace_id": trace_id,
+                    "dedup_key": dedup_key,
+                    "holder": lease_result.holder,
+                    "existing_pr_url": lease_result.existing_pr_url,
+                    "reason": lease_result.reason
+                }
+            )
+            # Return existing PR URL if available, otherwise indicate blocked
+            if lease_result.existing_pr_url:
+                return lease_result.existing_pr_url, "existing_pr", trace_id
+            return None, "lease_blocked", trace_id
+    else:
+        logger.info(
+            f"[GraphExecute] Lease skipped (dry_run={settings.pr_dedup_dry_run}, enabled={settings.enable_pr_deduplication}) trace_id={trace_id}",
             extra={
-                "operation": "lease_blocked",
+                "operation": "lease_skipped",
                 "trace_id": trace_id,
                 "dedup_key": dedup_key,
-                "holder": lease_result.holder,
-                "existing_pr_url": lease_result.existing_pr_url,
-                "reason": lease_result.reason
+                "dry_run": settings.pr_dedup_dry_run,
+                "enabled": settings.enable_pr_deduplication
             }
         )
-        # Return existing PR URL if available, otherwise indicate blocked
-        if lease_result.existing_pr_url:
-            return lease_result.existing_pr_url, "existing_pr", trace_id
-        return None, "lease_blocked", trace_id
     
     # Create branch with deterministic name
     branch = create_branch(repo, base="main", new_branch=branch_name)
@@ -667,8 +683,9 @@ Requested by: @RC918
             labels=labels
         )
     except Exception as e:
-        # Release the lease so future retries can proceed
-        release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
+        # Release the lease so future retries can proceed (only if we acquired it)
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
         logger.error(
             f"[GraphExecute] PR creation failed trace_id={trace_id} error={e}",
             extra={
@@ -696,14 +713,15 @@ Requested by: @RC918
         pr_number=pr_num
     )
     
-    # Issue #2910: Complete the atomic lease with PR info
+    # Issue #2910: Complete the atomic lease with PR info (only if we acquired it)
     # This marks the lease as "done" and extends TTL to prevent duplicates
-    complete_pr_lease(
-        dedup_key=dedup_key,
-        trace_id=trace_id,
-        pr_url=pr_url,
-        pr_number=pr_num
-    )
+    if lease_acquired:
+        complete_pr_lease(
+            dedup_key=dedup_key,
+            trace_id=trace_id,
+            pr_url=pr_url,
+            pr_number=pr_num
+        )
     
     # Issue #2100: Disable auto-merge for docs PRs (require human approval)
     # Production docs PRs require `orchestrator-approved` label before merge
