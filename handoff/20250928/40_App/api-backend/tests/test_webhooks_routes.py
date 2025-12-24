@@ -1066,6 +1066,78 @@ class TestWebhookDeliveryIdempotency:
 
                 assert result is False  # Should process (graceful degradation)
 
+    def test_idempotency_logs_warning_on_redis_error(self):
+        """Should log warning when Redis error occurs (fail-open observability)."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis_class.from_url.side_effect = Exception("Connection failed")
+                with patch("src.routes.webhooks.logger") as mock_logger:
+                    _check_webhook_delivery_idempotency("delivery-123")
+
+                    # Verify warning is logged for observability (fail-open tracking)
+                    mock_logger.warning.assert_called_once()
+                    call_args = mock_logger.warning.call_args[0]
+                    assert "Redis error" in call_args[0]
+                    assert "idempotency" in call_args[0].lower()
+
+    def test_idempotency_logs_info_on_duplicate_detection(self):
+        """Should log info when duplicate is detected (observability)."""
+        from src.routes.webhooks import _check_webhook_delivery_idempotency
+
+        with patch("src.routes.webhooks.settings") as mock_settings:
+            mock_settings.redis_url = "redis://localhost:6379"
+            with patch("redis.Redis") as mock_redis_class:
+                mock_redis = MagicMock()
+                mock_redis.set.return_value = None  # Duplicate
+                mock_redis_class.from_url.return_value = mock_redis
+                with patch("src.routes.webhooks.logger") as mock_logger:
+                    _check_webhook_delivery_idempotency("delivery-123")
+
+                    # Verify info is logged for duplicate detection
+                    mock_logger.info.assert_called_once()
+                    call_args = mock_logger.info.call_args[0]
+                    assert "Duplicate" in call_args[0]
+                    assert "delivery-123" in str(mock_logger.info.call_args)
+
+    def test_github_webhook_handles_missing_delivery_header(self, client, mock_normalizer):
+        """Should process webhook safely when X-GitHub-Delivery header is missing."""
+        with patch("src.routes.webhooks._check_webhook_delivery_idempotency") as mock_check:
+            mock_check.return_value = False  # Allow processing
+            with patch("src.routes.webhooks.get_normalizer", return_value=mock_normalizer):
+                response = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={
+                        "X-GitHub-Event": "issues"
+                        # Note: X-GitHub-Delivery header intentionally omitted
+                    }
+                )
+                assert response.status_code == 200
+                # Verify idempotency check was called with "unknown" fallback
+                mock_check.assert_called_once_with("unknown")
+
+    def test_github_webhook_duplicate_does_not_trigger_normalizer(self, client, mock_normalizer):
+        """Should NOT call normalizer when duplicate is detected (no downstream processing)."""
+        with patch("src.routes.webhooks._check_webhook_delivery_idempotency", return_value=True):
+            with patch("src.routes.webhooks.get_normalizer") as mock_get_normalizer:
+                response = client.post(
+                    "/api/webhooks/github",
+                    data=json.dumps({"action": "opened"}),
+                    content_type="application/json",
+                    headers={
+                        "X-GitHub-Event": "issues",
+                        "X-GitHub-Delivery": "duplicate-delivery-123"
+                    }
+                )
+                assert response.status_code == 200
+                assert response.get_json()["status"] == "duplicate"
+                # Verify normalizer was NOT called (no downstream processing)
+                mock_get_normalizer.assert_not_called()
+
     def test_github_webhook_returns_duplicate_response(self, client, mock_normalizer):
         """Should return 200 with duplicate status for duplicate deliveries."""
         with patch("src.routes.webhooks._check_webhook_delivery_idempotency", return_value=True):
