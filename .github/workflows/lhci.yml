@@ -222,11 +222,24 @@ jobs:
             echo "COMMENT=⚠️ Lighthouse CI 報告生成失敗" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Post PR comment
-        if: always()
-        uses: marocchino/sticky-pull-request-comment@v2
+      - name: Find existing LHCI comment
+        if: always() && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-lhci-comment
         with:
-          message: ${{ steps.read_comment.outputs.COMMENT }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: lhci-report -->"
+
+      - name: Post PR comment
+        if: always() && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-lhci-comment.outputs.comment-id }}
+          edit-mode: replace
+          body: |
+            <!-- id: lhci-report -->
+            ${{ steps.read_comment.outputs.COMMENT }}
 
       - name: Upload backend logs
         if: always()

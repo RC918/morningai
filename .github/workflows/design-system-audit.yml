@@ -102,13 +102,23 @@ jobs:
             echo "notes=Summary file not generated" >> $GITHUB_OUTPUT
           fi
       
+      - name: Find existing audit comment
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-audit-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: design-system-audit -->"
+
       - name: Comment on PR with audit results
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: design-system-audit
+          comment-id: ${{ steps.find-audit-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: design-system-audit -->
             ## 🎨 Design System Audit Results
             
             **Mode**: ${{ steps.parse.outputs.mode }} (non-blocking)
@@ -223,13 +233,23 @@ jobs:
             packages/shared-ui/coverage-output.txt
           retention-days: 30
       
+      - name: Find existing coverage comment
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-coverage-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: shared-ui-coverage-baseline -->"
+
       - name: Comment on PR with coverage
-        if: github.event_name == 'pull_request' && always()
+        if: github.event_name == 'pull_request' && always() && github.event.pull_request.head.repo.fork == false
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: coverage-baseline
+          comment-id: ${{ steps.find-coverage-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: shared-ui-coverage-baseline -->
             ## 📊 Test Coverage - @morningai/shared-ui (Baseline)
             
             **Current Coverage**: ${{ steps.coverage.outputs.coverage }}%

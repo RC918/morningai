@@ -444,13 +444,23 @@ jobs:
           echo "AI review generated successfully (${RESPONSE_LENGTH} chars)"
           echo "::endgroup::"
 
-      - name: Post review comment
-        if: steps.check_reviewed.outputs.skip != 'true'
-        uses: marocchino/sticky-pull-request-comment@v2
+      - name: Find existing Qwen review comment
+        if: steps.check_reviewed.outputs.skip != 'true' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-qwen-comment
         with:
-          header: qwen-ai-review
-          message: |
-            <!-- qwen-review-marker -->
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: qwen-ai-review -->"
+
+      - name: Post review comment
+        if: steps.check_reviewed.outputs.skip != 'true' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find-qwen-comment.outputs.comment-id }}
+          edit-mode: replace
+          body: |
+            <!-- id: qwen-ai-review -->
             <!-- qwen-review-sha:${{ github.event.pull_request.head.sha }} -->
             ## :robot: Qwen AI Code Review
             

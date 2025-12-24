@@ -228,16 +228,26 @@ jobs:
             echo "REGRESSION=false" >> $GITHUB_ENV
           fi
       
+      - name: Find existing TypeScript progress comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: peter-evans/find-comment@v3
+        id: find-ts-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- id: typescript-strict-progress -->"
+
       - name: Comment on PR with progress
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
         # Only tolerate failure for Dependabot PRs (limited permissions)
         # Regular PRs will still fail loudly on config/network errors
         continue-on-error: ${{ github.actor == 'dependabot[bot]' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-tag: typescript-strict-progress
+          comment-id: ${{ steps.find-ts-comment.outputs.comment-id }}
+          edit-mode: replace
           body: |
+            <!-- id: typescript-strict-progress -->
             ## TypeScript Strict Mode Progress
             
             | Package | Current | Baseline | Status |

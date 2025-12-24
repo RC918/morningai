@@ -13,12 +13,13 @@ jobs:
           fetch-depth: 0
       
       - name: Check Design PR violations
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -e
           
-          # Get PR title and labels
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+          # PR_TITLE and PR_LABELS are passed via env to prevent script injection
           
           echo "PR Title: $PR_TITLE"
           echo "PR Labels: $PR_LABELS"
