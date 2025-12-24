@@ -535,13 +535,12 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
         return False
 
     try:
-        from redis import Redis
-        redis_url = settings.redis_url
-        if not redis_url:
-            # Redis not configured, allow processing
-            return False
-
-        redis_client = Redis.from_url(redis_url, decode_responses=True)
+        # Use shared Redis client singleton for:
+        # - Connection reuse (avoids creating new connection per request)
+        # - Consistent configuration across codebase
+        # - Supports both Upstash Redis (REST) and standard Redis (TCP)
+        from utils.redis_client import get_redis_client
+        redis_client = get_redis_client()
 
         # Key format: webhook:delivery:{delivery_id}
         # TTL: 7 days to handle delayed retries

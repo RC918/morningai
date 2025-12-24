@@ -1000,37 +1000,31 @@ class TestWebhookDeliveryIdempotency:
         """Should allow processing of new webhook deliveries."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
-        with patch("src.routes.webhooks.settings") as mock_settings:
-            mock_settings.redis_url = "redis://localhost:6379"
-            with patch("redis.Redis") as mock_redis_class:
-                mock_redis = MagicMock()
-                mock_redis.set.return_value = True  # Key was set (new delivery)
-                mock_redis_class.from_url.return_value = mock_redis
+        mock_redis = MagicMock()
+        mock_redis.set.return_value = True  # Key was set (new delivery)
 
-                result = _check_webhook_delivery_idempotency("delivery-123")
+        with patch("utils.redis_client.get_redis_client", return_value=mock_redis):
+            result = _check_webhook_delivery_idempotency("delivery-123")
 
-                assert result is False  # Should process (not a duplicate)
-                # Verify atomic SET with NX and EX was called
-                mock_redis.set.assert_called_once()
-                call_kwargs = mock_redis.set.call_args[1]
-                assert call_kwargs.get("nx") is True
-                assert call_kwargs.get("ex") == 7 * 24 * 60 * 60  # 7 days
+            assert result is False  # Should process (not a duplicate)
+            # Verify atomic SET with NX and EX was called
+            mock_redis.set.assert_called_once()
+            call_kwargs = mock_redis.set.call_args[1]
+            assert call_kwargs.get("nx") is True
+            assert call_kwargs.get("ex") == 7 * 24 * 60 * 60  # 7 days
 
     def test_idempotency_blocks_duplicate_delivery(self):
         """Should block processing of duplicate webhook deliveries."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
-        with patch("src.routes.webhooks.settings") as mock_settings:
-            mock_settings.redis_url = "redis://localhost:6379"
-            with patch("redis.Redis") as mock_redis_class:
-                mock_redis = MagicMock()
-                mock_redis.set.return_value = None  # Key exists (duplicate) - SET NX returns None
-                mock_redis_class.from_url.return_value = mock_redis
+        mock_redis = MagicMock()
+        mock_redis.set.return_value = None  # Key exists (duplicate) - SET NX returns None
 
-                result = _check_webhook_delivery_idempotency("delivery-123")
+        with patch("utils.redis_client.get_redis_client", return_value=mock_redis):
+            result = _check_webhook_delivery_idempotency("delivery-123")
 
-                assert result is True  # Should skip (duplicate)
-                mock_redis.set.assert_called_once()
+            assert result is True  # Should skip (duplicate)
+            mock_redis.set.assert_called_once()
 
     def test_idempotency_allows_when_no_delivery_id(self):
         """Should allow processing when delivery ID is missing."""
@@ -1042,13 +1036,12 @@ class TestWebhookDeliveryIdempotency:
         result = _check_webhook_delivery_idempotency("unknown")
         assert result is False
 
-    def test_idempotency_allows_when_no_redis_url(self):
-        """Should allow processing when Redis is not configured."""
+    def test_idempotency_allows_when_get_redis_client_raises_valueerror(self):
+        """Should allow processing when get_redis_client() raises ValueError (not configured)."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
-        with patch("src.routes.webhooks.settings") as mock_settings:
-            mock_settings.redis_url = None
-
+        # get_redis_client raises ValueError when no Redis is configured
+        with patch("utils.redis_client.get_redis_client", side_effect=ValueError("No Redis configuration")):
             result = _check_webhook_delivery_idempotency("delivery-123")
 
             assert result is False  # Should process (graceful degradation)
@@ -1057,50 +1050,43 @@ class TestWebhookDeliveryIdempotency:
         """Should allow processing when Redis errors occur."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
-        with patch("src.routes.webhooks.settings") as mock_settings:
-            mock_settings.redis_url = "redis://localhost:6379"
-            with patch("redis.Redis") as mock_redis_class:
-                mock_redis_class.from_url.side_effect = Exception("Connection failed")
+        # get_redis_client raises exception on connection failure
+        with patch("utils.redis_client.get_redis_client", side_effect=Exception("Connection failed")):
+            result = _check_webhook_delivery_idempotency("delivery-123")
 
-                result = _check_webhook_delivery_idempotency("delivery-123")
-
-                assert result is False  # Should process (graceful degradation)
+            assert result is False  # Should process (graceful degradation)
 
     def test_idempotency_logs_warning_on_redis_error(self):
         """Should log warning when Redis error occurs (fail-open observability)."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
-        with patch("src.routes.webhooks.settings") as mock_settings:
-            mock_settings.redis_url = "redis://localhost:6379"
-            with patch("redis.Redis") as mock_redis_class:
-                mock_redis_class.from_url.side_effect = Exception("Connection failed")
-                with patch("src.routes.webhooks.logger") as mock_logger:
-                    _check_webhook_delivery_idempotency("delivery-123")
+        # get_redis_client raises exception on connection failure
+        with patch("utils.redis_client.get_redis_client", side_effect=Exception("Connection failed")):
+            with patch("src.routes.webhooks.logger") as mock_logger:
+                _check_webhook_delivery_idempotency("delivery-123")
 
-                    # Verify warning is logged for observability (fail-open tracking)
-                    mock_logger.warning.assert_called_once()
-                    call_args = mock_logger.warning.call_args[0]
-                    assert "Redis error" in call_args[0]
-                    assert "idempotency" in call_args[0].lower()
+                # Verify warning is logged for observability (fail-open tracking)
+                mock_logger.warning.assert_called_once()
+                call_args = mock_logger.warning.call_args[0]
+                assert "Redis error" in call_args[0]
+                assert "idempotency" in call_args[0].lower()
 
     def test_idempotency_logs_info_on_duplicate_detection(self):
         """Should log info when duplicate is detected (observability)."""
         from src.routes.webhooks import _check_webhook_delivery_idempotency
 
-        with patch("src.routes.webhooks.settings") as mock_settings:
-            mock_settings.redis_url = "redis://localhost:6379"
-            with patch("redis.Redis") as mock_redis_class:
-                mock_redis = MagicMock()
-                mock_redis.set.return_value = None  # Duplicate
-                mock_redis_class.from_url.return_value = mock_redis
-                with patch("src.routes.webhooks.logger") as mock_logger:
-                    _check_webhook_delivery_idempotency("delivery-123")
+        mock_redis = MagicMock()
+        mock_redis.set.return_value = None  # Duplicate
 
-                    # Verify info is logged for duplicate detection
-                    mock_logger.info.assert_called_once()
-                    call_args = mock_logger.info.call_args[0]
-                    assert "Duplicate" in call_args[0]
-                    assert "delivery-123" in str(mock_logger.info.call_args)
+        with patch("utils.redis_client.get_redis_client", return_value=mock_redis):
+            with patch("src.routes.webhooks.logger") as mock_logger:
+                _check_webhook_delivery_idempotency("delivery-123")
+
+                # Verify info is logged for duplicate detection
+                mock_logger.info.assert_called_once()
+                call_args = mock_logger.info.call_args[0]
+                assert "Duplicate" in call_args[0]
+                assert "delivery-123" in str(mock_logger.info.call_args)
 
     def test_github_webhook_handles_missing_delivery_header(self, client, mock_normalizer):
         """Should process webhook safely when X-GitHub-Delivery header is missing."""
