@@ -22,14 +22,13 @@ jobs:
         uses: actions/checkout@v6
       
       - name: Download actionlint
-        id: get_actionlint
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          echo "version=$(./actionlint --version)" >> $GITHUB_OUTPUT
       
       - name: Run actionlint
         run: |
-          echo "Running actionlint $(./actionlint --version)"
+          echo "Running actionlint..."
+          ./actionlint -version
           ./actionlint -color
       
       - name: Validate YAML syntax
