@@ -1,8 +1,10 @@
 # Render Manual Deployment SOP
 
-> **Version**: v0.1 (2025-12-24)
+> **Version**: v0.2 (2025-12-24)
 > **Status**: Active - All Render deployments are now manual
+> **Owner**: @RC918 (Ryan Chen)
 > **Related**: PR #2897, Issue #2901
+> **Review Cadence**: Quarterly or after major infrastructure changes
 
 ## Overview
 
@@ -17,7 +19,7 @@ As of 2025-12-24, automatic deployments (autoDeploy) have been disabled for all 
 | morningai-worker-dashboard | [Dashboard](https://dashboard.render.com/web/srv-xxx) | Worker dashboard UI |
 | morningai-ops-agent-worker | [Dashboard](https://dashboard.render.com/web/srv-xxx) | Ops agent worker |
 
-> Note: Replace `srv-xxx` with actual service IDs from Render Dashboard
+> **IMPORTANT**: The `srv-xxx` values are placeholders. You MUST replace them with actual service IDs from Render Dashboard before using these links. Navigate via: Render Dashboard → Services → Select service name.
 
 ## Pre-Deployment Checklist
 
@@ -27,6 +29,7 @@ Before triggering a deployment:
 - [ ] No blocking issues or incidents in progress
 - [ ] Team notified in Slack/Discord (if applicable)
 - [ ] Confirm which services need deployment (not all changes affect all services)
+- [ ] Verify Render Dashboard links in this document are correct (or navigate manually)
 
 ## Deployment Steps
 
@@ -56,12 +59,17 @@ After deployment completes:
 ### Health Check
 
 ```bash
-# Check service health endpoint
+# Quick liveness check (lightweight)
+curl -s https://morningai-backend-v2.onrender.com/healthz | jq .
+
+# Full diagnostic check (includes all service status)
 curl -s https://morningai-backend-v2.onrender.com/health | jq .
 
-# Expected response:
-# {"status": "healthy", "timestamp": "..."}
+# Expected response (both endpoints return same format):
+# {"status": "healthy", "phase": "Phase 8", "database": "connected", "redis": {...}, ...}
 ```
+
+> **Note**: Both `/health` and `/healthz` endpoints are available. Use `/healthz` for quick liveness checks, `/health` for detailed diagnostics.
 
 ### Smoke Test
 
@@ -122,8 +130,9 @@ If issues are detected after deployment:
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2025-12-24 | v0.2 | Added owner/review cadence, improved placeholder warnings, documented both health endpoints, added link verification checklist item |
 | 2025-12-24 | v0.1 | Initial SOP created after disabling autoDeploy |
 
 ---
 
-*This document should be updated as deployment procedures evolve.*
+*This document should be updated as deployment procedures evolve. Report issues or suggest improvements to @RC918.*
