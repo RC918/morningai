@@ -3,13 +3,12 @@
 # Qwen AI Code Review Workflow
 # 
 # ============================================================================
-# STATUS: DISABLED (2025-12-16)
+# STATUS: ENABLED (2025-12-24)
 # ============================================================================
-# This workflow is currently disabled. GitHub Copilot is used as the primary
-# AI code reviewer instead. This workflow is kept for reference and can be
-# re-enabled by uncommenting the pull_request trigger below.
+# This workflow reviews all PRs using Qwen AI (qwen-plus model).
+# Works alongside Gemini Code Assist to provide dual AI review coverage.
 #
-# To re-enable: uncomment the pull_request trigger in the 'on:' section
+# To disable: comment out the pull_request trigger in the 'on:' section
 # ============================================================================
 #
 # This workflow reviews PRs using Qwen AI.
@@ -54,12 +53,11 @@
 name: "Qwen AI Code Review"
 
 on:
-  # DISABLED: Automatic PR review is disabled. Using GitHub Copilot instead.
-  # Uncomment the following to re-enable automatic PR review:
-  # pull_request:
-  #   types: [opened, synchronize, reopened]
+  # Automatic PR review - reviews all PRs on open/sync/reopen
+  pull_request:
+    types: [opened, synchronize, reopened]
   
-  # Manual trigger only - for testing or one-off reviews
+  # Manual trigger - for testing or one-off reviews
   workflow_dispatch:
     inputs:
       pr_number:
