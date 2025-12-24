@@ -25,7 +25,15 @@ from utils.rate_limit import check_pr_rate_limit
 from governance.cost_tracker import get_cost_tracker, CostBudgetExceeded
 from governance.reputation_engine import get_reputation_engine
 from governance.changeset_significance import check_value_gate, get_changeset_hash, analyze_diff
-from governance.pr_deduplication import check_pr_deduplication, record_pr_creation
+from governance.pr_deduplication import (
+    check_pr_deduplication,
+    record_pr_creation,
+    generate_dedup_key,
+    acquire_pr_lease,
+    release_pr_lease,
+    complete_pr_lease,
+    generate_deterministic_branch,
+)
 from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -418,11 +426,76 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
         return f"dry-run://trace/{trace_id}", "dry_run", trace_id
     
     repo = get_repo()
-    timestamp = int(time.time())
     
     # Issue #2100: Generate topic slug for unique file path
     topic_slug = make_topic_slug(goal)
-    branch = create_branch(repo, base="main", new_branch=f"orchestrator/{timestamp}-docs-{topic_slug[:20]}")
+    
+    # Issue #2910: Use deterministic doc file path for dedup key generation
+    # This must be computed before branch creation to enable atomic lease
+    doc_file_path = f"{GENERATED_DOCS_PATH}/{topic_slug}.md"
+    
+    # ==========================================================================
+    # Atomic PR Lease (Issue #2910 - Race Condition Fix)
+    # Blueprint: Memory v2 (Layer 1) + Safety Governor v2
+    # Only acquire lease when dedup is enabled AND dry-run is disabled
+    # ==========================================================================
+    # Generate deterministic dedup key and branch name
+    dedup_key = generate_dedup_key(
+        repo=repo_full,
+        doc_file_path=doc_file_path,
+        source_pr_number=None,  # TODO: Extract from goal if available
+        event_action=None
+    )
+    
+    # Generate deterministic branch name (same input = same branch)
+    branch_name = generate_deterministic_branch(
+        repo=repo_full,
+        doc_file_path=doc_file_path,
+        source_pr_number=None
+    )
+    
+    # Only acquire lease when dedup is enabled AND dry-run is disabled
+    # When dry-run is True (default), we log duplicates but allow PR creation
+    lease_acquired = False
+    if settings.enable_pr_deduplication and not settings.pr_dedup_dry_run:
+        worker_id = os.environ.get("WORKER_ID", f"worker-{os.getpid()}")
+        lease_result = acquire_pr_lease(
+            dedup_key=dedup_key,
+            worker_id=worker_id,
+            trace_id=trace_id
+        )
+        lease_acquired = lease_result.acquired
+        
+        if not lease_result.acquired:
+            logger.warning(
+                f"[GraphExecute] Lease not acquired trace_id={trace_id} holder={lease_result.holder}",
+                extra={
+                    "operation": "lease_blocked",
+                    "trace_id": trace_id,
+                    "dedup_key": dedup_key,
+                    "holder": lease_result.holder,
+                    "existing_pr_url": lease_result.existing_pr_url,
+                    "reason": lease_result.reason
+                }
+            )
+            # Return existing PR URL if available, otherwise indicate blocked
+            if lease_result.existing_pr_url:
+                return lease_result.existing_pr_url, "existing_pr", trace_id
+            return None, "lease_blocked", trace_id
+    else:
+        logger.info(
+            f"[GraphExecute] Lease skipped (dry_run={settings.pr_dedup_dry_run}, enabled={settings.enable_pr_deduplication}) trace_id={trace_id}",
+            extra={
+                "operation": "lease_skipped",
+                "trace_id": trace_id,
+                "dedup_key": dedup_key,
+                "dry_run": settings.pr_dedup_dry_run,
+                "enabled": settings.enable_pr_deduplication
+            }
+        )
+    
+    # Create branch with deterministic name
+    branch = create_branch(repo, base="main", new_branch=branch_name)
     
     try:
         faq_content = generate_faq_content(goal, trace_id, repo_full)
@@ -467,11 +540,12 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
         )
         is_test_mode = True
     
-    # Issue #2100: Use generated docs path instead of core FAQ.md
-    doc_file_path = f"{GENERATED_DOCS_PATH}/{topic_slug}.md"
-    
     # Safety check: Never overwrite protected core docs
+    # Note: doc_file_path is already defined above for atomic lease
     if is_protected_path(doc_file_path):
+        # Issue #2910: Release lease on early return to allow future retries
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
         logger.error(
             f"[GraphExecute] Protected path blocked trace_id={trace_id} path={doc_file_path}",
             extra={
@@ -509,6 +583,9 @@ new file mode 100644
     )
     
     if not value_gate_result.should_create_pr:
+        # Issue #2910: Release lease on early return to allow future retries
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
         logger.warning(
             f"[ValueGate] BLOCKED trace_id={trace_id} score={value_gate_result.score} reason={value_gate_result.downgrade_reason}",
             extra={
@@ -550,6 +627,9 @@ new file mode 100644
     
     if dedup_result.is_duplicate:
         if not dedup_result.should_create_pr:
+            # Issue #2910: Release lease on early return to allow future retries
+            if lease_acquired:
+                release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
             logger.warning(
                 f"[PRDedup] BLOCKED trace_id={trace_id} type={dedup_result.duplicate_type} similarity={dedup_result.similarity_score:.2f}",
                 extra={
@@ -601,14 +681,30 @@ Requested by: @RC918
     if has_errors:
         labels.append("quality-issues")
     
-    pr_url, pr_num = open_pr(
-        repo, 
-        branch, 
-        f"docs: Add {topic_slug[:30]} (trace-id: {trace_id[:8]})", 
-        body=pr_body,
-        draft=is_test_mode,
-        labels=labels
-    )
+    # Issue #2910: Wrap PR creation in try-except to release lease on failure
+    try:
+        pr_url, pr_num = open_pr(
+            repo,
+            branch,
+            f"docs: Add {topic_slug[:30]} (trace-id: {trace_id[:8]})",
+            body=pr_body,
+            draft=is_test_mode,
+            labels=labels
+        )
+    except Exception as e:
+        # Release the lease so future retries can proceed (only if we acquired it)
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
+        logger.error(
+            f"[GraphExecute] PR creation failed trace_id={trace_id} error={e}",
+            extra={
+                "operation": "pr_creation_failed",
+                "trace_id": trace_id,
+                "dedup_key": dedup_key,
+                "error": str(e)
+            }
+        )
+        raise
     logger.info(
         f"[GraphExecute] PR created trace_id={trace_id} pr_url={pr_url} pr_num={pr_num}",
         extra={"operation": "pr_created", "trace_id": trace_id, "pr_url": pr_url, "pr_num": pr_num}
@@ -625,6 +721,16 @@ Requested by: @RC918
         pr_url=pr_url,
         pr_number=pr_num
     )
+    
+    # Issue #2910: Complete the atomic lease with PR info (only if we acquired it)
+    # This marks the lease as "done" and extends TTL to prevent duplicates
+    if lease_acquired:
+        complete_pr_lease(
+            dedup_key=dedup_key,
+            trace_id=trace_id,
+            pr_url=pr_url,
+            pr_number=pr_num
+        )
     
     # Issue #2100: Disable auto-merge for docs PRs (require human approval)
     # Production docs PRs require `orchestrator-approved` label before merge
