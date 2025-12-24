@@ -1,0 +1,61 @@
+name: Workflow Lint
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Lint GitHub Actions Workflows
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      
+      - name: Download actionlint
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+      
+      - name: Get changed workflow files
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '.github/workflows/*.yml' | tr '\n' ' ')
+          echo "files=$CHANGED" >> $GITHUB_OUTPUT
+          echo "Changed workflow files: $CHANGED"
+      
+      - name: Lint changed workflow files (blocking)
+        if: steps.changed.outputs.files != ''
+        run: |
+          echo "Linting changed workflow files..."
+          ./actionlint -version
+          ./actionlint -shellcheck="" -color ${{ steps.changed.outputs.files }}
+      
+      - name: Lint all workflows (informational)
+        continue-on-error: true
+        run: |
+          echo "Full repo actionlint scan (informational)..."
+          ./actionlint -shellcheck="" -color || echo "Pre-existing issues found. See #2892 for baseline cleanup."
+      
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML syntax for all workflow files..."
+          pip install pyyaml
+          python .github/scripts/validate_workflow_yaml.py
