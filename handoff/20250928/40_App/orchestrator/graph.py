@@ -1,7 +1,7 @@
 import os, argparse, time, uuid, hashlib
 import logging
 import re
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Pattern
 from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
@@ -29,6 +29,41 @@ from governance.pr_deduplication import check_pr_deduplication, record_pr_creati
 from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Pre-compiled Regex Patterns (Issue #2871)
+# Compiling once at module load avoids repeated compilation overhead
+# =============================================================================
+
+# SQL patterns for multi-tenant safety checks
+SQL_PATTERNS: List[Pattern[str]] = [
+    re.compile(r'SELECT\s+.*\s+FROM\s+\w+', re.IGNORECASE),
+    re.compile(r'INSERT\s+INTO\s+\w+', re.IGNORECASE),
+    re.compile(r'UPDATE\s+\w+\s+SET', re.IGNORECASE),
+    re.compile(r'DELETE\s+FROM\s+\w+', re.IGNORECASE),
+]
+
+# Tenant filter pattern
+TENANT_FILTER_PATTERN: Pattern[str] = re.compile(
+    r'(tenant_id|organization_id|org_id)\s*=', re.IGNORECASE
+)
+
+# API call patterns
+API_CALL_PATTERN: Pattern[str] = re.compile(r'(curl|fetch|axios|requests\.)', re.IGNORECASE)
+AUTH_CONTEXT_PATTERN: Pattern[str] = re.compile(
+    r'(authorization|bearer|api[_-]?key|token)', re.IGNORECASE
+)
+
+# Sensitive information patterns (pre-compiled for performance)
+SENSITIVE_PATTERNS: List[tuple] = [
+    (re.compile(r'password\s*=\s*["\'][^"\']+["\']', re.IGNORECASE), "HARDCODED_PASSWORD", "Potential hardcoded password detected"),
+    (re.compile(r'api[_-]?key\s*=\s*["\'][^"\']+["\']', re.IGNORECASE), "HARDCODED_API_KEY", "Potential hardcoded API key detected"),
+    (re.compile(r'secret\s*=\s*["\'][^"\']+["\']', re.IGNORECASE), "HARDCODED_SECRET", "Potential hardcoded secret detected"),
+]
+
+# Slug generation patterns
+SLUG_NON_WORD_PATTERN: Pattern[str] = re.compile(r'[^\w\s-]')
+SLUG_WHITESPACE_PATTERN: Pattern[str] = re.compile(r'[\s_]+')
 
 # =============================================================================
 # Documentation Safety Constants (Issue #2100)
@@ -62,6 +97,7 @@ def make_topic_slug(goal: str) -> str:
     Convert a goal/topic into a safe, human-readable filename slug.
     
     Issue #2100: Prevents overwriting core docs by generating unique filenames.
+    Issue #2871: Uses pre-compiled regex patterns for better performance.
     
     Args:
         goal: The task goal or topic description
@@ -71,9 +107,9 @@ def make_topic_slug(goal: str) -> str:
     """
     # Normalize: lowercase, remove non-word chars except spaces/hyphens
     slug = goal.lower()
-    slug = re.sub(r'[^\w\s-]', '', slug)
+    slug = SLUG_NON_WORD_PATTERN.sub('', slug)
     # Collapse whitespace to single hyphens
-    slug = re.sub(r'[\s_]+', '-', slug)
+    slug = SLUG_WHITESPACE_PATTERN.sub('-', slug)
     # Remove leading/trailing hyphens
     slug = slug.strip('-')
     # Truncate to max length (leaving room for hash suffix)
@@ -88,6 +124,7 @@ def validate_faq_content(question: str, content: str) -> List[DocIssue]:
     Validate FAQ content for quality and security issues.
     
     Issue #2100: Content quality checks before PR creation.
+    Issue #2871: Uses pre-compiled regex patterns for better performance.
     
     Args:
         question: The FAQ question/topic
@@ -100,16 +137,11 @@ def validate_faq_content(question: str, content: str) -> List[DocIssue]:
     content_lower = content.lower()
     
     # Check 1: SQL examples should include tenant filters (multi-tenant safety)
-    sql_patterns = [
-        r'SELECT\s+.*\s+FROM\s+\w+',
-        r'INSERT\s+INTO\s+\w+',
-        r'UPDATE\s+\w+\s+SET',
-        r'DELETE\s+FROM\s+\w+'
-    ]
-    for pattern in sql_patterns:
-        if re.search(pattern, content, re.IGNORECASE):
+    # Uses pre-compiled SQL_PATTERNS for performance (Issue #2871)
+    for pattern in SQL_PATTERNS:
+        if pattern.search(content):
             # Check if tenant_id or organization_id filter is present
-            if not re.search(r'(tenant_id|organization_id|org_id)\s*=', content_lower):
+            if not TENANT_FILTER_PATTERN.search(content_lower):
                 issues.append(DocIssue(
                     level=DocIssueLevel.WARNING,
                     code="MISSING_TENANT_FILTER",
@@ -118,8 +150,9 @@ def validate_faq_content(question: str, content: str) -> List[DocIssue]:
                 break
     
     # Check 2: API examples should include authentication context
-    if re.search(r'(curl|fetch|axios|requests\.)', content_lower):
-        if not re.search(r'(authorization|bearer|api[_-]?key|token)', content_lower):
+    # Uses pre-compiled API_CALL_PATTERN and AUTH_CONTEXT_PATTERN (Issue #2871)
+    if API_CALL_PATTERN.search(content_lower):
+        if not AUTH_CONTEXT_PATTERN.search(content_lower):
             issues.append(DocIssue(
                 level=DocIssueLevel.WARNING,
                 code="MISSING_AUTH_CONTEXT",
@@ -136,13 +169,9 @@ def validate_faq_content(question: str, content: str) -> List[DocIssue]:
             ))
     
     # Check 4: Check for potentially sensitive information
-    sensitive_patterns = [
-        (r'password\s*=\s*["\'][^"\']+["\']', "HARDCODED_PASSWORD", "Potential hardcoded password detected"),
-        (r'api[_-]?key\s*=\s*["\'][^"\']+["\']', "HARDCODED_API_KEY", "Potential hardcoded API key detected"),
-        (r'secret\s*=\s*["\'][^"\']+["\']', "HARDCODED_SECRET", "Potential hardcoded secret detected"),
-    ]
-    for pattern, code, message in sensitive_patterns:
-        if re.search(pattern, content, re.IGNORECASE):
+    # Uses pre-compiled SENSITIVE_PATTERNS for performance (Issue #2871)
+    for pattern, code, message in SENSITIVE_PATTERNS:
+        if pattern.search(content):
             issues.append(DocIssue(
                 level=DocIssueLevel.ERROR,
                 code=code,

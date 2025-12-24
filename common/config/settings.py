@@ -839,6 +839,39 @@ class Settings(BaseSettings):
         description="Log-only mode for PR deduplication. When True, logs duplicates but allows PR creation."
     )
 
+    # Issue #2872: Add LIMIT to zrangebyscore for performance
+    pr_dedup_max_records: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        alias="PR_DEDUP_MAX_RECORDS",
+        description="Maximum number of PR records to fetch during deduplication check (default: 100). Limits memory usage for high-volume repos."
+    )
+
+    # Issue #2873: Make security keywords configurable
+    security_keywords: str = Field(
+        default="auth,permission,secret,credential,token,password,api_key",
+        alias="SECURITY_KEYWORDS",
+        description="Comma-separated list of security-related keywords for risk detection in PM Agent and changeset analysis."
+    )
+
+    # Issue #2874: Routing engine candidate selection weights
+    routing_cost_weight: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        alias="ROUTING_COST_WEIGHT",
+        description="Weight for cost factor in model selection (0-1). Higher values prefer cheaper providers."
+    )
+
+    routing_preference_weight: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        alias="ROUTING_PREFERENCE_WEIGHT",
+        description="Weight for provider preference in model selection (0-1). Higher values prefer configured provider order."
+    )
+
     use_redis_checkpointer: bool = Field(
         default=False,
         alias="USE_REDIS_CHECKPOINTER",
