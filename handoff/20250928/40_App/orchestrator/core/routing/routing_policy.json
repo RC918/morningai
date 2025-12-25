@@ -1,6 +1,6 @@
 {
-  "version": "1.1",
-  "description": "Routing Policy for Multi-Model Use in MorningAI (EPIC #2594)",
+  "version": "1.2",
+  "description": "Routing Policy for Multi-Model Use in MorningAI (EPIC #2594) - Cross-Generation Fallback",
   "task_types": {
     "planning": {
       "tier": 0,
@@ -45,20 +45,22 @@
   },
   "tier_models": {
     "0": {
-      "description": "Highest capability - Complex reasoning, planning",
+      "description": "Highest capability - Complex reasoning, planning (Cross-Generation Fallback)",
       "models": [
         {"provider": "alicloud", "model": "qwen-max"},
-        {"provider": "openai", "model": "gpt-4o"},
-        {"provider": "gemini", "model": "gemini-1.5-pro"}
-      ]
+        {"provider": "siliconflow", "model": "Qwen/Qwen2.5-72B-Instruct"}
+      ],
+      "fallback_strategy": "cross_generation",
+      "notes": "Primary: AliCloud Qwen3, Backup: SiliconFlow Qwen2.5-72B (degraded but resilient)"
     },
     "1": {
-      "description": "High capability - Code generation, detailed analysis",
+      "description": "High capability - Code generation, detailed analysis (Cross-Generation Fallback)",
       "models": [
         {"provider": "alicloud", "model": "qwen-plus"},
-        {"provider": "openai", "model": "gpt-4o-mini"},
-        {"provider": "gemini", "model": "gemini-1.5-flash"}
-      ]
+        {"provider": "siliconflow", "model": "Qwen/Qwen2.5-32B-Instruct"}
+      ],
+      "fallback_strategy": "cross_generation",
+      "notes": "Primary: AliCloud Qwen3, Backup: SiliconFlow Qwen2.5-32B (degraded but resilient)"
     },
     "2": {
       "description": "Medium capability - Standard tasks, reviews",
