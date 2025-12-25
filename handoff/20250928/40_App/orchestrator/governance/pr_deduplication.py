@@ -37,8 +37,9 @@ logger = logging.getLogger(__name__)
 
 # Fail-open monitoring constants (Issue #2919)
 FAIL_OPEN_METRIC_NAME = "pr_lease.fail_open"
-FAIL_OPEN_ALERT_THRESHOLD = 5  # Alert if >5 fail-open events in 5 minutes
-FAIL_OPEN_ALERT_WINDOW_MINUTES = 5
+# Default values - actual values read from settings (Issue #2933)
+DEFAULT_FAIL_OPEN_ALERT_THRESHOLD = 5  # Alert if >5 fail-open events in 5 minutes
+DEFAULT_FAIL_OPEN_ALERT_WINDOW_MINUTES = 5
 
 # Default configuration
 DEFAULT_DEDUP_WINDOW_SECONDS = 3600  # 1 hour
@@ -729,7 +730,7 @@ def _record_fail_open_event(
 
 
 def get_fail_open_count(
-    window_minutes: int = FAIL_OPEN_ALERT_WINDOW_MINUTES,
+    window_minutes: Optional[int] = None,
     redis_url: Optional[str] = None
 ) -> int:
     """
@@ -738,12 +739,23 @@ def get_fail_open_count(
     Used for alerting when fail-open rate exceeds threshold.
 
     Args:
-        window_minutes: Time window in minutes (default: 5)
+        window_minutes: Time window in minutes (default: from settings or 5)
         redis_url: Optional Redis URL override
 
     Returns:
         Count of fail-open events in the window
     """
+    # Issue #2933: Read from settings if not explicitly provided
+    if window_minutes is None:
+        try:
+            from common.config.settings import settings
+            window_minutes = getattr(
+                settings, 'fail_open_alert_window_minutes',
+                DEFAULT_FAIL_OPEN_ALERT_WINDOW_MINUTES
+            )
+        except ImportError:
+            window_minutes = DEFAULT_FAIL_OPEN_ALERT_WINDOW_MINUTES
+
     try:
         r = _get_redis_client(redis_url)
         if not r:
@@ -773,26 +785,43 @@ def check_fail_open_alert_threshold(
     """
     Check if fail-open events exceed the alert threshold.
 
+    Issue #2933: Thresholds are now configurable via settings.
+
     Args:
         redis_url: Optional Redis URL override
 
     Returns:
         True if threshold exceeded, False otherwise
     """
-    count = get_fail_open_count(redis_url=redis_url)
-    exceeded = count > FAIL_OPEN_ALERT_THRESHOLD
+    # Issue #2933: Read thresholds from settings
+    try:
+        from common.config.settings import settings
+        threshold = getattr(
+            settings, 'fail_open_alert_threshold',
+            DEFAULT_FAIL_OPEN_ALERT_THRESHOLD
+        )
+        window_minutes = getattr(
+            settings, 'fail_open_alert_window_minutes',
+            DEFAULT_FAIL_OPEN_ALERT_WINDOW_MINUTES
+        )
+    except ImportError:
+        threshold = DEFAULT_FAIL_OPEN_ALERT_THRESHOLD
+        window_minutes = DEFAULT_FAIL_OPEN_ALERT_WINDOW_MINUTES
+
+    count = get_fail_open_count(window_minutes=window_minutes, redis_url=redis_url)
+    exceeded = count > threshold
 
     if exceeded:
         logger.error(
             f"[PRDedup] ALERT: Fail-open threshold exceeded! "
-            f"{count} events in {FAIL_OPEN_ALERT_WINDOW_MINUTES} minutes "
-            f"(threshold: {FAIL_OPEN_ALERT_THRESHOLD})",
+            f"{count} events in {window_minutes} minutes "
+            f"(threshold: {threshold})",
             extra={
                 "operation": "pr_lease_fail_open_alert",
                 "alert_type": "fail_open_threshold_exceeded",
                 "count": count,
-                "threshold": FAIL_OPEN_ALERT_THRESHOLD,
-                "window_minutes": FAIL_OPEN_ALERT_WINDOW_MINUTES,
+                "threshold": threshold,
+                "window_minutes": window_minutes,
             }
         )
 
@@ -800,13 +829,13 @@ def check_fail_open_alert_threshold(
         try:
             import sentry_sdk
             sentry_sdk.capture_message(
-                f"[PRDedup] Fail-open threshold exceeded: {count} events in {FAIL_OPEN_ALERT_WINDOW_MINUTES} min",
+                f"[PRDedup] Fail-open threshold exceeded: {count} events in {window_minutes} min",
                 level="error",
                 tags={
                     "alert_type": "fail_open_threshold_exceeded",
                     "component": "pr_deduplication",
                     "count": str(count),
-                    "threshold": str(FAIL_OPEN_ALERT_THRESHOLD),
+                    "threshold": str(threshold),
                 }
             )
         except ImportError:

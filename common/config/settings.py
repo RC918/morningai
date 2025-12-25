@@ -838,7 +838,7 @@ class Settings(BaseSettings):
         alias="PR_DEDUP_DRY_RUN",
         description="Log-only mode for PR deduplication. When True, logs duplicates but allows PR creation."
     )
-    
+
     pr_dedup_lease_ttl_seconds: int = Field(
         default=300,
         ge=60,
@@ -853,6 +853,23 @@ class Settings(BaseSettings):
         le=1000,
         alias="PR_DEDUP_MAX_RECORDS",
         description="Maximum number of PR records to fetch during deduplication check (default: 100). Limits memory usage for high-volume repos."
+    )
+
+    # Issue #2933: Make fail-open alert thresholds configurable
+    fail_open_alert_threshold: int = Field(
+        default=5,
+        ge=1,
+        le=100,
+        alias="FAIL_OPEN_ALERT_THRESHOLD",
+        description="Number of fail-open events that trigger an alert (default: 5). Adjust based on Redis stability and traffic."
+    )
+
+    fail_open_alert_window_minutes: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        alias="FAIL_OPEN_ALERT_WINDOW_MINUTES",
+        description="Time window in minutes for counting fail-open events (default: 5). Longer windows smooth out transient spikes."
     )
 
     # Issue #2873: Make security keywords configurable
