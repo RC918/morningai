@@ -256,6 +256,31 @@ class TestOrchestratorBranchDetection:
         event.raw_payload = None
         assert should_skip_orchestrator_pr_event(event) is False
 
+    def test_non_string_head_ref_is_handled(self):
+        """
+        Test that events with non-string head_ref values are handled gracefully.
+
+        Malformed payloads might have None, int, dict, list, etc. as head_ref.
+        The function should not raise AttributeError and should return False.
+        """
+        non_string_values = [
+            None,
+            123,
+            {"ref": "orchestrator/docs-test"},
+            ["orchestrator/docs-test"],
+            True,
+            12.34,
+        ]
+        for value in non_string_values:
+            event = self._create_pr_event(
+                event_type=WebhookEventType.PR_OPENED,
+                head_ref="",  # Will be overwritten
+            )
+            event.raw_payload["pull_request"]["head"]["ref"] = value
+            # Should not raise and should return False (not skip)
+            result = should_skip_orchestrator_pr_event(event)
+            assert result is False, f"Non-string head_ref {type(value).__name__} should not cause skip"
+
 
 class TestEventNormalizerOrchestratorFiltering:
     """

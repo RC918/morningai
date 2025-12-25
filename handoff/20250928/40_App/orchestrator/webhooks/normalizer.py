@@ -138,6 +138,11 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     pr_data = raw_payload.get("pull_request", {})
     head_ref = pr_data.get("head", {}).get("ref", "")
 
+    # Type guard: ensure head_ref is a string to prevent AttributeError
+    # Malformed payloads might have None, int, dict, etc.
+    if not isinstance(head_ref, str):
+        head_ref = ""
+
     # Check if branch starts with orchestrator/ prefix
     if head_ref.startswith("orchestrator/"):
         repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
