@@ -79,7 +79,7 @@ def check_pr_rate_limit(
 
     Issue #2937: Fixed counter leak bug where INCR was called before checking
     the limit, causing the counter to increment even when rate limited.
-    Now uses atomic check-then-increment pattern to prevent counter leak.
+    Now uses a check-then-increment pattern to prevent counter leak.
 
     Args:
         trace_id: Unique trace ID for this operation
@@ -104,7 +104,8 @@ def check_pr_rate_limit(
         # Previous bug: INCR was called first, then checked, causing counter to
         # increment even when rate limited (each retry would +1, leading to runaway)
         current_count = r.get(key)
-        count = int(current_count) if current_count else 0
+        # Use isdigit() for safer conversion in case of unexpected Redis values
+        count = int(current_count) if current_count and current_count.isdigit() else 0
 
         if count >= max_per_hour:
             print(f"[Rate Limit] Already created {count} PRs this hour (max: {max_per_hour})")
@@ -158,14 +159,15 @@ def check_deepwiki_rate_limit(
 ) -> tuple[bool, int]:
     """
     Check if DeepWiki queries are rate limited.
-    
+
     Issue #2153: Rate limiting for DeepWiki API calls.
-    
+    Issue #2937: Fixed counter leak bug - now uses check-then-increment pattern.
+
     Args:
         query_type: Type of query (e.g., 'code_question', 'error_lookup')
         max_per_minute: Maximum queries allowed per minute (default: 60)
         redis_url: Redis connection URL (optional, uses localhost if None)
-    
+
     Returns:
         Tuple of (allowed: bool, current_count: int)
         - allowed: True if query should proceed, False if rate limited
@@ -176,18 +178,23 @@ def check_deepwiki_rate_limit(
             r = redis.Redis.from_url(redis_url, decode_responses=True)
         else:
             r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-        
+
         current_minute = int(time.time() / 60)
         key = f"deepwiki:query_count:{query_type}:{current_minute}"
-        
-        count = r.incr(key)
-        r.expire(key, 120)  # Keep for 2 minutes to handle edge cases
-        
-        if count > max_per_minute:
+
+        # Issue #2937: Check current count BEFORE incrementing to prevent counter leak
+        current_count = r.get(key)
+        count = int(current_count) if current_count and current_count.isdigit() else 0
+
+        if count >= max_per_minute:
             return False, count
-        
-        return True, count
-        
+
+        # Only increment if we're under the limit
+        new_count = r.incr(key)
+        r.expire(key, 120)  # Keep for 2 minutes to handle edge cases
+
+        return True, new_count
+
     except redis.ConnectionError:
         # Redis unavailable, allow query (graceful degradation)
         return True, 0
@@ -235,6 +242,7 @@ def check_notification_rate_limit(
     Check if outbound notifications are rate limited.
 
     Issue #2153: Rate limiting for OutboundNotifier to avoid triggering API limits.
+    Issue #2937: Fixed counter leak bug - now uses check-then-increment pattern.
 
     Different services have different rate limits:
     - GitHub: 5000 requests/hour for authenticated requests
@@ -262,13 +270,18 @@ def check_notification_rate_limit(
         current_minute = int(time.time() / 60)
         key = f"outbound_notifier:rate_limit:{source}:{current_minute}"
 
-        count = r.incr(key)
-        r.expire(key, 120)  # Keep for 2 minutes to handle edge cases
+        # Issue #2937: Check current count BEFORE incrementing to prevent counter leak
+        current_count = r.get(key)
+        count = int(current_count) if current_count and current_count.isdigit() else 0
 
-        if count > max_per_minute:
+        if count >= max_per_minute:
             return False, count
 
-        return True, count
+        # Only increment if we're under the limit
+        new_count = r.incr(key)
+        r.expire(key, 120)  # Keep for 2 minutes to handle edge cases
+
+        return True, new_count
 
     except redis.ConnectionError:
         # Redis unavailable, allow notification (graceful degradation)
