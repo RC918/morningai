@@ -267,7 +267,7 @@ class TestFailOpenMonitoring:
         assert call_kwargs["data"]["fail_open"] is True
 
     def test_record_fail_open_event_increments_metric(self, mock_redis):
-        """Fail-open event should increment metrics counter"""
+        """Fail-open event should increment metrics counter with INCR+EXPIRE pattern"""
         mock_pipeline = MagicMock()
         mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipeline)
         mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
@@ -282,6 +282,7 @@ class TestFailOpenMonitoring:
 
         mock_redis.pipeline.assert_called_once()
         mock_pipeline.incr.assert_called_once()
+        mock_pipeline.expire.assert_called_once()  # Verify TTL is refreshed
 
     def test_redis_unavailable_triggers_fail_open_monitoring(self):
         """Redis unavailable should trigger fail-open monitoring"""
@@ -368,3 +369,48 @@ class TestFailOpenMonitoring:
         assert FAIL_OPEN_METRIC_NAME == "pr_lease.fail_open"
         assert FAIL_OPEN_ALERT_THRESHOLD == 5
         assert FAIL_OPEN_ALERT_WINDOW_MINUTES == 5
+
+    def test_record_fail_open_event_graceful_when_sentry_and_redis_unavailable(self):
+        """Fail-open monitoring should fail gracefully when both Sentry and Redis unavailable"""
+        # Simulate Sentry import failure by not mocking it
+        # and Redis unavailable by passing None
+
+        # This should not raise any exception
+        _record_fail_open_event(
+            trace_id="trace-123",
+            dedup_key="test-dedup-key",
+            reason="redis_unavailable",
+            error=None,
+            redis_client=None  # Redis unavailable
+        )
+        # Test passes if no exception is raised
+
+    def test_record_fail_open_event_graceful_when_sentry_raises_exception(self):
+        """Fail-open monitoring should continue when Sentry add_breadcrumb raises"""
+        mock_sentry = MagicMock()
+        mock_sentry.add_breadcrumb.side_effect = Exception("Sentry error")
+
+        with patch.dict('sys.modules', {'sentry_sdk': mock_sentry}):
+            # This should not raise any exception
+            _record_fail_open_event(
+                trace_id="trace-123",
+                dedup_key="test-dedup-key",
+                reason="connection_error",
+                error="Connection refused",
+                redis_client=None
+            )
+        # Test passes if no exception is raised
+
+    def test_record_fail_open_event_graceful_when_redis_pipeline_fails(self, mock_redis):
+        """Fail-open monitoring should continue when Redis pipeline fails"""
+        mock_redis.pipeline.side_effect = Exception("Redis pipeline error")
+
+        # This should not raise any exception
+        _record_fail_open_event(
+            trace_id="trace-123",
+            dedup_key="test-dedup-key",
+            reason="connection_error",
+            error="Connection refused",
+            redis_client=mock_redis
+        )
+        # Test passes if no exception is raised

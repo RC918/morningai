@@ -31,7 +31,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # Any used for redis_client type hint
 
 logger = logging.getLogger(__name__)
 
@@ -658,7 +658,7 @@ def _record_fail_open_event(
     dedup_key: str,
     reason: str,
     error: Optional[str] = None,
-    redis_client=None
+    redis_client: Optional[Any] = None
 ) -> None:
     """
     Record a fail-open event for monitoring and alerting (Issue #2919).
@@ -670,7 +670,7 @@ def _record_fail_open_event(
     This function:
     1. Adds a Sentry breadcrumb for debugging
     2. Increments a metrics counter for Prometheus/Grafana
-    3. Checks if alert threshold is exceeded
+    3. Logs structured warning for observability
 
     Args:
         trace_id: Trace ID for correlation
@@ -700,6 +700,7 @@ def _record_fail_open_event(
         logger.debug(f"[PRDedup] Failed to add Sentry breadcrumb: {e}")
 
     # 2. Increment metrics counter (if Redis available)
+    # Use INCR + EXPIRE pattern for robustness (ensures TTL is always refreshed)
     if redis_client:
         try:
             from datetime import datetime
@@ -707,8 +708,8 @@ def _record_fail_open_event(
             metric_key = f"metrics:orchestrator:{FAIL_OPEN_METRIC_NAME}:{minute_str}"
 
             with redis_client.pipeline(transaction=True) as pipe:
-                pipe.set(metric_key, 0, ex=7200, nx=True)  # 2 hour TTL
-                pipe.incr(metric_key)
+                pipe.incr(metric_key)  # INCR creates key with value 1 if not exists
+                pipe.expire(metric_key, 7200)  # Always refresh TTL to 2 hours
                 pipe.execute()
 
             logger.debug(f"[PRDedup] Recorded fail-open metric: {metric_key}")
