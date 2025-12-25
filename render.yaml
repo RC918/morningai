@@ -27,6 +27,7 @@ services:
     name: morningai-backend-v2
     env: python
     runtime: python
+    autoDeploy: false  # Disabled to prevent Dashboard settings from being overridden (#2897)
     buildCommand: |
       cd handoff/20250928/40_App/api-backend &&
       pip install --upgrade pip &&
@@ -88,6 +89,7 @@ services:
     name: morningai-agent-worker
     env: python
     runtime: python
+    autoDeploy: false  # Disabled to prevent Dashboard settings from being overridden (#2897)
     buildCommand: |
       cd handoff/20250928/40_App/orchestrator &&
       pip install --upgrade pip &&
