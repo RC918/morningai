@@ -96,8 +96,10 @@ before transitioning to END state.
 ================================================================================
 """
 
+import contextlib
 import functools
 import logging
+import threading as _threading
 import time
 from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict, Any, NotRequired
 from datetime import datetime
@@ -124,6 +126,17 @@ logger = logging.getLogger(__name__)
 _metrics: Optional[OrchestratorMetrics] = None
 _failure_recorder: Optional[FailureRecorder] = None
 _agent_eval: Optional[AgentEvalIntegration] = None
+
+# Global PostgreSQL connection pool (lazy initialization)
+# Issue: Connection Lifecycle Bug Fix - Use connection pooling instead of per-job connections
+# Benefits:
+# 1. Enterprise-grade: Reuse connections instead of dial/hangup per job
+# 2. Auto-healing: Pool automatically validates and reconnects dead connections
+# 3. Resource management: Prevents connection leaks and Supabase limit exhaustion
+_postgres_pool = None
+# Thread-safe lock for pool initialization - initialized at module level (eager init)
+# to avoid race condition in lazy initialization pattern
+_postgres_pool_lock = _threading.Lock()
 
 
 def _get_metrics() -> OrchestratorMetrics:
@@ -204,9 +217,201 @@ def node_metrics(node_name: str) -> Callable:
     return decorator
 
 
+def _get_postgres_pool():
+    """
+    Get or initialize the global PostgreSQL connection pool.
+
+    Issue: Connection Lifecycle Bug Fix (Dec 2025)
+
+    This function implements enterprise-grade connection pooling using psycopg_pool.
+    Benefits:
+    1. Connection reuse: No dial/hangup overhead per job
+    2. Auto-healing: Pool validates connections and reconnects dead ones
+    3. Resource management: Prevents connection leaks and Supabase limit exhaustion
+    4. Thread-safe: Uses threading lock for initialization
+
+    Pool Configuration:
+    - min_size: 1 (minimum connections to keep open)
+    - max_size: 5 (maximum connections, prevents Supabase limit exhaustion)
+    - max_lifetime: 1800 (30 minutes, prevents stale connections)
+    - max_idle: 300 (5 minutes, recycle idle connections)
+    - reconnect_timeout: 60 (1 minute timeout for reconnection attempts)
+    - check: ConnectionPool.check_connection (validates connection health)
+
+    Returns:
+        ConnectionPool: The global connection pool instance, or None if initialization fails
+    """
+    global _postgres_pool
+    import os
+
+    # Fast path: pool already initialized
+    if _postgres_pool is not None:
+        return _postgres_pool
+
+    with _postgres_pool_lock:
+        # Double-check after acquiring lock
+        if _postgres_pool is not None:
+            return _postgres_pool
+
+        database_url = settings.database_url or os.environ.get("DATABASE_URL")
+        if not database_url:
+            logger.warning(
+                "DATABASE_URL not configured, cannot create connection pool",
+                extra={"operation": "_get_postgres_pool"}
+            )
+            return None
+
+        try:
+            from psycopg_pool import ConnectionPool
+            from psycopg.rows import dict_row
+
+            # Configure pool with health checks and auto-reconnect
+            # These settings are optimized for Supabase PostgreSQL
+            _postgres_pool = ConnectionPool(
+                conninfo=database_url,
+                min_size=1,  # Keep at least 1 connection ready
+                max_size=5,  # Limit to prevent Supabase connection exhaustion
+                max_lifetime=1800,  # 30 minutes - recycle connections periodically
+                max_idle=300,  # 5 minutes - close idle connections
+                reconnect_timeout=60,  # 1 minute timeout for reconnection
+                kwargs={
+                    "autocommit": True,  # Required by PostgresSaver
+                    "row_factory": dict_row,  # Required by PostgresSaver
+                },
+                # Health check: validates connection before returning from pool
+                check=ConnectionPool.check_connection,
+            )
+
+            # Wait for pool to be ready (opens min_size connections)
+            _postgres_pool.wait()
+
+            logger.info(
+                "PostgreSQL connection pool initialized successfully",
+                extra={
+                    "operation": "_get_postgres_pool",
+                    "min_size": 1,
+                    "max_size": 5,
+                    "max_lifetime": 1800,
+                    "max_idle": 300,
+                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
+                }
+            )
+
+            return _postgres_pool
+
+        except ImportError as e:
+            logger.warning(
+                f"psycopg_pool not installed, connection pooling unavailable: {e}",
+                extra={
+                    "operation": "_get_postgres_pool",
+                    "error": str(e)
+                }
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize PostgreSQL connection pool: {e}",
+                extra={
+                    "operation": "_get_postgres_pool",
+                    "error": str(e)
+                }
+            )
+            return None
+
+
+@contextlib.contextmanager
+def postgres_checkpointer_context():
+    """
+    Context manager for PostgreSQL checkpointer with proper connection lifecycle management.
+
+    Issue: Connection Lifecycle Bug Fix (Dec 2025)
+
+    This context manager ensures that connections borrowed from the pool are properly
+    returned after the graph run completes. This prevents connection leaks and
+    Supabase limit exhaustion.
+
+    Usage:
+        with postgres_checkpointer_context() as checkpointer:
+            if checkpointer is not None:
+                app = workflow.compile(checkpointer=checkpointer)
+                result = app.invoke(initial_state)
+            # Connection is automatically returned to pool when exiting context
+
+    Yields:
+        PostgresSaver: A checkpointer instance with a pooled connection, or None if unavailable
+
+    Note:
+        The connection is automatically returned to the pool when the context exits,
+        even if an exception occurs. This is critical for preventing connection leaks.
+    """
+    import os
+    from langgraph.checkpoint.postgres import PostgresSaver
+
+    pool = _get_postgres_pool()
+    conn = None
+
+    if pool is None:
+        logger.warning(
+            "Connection pool unavailable, PostgreSQL checkpointer not available",
+            extra={"operation": "postgres_checkpointer_context"}
+        )
+        yield None
+        return
+
+    try:
+        # Use pool.connection() context manager for automatic connection return
+        # This is the recommended way to use psycopg_pool
+        with pool.connection() as conn:
+            checkpointer = PostgresSaver(conn)
+            checkpointer.setup()
+
+            # Get pool statistics safely (psycopg_pool returns PoolStats object)
+            try:
+                stats = pool.get_stats()
+                pool_size = getattr(stats, 'pool_size', 'unknown')
+                pool_available = getattr(stats, 'pool_available', 'unknown')
+            except Exception:
+                pool_size = 'unknown'
+                pool_available = 'unknown'
+
+            database_url = settings.database_url or os.environ.get("DATABASE_URL", "")
+            logger.info(
+                "PostgreSQL checkpointer context opened with pooled connection",
+                extra={
+                    "operation": "postgres_checkpointer_context",
+                    "checkpointer_type": "postgres_pooled",
+                    "pool_stats": {
+                        "size": pool_size,
+                        "available": pool_available,
+                    },
+                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
+                }
+            )
+
+            yield checkpointer
+
+            logger.info(
+                "PostgreSQL checkpointer context closing, returning connection to pool",
+                extra={"operation": "postgres_checkpointer_context"}
+            )
+    except Exception as e:
+        logger.error(
+            f"Error in PostgreSQL checkpointer context: {e}",
+            extra={
+                "operation": "postgres_checkpointer_context",
+                "error": str(e)
+            }
+        )
+        raise
+
+
 def get_checkpointer():
     """
     Factory function to create the appropriate checkpointer based on configuration.
+
+    IMPORTANT: For PostgreSQL checkpointer with connection pooling, prefer using
+    postgres_checkpointer_context() instead of this function to ensure proper
+    connection lifecycle management.
 
     Returns:
         - PostgresSaver if USE_POSTGRES_CHECKPOINTER=true and DATABASE_URL is configured
@@ -224,64 +429,26 @@ def get_checkpointer():
         PostgreSQL checkpointer is recommended over Redis for Upstash Redis,
         which doesn't support RediSearch (required by langgraph-checkpoint-redis).
 
-    Fix (Dec 2025):
-        PostgresSaver.from_conn_string() returns a context manager in langgraph-checkpoint-postgres>=2.0.0.
-        We use psycopg.connect() directly with autocommit=True and row_factory=dict_row as required
-        by the PostgresSaver implementation. This allows us to control the connection lifecycle
-        and avoid the context manager issue.
+    Fix (Dec 2025) - Connection Pooling:
+        Previous implementation created a new psycopg connection per job without cleanup,
+        causing connection leaks and Supabase limit exhaustion. This led to:
+        - "the connection is closed" errors (psycopg.Pipeline [BAD] state)
+        - "invalid memory alloc request size" errors (corrupted protocol state)
+        - Health check timeouts (DB connection exhaustion)
+
+        New implementation: For PostgreSQL, use postgres_checkpointer_context() instead.
+        This function now only returns Redis or Memory checkpointers for backward compatibility.
     """
     import os
 
+    # For PostgreSQL, we now recommend using postgres_checkpointer_context()
+    # This function skips PostgreSQL to avoid connection leaks
     use_postgres = settings.use_postgres_checkpointer
-    database_url = settings.database_url or os.environ.get("DATABASE_URL")
-
-    if use_postgres and database_url:
-        conn = None
-        try:
-            import psycopg
-            from psycopg.rows import dict_row
-            from langgraph.checkpoint.postgres import PostgresSaver
-
-            conn = psycopg.connect(database_url, autocommit=True, row_factory=dict_row)
-            checkpointer = PostgresSaver(conn)
-            checkpointer.setup()
-
-            logger.info(
-                "Using PostgreSQL checkpointer for LangGraph state persistence",
-                extra={
-                    "operation": "get_checkpointer",
-                    "checkpointer_type": "postgres",
-                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
-                }
-            )
-
-            return checkpointer
-
-        except ImportError as e:
-            logger.warning(
-                f"langgraph-checkpoint-postgres or psycopg not installed, trying Redis checkpointer: {e}",
-                extra={
-                    "operation": "get_checkpointer",
-                    "error": str(e)
-                }
-            )
-        except Exception as e:
-            if conn is not None:
-                try:
-                    conn.close()
-                    logger.info(
-                        "Closed PostgreSQL connection after setup failure",
-                        extra={"operation": "get_checkpointer"}
-                    )
-                except Exception:
-                    pass
-            logger.error(
-                f"Failed to initialize PostgreSQL checkpointer, trying Redis checkpointer: {e}",
-                extra={
-                    "operation": "get_checkpointer",
-                    "error": str(e)
-                }
-            )
+    if use_postgres:
+        logger.info(
+            "PostgreSQL checkpointer configured - use postgres_checkpointer_context() for proper connection management",
+            extra={"operation": "get_checkpointer"}
+        )
 
     use_redis = settings.use_redis_checkpointer
     redis_url = settings.redis_url or os.environ.get("REDIS_URL")
@@ -339,7 +506,6 @@ def get_checkpointer():
             "operation": "get_checkpointer",
             "checkpointer_type": "memory",
             "use_postgres_configured": use_postgres,
-            "database_url_available": bool(database_url),
             "use_redis_configured": use_redis,
             "redis_url_available": bool(redis_url)
         }
@@ -3778,7 +3944,7 @@ def should_retry_or_finish(state: AgentState) -> str:
         return "monitor_ci"
 
 
-def create_orchestrator_graph(entry_point: str = "planner"):
+def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     """
     Creates the LangGraph StateGraph for orchestration
 
@@ -3825,8 +3991,14 @@ def create_orchestrator_graph(entry_point: str = "planner"):
         internal_review → reviewer → decision → ... (same as above)
         Entry point can be "internal_review" for internal re-review tasks
 
+    Fix (Dec 2025) - Connection Pooling:
+        Added checkpointer parameter to allow callers to pass in a checkpointer
+        with proper connection lifecycle management (e.g., from postgres_checkpointer_context()).
+        If checkpointer is None, falls back to get_checkpointer() for Redis/Memory.
+
     Args:
         entry_point: Entry point node name ("planner", "review_intake", or "internal_review")
+        checkpointer: Optional checkpointer instance. If None, uses get_checkpointer() fallback.
 
     Returns:
         Compiled StateGraph ready for execution
@@ -3954,8 +4126,11 @@ def create_orchestrator_graph(entry_point: str = "planner"):
     # evaluation → END (Phase 2 PR-1813)
     workflow.add_edge("evaluation", END)
 
-    # Use factory function to get appropriate checkpointer (Redis or Memory)
-    checkpointer = get_checkpointer()
+    # Use provided checkpointer or fall back to get_checkpointer() for Redis/Memory
+    # Fix (Dec 2025): For PostgreSQL, callers should use postgres_checkpointer_context()
+    # and pass the checkpointer to this function for proper connection lifecycle management
+    if checkpointer is None:
+        checkpointer = get_checkpointer()
 
     app = workflow.compile(checkpointer=checkpointer)
 
@@ -4129,101 +4304,118 @@ def run_orchestrator(
     agent_eval = _get_agent_eval()
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="default")
 
-    app = create_orchestrator_graph()
+    # Issue #2940: Use postgres_checkpointer_context() for proper connection lifecycle
+    # The context manager ensures PostgreSQL connections are returned to pool after use
+    with postgres_checkpointer_context() as pg_checkpointer:
+        # If PostgreSQL pool is available, use it; otherwise fall back to Redis/Memory
+        if pg_checkpointer is not None:
+            checkpointer = pg_checkpointer
+            logger.info(
+                f"Using PostgreSQL checkpointer with connection pool trace_id={trace_id}",
+                extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool"}
+            )
+        else:
+            checkpointer = get_checkpointer()
+            logger.info(
+                f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
+                extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
+            )
 
-    # Issue #2260: Use helper to create base initial state
-    initial_state = _create_base_initial_state(
-        goal=goal,
-        trace_id=trace_id,
-        repo=repo,
-        task_type="default",
-    )
+        app = create_orchestrator_graph(checkpointer=checkpointer)
 
-    # Issue: Phase B-B - Merge PR context into initial state
-    # pr_number: 0 is treated as "no PR" by downstream nodes, so only set if valid
-    if pr_number > 0:
-        initial_state["pr_number"] = pr_number
-    if pr_url:
-        initial_state["pr_url"] = pr_url
+        # Issue #2260: Use helper to create base initial state
+        initial_state = _create_base_initial_state(
+            goal=goal,
+            trace_id=trace_id,
+            repo=repo,
+            task_type="default",
+        )
 
-    config = {"configurable": {"thread_id": trace_id}}
+        # Issue: Phase B-B - Merge PR context into initial state
+        # pr_number: 0 is treated as "no PR" by downstream nodes, so only set if valid
+        if pr_number > 0:
+            initial_state["pr_number"] = pr_number
+        if pr_url:
+            initial_state["pr_url"] = pr_url
 
-    try:
-        result = app.invoke(initial_state, config)
+        config = {"configurable": {"thread_id": trace_id}}
 
-        final_result = result.get("final_result", {})
+        try:
+            result = app.invoke(initial_state, config)
 
-        # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
-        # Use default values to avoid "status=None" in logs
-        result_status = final_result.get("status") or "unknown"
-        result_pr_url = final_result.get("pr_url") or ""
-        logger.info(
-            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url='{result_pr_url}'",
-            extra={
+            final_result = result.get("final_result", {})
+
+            # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
+            # Use default values to avoid "status=None" in logs
+            result_status = final_result.get("status") or "unknown"
+            result_pr_url = final_result.get("pr_url") or ""
+            logger.info(
+                f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url='{result_pr_url}'",
+                extra={
+                    "operation": "run_orchestrator",
+                    "trace_id": trace_id,
+                    "status": result_status,
+                    "pr_url": result_pr_url
+                }
+            )
+
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
+
+            ci_state = final_result.get("ci_state", "unknown")
+            agent_eval.record_workflow_result(
+                trace_id,
+                status="success",
+                pr_created=bool(final_result.get("pr_url")),
+                ci_passed=ci_state == "success",
+                code_quality_score=result.get("code_quality_score", 100),
+                pr_touched=bool(final_result.get("pr_url")),
+                pr_opened=bool(final_result.get("pr_url")),
+                code_changed=True,
+                ci_state=ci_state
+            )
+            agent_eval.complete_workflow_metrics(trace_id)
+
+            return final_result
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"LangGraph orchestrator failed: {error_msg}", extra={
                 "operation": "run_orchestrator",
                 "trace_id": trace_id,
-                "status": result_status,
-                "pr_url": result_pr_url
+                "error": error_msg
+            })
+
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+            failure_recorder = _get_failure_recorder()
+            failure_recorder.record_failure_from_state(
+                state={"trace_id": trace_id, "goal": goal, "repo": repo},
+                error_type="workflow_exception",
+                error_message=error_msg
+            )
+
+            agent_eval.record_workflow_result(
+                trace_id,
+                status="error",
+                pr_created=False,
+                ci_passed=False,
+                pr_touched=False,
+                pr_opened=False,
+                code_changed=True,
+                ci_state="error"
+            )
+            agent_eval.complete_workflow_metrics(trace_id)
+
+            return {
+                "trace_id": trace_id,
+                "pr_url": None,
+                "ci_state": "error",
+                "status": "error",
+                "error": error_msg,
+                "timestamp": datetime.utcnow().isoformat()
             }
-        )
-
-        latency_ms = (time.time() - start_time) * 1000
-        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
-
-        ci_state = final_result.get("ci_state", "unknown")
-        agent_eval.record_workflow_result(
-            trace_id,
-            status="success",
-            pr_created=bool(final_result.get("pr_url")),
-            ci_passed=ci_state == "success",
-            code_quality_score=result.get("code_quality_score", 100),
-            pr_touched=bool(final_result.get("pr_url")),
-            pr_opened=bool(final_result.get("pr_url")),
-            code_changed=True,
-            ci_state=ci_state
-        )
-        agent_eval.complete_workflow_metrics(trace_id)
-
-        return final_result
-
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"LangGraph orchestrator failed: {error_msg}", extra={
-            "operation": "run_orchestrator",
-            "trace_id": trace_id,
-            "error": error_msg
-        })
-
-        latency_ms = (time.time() - start_time) * 1000
-        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
-
-        failure_recorder = _get_failure_recorder()
-        failure_recorder.record_failure_from_state(
-            state={"trace_id": trace_id, "goal": goal, "repo": repo},
-            error_type="workflow_exception",
-            error_message=error_msg
-        )
-
-        agent_eval.record_workflow_result(
-            trace_id,
-            status="error",
-            pr_created=False,
-            ci_passed=False,
-            pr_touched=False,
-            pr_opened=False,
-            code_changed=True,
-            ci_state="error"
-        )
-        agent_eval.complete_workflow_metrics(trace_id)
-
-        return {
-            "trace_id": trace_id,
-            "pr_url": None,
-            "ci_state": "error",
-            "status": "error",
-            "error": error_msg,
-            "timestamp": datetime.utcnow().isoformat()
-        }
 
 
 def run_review_follow_up_orchestrator(
@@ -4280,111 +4472,128 @@ def run_review_follow_up_orchestrator(
     agent_eval = _get_agent_eval()
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="review_follow_up")
 
-    # Create graph with review_intake as entry point
-    app = create_orchestrator_graph(entry_point="review_intake")
+    # Issue #2940: Use postgres_checkpointer_context() for proper connection lifecycle
+    # The context manager ensures PostgreSQL connections are returned to pool after use
+    with postgres_checkpointer_context() as pg_checkpointer:
+        # If PostgreSQL pool is available, use it; otherwise fall back to Redis/Memory
+        if pg_checkpointer is not None:
+            checkpointer = pg_checkpointer
+            logger.info(
+                f"Using PostgreSQL checkpointer with connection pool trace_id={trace_id}",
+                extra={"operation": "run_review_follow_up_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool"}
+            )
+        else:
+            checkpointer = get_checkpointer()
+            logger.info(
+                f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
+                extra={"operation": "run_review_follow_up_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
+            )
 
-    # Issue #2260: Use helper to create base initial state
-    initial_state = _create_base_initial_state(
-        goal=goal,
-        trace_id=trace_id,
-        repo=repo,
-        branch=review_task.get("branch", ""),
-        task_type="review_follow_up",
-    )
-    # Add review follow-up specific fields
-    initial_state.update({
-        "original_pr_number": original_pr_number,
-        "comment_url": review_task.get("comment_url", ""),
-        "comment_body": comment_body,
-        "review_file_path": review_task.get("file_path", ""),
-        "review_line_number": review_task.get("line_number", 0),
-        "triage_result": review_task.get("triage_result", {}),
-        "pr_context": review_task.get("pr_context", {}),
-        "review_follow_up_action": review_task.get("review_follow_up_action", ""),
-        "requires_hitl_approval": review_task.get("requires_approval", False),
-    })
+        # Create graph with review_intake as entry point
+        app = create_orchestrator_graph(entry_point="review_intake", checkpointer=checkpointer)
 
-    config = {"configurable": {"thread_id": trace_id}}
-
-    try:
-        result = app.invoke(initial_state, config)
-
-        final_result = result.get("final_result", {})
-
-        logger.info("Review Follow-up orchestrator completed", extra={
-            "operation": "run_review_follow_up_orchestrator",
-            "trace_id": trace_id,
-            "status": final_result.get("status"),
-            "pr_url": final_result.get("pr_url"),
-            "original_pr_number": original_pr_number,
-        })
-
-        latency_ms = (time.time() - start_time) * 1000
-        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
-
-        ci_state = final_result.get("ci_state", "unknown")
-        agent_eval.record_workflow_result(
-            trace_id,
-            status="success",
-            pr_created=bool(final_result.get("pr_url")),
-            ci_passed=ci_state == "success",
-            code_quality_score=result.get("code_quality_score", 100),
-            pr_touched=bool(final_result.get("pr_url")),
-            pr_opened=False,
-            code_changed=True,
-            ci_state=ci_state
+        # Issue #2260: Use helper to create base initial state
+        initial_state = _create_base_initial_state(
+            goal=goal,
+            trace_id=trace_id,
+            repo=repo,
+            branch=review_task.get("branch", ""),
+            task_type="review_follow_up",
         )
-        agent_eval.complete_workflow_metrics(trace_id)
-
-        return final_result
-
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"Review Follow-up orchestrator failed: {error_msg}", extra={
-            "operation": "run_review_follow_up_orchestrator",
-            "trace_id": trace_id,
-            "error": error_msg,
+        # Add review follow-up specific fields
+        initial_state.update({
             "original_pr_number": original_pr_number,
+            "comment_url": review_task.get("comment_url", ""),
+            "comment_body": comment_body,
+            "review_file_path": review_task.get("file_path", ""),
+            "review_line_number": review_task.get("line_number", 0),
+            "triage_result": review_task.get("triage_result", {}),
+            "pr_context": review_task.get("pr_context", {}),
+            "review_follow_up_action": review_task.get("review_follow_up_action", ""),
+            "requires_hitl_approval": review_task.get("requires_approval", False),
         })
 
-        latency_ms = (time.time() - start_time) * 1000
-        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+        config = {"configurable": {"thread_id": trace_id}}
 
-        failure_recorder = _get_failure_recorder()
-        failure_recorder.record_failure_from_state(
-            state={
+        try:
+            result = app.invoke(initial_state, config)
+
+            final_result = result.get("final_result", {})
+
+            logger.info("Review Follow-up orchestrator completed", extra={
+                "operation": "run_review_follow_up_orchestrator",
                 "trace_id": trace_id,
-                "goal": goal,
-                "repo": repo,
+                "status": final_result.get("status"),
+                "pr_url": final_result.get("pr_url"),
+                "original_pr_number": original_pr_number,
+            })
+
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
+
+            ci_state = final_result.get("ci_state", "unknown")
+            agent_eval.record_workflow_result(
+                trace_id,
+                status="success",
+                pr_created=bool(final_result.get("pr_url")),
+                ci_passed=ci_state == "success",
+                code_quality_score=result.get("code_quality_score", 100),
+                pr_touched=bool(final_result.get("pr_url")),
+                pr_opened=False,
+                code_changed=True,
+                ci_state=ci_state
+            )
+            agent_eval.complete_workflow_metrics(trace_id)
+
+            return final_result
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Review Follow-up orchestrator failed: {error_msg}", extra={
+                "operation": "run_review_follow_up_orchestrator",
+                "trace_id": trace_id,
+                "error": error_msg,
+                "original_pr_number": original_pr_number,
+            })
+
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+            failure_recorder = _get_failure_recorder()
+            failure_recorder.record_failure_from_state(
+                state={
+                    "trace_id": trace_id,
+                    "goal": goal,
+                    "repo": repo,
+                    "task_type": "review_follow_up",
+                    "original_pr_number": original_pr_number,
+                },
+                error_type="review_follow_up_exception",
+                error_message=error_msg
+            )
+
+            agent_eval.record_workflow_result(
+                trace_id,
+                status="error",
+                pr_created=False,
+                ci_passed=False,
+                pr_touched=False,
+                pr_opened=False,
+                code_changed=True,
+                ci_state="error"
+            )
+            agent_eval.complete_workflow_metrics(trace_id)
+
+            return {
+                "trace_id": trace_id,
+                "pr_url": None,
+                "ci_state": "error",
+                "status": "error",
+                "error": error_msg,
                 "task_type": "review_follow_up",
                 "original_pr_number": original_pr_number,
-            },
-            error_type="review_follow_up_exception",
-            error_message=error_msg
-        )
-
-        agent_eval.record_workflow_result(
-            trace_id,
-            status="error",
-            pr_created=False,
-            ci_passed=False,
-            pr_touched=False,
-            pr_opened=False,
-            code_changed=True,
-            ci_state="error"
-        )
-        agent_eval.complete_workflow_metrics(trace_id)
-
-        return {
-            "trace_id": trace_id,
-            "pr_url": None,
-            "ci_state": "error",
-            "status": "error",
-            "error": error_msg,
-            "task_type": "review_follow_up",
-            "original_pr_number": original_pr_number,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+                "timestamp": datetime.utcnow().isoformat()
+            }
 
 
 def run_internal_review_orchestrator(
@@ -4443,134 +4652,151 @@ def run_internal_review_orchestrator(
     agent_eval = _get_agent_eval()
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="internal_review")
 
-    app = create_orchestrator_graph(entry_point="internal_review")
+    # Issue #2940: Use postgres_checkpointer_context() for proper connection lifecycle
+    # The context manager ensures PostgreSQL connections are returned to pool after use
+    with postgres_checkpointer_context() as pg_checkpointer:
+        # If PostgreSQL pool is available, use it; otherwise fall back to Redis/Memory
+        if pg_checkpointer is not None:
+            checkpointer = pg_checkpointer
+            logger.info(
+                f"Using PostgreSQL checkpointer with connection pool trace_id={trace_id}",
+                extra={"operation": "run_internal_review_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool"}
+            )
+        else:
+            checkpointer = get_checkpointer()
+            logger.info(
+                f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
+                extra={"operation": "run_internal_review_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
+            )
 
-    # Issue #2260: Use helper to create base initial state
-    initial_state = _create_base_initial_state(
-        goal=goal,
-        trace_id=trace_id,
-        repo=repo,
-        branch=internal_review_task.get("branch", ""),
-        task_type="internal_review",
-    )
-    # Override fields with task-specific values
-    initial_state.update({
-        "pr_url": internal_review_task.get("pr_url", ""),
-        "pr_number": internal_review_task.get("pr_number", 0),
-        "ci_state": internal_review_task.get("ci_state", "unknown"),
-        "ci_checks": internal_review_task.get("ci_checks", {}),
-        "code_quality_score": internal_review_task.get("code_quality_score", 100),
-        "original_pr_number": original_pr_number,
-        "comment_url": internal_review_task.get("comment_url", ""),
-        "comment_body": comment_body,
-        "review_file_path": internal_review_task.get("file_path", ""),
-        "review_line_number": internal_review_task.get("line_number", 0),
-        "triage_result": internal_review_task.get("triage_result", {}),
-        "pr_context": internal_review_task.get("pr_context", {}),
-        "requires_hitl_approval": internal_review_task.get("requires_approval", False),
-        # Internal review specific fields
-        "internal_review_mode": True,
-        "initial_ai_review": internal_review_task.get("initial_ai_review", {}),
-        "follow_up_summary": internal_review_task.get("follow_up_summary", {}),
-        "internal_review_result": {},
-        "internal_review_decision": "",
-        "ai_reviewer_agreement": "",
-    })
+        app = create_orchestrator_graph(entry_point="internal_review", checkpointer=checkpointer)
 
-    config = {"configurable": {"thread_id": trace_id}}
-
-    try:
-        result = app.invoke(initial_state, config)
-
-        internal_review_result = result.get("internal_review_result", {})
-        final_result = result.get("final_result", {})
-
-        logger.info("Internal Review orchestrator completed", extra={
-            "operation": "run_internal_review_orchestrator",
-            "trace_id": trace_id,
-            "internal_review_decision": result.get("internal_review_decision"),
-            "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
-            "requires_hitl": result.get("requires_hitl_approval"),
-            "original_pr_number": original_pr_number,
-        })
-
-        latency_ms = (time.time() - start_time) * 1000
-        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
-
-        agent_eval.record_workflow_result(
-            trace_id,
-            status="success",
-            pr_created=bool(final_result.get("pr_url")),
-            ci_passed=False,
-            code_quality_score=result.get("code_quality_score", 100),
-            pr_touched=bool(final_result.get("pr_url")),
-            pr_opened=False,
-            code_changed=False,
-            ci_state="unknown"
+        # Issue #2260: Use helper to create base initial state
+        initial_state = _create_base_initial_state(
+            goal=goal,
+            trace_id=trace_id,
+            repo=repo,
+            branch=internal_review_task.get("branch", ""),
+            task_type="internal_review",
         )
-        agent_eval.complete_workflow_metrics(trace_id)
-
-        return {
-            "trace_id": trace_id,
-            "task_type": "internal_review",
+        # Override fields with task-specific values
+        initial_state.update({
+            "pr_url": internal_review_task.get("pr_url", ""),
+            "pr_number": internal_review_task.get("pr_number", 0),
+            "ci_state": internal_review_task.get("ci_state", "unknown"),
+            "ci_checks": internal_review_task.get("ci_checks", {}),
+            "code_quality_score": internal_review_task.get("code_quality_score", 100),
             "original_pr_number": original_pr_number,
-            "internal_review_result": internal_review_result,
-            "internal_review_decision": result.get("internal_review_decision", ""),
-            "ai_reviewer_agreement": result.get("ai_reviewer_agreement", ""),
-            "requires_hitl_approval": result.get("requires_hitl_approval", False),
-            "ci_state": result.get("ci_state", "unknown"),
-            "code_quality_score": result.get("code_quality_score", 100),
-            "status": "success",
-            "timestamp": datetime.utcnow().isoformat()
-        }
-
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"Internal Review orchestrator failed: {error_msg}", extra={
-            "operation": "run_internal_review_orchestrator",
-            "trace_id": trace_id,
-            "error": error_msg,
-            "original_pr_number": original_pr_number,
+            "comment_url": internal_review_task.get("comment_url", ""),
+            "comment_body": comment_body,
+            "review_file_path": internal_review_task.get("file_path", ""),
+            "review_line_number": internal_review_task.get("line_number", 0),
+            "triage_result": internal_review_task.get("triage_result", {}),
+            "pr_context": internal_review_task.get("pr_context", {}),
+            "requires_hitl_approval": internal_review_task.get("requires_approval", False),
+            # Internal review specific fields
+            "internal_review_mode": True,
+            "initial_ai_review": internal_review_task.get("initial_ai_review", {}),
+            "follow_up_summary": internal_review_task.get("follow_up_summary", {}),
+            "internal_review_result": {},
+            "internal_review_decision": "",
+            "ai_reviewer_agreement": "",
         })
 
-        latency_ms = (time.time() - start_time) * 1000
-        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+        config = {"configurable": {"thread_id": trace_id}}
 
-        failure_recorder = _get_failure_recorder()
-        failure_recorder.record_failure_from_state(
-            state={
+        try:
+            result = app.invoke(initial_state, config)
+
+            internal_review_result = result.get("internal_review_result", {})
+            final_result = result.get("final_result", {})
+
+            logger.info("Internal Review orchestrator completed", extra={
+                "operation": "run_internal_review_orchestrator",
                 "trace_id": trace_id,
-                "goal": goal,
-                "repo": repo,
+                "internal_review_decision": result.get("internal_review_decision"),
+                "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
+                "requires_hitl": result.get("requires_hitl_approval"),
+                "original_pr_number": original_pr_number,
+            })
+
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
+
+            agent_eval.record_workflow_result(
+                trace_id,
+                status="success",
+                pr_created=bool(final_result.get("pr_url")),
+                ci_passed=False,
+                code_quality_score=result.get("code_quality_score", 100),
+                pr_touched=bool(final_result.get("pr_url")),
+                pr_opened=False,
+                code_changed=False,
+                ci_state="unknown"
+            )
+            agent_eval.complete_workflow_metrics(trace_id)
+
+            return {
+                "trace_id": trace_id,
                 "task_type": "internal_review",
                 "original_pr_number": original_pr_number,
-            },
-            error_type="internal_review_exception",
-            error_message=error_msg
-        )
+                "internal_review_result": internal_review_result,
+                "internal_review_decision": result.get("internal_review_decision", ""),
+                "ai_reviewer_agreement": result.get("ai_reviewer_agreement", ""),
+                "requires_hitl_approval": result.get("requires_hitl_approval", False),
+                "ci_state": result.get("ci_state", "unknown"),
+                "code_quality_score": result.get("code_quality_score", 100),
+                "status": "success",
+                "timestamp": datetime.utcnow().isoformat()
+            }
 
-        agent_eval.record_workflow_result(
-            trace_id,
-            status="error",
-            pr_created=False,
-            ci_passed=False,
-            pr_touched=False,
-            pr_opened=False,
-            code_changed=False,
-            ci_state="unknown"
-        )
-        agent_eval.complete_workflow_metrics(trace_id)
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Internal Review orchestrator failed: {error_msg}", extra={
+                "operation": "run_internal_review_orchestrator",
+                "trace_id": trace_id,
+                "error": error_msg,
+                "original_pr_number": original_pr_number,
+            })
 
-        return {
-            "trace_id": trace_id,
-            "task_type": "internal_review",
-            "original_pr_number": original_pr_number,
-            "internal_review_result": {},
-            "internal_review_decision": "escalate",
-            "ai_reviewer_agreement": "disagree",
-            "requires_hitl_approval": True,
-            "ci_state": "error",
-            "status": "error",
-            "error": error_msg,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+            failure_recorder = _get_failure_recorder()
+            failure_recorder.record_failure_from_state(
+                state={
+                    "trace_id": trace_id,
+                    "goal": goal,
+                    "repo": repo,
+                    "task_type": "internal_review",
+                    "original_pr_number": original_pr_number,
+                },
+                error_type="internal_review_exception",
+                error_message=error_msg
+            )
+
+            agent_eval.record_workflow_result(
+                trace_id,
+                status="error",
+                pr_created=False,
+                ci_passed=False,
+                pr_touched=False,
+                pr_opened=False,
+                code_changed=False,
+                ci_state="unknown"
+            )
+            agent_eval.complete_workflow_metrics(trace_id)
+
+            return {
+                "trace_id": trace_id,
+                "task_type": "internal_review",
+                "original_pr_number": original_pr_number,
+                "internal_review_result": {},
+                "internal_review_decision": "escalate",
+                "ai_reviewer_agreement": "disagree",
+                "requires_hitl_approval": True,
+                "ci_state": "error",
+                "status": "error",
+                "error": error_msg,
+                "timestamp": datetime.utcnow().isoformat()
+            }
