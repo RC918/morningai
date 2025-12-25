@@ -96,8 +96,10 @@ before transitioning to END state.
 ================================================================================
 """
 
+import contextlib
 import functools
 import logging
+import threading as _threading
 import time
 from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict, Any, NotRequired
 from datetime import datetime
@@ -132,7 +134,9 @@ _agent_eval: Optional[AgentEvalIntegration] = None
 # 2. Auto-healing: Pool automatically validates and reconnects dead connections
 # 3. Resource management: Prevents connection leaks and Supabase limit exhaustion
 _postgres_pool = None
-_postgres_pool_lock = None  # Threading lock for pool initialization
+# Thread-safe lock for pool initialization - initialized at module level (eager init)
+# to avoid race condition in lazy initialization pattern
+_postgres_pool_lock = _threading.Lock()
 
 
 def _get_metrics() -> OrchestratorMetrics:
@@ -237,13 +241,8 @@ def _get_postgres_pool():
     Returns:
         ConnectionPool: The global connection pool instance, or None if initialization fails
     """
-    global _postgres_pool, _postgres_pool_lock
+    global _postgres_pool
     import os
-    import threading
-
-    # Initialize lock if needed (thread-safe double-checked locking)
-    if _postgres_pool_lock is None:
-        _postgres_pool_lock = threading.Lock()
 
     # Fast path: pool already initialized
     if _postgres_pool is not None:
@@ -320,9 +319,99 @@ def _get_postgres_pool():
             return None
 
 
+@contextlib.contextmanager
+def postgres_checkpointer_context():
+    """
+    Context manager for PostgreSQL checkpointer with proper connection lifecycle management.
+
+    Issue: Connection Lifecycle Bug Fix (Dec 2025)
+
+    This context manager ensures that connections borrowed from the pool are properly
+    returned after the graph run completes. This prevents connection leaks and
+    Supabase limit exhaustion.
+
+    Usage:
+        with postgres_checkpointer_context() as checkpointer:
+            if checkpointer is not None:
+                app = workflow.compile(checkpointer=checkpointer)
+                result = app.invoke(initial_state)
+            # Connection is automatically returned to pool when exiting context
+
+    Yields:
+        PostgresSaver: A checkpointer instance with a pooled connection, or None if unavailable
+
+    Note:
+        The connection is automatically returned to the pool when the context exits,
+        even if an exception occurs. This is critical for preventing connection leaks.
+    """
+    import os
+    from langgraph.checkpoint.postgres import PostgresSaver
+
+    pool = _get_postgres_pool()
+    conn = None
+
+    if pool is None:
+        logger.warning(
+            "Connection pool unavailable, PostgreSQL checkpointer not available",
+            extra={"operation": "postgres_checkpointer_context"}
+        )
+        yield None
+        return
+
+    try:
+        # Use pool.connection() context manager for automatic connection return
+        # This is the recommended way to use psycopg_pool
+        with pool.connection() as conn:
+            checkpointer = PostgresSaver(conn)
+            checkpointer.setup()
+
+            # Get pool statistics safely (psycopg_pool returns PoolStats object)
+            try:
+                stats = pool.get_stats()
+                pool_size = getattr(stats, 'pool_size', 'unknown')
+                pool_available = getattr(stats, 'pool_available', 'unknown')
+            except Exception:
+                pool_size = 'unknown'
+                pool_available = 'unknown'
+
+            database_url = settings.database_url or os.environ.get("DATABASE_URL", "")
+            logger.info(
+                "PostgreSQL checkpointer context opened with pooled connection",
+                extra={
+                    "operation": "postgres_checkpointer_context",
+                    "checkpointer_type": "postgres_pooled",
+                    "pool_stats": {
+                        "size": pool_size,
+                        "available": pool_available,
+                    },
+                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
+                }
+            )
+
+            yield checkpointer
+
+            logger.info(
+                "PostgreSQL checkpointer context closing, returning connection to pool",
+                extra={"operation": "postgres_checkpointer_context"}
+            )
+    except Exception as e:
+        logger.error(
+            f"Error in PostgreSQL checkpointer context: {e}",
+            extra={
+                "operation": "postgres_checkpointer_context",
+                "error": str(e)
+            }
+        )
+        raise
+
+
 def get_checkpointer():
     """
     Factory function to create the appropriate checkpointer based on configuration.
+
+    IMPORTANT: For PostgreSQL checkpointer with connection pooling, prefer using
+    postgres_checkpointer_context() instead of this function to ensure proper
+    connection lifecycle management.
 
     Returns:
         - PostgresSaver if USE_POSTGRES_CHECKPOINTER=true and DATABASE_URL is configured
@@ -347,82 +436,19 @@ def get_checkpointer():
         - "invalid memory alloc request size" errors (corrupted protocol state)
         - Health check timeouts (DB connection exhaustion)
 
-        New implementation uses psycopg_pool.ConnectionPool for:
-        - Connection reuse (no dial/hangup overhead)
-        - Auto-healing (validates and reconnects dead connections)
-        - Resource management (prevents leaks and limit exhaustion)
+        New implementation: For PostgreSQL, use postgres_checkpointer_context() instead.
+        This function now only returns Redis or Memory checkpointers for backward compatibility.
     """
     import os
 
+    # For PostgreSQL, we now recommend using postgres_checkpointer_context()
+    # This function skips PostgreSQL to avoid connection leaks
     use_postgres = settings.use_postgres_checkpointer
-    database_url = settings.database_url or os.environ.get("DATABASE_URL")
-
-    if use_postgres and database_url:
-        try:
-            from langgraph.checkpoint.postgres import PostgresSaver
-
-            # Try connection pool first (preferred)
-            pool = _get_postgres_pool()
-            if pool is not None:
-                # Get connection from pool - pool handles health checks and reconnection
-                conn = pool.getconn()
-                checkpointer = PostgresSaver(conn)
-                checkpointer.setup()
-
-                logger.info(
-                    "Using PostgreSQL checkpointer with connection pool",
-                    extra={
-                        "operation": "get_checkpointer",
-                        "checkpointer_type": "postgres_pooled",
-                        "pool_stats": {
-                            "size": pool.get_stats().get("pool_size", "unknown"),
-                            "available": pool.get_stats().get("pool_available", "unknown"),
-                        },
-                        "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
-                    }
-                )
-
-                return checkpointer
-
-            # Fallback to direct connection if pool unavailable (with warning)
-            logger.warning(
-                "Connection pool unavailable, falling back to direct connection (not recommended)",
-                extra={"operation": "get_checkpointer"}
-            )
-            import psycopg
-            from psycopg.rows import dict_row
-
-            conn = psycopg.connect(database_url, autocommit=True, row_factory=dict_row)
-            checkpointer = PostgresSaver(conn)
-            checkpointer.setup()
-
-            logger.info(
-                "Using PostgreSQL checkpointer (direct connection - no pooling)",
-                extra={
-                    "operation": "get_checkpointer",
-                    "checkpointer_type": "postgres_direct",
-                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
-                }
-            )
-
-            return checkpointer
-
-        except ImportError as e:
-            logger.warning(
-                f"langgraph-checkpoint-postgres or psycopg not installed, trying Redis checkpointer: {e}",
-                extra={
-                    "operation": "get_checkpointer",
-                    "error": str(e)
-                }
-            )
-        except Exception as e:
-            logger.error(
-                f"Failed to initialize PostgreSQL checkpointer, trying Redis checkpointer: {e}",
-                extra={
-                    "operation": "get_checkpointer",
-                    "error": str(e)
-                }
-            )
+    if use_postgres:
+        logger.info(
+            "PostgreSQL checkpointer configured - use postgres_checkpointer_context() for proper connection management",
+            extra={"operation": "get_checkpointer"}
+        )
 
     use_redis = settings.use_redis_checkpointer
     redis_url = settings.redis_url or os.environ.get("REDIS_URL")
@@ -480,7 +506,6 @@ def get_checkpointer():
             "operation": "get_checkpointer",
             "checkpointer_type": "memory",
             "use_postgres_configured": use_postgres,
-            "database_url_available": bool(database_url),
             "use_redis_configured": use_redis,
             "redis_url_available": bool(redis_url)
         }
@@ -3919,7 +3944,7 @@ def should_retry_or_finish(state: AgentState) -> str:
         return "monitor_ci"
 
 
-def create_orchestrator_graph(entry_point: str = "planner"):
+def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     """
     Creates the LangGraph StateGraph for orchestration
 
@@ -3966,8 +3991,14 @@ def create_orchestrator_graph(entry_point: str = "planner"):
         internal_review → reviewer → decision → ... (same as above)
         Entry point can be "internal_review" for internal re-review tasks
 
+    Fix (Dec 2025) - Connection Pooling:
+        Added checkpointer parameter to allow callers to pass in a checkpointer
+        with proper connection lifecycle management (e.g., from postgres_checkpointer_context()).
+        If checkpointer is None, falls back to get_checkpointer() for Redis/Memory.
+
     Args:
         entry_point: Entry point node name ("planner", "review_intake", or "internal_review")
+        checkpointer: Optional checkpointer instance. If None, uses get_checkpointer() fallback.
 
     Returns:
         Compiled StateGraph ready for execution
@@ -4095,8 +4126,11 @@ def create_orchestrator_graph(entry_point: str = "planner"):
     # evaluation → END (Phase 2 PR-1813)
     workflow.add_edge("evaluation", END)
 
-    # Use factory function to get appropriate checkpointer (Redis or Memory)
-    checkpointer = get_checkpointer()
+    # Use provided checkpointer or fall back to get_checkpointer() for Redis/Memory
+    # Fix (Dec 2025): For PostgreSQL, callers should use postgres_checkpointer_context()
+    # and pass the checkpointer to this function for proper connection lifecycle management
+    if checkpointer is None:
+        checkpointer = get_checkpointer()
 
     app = workflow.compile(checkpointer=checkpointer)
 
