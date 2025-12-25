@@ -193,6 +193,24 @@ bash .github/scripts/audit_workflows.sh
 
 ---
 
+## Render 部署規範
+
+### 🎯 手動部署 SOP
+
+As of 2025-12-24, automatic deployments (autoDeploy) have been disabled for all Render services to address bandwidth/pipeline cost concerns. All production deployments must now be triggered manually.
+
+**完整的 Render 手動部署標準作業程序 (SOP)**：
+- **[Render Manual Deployment SOP](./deployment/RENDER_MANUAL_DEPLOY_SOP.md)**
+
+The SOP includes:
+- Pre-deployment checklist
+- Step-by-step deployment instructions
+- Post-deployment verification
+- Rollback procedures
+- Troubleshooting guide
+
+---
+
 ## Vercel 部署規範
 
 ### 🎯 核心原則

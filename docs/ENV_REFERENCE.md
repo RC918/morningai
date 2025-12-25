@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 225
+- **Total Variables**: 227
 - **Required**: 21
-- **Optional**: 204
+- **Optional**: 206
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -28,7 +28,7 @@
 - [Database](#database) (9 variables)
 - [Cloud Services](#cloud-services) (14 variables)
 - [Infrastructure](#infrastructure) (21 variables)
-- [Monitoring](#monitoring) (14 variables)
+- [Monitoring](#monitoring) (16 variables)
 - [Integration](#integration) (19 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
@@ -853,6 +853,8 @@ Git commit SHA from Render platform (auto-set by Render)
 | `MONITOR_AUTH_TOKEN` | secret | No | - | SECRET |
 | `COST_ALERT_THRESHOLD` | number | No | 50.0 | PUBLIC |
 | `LATENCY_ALERT_THRESHOLD` | number | No | 5000 | PUBLIC |
+| `FAIL_OPEN_ALERT_THRESHOLD` | integer | No | 5 | PUBLIC |
+| `FAIL_OPEN_ALERT_WINDOW_MINUTES` | integer | No | 5 | PUBLIC |
 
 ### Details
 
@@ -992,6 +994,41 @@ Latency alert threshold in milliseconds
 - **Required**: No
 - **Default**: `5000`
 - **Security Level**: PUBLIC
+
+#### `FAIL_OPEN_ALERT_THRESHOLD`
+
+Number of fail-open events that trigger an alert (Issue
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `5`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Controls the threshold for fail-open alerting in the PR lease mechanism.
+> When Redis is unavailable, the system fails open (allows PR creation).
+> If more than this many fail-open events occur within the alert window,
+> a Sentry alert is triggered.
+> Adjust based on:
+> - Redis stability in your environment
+> - Expected traffic volume
+> - Acceptable false positive rate for alerts
+
+#### `FAIL_OPEN_ALERT_WINDOW_MINUTES`
+
+Time window in minutes for counting fail-open events (Issue
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `5`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Controls the time window for fail-open alerting.
+> Fail-open events are counted within this rolling window.
+> Shorter windows (1-3 min): More sensitive, faster alerts
+> Longer windows (10-30 min): Smoother, fewer false positives
+> Adjust based on your Redis stability and alerting preferences.
 
 ## Integration
 
