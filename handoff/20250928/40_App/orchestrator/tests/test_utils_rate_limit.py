@@ -23,67 +23,90 @@ from utils.rate_limit import (
     _get_redis_key_prefix,
     _get_pr_updated_keys,
     _get_with_legacy_fallback,
+    # Issue #2943: New atomic rate limiting imports
+    RateLimitResult,
+    _atomic_rate_limit_check,
+    _emit_rate_limit_telemetry,
+    _check_and_alert_rate_limit_pattern,
+    RATE_LIMIT_ALERT_THRESHOLD,
+    check_deepwiki_rate_limit,
+    check_notification_rate_limit,
 )
 
 
 class TestCheckPRRateLimit:
-    """Test check_pr_rate_limit function"""
-    
+    """Test check_pr_rate_limit function
+
+    Issue #2943: Tests updated to reflect atomic Lua script implementation.
+    Now we mock r.eval() which returns [allowed (0 or 1), count].
+    """
+
     def test_allows_pr_within_limit(self):
-        """Should allow PR creation within rate limit"""
+        """Should allow PR creation within rate limit
+
+        Issue #2943: Updated to reflect atomic Lua script pattern.
+        Now we call eval() which atomically checks and increments.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 5
-        
+        # Lua script returns [1, 5] meaning allowed=True, count=5
+        mock_redis.eval.return_value = [1, 5]
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             allowed, count = check_pr_rate_limit('trace-123', max_per_hour=10)
-            
+
             assert allowed is True
             assert count == 5
-            assert mock_redis.incr.called
-            assert mock_redis.expire.called
-    
+            assert mock_redis.eval.called
+
     def test_blocks_pr_over_limit(self):
-        """Should block PR creation when over rate limit"""
+        """Should block PR creation when over rate limit
+
+        Issue #2943: Updated to reflect atomic Lua script pattern.
+        Lua script returns [0, count] when blocked.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 12
-        
+        # Lua script returns [0, 12] meaning allowed=False, count=12
+        mock_redis.eval.return_value = [0, 12]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             allowed, count = check_pr_rate_limit('trace-456', max_per_hour=10)
-            
+
             assert allowed is False
             assert count == 12
-    
+
     def test_uses_redis_url_when_provided(self):
         """Should use Redis URL when provided"""
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 3
-        
+        mock_redis.eval.return_value = [1, 3]
+
         with patch('redis.Redis.from_url') as mock_from_url:
             mock_from_url.return_value = mock_redis
-            
+
             allowed, count = check_pr_rate_limit(
                 'trace-789',
                 redis_url='redis://custom:6379/0'
             )
-            
+
             assert allowed is True
             assert count == 3
             mock_from_url.assert_called_once()
-    
+
     def test_uses_localhost_when_no_url(self):
         """Should use localhost Redis when no URL provided"""
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 2
-        
+        mock_redis.eval.return_value = [1, 2]
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             allowed, count = check_pr_rate_limit('trace-abc')
-            
+
             assert allowed is True
             mock_redis_class.assert_called_once_with(
                 host='localhost',
@@ -91,168 +114,218 @@ class TestCheckPRRateLimit:
                 db=0,
                 decode_responses=True
             )
-    
-    def test_sets_key_expiration(self):
-        """Should set key expiration to 1 hour"""
+
+    def test_lua_script_called_with_correct_args(self):
+        """Should call Lua script with correct key, max_limit, and expiry
+
+        Issue #2943: Verify Lua script is called with correct arguments.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 1
-        
-        with patch('redis.Redis') as mock_redis_class:
-            mock_redis_class.return_value = mock_redis
-            
-            check_pr_rate_limit('trace-def')
-            
-            mock_redis.expire.assert_called_once()
-            call_args = mock_redis.expire.call_args
-            assert call_args[0][1] == 3600
-    
-    def test_uses_current_hour_in_key(self):
-        """Should use current hour in Redis key"""
-        mock_redis = MagicMock()
-        mock_redis.incr.return_value = 1
-        
+        mock_redis.eval.return_value = [1, 1]
+
         with patch('redis.Redis') as mock_redis_class, \
              patch('time.time', return_value=1700000000):
             mock_redis_class.return_value = mock_redis
-            
-            check_pr_rate_limit('trace-ghi')
-            
+
+            check_pr_rate_limit('trace-def', max_per_hour=10)
+
+            # Verify eval was called
+            assert mock_redis.eval.called
+            call_args = mock_redis.eval.call_args
+            # Args: (script, num_keys, key, max_limit, expiry_seconds)
             expected_hour = int(1700000000 / 3600)
             expected_key = f"orchestrator:pr_count:{expected_hour}"
-            mock_redis.incr.assert_called_once_with(expected_key)
-    
+            assert call_args[0][2] == expected_key  # key
+            assert call_args[0][3] == 10  # max_limit
+            assert call_args[0][4] == 3600  # expiry_seconds
+
+    def test_uses_current_hour_in_key(self):
+        """Should use current hour in Redis key"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [1, 1]
+
+        with patch('redis.Redis') as mock_redis_class, \
+             patch('time.time', return_value=1700000000):
+            mock_redis_class.return_value = mock_redis
+
+            check_pr_rate_limit('trace-ghi')
+
+            expected_hour = int(1700000000 / 3600)
+            expected_key = f"orchestrator:pr_count:{expected_hour}"
+            # Verify the key is passed to eval
+            call_args = mock_redis.eval.call_args
+            assert expected_key in call_args[0]
+
     def test_handles_redis_connection_error(self):
-        """Should allow PR creation when Redis is unavailable"""
+        """Should allow PR creation when Redis is unavailable (fail-open)"""
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.side_effect = redis.ConnectionError("Connection refused")
-            
+
             allowed, count = check_pr_rate_limit('trace-jkl')
-            
+
             assert allowed is True
             assert count == 0
-    
+
     def test_handles_redis_operation_error(self):
-        """Should allow PR creation on Redis operation error"""
+        """Should allow PR creation on Redis operation error (fail-open)"""
         mock_redis = MagicMock()
-        mock_redis.incr.side_effect = redis.RedisError("Operation failed")
-        
+        mock_redis.eval.side_effect = redis.RedisError("Operation failed")
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             allowed, count = check_pr_rate_limit('trace-mno')
-            
+
             assert allowed is True
             assert count == 0
-    
+
     def test_handles_unexpected_exception(self):
-        """Should allow PR creation on unexpected exception"""
+        """Should allow PR creation on unexpected exception (fail-open)"""
         mock_redis = MagicMock()
-        mock_redis.incr.side_effect = Exception("Unexpected error")
-        
+        mock_redis.eval.side_effect = Exception("Unexpected error")
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             allowed, count = check_pr_rate_limit('trace-pqr')
-            
+
             assert allowed is True
             assert count == 0
-    
+
     def test_custom_max_per_hour(self):
-        """Should respect custom max_per_hour parameter"""
+        """Should respect custom max_per_hour parameter
+
+        Issue #2943: Updated to reflect atomic Lua script pattern.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 18
-        
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
+            # First call: allowed, count=18
+            mock_redis.eval.return_value = [1, 18]
             allowed, count = check_pr_rate_limit('trace-stu', max_per_hour=20)
-            
+
             assert allowed is True
             assert count == 18
-            
-            mock_redis.incr.return_value = 22
+
+            # Second call: blocked, count=22
+            mock_redis.eval.return_value = [0, 22]
             allowed, count = check_pr_rate_limit('trace-vwx', max_per_hour=20)
-            
+
             assert allowed is False
             assert count == 22
-    
+
     def test_boundary_condition_at_limit(self):
-        """Should allow PR at exact limit"""
+        """Should allow PR when count reaches exactly max_limit
+
+        Issue #2943: Verify >= comparison is correct.
+        When current count is 9 and max is 10, we allow and increment to 10.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 10
-        
+        # Lua script allows when current < max, so count=10 means we just reached limit
+        mock_redis.eval.return_value = [1, 10]
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             allowed, count = check_pr_rate_limit('trace-yz', max_per_hour=10)
-            
+
             assert allowed is True
             assert count == 10
-    
-    def test_boundary_condition_over_limit(self):
-        """Should block PR at limit + 1"""
+
+    def test_boundary_condition_at_exact_limit(self):
+        """Should block PR when count == max_limit (Issue #2943 verification)
+
+        Issue #2943: Verify >= comparison blocks at exact limit.
+        When current count is already 10 and max is 10, we block.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 11
-        
+        # Lua script blocks when current >= max
+        mock_redis.eval.return_value = [0, 10]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
+            allowed, count = check_pr_rate_limit('trace-boundary', max_per_hour=10)
+
+            assert allowed is False
+            assert count == 10
+
+    def test_boundary_condition_over_limit(self):
+        """Should block PR at limit + 1
+
+        Issue #2943: Updated to reflect atomic Lua script pattern.
+        """
+        mock_redis = MagicMock()
+        # Lua script returns [0, 11] meaning blocked, count=11
+        mock_redis.eval.return_value = [0, 11]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
             allowed, count = check_pr_rate_limit('trace-123', max_per_hour=10)
-            
+
             assert allowed is False
             assert count == 11
 
 
 class TestGetPRCountLastHour:
     """Test get_pr_count_last_hour function"""
-    
+
     def test_returns_current_count(self):
         """Should return current PR count"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = '7'
-        
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 7
-    
+
     def test_returns_zero_when_no_count(self):
         """Should return 0 when no count exists"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = None
-        
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 0
-    
+
     def test_uses_redis_url_when_provided(self):
         """Should use Redis URL when provided"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = '5'
-        
+
         with patch('redis.Redis.from_url') as mock_from_url:
             mock_from_url.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour(redis_url='redis://custom:6379/0')
-            
+
             assert count == 5
             mock_from_url.assert_called_once()
-    
+
     def test_uses_localhost_when_no_url(self):
         """Should use localhost Redis when no URL provided"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = '3'
-        
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 3
             mock_redis_class.assert_called_once_with(
                 host='localhost',
@@ -260,114 +333,130 @@ class TestGetPRCountLastHour:
                 db=0,
                 decode_responses=True
             )
-    
+
     def test_uses_current_hour_in_key(self):
         """Should use current hour in Redis key"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = '4'
-        
+
         with patch('redis.Redis') as mock_redis_class, \
              patch('time.time', return_value=1700000000):
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             expected_hour = int(1700000000 / 3600)
             expected_key = f"orchestrator:pr_count:{expected_hour}"
             mock_redis.get.assert_called_once_with(expected_key)
             assert count == 4
-    
+
     def test_handles_redis_connection_error(self):
         """Should return 0 when Redis is unavailable"""
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.side_effect = redis.ConnectionError("Connection refused")
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 0
-    
+
     def test_handles_redis_operation_error(self):
         """Should return 0 on Redis operation error"""
         mock_redis = MagicMock()
         mock_redis.get.side_effect = redis.RedisError("Operation failed")
-        
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 0
-    
+
     def test_handles_unexpected_exception(self):
         """Should return 0 on unexpected exception"""
         mock_redis = MagicMock()
         mock_redis.get.side_effect = Exception("Unexpected error")
-        
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 0
-    
+
     def test_handles_non_numeric_value(self):
         """Should return 0 for non-numeric values"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = 'invalid'
-        
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 0
-    
+
     def test_handles_zero_count(self):
         """Should handle zero count correctly"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = '0'
-        
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
+
             count = get_pr_count_last_hour()
-            
+
             assert count == 0
 
 
 class TestIntegration:
-    """Test integration scenarios"""
-    
+    """Test integration scenarios
+
+    Issue #2943: Updated to reflect atomic Lua script implementation.
+    """
+
     def test_sequential_pr_creation(self):
-        """Should track sequential PR creation correctly"""
+        """Should track sequential PR creation correctly
+
+        Issue #2943: Updated to reflect atomic Lua script pattern.
+        Now we mock eval() which returns [allowed, count].
+        """
         mock_redis = MagicMock()
-        counts = [1, 2, 3, 4, 5]
-        mock_redis.incr.side_effect = counts
-        
+        # Simulate sequential counts: eval returns [1, 1], [1, 2], [1, 3], [1, 4], [1, 5]
+        eval_results = [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5]]
+        mock_redis.eval.side_effect = eval_results
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
-            for i, expected_count in enumerate(counts):
+
+            for i, expected_count in enumerate([1, 2, 3, 4, 5]):
                 allowed, count = check_pr_rate_limit(f'trace-{i}', max_per_hour=10)
                 assert allowed is True
                 assert count == expected_count
-    
+
     def test_rate_limit_enforcement(self):
-        """Should enforce rate limit correctly"""
+        """Should enforce rate limit correctly
+
+        Issue #2943: Updated to reflect atomic Lua script pattern.
+        """
         mock_redis = MagicMock()
-        
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
-            
-            mock_redis.incr.return_value = 10
+
+            # First call: allowed, count reaches 10
+            mock_redis.eval.return_value = [1, 10]
             allowed, count = check_pr_rate_limit('trace-1', max_per_hour=10)
             assert allowed is True
-            
-            mock_redis.incr.return_value = 11
+
+            # Second call: blocked at limit (count == 10)
+            mock_redis.eval.return_value = [0, 10]
             allowed, count = check_pr_rate_limit('trace-2', max_per_hour=10)
             assert allowed is False
-            
-            mock_redis.incr.return_value = 12
+
+            # Third call: blocked over limit (count == 11)
+            mock_redis.eval.return_value = [0, 11]
             allowed, count = check_pr_rate_limit('trace-3', max_per_hour=10)
             assert allowed is False
 
@@ -831,3 +920,384 @@ class TestGetWithLegacyFallback:
         result = _get_with_legacy_fallback(mock_redis, "prefix:key", "key")
         assert result == "prefixed_value"
         mock_redis.get.assert_called_once_with("prefix:key")
+
+
+# =============================================================================
+# Issue #2943: North Star Alignment Tests
+# =============================================================================
+
+class TestRateLimitResult:
+    """Test RateLimitResult dataclass (Issue #2943)"""
+
+    def test_default_values(self):
+        """Should have correct default values"""
+        result = RateLimitResult(
+            allowed=True,
+            current_count=5,
+            key="test:key",
+            max_limit=10,
+            decision="allowed"
+        )
+        assert result.allowed is True
+        assert result.current_count == 5
+        assert result.key == "test:key"
+        assert result.max_limit == 10
+        assert result.decision == "allowed"
+        assert result.trace_id is None
+        assert result.context_id is None
+
+    def test_with_all_values(self):
+        """Should store all values correctly"""
+        result = RateLimitResult(
+            allowed=False,
+            current_count=10,
+            key="test:key",
+            max_limit=10,
+            decision="blocked",
+            trace_id="trace-123",
+            context_id="pr_rate_limit:12345"
+        )
+        assert result.allowed is False
+        assert result.current_count == 10
+        assert result.decision == "blocked"
+        assert result.trace_id == "trace-123"
+        assert result.context_id == "pr_rate_limit:12345"
+
+
+class TestAtomicRateLimitCheck:
+    """Test _atomic_rate_limit_check function (Issue #2943)"""
+
+    def test_returns_allowed_when_under_limit(self):
+        """Should return allowed=True when under limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [1, 5]  # allowed, count=5
+
+        result = _atomic_rate_limit_check(
+            r=mock_redis,
+            key="test:key",
+            max_limit=10,
+            expiry_seconds=3600,
+            trace_id="trace-123",
+            context_id="test",
+            operation="test_rate_limit"
+        )
+
+        assert result.allowed is True
+        assert result.current_count == 5
+        assert result.decision == "allowed"
+        assert result.trace_id == "trace-123"
+
+    def test_returns_blocked_when_at_limit(self):
+        """Should return allowed=False when at limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [0, 10]  # blocked, count=10
+
+        result = _atomic_rate_limit_check(
+            r=mock_redis,
+            key="test:key",
+            max_limit=10,
+            expiry_seconds=3600,
+            operation="test_rate_limit"
+        )
+
+        assert result.allowed is False
+        assert result.current_count == 10
+        assert result.decision == "blocked"
+
+    def test_calls_lua_script_with_correct_args(self):
+        """Should call Lua script with correct arguments"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [1, 1]
+
+        _atomic_rate_limit_check(
+            r=mock_redis,
+            key="test:key",
+            max_limit=10,
+            expiry_seconds=3600,
+            operation="test_rate_limit"
+        )
+
+        mock_redis.eval.assert_called_once()
+        call_args = mock_redis.eval.call_args[0]
+        assert call_args[1] == 1  # num_keys
+        assert call_args[2] == "test:key"  # key
+        assert call_args[3] == 10  # max_limit
+        assert call_args[4] == 3600  # expiry_seconds
+
+
+class TestEmitRateLimitTelemetry:
+    """Test _emit_rate_limit_telemetry function (Issue #2943)"""
+
+    def test_logs_allowed_decision(self):
+        """Should log debug message for allowed decisions"""
+        result = RateLimitResult(
+            allowed=True,
+            current_count=5,
+            key="test:key",
+            max_limit=10,
+            decision="allowed",
+            trace_id="trace-123"
+        )
+
+        with patch('utils.rate_limit.logger') as mock_logger:
+            _emit_rate_limit_telemetry(result, "test_operation")
+            mock_logger.debug.assert_called_once()
+            call_args = mock_logger.debug.call_args
+            assert "allowed" in call_args[0][0]
+            assert "5/10" in call_args[0][0]
+
+    def test_logs_blocked_decision(self):
+        """Should log warning message for blocked decisions"""
+        result = RateLimitResult(
+            allowed=False,
+            current_count=10,
+            key="test:key",
+            max_limit=10,
+            decision="blocked",
+            trace_id="trace-123"
+        )
+
+        with patch('utils.rate_limit.logger') as mock_logger:
+            _emit_rate_limit_telemetry(result, "test_operation")
+            mock_logger.warning.assert_called_once()
+            call_args = mock_logger.warning.call_args
+            assert "blocked" in call_args[0][0]
+            assert "10/10" in call_args[0][0]
+
+    def test_includes_extra_context(self):
+        """Should include extra context in telemetry"""
+        result = RateLimitResult(
+            allowed=True,
+            current_count=5,
+            key="test:key",
+            max_limit=10,
+            decision="allowed"
+        )
+
+        with patch('utils.rate_limit.logger') as mock_logger:
+            _emit_rate_limit_telemetry(
+                result,
+                "test_operation",
+                extra_context={"custom_field": "custom_value"}
+            )
+            call_kwargs = mock_logger.debug.call_args[1]
+            assert "custom_field" in call_kwargs["extra"]
+            assert call_kwargs["extra"]["custom_field"] == "custom_value"
+
+
+class TestCheckAndAlertRateLimitPattern:
+    """Test _check_and_alert_rate_limit_pattern function (Issue #2943 Auto-Recovery)"""
+
+    def test_increments_alert_counter_on_block(self):
+        """Should increment alert counter when blocked"""
+        mock_redis = MagicMock()
+        mock_redis.incr.return_value = 1
+
+        _check_and_alert_rate_limit_pattern(
+            r=mock_redis,
+            key="test:key",
+            was_blocked=True,
+            operation="test_rate_limit"
+        )
+
+        mock_redis.incr.assert_called_once()
+        mock_redis.expire.assert_called_once()
+
+    def test_resets_alert_counter_on_allow(self):
+        """Should reset alert counter when allowed"""
+        mock_redis = MagicMock()
+
+        _check_and_alert_rate_limit_pattern(
+            r=mock_redis,
+            key="test:key",
+            was_blocked=False,
+            operation="test_rate_limit"
+        )
+
+        mock_redis.delete.assert_called_once()
+
+    def test_emits_alert_when_threshold_exceeded(self):
+        """Should emit alert when consecutive blocks exceed threshold"""
+        mock_redis = MagicMock()
+        mock_redis.incr.return_value = RATE_LIMIT_ALERT_THRESHOLD
+
+        with patch('utils.rate_limit.logger') as mock_logger:
+            _check_and_alert_rate_limit_pattern(
+                r=mock_redis,
+                key="test:key",
+                was_blocked=True,
+                operation="test_rate_limit"
+            )
+
+            mock_logger.warning.assert_called_once()
+            call_args = mock_logger.warning.call_args
+            assert "consecutive blocks" in call_args[0][0]
+
+    def test_no_alert_below_threshold(self):
+        """Should not emit alert when below threshold"""
+        mock_redis = MagicMock()
+        mock_redis.incr.return_value = RATE_LIMIT_ALERT_THRESHOLD - 1
+
+        with patch('utils.rate_limit.logger') as mock_logger:
+            _check_and_alert_rate_limit_pattern(
+                r=mock_redis,
+                key="test:key",
+                was_blocked=True,
+                operation="test_rate_limit"
+            )
+
+            mock_logger.warning.assert_not_called()
+
+
+class TestCheckDeepwikiRateLimit:
+    """Test check_deepwiki_rate_limit function with atomic Lua script (Issue #2943)"""
+
+    def test_allows_query_within_limit(self):
+        """Should allow query within rate limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [1, 5]
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_deepwiki_rate_limit('code_question', max_per_minute=60)
+
+            assert allowed is True
+            assert count == 5
+
+    def test_blocks_query_over_limit(self):
+        """Should block query over rate limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [0, 60]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_deepwiki_rate_limit('code_question', max_per_minute=60)
+
+            assert allowed is False
+            assert count == 60
+
+    def test_handles_redis_error_gracefully(self):
+        """Should fail-open on Redis error"""
+        mock_redis = MagicMock()
+        mock_redis.eval.side_effect = redis.ConnectionError("Connection refused")
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_deepwiki_rate_limit('code_question')
+
+            assert allowed is True
+            assert count == 0
+
+
+class TestCheckNotificationRateLimit:
+    """Test check_notification_rate_limit function with atomic Lua script (Issue #2943)"""
+
+    def test_allows_notification_within_limit(self):
+        """Should allow notification within rate limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [1, 10]
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_notification_rate_limit('github', max_per_minute=30)
+
+            assert allowed is True
+            assert count == 10
+
+    def test_blocks_notification_over_limit(self):
+        """Should block notification over rate limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [0, 30]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_notification_rate_limit('github', max_per_minute=30)
+
+            assert allowed is False
+            assert count == 30
+
+    def test_handles_redis_error_gracefully(self):
+        """Should fail-open on Redis error"""
+        mock_redis = MagicMock()
+        mock_redis.eval.side_effect = redis.ConnectionError("Connection refused")
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_notification_rate_limit('github')
+
+            assert allowed is True
+            assert count == 0
+
+
+class TestBoundaryConditions:
+    """Test boundary conditions for >= comparison (Issue #2943 verification)"""
+
+    def test_pr_rate_limit_boundary_at_max_minus_one(self):
+        """Should allow when current count is max - 1"""
+        mock_redis = MagicMock()
+        # Current is 9, max is 10, so allowed and incremented to 10
+        mock_redis.eval.return_value = [1, 10]
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_pr_rate_limit('trace-1', max_per_hour=10)
+
+            assert allowed is True
+            assert count == 10
+
+    def test_pr_rate_limit_boundary_at_exact_max(self):
+        """Should block when current count equals max (>= check)"""
+        mock_redis = MagicMock()
+        # Current is 10, max is 10, so blocked
+        mock_redis.eval.return_value = [0, 10]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_pr_rate_limit('trace-2', max_per_hour=10)
+
+            assert allowed is False
+            assert count == 10
+
+    def test_deepwiki_rate_limit_boundary_at_exact_max(self):
+        """Should block DeepWiki query when at exact limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [0, 60]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_deepwiki_rate_limit('code_question', max_per_minute=60)
+
+            assert allowed is False
+            assert count == 60
+
+    def test_notification_rate_limit_boundary_at_exact_max(self):
+        """Should block notification when at exact limit"""
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = [0, 30]
+        # Mock auto-recovery mechanism calls
+        mock_redis.incr.return_value = 1
+
+        with patch('redis.Redis') as mock_redis_class:
+            mock_redis_class.return_value = mock_redis
+
+            allowed, count = check_notification_rate_limit('github', max_per_minute=30)
+
+            assert allowed is False
+            assert count == 30
