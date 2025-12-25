@@ -409,23 +409,10 @@ def execute(
             reputation_engine.record_event(agent_id, 'cost_overrun', trace_id=trace_id, reason=str(e))
         return None, "budget_exceeded", trace_id
     
-    # Issue #2100: Use configurable docs PR rate limit (default: 3/hour)
-    docs_max_prs = settings.orchestrator_docs_max_prs_per_hour or 3
-    allowed, count = check_pr_rate_limit(trace_id, max_per_hour=docs_max_prs, redis_url=settings.redis_url)
-    if not allowed:
-        logger.warning(
-            f"[GraphExecute] Rate limited trace_id={trace_id} count={count} max={docs_max_prs}",
-            extra={"operation": "rate_limited", "trace_id": trace_id, "count": count, "max": docs_max_prs}
-        )
-        rate_limit_risk = "high"
-        evaluate_execution_policy(
-            trace_id=trace_id,
-            cost_risk=cost_risk,
-            rate_limit_risk=rate_limit_risk,
-            goal=goal,
-            repo=repo_full
-        )
-        return None, "rate_limited", trace_id
+    # Issue #2969: Rate limit check moved to just before PR creation
+    # This ensures the counter only increments when we actually create a PR,
+    # not when internal operations (value gate, dedup, etc.) block PR creation.
+    # See: https://github.com/RC918/morningai/issues/2969
     
     evaluate_execution_policy(
         trace_id=trace_id,
@@ -705,6 +692,27 @@ Requested by: @RC918
         labels.append("needs-review")
     if has_errors:
         labels.append("quality-issues")
+    
+    # ==========================================================================
+    # Issue #2969: Rate Limit Check (Decoupled from Internal Operations)
+    # Blueprint: Safety Governor v2 - Context-aware rate limiting
+    # 
+    # This check is now placed immediately before PR creation, ensuring:
+    # 1. Counter only increments when we actually create a PR
+    # 2. Internal operations (value gate, dedup, lease) don't consume quota
+    # 3. Rate limit is enforced at the "point of external action"
+    # ==========================================================================
+    docs_max_prs = settings.orchestrator_docs_max_prs_per_hour or 3
+    allowed, count = check_pr_rate_limit(trace_id, max_per_hour=docs_max_prs, redis_url=settings.redis_url)
+    if not allowed:
+        # Release lease before returning (if we acquired it)
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
+        logger.warning(
+            f"[GraphExecute] Rate limited trace_id={trace_id} count={count} max={docs_max_prs}",
+            extra={"operation": "rate_limited", "trace_id": trace_id, "count": count, "max": docs_max_prs}
+        )
+        return None, "rate_limited", trace_id
     
     # Issue #2910: Wrap PR creation in try-except to release lease on failure
     try:
