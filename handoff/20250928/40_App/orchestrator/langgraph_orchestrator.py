@@ -267,6 +267,11 @@ def _get_postgres_pool():
 
             # Configure pool with health checks and auto-reconnect
             # These settings are optimized for Supabase PostgreSQL
+            #
+            # CRITICAL FIX (Dec 2025): Added prepare_threshold=0 to disable prepared
+            # statement caching. This prevents "prepared statement _pg3_1 does not exist"
+            # errors when Supabase resets connections mid-workflow. The official
+            # PostgresSaver.from_conn_string() also uses prepare_threshold=0.
             _postgres_pool = ConnectionPool(
                 conninfo=database_url,
                 min_size=1,  # Keep at least 1 connection ready
@@ -277,6 +282,7 @@ def _get_postgres_pool():
                 kwargs={
                     "autocommit": True,  # Required by PostgresSaver
                     "row_factory": dict_row,  # Required by PostgresSaver
+                    "prepare_threshold": 0,  # Disable prepared statements to avoid state loss on reconnect
                 },
                 # Health check: validates connection before returning from pool
                 check=ConnectionPool.check_connection,
@@ -319,81 +325,114 @@ def _get_postgres_pool():
             return None
 
 
-@contextlib.contextmanager
-def postgres_checkpointer_context():
+def get_postgres_checkpointer():
     """
-    Context manager for PostgreSQL checkpointer with proper connection lifecycle management.
+    Get a PostgreSQL checkpointer with per-operation connection borrowing.
 
-    Issue: Connection Lifecycle Bug Fix (Dec 2025)
+    CRITICAL FIX (Dec 2025): Changed from holding a single connection for entire
+    workflow (~2 minutes) to per-operation connection borrowing.
 
-    This context manager ensures that connections borrowed from the pool are properly
-    returned after the graph run completes. This prevents connection leaks and
-    Supabase limit exhaustion.
+    Previous approach (VULNERABLE):
+        with pool.connection() as conn:
+            checkpointer = PostgresSaver(conn)
+            app.invoke(...)  # Holds connection for ~2 minutes
+        # Connection dies mid-workflow → Pipeline [BAD], SSL closed errors
 
-    Usage:
-        with postgres_checkpointer_context() as checkpointer:
-            if checkpointer is not None:
-                app = workflow.compile(checkpointer=checkpointer)
-                result = app.invoke(initial_state)
-            # Connection is automatically returned to pool when exiting context
+    New approach (RESILIENT):
+        checkpointer = PostgresSaver(pool)  # Pass pool, not connection
+        app.invoke(...)
+        # Each checkpoint operation borrows connection briefly from pool
+        # Network hiccups only affect single checkpoint, not entire workflow
 
-    Yields:
-        PostgresSaver: A checkpointer instance with a pooled connection, or None if unavailable
+    This change addresses Sentry errors:
+    - "the connection is closed" (12 events)
+    - "SSL connection has been closed unexpectedly" (5 events)
+    - "psycopg.Pipeline [BAD]" state
+    - "prepared statement _pg3_1 does not exist" (4 events)
 
-    Note:
-        The connection is automatically returned to the pool when the context exits,
-        even if an exception occurs. This is critical for preventing connection leaks.
+    Returns:
+        PostgresSaver: A checkpointer that borrows connections per-operation, or None if unavailable
+
+    Blueprint alignment:
+        - Design for Failure: Connection can die without killing entire workflow
+        - Safety Governor v2: Graceful degradation under network instability
     """
-    import os
     from langgraph.checkpoint.postgres import PostgresSaver
 
     pool = _get_postgres_pool()
-    conn = None
 
     if pool is None:
         logger.warning(
             "Connection pool unavailable, PostgreSQL checkpointer not available",
-            extra={"operation": "postgres_checkpointer_context"}
+            extra={"operation": "get_postgres_checkpointer"}
         )
+        return None
+
+    try:
+        # CRITICAL: Pass pool directly to PostgresSaver, NOT a single connection
+        # PostgresSaver._cursor() uses _internal.get_connection() which handles
+        # ConnectionPool by borrowing a connection per-operation via pool.connection()
+        # This means each checkpoint I/O is isolated - network hiccups only affect
+        # that single operation, not the entire 2-minute workflow
+        checkpointer = PostgresSaver(pool)
+
+        # Setup must be called once to create tables/run migrations
+        # This will borrow a connection briefly for the setup SQL
+        checkpointer.setup()
+
+        # Get pool statistics safely
+        try:
+            stats = pool.get_stats()
+            pool_size = getattr(stats, 'pool_size', 'unknown')
+            pool_available = getattr(stats, 'pool_available', 'unknown')
+        except Exception:
+            pool_size = 'unknown'
+            pool_available = 'unknown'
+
+        logger.info(
+            "PostgreSQL checkpointer initialized with per-operation connection borrowing",
+            extra={
+                "operation": "get_postgres_checkpointer",
+                "checkpointer_type": "postgres_pool_per_op",
+                "pool_stats": {
+                    "size": pool_size,
+                    "available": pool_available,
+                },
+            }
+        )
+
+        return checkpointer
+
+    except Exception as e:
+        logger.error(
+            f"Failed to initialize PostgreSQL checkpointer: {e}",
+            extra={
+                "operation": "get_postgres_checkpointer",
+                "error": str(e)
+            }
+        )
+        return None
+
+
+@contextlib.contextmanager
+def postgres_checkpointer_context():
+    """
+    DEPRECATED: Use get_postgres_checkpointer() instead for better resilience.
+
+    This context manager is kept for backward compatibility but now simply
+    delegates to get_postgres_checkpointer().
+
+    The old approach of holding a single connection for the entire workflow
+    was vulnerable to network hiccups causing "Pipeline [BAD]" errors.
+    The new approach uses per-operation connection borrowing.
+    """
+    checkpointer = get_postgres_checkpointer()
+    if checkpointer is None:
         yield None
         return
 
     try:
-        # Use pool.connection() context manager for automatic connection return
-        # This is the recommended way to use psycopg_pool
-        with pool.connection() as conn:
-            checkpointer = PostgresSaver(conn)
-            checkpointer.setup()
-
-            # Get pool statistics safely (psycopg_pool returns PoolStats object)
-            try:
-                stats = pool.get_stats()
-                pool_size = getattr(stats, 'pool_size', 'unknown')
-                pool_available = getattr(stats, 'pool_available', 'unknown')
-            except Exception:
-                pool_size = 'unknown'
-                pool_available = 'unknown'
-
-            database_url = settings.database_url or os.environ.get("DATABASE_URL", "")
-            logger.info(
-                "PostgreSQL checkpointer context opened with pooled connection",
-                extra={
-                    "operation": "postgres_checkpointer_context",
-                    "checkpointer_type": "postgres_pooled",
-                    "pool_stats": {
-                        "size": pool_size,
-                        "available": pool_available,
-                    },
-                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
-                }
-            )
-
-            yield checkpointer
-
-            logger.info(
-                "PostgreSQL checkpointer context closing, returning connection to pool",
-                extra={"operation": "postgres_checkpointer_context"}
-            )
+        yield checkpointer
     except Exception as e:
         logger.error(
             f"Error in PostgreSQL checkpointer context: {e}",
@@ -4304,22 +4343,22 @@ def run_orchestrator(
     agent_eval = _get_agent_eval()
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="default")
 
-    # Issue #2940: Use postgres_checkpointer_context() for proper connection lifecycle
-    # The context manager ensures PostgreSQL connections are returned to pool after use
-    with postgres_checkpointer_context() as pg_checkpointer:
-        # If PostgreSQL pool is available, use it; otherwise fall back to Redis/Memory
-        if pg_checkpointer is not None:
-            checkpointer = pg_checkpointer
-            logger.info(
-                f"Using PostgreSQL checkpointer with connection pool trace_id={trace_id}",
-                extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool"}
-            )
-        else:
-            checkpointer = get_checkpointer()
-            logger.info(
-                f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
-                extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
-            )
+    # CRITICAL FIX (Dec 2025): Use get_postgres_checkpointer() for per-operation connection borrowing
+    # This prevents "Pipeline [BAD]" and "connection is closed" errors during long workflows
+    # by borrowing connections briefly per checkpoint operation instead of holding one for ~2 minutes
+    pg_checkpointer = get_postgres_checkpointer()
+    if pg_checkpointer is not None:
+        checkpointer = pg_checkpointer
+        logger.info(
+            f"Using PostgreSQL checkpointer with per-operation connection borrowing trace_id={trace_id}",
+            extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool_per_op"}
+        )
+    else:
+        checkpointer = get_checkpointer()
+        logger.info(
+            f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
+            extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
+        )
 
         app = create_orchestrator_graph(checkpointer=checkpointer)
 
@@ -4472,25 +4511,23 @@ def run_review_follow_up_orchestrator(
     agent_eval = _get_agent_eval()
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="review_follow_up")
 
-    # Issue #2940: Use postgres_checkpointer_context() for proper connection lifecycle
-    # The context manager ensures PostgreSQL connections are returned to pool after use
-    with postgres_checkpointer_context() as pg_checkpointer:
-        # If PostgreSQL pool is available, use it; otherwise fall back to Redis/Memory
-        if pg_checkpointer is not None:
-            checkpointer = pg_checkpointer
-            logger.info(
-                f"Using PostgreSQL checkpointer with connection pool trace_id={trace_id}",
-                extra={"operation": "run_review_follow_up_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool"}
-            )
-        else:
-            checkpointer = get_checkpointer()
-            logger.info(
-                f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
-                extra={"operation": "run_review_follow_up_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
-            )
+    # CRITICAL FIX (Dec 2025): Use get_postgres_checkpointer() for per-operation connection borrowing
+    pg_checkpointer = get_postgres_checkpointer()
+    if pg_checkpointer is not None:
+        checkpointer = pg_checkpointer
+        logger.info(
+            f"Using PostgreSQL checkpointer with per-operation connection borrowing trace_id={trace_id}",
+            extra={"operation": "run_review_follow_up_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool_per_op"}
+        )
+    else:
+        checkpointer = get_checkpointer()
+        logger.info(
+            f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
+            extra={"operation": "run_review_follow_up_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
+        )
 
-        # Create graph with review_intake as entry point
-        app = create_orchestrator_graph(entry_point="review_intake", checkpointer=checkpointer)
+    # Create graph with review_intake as entry point
+    app = create_orchestrator_graph(entry_point="review_intake", checkpointer=checkpointer)
 
         # Issue #2260: Use helper to create base initial state
         initial_state = _create_base_initial_state(
@@ -4652,24 +4689,22 @@ def run_internal_review_orchestrator(
     agent_eval = _get_agent_eval()
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="internal_review")
 
-    # Issue #2940: Use postgres_checkpointer_context() for proper connection lifecycle
-    # The context manager ensures PostgreSQL connections are returned to pool after use
-    with postgres_checkpointer_context() as pg_checkpointer:
-        # If PostgreSQL pool is available, use it; otherwise fall back to Redis/Memory
-        if pg_checkpointer is not None:
-            checkpointer = pg_checkpointer
-            logger.info(
-                f"Using PostgreSQL checkpointer with connection pool trace_id={trace_id}",
-                extra={"operation": "run_internal_review_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool"}
-            )
-        else:
-            checkpointer = get_checkpointer()
-            logger.info(
-                f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
-                extra={"operation": "run_internal_review_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
-            )
+    # CRITICAL FIX (Dec 2025): Use get_postgres_checkpointer() for per-operation connection borrowing
+    pg_checkpointer = get_postgres_checkpointer()
+    if pg_checkpointer is not None:
+        checkpointer = pg_checkpointer
+        logger.info(
+            f"Using PostgreSQL checkpointer with per-operation connection borrowing trace_id={trace_id}",
+            extra={"operation": "run_internal_review_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool_per_op"}
+        )
+    else:
+        checkpointer = get_checkpointer()
+        logger.info(
+            f"Using fallback checkpointer (Redis/Memory) trace_id={trace_id}",
+            extra={"operation": "run_internal_review_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
+        )
 
-        app = create_orchestrator_graph(entry_point="internal_review", checkpointer=checkpointer)
+    app = create_orchestrator_graph(entry_point="internal_review", checkpointer=checkpointer)
 
         # Issue #2260: Use helper to create base initial state
         initial_state = _create_base_initial_state(
