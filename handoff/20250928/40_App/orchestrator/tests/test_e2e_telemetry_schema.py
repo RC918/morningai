@@ -441,15 +441,20 @@ class TestRoutingEngineE2EIntegration:
         assert model_info.tier.value <= Tier.TIER_1.value
 
     def test_routing_engine_fallback_mechanism(self):
-        """Real RoutingEngine should use fallback when primary tier unavailable"""
-        # Only siliconflow available, but planning needs Tier 0 (alicloud)
+        """Real RoutingEngine should select available provider in tier"""
+        # With Cross-Generation Fallback (Routing Policy v1.2), SiliconFlow
+        # is now a direct Tier 0 provider alongside AliCloud.
+        # When only SiliconFlow is available, it's a direct selection (not tier fallback).
         engine = RoutingEngine(available_providers=["siliconflow"])
 
         model_info = engine.select_model(TaskType.PLANNING)
 
-        # Should fallback to available provider
+        # SiliconFlow is now in Tier 0 (Cross-Generation Fallback policy)
+        # So this is a direct selection, not a tier fallback
         assert model_info.provider == "siliconflow"
-        assert model_info.is_fallback is True
+        assert model_info.tier == Tier.TIER_0
+        # is_fallback is False because SiliconFlow is directly in Tier 0
+        assert model_info.is_fallback is False
 
     def test_routing_engine_all_task_types(self):
         """Real RoutingEngine should handle all task types"""
