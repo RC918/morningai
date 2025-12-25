@@ -234,11 +234,16 @@ class TestCheckpointerSuccessPaths:
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_postgres_checkpointer_context_returns_checkpointer(self):
-        """Test postgres_checkpointer_context() returns PostgresSaver with pooled connection
+        """Test postgres_checkpointer_context() returns PostgresSaver with connection pool
 
-        Note (Dec 2025): PostgreSQL checkpointer now uses connection pooling via psycopg_pool.
-        The postgres_checkpointer_context() context manager ensures connections are properly
-        returned to the pool after use, preventing connection leaks.
+        Note (Dec 2025): PostgreSQL checkpointer now uses per-operation connection borrowing.
+        The checkpointer receives the ConnectionPool directly, and each checkpoint operation
+        borrows a connection briefly from the pool. This prevents "connection is closed"
+        errors during long workflows (~2 minutes).
+
+        Architecture change:
+        - OLD: PostgresSaver(conn) - held single connection for entire workflow
+        - NEW: PostgresSaver(pool) - borrows connection per-operation
         """
         try:
             pytest.importorskip("langgraph.checkpoint.postgres")
@@ -247,21 +252,17 @@ class TestCheckpointerSuccessPaths:
             pytest.skip("langgraph-checkpoint-postgres or psycopg_pool not installed")
 
         from unittest.mock import MagicMock
-        from contextlib import contextmanager
 
-        # Create mock connection and pool
-        mock_conn = MagicMock()
         mock_pg_instance = MagicMock()
         mock_pg_class = MagicMock(return_value=mock_pg_instance)
 
-        # Create a mock pool that returns mock_conn via context manager
+        # Create a mock pool - this is what gets passed to PostgresSaver now
         mock_pool = MagicMock()
-
-        @contextmanager
-        def mock_connection_context():
-            yield mock_conn
-
-        mock_pool.connection = mock_connection_context
+        # Mock get_stats() for logging
+        mock_stats = MagicMock()
+        mock_stats.pool_size = 5
+        mock_stats.pool_available = 4
+        mock_pool.get_stats.return_value = mock_stats
 
         with patch('langgraph_orchestrator.settings') as mock_settings:
             mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
@@ -272,8 +273,9 @@ class TestCheckpointerSuccessPaths:
                         from langgraph_orchestrator import postgres_checkpointer_context
 
                         with postgres_checkpointer_context() as checkpointer:
-                            # Verify PostgresSaver was instantiated with the connection
-                            mock_pg_class.assert_called_once_with(mock_conn)
+                            # Verify PostgresSaver was instantiated with the POOL (not connection)
+                            # This is the critical change: per-operation connection borrowing
+                            mock_pg_class.assert_called_once_with(mock_pool)
                             mock_pg_instance.setup.assert_called_once()
                             assert checkpointer is mock_pg_instance
 
