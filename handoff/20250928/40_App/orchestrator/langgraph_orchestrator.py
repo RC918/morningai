@@ -2022,9 +2022,20 @@ def executor_node(state: AgentState) -> AgentState:
     plan = state["plan"]
     # Issue #2918: Extract source PR number from state for dedup key generation
     # pr_number comes from webhook context (resource_id) via run_orchestrator()
-    source_pr_number = state.get("pr_number", 0) or None
-    if source_pr_number == 0:
-        source_pr_number = None
+    # Defensive type handling: explicitly convert to int and validate
+    raw_pr_number = state.get("pr_number")
+    source_pr_number: Optional[int] = None
+    if raw_pr_number:
+        try:
+            num = int(raw_pr_number)
+            if num > 0:
+                source_pr_number = num
+        except (ValueError, TypeError):
+            logger.warning(f"[Executor] Could not parse pr_number from state: {raw_pr_number}", extra={
+                "operation": "executor",
+                "trace_id": trace_id,
+                "raw_pr_number": str(raw_pr_number),
+            })
 
     metrics.record_node_start("executor", trace_id)
 
