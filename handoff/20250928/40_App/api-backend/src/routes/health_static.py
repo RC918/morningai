@@ -4,12 +4,20 @@ Phase 1.6d: Extract health check and static serve routes from main.py
 to a dedicated blueprint module.
 
 Routes:
-- /health (GET, HEAD) - Health check endpoint
-- /healthz (GET, HEAD) - Kubernetes-style health check
-- /api/health (GET, HEAD) - API health check
-- /api/healthz (GET, HEAD) - API Kubernetes-style health check
+- /livez (GET, HEAD) - Pure liveness probe (no DB/Redis, fast response)
+- /api/livez (GET, HEAD) - API liveness probe (no DB/Redis, fast response)
+- /health (GET, HEAD) - Readiness check with DB/Redis status
+- /healthz (GET, HEAD) - Kubernetes-style readiness check
+- /api/health (GET, HEAD) - API readiness check
+- /api/healthz (GET, HEAD) - API Kubernetes-style readiness check
 - / (GET) - Static file serving (SPA fallback)
 - /<path:path> (GET) - Static file serving
+
+Note on Liveness vs Readiness:
+- Liveness (/livez): Use for Render/K8s health checks. Returns immediately without
+  touching external dependencies. If this fails, the process is dead.
+- Readiness (/health): Use for monitoring/debugging. Checks DB and Redis connectivity.
+  Slower but provides comprehensive system status.
 """
 import os
 import logging
@@ -43,7 +51,27 @@ def _get_health_payload():
     return src.main.get_health_payload()
 
 
-# Health check routes
+# Liveness probe routes (pure liveness - no external dependencies)
+# Use these for Render/K8s health checks to avoid flapping due to DB/Redis latency
+@bp.route("/livez", methods=["GET", "HEAD"])
+@bp.route("/api/livez", methods=["GET", "HEAD"])
+def liveness_check():
+    """Pure liveness probe - returns immediately without touching DB or Redis.
+
+    This endpoint is designed for container orchestrators (Render, Kubernetes)
+    that need fast, reliable health checks. It only verifies the process is alive
+    and can handle HTTP requests.
+
+    Use /health or /healthz for comprehensive readiness checks that include
+    database and Redis connectivity status.
+
+    Returns:
+        JSON response with status "alive" and 200 OK.
+    """
+    return jsonify({"status": "alive"}), 200
+
+
+# Readiness check routes (comprehensive - checks DB/Redis)
 # Multiple route decorators for the same endpoint to support various health check patterns
 @bp.route("/health", methods=["GET", "HEAD"])
 @bp.route("/healthz", methods=["GET", "HEAD"])
