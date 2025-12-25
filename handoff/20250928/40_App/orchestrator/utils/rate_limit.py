@@ -1,4 +1,10 @@
-"""Rate limiting utilities for Orchestrator PR creation"""
+"""Rate limiting utilities for Orchestrator PR creation
+
+Issue #2943: North Star alignment improvements:
+- Atomic rate limiting using Redis Lua script
+- Telemetry integration for structured event logging
+- Auto-recovery mechanism with monitoring/alerting
+"""
 import json
 import logging
 import redis
@@ -8,6 +14,180 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Atomic Rate Limiting with Redis Lua Script (Issue #2943)
+# =============================================================================
+
+# Lua script for atomic check-and-increment rate limiting
+# This ensures no race condition can cause the limit to be exceeded
+# Returns: {allowed (0 or 1), current_count}
+RATE_LIMIT_LUA_SCRIPT = """
+local key = KEYS[1]
+local max_limit = tonumber(ARGV[1])
+local expiry_seconds = tonumber(ARGV[2])
+
+-- Get current count (0 if key doesn't exist)
+local current = tonumber(redis.call('GET', key) or '0')
+
+-- Check if already at or over limit
+if current >= max_limit then
+    return {0, current}  -- blocked
+end
+
+-- Increment and set expiry atomically
+local new_count = redis.call('INCR', key)
+redis.call('EXPIRE', key, expiry_seconds)
+
+return {1, new_count}  -- allowed
+"""
+
+
+@dataclass
+class RateLimitResult:
+    """Result of atomic rate limit check (Issue #2943)"""
+    allowed: bool
+    current_count: int
+    key: str
+    max_limit: int
+    decision: str  # 'allowed' or 'blocked'
+    trace_id: Optional[str] = None
+    context_id: Optional[str] = None  # pr_id, query_type, source, etc.
+
+
+def _emit_rate_limit_telemetry(
+    result: RateLimitResult,
+    operation: str,
+    extra_context: Optional[Dict[str, Any]] = None
+) -> None:
+    """
+    Emit structured telemetry event for rate limit decision (Issue #2943).
+
+    Args:
+        result: The rate limit result
+        operation: Operation name (e.g., 'pr_rate_limit', 'deepwiki_rate_limit')
+        extra_context: Additional context to include in telemetry
+    """
+    telemetry_data = {
+        "operation": operation,
+        "key": result.key,
+        "current_count": result.current_count,
+        "max_limit": result.max_limit,
+        "decision": result.decision,
+        "trace_id": result.trace_id,
+        "context_id": result.context_id,
+    }
+    if extra_context:
+        telemetry_data.update(extra_context)
+
+    if result.allowed:
+        logger.debug(
+            f"[RateLimit] {operation}: allowed ({result.current_count}/{result.max_limit})",
+            extra=telemetry_data
+        )
+    else:
+        logger.warning(
+            f"[RateLimit] {operation}: blocked ({result.current_count}/{result.max_limit})",
+            extra=telemetry_data
+        )
+
+
+def _atomic_rate_limit_check(
+    r: redis.Redis,
+    key: str,
+    max_limit: int,
+    expiry_seconds: int,
+    trace_id: Optional[str] = None,
+    context_id: Optional[str] = None,
+    operation: str = "rate_limit"
+) -> RateLimitResult:
+    """
+    Perform atomic rate limit check using Redis Lua script (Issue #2943).
+
+    This function provides true atomicity - no race condition can cause
+    the limit to be exceeded, even under high concurrency.
+
+    Args:
+        r: Redis client instance
+        key: Redis key for the rate limit counter
+        max_limit: Maximum allowed count
+        expiry_seconds: TTL for the key
+        trace_id: Optional trace ID for telemetry
+        context_id: Optional context ID (pr_id, query_type, etc.)
+        operation: Operation name for telemetry
+
+    Returns:
+        RateLimitResult with allowed status and details
+    """
+    # Execute Lua script atomically
+    result = r.eval(RATE_LIMIT_LUA_SCRIPT, 1, key, max_limit, expiry_seconds)
+
+    allowed = bool(result[0])
+    current_count = int(result[1])
+    decision = "allowed" if allowed else "blocked"
+
+    rate_limit_result = RateLimitResult(
+        allowed=allowed,
+        current_count=current_count,
+        key=key,
+        max_limit=max_limit,
+        decision=decision,
+        trace_id=trace_id,
+        context_id=context_id,
+    )
+
+    # Emit telemetry
+    _emit_rate_limit_telemetry(rate_limit_result, operation)
+
+    return rate_limit_result
+
+
+# Auto-recovery: Track consecutive rate limit hits for alerting
+RATE_LIMIT_ALERT_THRESHOLD = 10  # Alert after 10 consecutive blocks
+RATE_LIMIT_ALERT_KEY_PREFIX = "rate_limit:alert_count"
+
+
+def _check_and_alert_rate_limit_pattern(
+    r: redis.Redis,
+    key: str,
+    was_blocked: bool,
+    operation: str
+) -> None:
+    """
+    Monitor rate limit patterns and emit alerts (Issue #2943 Auto-Recovery).
+
+    Tracks consecutive rate limit blocks and emits warning when threshold
+    is exceeded, indicating potential need for intervention.
+
+    Args:
+        r: Redis client instance
+        key: Original rate limit key
+        was_blocked: Whether the request was blocked
+        operation: Operation name for logging
+    """
+    alert_key = f"{RATE_LIMIT_ALERT_KEY_PREFIX}:{key}"
+
+    if was_blocked:
+        # Increment consecutive block counter
+        consecutive_blocks = r.incr(alert_key)
+        r.expire(alert_key, 3600)  # Reset after 1 hour of no blocks
+
+        if consecutive_blocks >= RATE_LIMIT_ALERT_THRESHOLD:
+            logger.warning(
+                f"[RateLimit:Alert] {operation}: {consecutive_blocks} consecutive blocks detected",
+                extra={
+                    "operation": f"{operation}_alert",
+                    "alert_type": "consecutive_blocks",
+                    "consecutive_blocks": consecutive_blocks,
+                    "threshold": RATE_LIMIT_ALERT_THRESHOLD,
+                    "key": key,
+                    "recommendation": "Consider increasing rate limit or investigating traffic pattern",
+                }
+            )
+    else:
+        # Reset consecutive block counter on successful request
+        r.delete(alert_key)
 
 
 def _get_redis_key_prefix() -> str:
@@ -79,7 +259,7 @@ def check_pr_rate_limit(
 
     Issue #2937: Fixed counter leak bug where INCR was called before checking
     the limit, causing the counter to increment even when rate limited.
-    Now uses a check-then-increment pattern to prevent counter leak.
+    Issue #2943: Upgraded to atomic Lua script for true atomicity under concurrency.
 
     Args:
         trace_id: Unique trace ID for this operation
@@ -100,39 +280,62 @@ def check_pr_rate_limit(
         current_hour = int(time.time() / 3600)
         key = f"orchestrator:pr_count:{current_hour}"
 
-        # Issue #2937: Check current count BEFORE incrementing to prevent counter leak
-        # Previous bug: INCR was called first, then checked, causing counter to
-        # increment even when rate limited (each retry would +1, leading to runaway)
-        current_count = r.get(key)
-        # Use isdigit() for safer conversion in case of unexpected Redis values
-        count = int(current_count) if current_count and current_count.isdigit() else 0
+        # Issue #2943: Use atomic Lua script for true atomicity
+        # This prevents race conditions where two concurrent requests could both pass
+        result = _atomic_rate_limit_check(
+            r=r,
+            key=key,
+            max_limit=max_per_hour,
+            expiry_seconds=3600,
+            trace_id=trace_id,
+            context_id=f"pr_rate_limit:{current_hour}",
+            operation="pr_rate_limit"
+        )
 
-        if count >= max_per_hour:
-            print(f"[Rate Limit] Already created {count} PRs this hour (max: {max_per_hour})")
-            return False, count
+        # Issue #2943: Auto-recovery monitoring
+        _check_and_alert_rate_limit_pattern(r, key, not result.allowed, "pr_rate_limit")
 
-        # Only increment if we're under the limit
-        new_count = r.incr(key)
-        r.expire(key, 3600)
+        # Maintain backward-compatible print statements for existing log parsing
+        if result.allowed:
+            print(f"[Rate Limit] PR count this hour: {result.current_count}/{max_per_hour}")
+        else:
+            print(f"[Rate Limit] Already created {result.current_count} PRs this hour (max: {max_per_hour})")
 
-        print(f"[Rate Limit] PR count this hour: {new_count}/{max_per_hour}")
-        return True, new_count
+        return result.allowed, result.current_count
 
     except redis.ConnectionError as e:
         print(f"[Rate Limit] Redis unavailable, allowing PR creation: {e}")
+        logger.warning(
+            "[RateLimit] Redis unavailable, fail-open allowing PR creation",
+            extra={
+                "operation": "pr_rate_limit_redis_error",
+                "error": str(e),
+                "trace_id": trace_id,
+                "decision": "allowed_fail_open",
+            }
+        )
         return True, 0
     except Exception as e:
         print(f"[Rate Limit] Unexpected error, allowing PR creation: {e}")
+        logger.warning(
+            "[RateLimit] Unexpected error, fail-open allowing PR creation",
+            extra={
+                "operation": "pr_rate_limit_error",
+                "error": str(e),
+                "trace_id": trace_id,
+                "decision": "allowed_fail_open",
+            }
+        )
         return True, 0
 
 
 def get_pr_count_last_hour(redis_url: Optional[str] = None) -> int:
     """
     Get the current PR creation count for this hour.
-    
+
     Args:
         redis_url: Redis connection URL (optional)
-    
+
     Returns:
         Number of PRs created in the current hour, or 0 if unavailable
     """
@@ -141,13 +344,13 @@ def get_pr_count_last_hour(redis_url: Optional[str] = None) -> int:
             r = redis.Redis.from_url(redis_url, decode_responses=True)
         else:
             r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-        
+
         current_hour = int(time.time() / 3600)
         key = f"orchestrator:pr_count:{current_hour}"
-        
+
         count = r.get(key)
         return int(count) if count else 0
-        
+
     except Exception:
         return 0
 
@@ -162,6 +365,7 @@ def check_deepwiki_rate_limit(
 
     Issue #2153: Rate limiting for DeepWiki API calls.
     Issue #2937: Fixed counter leak bug - now uses check-then-increment pattern.
+    Issue #2943: Upgraded to atomic Lua script for true atomicity under concurrency.
 
     Args:
         query_type: Type of query (e.g., 'code_question', 'error_lookup')
@@ -182,24 +386,45 @@ def check_deepwiki_rate_limit(
         current_minute = int(time.time() / 60)
         key = f"deepwiki:query_count:{query_type}:{current_minute}"
 
-        # Issue #2937: Check current count BEFORE incrementing to prevent counter leak
-        current_count = r.get(key)
-        count = int(current_count) if current_count and current_count.isdigit() else 0
+        # Issue #2943: Use atomic Lua script for true atomicity
+        result = _atomic_rate_limit_check(
+            r=r,
+            key=key,
+            max_limit=max_per_minute,
+            expiry_seconds=120,  # Keep for 2 minutes to handle edge cases
+            trace_id=None,
+            context_id=query_type,
+            operation="deepwiki_rate_limit"
+        )
 
-        if count >= max_per_minute:
-            return False, count
+        # Issue #2943: Auto-recovery monitoring
+        _check_and_alert_rate_limit_pattern(r, key, not result.allowed, "deepwiki_rate_limit")
 
-        # Only increment if we're under the limit
-        new_count = r.incr(key)
-        r.expire(key, 120)  # Keep for 2 minutes to handle edge cases
+        return result.allowed, result.current_count
 
-        return True, new_count
-
-    except redis.ConnectionError:
+    except redis.ConnectionError as e:
         # Redis unavailable, allow query (graceful degradation)
+        logger.warning(
+            "[RateLimit] Redis unavailable, fail-open allowing DeepWiki query",
+            extra={
+                "operation": "deepwiki_rate_limit_redis_error",
+                "error": str(e),
+                "query_type": query_type,
+                "decision": "allowed_fail_open",
+            }
+        )
         return True, 0
-    except Exception:
+    except Exception as e:
         # Unexpected error, allow query (graceful degradation)
+        logger.warning(
+            "[RateLimit] Unexpected error, fail-open allowing DeepWiki query",
+            extra={
+                "operation": "deepwiki_rate_limit_error",
+                "error": str(e),
+                "query_type": query_type,
+                "decision": "allowed_fail_open",
+            }
+        )
         return True, 0
 
 
@@ -209,11 +434,11 @@ def get_deepwiki_query_count(
 ) -> int:
     """
     Get the current DeepWiki query count for this minute.
-    
+
     Args:
         query_type: Type of query (e.g., 'code_question', 'error_lookup')
         redis_url: Redis connection URL (optional)
-    
+
     Returns:
         Number of queries in the current minute, or 0 if unavailable
     """
@@ -222,13 +447,13 @@ def get_deepwiki_query_count(
             r = redis.Redis.from_url(redis_url, decode_responses=True)
         else:
             r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-        
+
         current_minute = int(time.time() / 60)
         key = f"deepwiki:query_count:{query_type}:{current_minute}"
-        
+
         count = r.get(key)
         return int(count) if count else 0
-        
+
     except Exception:
         return 0
 
@@ -243,6 +468,7 @@ def check_notification_rate_limit(
 
     Issue #2153: Rate limiting for OutboundNotifier to avoid triggering API limits.
     Issue #2937: Fixed counter leak bug - now uses check-then-increment pattern.
+    Issue #2943: Upgraded to atomic Lua script for true atomicity under concurrency.
 
     Different services have different rate limits:
     - GitHub: 5000 requests/hour for authenticated requests
@@ -270,24 +496,45 @@ def check_notification_rate_limit(
         current_minute = int(time.time() / 60)
         key = f"outbound_notifier:rate_limit:{source}:{current_minute}"
 
-        # Issue #2937: Check current count BEFORE incrementing to prevent counter leak
-        current_count = r.get(key)
-        count = int(current_count) if current_count and current_count.isdigit() else 0
+        # Issue #2943: Use atomic Lua script for true atomicity
+        result = _atomic_rate_limit_check(
+            r=r,
+            key=key,
+            max_limit=max_per_minute,
+            expiry_seconds=120,  # Keep for 2 minutes to handle edge cases
+            trace_id=None,
+            context_id=source,
+            operation="notification_rate_limit"
+        )
 
-        if count >= max_per_minute:
-            return False, count
+        # Issue #2943: Auto-recovery monitoring
+        _check_and_alert_rate_limit_pattern(r, key, not result.allowed, "notification_rate_limit")
 
-        # Only increment if we're under the limit
-        new_count = r.incr(key)
-        r.expire(key, 120)  # Keep for 2 minutes to handle edge cases
+        return result.allowed, result.current_count
 
-        return True, new_count
-
-    except redis.ConnectionError:
+    except redis.ConnectionError as e:
         # Redis unavailable, allow notification (graceful degradation)
+        logger.warning(
+            "[RateLimit] Redis unavailable, fail-open allowing notification",
+            extra={
+                "operation": "notification_rate_limit_redis_error",
+                "error": str(e),
+                "source": source,
+                "decision": "allowed_fail_open",
+            }
+        )
         return True, 0
-    except Exception:
+    except Exception as e:
         # Unexpected error, allow notification (graceful degradation)
+        logger.warning(
+            "[RateLimit] Unexpected error, fail-open allowing notification",
+            extra={
+                "operation": "notification_rate_limit_error",
+                "error": str(e),
+                "source": source,
+                "decision": "allowed_fail_open",
+            }
+        )
         return True, 0
 
 
