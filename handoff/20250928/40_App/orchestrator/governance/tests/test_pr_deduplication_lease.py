@@ -28,8 +28,8 @@ from governance.pr_deduplication import (
     get_fail_open_count,
     check_fail_open_alert_threshold,
     FAIL_OPEN_METRIC_NAME,
-    FAIL_OPEN_ALERT_THRESHOLD,
-    FAIL_OPEN_ALERT_WINDOW_MINUTES,
+    DEFAULT_FAIL_OPEN_ALERT_THRESHOLD,
+    DEFAULT_FAIL_OPEN_ALERT_WINDOW_MINUTES,
 )
 
 
@@ -367,8 +367,8 @@ class TestFailOpenMonitoring:
     def test_fail_open_constants_are_configured(self):
         """Fail-open monitoring constants should be properly configured"""
         assert FAIL_OPEN_METRIC_NAME == "pr_lease.fail_open"
-        assert FAIL_OPEN_ALERT_THRESHOLD == 5
-        assert FAIL_OPEN_ALERT_WINDOW_MINUTES == 5
+        assert DEFAULT_FAIL_OPEN_ALERT_THRESHOLD == 5
+        assert DEFAULT_FAIL_OPEN_ALERT_WINDOW_MINUTES == 5
 
     def test_record_fail_open_event_graceful_when_sentry_and_redis_unavailable(self):
         """Fail-open monitoring should fail gracefully when both Sentry and Redis unavailable"""
