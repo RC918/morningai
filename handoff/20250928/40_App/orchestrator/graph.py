@@ -506,8 +506,9 @@ def execute(
             }
         )
     
-    # Create branch with deterministic name
-    branch = create_branch(repo, base="main", new_branch=branch_name)
+    # Issue #2969: Branch creation moved AFTER all internal gates (value gate, dedup, rate limit)
+    # to prevent orphan branches when any gate blocks PR creation.
+    # Branch will be created after rate limit check passes.
     
     try:
         faq_content = generate_faq_content(goal, trace_id, repo_full)
@@ -654,6 +655,39 @@ new file mode 100644
             )
             return None, "duplicate_blocked", trace_id
     
+    # ==========================================================================
+    # Issue #2969: Rate Limit Check (Decoupled from Internal Operations)
+    # Blueprint: Safety Governor v2 - Context-aware rate limiting
+    # 
+    # This check is now placed AFTER all internal gates (value gate, dedup, lease)
+    # but BEFORE any GitHub side-effects (create_branch, commit_file, open_pr).
+    # This ensures:
+    # 1. Counter only increments when we actually create a PR
+    # 2. Internal operations don't consume quota
+    # 3. No orphan branches are created when rate limited
+    # 4. Rate limit is enforced at the "point of external action"
+    # ==========================================================================
+    docs_max_prs = settings.orchestrator_docs_max_prs_per_hour or 3
+    allowed, count = check_pr_rate_limit(trace_id, max_per_hour=docs_max_prs, redis_url=settings.redis_url)
+    if not allowed:
+        # Release lease before returning (if we acquired it)
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
+        logger.warning(
+            f"[GraphExecute] Rate limited trace_id={trace_id} count={count} max={docs_max_prs}",
+            extra={"operation": "rate_limited", "trace_id": trace_id, "count": count, "max": docs_max_prs}
+        )
+        return None, "rate_limited", trace_id
+    
+    # ==========================================================================
+    # GitHub Side-Effects Begin Here (Issue #2969)
+    # All internal gates have passed, now we can safely create external resources
+    # ==========================================================================
+    
+    # Create branch with deterministic name (moved here from earlier to prevent orphan branches)
+    branch = create_branch(repo, base="main", new_branch=branch_name)
+    
+    # Commit the FAQ content to the branch
     commit_file(repo, branch, doc_file_path, faq_content, f"docs: add {topic_slug}.md (trace-id: {trace_id})")
     
     # Issue #2100: Build quality report for PR body
@@ -692,27 +726,6 @@ Requested by: @RC918
         labels.append("needs-review")
     if has_errors:
         labels.append("quality-issues")
-    
-    # ==========================================================================
-    # Issue #2969: Rate Limit Check (Decoupled from Internal Operations)
-    # Blueprint: Safety Governor v2 - Context-aware rate limiting
-    # 
-    # This check is now placed immediately before PR creation, ensuring:
-    # 1. Counter only increments when we actually create a PR
-    # 2. Internal operations (value gate, dedup, lease) don't consume quota
-    # 3. Rate limit is enforced at the "point of external action"
-    # ==========================================================================
-    docs_max_prs = settings.orchestrator_docs_max_prs_per_hour or 3
-    allowed, count = check_pr_rate_limit(trace_id, max_per_hour=docs_max_prs, redis_url=settings.redis_url)
-    if not allowed:
-        # Release lease before returning (if we acquired it)
-        if lease_acquired:
-            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
-        logger.warning(
-            f"[GraphExecute] Rate limited trace_id={trace_id} count={count} max={docs_max_prs}",
-            extra={"operation": "rate_limited", "trace_id": trace_id, "count": count, "max": docs_max_prs}
-        )
-        return None, "rate_limited", trace_id
     
     # Issue #2910: Wrap PR creation in try-except to release lease on failure
     try:
