@@ -31,9 +31,14 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # Any used for redis_client type hint
 
 logger = logging.getLogger(__name__)
+
+# Fail-open monitoring constants (Issue #2919)
+FAIL_OPEN_METRIC_NAME = "pr_lease.fail_open"
+FAIL_OPEN_ALERT_THRESHOLD = 5  # Alert if >5 fail-open events in 5 minutes
+FAIL_OPEN_ALERT_WINDOW_MINUTES = 5
 
 # Default configuration
 DEFAULT_DEDUP_WINDOW_SECONDS = 3600  # 1 hour
@@ -56,7 +61,7 @@ class PRRecord:
     created_at: float
     repo: str
     branch: str
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "trace_id": self.trace_id,
@@ -69,7 +74,7 @@ class PRRecord:
             "repo": self.repo,
             "branch": self.branch
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PRRecord":
         return cls(
@@ -100,22 +105,22 @@ class DeduplicationResult:
 def _get_redis_client(redis_url: Optional[str] = None):
     """
     Get Redis client for deduplication storage.
-    
+
     Args:
         redis_url: Optional Redis URL override
-        
+
     Returns:
         Redis client instance or None if unavailable
     """
     try:
         import redis
-        
+
         try:
             from common.config.settings import settings
             url = redis_url or getattr(settings, 'redis_url', None)
         except ImportError:
             url = redis_url
-        
+
         if url:
             return redis.Redis.from_url(url, decode_responses=True)
         else:
@@ -134,7 +139,7 @@ def _get_dedup_key(repo: str) -> str:
         prefix = prefix.rstrip(':')
     except ImportError:
         prefix = ''
-    
+
     base_key = f"{REDIS_KEY_PREFIX}:{repo}"
     return f"{prefix}:{base_key}" if prefix else base_key
 
@@ -142,10 +147,10 @@ def _get_dedup_key(repo: str) -> str:
 def _normalize_goal(goal: str) -> str:
     """
     Normalize a goal string for comparison.
-    
+
     Args:
         goal: Original goal string
-        
+
     Returns:
         Normalized goal string
     """
@@ -164,52 +169,52 @@ def _normalize_goal(goal: str) -> str:
 def _calculate_goal_similarity(goal1: str, goal2: str) -> float:
     """
     Calculate similarity between two goals using Jaccard similarity.
-    
+
     Args:
         goal1: First goal string
         goal2: Second goal string
-        
+
     Returns:
         Similarity score between 0 and 1
     """
     # Normalize goals
     norm1 = _normalize_goal(goal1)
     norm2 = _normalize_goal(goal2)
-    
+
     # Tokenize
     tokens1 = set(norm1.split())
     tokens2 = set(norm2.split())
-    
+
     if not tokens1 or not tokens2:
         return 0.0
-    
+
     # Jaccard similarity
     intersection = tokens1 & tokens2
     union = tokens1 | tokens2
-    
+
     return len(intersection) / len(union)
 
 
 def _calculate_path_similarity(paths1: List[str], paths2: List[str]) -> float:
     """
     Calculate similarity between two sets of file paths.
-    
+
     Args:
         paths1: First list of file paths
         paths2: Second list of file paths
-        
+
     Returns:
         Similarity score between 0 and 1
     """
     if not paths1 or not paths2:
         return 0.0
-    
+
     set1 = set(paths1)
     set2 = set(paths2)
-    
+
     intersection = set1 & set2
     union = set1 | set2
-    
+
     return len(intersection) / len(union)
 
 
@@ -226,11 +231,11 @@ def record_pr_creation(
 ) -> bool:
     """
     Record a PR creation for future deduplication checks.
-    
+
     Blueprint Alignment:
     - Memory v2 (Layer 1): Stores short-term PR creation records
     - Telemetry v2: Enables traceability of PR creation decisions
-    
+
     Args:
         trace_id: Unique trace ID
         goal: Task goal/description
@@ -241,7 +246,7 @@ def record_pr_creation(
         pr_url: Optional PR URL
         pr_number: Optional PR number
         redis_url: Optional Redis URL override
-        
+
     Returns:
         True if recorded successfully, False otherwise
     """
@@ -249,7 +254,7 @@ def record_pr_creation(
         r = _get_redis_client(redis_url)
         if not r:
             return False
-        
+
         record = PRRecord(
             trace_id=trace_id,
             goal=goal,
@@ -261,12 +266,12 @@ def record_pr_creation(
             repo=repo,
             branch=branch
         )
-        
+
         key = _get_dedup_key(repo)
-        
+
         # Store as sorted set with timestamp as score
         r.zadd(key, {json.dumps(record.to_dict()): record.created_at})
-        
+
         # Set TTL on the key (2x the dedup window for safety)
         try:
             from common.config.settings import settings
@@ -274,9 +279,9 @@ def record_pr_creation(
             window = window or DEFAULT_DEDUP_WINDOW_SECONDS
         except ImportError:
             window = DEFAULT_DEDUP_WINDOW_SECONDS
-        
+
         r.expire(key, window * 2)
-        
+
         logger.info("[PRDedup] Recorded PR creation", extra={
             "operation": "pr_dedup_record",
             "trace_id": trace_id,
@@ -284,9 +289,9 @@ def record_pr_creation(
             "changeset_hash": changeset_hash,
             "file_count": len(file_paths)
         })
-        
+
         return True
-        
+
     except Exception as e:
         logger.warning(f"[PRDedup] Failed to record PR creation: {e}", extra={
             "operation": "pr_dedup_record_error",
@@ -306,12 +311,12 @@ def check_pr_deduplication(
 ) -> DeduplicationResult:
     """
     Check if a similar PR was recently created.
-    
+
     Blueprint Alignment:
     - Memory v2 (Layer 1): Queries short-term PR creation records
     - Flow Controller v3: Called before PR creation in Publisher Node
     - Safety Governor v2: Part of the governance layer
-    
+
     Args:
         goal: Task goal/description
         changeset_hash: Hash of the changeset
@@ -319,7 +324,7 @@ def check_pr_deduplication(
         repo: Repository (owner/repo format)
         trace_id: Optional trace ID for logging
         redis_url: Optional Redis URL override
-        
+
     Returns:
         DeduplicationResult with decision
     """
@@ -337,7 +342,7 @@ def check_pr_deduplication(
         dry_run = True
         window = DEFAULT_DEDUP_WINDOW_SECONDS
         threshold = DEFAULT_SIMILARITY_THRESHOLD
-    
+
     if not enabled:
         logger.info("[PRDedup] Feature disabled, allowing PR creation", extra={
             "operation": "pr_dedup",
@@ -349,7 +354,7 @@ def check_pr_deduplication(
             should_create_pr=True,
             reasoning="PR deduplication disabled"
         )
-    
+
     try:
         r = _get_redis_client(redis_url)
         if not r:
@@ -362,9 +367,9 @@ def check_pr_deduplication(
                 should_create_pr=True,
                 reasoning="Redis unavailable, skipping dedup check"
             )
-        
+
         key = _get_dedup_key(repo)
-        
+
         # Get recent PR records within the time window
         # Issue #2872: Add LIMIT to zrangebyscore for performance
         min_time = time.time() - window
@@ -374,7 +379,7 @@ def check_pr_deduplication(
             max_records = max_records or DEFAULT_DEDUP_MAX_RECORDS
         except ImportError:
             max_records = DEFAULT_DEDUP_MAX_RECORDS
-        
+
         # Use start=0, num=max_records to limit results (most recent first via zrevrangebyscore)
         # This prevents fetching unbounded records which could cause memory issues.
         #
@@ -386,7 +391,7 @@ def check_pr_deduplication(
         # - The order of results does NOT affect correctness since we check for ANY match
         # - Adjust PR_DEDUP_MAX_RECORDS if your repo has very high PR volume
         records_json = r.zrevrangebyscore(key, '+inf', min_time, start=0, num=max_records)
-        
+
         if not records_json:
             logger.info("[PRDedup] No recent PRs found, allowing creation", extra={
                 "operation": "pr_dedup",
@@ -398,14 +403,14 @@ def check_pr_deduplication(
                 should_create_pr=True,
                 reasoning="No recent PRs in dedup window"
             )
-        
+
         # Check for duplicates
         for record_json in records_json:
             try:
                 record = PRRecord.from_dict(json.loads(record_json))
             except (json.JSONDecodeError, KeyError):
                 continue
-            
+
             # Check 1: Exact changeset match
             if record.changeset_hash == changeset_hash:
                 result = DeduplicationResult(
@@ -419,7 +424,7 @@ def check_pr_deduplication(
                 )
                 _log_dedup_result(result, trace_id)
                 return result
-            
+
             # Check 2: Semantic similarity (goal)
             goal_similarity = _calculate_goal_similarity(goal, record.goal)
             if goal_similarity >= threshold:
@@ -453,7 +458,7 @@ def check_pr_deduplication(
                 )
                 _log_dedup_result(result, trace_id)
                 return result
-        
+
         # No duplicates found
         logger.info("[PRDedup] No duplicates found, allowing creation", extra={
             "operation": "pr_dedup",
@@ -466,7 +471,7 @@ def check_pr_deduplication(
             should_create_pr=True,
             reasoning=f"No duplicates found in {len(records_json)} recent PRs"
         )
-        
+
     except Exception as e:
         logger.warning(f"[PRDedup] Error during dedup check: {e}", extra={
             "operation": "pr_dedup_error",
@@ -491,11 +496,11 @@ def _log_dedup_result(result: DeduplicationResult, trace_id: Optional[str]) -> N
         "should_create_pr": result.should_create_pr,
         "dry_run": result.dry_run
     }
-    
+
     if result.matching_pr:
         log_extra["matching_trace_id"] = result.matching_pr.trace_id
         log_extra["matching_pr_number"] = result.matching_pr.pr_number
-    
+
     if result.dry_run:
         logger.warning(
             f"[PRDedup][DRY-RUN] Would block duplicate PR: {result.reasoning}",
@@ -514,11 +519,11 @@ def cleanup_old_records(
 ) -> int:
     """
     Clean up old PR records outside the dedup window.
-    
+
     Args:
         repo: Repository (owner/repo format)
         redis_url: Optional Redis URL override
-        
+
     Returns:
         Number of records removed
     """
@@ -526,7 +531,7 @@ def cleanup_old_records(
         r = _get_redis_client(redis_url)
         if not r:
             return 0
-        
+
         try:
             from common.config.settings import settings
             window = getattr(settings, 'pr_dedup_window_seconds', DEFAULT_DEDUP_WINDOW_SECONDS)
@@ -539,16 +544,16 @@ def cleanup_old_records(
 
         # Remove records older than the window
         removed = r.zremrangebyscore(key, 0, min_time)
-        
+
         if removed:
             logger.info(f"[PRDedup] Cleaned up {removed} old records", extra={
                 "operation": "pr_dedup_cleanup",
                 "repo": repo,
                 "removed_count": removed
             })
-        
+
         return removed
-        
+
     except Exception as e:
         logger.warning(f"[PRDedup] Failed to cleanup old records: {e}")
         return 0
@@ -560,11 +565,11 @@ def get_recent_pr_count(
 ) -> int:
     """
     Get count of recent PRs in the dedup window.
-    
+
     Args:
         repo: Repository (owner/repo format)
         redis_url: Optional Redis URL override
-        
+
     Returns:
         Number of recent PRs
     """
@@ -572,7 +577,7 @@ def get_recent_pr_count(
         r = _get_redis_client(redis_url)
         if not r:
             return 0
-        
+
         try:
             from common.config.settings import settings
             window = getattr(settings, 'pr_dedup_window_seconds', DEFAULT_DEDUP_WINDOW_SECONDS)
@@ -584,7 +589,7 @@ def get_recent_pr_count(
         min_time = time.time() - window
 
         return r.zcount(key, min_time, '+inf')
-        
+
     except Exception:
         return 0
 
@@ -597,17 +602,17 @@ def generate_dedup_key(
 ) -> str:
     """
     Generate a deterministic deduplication key.
-    
+
     Blueprint Alignment:
     - Memory v2 (Layer 1): Deterministic key for short-term dedup
     - 可預測性 (Deterministic): Same input always produces same key
-    
+
     Args:
         repo: Repository (owner/repo format)
         doc_file_path: Path to the generated doc file
         source_pr_number: Optional source PR number that triggered this
         event_action: Optional event action (opened, merged, etc.)
-        
+
     Returns:
         Deterministic dedup key string
     """
@@ -616,10 +621,10 @@ def generate_dedup_key(
         components.append(str(source_pr_number))
     if event_action:
         components.append(event_action)
-    
+
     key_string = ":".join(components)
     key_hash = hashlib.sha256(key_string.encode()).hexdigest()[:16]
-    
+
     return f"{repo}:{key_hash}"
 
 
@@ -631,7 +636,7 @@ def _get_lease_key(dedup_key: str) -> str:
         prefix = prefix.rstrip(':')
     except ImportError:
         prefix = ''
-    
+
     base_key = f"{REDIS_LEASE_PREFIX}:{dedup_key}"
     return f"{prefix}:{base_key}" if prefix else base_key
 
@@ -648,6 +653,170 @@ class LeaseResult:
     reason: str = ""
 
 
+def _record_fail_open_event(
+    trace_id: str,
+    dedup_key: str,
+    reason: str,
+    error: Optional[str] = None,
+    redis_client: Optional[Any] = None
+) -> None:
+    """
+    Record a fail-open event for monitoring and alerting (Issue #2919).
+
+    Blueprint Alignment:
+    - Telemetry v2: Full execution trace reconstruction
+    - Safety Governor v2: Monitor degraded safety states
+
+    This function:
+    1. Adds a Sentry breadcrumb for debugging
+    2. Increments a metrics counter for Prometheus/Grafana
+    3. Logs structured warning for observability
+
+    Args:
+        trace_id: Trace ID for correlation
+        dedup_key: The dedup key that triggered fail-open
+        reason: Reason for fail-open (e.g., "redis_unavailable", "connection_error")
+        error: Optional error message
+        redis_client: Optional Redis client for metrics (if available)
+    """
+    # 1. Add Sentry breadcrumb for debugging
+    try:
+        import sentry_sdk
+        sentry_sdk.add_breadcrumb(
+            category="pr_dedup",
+            message=f"PR lease fail-open: {reason}",
+            level="warning",
+            data={
+                "trace_id": trace_id,
+                "dedup_key": dedup_key,
+                "reason": reason,
+                "error": error,
+                "fail_open": True,
+            }
+        )
+    except ImportError:
+        pass  # Sentry not available
+    except Exception as e:
+        logger.debug(f"[PRDedup] Failed to add Sentry breadcrumb: {e}")
+
+    # 2. Increment metrics counter (if Redis available)
+    # Use INCR + EXPIRE pattern for robustness (ensures TTL is always refreshed)
+    if redis_client:
+        try:
+            from datetime import datetime
+            minute_str = datetime.utcnow().strftime("%Y%m%d%H%M")
+            metric_key = f"metrics:orchestrator:{FAIL_OPEN_METRIC_NAME}:{minute_str}"
+
+            with redis_client.pipeline(transaction=True) as pipe:
+                pipe.incr(metric_key)  # INCR creates key with value 1 if not exists
+                pipe.expire(metric_key, 7200)  # Always refresh TTL to 2 hours
+                pipe.execute()
+
+            logger.debug(f"[PRDedup] Recorded fail-open metric: {metric_key}")
+        except Exception as e:
+            logger.debug(f"[PRDedup] Failed to record fail-open metric: {e}")
+
+    # 3. Log structured warning for observability
+    logger.warning(f"[PRDedup] FAIL-OPEN: {reason}", extra={
+        "operation": "pr_lease_fail_open",
+        "trace_id": trace_id,
+        "dedup_key": dedup_key,
+        "reason": reason,
+        "error": error,
+        "alert_type": "redis_fail_open",
+        "fail_open": True,
+    })
+
+
+def get_fail_open_count(
+    window_minutes: int = FAIL_OPEN_ALERT_WINDOW_MINUTES,
+    redis_url: Optional[str] = None
+) -> int:
+    """
+    Get the count of fail-open events in the specified time window.
+
+    Used for alerting when fail-open rate exceeds threshold.
+
+    Args:
+        window_minutes: Time window in minutes (default: 5)
+        redis_url: Optional Redis URL override
+
+    Returns:
+        Count of fail-open events in the window
+    """
+    try:
+        r = _get_redis_client(redis_url)
+        if not r:
+            return 0
+
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        total = 0
+
+        for i in range(window_minutes):
+            timestamp = now - timedelta(minutes=i)
+            minute_str = timestamp.strftime("%Y%m%d%H%M")
+            metric_key = f"metrics:orchestrator:{FAIL_OPEN_METRIC_NAME}:{minute_str}"
+            value = r.get(metric_key)
+            if value:
+                total += int(value)
+
+        return total
+    except Exception as e:
+        logger.debug(f"[PRDedup] Failed to get fail-open count: {e}")
+        return 0
+
+
+def check_fail_open_alert_threshold(
+    redis_url: Optional[str] = None
+) -> bool:
+    """
+    Check if fail-open events exceed the alert threshold.
+
+    Args:
+        redis_url: Optional Redis URL override
+
+    Returns:
+        True if threshold exceeded, False otherwise
+    """
+    count = get_fail_open_count(redis_url=redis_url)
+    exceeded = count > FAIL_OPEN_ALERT_THRESHOLD
+
+    if exceeded:
+        logger.error(
+            f"[PRDedup] ALERT: Fail-open threshold exceeded! "
+            f"{count} events in {FAIL_OPEN_ALERT_WINDOW_MINUTES} minutes "
+            f"(threshold: {FAIL_OPEN_ALERT_THRESHOLD})",
+            extra={
+                "operation": "pr_lease_fail_open_alert",
+                "alert_type": "fail_open_threshold_exceeded",
+                "count": count,
+                "threshold": FAIL_OPEN_ALERT_THRESHOLD,
+                "window_minutes": FAIL_OPEN_ALERT_WINDOW_MINUTES,
+            }
+        )
+
+        # Send Sentry alert
+        try:
+            import sentry_sdk
+            sentry_sdk.capture_message(
+                f"[PRDedup] Fail-open threshold exceeded: {count} events in {FAIL_OPEN_ALERT_WINDOW_MINUTES} min",
+                level="error",
+                tags={
+                    "alert_type": "fail_open_threshold_exceeded",
+                    "component": "pr_deduplication",
+                    "count": str(count),
+                    "threshold": str(FAIL_OPEN_ALERT_THRESHOLD),
+                }
+            )
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.debug(f"[PRDedup] Failed to send Sentry alert: {e}")
+
+    return exceeded
+
+
 def acquire_pr_lease(
     dedup_key: str,
     worker_id: str,
@@ -656,46 +825,48 @@ def acquire_pr_lease(
 ) -> LeaseResult:
     """
     Attempt to acquire an atomic lease for PR creation.
-    
+
     Blueprint Alignment:
     - Memory v2 (Layer 1): Atomic short-term reservation
     - Safety Governor v2: Prevents race condition duplicates
     - Telemetry v2: Structured logging for lease decisions
-    
+
     This uses Redis SETNX (SET if Not eXists) for atomic reservation.
     If another worker already holds the lease, this will fail fast.
-    
+
     Args:
         dedup_key: Deterministic dedup key from generate_dedup_key()
         worker_id: ID of the worker attempting to acquire lease
         trace_id: Trace ID for logging
         redis_url: Optional Redis URL override
-        
+
     Returns:
         LeaseResult with acquisition status
     """
     try:
         r = _get_redis_client(redis_url)
         if not r:
-            logger.warning("[PRDedup] Redis unavailable for lease, allowing PR creation (fail-open)", extra={
-                "operation": "pr_lease_acquire",
-                "trace_id": trace_id,
-                "dedup_key": dedup_key,
-                "result": "redis_unavailable"
-            })
+            # Issue #2919: Record fail-open event for monitoring
+            _record_fail_open_event(
+                trace_id=trace_id,
+                dedup_key=dedup_key,
+                reason="redis_unavailable",
+                error=None,
+                redis_client=None  # Redis not available
+            )
             return LeaseResult(
                 acquired=True,
                 lease_key=dedup_key,
                 reason="Redis unavailable, fail-open"
             )
-        
+
         try:
             from common.config.settings import settings
             ttl = getattr(settings, 'pr_dedup_lease_ttl_seconds', DEFAULT_LEASE_TTL_SECONDS)
             ttl = ttl or DEFAULT_LEASE_TTL_SECONDS
         except ImportError:
             ttl = DEFAULT_LEASE_TTL_SECONDS
-        
+
         lease_key = _get_lease_key(dedup_key)
         lease_value = json.dumps({
             "worker_id": worker_id,
@@ -703,9 +874,9 @@ def acquire_pr_lease(
             "acquired_at": time.time(),
             "status": "in_progress"
         })
-        
+
         acquired = r.set(lease_key, lease_value, nx=True, ex=ttl)
-        
+
         if acquired:
             logger.info("[PRDedup] Lease acquired", extra={
                 "operation": "pr_lease_acquire",
@@ -731,7 +902,7 @@ def acquire_pr_lease(
             existing_pr_url = existing_data.get("pr_url")
             existing_pr_number = existing_data.get("pr_number")
             ttl_remaining = r.ttl(lease_key)
-            
+
             logger.warning("[PRDedup] Lease already held by another worker", extra={
                 "operation": "pr_lease_acquire",
                 "trace_id": trace_id,
@@ -752,14 +923,22 @@ def acquire_pr_lease(
                 existing_pr_number=existing_pr_number,
                 reason=f"Lease held by {existing_holder} (trace: {existing_trace}, status: {existing_status})"
             )
-            
+
     except Exception as e:
-        logger.warning(f"[PRDedup] Error acquiring lease: {e}", extra={
-            "operation": "pr_lease_acquire_error",
-            "trace_id": trace_id,
-            "dedup_key": dedup_key,
-            "error": str(e)
-        })
+        # Issue #2919: Record fail-open event for monitoring
+        # Try to get Redis client for metrics (may fail if Redis is the issue)
+        try:
+            metrics_redis = _get_redis_client(redis_url)
+        except Exception:
+            metrics_redis = None
+
+        _record_fail_open_event(
+            trace_id=trace_id,
+            dedup_key=dedup_key,
+            reason="connection_error",
+            error=str(e),
+            redis_client=metrics_redis
+        )
         return LeaseResult(
             acquired=True,
             lease_key=dedup_key,
@@ -774,12 +953,12 @@ def release_pr_lease(
 ) -> bool:
     """
     Release a PR creation lease (used when PR creation fails).
-    
+
     Args:
         dedup_key: Deterministic dedup key
         trace_id: Trace ID for logging
         redis_url: Optional Redis URL override
-        
+
     Returns:
         True if released successfully
     """
@@ -787,10 +966,10 @@ def release_pr_lease(
         r = _get_redis_client(redis_url)
         if not r:
             return False
-        
+
         lease_key = _get_lease_key(dedup_key)
         deleted = r.delete(lease_key)
-        
+
         logger.info("[PRDedup] Lease released", extra={
             "operation": "pr_lease_release",
             "trace_id": trace_id,
@@ -798,7 +977,7 @@ def release_pr_lease(
             "deleted": bool(deleted)
         })
         return bool(deleted)
-        
+
     except Exception as e:
         logger.warning(f"[PRDedup] Error releasing lease: {e}", extra={
             "operation": "pr_lease_release_error",
@@ -818,17 +997,17 @@ def complete_pr_lease(
 ) -> bool:
     """
     Mark a PR creation lease as complete (PR successfully created).
-    
+
     This updates the lease to "done" status with PR info and extends TTL
     to the full dedup window, preventing duplicate PRs for the same content.
-    
+
     Args:
         dedup_key: Deterministic dedup key
         trace_id: Trace ID for logging
         pr_url: URL of the created PR
         pr_number: Number of the created PR
         redis_url: Optional Redis URL override
-        
+
     Returns:
         True if completed successfully
     """
@@ -836,19 +1015,19 @@ def complete_pr_lease(
         r = _get_redis_client(redis_url)
         if not r:
             return False
-        
+
         try:
             from common.config.settings import settings
             window = getattr(settings, 'pr_dedup_window_seconds', DEFAULT_DEDUP_WINDOW_SECONDS)
             window = window or DEFAULT_DEDUP_WINDOW_SECONDS
         except ImportError:
             window = DEFAULT_DEDUP_WINDOW_SECONDS
-        
+
         lease_key = _get_lease_key(dedup_key)
-        
+
         existing = r.get(lease_key)
         existing_data = json.loads(existing) if existing else {}
-        
+
         completed_value = json.dumps({
             "worker_id": existing_data.get("worker_id", "unknown"),
             "trace_id": trace_id,
@@ -858,9 +1037,9 @@ def complete_pr_lease(
             "pr_url": pr_url,
             "pr_number": pr_number
         })
-        
+
         r.set(lease_key, completed_value, ex=window)
-        
+
         logger.info("[PRDedup] Lease completed with PR info", extra={
             "operation": "pr_lease_complete",
             "trace_id": trace_id,
@@ -870,7 +1049,7 @@ def complete_pr_lease(
             "ttl_seconds": window
         })
         return True
-        
+
     except Exception as e:
         logger.warning(f"[PRDedup] Error completing lease: {e}", extra={
             "operation": "pr_lease_complete_error",
@@ -888,27 +1067,27 @@ def generate_deterministic_branch(
 ) -> str:
     """
     Generate a deterministic branch name for PR creation.
-    
+
     Blueprint Alignment:
     - 可預測性 (Deterministic): Same input always produces same branch name
     - This prevents multiple branches for the same content
-    
+
     Args:
         repo: Repository (owner/repo format)
         doc_file_path: Path to the generated doc file
         source_pr_number: Optional source PR number
-        
+
     Returns:
         Deterministic branch name
     """
     components = [repo, doc_file_path]
     if source_pr_number is not None:
         components.append(str(source_pr_number))
-    
+
     key_string = ":".join(components)
     branch_hash = hashlib.sha256(key_string.encode()).hexdigest()[:12]
-    
+
     path_slug = doc_file_path.split("/")[-1].replace(".md", "")[:20]
     path_slug = re.sub(r'[^a-zA-Z0-9-]', '-', path_slug).lower()
-    
+
     return f"orchestrator/docs-{path_slug}-{branch_hash}"
