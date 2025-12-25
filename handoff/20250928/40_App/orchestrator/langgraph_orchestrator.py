@@ -125,6 +125,15 @@ _metrics: Optional[OrchestratorMetrics] = None
 _failure_recorder: Optional[FailureRecorder] = None
 _agent_eval: Optional[AgentEvalIntegration] = None
 
+# Global PostgreSQL connection pool (lazy initialization)
+# Issue: Connection Lifecycle Bug Fix - Use connection pooling instead of per-job connections
+# Benefits:
+# 1. Enterprise-grade: Reuse connections instead of dial/hangup per job
+# 2. Auto-healing: Pool automatically validates and reconnects dead connections
+# 3. Resource management: Prevents connection leaks and Supabase limit exhaustion
+_postgres_pool = None
+_postgres_pool_lock = None  # Threading lock for pool initialization
+
 
 def _get_metrics() -> OrchestratorMetrics:
     """Get or initialize the global metrics instance"""
@@ -204,6 +213,113 @@ def node_metrics(node_name: str) -> Callable:
     return decorator
 
 
+def _get_postgres_pool():
+    """
+    Get or initialize the global PostgreSQL connection pool.
+
+    Issue: Connection Lifecycle Bug Fix (Dec 2025)
+
+    This function implements enterprise-grade connection pooling using psycopg_pool.
+    Benefits:
+    1. Connection reuse: No dial/hangup overhead per job
+    2. Auto-healing: Pool validates connections and reconnects dead ones
+    3. Resource management: Prevents connection leaks and Supabase limit exhaustion
+    4. Thread-safe: Uses threading lock for initialization
+
+    Pool Configuration:
+    - min_size: 1 (minimum connections to keep open)
+    - max_size: 5 (maximum connections, prevents Supabase limit exhaustion)
+    - max_lifetime: 1800 (30 minutes, prevents stale connections)
+    - max_idle: 300 (5 minutes, recycle idle connections)
+    - reconnect_timeout: 60 (1 minute timeout for reconnection attempts)
+    - check: ConnectionPool.check_connection (validates connection health)
+
+    Returns:
+        ConnectionPool: The global connection pool instance, or None if initialization fails
+    """
+    global _postgres_pool, _postgres_pool_lock
+    import os
+    import threading
+
+    # Initialize lock if needed (thread-safe double-checked locking)
+    if _postgres_pool_lock is None:
+        _postgres_pool_lock = threading.Lock()
+
+    # Fast path: pool already initialized
+    if _postgres_pool is not None:
+        return _postgres_pool
+
+    with _postgres_pool_lock:
+        # Double-check after acquiring lock
+        if _postgres_pool is not None:
+            return _postgres_pool
+
+        database_url = settings.database_url or os.environ.get("DATABASE_URL")
+        if not database_url:
+            logger.warning(
+                "DATABASE_URL not configured, cannot create connection pool",
+                extra={"operation": "_get_postgres_pool"}
+            )
+            return None
+
+        try:
+            from psycopg_pool import ConnectionPool
+            from psycopg.rows import dict_row
+
+            # Configure pool with health checks and auto-reconnect
+            # These settings are optimized for Supabase PostgreSQL
+            _postgres_pool = ConnectionPool(
+                conninfo=database_url,
+                min_size=1,  # Keep at least 1 connection ready
+                max_size=5,  # Limit to prevent Supabase connection exhaustion
+                max_lifetime=1800,  # 30 minutes - recycle connections periodically
+                max_idle=300,  # 5 minutes - close idle connections
+                reconnect_timeout=60,  # 1 minute timeout for reconnection
+                kwargs={
+                    "autocommit": True,  # Required by PostgresSaver
+                    "row_factory": dict_row,  # Required by PostgresSaver
+                },
+                # Health check: validates connection before returning from pool
+                check=ConnectionPool.check_connection,
+            )
+
+            # Wait for pool to be ready (opens min_size connections)
+            _postgres_pool.wait()
+
+            logger.info(
+                "PostgreSQL connection pool initialized successfully",
+                extra={
+                    "operation": "_get_postgres_pool",
+                    "min_size": 1,
+                    "max_size": 5,
+                    "max_lifetime": 1800,
+                    "max_idle": 300,
+                    "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
+                }
+            )
+
+            return _postgres_pool
+
+        except ImportError as e:
+            logger.warning(
+                f"psycopg_pool not installed, connection pooling unavailable: {e}",
+                extra={
+                    "operation": "_get_postgres_pool",
+                    "error": str(e)
+                }
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                f"Failed to initialize PostgreSQL connection pool: {e}",
+                extra={
+                    "operation": "_get_postgres_pool",
+                    "error": str(e)
+                }
+            )
+            return None
+
+
 def get_checkpointer():
     """
     Factory function to create the appropriate checkpointer based on configuration.
@@ -224,11 +340,17 @@ def get_checkpointer():
         PostgreSQL checkpointer is recommended over Redis for Upstash Redis,
         which doesn't support RediSearch (required by langgraph-checkpoint-redis).
 
-    Fix (Dec 2025):
-        PostgresSaver.from_conn_string() returns a context manager in langgraph-checkpoint-postgres>=2.0.0.
-        We use psycopg.connect() directly with autocommit=True and row_factory=dict_row as required
-        by the PostgresSaver implementation. This allows us to control the connection lifecycle
-        and avoid the context manager issue.
+    Fix (Dec 2025) - Connection Pooling:
+        Previous implementation created a new psycopg connection per job without cleanup,
+        causing connection leaks and Supabase limit exhaustion. This led to:
+        - "the connection is closed" errors (psycopg.Pipeline [BAD] state)
+        - "invalid memory alloc request size" errors (corrupted protocol state)
+        - Health check timeouts (DB connection exhaustion)
+
+        New implementation uses psycopg_pool.ConnectionPool for:
+        - Connection reuse (no dial/hangup overhead)
+        - Auto-healing (validates and reconnects dead connections)
+        - Resource management (prevents leaks and limit exhaustion)
     """
     import os
 
@@ -236,21 +358,49 @@ def get_checkpointer():
     database_url = settings.database_url or os.environ.get("DATABASE_URL")
 
     if use_postgres and database_url:
-        conn = None
         try:
+            from langgraph.checkpoint.postgres import PostgresSaver
+
+            # Try connection pool first (preferred)
+            pool = _get_postgres_pool()
+            if pool is not None:
+                # Get connection from pool - pool handles health checks and reconnection
+                conn = pool.getconn()
+                checkpointer = PostgresSaver(conn)
+                checkpointer.setup()
+
+                logger.info(
+                    "Using PostgreSQL checkpointer with connection pool",
+                    extra={
+                        "operation": "get_checkpointer",
+                        "checkpointer_type": "postgres_pooled",
+                        "pool_stats": {
+                            "size": pool.get_stats().get("pool_size", "unknown"),
+                            "available": pool.get_stats().get("pool_available", "unknown"),
+                        },
+                        "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
+                    }
+                )
+
+                return checkpointer
+
+            # Fallback to direct connection if pool unavailable (with warning)
+            logger.warning(
+                "Connection pool unavailable, falling back to direct connection (not recommended)",
+                extra={"operation": "get_checkpointer"}
+            )
             import psycopg
             from psycopg.rows import dict_row
-            from langgraph.checkpoint.postgres import PostgresSaver
 
             conn = psycopg.connect(database_url, autocommit=True, row_factory=dict_row)
             checkpointer = PostgresSaver(conn)
             checkpointer.setup()
 
             logger.info(
-                "Using PostgreSQL checkpointer for LangGraph state persistence",
+                "Using PostgreSQL checkpointer (direct connection - no pooling)",
                 extra={
                     "operation": "get_checkpointer",
-                    "checkpointer_type": "postgres",
+                    "checkpointer_type": "postgres_direct",
                     "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
                 }
             )
@@ -266,15 +416,6 @@ def get_checkpointer():
                 }
             )
         except Exception as e:
-            if conn is not None:
-                try:
-                    conn.close()
-                    logger.info(
-                        "Closed PostgreSQL connection after setup failure",
-                        extra={"operation": "get_checkpointer"}
-                    )
-                except Exception:
-                    pass
             logger.error(
                 f"Failed to initialize PostgreSQL checkpointer, trying Redis checkpointer: {e}",
                 extra={
