@@ -345,7 +345,7 @@ class TestRoutingEngineCandidateScoring:
     def test_score_candidate_default_weights(self):
         """Test _score_candidate with default weights (0.3 cost, 0.7 preference)"""
         engine = RoutingEngine()
-        
+
         # alicloud: cost=0.5, preference=1.0
         # cost_score = 1.0 - 0.5 = 0.5
         # score = (1.0 * 0.7 + 0.5 * 0.3) / 1.0 = 0.85
@@ -355,24 +355,24 @@ class TestRoutingEngineCandidateScoring:
     def test_score_candidate_cost_only(self):
         """Test _score_candidate with cost_weight=1.0, preference_weight=0"""
         engine = RoutingEngine()
-        
+
         # alicloud: cost=0.5, cost_score = 0.5
         score_alicloud = engine._score_candidate("alicloud", cost_weight=1.0, preference_weight=0.0)
         # openai: cost=1.0, cost_score = 0.0
         score_openai = engine._score_candidate("openai", cost_weight=1.0, preference_weight=0.0)
-        
+
         # Lower cost provider should have higher score
         assert score_alicloud > score_openai
 
     def test_score_candidate_preference_only(self):
         """Test _score_candidate with cost_weight=0, preference_weight=1.0"""
         engine = RoutingEngine()
-        
+
         # alicloud: preference=1.0
         score_alicloud = engine._score_candidate("alicloud", cost_weight=0.0, preference_weight=1.0)
         # openai: preference=0.7
         score_openai = engine._score_candidate("openai", cost_weight=0.0, preference_weight=1.0)
-        
+
         # Higher preference provider should have higher score
         assert score_alicloud > score_openai
         assert score_alicloud == 1.0
@@ -381,7 +381,7 @@ class TestRoutingEngineCandidateScoring:
     def test_score_candidate_zero_weights_fallback(self):
         """Test _score_candidate falls back to preference when both weights are 0"""
         engine = RoutingEngine()
-        
+
         # When both weights are 0, should return preference value
         score = engine._score_candidate("alicloud", cost_weight=0.0, preference_weight=0.0)
         assert score == 1.0  # alicloud preference is 1.0
@@ -389,7 +389,7 @@ class TestRoutingEngineCandidateScoring:
     def test_score_candidate_unknown_provider(self):
         """Test _score_candidate with unknown provider uses defaults"""
         engine = RoutingEngine()
-        
+
         # Unknown provider: cost=1.0 (default), preference=0.5 (default)
         score = engine._score_candidate("unknown_provider", cost_weight=0.5, preference_weight=0.5)
         # cost_score = 1.0 - 1.0 = 0.0
@@ -399,10 +399,10 @@ class TestRoutingEngineCandidateScoring:
     def test_find_available_model_selects_highest_score(self):
         """Test _find_available_model selects the candidate with highest score"""
         engine = RoutingEngine(available_providers=["alicloud", "openai", "siliconflow"])
-        
+
         # With default weights, alicloud should be selected (highest preference + good cost)
         model_info = engine.select_model(TaskType.PLANNING)
-        
+
         assert model_info.provider == "alicloud"
 
     def test_find_available_model_respects_availability(self):
@@ -410,16 +410,16 @@ class TestRoutingEngineCandidateScoring:
         # Only siliconflow available, even though alicloud has higher score
         # (With Cross-Generation Fallback, OpenAI is no longer in Tier 0/1)
         engine = RoutingEngine(available_providers=["siliconflow"])
-        
+
         model_info = engine.select_model(TaskType.PLANNING)
-        
+
         # SiliconFlow is now in Tier 0 (Cross-Generation Fallback)
         assert model_info.provider == "siliconflow"
 
     def test_score_candidate_weights_affect_ranking(self):
         """Test that different weights produce different rankings"""
         engine = RoutingEngine()
-        
+
         # With cost_weight=1.0, preference_weight=0.0:
         # alicloud: cost_score = 1.0 - 0.5 = 0.5
         # openai: cost_score = 1.0 - 1.0 = 0.0
@@ -427,7 +427,7 @@ class TestRoutingEngineCandidateScoring:
         score_alicloud_cost = engine._score_candidate("alicloud", cost_weight=1.0, preference_weight=0.0)
         score_openai_cost = engine._score_candidate("openai", cost_weight=1.0, preference_weight=0.0)
         assert score_alicloud_cost > score_openai_cost
-        
+
         # With cost_weight=0.0, preference_weight=1.0:
         # alicloud: preference = 1.0
         # openai: preference = 0.7
@@ -435,7 +435,7 @@ class TestRoutingEngineCandidateScoring:
         score_alicloud_pref = engine._score_candidate("alicloud", cost_weight=0.0, preference_weight=1.0)
         score_openai_pref = engine._score_candidate("openai", cost_weight=0.0, preference_weight=1.0)
         assert score_alicloud_pref > score_openai_pref
-        
+
         # Verify the actual scores match expected values
         assert score_alicloud_cost == 0.5  # cost_score only
         assert score_openai_cost == 0.0    # cost_score only
@@ -446,12 +446,12 @@ class TestRoutingEngineCandidateScoring:
 class TestCrossGenerationFallback:
     """
     Tests for Cross-Generation Fallback (Routing Policy v1.2)
-    
+
     Strategy:
     - Primary: AliCloud (Qwen3) for Tier 0/1
     - Backup: SiliconFlow (Qwen2.5) as degraded fallback
     - OpenAI/Gemini should NOT be in the fallback path for Tier 0/1
-    
+
     This ensures that when AliCloud times out or is unavailable,
     the system falls back to SiliconFlow (our "backup generator"),
     not to expensive external providers like OpenAI.
@@ -460,15 +460,15 @@ class TestCrossGenerationFallback:
     def test_tier_0_fallback_to_siliconflow_not_openai(self):
         """
         Test that Tier 0 falls back to SiliconFlow when AliCloud is unavailable.
-        
+
         Verifies: When AliCloud is down, system should use SiliconFlow (Qwen2.5-72B)
         as the backup, NOT OpenAI or Gemini.
         """
         # Only SiliconFlow available (simulating AliCloud timeout)
         engine = RoutingEngine(available_providers=["siliconflow"])
-        
+
         model_info = engine.select_model(TaskType.PLANNING)
-        
+
         # Should fallback to SiliconFlow, not OpenAI/Gemini
         assert model_info.provider == "siliconflow"
         assert "Qwen" in model_info.model_name
@@ -478,15 +478,15 @@ class TestCrossGenerationFallback:
     def test_tier_1_fallback_to_siliconflow_not_openai(self):
         """
         Test that Tier 1 falls back to SiliconFlow when AliCloud is unavailable.
-        
+
         Verifies: When AliCloud is down, coding/review tasks should use
         SiliconFlow (Qwen2.5-32B) as the backup.
         """
         # Only SiliconFlow available (simulating AliCloud timeout)
         engine = RoutingEngine(available_providers=["siliconflow"])
-        
+
         model_info = engine.select_model(TaskType.CODING)
-        
+
         # Should fallback to SiliconFlow, not OpenAI/Gemini
         assert model_info.provider == "siliconflow"
         assert "Qwen" in model_info.model_name
@@ -494,14 +494,14 @@ class TestCrossGenerationFallback:
     def test_tier_0_models_only_contain_alicloud_and_siliconflow(self):
         """
         Test that Tier 0 model list only contains AliCloud and SiliconFlow.
-        
+
         Verifies: OpenAI and Gemini are NOT in Tier 0 fallback path.
         """
         engine = RoutingEngine()
-        
+
         tier_0_models = engine.get_models_for_tier(Tier.TIER_0)
         providers_in_tier_0 = [provider for provider, _ in tier_0_models]
-        
+
         # Should only have alicloud and siliconflow
         assert "alicloud" in providers_in_tier_0
         assert "siliconflow" in providers_in_tier_0
@@ -512,14 +512,14 @@ class TestCrossGenerationFallback:
     def test_tier_1_models_only_contain_alicloud_and_siliconflow(self):
         """
         Test that Tier 1 model list only contains AliCloud and SiliconFlow.
-        
+
         Verifies: OpenAI and Gemini are NOT in Tier 1 fallback path.
         """
         engine = RoutingEngine()
-        
+
         tier_1_models = engine.get_models_for_tier(Tier.TIER_1)
         providers_in_tier_1 = [provider for provider, _ in tier_1_models]
-        
+
         # Should only have alicloud and siliconflow
         assert "alicloud" in providers_in_tier_1
         assert "siliconflow" in providers_in_tier_1
@@ -530,13 +530,13 @@ class TestCrossGenerationFallback:
     def test_alicloud_primary_siliconflow_backup_for_planning(self):
         """
         Test that AliCloud is primary and SiliconFlow is backup for planning tasks.
-        
+
         Verifies: With both providers available, AliCloud (Qwen3) is selected first.
         """
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
-        
+
         model_info = engine.select_model(TaskType.PLANNING)
-        
+
         # AliCloud should be primary (higher preference score)
         assert model_info.provider == "alicloud"
         assert model_info.model_name == "qwen-max"
@@ -545,13 +545,13 @@ class TestCrossGenerationFallback:
     def test_alicloud_primary_siliconflow_backup_for_coding(self):
         """
         Test that AliCloud is primary and SiliconFlow is backup for coding tasks.
-        
+
         Verifies: With both providers available, AliCloud (Qwen3) is selected first.
         """
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
-        
+
         model_info = engine.select_model(TaskType.CODING)
-        
+
         # AliCloud should be primary (higher preference score)
         assert model_info.provider == "alicloud"
         assert model_info.model_name == "qwen-plus"
@@ -560,33 +560,57 @@ class TestCrossGenerationFallback:
     def test_cross_generation_fallback_logs_correctly(self, caplog):
         """
         Test that cross-generation fallback selection is logged correctly.
-        
-        Verifies: When SiliconFlow is selected (as backup provider in Tier 0),
-        the selection is logged correctly.
+
+        Verifies: When AliCloud is unavailable and SiliconFlow is selected,
+        the log should indicate 'Cross-generation fallback' with 'alicloud unavailable'
+        and 'siliconflow' (not OpenAI).
+
+        This satisfies the acceptance criteria:
+        "模擬 AliCloud Timeout，確認系統 Log 顯示 Fallback to SiliconFlow，而不是 OpenAI"
         """
         import logging
         caplog.set_level(logging.INFO)
-        
-        # Only SiliconFlow available
+
+        # Only SiliconFlow available (simulating AliCloud unavailable/timeout)
         engine = RoutingEngine(available_providers=["siliconflow"])
-        
+
         model_info = engine.select_model(TaskType.PLANNING)
-        
+
         # SiliconFlow is now in Tier 0 (Cross-Generation Fallback)
-        # So this is a direct selection, not a tier fallback
         assert model_info.provider == "siliconflow"
         assert model_info.tier == Tier.TIER_0
+
+        # Verify log message contains cross-generation fallback info
+        log_messages = [record.message for record in caplog.records]
+        cross_gen_logs = [msg for msg in log_messages if "Cross-generation fallback" in msg]
+
+        # Should have at least one cross-generation fallback log
+        assert len(cross_gen_logs) >= 1, f"Expected cross-generation fallback log, got: {log_messages}"
+
+        # The log should mention alicloud unavailable and siliconflow
+        fallback_log = cross_gen_logs[0]
+        assert "alicloud" in fallback_log.lower(), f"Log should mention alicloud: {fallback_log}"
+        assert "siliconflow" in fallback_log.lower(), f"Log should mention siliconflow: {fallback_log}"
+        assert "unavailable" in fallback_log.lower(), f"Log should mention unavailable: {fallback_log}"
+
+        # Should NOT mention OpenAI in the fallback log
+        assert "openai" not in fallback_log.lower(), f"Log should NOT mention openai: {fallback_log}"
+
+        # Verify reason field is set correctly
+        assert "Cross-generation fallback" in model_info.reason
+        assert "alicloud" in model_info.reason.lower()
+        assert "siliconflow" in model_info.reason.lower()
 
     def test_resilience_when_alicloud_unavailable(self):
         """
         Test system resilience when AliCloud is unavailable.
-        
+
         Verifies: System does NOT crash when primary provider is down,
         and gracefully falls back to SiliconFlow.
         """
         # Simulate AliCloud being completely unavailable
         engine = RoutingEngine(available_providers=["siliconflow"])
-        
+
         # All task types should still work with SiliconFlow fallback
         for task_type in [TaskType.PLANNING, TaskType.CODING, TaskType.REVIEW, TaskType.ANALYSIS]:
             model_info = engine.select_model(task_type)
@@ -596,18 +620,18 @@ class TestCrossGenerationFallback:
     def test_no_openai_gemini_in_tier_0_1_fallback_path(self):
         """
         Test that OpenAI and Gemini are completely excluded from Tier 0/1.
-        
+
         Verifies: Even if OpenAI/Gemini are available, they should NOT be
         selected for Tier 0/1 tasks (Cross-Generation Fallback policy).
         """
         # All providers available
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow", "openai", "gemini"])
-        
+
         # For Tier 0 (planning), should use alicloud (not openai/gemini)
         model_info = engine.select_model(TaskType.PLANNING)
         assert model_info.provider in ["alicloud", "siliconflow"]
         assert model_info.provider not in ["openai", "gemini"]
-        
+
         # For Tier 1 (coding), should use alicloud (not openai/gemini)
         model_info = engine.select_model(TaskType.CODING)
         assert model_info.provider in ["alicloud", "siliconflow"]

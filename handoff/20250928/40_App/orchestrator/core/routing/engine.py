@@ -258,7 +258,12 @@ class RoutingEngine:
         # Try to find available model in target tier
         model_info = self._find_available_model(target_tier)
         if model_info:
-            model_info.reason = f"Selected for {task_key} task (tier {target_tier.value})"
+            # Preserve cross-generation fallback reason if set, otherwise use default
+            if not model_info.reason:
+                model_info.reason = f"Selected for {task_key} task (tier {target_tier.value})"
+            else:
+                # Append task context to cross-generation fallback reason
+                model_info.reason = f"{model_info.reason} for {task_key} task"
             return model_info
 
         # Fallback to fallback tier
@@ -333,22 +338,27 @@ class RoutingEngine:
     def _find_available_model(self, tier: Tier) -> Optional[ModelInfo]:
         """
         Find the best available model in the specified tier.
-        
+
         Issue #2874: Improved candidate selection using scoring that considers:
         - Provider cost (lower cost = higher score when cost_weight > 0)
         - Provider preference (configurable preference order)
         - Provider availability
-        
+
         The scoring formula is:
         score = (preference * preference_weight) + ((1 - cost) * cost_weight)
-        
+
         Higher scores are better. The model with the highest score is selected.
+
+        Cross-Generation Fallback (Routing Policy v1.2):
+        When the primary provider (e.g., AliCloud) is unavailable and a secondary
+        provider (e.g., SiliconFlow) is selected within the same tier, this is
+        logged as a "cross-generation fallback" for observability.
         """
         tier_models = self._tier_models.get(tier, [])
-        
+
         if not tier_models:
             return None
-        
+
         # Get scoring weights from settings (Issue #2874)
         try:
             from common.config.settings import settings
@@ -357,32 +367,51 @@ class RoutingEngine:
         except ImportError:
             cost_weight = 0.3
             preference_weight = 0.7
-        
+
+        # Track primary provider for cross-generation fallback logging
+        primary_provider = tier_models[0][0] if tier_models else None
+        primary_available = self._is_provider_available(primary_provider) if primary_provider else False
+
         # Score all available candidates
         candidates = []
         for provider, model_name in tier_models:
             if self._is_provider_available(provider):
                 score = self._score_candidate(provider, cost_weight, preference_weight)
                 candidates.append((score, provider, model_name))
-        
+
         if not candidates:
             return None
-        
+
         # Select the best candidate (highest score)
         candidates.sort(key=lambda x: x[0], reverse=True)
         best_score, best_provider, best_model = candidates[0]
-        
-        logger.debug(
-            f"[RoutingEngine] Selected {best_model} ({best_provider}) with score {best_score:.3f} "
-            f"from {len(candidates)} candidates in tier {tier.value}"
-        )
-        
+
+        # Cross-Generation Fallback logging (Routing Policy v1.2)
+        # Log when primary provider is unavailable and secondary is used
+        if primary_provider and not primary_available and best_provider != primary_provider:
+            logger.info(
+                f"[RoutingEngine] Cross-generation fallback in tier {tier.value}: "
+                f"{primary_provider} unavailable, using {best_provider} ({best_model})"
+            )
+        else:
+            logger.debug(
+                f"[RoutingEngine] Selected {best_model} ({best_provider}) with score {best_score:.3f} "
+                f"from {len(candidates)} candidates in tier {tier.value}"
+            )
+
+        # Build reason string for observability
+        if primary_provider and not primary_available and best_provider != primary_provider:
+            reason = f"Cross-generation fallback: {primary_provider} unavailable, using {best_provider}"
+        else:
+            reason = ""
+
         return ModelInfo(
             model_name=best_model,
             provider=best_provider,
-            tier=tier
+            tier=tier,
+            reason=reason
         )
-    
+
     def _score_candidate(
         self,
         provider: str,
@@ -391,29 +420,29 @@ class RoutingEngine:
     ) -> float:
         """
         Score a candidate provider for selection.
-        
+
         Issue #2874: Improved best candidate selection scoring.
-        
+
         Args:
             provider: Provider name
             cost_weight: Weight for cost factor (0-1)
             preference_weight: Weight for preference factor (0-1)
-            
+
         Returns:
             Score between 0 and 1 (higher is better)
         """
         # Get cost (lower is better, so we invert it)
         cost = DEFAULT_PROVIDER_COSTS.get(provider, 1.0)
         cost_score = 1.0 - min(cost, 1.0)  # Invert so lower cost = higher score
-        
+
         # Get preference (higher is better)
         preference = DEFAULT_PROVIDER_PREFERENCES.get(provider, 0.5)
-        
+
         # Calculate weighted score
         total_weight = cost_weight + preference_weight
         if total_weight == 0:
             return preference  # Fallback to preference only
-        
+
         score = (preference * preference_weight + cost_score * cost_weight) / total_weight
         return score
 
