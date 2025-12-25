@@ -349,21 +349,44 @@ def planner(goal:str):
     save_text("goal", goal)
     return steps
 
-def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
+def execute(
+    goal: str,
+    repo_full: str,
+    trace_id: Optional[str] = None,
+    source_pr_number: Optional[int] = None,
+):
+    """
+    Execute the orchestrator workflow to create a documentation PR.
+
+    Args:
+        goal: User's goal/question for FAQ generation
+        repo_full: GitHub repository in owner/repo format
+        trace_id: Unique identifier for this task (auto-generated if None)
+        source_pr_number: Optional source PR number that triggered this workflow.
+            Used for more precise dedup key generation. Issue #2918.
+
+    Returns:
+        Tuple of (pr_url, ci_state, trace_id)
+    """
     if trace_id is None:
         trace_id = str(uuid.uuid4())
-    
+
     cost_tracker = get_cost_tracker()
     reputation_engine = get_reputation_engine()
     agent_id = reputation_engine.get_or_create_agent('meta_agent')
-    
+
     cost_risk = "info"
     rate_limit_risk = "info"
-    
-    # Log entry point for observability
+
+    # Log entry point for observability (Issue #2918: include source_pr_number)
     logger.info(
-        f"[GraphExecute] Starting execution trace_id={trace_id} repo={repo_full}",
-        extra={"operation": "graph_execute_start", "trace_id": trace_id, "repo": repo_full}
+        f"[GraphExecute] Starting execution trace_id={trace_id} repo={repo_full} source_pr_number={source_pr_number}",
+        extra={
+            "operation": "graph_execute_start",
+            "trace_id": trace_id,
+            "repo": repo_full,
+            "source_pr_number": source_pr_number,
+        }
     )
     
     try:
@@ -440,18 +463,20 @@ def execute(goal:str, repo_full: str, trace_id: Optional[str] = None):
     # Only acquire lease when dedup is enabled AND dry-run is disabled
     # ==========================================================================
     # Generate deterministic dedup key and branch name
+    # Issue #2918: Use source_pr_number for more precise dedup key generation
     dedup_key = generate_dedup_key(
         repo=repo_full,
         doc_file_path=doc_file_path,
-        source_pr_number=None,  # TODO: Extract from goal if available
+        source_pr_number=source_pr_number,
         event_action=None
     )
-    
+
     # Generate deterministic branch name (same input = same branch)
+    # Issue #2918: Include source_pr_number for webhook-driven flows
     branch_name = generate_deterministic_branch(
         repo=repo_full,
         doc_file_path=doc_file_path,
-        source_pr_number=None
+        source_pr_number=source_pr_number
     )
     
     # Only acquire lease when dedup is enabled AND dry-run is disabled

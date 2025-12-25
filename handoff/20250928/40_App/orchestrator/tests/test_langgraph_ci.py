@@ -189,6 +189,219 @@ class TestLangGraphCI:
             assert any(expected_node in node_id for node_id in node_ids), f"Node {expected_node} not found in graph"
 
 
+class TestExecutorNodeSourcePrNumber:
+    """Tests for source_pr_number extraction and type handling in executor_node (Issue #2918)"""
+    
+    @patch('graph.execute')
+    def test_executor_node_passes_int_pr_number(self, mock_execute):
+        """Test executor_node correctly passes integer pr_number to execute()"""
+        mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            "pr_number": 42,  # Integer PR number
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        executor_node(state)
+        
+        # Verify execute was called with source_pr_number=42
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["source_pr_number"] == 42
+    
+    @patch('graph.execute')
+    def test_executor_node_converts_string_pr_number(self, mock_execute):
+        """Test executor_node converts string pr_number to int"""
+        mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            "pr_number": "123",  # String PR number (from webhook resource_id)
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        executor_node(state)
+        
+        # Verify execute was called with source_pr_number=123 (converted to int)
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["source_pr_number"] == 123
+    
+    @patch('graph.execute')
+    def test_executor_node_handles_zero_pr_number(self, mock_execute):
+        """Test executor_node treats 0 as None (goal-driven flow)"""
+        mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            "pr_number": 0,  # Zero = no source PR
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        executor_node(state)
+        
+        # Verify execute was called with source_pr_number=None
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["source_pr_number"] is None
+    
+    @patch('graph.execute')
+    def test_executor_node_handles_none_pr_number(self, mock_execute):
+        """Test executor_node handles None pr_number gracefully"""
+        mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            "pr_number": None,  # Explicit None
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        executor_node(state)
+        
+        # Verify execute was called with source_pr_number=None
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["source_pr_number"] is None
+    
+    @patch('graph.execute')
+    def test_executor_node_handles_missing_pr_number(self, mock_execute):
+        """Test executor_node handles missing pr_number key gracefully"""
+        mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            # pr_number key is missing
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        executor_node(state)
+        
+        # Verify execute was called with source_pr_number=None
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["source_pr_number"] is None
+    
+    @patch('graph.execute')
+    @patch('langgraph_orchestrator.logger')
+    def test_executor_node_logs_warning_for_invalid_pr_number(self, mock_logger, mock_execute):
+        """Test executor_node logs warning for unparseable pr_number"""
+        mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            "pr_number": "not-a-number",  # Invalid string
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        executor_node(state)
+        
+        # Verify warning was logged
+        mock_logger.warning.assert_called()
+        warning_call = mock_logger.warning.call_args
+        assert "Could not parse pr_number" in warning_call[0][0]
+        
+        # Verify execute was called with source_pr_number=None (fallback)
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["source_pr_number"] is None
+    
+    @patch('graph.execute')
+    def test_executor_node_handles_negative_pr_number(self, mock_execute):
+        """Test executor_node treats negative numbers as None"""
+        mock_execute.return_value = ("https://github.com/test/pr/1", "success", "test-123")
+        
+        state = {
+            "messages": [],
+            "goal": "Test goal",
+            "trace_id": "test-123",
+            "repo": "test/repo",
+            "branch": "test",
+            "plan": ["Step 1"],
+            "current_step": 0,
+            "pr_url": "",
+            "pr_number": -5,  # Negative number (invalid)
+            "ci_state": "pending",
+            "ci_checks": {},
+            "error": None,
+            "retry_count": 0,
+            "final_result": {}
+        }
+        
+        executor_node(state)
+        
+        # Verify execute was called with source_pr_number=None
+        mock_execute.assert_called_once()
+        call_kwargs = mock_execute.call_args[1]
+        assert call_kwargs["source_pr_number"] is None
+
+
 class TestLangGraphDryRun:
     """Tests for dry_run mode handling in LangGraph nodes"""
     
