@@ -639,6 +639,12 @@
     ]
   ],
   [
+    "/api/livez",
+    [
+      "GET"
+    ]
+  ],
+  [
     "/api/meta-agent/ooda-cycle",
     [
       "POST"
@@ -1105,6 +1111,12 @@
   ],
   [
     "/healthz",
+    [
+      "GET"
+    ]
+  ],
+  [
+    "/livez",
     [
       "GET"
     ]
