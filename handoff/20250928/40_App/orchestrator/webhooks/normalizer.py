@@ -105,6 +105,64 @@ def is_self_generated_review(event: "WebhookEvent") -> bool:
     return False
 
 
+def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
+    """
+    Check if a PR event should be skipped because it's from an orchestrator-generated branch.
+
+    Issue: Docs PR Noise Reduction
+    When the orchestrator creates a docs PR (branch: orchestrator/*), GitHub sends
+    PR webhooks back. Without this check, the orchestrator would process its own
+    PR events and potentially create more docs PRs, causing noise.
+
+    This is a zero-cost check that uses only the webhook payload data.
+
+    Args:
+        event: The webhook event to check
+
+    Returns:
+        True if this is an orchestrator-generated PR that should be skipped
+    """
+    # Only check PR-related events
+    pr_event_types = {
+        WebhookEventType.PR_OPENED,
+        WebhookEventType.PR_CLOSED,
+        WebhookEventType.PR_MERGED,
+        WebhookEventType.PR_UPDATED,
+        WebhookEventType.PR_REVIEWED,
+    }
+    if event.event_type not in pr_event_types:
+        return False
+
+    # Extract head branch from raw payload
+    raw_payload = event.raw_payload or {}
+    pr_data = raw_payload.get("pull_request", {})
+    head_ref = pr_data.get("head", {}).get("ref", "")
+
+    # Type guard: ensure head_ref is a string to prevent AttributeError
+    # Malformed payloads might have None, int, dict, etc.
+    if not isinstance(head_ref, str):
+        head_ref = ""
+
+    # Check if branch starts with orchestrator/ prefix
+    if head_ref.startswith("orchestrator/"):
+        repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+        logger.info(
+            "[EventNormalizer] Skipping orchestrator-generated PR event",
+            extra={
+                "operation": "orchestrator_pr_skip",
+                "event_id": event.event_id,
+                "repo": repo,
+                "pr_number": event.resource_id,
+                "head_ref": head_ref,
+                "event_type": event.event_type.value,
+                "reason": "orchestrator_branch_prefix",
+            }
+        )
+        return True
+
+    return False
+
+
 def is_internal_repo_allowed(repo: str) -> bool:
     """
     Check if an internal repo is allowed for AI review in Staging.
@@ -474,6 +532,13 @@ class EventNormalizer:
         # When the orchestrator posts a review, GitHub sends a PR_REVIEWED webhook.
         # Without this check, we would process our own review and create an infinite loop.
         if is_self_generated_review(event):
+            return False
+
+        # P2: Orchestrator Branch Detection - Skip PRs from orchestrator/* branches
+        # Issue: Docs PR Noise Reduction
+        # When the orchestrator creates a docs PR, GitHub sends PR webhooks back.
+        # Without this check, we would process our own PRs and create more noise.
+        if should_skip_orchestrator_pr_event(event):
             return False
 
         # P0: Disable PR_COMMENTED events entirely (CTO decision 2025-12-22)
