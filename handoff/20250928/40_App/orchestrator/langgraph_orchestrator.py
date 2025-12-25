@@ -4360,101 +4360,101 @@ def run_orchestrator(
             extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
         )
 
-        app = create_orchestrator_graph(checkpointer=checkpointer)
+    app = create_orchestrator_graph(checkpointer=checkpointer)
 
-        # Issue #2260: Use helper to create base initial state
-        initial_state = _create_base_initial_state(
-            goal=goal,
-            trace_id=trace_id,
-            repo=repo,
-            task_type="default",
-        )
+    # Issue #2260: Use helper to create base initial state
+    initial_state = _create_base_initial_state(
+        goal=goal,
+        trace_id=trace_id,
+        repo=repo,
+        task_type="default",
+    )
 
-        # Issue: Phase B-B - Merge PR context into initial state
-        # pr_number: 0 is treated as "no PR" by downstream nodes, so only set if valid
-        if pr_number > 0:
-            initial_state["pr_number"] = pr_number
-        if pr_url:
-            initial_state["pr_url"] = pr_url
+    # Issue: Phase B-B - Merge PR context into initial state
+    # pr_number: 0 is treated as "no PR" by downstream nodes, so only set if valid
+    if pr_number > 0:
+        initial_state["pr_number"] = pr_number
+    if pr_url:
+        initial_state["pr_url"] = pr_url
 
-        config = {"configurable": {"thread_id": trace_id}}
+    config = {"configurable": {"thread_id": trace_id}}
 
-        try:
-            result = app.invoke(initial_state, config)
+    try:
+        result = app.invoke(initial_state, config)
 
-            final_result = result.get("final_result", {})
+        final_result = result.get("final_result", {})
 
-            # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
-            # Use default values to avoid "status=None" in logs
-            result_status = final_result.get("status") or "unknown"
-            result_pr_url = final_result.get("pr_url") or ""
-            logger.info(
-                f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url='{result_pr_url}'",
-                extra={
-                    "operation": "run_orchestrator",
-                    "trace_id": trace_id,
-                    "status": result_status,
-                    "pr_url": result_pr_url
-                }
-            )
-
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
-
-            ci_state = final_result.get("ci_state", "unknown")
-            agent_eval.record_workflow_result(
-                trace_id,
-                status="success",
-                pr_created=bool(final_result.get("pr_url")),
-                ci_passed=ci_state == "success",
-                code_quality_score=result.get("code_quality_score", 100),
-                pr_touched=bool(final_result.get("pr_url")),
-                pr_opened=bool(final_result.get("pr_url")),
-                code_changed=True,
-                ci_state=ci_state
-            )
-            agent_eval.complete_workflow_metrics(trace_id)
-
-            return final_result
-
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"LangGraph orchestrator failed: {error_msg}", extra={
+        # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
+        # Use default values to avoid "status=None" in logs
+        result_status = final_result.get("status") or "unknown"
+        result_pr_url = final_result.get("pr_url") or ""
+        logger.info(
+            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url='{result_pr_url}'",
+            extra={
                 "operation": "run_orchestrator",
                 "trace_id": trace_id,
-                "error": error_msg
-            })
-
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
-
-            failure_recorder = _get_failure_recorder()
-            failure_recorder.record_failure_from_state(
-                state={"trace_id": trace_id, "goal": goal, "repo": repo},
-                error_type="workflow_exception",
-                error_message=error_msg
-            )
-
-            agent_eval.record_workflow_result(
-                trace_id,
-                status="error",
-                pr_created=False,
-                ci_passed=False,
-                pr_touched=False,
-                pr_opened=False,
-                code_changed=True,
-                ci_state="error"
-            )
-            agent_eval.complete_workflow_metrics(trace_id)
-
-            return {
-                "trace_id": trace_id,
-                "pr_url": None,
-                "ci_state": "error",
-                "status": "error",
-                "error": error_msg,
-                "timestamp": datetime.utcnow().isoformat()
+                "status": result_status,
+                "pr_url": result_pr_url
             }
+        )
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
+
+        ci_state = final_result.get("ci_state", "unknown")
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="success",
+            pr_created=bool(final_result.get("pr_url")),
+            ci_passed=ci_state == "success",
+            code_quality_score=result.get("code_quality_score", 100),
+            pr_touched=bool(final_result.get("pr_url")),
+            pr_opened=bool(final_result.get("pr_url")),
+            code_changed=True,
+            ci_state=ci_state
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
+        return final_result
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"LangGraph orchestrator failed: {error_msg}", extra={
+            "operation": "run_orchestrator",
+            "trace_id": trace_id,
+            "error": error_msg
+        })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+        failure_recorder = _get_failure_recorder()
+        failure_recorder.record_failure_from_state(
+            state={"trace_id": trace_id, "goal": goal, "repo": repo},
+            error_type="workflow_exception",
+            error_message=error_msg
+        )
+
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="error",
+            pr_created=False,
+            ci_passed=False,
+            pr_touched=False,
+            pr_opened=False,
+            code_changed=True,
+            ci_state="error"
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
+        return {
+            "trace_id": trace_id,
+            "pr_url": None,
+            "ci_state": "error",
+            "status": "error",
+            "error": error_msg,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
 def run_review_follow_up_orchestrator(
