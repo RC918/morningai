@@ -225,51 +225,67 @@ class TestCheckpointerDocumentation:
 
 
 class TestCheckpointerSuccessPaths:
-    """P3 Follow-up: Tests for successful checkpointer initialization paths"""
+    """P3 Follow-up: Tests for successful checkpointer initialization paths
+
+    Note (Dec 2025): Connection Pooling Architecture Change
+    - PostgreSQL checkpointer now uses postgres_checkpointer_context() for proper connection lifecycle
+    - get_checkpointer() only handles Redis/Memory checkpointers to prevent connection leaks
+    """
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
-    def test_postgres_checkpointer_selected_when_configured(self):
-        """Test PostgresSaver is selected when USE_POSTGRES_CHECKPOINTER=true and DATABASE_URL exists
+    def test_postgres_checkpointer_context_returns_checkpointer(self):
+        """Test postgres_checkpointer_context() returns PostgresSaver with pooled connection
 
-        Note (Dec 2025): PostgresSaver.from_conn_string() returns a context manager in
-        langgraph-checkpoint-postgres>=2.0.0. The fix uses psycopg.connect() directly with
-        autocommit=True and row_factory=dict_row, then passes the connection to PostgresSaver(conn).
+        Note (Dec 2025): PostgreSQL checkpointer now uses connection pooling via psycopg_pool.
+        The postgres_checkpointer_context() context manager ensures connections are properly
+        returned to the pool after use, preventing connection leaks.
         """
         try:
             pytest.importorskip("langgraph.checkpoint.postgres")
-            pytest.importorskip("psycopg")
+            pytest.importorskip("psycopg_pool")
         except pytest.skip.Exception:
-            pytest.skip("langgraph-checkpoint-postgres or psycopg not installed")
+            pytest.skip("langgraph-checkpoint-postgres or psycopg_pool not installed")
 
         from unittest.mock import MagicMock
-        from psycopg.rows import dict_row
+        from contextlib import contextmanager
 
+        # Create mock connection and pool
         mock_conn = MagicMock()
         mock_pg_instance = MagicMock()
         mock_pg_class = MagicMock(return_value=mock_pg_instance)
 
+        # Create a mock pool that returns mock_conn via context manager
+        mock_pool = MagicMock()
+
+        @contextmanager
+        def mock_connection_context():
+            yield mock_conn
+
+        mock_pool.connection = mock_connection_context
+
         with patch('langgraph_orchestrator.settings') as mock_settings:
-            mock_settings.use_postgres_checkpointer = True
             mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
-            mock_settings.use_redis_checkpointer = False
-            mock_settings.redis_url = None
 
             with patch('langgraph_orchestrator.logger'):
-                with patch('psycopg.connect', return_value=mock_conn) as mock_psycopg_connect:
+                with patch('langgraph_orchestrator._get_postgres_pool', return_value=mock_pool):
                     with patch('langgraph.checkpoint.postgres.PostgresSaver', mock_pg_class):
-                        from langgraph_orchestrator import get_checkpointer
-                        result = get_checkpointer()
+                        from langgraph_orchestrator import postgres_checkpointer_context
 
-                        # Verify psycopg.connect was called with correct parameters
-                        mock_psycopg_connect.assert_called_once_with(
-                            "postgresql://user:pass@localhost:5432/db",
-                            autocommit=True,
-                            row_factory=dict_row
-                        )
-                        # Verify PostgresSaver was instantiated with the connection
-                        mock_pg_class.assert_called_once_with(mock_conn)
-                        mock_pg_instance.setup.assert_called_once()
-                        assert result is mock_pg_instance
+                        with postgres_checkpointer_context() as checkpointer:
+                            # Verify PostgresSaver was instantiated with the connection
+                            mock_pg_class.assert_called_once_with(mock_conn)
+                            mock_pg_instance.setup.assert_called_once()
+                            assert checkpointer is mock_pg_instance
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_postgres_checkpointer_context_returns_none_when_pool_unavailable(self):
+        """Test postgres_checkpointer_context() yields None when pool is unavailable"""
+        with patch('langgraph_orchestrator.logger'):
+            with patch('langgraph_orchestrator._get_postgres_pool', return_value=None):
+                from langgraph_orchestrator import postgres_checkpointer_context
+
+                with postgres_checkpointer_context() as checkpointer:
+                    assert checkpointer is None
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_redis_checkpointer_selected_when_configured(self):
