@@ -2005,6 +2005,10 @@ def should_proceed_after_policy(state: AgentState) -> str:
 def executor_node(state: AgentState) -> AgentState:
     """
     Executor node: Executes the current step in the plan
+
+    Issue #2918: Pass source_pr_number to execute() for more precise dedup key generation.
+    The pr_number in state comes from webhook context (resource_id) and represents
+    the source PR that triggered this workflow.
     """
     from graph import execute
 
@@ -2016,18 +2020,27 @@ def executor_node(state: AgentState) -> AgentState:
     repo = state["repo"]
     current_step = state["current_step"]
     plan = state["plan"]
+    # Issue #2918: Extract source PR number from state for dedup key generation
+    # pr_number comes from webhook context (resource_id) via run_orchestrator()
+    source_pr_number = state.get("pr_number", 0) or None
+    if source_pr_number == 0:
+        source_pr_number = None
 
     metrics.record_node_start("executor", trace_id)
 
-    logger.info(f"[Executor] Executing step {current_step + 1}/{len(plan)}", extra={
+    logger.info(f"[Executor] Executing step {current_step + 1}/{len(plan)} source_pr_number={source_pr_number}", extra={
         "operation": "executor",
         "trace_id": trace_id,
-        "step": plan[current_step] if current_step < len(plan) else "unknown"
+        "step": plan[current_step] if current_step < len(plan) else "unknown",
+        "source_pr_number": source_pr_number,
     })
 
     success = True
     try:
-        pr_url, ci_state, trace_id = execute(goal, repo, trace_id=trace_id)
+        # Issue #2918: Pass source_pr_number for more precise dedup key generation
+        pr_url, ci_state, trace_id = execute(
+            goal, repo, trace_id=trace_id, source_pr_number=source_pr_number
+        )
 
         state["pr_url"] = pr_url
         state["ci_state"] = ci_state
