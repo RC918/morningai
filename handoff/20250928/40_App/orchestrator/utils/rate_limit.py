@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 # Lua script for atomic check-and-increment rate limiting
 # This ensures no race condition can cause the limit to be exceeded
 # Returns: {allowed (0 or 1), current_count}
+#
+# TTL handling (per Gemini Code Assist review):
+# - Set EXPIRE only on key creation (new_count == 1) for efficiency
+# - Also set EXPIRE if key exists but has no TTL (TTL == -1) for crash recovery
+#   This handles the edge case where Redis crashed between INCR and EXPIRE
 RATE_LIMIT_LUA_SCRIPT = """
 local key = KEYS[1]
 local max_limit = tonumber(ARGV[1])
@@ -36,9 +41,13 @@ if current >= max_limit then
     return {0, current}  -- blocked
 end
 
--- Increment and set expiry atomically
+-- Increment the key
 local new_count = redis.call('INCR', key)
-redis.call('EXPIRE', key, expiry_seconds)
+
+-- Set expiry on creation, or repair if TTL is missing (crash recovery)
+if new_count == 1 or redis.call('TTL', key) == -1 then
+    redis.call('EXPIRE', key, expiry_seconds)
+end
 
 return {1, new_count}  -- allowed
 """
