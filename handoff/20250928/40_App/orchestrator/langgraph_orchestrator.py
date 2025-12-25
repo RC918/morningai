@@ -4529,108 +4529,108 @@ def run_review_follow_up_orchestrator(
     # Create graph with review_intake as entry point
     app = create_orchestrator_graph(entry_point="review_intake", checkpointer=checkpointer)
 
-        # Issue #2260: Use helper to create base initial state
-        initial_state = _create_base_initial_state(
-            goal=goal,
-            trace_id=trace_id,
-            repo=repo,
-            branch=review_task.get("branch", ""),
-            task_type="review_follow_up",
-        )
-        # Add review follow-up specific fields
-        initial_state.update({
+    # Issue #2260: Use helper to create base initial state
+    initial_state = _create_base_initial_state(
+        goal=goal,
+        trace_id=trace_id,
+        repo=repo,
+        branch=review_task.get("branch", ""),
+        task_type="review_follow_up",
+    )
+    # Add review follow-up specific fields
+    initial_state.update({
+        "original_pr_number": original_pr_number,
+        "comment_url": review_task.get("comment_url", ""),
+        "comment_body": comment_body,
+        "review_file_path": review_task.get("file_path", ""),
+        "review_line_number": review_task.get("line_number", 0),
+        "triage_result": review_task.get("triage_result", {}),
+        "pr_context": review_task.get("pr_context", {}),
+        "review_follow_up_action": review_task.get("review_follow_up_action", ""),
+        "requires_hitl_approval": review_task.get("requires_approval", False),
+    })
+
+    config = {"configurable": {"thread_id": trace_id}}
+
+    try:
+        result = app.invoke(initial_state, config)
+
+        final_result = result.get("final_result", {})
+
+        logger.info("Review Follow-up orchestrator completed", extra={
+            "operation": "run_review_follow_up_orchestrator",
+            "trace_id": trace_id,
+            "status": final_result.get("status"),
+            "pr_url": final_result.get("pr_url"),
             "original_pr_number": original_pr_number,
-            "comment_url": review_task.get("comment_url", ""),
-            "comment_body": comment_body,
-            "review_file_path": review_task.get("file_path", ""),
-            "review_line_number": review_task.get("line_number", 0),
-            "triage_result": review_task.get("triage_result", {}),
-            "pr_context": review_task.get("pr_context", {}),
-            "review_follow_up_action": review_task.get("review_follow_up_action", ""),
-            "requires_hitl_approval": review_task.get("requires_approval", False),
         })
 
-        config = {"configurable": {"thread_id": trace_id}}
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
 
-        try:
-            result = app.invoke(initial_state, config)
+        ci_state = final_result.get("ci_state", "unknown")
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="success",
+            pr_created=bool(final_result.get("pr_url")),
+            ci_passed=ci_state == "success",
+            code_quality_score=result.get("code_quality_score", 100),
+            pr_touched=bool(final_result.get("pr_url")),
+            pr_opened=False,
+            code_changed=True,
+            ci_state=ci_state
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
 
-            final_result = result.get("final_result", {})
+        return final_result
 
-            logger.info("Review Follow-up orchestrator completed", extra={
-                "operation": "run_review_follow_up_orchestrator",
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Review Follow-up orchestrator failed: {error_msg}", extra={
+            "operation": "run_review_follow_up_orchestrator",
+            "trace_id": trace_id,
+            "error": error_msg,
+            "original_pr_number": original_pr_number,
+        })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+        failure_recorder = _get_failure_recorder()
+        failure_recorder.record_failure_from_state(
+            state={
                 "trace_id": trace_id,
-                "status": final_result.get("status"),
-                "pr_url": final_result.get("pr_url"),
-                "original_pr_number": original_pr_number,
-            })
-
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
-
-            ci_state = final_result.get("ci_state", "unknown")
-            agent_eval.record_workflow_result(
-                trace_id,
-                status="success",
-                pr_created=bool(final_result.get("pr_url")),
-                ci_passed=ci_state == "success",
-                code_quality_score=result.get("code_quality_score", 100),
-                pr_touched=bool(final_result.get("pr_url")),
-                pr_opened=False,
-                code_changed=True,
-                ci_state=ci_state
-            )
-            agent_eval.complete_workflow_metrics(trace_id)
-
-            return final_result
-
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Review Follow-up orchestrator failed: {error_msg}", extra={
-                "operation": "run_review_follow_up_orchestrator",
-                "trace_id": trace_id,
-                "error": error_msg,
-                "original_pr_number": original_pr_number,
-            })
-
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
-
-            failure_recorder = _get_failure_recorder()
-            failure_recorder.record_failure_from_state(
-                state={
-                    "trace_id": trace_id,
-                    "goal": goal,
-                    "repo": repo,
-                    "task_type": "review_follow_up",
-                    "original_pr_number": original_pr_number,
-                },
-                error_type="review_follow_up_exception",
-                error_message=error_msg
-            )
-
-            agent_eval.record_workflow_result(
-                trace_id,
-                status="error",
-                pr_created=False,
-                ci_passed=False,
-                pr_touched=False,
-                pr_opened=False,
-                code_changed=True,
-                ci_state="error"
-            )
-            agent_eval.complete_workflow_metrics(trace_id)
-
-            return {
-                "trace_id": trace_id,
-                "pr_url": None,
-                "ci_state": "error",
-                "status": "error",
-                "error": error_msg,
+                "goal": goal,
+                "repo": repo,
                 "task_type": "review_follow_up",
                 "original_pr_number": original_pr_number,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            },
+            error_type="review_follow_up_exception",
+            error_message=error_msg
+        )
+
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="error",
+            pr_created=False,
+            ci_passed=False,
+            pr_touched=False,
+            pr_opened=False,
+            code_changed=True,
+            ci_state="error"
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
+
+        return {
+            "trace_id": trace_id,
+            "pr_url": None,
+            "ci_state": "error",
+            "status": "error",
+            "error": error_msg,
+            "task_type": "review_follow_up",
+            "original_pr_number": original_pr_number,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 
 def run_internal_review_orchestrator(
@@ -4706,132 +4706,132 @@ def run_internal_review_orchestrator(
 
     app = create_orchestrator_graph(entry_point="internal_review", checkpointer=checkpointer)
 
-        # Issue #2260: Use helper to create base initial state
-        initial_state = _create_base_initial_state(
-            goal=goal,
-            trace_id=trace_id,
-            repo=repo,
-            branch=internal_review_task.get("branch", ""),
-            task_type="internal_review",
-        )
-        # Override fields with task-specific values
-        initial_state.update({
-            "pr_url": internal_review_task.get("pr_url", ""),
-            "pr_number": internal_review_task.get("pr_number", 0),
-            "ci_state": internal_review_task.get("ci_state", "unknown"),
-            "ci_checks": internal_review_task.get("ci_checks", {}),
-            "code_quality_score": internal_review_task.get("code_quality_score", 100),
+    # Issue #2260: Use helper to create base initial state
+    initial_state = _create_base_initial_state(
+        goal=goal,
+        trace_id=trace_id,
+        repo=repo,
+        branch=internal_review_task.get("branch", ""),
+        task_type="internal_review",
+    )
+    # Override fields with task-specific values
+    initial_state.update({
+        "pr_url": internal_review_task.get("pr_url", ""),
+        "pr_number": internal_review_task.get("pr_number", 0),
+        "ci_state": internal_review_task.get("ci_state", "unknown"),
+        "ci_checks": internal_review_task.get("ci_checks", {}),
+        "code_quality_score": internal_review_task.get("code_quality_score", 100),
+        "original_pr_number": original_pr_number,
+        "comment_url": internal_review_task.get("comment_url", ""),
+        "comment_body": comment_body,
+        "review_file_path": internal_review_task.get("file_path", ""),
+        "review_line_number": internal_review_task.get("line_number", 0),
+        "triage_result": internal_review_task.get("triage_result", {}),
+        "pr_context": internal_review_task.get("pr_context", {}),
+        "requires_hitl_approval": internal_review_task.get("requires_approval", False),
+        # Internal review specific fields
+        "internal_review_mode": True,
+        "initial_ai_review": internal_review_task.get("initial_ai_review", {}),
+        "follow_up_summary": internal_review_task.get("follow_up_summary", {}),
+        "internal_review_result": {},
+        "internal_review_decision": "",
+        "ai_reviewer_agreement": "",
+    })
+
+    config = {"configurable": {"thread_id": trace_id}}
+
+    try:
+        result = app.invoke(initial_state, config)
+
+        internal_review_result = result.get("internal_review_result", {})
+        final_result = result.get("final_result", {})
+
+        logger.info("Internal Review orchestrator completed", extra={
+            "operation": "run_internal_review_orchestrator",
+            "trace_id": trace_id,
+            "internal_review_decision": result.get("internal_review_decision"),
+            "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
+            "requires_hitl": result.get("requires_hitl_approval"),
             "original_pr_number": original_pr_number,
-            "comment_url": internal_review_task.get("comment_url", ""),
-            "comment_body": comment_body,
-            "review_file_path": internal_review_task.get("file_path", ""),
-            "review_line_number": internal_review_task.get("line_number", 0),
-            "triage_result": internal_review_task.get("triage_result", {}),
-            "pr_context": internal_review_task.get("pr_context", {}),
-            "requires_hitl_approval": internal_review_task.get("requires_approval", False),
-            # Internal review specific fields
-            "internal_review_mode": True,
-            "initial_ai_review": internal_review_task.get("initial_ai_review", {}),
-            "follow_up_summary": internal_review_task.get("follow_up_summary", {}),
-            "internal_review_result": {},
-            "internal_review_decision": "",
-            "ai_reviewer_agreement": "",
         })
 
-        config = {"configurable": {"thread_id": trace_id}}
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
 
-        try:
-            result = app.invoke(initial_state, config)
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="success",
+            pr_created=bool(final_result.get("pr_url")),
+            ci_passed=False,
+            code_quality_score=result.get("code_quality_score", 100),
+            pr_touched=bool(final_result.get("pr_url")),
+            pr_opened=False,
+            code_changed=False,
+            ci_state="unknown"
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
 
-            internal_review_result = result.get("internal_review_result", {})
-            final_result = result.get("final_result", {})
+        return {
+            "trace_id": trace_id,
+            "task_type": "internal_review",
+            "original_pr_number": original_pr_number,
+            "internal_review_result": internal_review_result,
+            "internal_review_decision": result.get("internal_review_decision", ""),
+            "ai_reviewer_agreement": result.get("ai_reviewer_agreement", ""),
+            "requires_hitl_approval": result.get("requires_hitl_approval", False),
+            "ci_state": result.get("ci_state", "unknown"),
+            "code_quality_score": result.get("code_quality_score", 100),
+            "status": "success",
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
-            logger.info("Internal Review orchestrator completed", extra={
-                "operation": "run_internal_review_orchestrator",
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Internal Review orchestrator failed: {error_msg}", extra={
+            "operation": "run_internal_review_orchestrator",
+            "trace_id": trace_id,
+            "error": error_msg,
+            "original_pr_number": original_pr_number,
+        })
+
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
+
+        failure_recorder = _get_failure_recorder()
+        failure_recorder.record_failure_from_state(
+            state={
                 "trace_id": trace_id,
-                "internal_review_decision": result.get("internal_review_decision"),
-                "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
-                "requires_hitl": result.get("requires_hitl_approval"),
-                "original_pr_number": original_pr_number,
-            })
-
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
-
-            agent_eval.record_workflow_result(
-                trace_id,
-                status="success",
-                pr_created=bool(final_result.get("pr_url")),
-                ci_passed=False,
-                code_quality_score=result.get("code_quality_score", 100),
-                pr_touched=bool(final_result.get("pr_url")),
-                pr_opened=False,
-                code_changed=False,
-                ci_state="unknown"
-            )
-            agent_eval.complete_workflow_metrics(trace_id)
-
-            return {
-                "trace_id": trace_id,
+                "goal": goal,
+                "repo": repo,
                 "task_type": "internal_review",
                 "original_pr_number": original_pr_number,
-                "internal_review_result": internal_review_result,
-                "internal_review_decision": result.get("internal_review_decision", ""),
-                "ai_reviewer_agreement": result.get("ai_reviewer_agreement", ""),
-                "requires_hitl_approval": result.get("requires_hitl_approval", False),
-                "ci_state": result.get("ci_state", "unknown"),
-                "code_quality_score": result.get("code_quality_score", 100),
-                "status": "success",
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            },
+            error_type="internal_review_exception",
+            error_message=error_msg
+        )
 
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Internal Review orchestrator failed: {error_msg}", extra={
-                "operation": "run_internal_review_orchestrator",
-                "trace_id": trace_id,
-                "error": error_msg,
-                "original_pr_number": original_pr_number,
-            })
+        agent_eval.record_workflow_result(
+            trace_id,
+            status="error",
+            pr_created=False,
+            ci_passed=False,
+            pr_touched=False,
+            pr_opened=False,
+            code_changed=False,
+            ci_state="unknown"
+        )
+        agent_eval.complete_workflow_metrics(trace_id)
 
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_workflow_complete(trace_id, status="error", latency_ms=latency_ms)
-
-            failure_recorder = _get_failure_recorder()
-            failure_recorder.record_failure_from_state(
-                state={
-                    "trace_id": trace_id,
-                    "goal": goal,
-                    "repo": repo,
-                    "task_type": "internal_review",
-                    "original_pr_number": original_pr_number,
-                },
-                error_type="internal_review_exception",
-                error_message=error_msg
-            )
-
-            agent_eval.record_workflow_result(
-                trace_id,
-                status="error",
-                pr_created=False,
-                ci_passed=False,
-                pr_touched=False,
-                pr_opened=False,
-                code_changed=False,
-                ci_state="unknown"
-            )
-            agent_eval.complete_workflow_metrics(trace_id)
-
-            return {
-                "trace_id": trace_id,
-                "task_type": "internal_review",
-                "original_pr_number": original_pr_number,
-                "internal_review_result": {},
-                "internal_review_decision": "escalate",
-                "ai_reviewer_agreement": "disagree",
-                "requires_hitl_approval": True,
-                "ci_state": "error",
-                "status": "error",
-                "error": error_msg,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+        return {
+            "trace_id": trace_id,
+            "task_type": "internal_review",
+            "original_pr_number": original_pr_number,
+            "internal_review_result": {},
+            "internal_review_decision": "escalate",
+            "ai_reviewer_agreement": "disagree",
+            "requires_hitl_approval": True,
+            "ci_state": "error",
+            "status": "error",
+            "error": error_msg,
+            "timestamp": datetime.utcnow().isoformat()
+        }
