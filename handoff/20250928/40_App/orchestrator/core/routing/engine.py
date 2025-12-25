@@ -85,16 +85,16 @@ class ModelInfo:
 
 # Default model mappings per tier
 # Format: {tier: [(provider, model_name), ...]}
+# Cross-Generation Fallback: Tier 0/1 use AliCloud (Qwen3) as primary,
+# SiliconFlow (Qwen2.5) as degraded backup - no OpenAI/Gemini in fallback path
 DEFAULT_TIER_MODELS: Dict[Tier, List[tuple]] = {
     Tier.TIER_0: [
         ("alicloud", "qwen-max"),
-        ("openai", "gpt-4o"),
-        ("gemini", "gemini-1.5-pro"),
+        ("siliconflow", "Qwen/Qwen2.5-72B-Instruct"),  # Cross-gen fallback
     ],
     Tier.TIER_1: [
         ("alicloud", "qwen-plus"),
-        ("openai", "gpt-4o-mini"),
-        ("gemini", "gemini-1.5-flash"),
+        ("siliconflow", "Qwen/Qwen2.5-32B-Instruct"),  # Cross-gen fallback
     ],
     Tier.TIER_2: [
         ("alicloud", "qwen-turbo"),
