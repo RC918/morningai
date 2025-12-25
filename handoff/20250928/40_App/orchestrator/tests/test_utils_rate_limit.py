@@ -30,8 +30,14 @@ class TestCheckPRRateLimit:
     """Test check_pr_rate_limit function"""
     
     def test_allows_pr_within_limit(self):
-        """Should allow PR creation within rate limit"""
+        """Should allow PR creation within rate limit
+        
+        Issue #2937: Updated to reflect check-then-increment pattern.
+        Now we call get first to check, then incr if under limit.
+        """
         mock_redis = MagicMock()
+        # Current count is 4, under limit of 10
+        mock_redis.get.return_value = "4"
         mock_redis.incr.return_value = 5
         
         with patch('redis.Redis') as mock_redis_class:
@@ -41,13 +47,20 @@ class TestCheckPRRateLimit:
             
             assert allowed is True
             assert count == 5
+            assert mock_redis.get.called
             assert mock_redis.incr.called
             assert mock_redis.expire.called
     
     def test_blocks_pr_over_limit(self):
-        """Should block PR creation when over rate limit"""
+        """Should block PR creation when over rate limit
+        
+        Issue #2937: Updated to reflect check-then-increment pattern.
+        Now we check current count BEFORE incrementing, so mock.get returns
+        the current count and we don't call incr when rate limited.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 12
+        # Current count is already at 12, which is >= max_per_hour (10)
+        mock_redis.get.return_value = "12"
         
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
@@ -56,6 +69,8 @@ class TestCheckPRRateLimit:
             
             assert allowed is False
             assert count == 12
+            # Should NOT call incr when rate limited (Issue #2937 fix)
+            assert not mock_redis.incr.called
     
     def test_uses_redis_url_when_provided(self):
         """Should use Redis URL when provided"""
@@ -158,8 +173,13 @@ class TestCheckPRRateLimit:
             assert count == 0
     
     def test_custom_max_per_hour(self):
-        """Should respect custom max_per_hour parameter"""
+        """Should respect custom max_per_hour parameter
+        
+        Issue #2937: Updated to reflect check-then-increment pattern.
+        """
         mock_redis = MagicMock()
+        # First call: current count is 17, under limit of 20, so allowed
+        mock_redis.get.return_value = "17"
         mock_redis.incr.return_value = 18
         
         with patch('redis.Redis') as mock_redis_class:
@@ -170,7 +190,8 @@ class TestCheckPRRateLimit:
             assert allowed is True
             assert count == 18
             
-            mock_redis.incr.return_value = 22
+            # Second call: current count is 22, over limit of 20, so blocked
+            mock_redis.get.return_value = "22"
             allowed, count = check_pr_rate_limit('trace-vwx', max_per_hour=20)
             
             assert allowed is False
@@ -190,9 +211,13 @@ class TestCheckPRRateLimit:
             assert count == 10
     
     def test_boundary_condition_over_limit(self):
-        """Should block PR at limit + 1"""
+        """Should block PR at limit + 1
+        
+        Issue #2937: Updated to reflect check-then-increment pattern.
+        """
         mock_redis = MagicMock()
-        mock_redis.incr.return_value = 11
+        # Current count is 11, which is > max_per_hour (10), so blocked
+        mock_redis.get.return_value = "11"
         
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
@@ -339,35 +364,50 @@ class TestIntegration:
     """Test integration scenarios"""
     
     def test_sequential_pr_creation(self):
-        """Should track sequential PR creation correctly"""
+        """Should track sequential PR creation correctly
+        
+        Issue #2937: Updated to reflect check-then-increment pattern.
+        Now we mock both get (for checking) and incr (for incrementing).
+        """
         mock_redis = MagicMock()
-        counts = [1, 2, 3, 4, 5]
-        mock_redis.incr.side_effect = counts
+        # Simulate sequential counts: get returns 0,1,2,3,4 and incr returns 1,2,3,4,5
+        get_counts = [None, "1", "2", "3", "4"]
+        incr_counts = [1, 2, 3, 4, 5]
+        mock_redis.get.side_effect = get_counts
+        mock_redis.incr.side_effect = incr_counts
         
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
             
-            for i, expected_count in enumerate(counts):
+            for i, expected_count in enumerate(incr_counts):
                 allowed, count = check_pr_rate_limit(f'trace-{i}', max_per_hour=10)
                 assert allowed is True
                 assert count == expected_count
     
     def test_rate_limit_enforcement(self):
-        """Should enforce rate limit correctly"""
+        """Should enforce rate limit correctly
+        
+        Issue #2937: Updated to reflect check-then-increment pattern.
+        Now we check current count BEFORE incrementing.
+        """
         mock_redis = MagicMock()
         
         with patch('redis.Redis') as mock_redis_class:
             mock_redis_class.return_value = mock_redis
             
+            # First call: current count is 9, under limit of 10, so allowed
+            mock_redis.get.return_value = "9"
             mock_redis.incr.return_value = 10
             allowed, count = check_pr_rate_limit('trace-1', max_per_hour=10)
             assert allowed is True
             
-            mock_redis.incr.return_value = 11
+            # Second call: current count is 10, at limit of 10, so blocked (>= check)
+            mock_redis.get.return_value = "10"
             allowed, count = check_pr_rate_limit('trace-2', max_per_hour=10)
             assert allowed is False
             
-            mock_redis.incr.return_value = 12
+            # Third call: current count is 11, over limit of 10, so blocked
+            mock_redis.get.return_value = "11"
             allowed, count = check_pr_rate_limit('trace-3', max_per_hour=10)
             assert allowed is False
 
