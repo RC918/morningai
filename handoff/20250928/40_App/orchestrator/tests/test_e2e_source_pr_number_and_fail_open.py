@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 """
-E2E Tests for source_pr_number Flow and Fail-Open Monitoring
+Mock-Based Integration Tests for source_pr_number Flow and Fail-Open Monitoring
 
-Issue #2928: Webhook-driven E2E test for source_pr_number
-Issue #2934: E2E tests for fail-open monitoring
+Issue #2928: Webhook-driven test for source_pr_number
+Issue #2934: Tests for fail-open monitoring
+
+IMPORTANT: These are mock-based integration tests, NOT true end-to-end tests.
+They mock Redis and Sentry to test the behavior of the deduplication and
+monitoring logic without requiring live external services.
 
 These tests verify:
-1. source_pr_number is correctly passed end-to-end from webhook to dedup key generation
+1. source_pr_number is correctly passed from webhook payload to dedup key generation
 2. Fail-open monitoring correctly records events when Redis is unavailable
 3. Sentry alerts are triggered when fail-open threshold is exceeded
+4. Edge cases and boundary inputs are handled correctly
 
 Test Strategy:
 - Simulate webhook payloads with source PR information
 - Verify dedup key generation includes source_pr_number
 - Test fail-open behavior with mocked Redis failures
 - Verify Sentry breadcrumbs and alerts are recorded correctly
+- Test edge cases (boundary PR numbers, special characters, etc.)
 """
 import os
 import sys
@@ -37,12 +43,15 @@ from governance.pr_deduplication import (  # noqa: E402
 )
 
 
-class TestSourcePrNumberE2E:
+class TestSourcePrNumberIntegration:
     """
-    E2E tests for source_pr_number flow (Issue #2928).
+    Mock-based integration tests for source_pr_number flow (Issue #2928).
 
     These tests verify that source_pr_number is correctly passed
     from webhook payload through the orchestrator to dedup key generation.
+
+    Note: These tests mock external dependencies (Redis) and do not test
+    the actual HTTP webhook handler layer.
     """
 
     def test_dedup_key_includes_source_pr_number(self):
@@ -238,12 +247,15 @@ class TestSourcePrNumberE2E:
         )
 
 
-class TestFailOpenMonitoringE2E:
+class TestFailOpenMonitoringIntegration:
     """
-    E2E tests for fail-open monitoring (Issue #2934).
+    Mock-based integration tests for fail-open monitoring (Issue #2934).
 
     These tests verify that fail-open events are correctly recorded
     and alerts are triggered when thresholds are exceeded.
+
+    Note: These tests mock Redis and Sentry to test behavior without
+    requiring live external services.
     """
 
     def test_record_fail_open_event_adds_sentry_breadcrumb(self):
@@ -528,11 +540,14 @@ class TestConfigurableThresholds:
         assert exceeded is True
 
 
-class TestE2EWebhookToLeaseFlow:
+class TestWebhookToLeaseFlowIntegration:
     """
-    End-to-end tests simulating the complete webhook → lease flow.
+    Mock-based integration tests simulating the complete webhook → lease flow.
 
     These tests verify the entire flow from webhook receipt to lease acquisition.
+
+    Note: These tests mock Redis and do not test the actual HTTP webhook
+    handler layer or signature validation.
     """
 
     def test_complete_webhook_to_lease_flow_with_source_pr(self):
@@ -630,6 +645,217 @@ class TestE2EWebhookToLeaseFlow:
         # Verify fail-open behavior
         assert result.acquired is True
         assert "unavailable" in result.reason.lower() or "fail-open" in result.reason.lower()
+
+
+class TestEdgeCasesAndBoundaryInputs:
+    """
+    Edge case tests for boundary inputs and unusual scenarios.
+
+    These tests verify that the system handles edge cases correctly,
+    including boundary PR numbers, special characters, and malformed data.
+    """
+
+    def test_source_pr_number_zero(self):
+        """
+        Test that source_pr_number=0 is handled correctly.
+
+        While unlikely in real webhooks, this tests the boundary condition
+        where "is not None" logic is used.
+        """
+        repo = "RC918/morningai"
+        doc_file_path = "docs/generated/test-doc.md"
+
+        key_with_zero = generate_dedup_key(
+            repo=repo,
+            doc_file_path=doc_file_path,
+            source_pr_number=0
+        )
+
+        key_with_none = generate_dedup_key(
+            repo=repo,
+            doc_file_path=doc_file_path,
+            source_pr_number=None
+        )
+
+        # source_pr_number=0 should produce different key than None
+        assert key_with_zero != key_with_none, (
+            "source_pr_number=0 should be treated differently from None"
+        )
+
+        # Should be deterministic
+        key_with_zero_again = generate_dedup_key(
+            repo=repo,
+            doc_file_path=doc_file_path,
+            source_pr_number=0
+        )
+        assert key_with_zero == key_with_zero_again
+
+    def test_source_pr_number_negative(self):
+        """
+        Test that negative source_pr_number is handled without crashing.
+
+        While invalid in real scenarios, this ensures no exceptions are raised.
+        """
+        repo = "RC918/morningai"
+        doc_file_path = "docs/generated/test-doc.md"
+
+        # Should not raise exception
+        key = generate_dedup_key(
+            repo=repo,
+            doc_file_path=doc_file_path,
+            source_pr_number=-1
+        )
+
+        assert key is not None
+        assert key.startswith("RC918/morningai:")
+
+    def test_source_pr_number_very_large(self):
+        """
+        Test that very large source_pr_number is handled correctly.
+
+        Tests boundary condition with large integer values.
+        """
+        repo = "RC918/morningai"
+        doc_file_path = "docs/generated/test-doc.md"
+        large_pr_number = 2**31 - 1  # Max 32-bit signed integer
+
+        key = generate_dedup_key(
+            repo=repo,
+            doc_file_path=doc_file_path,
+            source_pr_number=large_pr_number
+        )
+
+        assert key is not None
+        assert key.startswith("RC918/morningai:")
+
+        # Should be deterministic
+        key_again = generate_dedup_key(
+            repo=repo,
+            doc_file_path=doc_file_path,
+            source_pr_number=large_pr_number
+        )
+        assert key == key_again
+
+    def test_doc_file_path_with_special_characters(self):
+        """
+        Test that doc_file_path with special characters is handled correctly.
+
+        Verifies slug sanitization in branch name generation.
+        """
+        repo = "RC918/morningai"
+        special_path = "docs/generated/test doc with spaces & symbols!.md"
+
+        branch = generate_deterministic_branch(
+            repo=repo,
+            doc_file_path=special_path,
+            source_pr_number=100
+        )
+
+        # Branch should be generated without crashing
+        assert branch is not None
+        assert branch.startswith("orchestrator/docs-")
+        # Branch should not contain spaces or special characters
+        assert " " not in branch
+        assert "&" not in branch
+        assert "!" not in branch
+
+    def test_doc_file_path_with_unicode(self):
+        """
+        Test that doc_file_path with unicode characters is handled correctly.
+        """
+        repo = "RC918/morningai"
+        unicode_path = "docs/generated/文档测试.md"
+
+        branch = generate_deterministic_branch(
+            repo=repo,
+            doc_file_path=unicode_path,
+            source_pr_number=100
+        )
+
+        # Branch should be generated without crashing
+        assert branch is not None
+        assert branch.startswith("orchestrator/docs-")
+
+    def test_doc_file_path_very_long(self):
+        """
+        Test that very long doc_file_path is handled correctly.
+
+        Verifies truncation logic in branch name generation.
+        """
+        repo = "RC918/morningai"
+        long_filename = "a" * 200 + ".md"
+        long_path = f"docs/generated/{long_filename}"
+
+        branch = generate_deterministic_branch(
+            repo=repo,
+            doc_file_path=long_path,
+            source_pr_number=100
+        )
+
+        # Branch should be generated without crashing
+        assert branch is not None
+        assert branch.startswith("orchestrator/docs-")
+        # Branch name should be reasonable length (not 200+ chars)
+        assert len(branch) < 100
+
+    def test_get_fail_open_count_with_invalid_redis_bytes(self):
+        """
+        Test that get_fail_open_count handles invalid Redis return values.
+
+        When Redis returns non-integer bytes, should treat as 0.
+        """
+        mock_redis = MagicMock()
+        # Return invalid bytes that can't be parsed as int
+        mock_redis.get.side_effect = [b"NaN", b"", b"invalid", None, None]
+
+        with patch('governance.pr_deduplication._get_redis_client', return_value=mock_redis):
+            # Should not raise exception, should return 0 for invalid values
+            count = get_fail_open_count(window_minutes=5)
+
+        # Invalid values should be treated as 0
+        assert count == 0
+
+    def test_check_fail_open_alert_threshold_sentry_raises(self):
+        """
+        Test that check_fail_open_alert_threshold handles Sentry exceptions.
+
+        When Sentry capture_message raises, should still return True
+        (threshold exceeded) and not crash.
+        """
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = b"10"  # High count to exceed threshold
+        mock_sentry = MagicMock()
+        mock_sentry.capture_message.side_effect = Exception("Sentry error")
+
+        with patch('governance.pr_deduplication._get_redis_client', return_value=mock_redis):
+            with patch.dict('sys.modules', {'sentry_sdk': mock_sentry}):
+                # Should not raise exception
+                exceeded = check_fail_open_alert_threshold()
+
+        # Should still return True (threshold exceeded)
+        assert exceeded is True
+
+    def test_record_fail_open_event_redis_execute_raises(self):
+        """
+        Test that _record_fail_open_event handles Redis pipeline execute failure.
+
+        When pipeline.execute() raises, should not crash.
+        """
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_pipeline.execute.side_effect = Exception("Redis execute error")
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipeline)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        # Should not raise exception
+        _record_fail_open_event(
+            trace_id="trace-123",
+            dedup_key="RC918/morningai:abc123",
+            reason="connection_error",
+            error="Connection refused",
+            redis_client=mock_redis
+        )
+        # Test passes if no exception is raised
 
 
 if __name__ == "__main__":
