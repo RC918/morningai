@@ -960,6 +960,8 @@ def post_pr_review(
 
         # DIAGNOSTIC: Log final GitHub payload structure for 422 debugging
         # Extract only structural fields (path, line, start_line, side, start_side) - no body content
+        # NOTE: Output data in message string because logger extra fields are not serialized
+        import json as _json
         payload_structures = [
             {
                 "path": c.get("path"),
@@ -971,15 +973,15 @@ def post_pr_review(
             }
             for c in gh_comments
         ]
+        payload_diagnostic = {
+            "pr_number": pr_number,
+            "comment_count": len(gh_comments),
+            "commit_id": commit_id[:8] if commit_id else None,
+            "payload_structures": payload_structures
+        }
         logger.info(
-            f"[GitHub] DIAGNOSTIC: Final payload for PR #{pr_number}",
-            extra={
-                "operation": "github_diagnostic",
-                "pr_number": pr_number,
-                "comment_count": len(gh_comments),
-                "commit_id": commit_id[:8] if commit_id else None,
-                "payload_structures": payload_structures
-            }
+            f"[GitHub] DIAGNOSTIC: Final payload for PR #{pr_number} | {_json.dumps(payload_diagnostic, separators=(',', ':'))}",
+            extra={"operation": "github_diagnostic"}
         )
 
         # Check dry-run mode
