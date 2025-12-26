@@ -3599,6 +3599,9 @@ def reviewer_node(state: AgentState) -> AgentState:
                                     lockfile_only=lockfile_only
                                 )
 
+                                # DIAGNOSTIC: Log diff_content hash and truncation_info for 422 debugging
+                                import hashlib
+                                diff_hash = hashlib.sha256(diff_content.encode()).hexdigest()[:16] if diff_content else "empty"
                                 logger.info(
                                     "[Reviewer] Retrieved PR diff for review",
                                     extra={
@@ -3608,7 +3611,19 @@ def reviewer_node(state: AgentState) -> AgentState:
                                         "diff_file_count": len(diff_files) if diff_files else 0,
                                         "diff_truncated": diff_truncated,
                                         # Phase B-B Telemetry: GitHub's total changed files
-                                        "github_total_files": github_total_files
+                                        "github_total_files": github_total_files,
+                                        # DIAGNOSTIC: diff_content hash for 422 debugging
+                                        "diff_content_hash": diff_hash,
+                                        "diff_content_length": len(diff_content) if diff_content else 0,
+                                        "diff_head_sha": diff_head_sha[:8] if diff_head_sha else None,
+                                        # DIAGNOSTIC: truncation_info for 422 debugging
+                                        "truncation_info": {
+                                            "original_file_count": github_total_files,
+                                            "included_file_count": included_file_count,
+                                            "original_line_count": original_line_count,
+                                            "included_line_count": included_line_count,
+                                            "ignored_file_count": ignored_file_count
+                                        }
                                     }
                                 )
                             else:
@@ -3665,6 +3680,30 @@ def reviewer_node(state: AgentState) -> AgentState:
                         # Phase B-B Telemetry: raw_comment_count before normalization
                         raw_llm_comments = llm_review["comments"]
                         raw_comment_count = len(raw_llm_comments)
+
+                        # DIAGNOSTIC: Log LLM raw comment output for 422 debugging
+                        # Extract only structural fields (file, line, start_line, end_line) - no message content
+                        raw_comment_structures = [
+                            {
+                                "file": c.get("file") or c.get("path") or c.get("file_path"),
+                                "line": c.get("line"),
+                                "start_line": c.get("start_line"),
+                                "end_line": c.get("end_line"),
+                                "severity": c.get("severity")
+                            }
+                            for c in raw_llm_comments
+                        ]
+                        logger.info(
+                            "[Reviewer] DIAGNOSTIC: LLM raw comment output",
+                            extra={
+                                "operation": "reviewer_diagnostic",
+                                "trace_id": trace_id,
+                                "pr_number": pr_number,
+                                "llm_provider": llm_provider,
+                                "raw_comment_count": raw_comment_count,
+                                "raw_comment_structures": raw_comment_structures
+                            }
+                        )
 
                         # Phase B-3.1: Normalize LLM comments using canonical schema
                         # This ensures start_line/end_line are properly set
@@ -4194,6 +4233,48 @@ def publisher_node(state: AgentState) -> AgentState:
 
     if diff_content and inline_comments:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
+
+        # DIAGNOSTIC: Log allowed_lines_map summary for 422 debugging
+        from review_comment_schema import get_diff_coverage_info
+        diff_coverage = get_diff_coverage_info(allowed_lines_map)
+        logger.info(
+            "[Publisher] DIAGNOSTIC: Diff coverage for validation",
+            extra={
+                "operation": "publisher_diagnostic",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "diff_coverage": diff_coverage,
+                "diff_content_length": len(diff_content) if diff_content else 0,
+                "diff_truncated": diff_truncated,
+                "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None
+            }
+        )
+
+        # DIAGNOSTIC: Log each comment's validation decision
+        for idx, comment in enumerate(inline_comments):
+            file_path = comment.get("file")
+            start_line = comment.get("start_line")
+            end_line = comment.get("end_line")
+            file_info = allowed_lines_map.get(file_path)
+            file_in_diff = file_path in allowed_lines_map
+            allowed_lines = file_info["allowed_lines"] if file_info else set()
+            line_in_allowed = end_line in allowed_lines if end_line else False
+            start_in_allowed = start_line in allowed_lines if start_line else True
+            logger.info(
+                f"[Publisher] DIAGNOSTIC: Comment {idx + 1} validation check",
+                extra={
+                    "operation": "publisher_diagnostic",
+                    "trace_id": trace_id,
+                    "comment_index": idx,
+                    "file": file_path,
+                    "start_line": start_line,
+                    "end_line": end_line,
+                    "file_in_diff": file_in_diff,
+                    "end_line_in_allowed": line_in_allowed,
+                    "start_line_in_allowed": start_in_allowed,
+                    "allowed_lines_sample": sorted(list(allowed_lines))[:20] if allowed_lines else []
+                }
+            )
 
         # Use strict mode for truncated diffs (safer)
         # Phase B-B: validate_inline_comments now returns downgrade_reasons

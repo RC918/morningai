@@ -958,6 +958,30 @@ def post_pr_review(
             result["success"] = True
             return result
 
+        # DIAGNOSTIC: Log final GitHub payload structure for 422 debugging
+        # Extract only structural fields (path, line, start_line, side, start_side) - no body content
+        payload_structures = [
+            {
+                "path": c.get("path"),
+                "line": c.get("line"),
+                "start_line": c.get("start_line"),
+                "side": c.get("side"),
+                "start_side": c.get("start_side"),
+                "body_length": len(c.get("body", "")) if c.get("body") else 0
+            }
+            for c in gh_comments
+        ]
+        logger.info(
+            f"[GitHub] DIAGNOSTIC: Final payload for PR #{pr_number}",
+            extra={
+                "operation": "github_diagnostic",
+                "pr_number": pr_number,
+                "comment_count": len(gh_comments),
+                "commit_id": commit_id[:8] if commit_id else None,
+                "payload_structures": payload_structures
+            }
+        )
+
         # Check dry-run mode
         if settings.github_review_posting_dry_run:
             logger.info(
