@@ -144,10 +144,38 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 
     repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
 
+    # Extract head branch from raw payload (needed for logging in both checks)
+    raw_payload = event.raw_payload or {}
+    pr_data = raw_payload.get("pull_request", {})
+    head_ref = pr_data.get("head", {}).get("ref", "")
+    if not isinstance(head_ref, str):
+        head_ref = ""
+
     # Check 1: Label filter - skip PRs with orchestrator-docs labels
     # This catches PRs created by any actor (including Devin) that have the orchestrator label
-    orchestrator_labels = {"orchestrator-docs", "orchestrator-docs-test"}
-    event_labels = set(label.lower() for label in (event.labels or []))
+    # Import constants from utils/constants.py to ensure single source of truth
+    from utils.constants import LABEL_ORCHESTRATOR_DOCS, LABEL_ORCHESTRATOR_DOCS_TEST
+    orchestrator_labels = {LABEL_ORCHESTRATOR_DOCS.lower(), LABEL_ORCHESTRATOR_DOCS_TEST.lower()}
+
+    # Type guard: filter out non-string labels to prevent AttributeError on .lower()
+    # GitHub handler may produce None values if label.get("name") returns None
+    event_labels_raw = event.labels if isinstance(event.labels, list) else []
+    event_labels = set()
+    for label in event_labels_raw:
+        if isinstance(label, str):
+            event_labels.add(label.lower())
+        else:
+            # Log warning for unexpected label type
+            logger.warning(
+                "[EventNormalizer] Unexpected label type in event",
+                extra={
+                    "operation": "label_type_warning",
+                    "event_id": event.event_id,
+                    "label_type": type(label).__name__,
+                    "label_value": str(label)[:100],
+                }
+            )
+
     matched_labels = orchestrator_labels & event_labels
 
     if matched_labels:
@@ -158,6 +186,7 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
                 "event_id": event.event_id,
                 "repo": repo,
                 "pr_number": event.resource_id,
+                "head_ref": head_ref,
                 "matched_labels": list(matched_labels),
                 "event_type": event.event_type.value,
                 "reason": "orchestrator_label_match",
@@ -166,16 +195,7 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
         return True
 
     # Check 2: Branch prefix - skip PRs from orchestrator/* branches
-    # Extract head branch from raw payload
-    raw_payload = event.raw_payload or {}
-    pr_data = raw_payload.get("pull_request", {})
-    head_ref = pr_data.get("head", {}).get("ref", "")
-
-    # Type guard: ensure head_ref is a string to prevent AttributeError
-    # Malformed payloads might have None, int, dict, etc.
-    if not isinstance(head_ref, str):
-        head_ref = ""
-
+    # (head_ref already extracted above for logging consistency)
     if head_ref.startswith("orchestrator/"):
         logger.info(
             "[EventNormalizer] Skipping orchestrator-generated PR event (branch match)",

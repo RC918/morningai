@@ -627,3 +627,150 @@ class TestFullWebhookFlowOrchestratorFiltering:
         # Orchestrator PRs should NOT be actionable even when merged
         is_actionable = normalizer.is_actionable(event)
         assert is_actionable is False
+
+    def test_label_filter_with_real_github_webhook_payload(self):
+        """
+        Integration test: Verify label filter works with real GitHub webhook payload.
+
+        Issue: Self-Trigger Loop Prevention (Dec 2025)
+        This test simulates the exact scenario that caused the self-trigger loop:
+        1. Orchestrator creates a docs PR with 'orchestrator-docs' label
+        2. GitHub sends PR_OPENED webhook with labels in the payload
+        3. GitHubWebhookHandler.parse_event() extracts labels from payload
+        4. EventNormalizer.is_actionable() should detect the label and skip
+
+        This test verifies the FULL webhook flow, not just the filter function.
+        """
+        # Real GitHub webhook payload structure with labels
+        # This matches the actual payload format from GitHub
+        github_webhook_payload = {
+            "action": "opened",
+            "pull_request": {
+                "number": 3005,
+                "title": "docs: update FAQ for feature X",
+                "body": "Auto-generated documentation update.",
+                "html_url": "https://github.com/RC918/morningai/pull/3005",
+                "state": "open",
+                "head": {
+                    "ref": "devin/1234567890-docs-update",  # NOT orchestrator/* branch
+                    "sha": "abc123def456",
+                },
+                "base": {
+                    "ref": "main",
+                },
+                "user": {"login": "RC918"},
+                # Labels are nested objects with "name" field in GitHub payload
+                "labels": [
+                    {"id": 1, "name": "orchestrator-docs", "color": "0366d6"},
+                    {"id": 2, "name": "documentation", "color": "0075ca"},
+                ],
+                "assignees": [],
+            },
+            "repository": {
+                "id": 123456,
+                "name": "morningai",
+                "full_name": "RC918/morningai",
+                "owner": {"login": "RC918"},
+            },
+            "sender": {
+                "login": "RC918",
+                "id": 67890,
+                "type": "User",
+            },
+        }
+
+        github_webhook_headers = {
+            "X-GitHub-Event": "pull_request",
+            "X-GitHub-Delivery": "test-delivery-label-filter",
+            "X-Hub-Signature-256": "sha256=fake_signature",
+        }
+
+        # Parse the webhook using the normalizer
+        normalizer = EventNormalizer()
+        event = normalizer.parse_event(
+            source=WebhookSource.GITHUB,
+            headers=github_webhook_headers,
+            payload=github_webhook_payload,
+        )
+
+        # Verify the event was parsed correctly
+        assert event is not None
+        assert event.event_type == WebhookEventType.PR_OPENED
+        assert event.actor_name == "RC918"
+        assert event.repo_owner == "RC918"
+        assert event.repo_name == "morningai"
+
+        # CRITICAL: Verify labels were extracted from payload
+        # GitHubWebhookHandler.parse_event() extracts labels as:
+        # labels = [label.get("name") for label in pr.get("labels", [])]
+        assert "orchestrator-docs" in event.labels, (
+            "Label 'orchestrator-docs' should be extracted from GitHub payload. "
+            f"Actual labels: {event.labels}"
+        )
+
+        # THE KEY ASSERTION: The event should NOT be actionable
+        # because it has the 'orchestrator-docs' label
+        is_actionable = normalizer.is_actionable(event)
+        assert is_actionable is False, (
+            "PR with 'orchestrator-docs' label should NOT be actionable! "
+            "This would cause a self-trigger loop."
+        )
+
+    def test_label_filter_with_none_label_name_in_payload(self):
+        """
+        Edge case: Verify label filter handles None label names gracefully.
+
+        GitHub handler extracts labels as: [label.get("name") for label in ...]
+        If a label object doesn't have a "name" field, this produces None.
+        The filter should handle this without crashing.
+        """
+        github_webhook_payload = {
+            "action": "opened",
+            "pull_request": {
+                "number": 3006,
+                "title": "Test PR with malformed labels",
+                "body": "Test body",
+                "html_url": "https://github.com/RC918/morningai/pull/3006",
+                "state": "open",
+                "head": {"ref": "feature/test-branch", "sha": "xyz789"},
+                "base": {"ref": "main"},
+                "user": {"login": "developer"},
+                # Malformed labels - one without "name" field
+                "labels": [
+                    {"id": 1, "name": "bug"},
+                    {"id": 2, "color": "ff0000"},  # Missing "name" field -> None
+                    {"id": 3, "name": "enhancement"},
+                ],
+                "assignees": [],
+            },
+            "repository": {
+                "name": "morningai",
+                "owner": {"login": "RC918"},
+            },
+            "sender": {"login": "developer", "id": 11111},
+        }
+
+        github_webhook_headers = {
+            "X-GitHub-Event": "pull_request",
+            "X-GitHub-Delivery": "test-delivery-malformed-labels",
+        }
+
+        normalizer = EventNormalizer()
+        event = normalizer.parse_event(
+            source=WebhookSource.GITHUB,
+            headers=github_webhook_headers,
+            payload=github_webhook_payload,
+        )
+
+        assert event is not None
+        # Labels should include None for the malformed label
+        # The filter should handle this gracefully
+        assert "bug" in event.labels
+        assert "enhancement" in event.labels
+
+        # Should NOT crash and should be actionable (no orchestrator-docs label)
+        is_actionable = normalizer.is_actionable(event)
+        assert is_actionable is True, (
+            "PR without orchestrator-docs label should be actionable, "
+            "even with malformed labels in payload."
+        )
