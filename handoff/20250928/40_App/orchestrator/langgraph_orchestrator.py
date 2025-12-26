@@ -986,6 +986,271 @@ class ResilientPostgresSaver:
         return getattr(self._inner, name)
 
 
+class DegradedPersistenceCheckpointer:
+    """
+    A failover checkpointer that implements 'soft landing' resilience.
+
+    Blueprint Alignment:
+        - Flow Controller v3: Fail-Fast Recovery (快速回復)
+        - Safety Governor v2: Self-Governed / 自我修復
+        - Telemetry v2: Observable degradation events
+
+    When the primary checkpointer (PostgreSQL) fails at runtime, this wrapper
+    automatically switches to a fallback checkpointer (MemorySaver) and marks
+    the workflow as running in "degraded persistence" mode.
+
+    Key Design Decisions:
+        1. Sticky Degradation: Once degraded, ALL subsequent operations use fallback.
+           This prevents "write to A, read from B" inconsistency that would cause
+           agent logic errors (hallucinations).
+
+        2. Loud Telemetry: Degradation events are logged at WARNING/ERROR level
+           to ensure visibility in monitoring dashboards.
+
+        3. MemorySaver Fallback: Uses in-memory storage (not Redis) to avoid
+           additional complexity from RediSearch requirements on Upstash.
+
+    Trade-offs:
+        - Crash-recovery: Degraded workflows cannot resume from checkpoint after restart
+        - Deterministic: Degradation events are logged for traceability (Telemetry v2)
+
+    Configuration:
+        - ENABLE_CHECKPOINT_FAILOVER: Feature flag to enable/disable (default: True)
+
+    Usage:
+        primary = get_postgres_checkpointer()
+        fallback = MemorySaver()
+        checkpointer = DegradedPersistenceCheckpointer(primary, fallback)
+        app = create_orchestrator_graph(checkpointer=checkpointer)
+    """
+
+    # Transient error patterns that trigger failover to fallback checkpointer.
+    # These patterns are matched against lowercased error messages.
+    # Centralized here for maintainability and consistency across all methods.
+    TRANSIENT_ERROR_PATTERNS = frozenset((
+        "ssl connection has been closed",
+        "the connection is closed",
+        "connection is closed",
+        "server closed the connection",
+        "connection reset by peer",
+        "connection timed out",
+        "could not connect to server",
+        "pipeline [bad]",
+        "circuit breaker open",
+        "all retries exhausted",
+    ))
+
+    def __init__(
+        self,
+        primary,
+        fallback,
+        trace_id: str = "unknown",
+    ):
+        """
+        Initialize DegradedPersistenceCheckpointer.
+
+        Args:
+            primary: The primary checkpointer (typically ResilientPostgresSaver)
+            fallback: The fallback checkpointer (typically MemorySaver)
+            trace_id: Trace ID for logging context
+        """
+        self._primary = primary
+        self._fallback = fallback
+        self._trace_id = trace_id
+        self._degraded = False
+        self._degraded_since: Optional[str] = None
+        self._degraded_operation: Optional[str] = None
+        self._degraded_error: Optional[str] = None
+
+    @property
+    def is_degraded(self) -> bool:
+        """Check if the checkpointer is in degraded mode."""
+        return self._degraded
+
+    def _maybe_failover(self, operation_name: str, error: Exception) -> None:
+        """
+        Handle failover to fallback checkpointer.
+
+        This method implements sticky degradation: once triggered, all subsequent
+        operations will use the fallback checkpointer.
+
+        Loud Telemetry: Logs at WARNING level to ensure visibility.
+        """
+        if self._degraded:
+            return
+
+        self._degraded = True
+        self._degraded_since = datetime.utcnow().isoformat()
+        self._degraded_operation = operation_name
+        self._degraded_error = str(error)
+
+        logger.warning(
+            f"CHECKPOINT DEGRADED: Primary checkpointer failed, switching to fallback. "
+            f"trace_id={self._trace_id} operation={operation_name} error='{self._degraded_error}' "
+            f"degraded_since={self._degraded_since}",
+            extra={
+                "operation": "degraded_persistence_checkpointer",
+                "event": "checkpoint_degraded",
+                "trace_id": self._trace_id,
+                "failed_operation": operation_name,
+                "error": self._degraded_error,
+                "error_type": type(error).__name__,
+                "degraded_since": self._degraded_since,
+                "checkpointer_mode": "degraded",
+            }
+        )
+
+    def _is_transient_error(self, error: Exception) -> bool:
+        """
+        Check if an error is transient and should trigger failover.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if the error is transient (connection/SSL issues), False otherwise
+        """
+        if isinstance(error, ResilientPostgresSaverCircuitOpen):
+            return True
+        error_str = str(error).lower()
+        return any(pattern in error_str for pattern in self.TRANSIENT_ERROR_PATTERNS)
+
+    def _execute_with_failover(self, operation_name: str, primary_op, fallback_op, *args, **kwargs):
+        """
+        Execute an operation with automatic failover on transient errors.
+
+        If already degraded, uses fallback directly (sticky degradation).
+        Otherwise, tries primary first and fails over on transient errors.
+        """
+        if self._degraded:
+            return fallback_op(*args, **kwargs)
+
+        try:
+            return primary_op(*args, **kwargs)
+        except Exception as e:
+            if self._is_transient_error(e):
+                self._maybe_failover(operation_name, e)
+                return fallback_op(*args, **kwargs)
+            else:
+                raise
+
+    def setup(self):
+        """Setup checkpoint tables with failover."""
+        if self._degraded:
+            return self._fallback.setup()
+
+        try:
+            return self._primary.setup()
+        except Exception as e:
+            self._maybe_failover("setup", e)
+            return self._fallback.setup()
+
+    def get(self, config):
+        """Get checkpoint with failover."""
+        return self._execute_with_failover(
+            "get",
+            lambda c: self._primary.get(c),
+            lambda c: self._fallback.get(c),
+            config
+        )
+
+    def get_tuple(self, config):
+        """Get checkpoint tuple with failover."""
+        return self._execute_with_failover(
+            "get_tuple",
+            lambda c: self._primary.get_tuple(c),
+            lambda c: self._fallback.get_tuple(c),
+            config
+        )
+
+    def put(self, config, checkpoint, metadata, new_versions):
+        """Put checkpoint with failover."""
+        return self._execute_with_failover(
+            "put",
+            lambda c, cp, m, nv: self._primary.put(c, cp, m, nv),
+            lambda c, cp, m, nv: self._fallback.put(c, cp, m, nv),
+            config, checkpoint, metadata, new_versions
+        )
+
+    def put_writes(self, config, writes, task_id):
+        """Put writes with failover."""
+        return self._execute_with_failover(
+            "put_writes",
+            lambda c, w, t: self._primary.put_writes(c, w, t),
+            lambda c, w, t: self._fallback.put_writes(c, w, t),
+            config, writes, task_id
+        )
+
+    def list(self, config, *, filter=None, before=None, limit=None):
+        """List checkpoints with failover."""
+        return self._execute_with_failover(
+            "list",
+            lambda c, **kw: self._primary.list(c, **kw),
+            lambda c, **kw: self._fallback.list(c, **kw),
+            config, filter=filter, before=before, limit=limit
+        )
+
+    def get_next_version(self, current, channel):
+        """Get next version - delegate to active checkpointer."""
+        if self._degraded:
+            return self._fallback.get_next_version(current, channel)
+        return self._primary.get_next_version(current, channel)
+
+    def __getattr__(self, name):
+        """Pass through any other attributes to the active checkpointer."""
+        if self._degraded:
+            return getattr(self._fallback, name)
+        return getattr(self._primary, name)
+
+
+def get_degraded_persistence_checkpointer(
+    primary,
+    trace_id: str = "unknown",
+):
+    """
+    Factory function to create a DegradedPersistenceCheckpointer.
+
+    This function wraps the primary checkpointer with automatic failover
+    to MemorySaver when ENABLE_CHECKPOINT_FAILOVER is True.
+
+    Args:
+        primary: The primary checkpointer (typically ResilientPostgresSaver)
+        trace_id: Trace ID for logging context
+
+    Returns:
+        DegradedPersistenceCheckpointer if failover is enabled, otherwise primary
+    """
+    if not settings.enable_checkpoint_failover:
+        logger.info(
+            f"Checkpoint failover disabled, using primary checkpointer only trace_id={trace_id}",
+            extra={
+                "operation": "get_degraded_persistence_checkpointer",
+                "trace_id": trace_id,
+                "failover_enabled": False,
+            }
+        )
+        return primary
+
+    fallback = MemorySaver()
+
+    logger.info(
+        f"Checkpoint failover enabled, wrapping with DegradedPersistenceCheckpointer trace_id={trace_id}",
+        extra={
+            "operation": "get_degraded_persistence_checkpointer",
+            "trace_id": trace_id,
+            "failover_enabled": True,
+            "primary_type": type(primary).__name__,
+            "fallback_type": "MemorySaver",
+        }
+    )
+
+    return DegradedPersistenceCheckpointer(
+        primary=primary,
+        fallback=fallback,
+        trace_id=trace_id,
+    )
+
+
 @contextlib.contextmanager
 def postgres_checkpointer_context():
     """
@@ -4918,12 +5183,26 @@ def run_orchestrator(
     # CRITICAL FIX (Dec 2025): Use get_postgres_checkpointer() for per-operation connection borrowing
     # This prevents "Pipeline [BAD]" and "connection is closed" errors during long workflows
     # by borrowing connections briefly per checkpoint operation instead of holding one for ~2 minutes
+    #
+    # ENHANCEMENT (Dec 2025): Wrap with DegradedPersistenceCheckpointer for runtime failover
+    # When PostgreSQL fails at runtime (SSL disconnect, etc.), automatically switch to MemorySaver
+    # This implements "soft landing" resilience - workflow continues with degraded persistence
+    # instead of failing entirely. See: Blueprint Flow Controller v3 "Fail-Fast Recovery"
     pg_checkpointer = get_postgres_checkpointer()
     if pg_checkpointer is not None:
-        checkpointer = pg_checkpointer
+        # Wrap with DegradedPersistenceCheckpointer for runtime failover to MemorySaver
+        # Feature flag: ENABLE_CHECKPOINT_FAILOVER (default: True)
+        checkpointer = get_degraded_persistence_checkpointer(pg_checkpointer, trace_id=trace_id)
+        checkpointer_mode = "degraded_persistence" if settings.enable_checkpoint_failover else "postgres_only"
         logger.info(
-            f"Using PostgreSQL checkpointer with per-operation connection borrowing trace_id={trace_id}",
-            extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool_per_op"}
+            f"Using PostgreSQL checkpointer with runtime failover enabled trace_id={trace_id} "
+            f"failover_enabled={settings.enable_checkpoint_failover}",
+            extra={
+                "operation": "run_orchestrator",
+                "trace_id": trace_id,
+                "checkpointer": checkpointer_mode,
+                "failover_enabled": settings.enable_checkpoint_failover,
+            }
         )
     else:
         checkpointer = get_checkpointer()
@@ -4960,13 +5239,17 @@ def run_orchestrator(
         # Use default values to avoid "status=None" in logs
         result_status = final_result.get("status") or "unknown"
         result_pr_url = final_result.get("pr_url") or ""
+        # Track degraded persistence mode for monitoring ratio of degraded workflows
+        persistence_degraded = getattr(checkpointer, "is_degraded", False)
         logger.info(
-            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url='{result_pr_url}'",
+            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} "
+            f"pr_url='{result_pr_url}' persistence_degraded={persistence_degraded}",
             extra={
                 "operation": "run_orchestrator",
                 "trace_id": trace_id,
                 "status": result_status,
-                "pr_url": result_pr_url
+                "pr_url": result_pr_url,
+                "persistence_degraded": persistence_degraded,
             }
         )
 
@@ -5084,12 +5367,20 @@ def run_review_follow_up_orchestrator(
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="review_follow_up")
 
     # CRITICAL FIX (Dec 2025): Use get_postgres_checkpointer() for per-operation connection borrowing
+    # ENHANCEMENT (Dec 2025): Wrap with DegradedPersistenceCheckpointer for runtime failover
     pg_checkpointer = get_postgres_checkpointer()
     if pg_checkpointer is not None:
-        checkpointer = pg_checkpointer
+        checkpointer = get_degraded_persistence_checkpointer(pg_checkpointer, trace_id=trace_id)
+        checkpointer_mode = "degraded_persistence" if settings.enable_checkpoint_failover else "postgres_only"
         logger.info(
-            f"Using PostgreSQL checkpointer with per-operation connection borrowing trace_id={trace_id}",
-            extra={"operation": "run_review_follow_up_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool_per_op"}
+            f"Using PostgreSQL checkpointer with runtime failover enabled trace_id={trace_id} "
+            f"failover_enabled={settings.enable_checkpoint_failover}",
+            extra={
+                "operation": "run_review_follow_up_orchestrator",
+                "trace_id": trace_id,
+                "checkpointer": checkpointer_mode,
+                "failover_enabled": settings.enable_checkpoint_failover,
+            }
         )
     else:
         checkpointer = get_checkpointer()
@@ -5129,13 +5420,20 @@ def run_review_follow_up_orchestrator(
 
         final_result = result.get("final_result", {})
 
-        logger.info("Review Follow-up orchestrator completed", extra={
-            "operation": "run_review_follow_up_orchestrator",
-            "trace_id": trace_id,
-            "status": final_result.get("status"),
-            "pr_url": final_result.get("pr_url"),
-            "original_pr_number": original_pr_number,
-        })
+        # Track degraded persistence mode for monitoring ratio of degraded workflows
+        persistence_degraded = getattr(checkpointer, "is_degraded", False)
+        logger.info(
+            f"Review Follow-up orchestrator completed trace_id={trace_id} "
+            f"persistence_degraded={persistence_degraded}",
+            extra={
+                "operation": "run_review_follow_up_orchestrator",
+                "trace_id": trace_id,
+                "status": final_result.get("status"),
+                "pr_url": final_result.get("pr_url"),
+                "original_pr_number": original_pr_number,
+                "persistence_degraded": persistence_degraded,
+            }
+        )
 
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
@@ -5262,12 +5560,20 @@ def run_internal_review_orchestrator(
     agent_eval.start_workflow_metrics(trace_id, goal, task_type="internal_review")
 
     # CRITICAL FIX (Dec 2025): Use get_postgres_checkpointer() for per-operation connection borrowing
+    # ENHANCEMENT (Dec 2025): Wrap with DegradedPersistenceCheckpointer for runtime failover
     pg_checkpointer = get_postgres_checkpointer()
     if pg_checkpointer is not None:
-        checkpointer = pg_checkpointer
+        checkpointer = get_degraded_persistence_checkpointer(pg_checkpointer, trace_id=trace_id)
+        checkpointer_mode = "degraded_persistence" if settings.enable_checkpoint_failover else "postgres_only"
         logger.info(
-            f"Using PostgreSQL checkpointer with per-operation connection borrowing trace_id={trace_id}",
-            extra={"operation": "run_internal_review_orchestrator", "trace_id": trace_id, "checkpointer": "postgres_pool_per_op"}
+            f"Using PostgreSQL checkpointer with runtime failover enabled trace_id={trace_id} "
+            f"failover_enabled={settings.enable_checkpoint_failover}",
+            extra={
+                "operation": "run_internal_review_orchestrator",
+                "trace_id": trace_id,
+                "checkpointer": checkpointer_mode,
+                "failover_enabled": settings.enable_checkpoint_failover,
+            }
         )
     else:
         checkpointer = get_checkpointer()
@@ -5318,14 +5624,21 @@ def run_internal_review_orchestrator(
         internal_review_result = result.get("internal_review_result", {})
         final_result = result.get("final_result", {})
 
-        logger.info("Internal Review orchestrator completed", extra={
-            "operation": "run_internal_review_orchestrator",
-            "trace_id": trace_id,
-            "internal_review_decision": result.get("internal_review_decision"),
-            "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
-            "requires_hitl": result.get("requires_hitl_approval"),
-            "original_pr_number": original_pr_number,
-        })
+        # Track degraded persistence mode for monitoring ratio of degraded workflows
+        persistence_degraded = getattr(checkpointer, "is_degraded", False)
+        logger.info(
+            f"Internal Review orchestrator completed trace_id={trace_id} "
+            f"persistence_degraded={persistence_degraded}",
+            extra={
+                "operation": "run_internal_review_orchestrator",
+                "trace_id": trace_id,
+                "internal_review_decision": result.get("internal_review_decision"),
+                "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
+                "requires_hitl": result.get("requires_hitl_approval"),
+                "original_pr_number": original_pr_number,
+                "persistence_degraded": persistence_degraded,
+            }
+        )
 
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)

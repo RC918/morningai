@@ -938,6 +938,14 @@ class Settings(BaseSettings):
         description="TTL in seconds for Redis checkpointer entries (default: 24 hours). Set to 0 for no expiration."
     )
 
+    enable_checkpoint_failover: bool = Field(
+        default=True,
+        alias="ENABLE_CHECKPOINT_FAILOVER",
+        description="Enable automatic failover to MemorySaver when PostgreSQL checkpointer fails at runtime. "
+                    "Implements 'soft landing' resilience: workflow continues with degraded persistence instead of failing. "
+                    "Set to False to fail-fast on checkpoint errors. (Blueprint: Fail-Fast Recovery)"
+    )
+
     # Issue #2259: Review Follow-up Task Storage Settings
     review_follow_up_store_backend: str = Field(
         default="in_memory",
