@@ -6,6 +6,11 @@ supabase==2.11.0
 # openai>=1.55.0 required for httpx>=0.28 compatibility (fixes 'proxies' kwarg error)
 openai>=1.55.0,<3.0.0
 google-genai==1.52.0
+# Explicit pins for deterministic builds (Issue: Render dependency conflict)
+# google-genai requires httpx>=0.28.1, supabase allows httpx>=0.26,<0.29
+# Pin to ensure pip resolves correctly regardless of install order
+httpx>=0.28.1,<0.29
+websockets>=13.0.0,<15.1.0
 requests==2.32.5
 sentry-sdk==2.48.0
 pydantic-settings>=2.0.0
