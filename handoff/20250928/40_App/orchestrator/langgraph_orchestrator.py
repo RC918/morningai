@@ -342,6 +342,11 @@ def _reset_postgres_pool():
 
     Thread Safety:
         Uses the same lock as _get_postgres_pool() to prevent races.
+        IMPORTANT: To avoid deadlocks, we minimize lock-hold time by:
+        1. Under lock: swap _postgres_pool to None and capture old_pool
+        2. Outside lock: close old_pool (may block waiting for borrowers)
+        3. Under lock: create and install new pool
+        This prevents holding the lock during potentially blocking close() operations.
 
     Returns:
         ConnectionPool: The new pool instance, or None if reset failed
@@ -349,82 +354,85 @@ def _reset_postgres_pool():
     global _postgres_pool
     import os
 
+    # Step 1: Under lock, capture old pool and clear global reference
     with _postgres_pool_lock:
         old_pool = _postgres_pool
-
-        # Close the old pool if it exists
-        if old_pool is not None:
-            try:
-                old_pool.close()
-                logger.info(
-                    "PostgreSQL connection pool closed for reset",
-                    extra={"operation": "_reset_postgres_pool"}
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Error closing old PostgreSQL pool during reset: {e}",
-                    extra={
-                        "operation": "_reset_postgres_pool",
-                        "error": str(e)
-                    }
-                )
-
-        # Clear the global reference
         _postgres_pool = None
 
-        # Force garbage collection to release any lingering connection objects
-        gc.collect()
-
-        # Create a new pool
-        database_url = settings.database_url or os.environ.get("DATABASE_URL")
-        if not database_url:
-            logger.warning(
-                "DATABASE_URL not configured, cannot create new connection pool",
+    # Step 2: Outside lock, close old pool (may block waiting for borrowers)
+    if old_pool is not None:
+        try:
+            old_pool.close()
+            logger.info(
+                "PostgreSQL connection pool closed for reset",
                 extra={"operation": "_reset_postgres_pool"}
             )
-            return None
-
-        try:
-            from psycopg_pool import ConnectionPool
-            from psycopg.rows import dict_row
-
-            _postgres_pool = ConnectionPool(
-                conninfo=database_url,
-                min_size=1,
-                max_size=5,
-                max_lifetime=1800,
-                max_idle=300,
-                reconnect_timeout=60,
-                kwargs={
-                    "autocommit": True,
-                    "row_factory": dict_row,
-                    "prepare_threshold": 0,
-                },
-                check=ConnectionPool.check_connection,
-            )
-
-            _postgres_pool.wait()
-
-            logger.info(
-                "PostgreSQL connection pool reset successfully",
-                extra={
-                    "operation": "_reset_postgres_pool",
-                    "min_size": 1,
-                    "max_size": 5,
-                }
-            )
-
-            return _postgres_pool
-
         except Exception as e:
-            logger.error(
-                f"Failed to create new PostgreSQL connection pool during reset: {e}",
+            logger.warning(
+                f"Error closing old PostgreSQL pool during reset: {e}",
                 extra={
                     "operation": "_reset_postgres_pool",
                     "error": str(e)
                 }
             )
-            return None
+
+    # Force garbage collection to release any lingering connection objects
+    gc.collect()
+
+    # Step 3: Create new pool and install under lock
+    database_url = settings.database_url or os.environ.get("DATABASE_URL")
+    if not database_url:
+        logger.warning(
+            "DATABASE_URL not configured, cannot create new connection pool",
+            extra={"operation": "_reset_postgres_pool"}
+        )
+        return None
+
+    try:
+        from psycopg_pool import ConnectionPool
+        from psycopg.rows import dict_row
+
+        new_pool = ConnectionPool(
+            conninfo=database_url,
+            min_size=1,
+            max_size=5,
+            max_lifetime=1800,
+            max_idle=300,
+            reconnect_timeout=60,
+            kwargs={
+                "autocommit": True,
+                "row_factory": dict_row,
+                "prepare_threshold": 0,
+            },
+            check=ConnectionPool.check_connection,
+        )
+
+        new_pool.wait()
+
+        # Install new pool under lock
+        with _postgres_pool_lock:
+            _postgres_pool = new_pool
+
+        logger.info(
+            "PostgreSQL connection pool reset successfully",
+            extra={
+                "operation": "_reset_postgres_pool",
+                "min_size": 1,
+                "max_size": 5,
+            }
+        )
+
+        return new_pool
+
+    except Exception as e:
+        logger.error(
+            f"Failed to create new PostgreSQL connection pool during reset: {e}",
+            extra={
+                "operation": "_reset_postgres_pool",
+                "error": str(e)
+            }
+        )
+        return None
 
 
 def get_postgres_checkpointer():
@@ -739,9 +747,7 @@ class ResilientPostgresSaver:
                         "error": str(e)
                     }
                 )
-
-        # Force garbage collection to release any lingering connection objects
-        gc.collect()
+        # Note: gc.collect() is already called in _reset_postgres_pool(), no need to call again
 
     def _retry_with_backoff(self, operation_name: str, operation: Callable, *args, **kwargs):
         """

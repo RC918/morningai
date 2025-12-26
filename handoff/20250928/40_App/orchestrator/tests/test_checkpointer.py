@@ -890,3 +890,260 @@ class TestResilientPostgresSaver:
             raise ResilientPostgresSaverCircuitOpen("Test error")
         except DatabaseException as e:
             assert "Test error" in str(e)
+
+
+class TestResilientPostgresSaverOOMFix:
+    """Tests for OOM fix (Dec 2025): pool reset and memory release
+
+    These tests verify:
+    1. Pool reset is triggered only for CONNECTION_LOST_PATTERNS
+    2. Inner factory is called to recreate saver after pool reset
+    3. Sleep happens outside except block (traceback cleared before sleep)
+    4. Non-connection-lost transient errors do NOT trigger pool reset
+    """
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_connection_lost_error_triggers_pool_reset(self):
+        """Test that connection-lost errors trigger pool reset"""
+        from unittest.mock import MagicMock, patch, call
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("psycopg.Pipeline [BAD] state"),
+            {"checkpoint": "data"},
+        ]
+
+        factory_called = []
+
+        def mock_factory():
+            factory_called.append(True)
+            return mock_inner
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+            inner_factory=mock_factory,
+        )
+
+        with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+            mock_reset.return_value = MagicMock()
+            with patch('langgraph_orchestrator.logger'):
+                with patch.object(time, 'sleep'):
+                    result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "data"}
+        mock_reset.assert_called_once()
+        assert len(factory_called) == 1
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_ssl_closed_error_triggers_pool_reset(self):
+        """Test that SSL connection closed errors trigger pool reset"""
+        from unittest.mock import MagicMock, patch
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("SSL connection has been closed unexpectedly"),
+            {"checkpoint": "data"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+            inner_factory=lambda: mock_inner,
+        )
+
+        with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+            mock_reset.return_value = MagicMock()
+            with patch('langgraph_orchestrator.logger'):
+                with patch.object(time, 'sleep'):
+                    result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "data"}
+        mock_reset.assert_called_once()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_timeout_error_does_not_trigger_pool_reset(self):
+        """Test that timeout errors (transient but not connection-lost) do NOT trigger pool reset"""
+        from unittest.mock import MagicMock, patch
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("connection timed out"),
+            {"checkpoint": "data"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+        )
+
+        with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+            with patch('langgraph_orchestrator.logger'):
+                with patch.object(time, 'sleep'):
+                    result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "data"}
+        mock_reset.assert_not_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_inner_factory_recreates_saver_after_pool_reset(self):
+        """Test that inner_factory is called to recreate saver after pool reset"""
+        from unittest.mock import MagicMock, patch
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner_original = MagicMock()
+        mock_inner_new = MagicMock()
+
+        mock_inner_original.get.side_effect = Exception("pipeline [bad]")
+        mock_inner_new.get.return_value = {"checkpoint": "data"}
+
+        factory_calls = []
+
+        def mock_factory():
+            factory_calls.append(True)
+            return mock_inner_new
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner_original,
+            max_retries=3,
+            base_delay=0.01,
+            inner_factory=mock_factory,
+        )
+
+        with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+            mock_reset.return_value = MagicMock()
+            with patch('langgraph_orchestrator.logger'):
+                with patch.object(time, 'sleep'):
+                    result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "data"}
+        assert len(factory_calls) == 1
+        assert wrapper._inner is mock_inner_new
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_sleep_called_after_traceback_cleared(self):
+        """Test that sleep is called after exception traceback is cleared (OOM fix)
+
+        This test verifies the key OOM fix: time.sleep() must be called OUTSIDE
+        the except block, after traceback.clear_frames() has been called.
+        """
+        from unittest.mock import MagicMock, patch, call
+        import time
+        import traceback
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("connection timed out"),
+            {"checkpoint": "data"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.1,
+        )
+
+        call_order = []
+
+        def track_clear_frames(tb):
+            call_order.append('clear_frames')
+
+        def track_sleep(seconds):
+            call_order.append('sleep')
+
+        with patch('langgraph_orchestrator.logger'):
+            with patch.object(traceback, 'clear_frames', side_effect=track_clear_frames):
+                with patch.object(time, 'sleep', side_effect=track_sleep):
+                    result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "data"}
+        assert 'clear_frames' in call_order
+        assert 'sleep' in call_order
+        assert call_order.index('clear_frames') < call_order.index('sleep'), \
+            "traceback.clear_frames() must be called before time.sleep()"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_connection_lost_patterns_coverage(self):
+        """Test that all CONNECTION_LOST_PATTERNS trigger pool reset"""
+        from unittest.mock import MagicMock, patch
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        connection_lost_patterns = [
+            "ssl connection has been closed",
+            "the connection is closed",
+            "connection is closed",
+            "server closed the connection",
+            "connection reset by peer",
+            "pipeline [bad]",
+        ]
+
+        for pattern in connection_lost_patterns:
+            mock_inner = MagicMock()
+            mock_inner.get.side_effect = [
+                Exception(f"Error: {pattern}"),
+                {"checkpoint": "data"},
+            ]
+
+            wrapper = ResilientPostgresSaver(
+                inner_saver=mock_inner,
+                max_retries=3,
+                base_delay=0.01,
+                inner_factory=lambda: mock_inner,
+            )
+
+            with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+                mock_reset.return_value = MagicMock()
+                with patch('langgraph_orchestrator.logger'):
+                    with patch.object(time, 'sleep'):
+                        result = wrapper.get({"config": "test"})
+
+            assert result == {"checkpoint": "data"}, f"Failed for pattern: {pattern}"
+            mock_reset.assert_called_once(), f"Pool reset not called for pattern: {pattern}"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_no_inner_factory_still_resets_pool(self):
+        """Test that pool reset still happens even without inner_factory"""
+        from unittest.mock import MagicMock, patch
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("pipeline [bad]"),
+            {"checkpoint": "data"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+        )
+
+        with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+            mock_reset.return_value = MagicMock()
+            with patch('langgraph_orchestrator.logger'):
+                with patch.object(time, 'sleep'):
+                    result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "data"}
+        mock_reset.assert_called_once()
+        assert wrapper._inner is mock_inner
