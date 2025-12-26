@@ -29,18 +29,29 @@ GITHUB_TOKEN = settings.agent_github_token or settings.github_token
 GITHUB_REPO = settings.github_repo or "RC918/morningai"
 
 
+REVIEW_CLAIM_TTL_SECONDS = 300  # 5 minutes - short TTL for inflight claim
+
+
 def _check_review_already_posted(
     repo: str,
     pr_number: int,
     head_sha: Optional[str],
 ) -> tuple[bool, Optional[str]]:
     """
-    P2: Artifact Idempotency - Check if a review has already been posted for this PR+SHA.
+    P2: Artifact Idempotency - Atomic claim to prevent duplicate reviews.
 
-    Issue: Self-Trigger Loop Prevention
-    This provides platform-level protection against duplicate reviews by checking
-    a Redis key before posting. Even if the webhook normalizer fails to filter
-    a self-review, this check prevents duplicate posts.
+    Issue: Self-Trigger Loop Prevention + Race Condition Fix
+    This provides platform-level protection against duplicate reviews using
+    atomic SET NX (claim) instead of check-then-act pattern.
+
+    The atomic claim pattern prevents race conditions where multiple workers
+    could simultaneously check "not posted" and then all post reviews.
+
+    Flow:
+    1. Try to SET key with NX (only if not exists) and short TTL (5 min)
+    2. If SET succeeds: we have the claim, proceed to post review
+    3. If SET fails: another worker has the claim or review was posted, skip
+    4. After successful post: _mark_review_posted() extends TTL to 24h
 
     Args:
         repo: Repository in owner/repo format
@@ -48,8 +59,8 @@ def _check_review_already_posted(
         head_sha: Head commit SHA (if None, skips dedup check)
 
     Returns:
-        Tuple of (already_posted: bool, dedup_key: str | None)
-        - already_posted: True if review was already posted for this SHA
+        Tuple of (already_claimed_or_posted: bool, dedup_key: str | None)
+        - already_claimed_or_posted: True if review was already posted or claimed
         - dedup_key: The Redis key used for deduplication (for logging)
     """
     if not head_sha:
@@ -60,7 +71,15 @@ def _check_review_already_posted(
         import redis
         redis_url = getattr(settings, 'redis_url', None)
         if not redis_url:
-            # Redis not configured, allow posting
+            # Redis not configured, allow posting (fail-open)
+            logger.warning(
+                "[GitHub] Redis URL not configured, skipping dedup check (fail-open)",
+                extra={
+                    "operation": "review_dedup_no_redis",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                }
+            )
             return False, None
 
         r = redis.Redis.from_url(redis_url, decode_responses=True)
@@ -69,31 +88,53 @@ def _check_review_already_posted(
         # This ensures we only post one review per PR+SHA+version combination
         dedup_key = f"review_posted:{repo}:{pr_number}:{head_sha[:12]}:{REVIEWER_VERSION}"
 
-        # Check if key exists
-        if r.exists(dedup_key):
+        # Atomic claim: SET NX EX (only set if not exists, with TTL)
+        # This prevents race conditions where multiple workers check simultaneously
+        # Value "claiming" indicates inflight, "posted" indicates completed
+        claimed = r.set(dedup_key, "claiming", nx=True, ex=REVIEW_CLAIM_TTL_SECONDS)
+
+        if claimed:
+            # Successfully claimed - we have exclusive right to post
             logger.info(
-                f"[GitHub] Review already posted for this SHA, skipping (dedup_key={dedup_key})",
+                f"[GitHub] Acquired review claim (dedup_key={dedup_key}, ttl={REVIEW_CLAIM_TTL_SECONDS}s)",
                 extra={
-                    "operation": "review_dedup_hit",
+                    "operation": "review_dedup_claimed",
                     "repo": repo,
                     "pr_number": pr_number,
                     "head_sha": head_sha[:12],
                     "dedup_key": dedup_key,
                 }
             )
+            return False, dedup_key
+        else:
+            # Key already exists - either claimed by another worker or already posted
+            # Check the value to provide better logging
+            existing_value = r.get(dedup_key)
+            # Handle edge case: key may have expired between SET NX and GET
+            status = {None: "expired", "posted": "posted"}.get(existing_value, "claimed_by_other")
+            logger.info(
+                f"[GitHub] Review already {status} for this SHA, skipping (dedup_key={dedup_key})",
+                extra={
+                    "operation": "review_dedup_hit",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "head_sha": head_sha[:12],
+                    "dedup_key": dedup_key,
+                    "existing_status": status,
+                }
+            )
             return True, dedup_key
 
-        return False, dedup_key
-
-    except Exception as e:
-        # Redis error, allow posting (graceful degradation)
+    except redis.exceptions.RedisError as e:
+        # Redis error, allow posting (graceful degradation / fail-open)
         logger.warning(
-            f"[GitHub] Redis error during review dedup check, allowing post: {e}",
+            f"[GitHub] Redis error during review dedup check, allowing post (fail-open): {e}",
             extra={
                 "operation": "review_dedup_error",
                 "repo": repo,
                 "pr_number": pr_number,
                 "error": str(e),
+                "fail_open": True,
             }
         )
         return False, None
@@ -101,11 +142,20 @@ def _check_review_already_posted(
 
 def _mark_review_posted(dedup_key: Optional[str]) -> None:
     """
-    P2: Artifact Idempotency - Mark that a review has been posted.
+    P2: Artifact Idempotency - Mark that a review has been successfully posted.
 
-    Issue: Self-Trigger Loop Prevention
-    After successfully posting a review, we set the Redis key to prevent
-    duplicate posts for the same PR+SHA combination.
+    Issue: Self-Trigger Loop Prevention + Race Condition Fix
+    After successfully posting a review, we update the Redis key from "claiming"
+    to "posted" and extend the TTL to 24 hours.
+
+    This completes the atomic claim pattern:
+    1. _check_review_already_posted() sets key to "claiming" with 5 min TTL
+    2. Review is posted to GitHub
+    3. This function updates key to "posted" with 24 hour TTL
+
+    If this function fails (Redis error), the "claiming" key will expire after
+    5 minutes, allowing a retry. This is acceptable because the review was
+    already posted to GitHub.
 
     Args:
         dedup_key: The Redis key to set (from _check_review_already_posted)
@@ -120,23 +170,26 @@ def _mark_review_posted(dedup_key: Optional[str]) -> None:
             return
 
         r = redis.Redis.from_url(redis_url, decode_responses=True)
-        r.setex(dedup_key, REVIEW_DEDUP_TTL_SECONDS, "1")
+        # Update value from "claiming" to "posted" and extend TTL to 24 hours
+        r.setex(dedup_key, REVIEW_DEDUP_TTL_SECONDS, "posted")
 
-        logger.debug(
+        logger.info(
             f"[GitHub] Marked review as posted (dedup_key={dedup_key}, ttl={REVIEW_DEDUP_TTL_SECONDS}s)",
             extra={
-                "operation": "review_dedup_set",
+                "operation": "review_dedup_posted",
                 "dedup_key": dedup_key,
                 "ttl_seconds": REVIEW_DEDUP_TTL_SECONDS,
             }
         )
 
-    except Exception as e:
+    except redis.exceptions.RedisError as e:
         # Redis error, log but don't fail the review
+        # The review was already posted to GitHub, so this is not critical
+        # The "claiming" key will expire after 5 minutes if not updated
         logger.warning(
-            f"[GitHub] Failed to mark review as posted: {e}",
+            f"[GitHub] Failed to mark review as posted (review was still sent): {e}",
             extra={
-                "operation": "review_dedup_set_error",
+                "operation": "review_dedup_posted_write_failed",
                 "dedup_key": dedup_key,
                 "error": str(e),
             }
