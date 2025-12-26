@@ -32,7 +32,7 @@ def mock_utils_constants():
         yield
 
 
-from ..normalizer import EventNormalizer, should_skip_orchestrator_pr_event
+from ..normalizer import EventNormalizer, should_skip_orchestrator_pr_event  # noqa: E402
 
 
 @pytest.fixture
@@ -588,3 +588,341 @@ class TestStagingObservationLogging:
 
         # Verify the log message contains expected text
         assert any("orchestrator-generated event" in r.message for r in caplog.records)
+
+
+# =============================================================================
+# Smart PR Filtering Tests (Dec 2025)
+# =============================================================================
+# These tests validate the smart filtering strategy that reduces noise by
+# skipping PRs that only modify config/docs/tests/CI files or have
+# non-actionable title prefixes (chore/ci/test/docs/style).
+# =============================================================================
+
+from ..normalizer import (  # noqa: E402
+    _title_is_non_actionable,
+    _path_is_non_code,
+    _should_skip_by_paths,
+    should_skip_pr_by_smart_filters,
+)
+
+
+class TestTitleIsNonActionable:
+    """Tests for _title_is_non_actionable() semantic title filter"""
+
+    def test_chore_prefix_is_non_actionable(self):
+        """Test that chore: prefix is non-actionable"""
+        assert _title_is_non_actionable("chore: update dependencies") is True
+        assert _title_is_non_actionable("chore(deps): bump version") is True
+        assert _title_is_non_actionable("Chore: Update something") is True
+
+    def test_ci_prefix_is_non_actionable(self):
+        """Test that ci: prefix is non-actionable"""
+        assert _title_is_non_actionable("ci: fix workflow") is True
+        assert _title_is_non_actionable("ci(github): update actions") is True
+        assert _title_is_non_actionable("CI: Update pipeline") is True
+
+    def test_test_prefix_is_non_actionable(self):
+        """Test that test: prefix is non-actionable"""
+        assert _title_is_non_actionable("test: add unit tests") is True
+        assert _title_is_non_actionable("tests: improve coverage") is True
+        assert _title_is_non_actionable("test(api): add integration tests") is True
+
+    def test_docs_prefix_is_non_actionable(self):
+        """Test that docs: prefix is non-actionable"""
+        assert _title_is_non_actionable("docs: update README") is True
+        assert _title_is_non_actionable("docs(api): add examples") is True
+
+    def test_style_prefix_is_non_actionable(self):
+        """Test that style: prefix is non-actionable"""
+        assert _title_is_non_actionable("style: fix formatting") is True
+        assert _title_is_non_actionable("style(lint): apply prettier") is True
+
+    def test_build_prefix_is_non_actionable(self):
+        """Test that build: prefix is non-actionable"""
+        assert _title_is_non_actionable("build: update webpack config") is True
+        assert _title_is_non_actionable("build(docker): optimize image") is True
+
+    def test_feat_prefix_is_actionable(self):
+        """Test that feat: prefix is actionable"""
+        assert _title_is_non_actionable("feat: add new feature") is False
+        assert _title_is_non_actionable("feat(api): implement endpoint") is False
+
+    def test_fix_prefix_is_actionable(self):
+        """Test that fix: prefix is actionable"""
+        assert _title_is_non_actionable("fix: resolve bug") is False
+        assert _title_is_non_actionable("fix(auth): handle edge case") is False
+
+    def test_refactor_prefix_is_actionable(self):
+        """Test that refactor: prefix is actionable"""
+        assert _title_is_non_actionable("refactor: improve code structure") is False
+        assert _title_is_non_actionable("refactor(core): optimize performance") is False
+
+    def test_no_prefix_is_actionable(self):
+        """Test that titles without conventional prefix are actionable"""
+        assert _title_is_non_actionable("Add new feature") is False
+        assert _title_is_non_actionable("Fix the bug") is False
+        assert _title_is_non_actionable("Update something") is False
+
+    def test_empty_title_is_actionable(self):
+        """Test that empty title is actionable (fail open)"""
+        assert _title_is_non_actionable("") is False
+        assert _title_is_non_actionable(None) is False
+
+
+class TestPathIsNonCode:
+    """Tests for _path_is_non_code() file path filter"""
+
+    def test_yaml_files_are_non_code(self):
+        """Test that YAML files are non-code"""
+        assert _path_is_non_code("config.yaml") is True
+        assert _path_is_non_code("settings.yml") is True
+        assert _path_is_non_code("render.yaml") is True
+
+    def test_json_files_are_non_code(self):
+        """Test that JSON files are non-code"""
+        assert _path_is_non_code("package.json") is True
+        assert _path_is_non_code("tsconfig.json") is True
+
+    def test_toml_files_are_non_code(self):
+        """Test that TOML files are non-code"""
+        assert _path_is_non_code("pyproject.toml") is True
+        assert _path_is_non_code("Cargo.toml") is True
+
+    def test_markdown_files_are_non_code(self):
+        """Test that Markdown files are non-code"""
+        assert _path_is_non_code("README.md") is True
+        assert _path_is_non_code("CHANGELOG.md") is True
+        assert _path_is_non_code("docs/guide.md") is True
+
+    def test_docs_directory_is_non_code(self):
+        """Test that docs/ directory files are non-code"""
+        assert _path_is_non_code("docs/api.md") is True
+        assert _path_is_non_code("docs/guide/setup.md") is True
+        assert _path_is_non_code("docs/images/logo.png") is True
+
+    def test_github_directory_is_non_code(self):
+        """Test that .github/ directory files are non-code"""
+        assert _path_is_non_code(".github/workflows/ci.yml") is True
+        assert _path_is_non_code(".github/CODEOWNERS") is True
+        assert _path_is_non_code(".github/dependabot.yml") is True
+
+    def test_tests_directory_is_non_code(self):
+        """Test that tests/ directory files are non-code"""
+        assert _path_is_non_code("tests/test_api.py") is True
+        assert _path_is_non_code("tests/unit/test_utils.py") is True
+        assert _path_is_non_code("test/integration/test_flow.py") is True
+
+    def test_test_file_suffixes_are_non_code(self):
+        """Test that test file suffixes are non-code"""
+        assert _path_is_non_code("api_test.py") is True
+        assert _path_is_non_code("utils.test.py") is True
+        assert _path_is_non_code("component.spec.ts") is True
+        assert _path_is_non_code("component.test.js") is True
+
+    def test_specific_filenames_are_non_code(self):
+        """Test that specific filenames are non-code"""
+        assert _path_is_non_code("LICENSE") is True
+        assert _path_is_non_code("requirements.txt") is True
+        assert _path_is_non_code(".gitignore") is True
+        assert _path_is_non_code("Dockerfile") is True
+        assert _path_is_non_code("Makefile") is True
+
+    def test_python_files_are_code(self):
+        """Test that Python files are code"""
+        assert _path_is_non_code("main.py") is False
+        assert _path_is_non_code("src/api/routes.py") is False
+        assert _path_is_non_code("utils/helpers.py") is False
+
+    def test_typescript_files_are_code(self):
+        """Test that TypeScript files are code"""
+        assert _path_is_non_code("app.ts") is False
+        assert _path_is_non_code("src/components/Button.tsx") is False
+
+    def test_javascript_files_are_code(self):
+        """Test that JavaScript files are code"""
+        assert _path_is_non_code("index.js") is False
+        assert _path_is_non_code("src/utils.jsx") is False
+
+    def test_go_files_are_code(self):
+        """Test that Go files are code"""
+        assert _path_is_non_code("main.go") is False
+        assert _path_is_non_code("pkg/api/handler.go") is False
+
+    def test_rust_files_are_code(self):
+        """Test that Rust files are code"""
+        assert _path_is_non_code("main.rs") is False
+        assert _path_is_non_code("src/lib.rs") is False
+
+    def test_empty_path_is_non_code(self):
+        """Test that empty path is non-code"""
+        assert _path_is_non_code("") is True
+        assert _path_is_non_code(None) is True
+
+
+class TestShouldSkipByPaths:
+    """Tests for _should_skip_by_paths() aggregate path filter"""
+
+    def test_all_non_code_files_should_skip(self):
+        """Test that PRs with only non-code files should skip"""
+        paths = ["README.md", "docs/guide.md", ".github/workflows/ci.yml"]
+        should_skip, reason, sample = _should_skip_by_paths(paths)
+        assert should_skip is True
+        assert reason == "only_non_code_files"
+
+    def test_mixed_files_should_not_skip(self):
+        """Test that PRs with code files should not skip"""
+        paths = ["README.md", "src/main.py", ".github/workflows/ci.yml"]
+        should_skip, reason, sample = _should_skip_by_paths(paths)
+        assert should_skip is False
+        assert reason == "has_code_files"
+
+    def test_only_code_files_should_not_skip(self):
+        """Test that PRs with only code files should not skip"""
+        paths = ["src/main.py", "src/utils.py", "lib/helpers.ts"]
+        should_skip, reason, sample = _should_skip_by_paths(paths)
+        assert should_skip is False
+        assert reason == "has_code_files"
+
+    def test_empty_paths_should_skip(self):
+        """Test that PRs with no files should skip"""
+        should_skip, reason, sample = _should_skip_by_paths([])
+        assert should_skip is True
+        assert reason == "no_files"
+
+    def test_single_code_file_should_not_skip(self):
+        """Test that PRs with a single code file should not skip"""
+        paths = ["src/main.py"]
+        should_skip, reason, sample = _should_skip_by_paths(paths)
+        assert should_skip is False
+
+    def test_single_non_code_file_should_skip(self):
+        """Test that PRs with a single non-code file should skip"""
+        paths = ["README.md"]
+        should_skip, reason, sample = _should_skip_by_paths(paths)
+        assert should_skip is True
+
+
+class TestShouldSkipPrBySmartFilters:
+    """Tests for should_skip_pr_by_smart_filters() integration"""
+
+    def test_non_pr_event_not_filtered(self):
+        """Test that non-PR events are not filtered"""
+        event = create_mock_event(
+            event_type=WebhookEventType.ISSUE_CREATED,
+            title="chore: update something",
+        )
+        should_skip, reason, details = should_skip_pr_by_smart_filters(event)
+        assert should_skip is False
+        assert reason == "not_pr_event"
+
+    def test_pr_opened_with_chore_title_skipped(self):
+        """Test that PR_OPENED with chore: title is skipped"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_OPENED,
+            title="chore: update dependencies",
+        )
+        should_skip, reason, details = should_skip_pr_by_smart_filters(event)
+        assert should_skip is True
+        assert reason == "semantic_title_skip"
+
+    def test_pr_merged_with_ci_title_skipped(self):
+        """Test that PR_MERGED with ci: title is skipped"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_MERGED,
+            title="ci: fix workflow",
+        )
+        should_skip, reason, details = should_skip_pr_by_smart_filters(event)
+        assert should_skip is True
+        assert reason == "semantic_title_skip"
+
+    def test_pr_opened_with_feat_title_not_skipped_by_title(self):
+        """Test that PR_OPENED with feat: title passes title filter"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_OPENED,
+            title="feat: add new feature",
+        )
+        # Note: This will try to call the API for file paths
+        # In tests, the API call will fail and we'll fail open
+        should_skip, reason, details = should_skip_pr_by_smart_filters(event)
+        # Should either pass all filters or fail open on API error
+        assert should_skip is False or "api_error" in reason
+
+    def test_pr_updated_not_filtered(self):
+        """Test that PR_UPDATED events are not filtered by smart filters"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_UPDATED,
+            title="chore: update something",
+        )
+        should_skip, reason, details = should_skip_pr_by_smart_filters(event)
+        assert should_skip is False
+        assert reason == "not_pr_event"
+
+
+class TestSmartFilterIntegration:
+    """Integration tests for smart filtering in is_actionable()"""
+
+    def test_pr_opened_with_chore_title_not_actionable(self, event_normalizer):
+        """Test that PR_OPENED with chore: title is not actionable"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_OPENED,
+            title="chore: update dependencies",
+            raw_payload={"pull_request": {"head": {"ref": "feature/update-deps"}}},
+        )
+        assert event_normalizer.is_actionable(event) is False
+
+    def test_pr_merged_with_docs_title_not_actionable(self, event_normalizer):
+        """Test that PR_MERGED with docs: title is not actionable"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_MERGED,
+            title="docs: update README",
+            raw_payload={"pull_request": {"head": {"ref": "docs/update-readme"}}},
+        )
+        assert event_normalizer.is_actionable(event) is False
+
+    def test_pr_opened_with_test_title_not_actionable(self, event_normalizer):
+        """Test that PR_OPENED with test: title is not actionable"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_OPENED,
+            title="test: add unit tests",
+            raw_payload={"pull_request": {"head": {"ref": "test/add-tests"}}},
+        )
+        assert event_normalizer.is_actionable(event) is False
+
+    def test_pr_opened_with_ci_title_not_actionable(self, event_normalizer):
+        """Test that PR_OPENED with ci: title is not actionable"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_OPENED,
+            title="ci: fix workflow",
+            raw_payload={"pull_request": {"head": {"ref": "ci/fix-workflow"}}},
+        )
+        assert event_normalizer.is_actionable(event) is False
+
+    def test_pr_opened_with_style_title_not_actionable(self, event_normalizer):
+        """Test that PR_OPENED with style: title is not actionable"""
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_OPENED,
+            title="style: fix formatting",
+            raw_payload={"pull_request": {"head": {"ref": "style/fix-formatting"}}},
+        )
+        assert event_normalizer.is_actionable(event) is False
+
+
+class TestSmartFilterLogging:
+    """Tests for smart filter logging"""
+
+    def test_semantic_title_skip_logging(self, caplog):
+        """Test that semantic title skip logs contain required fields"""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        event = create_mock_event(
+            event_type=WebhookEventType.PR_OPENED,
+            title="chore: update dependencies",
+        )
+        event.resource_id = "123"
+
+        should_skip, reason, details = should_skip_pr_by_smart_filters(event)
+        assert should_skip is True
+
+        # Verify log contains expected operation
+        assert any("pr_event_skip_semantic_title" in str(r.__dict__) for r in caplog.records)
