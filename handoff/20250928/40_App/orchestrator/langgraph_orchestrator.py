@@ -3683,8 +3683,8 @@ def reviewer_node(state: AgentState) -> AgentState:
 
                         # DIAGNOSTIC: Log LLM raw comment output for 422 debugging
                         # Extract only structural fields (file, line, start_line, end_line) - no message content
-                        # NOTE: Output data in message string because logger extra fields are not serialized
-                        import json as _json
+                        # Uses diagnostic_helper for consistent formatting, fallback, and size limits
+                        from diagnostic_helper import format_diagnostic
                         raw_comment_structures = [
                             {
                                 "file": c.get("file") or c.get("path") or c.get("file_path"),
@@ -3703,7 +3703,7 @@ def reviewer_node(state: AgentState) -> AgentState:
                             "raw_comment_structures": raw_comment_structures
                         }
                         logger.info(
-                            f"[Reviewer] DIAGNOSTIC: LLM raw comment output | {_json.dumps(diagnostic_data, separators=(',', ':'))}",
+                            f"[Reviewer] DIAGNOSTIC: LLM raw comment output{format_diagnostic(diagnostic_data)}",
                             extra={"operation": "reviewer_diagnostic"}
                         )
 
@@ -4237,8 +4237,8 @@ def publisher_node(state: AgentState) -> AgentState:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
 
         # DIAGNOSTIC: Log allowed_lines_map summary for 422 debugging
-        # NOTE: Output data in message string because logger extra fields are not serialized
-        import json as _json
+        # Uses diagnostic_helper for consistent formatting, fallback, and size limits
+        from diagnostic_helper import format_diagnostic
         from review_comment_schema import get_diff_coverage_info
         diff_coverage = get_diff_coverage_info(allowed_lines_map)
         coverage_diagnostic = {
@@ -4250,7 +4250,7 @@ def publisher_node(state: AgentState) -> AgentState:
             "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None
         }
         logger.info(
-            f"[Publisher] DIAGNOSTIC: Diff coverage for validation | {_json.dumps(coverage_diagnostic, separators=(',', ':'))}",
+            f"[Publisher] DIAGNOSTIC: Diff coverage for validation{format_diagnostic(coverage_diagnostic)}",
             extra={"operation": "publisher_diagnostic"}
         )
 
@@ -4276,7 +4276,7 @@ def publisher_node(state: AgentState) -> AgentState:
                 "allowed_lines_sample": sorted(list(allowed_lines))[:20] if allowed_lines else []
             }
             logger.info(
-                f"[Publisher] DIAGNOSTIC: Comment {idx + 1} validation check | {_json.dumps(validation_diagnostic, separators=(',', ':'))}",
+                f"[Publisher] DIAGNOSTIC: Comment {idx + 1} validation check{format_diagnostic(validation_diagnostic)}",
                 extra={"operation": "publisher_diagnostic"}
             )
 
