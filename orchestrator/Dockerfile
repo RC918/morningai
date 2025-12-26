@@ -20,7 +20,9 @@ COPY common/ ./common/
 COPY orchestrator/ ./orchestrator/
 
 # Install orchestrator package
-RUN pip install --no-cache-dir -e ./orchestrator
+# Use --no-deps to prevent setup.py dependencies from overriding requirements.txt pins
+# Dependencies are managed solely by requirements.txt for deterministic builds
+RUN pip install --no-cache-dir -e ./orchestrator --no-deps
 
 # Set PYTHONPATH to include repo root for common module imports
 ENV PYTHONPATH=/app
