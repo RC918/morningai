@@ -234,16 +234,20 @@ class TestCheckpointerSuccessPaths:
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_postgres_checkpointer_context_returns_checkpointer(self):
-        """Test postgres_checkpointer_context() returns PostgresSaver with connection pool
+        """Test postgres_checkpointer_context() returns ResilientPostgresSaver wrapper
 
-        Note (Dec 2025): PostgreSQL checkpointer now uses per-operation connection borrowing.
-        The checkpointer receives the ConnectionPool directly, and each checkpoint operation
-        borrows a connection briefly from the pool. This prevents "connection is closed"
-        errors during long workflows (~2 minutes).
+        Note (Dec 2025): PostgreSQL checkpointer now uses:
+        1. Per-operation connection borrowing (PostgresSaver receives pool directly)
+        2. ResilientPostgresSaver wrapper for auto-retry on transient errors
 
-        Architecture change:
-        - OLD: PostgresSaver(conn) - held single connection for entire workflow
-        - NEW: PostgresSaver(pool) - borrows connection per-operation
+        Architecture change (Issue #2968):
+        - OLD: PostgresSaver(pool) - no retry on transient errors
+        - NEW: ResilientPostgresSaver(PostgresSaver(pool)) - auto-retry with backoff
+
+        This test verifies:
+        1. The returned checkpointer is a ResilientPostgresSaver wrapper
+        2. The wrapper's inner saver is PostgresSaver initialized with the pool
+        3. PostgresSaver.setup() is called during initialization
         """
         try:
             pytest.importorskip("langgraph.checkpoint.postgres")
@@ -270,14 +274,25 @@ class TestCheckpointerSuccessPaths:
             with patch('langgraph_orchestrator.logger'):
                 with patch('langgraph_orchestrator._get_postgres_pool', return_value=mock_pool):
                     with patch('langgraph.checkpoint.postgres.PostgresSaver', mock_pg_class):
-                        from langgraph_orchestrator import postgres_checkpointer_context
+                        from langgraph_orchestrator import (
+                            postgres_checkpointer_context,
+                            ResilientPostgresSaver,
+                        )
 
                         with postgres_checkpointer_context() as checkpointer:
                             # Verify PostgresSaver was instantiated with the POOL (not connection)
                             # This is the critical change: per-operation connection borrowing
                             mock_pg_class.assert_called_once_with(mock_pool)
                             mock_pg_instance.setup.assert_called_once()
-                            assert checkpointer is mock_pg_instance
+
+                            # Issue #2968: Verify the returned checkpointer is wrapped
+                            # with ResilientPostgresSaver for auto-retry on transient errors
+                            assert isinstance(checkpointer, ResilientPostgresSaver), \
+                                "Expected ResilientPostgresSaver wrapper for transient error handling"
+
+                            # Verify the wrapper contains the correct inner PostgresSaver
+                            assert checkpointer._inner is mock_pg_instance, \
+                                "ResilientPostgresSaver should wrap the PostgresSaver instance"
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_postgres_checkpointer_context_returns_none_when_pool_unavailable(self):
@@ -459,3 +474,264 @@ class TestCheckpointerFallbackOnFailure:
 
                         # Verify MemorySaver was used as final fallback
                         assert result is mock_memory_instance
+
+
+class TestResilientPostgresSaver:
+    """Tests for ResilientPostgresSaver retry mechanism (Issue #2968)
+
+    These tests verify:
+    1. Transient errors trigger retry with exponential backoff
+    2. Non-transient errors are raised immediately without retry
+    3. Max retries limit is respected
+    4. Sleep delays follow exponential backoff pattern
+    5. Final exception is propagated after all retries exhausted
+    """
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_transient_error_triggers_retry(self):
+        """Test that transient errors trigger retry with exponential backoff"""
+        from unittest.mock import MagicMock, call
+
+        # Import ResilientPostgresSaver
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        # Create mock inner saver that fails twice then succeeds
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("SSL connection has been closed unexpectedly"),
+            Exception("the connection is closed"),
+            {"checkpoint": "data"},  # Success on third attempt
+        ]
+
+        # Create wrapper with known parameters
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        # Mock time.sleep to avoid actual delays
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                result = wrapper.get({"config": "test"})
+
+        # Verify result
+        assert result == {"checkpoint": "data"}
+
+        # Verify inner.get was called 3 times (2 failures + 1 success)
+        assert mock_inner.get.call_count == 3
+
+        # Verify sleep was called with exponential backoff (0.5, 1.0)
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_has_calls([call(0.5), call(1.0)])
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_non_transient_error_raises_immediately(self):
+        """Test that non-transient errors are raised without retry"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        # Create mock inner saver that fails with non-transient error
+        mock_inner = MagicMock()
+        mock_inner.put.side_effect = Exception("syntax error at or near SELECT")
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                with pytest.raises(Exception) as exc_info:
+                    wrapper.put({"config": "test"}, {}, {}, {})
+
+        # Verify error message
+        assert "syntax error" in str(exc_info.value)
+
+        # Verify inner.put was called only once (no retry for non-transient)
+        assert mock_inner.put.call_count == 1
+
+        # Verify sleep was never called
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_max_retries_exhausted_raises_last_exception(self):
+        """Test that after max retries, the last exception is raised"""
+        from unittest.mock import MagicMock, call
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        # Create mock inner saver that always fails with transient error
+        mock_inner = MagicMock()
+        mock_inner.get_tuple.side_effect = Exception("connection reset by peer")
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                with pytest.raises(Exception) as exc_info:
+                    wrapper.get_tuple({"config": "test"})
+
+        # Verify the last exception is raised
+        assert "connection reset by peer" in str(exc_info.value)
+
+        # Verify inner.get_tuple was called max_retries + 1 times (4 total)
+        assert mock_inner.get_tuple.call_count == 4
+
+        # Verify sleep was called 3 times with exponential backoff
+        assert mock_sleep.call_count == 3
+        mock_sleep.assert_has_calls([call(0.5), call(1.0), call(2.0)])
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pipeline_bad_error_triggers_retry(self):
+        """Test that Pipeline [BAD] errors trigger retry"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.put_writes.side_effect = [
+            Exception("psycopg.Pipeline [BAD] state"),
+            None,  # Success on second attempt
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                wrapper.put_writes({"config": "test"}, [], "task_id")
+
+        # Verify retry occurred
+        assert mock_inner.put_writes.call_count == 2
+        mock_sleep.assert_called_once_with(0.5)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_transient_error_patterns_coverage(self):
+        """Test that all documented transient error patterns are recognized"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        # Create a wrapper instance to test _is_transient_error
+        mock_inner = MagicMock()
+        wrapper = ResilientPostgresSaver(inner_saver=mock_inner)
+
+        # All these should be recognized as transient
+        transient_errors = [
+            Exception("SSL connection has been closed unexpectedly"),
+            Exception("the connection is closed"),
+            Exception("connection is closed"),
+            Exception("server closed the connection unexpectedly"),
+            Exception("connection reset by peer"),
+            Exception("connection timed out"),
+            Exception("could not connect to server: Connection refused"),
+            Exception("consuming input failed: SSL error"),
+            Exception("psycopg.Pipeline [BAD] state"),
+        ]
+
+        for error in transient_errors:
+            assert wrapper._is_transient_error(error), \
+                f"Expected '{error}' to be recognized as transient"
+
+        # These should NOT be recognized as transient
+        non_transient_errors = [
+            Exception("syntax error at or near"),
+            Exception("permission denied for table"),
+            Exception("duplicate key value violates unique constraint"),
+            Exception("authentication failed"),
+        ]
+
+        for error in non_transient_errors:
+            assert not wrapper._is_transient_error(error), \
+                f"Expected '{error}' to NOT be recognized as transient"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_getattr_delegates_to_inner(self):
+        """Test that __getattr__ delegates unknown attributes to inner saver"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.some_custom_attribute = "custom_value"
+        mock_inner.some_custom_method.return_value = "method_result"
+
+        wrapper = ResilientPostgresSaver(inner_saver=mock_inner)
+
+        # Verify attribute delegation
+        assert wrapper.some_custom_attribute == "custom_value"
+
+        # Verify method delegation
+        assert wrapper.some_custom_method() == "method_result"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_setup_with_retry(self):
+        """Test that setup() also has retry logic"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.setup.side_effect = [
+            Exception("connection timed out"),
+            None,  # Success on second attempt
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                wrapper.setup()
+
+        # Verify retry occurred
+        assert mock_inner.setup.call_count == 2
+        mock_sleep.assert_called_once_with(0.5)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_list_with_retry(self):
+        """Test that list() has retry logic with keyword arguments"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.list.side_effect = [
+            Exception("SSL connection has been closed"),
+            [{"checkpoint": 1}, {"checkpoint": 2}],  # Success
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                result = wrapper.list(
+                    {"config": "test"},
+                    filter={"key": "value"},
+                    before=None,
+                    limit=10,
+                )
+
+        # Verify result
+        assert result == [{"checkpoint": 1}, {"checkpoint": 2}]
+
+        # Verify retry occurred
+        assert mock_inner.list.call_count == 2
+        mock_sleep.assert_called_once_with(0.5)
