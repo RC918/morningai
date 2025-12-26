@@ -281,6 +281,88 @@ class TestOrchestratorBranchDetection:
             result = should_skip_orchestrator_pr_event(event)
             assert result is False, f"Non-string head_ref {type(value).__name__} should not cause skip"
 
+    def test_orchestrator_docs_label_is_skipped(self):
+        """
+        Test that PRs with 'orchestrator-docs' label are skipped.
+
+        Issue: Self-Trigger Loop Prevention (Dec 2025)
+        PRs created by Devin use 'devin/*' branches but have 'orchestrator-docs' label.
+        Without label filtering, these PRs would trigger new docs PRs recursively.
+        """
+        event = self._create_pr_event(
+            event_type=WebhookEventType.PR_OPENED,
+            head_ref="devin/1234567890-some-task",  # NOT orchestrator/* branch
+        )
+        event.labels = ["orchestrator-docs"]  # But has the label
+        assert should_skip_orchestrator_pr_event(event) is True
+
+    def test_orchestrator_docs_test_label_is_skipped(self):
+        """
+        Test that PRs with 'orchestrator-docs-test' label are skipped.
+
+        This covers test PRs that should also be filtered.
+        """
+        event = self._create_pr_event(
+            event_type=WebhookEventType.PR_OPENED,
+            head_ref="feature/new-feature",
+        )
+        event.labels = ["orchestrator-docs-test"]
+        assert should_skip_orchestrator_pr_event(event) is True
+
+    def test_label_filter_is_case_insensitive(self):
+        """
+        Test that label filtering is case-insensitive.
+
+        GitHub labels can have mixed case, so we should handle that.
+        """
+        test_labels = [
+            ["Orchestrator-Docs"],
+            ["ORCHESTRATOR-DOCS"],
+            ["Orchestrator-Docs-Test"],
+        ]
+        for labels in test_labels:
+            event = self._create_pr_event(
+                event_type=WebhookEventType.PR_OPENED,
+                head_ref="feature/new-feature",
+            )
+            event.labels = labels
+            assert should_skip_orchestrator_pr_event(event) is True, f"Labels {labels} should be skipped"
+
+    def test_pr_with_other_labels_is_not_skipped(self):
+        """
+        Test that PRs with other labels (not orchestrator-docs) are NOT skipped.
+
+        This ensures we don't accidentally skip legitimate PRs with other labels.
+        """
+        event = self._create_pr_event(
+            event_type=WebhookEventType.PR_OPENED,
+            head_ref="feature/new-feature",
+        )
+        event.labels = ["bug", "enhancement", "documentation"]
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_label_filter_with_empty_labels(self):
+        """
+        Test that PRs with empty labels list are handled correctly.
+        """
+        event = self._create_pr_event(
+            event_type=WebhookEventType.PR_OPENED,
+            head_ref="feature/new-feature",
+        )
+        event.labels = []
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_label_filter_with_none_labels(self):
+        """
+        Test that PRs with None labels are handled correctly.
+        """
+        event = self._create_pr_event(
+            event_type=WebhookEventType.PR_OPENED,
+            head_ref="feature/new-feature",
+        )
+        event.labels = None
+        assert should_skip_orchestrator_pr_event(event) is False
+
 
 class TestEventNormalizerOrchestratorFiltering:
     """

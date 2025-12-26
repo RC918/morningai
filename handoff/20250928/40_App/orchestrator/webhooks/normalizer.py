@@ -107,12 +107,21 @@ def is_self_generated_review(event: "WebhookEvent") -> bool:
 
 def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     """
-    Check if a PR event should be skipped because it's from an orchestrator-generated branch.
+    Check if a PR event should be skipped because it's from an orchestrator-generated PR.
 
-    Issue: Docs PR Noise Reduction
-    When the orchestrator creates a docs PR (branch: orchestrator/*), GitHub sends
-    PR webhooks back. Without this check, the orchestrator would process its own
-    PR events and potentially create more docs PRs, causing noise.
+    Issue: Self-Trigger Loop Prevention (Dec 2025)
+    When the orchestrator creates a docs PR, GitHub sends PR webhooks back.
+    Without this check, the orchestrator would process its own PR events and
+    create more docs PRs, causing an infinite self-trigger loop.
+
+    Detection methods (any match triggers skip):
+    1. Branch prefix: orchestrator/* branches
+    2. Label filter: PRs with 'orchestrator-docs' or 'orchestrator-docs-test' labels
+
+    The label filter is critical because:
+    - PRs created by Devin use 'devin/*' branches, not 'orchestrator/*'
+    - But they still have 'orchestrator-docs' label applied by the orchestrator
+    - Without label filtering, these PRs would trigger new docs PRs recursively
 
     This is a zero-cost check that uses only the webhook payload data.
 
@@ -133,6 +142,30 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     if event.event_type not in pr_event_types:
         return False
 
+    repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+
+    # Check 1: Label filter - skip PRs with orchestrator-docs labels
+    # This catches PRs created by any actor (including Devin) that have the orchestrator label
+    orchestrator_labels = {"orchestrator-docs", "orchestrator-docs-test"}
+    event_labels = set(label.lower() for label in (event.labels or []))
+    matched_labels = orchestrator_labels & event_labels
+
+    if matched_labels:
+        logger.info(
+            "[EventNormalizer] Skipping orchestrator-generated PR event (label match)",
+            extra={
+                "operation": "orchestrator_pr_skip",
+                "event_id": event.event_id,
+                "repo": repo,
+                "pr_number": event.resource_id,
+                "matched_labels": list(matched_labels),
+                "event_type": event.event_type.value,
+                "reason": "orchestrator_label_match",
+            }
+        )
+        return True
+
+    # Check 2: Branch prefix - skip PRs from orchestrator/* branches
     # Extract head branch from raw payload
     raw_payload = event.raw_payload or {}
     pr_data = raw_payload.get("pull_request", {})
@@ -143,11 +176,9 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     if not isinstance(head_ref, str):
         head_ref = ""
 
-    # Check if branch starts with orchestrator/ prefix
     if head_ref.startswith("orchestrator/"):
-        repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
         logger.info(
-            "[EventNormalizer] Skipping orchestrator-generated PR event",
+            "[EventNormalizer] Skipping orchestrator-generated PR event (branch match)",
             extra={
                 "operation": "orchestrator_pr_skip",
                 "event_id": event.event_id,
