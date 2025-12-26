@@ -409,9 +409,34 @@ def _reset_postgres_pool():
 
         new_pool.wait()
 
-        # Install new pool under lock
+        # Install new pool under lock with CAS pattern
+        # This prevents race condition where another thread created a pool
+        # while we were closing the old one and creating the new one
+        pool_to_close = None
         with _postgres_pool_lock:
-            _postgres_pool = new_pool
+            if _postgres_pool is None:
+                # Normal case: no one else created a pool, install ours
+                _postgres_pool = new_pool
+                installed_pool = new_pool
+            else:
+                # Race condition: another thread already created a pool
+                # Keep the existing pool, close our newly created one
+                pool_to_close = new_pool
+                installed_pool = _postgres_pool
+                logger.info(
+                    "Pool reset: another thread already created pool, using existing",
+                    extra={"operation": "_reset_postgres_pool"}
+                )
+
+        # Close unused pool outside lock to avoid blocking
+        if pool_to_close is not None:
+            try:
+                pool_to_close.close()
+            except Exception as close_err:
+                logger.warning(
+                    f"Error closing unused pool after race: {close_err}",
+                    extra={"operation": "_reset_postgres_pool", "error": str(close_err)}
+                )
 
         logger.info(
             "PostgreSQL connection pool reset successfully",
@@ -422,7 +447,7 @@ def _reset_postgres_pool():
             }
         )
 
-        return new_pool
+        return installed_pool
 
     except Exception as e:
         logger.error(
@@ -943,8 +968,13 @@ class ResilientPostgresSaver:
 
     def list(self, config, *, filter=None, before=None, limit=None):
         """List checkpoints with retry."""
+        # Use default-arg binding to capture filter/before/limit at lambda creation time
+        # This addresses reviewer concern about late-binding closure issues
         return self._retry_with_backoff(
-            "list", lambda: self._inner.list(config, filter=filter, before=before, limit=limit)
+            "list",
+            lambda _cfg=config, _filter=filter, _before=before, _limit=limit: (
+                self._inner.list(_cfg, filter=_filter, before=_before, limit=_limit)
+            )
         )
 
     def get_tuple(self, config):
