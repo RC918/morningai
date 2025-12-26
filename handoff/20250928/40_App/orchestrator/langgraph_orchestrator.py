@@ -119,6 +119,7 @@ from common.config.settings import settings
 from llm_reviewer_adapter import generate_llm_review
 from webhooks.review_follow_up import determine_hitl_requirement
 from tools.github_api import get_repo, get_pr_diff
+from exceptions import DatabaseException
 
 logger = logging.getLogger(__name__)
 
@@ -427,6 +428,20 @@ def get_postgres_checkpointer():
         return None
 
 
+class ResilientPostgresSaverCircuitOpen(DatabaseException):
+    """
+    Exception raised when the checkpoint circuit breaker is open.
+
+    This exception is raised when too many consecutive checkpoint operations
+    have failed, indicating a persistent DB connectivity issue. The job should
+    be terminated to prevent memory buildup from accumulated state/writes.
+
+    Inherits from DatabaseException to allow upstream code to handle all
+    database-related errors consistently (e.g., for logging, metrics, alerting).
+    """
+    pass
+
+
 class ResilientPostgresSaver:
     """
     A resilient wrapper around PostgresSaver that handles transient DB errors.
@@ -438,6 +453,7 @@ class ResilientPostgresSaver:
     2. Retrying failed operations with exponential backoff
     3. Requesting fresh connections from the pool on retry
     4. Logging all retry attempts for observability
+    5. Circuit breaker to fail-fast when DB is persistently unavailable (Dec 2025)
 
     Transient errors that trigger retry:
     - SSL connection has been closed unexpectedly
@@ -451,6 +467,14 @@ class ResilientPostgresSaver:
     - Constraint violations
     - Authentication failures
     - Permission denied
+
+    Circuit Breaker (Dec 2025 fix):
+        When consecutive checkpoint failures exceed the threshold, the circuit
+        breaker opens and all subsequent operations fail immediately with
+        ResilientPostgresSaverCircuitOpen. This prevents:
+        1. Memory buildup from accumulated LangGraph state/writes waiting to flush
+        2. Prolonged failure storms that exhaust worker memory
+        3. Wasted retry attempts when DB is clearly unavailable
     """
 
     # Transient error patterns that should trigger retry
@@ -467,7 +491,18 @@ class ResilientPostgresSaver:
         "pipeline [bad]",  # psycopg Pipeline [BAD] state - exact match to avoid false positives
     ]
 
-    def __init__(self, inner_saver, max_retries: int = 3, base_delay: float = 0.5):
+    # Default circuit breaker threshold: after this many consecutive failures, fail fast
+    # This prevents memory buildup during prolonged DB outages
+    # Can be overridden via __init__ parameter for different environments
+    DEFAULT_CIRCUIT_BREAKER_THRESHOLD = 3
+
+    def __init__(
+        self,
+        inner_saver,
+        max_retries: int = 3,
+        base_delay: float = 0.5,
+        circuit_breaker_threshold: int = 3,
+    ):
         """
         Initialize ResilientPostgresSaver.
 
@@ -475,6 +510,9 @@ class ResilientPostgresSaver:
             inner_saver: The underlying PostgresSaver instance (already configured with pool)
             max_retries: Maximum number of retry attempts (default: 3)
             base_delay: Base delay in seconds for exponential backoff (default: 0.5)
+            circuit_breaker_threshold: Number of consecutive failures before circuit opens
+                                       (default: 3). Set higher for environments with
+                                       frequent transient errors.
 
         Note: The inner_saver already receives the ConnectionPool directly, so each
         checkpoint operation borrows a connection per-operation. This wrapper adds
@@ -484,6 +522,11 @@ class ResilientPostgresSaver:
         self._inner = inner_saver
         self._max_retries = max_retries
         self._base_delay = base_delay
+        self._circuit_breaker_threshold = circuit_breaker_threshold
+        # Circuit breaker state (per-instance, not global)
+        # This tracks consecutive failures within a single job/workflow
+        self._consecutive_failures = 0
+        self._circuit_open = False
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if an error is transient and should be retried."""
@@ -514,15 +557,52 @@ class ResilientPostgresSaver:
             The result of the operation
 
         Raises:
+            ResilientPostgresSaverCircuitOpen: If circuit breaker is open
             The last exception if all retries fail
+
+        Memory Safety (Dec 2025 fix):
+            This method avoids holding exception references across retry iterations.
+            Exception objects in Python hold references to their traceback, which
+            includes all local variables in the stack frames. If the exception
+            contains large objects (like LangGraph state, checkpoint data), holding
+            the reference would prevent garbage collection and cause memory buildup
+            during failure storms.
+
+            Instead of: last_exception = e; ... raise last_exception
+            We use: raise directly on the last attempt
+
+        Circuit Breaker (Dec 2025 fix):
+            After CIRCUIT_BREAKER_THRESHOLD consecutive operation failures, the
+            circuit breaker opens and all subsequent operations fail immediately.
+            This prevents memory buildup during prolonged DB outages.
         """
-        last_exception = None
+        # Check circuit breaker BEFORE attempting operation
+        if self._circuit_open:
+            logger.error(
+                f"ResilientPostgresSaver: Circuit breaker OPEN, failing fast for {operation_name}",
+                extra={
+                    "operation": "resilient_postgres_saver",
+                    "checkpoint_operation": operation_name,
+                    "circuit_breaker": "open",
+                    "consecutive_failures": self._consecutive_failures,
+                }
+            )
+            raise ResilientPostgresSaverCircuitOpen(
+                f"Circuit breaker open after {self._consecutive_failures} consecutive failures. "
+                f"DB appears to be unavailable. Failing fast to prevent memory buildup."
+            )
 
         for attempt in range(self._max_retries + 1):
             try:
-                return operation(*args, **kwargs)
+                result = operation(*args, **kwargs)
+                # Success! Reset consecutive failure counter
+                self._consecutive_failures = 0
+                return result
             except Exception as e:
-                last_exception = e
+                # Capture error info as strings BEFORE any potential re-raise
+                # This avoids holding the exception object (and its traceback) in memory
+                error_str = str(e)
+                error_type = type(e).__name__
 
                 if not self._is_transient_error(e):
                     # Non-transient error, don't retry
@@ -531,8 +611,8 @@ class ResilientPostgresSaver:
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
-                            "error": str(e),
-                            "error_type": type(e).__name__,
+                            "error": error_str,
+                            "error_type": error_type,
                             "attempt": attempt + 1,
                         }
                     )
@@ -547,8 +627,8 @@ class ResilientPostgresSaver:
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
-                            "error": str(e),
-                            "error_type": type(e).__name__,
+                            "error": error_str,
+                            "error_type": error_type,
                             "attempt": attempt + 1,
                             "max_retries": self._max_retries + 1,
                             "delay_seconds": delay,
@@ -556,19 +636,37 @@ class ResilientPostgresSaver:
                     )
                     time.sleep(delay)
                 else:
-                    # All retries exhausted
+                    # All retries exhausted - update circuit breaker state
+                    self._consecutive_failures += 1
+
+                    # Check if we should open the circuit breaker
+                    if self._consecutive_failures >= self._circuit_breaker_threshold:
+                        self._circuit_open = True
+                        logger.error(
+                            f"ResilientPostgresSaver: Circuit breaker OPENED after "
+                            f"{self._consecutive_failures} consecutive failures",
+                            extra={
+                                "operation": "resilient_postgres_saver",
+                                "checkpoint_operation": operation_name,
+                                "circuit_breaker": "opened",
+                                "consecutive_failures": self._consecutive_failures,
+                                "threshold": self._circuit_breaker_threshold,
+                            }
+                        )
+
+                    # Log and raise directly instead of storing exception
                     logger.error(
                         f"ResilientPostgresSaver: All retries exhausted for {operation_name}",
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
-                            "error": str(e),
-                            "error_type": type(e).__name__,
+                            "error": error_str,
+                            "error_type": error_type,
                             "total_attempts": self._max_retries + 1,
+                            "consecutive_failures": self._consecutive_failures,
                         }
                     )
-
-        raise last_exception
+                    raise
 
     # Delegate all PostgresSaver methods with retry logic
 

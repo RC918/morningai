@@ -735,3 +735,158 @@ class TestResilientPostgresSaver:
         # Verify retry occurred
         assert mock_inner.list.call_count == 2
         mock_sleep.assert_called_once_with(0.5)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_circuit_breaker_opens_after_threshold_failures(self):
+        """Test that circuit breaker opens after consecutive failures reach threshold"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import (
+            ResilientPostgresSaver,
+            ResilientPostgresSaverCircuitOpen,
+        )
+
+        mock_inner = MagicMock()
+        # Always fail with transient error
+        mock_inner.get.side_effect = Exception("SSL connection has been closed")
+
+        # Use threshold of 2 for faster testing
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=0,  # No retries, fail immediately
+            base_delay=0.1,
+            circuit_breaker_threshold=2,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep'):
+            with patch('langgraph_orchestrator.logger'):
+                # First failure - circuit still closed
+                with pytest.raises(Exception, match="SSL connection"):
+                    wrapper.get({"config": "test1"})
+                assert wrapper._consecutive_failures == 1
+                assert wrapper._circuit_open is False
+
+                # Second failure - circuit opens
+                with pytest.raises(Exception, match="SSL connection"):
+                    wrapper.get({"config": "test2"})
+                assert wrapper._consecutive_failures == 2
+                assert wrapper._circuit_open is True
+
+                # Third call - circuit is open, should fail fast
+                with pytest.raises(ResilientPostgresSaverCircuitOpen) as exc_info:
+                    wrapper.get({"config": "test3"})
+                assert "Circuit breaker open" in str(exc_info.value)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_circuit_breaker_resets_on_success(self):
+        """Test that consecutive failure counter resets on successful operation"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        # First call fails, second succeeds
+        mock_inner.get.side_effect = [
+            Exception("SSL connection has been closed"),
+            {"checkpoint": "data"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=0,  # No retries
+            base_delay=0.1,
+            circuit_breaker_threshold=3,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep'):
+            with patch('langgraph_orchestrator.logger'):
+                # First call fails
+                with pytest.raises(Exception, match="SSL connection"):
+                    wrapper.get({"config": "test1"})
+                assert wrapper._consecutive_failures == 1
+
+                # Second call succeeds - counter should reset
+                result = wrapper.get({"config": "test2"})
+                assert result == {"checkpoint": "data"}
+                assert wrapper._consecutive_failures == 0
+                assert wrapper._circuit_open is False
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_circuit_breaker_no_operation_when_open(self):
+        """Test that no DB operation is attempted when circuit is open"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import (
+            ResilientPostgresSaver,
+            ResilientPostgresSaverCircuitOpen,
+        )
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.1,
+            circuit_breaker_threshold=2,
+        )
+
+        # Manually open the circuit
+        wrapper._circuit_open = True
+        wrapper._consecutive_failures = 2
+
+        with patch('langgraph_orchestrator.logger'):
+            with pytest.raises(ResilientPostgresSaverCircuitOpen):
+                wrapper.get({"config": "test"})
+
+        # Verify inner saver was never called
+        mock_inner.get.assert_not_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_circuit_breaker_threshold_configurable(self):
+        """Test that circuit breaker threshold can be configured"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = Exception("SSL connection has been closed")
+
+        # Use high threshold
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=0,
+            base_delay=0.1,
+            circuit_breaker_threshold=5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep'):
+            with patch('langgraph_orchestrator.logger'):
+                # 4 failures - circuit should still be closed
+                for i in range(4):
+                    with pytest.raises(Exception, match="SSL connection"):
+                        wrapper.get({"config": f"test{i}"})
+
+                assert wrapper._consecutive_failures == 4
+                assert wrapper._circuit_open is False
+
+                # 5th failure - circuit should open
+                with pytest.raises(Exception, match="SSL connection"):
+                    wrapper.get({"config": "test5"})
+
+                assert wrapper._consecutive_failures == 5
+                assert wrapper._circuit_open is True
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_circuit_breaker_exception_inherits_database_exception(self):
+        """Test that ResilientPostgresSaverCircuitOpen inherits from DatabaseException"""
+        from langgraph_orchestrator import ResilientPostgresSaverCircuitOpen
+        from exceptions import DatabaseException
+
+        # Verify inheritance
+        assert issubclass(ResilientPostgresSaverCircuitOpen, DatabaseException)
+
+        # Verify exception can be caught as DatabaseException
+        try:
+            raise ResilientPostgresSaverCircuitOpen("Test error")
+        except DatabaseException as e:
+            assert "Test error" in str(e)
