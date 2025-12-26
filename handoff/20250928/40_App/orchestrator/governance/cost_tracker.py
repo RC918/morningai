@@ -228,16 +228,29 @@ class CostTracker:
             'daily': self.get_budget_status(trace_id, 'daily')
         }
 
-    def estimate_cost(self, tokens: int, model: str = "gpt-4") -> float:
-        """Estimate cost in USD for given tokens"""
+    def estimate_cost(self, tokens: int, model: str = "qwen-plus") -> float:
+        """Estimate cost in USD for given tokens
+        
+        Pricing source: https://www.alibabacloud.com/help/doc-detail/2987148.html
+        Last updated: 2025-12-26
+        """
         pricing = {
-            'gpt-4': 0.03,  # Input
-            'gpt-4-output': 0.06,  # Output
-            'gpt-3.5-turbo': 0.0015,  # Input
-            'gpt-3.5-turbo-output': 0.002,  # Output
+            # OpenAI models (per 1K tokens)
+            'gpt-4': 0.03,
+            'gpt-4-output': 0.06,
+            'gpt-3.5-turbo': 0.0015,
+            'gpt-3.5-turbo-output': 0.002,
+            # Qwen models - Alibaba Cloud official pricing (Singapore region)
+            # Per 1K tokens = Per 1M tokens / 1000
+            'qwen-plus': 0.0004,           # Input: $0.4/M = $0.0004/1K
+            'qwen-plus-output': 0.0012,    # Output: $1.2/M = $0.0012/1K
+            'qwen-turbo': 0.00005,         # Input: $0.05/M = $0.00005/1K
+            'qwen-turbo-output': 0.0002,   # Output: $0.2/M = $0.0002/1K
+            'qwen-max': 0.0016,            # Input: $1.6/M = $0.0016/1K
+            'qwen-max-output': 0.0064,     # Output: $6.4/M = $0.0064/1K
         }
 
-        rate = pricing.get(model, 0.03)
+        rate = pricing.get(model, 0.0004)  # Default to qwen-plus input pricing
         return (tokens / 1000) * rate
 
     def reset_budget(self, period: str = "daily") -> None:
