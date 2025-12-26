@@ -743,6 +743,22 @@ class DegradedPersistenceCheckpointer:
         app = create_orchestrator_graph(checkpointer=checkpointer)
     """
 
+    # Transient error patterns that trigger failover to fallback checkpointer.
+    # These patterns are matched against lowercased error messages.
+    # Centralized here for maintainability and consistency across all methods.
+    TRANSIENT_ERROR_PATTERNS = frozenset((
+        "ssl connection has been closed",
+        "the connection is closed",
+        "connection is closed",
+        "server closed the connection",
+        "connection reset by peer",
+        "connection timed out",
+        "could not connect to server",
+        "pipeline [bad]",
+        "circuit breaker open",
+        "all retries exhausted",
+    ))
+
     def __init__(
         self,
         primary,
@@ -803,6 +819,21 @@ class DegradedPersistenceCheckpointer:
             }
         )
 
+    def _is_transient_error(self, error: Exception) -> bool:
+        """
+        Check if an error is transient and should trigger failover.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if the error is transient (connection/SSL issues), False otherwise
+        """
+        if isinstance(error, ResilientPostgresSaverCircuitOpen):
+            return True
+        error_str = str(error).lower()
+        return any(pattern in error_str for pattern in self.TRANSIENT_ERROR_PATTERNS)
+
     def _execute_with_failover(self, operation_name: str, primary_op, fallback_op, *args, **kwargs):
         """
         Execute an operation with automatic failover on transient errors.
@@ -815,25 +846,8 @@ class DegradedPersistenceCheckpointer:
 
         try:
             return primary_op(*args, **kwargs)
-        except (ResilientPostgresSaverCircuitOpen, Exception) as e:
-            error_str = str(e).lower()
-            is_transient = any(pattern in error_str for pattern in [
-                "ssl connection has been closed",
-                "the connection is closed",
-                "connection is closed",
-                "server closed the connection",
-                "connection reset by peer",
-                "connection timed out",
-                "could not connect to server",
-                "pipeline [bad]",
-                "circuit breaker open",
-                "all retries exhausted",
-            ])
-
-            if isinstance(e, ResilientPostgresSaverCircuitOpen):
-                is_transient = True
-
-            if is_transient:
+        except Exception as e:
+            if self._is_transient_error(e):
                 self._maybe_failover(operation_name, e)
                 return fallback_op(*args, **kwargs)
             else:
@@ -888,21 +902,12 @@ class DegradedPersistenceCheckpointer:
 
     def list(self, config, *, filter=None, before=None, limit=None):
         """List checkpoints with failover."""
-        if self._degraded:
-            return self._fallback.list(config, filter=filter, before=before, limit=limit)
-
-        try:
-            return self._primary.list(config, filter=filter, before=before, limit=limit)
-        except (ResilientPostgresSaverCircuitOpen, Exception) as e:
-            error_str = str(e).lower()
-            is_transient = any(pattern in error_str for pattern in [
-                "ssl connection", "connection is closed", "pipeline [bad]",
-                "circuit breaker", "all retries exhausted",
-            ])
-            if is_transient or isinstance(e, ResilientPostgresSaverCircuitOpen):
-                self._maybe_failover("list", e)
-                return self._fallback.list(config, filter=filter, before=before, limit=limit)
-            raise
+        return self._execute_with_failover(
+            "list",
+            lambda c, **kw: self._primary.list(c, **kw),
+            lambda c, **kw: self._fallback.list(c, **kw),
+            config, filter=filter, before=before, limit=limit
+        )
 
     def get_next_version(self, current, channel):
         """Get next version - delegate to active checkpointer."""
@@ -4953,13 +4958,17 @@ def run_orchestrator(
         # Use default values to avoid "status=None" in logs
         result_status = final_result.get("status") or "unknown"
         result_pr_url = final_result.get("pr_url") or ""
+        # Track degraded persistence mode for monitoring ratio of degraded workflows
+        persistence_degraded = getattr(checkpointer, "is_degraded", False)
         logger.info(
-            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} pr_url='{result_pr_url}'",
+            f"LangGraph orchestrator completed trace_id={trace_id} status={result_status} "
+            f"pr_url='{result_pr_url}' persistence_degraded={persistence_degraded}",
             extra={
                 "operation": "run_orchestrator",
                 "trace_id": trace_id,
                 "status": result_status,
-                "pr_url": result_pr_url
+                "pr_url": result_pr_url,
+                "persistence_degraded": persistence_degraded,
             }
         )
 
@@ -5130,13 +5139,20 @@ def run_review_follow_up_orchestrator(
 
         final_result = result.get("final_result", {})
 
-        logger.info("Review Follow-up orchestrator completed", extra={
-            "operation": "run_review_follow_up_orchestrator",
-            "trace_id": trace_id,
-            "status": final_result.get("status"),
-            "pr_url": final_result.get("pr_url"),
-            "original_pr_number": original_pr_number,
-        })
+        # Track degraded persistence mode for monitoring ratio of degraded workflows
+        persistence_degraded = getattr(checkpointer, "is_degraded", False)
+        logger.info(
+            f"Review Follow-up orchestrator completed trace_id={trace_id} "
+            f"persistence_degraded={persistence_degraded}",
+            extra={
+                "operation": "run_review_follow_up_orchestrator",
+                "trace_id": trace_id,
+                "status": final_result.get("status"),
+                "pr_url": final_result.get("pr_url"),
+                "original_pr_number": original_pr_number,
+                "persistence_degraded": persistence_degraded,
+            }
+        )
 
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
@@ -5327,14 +5343,21 @@ def run_internal_review_orchestrator(
         internal_review_result = result.get("internal_review_result", {})
         final_result = result.get("final_result", {})
 
-        logger.info("Internal Review orchestrator completed", extra={
-            "operation": "run_internal_review_orchestrator",
-            "trace_id": trace_id,
-            "internal_review_decision": result.get("internal_review_decision"),
-            "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
-            "requires_hitl": result.get("requires_hitl_approval"),
-            "original_pr_number": original_pr_number,
-        })
+        # Track degraded persistence mode for monitoring ratio of degraded workflows
+        persistence_degraded = getattr(checkpointer, "is_degraded", False)
+        logger.info(
+            f"Internal Review orchestrator completed trace_id={trace_id} "
+            f"persistence_degraded={persistence_degraded}",
+            extra={
+                "operation": "run_internal_review_orchestrator",
+                "trace_id": trace_id,
+                "internal_review_decision": result.get("internal_review_decision"),
+                "ai_reviewer_agreement": result.get("ai_reviewer_agreement"),
+                "requires_hitl": result.get("requires_hitl_approval"),
+                "original_pr_number": original_pr_number,
+                "persistence_degraded": persistence_degraded,
+            }
+        )
 
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_workflow_complete(trace_id, status="success", latency_ms=latency_ms)
