@@ -110,6 +110,8 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     Check if a PR event should be skipped because it's from an orchestrator-generated PR.
 
     Issue: Self-Trigger Loop Prevention (Dec 2025)
+    Issue: Garbage PR Fix - Defense in Depth (Dec 2025)
+
     When the orchestrator creates a docs PR, GitHub sends PR webhooks back.
     Without this check, the orchestrator would process its own PR events and
     create more docs PRs, causing an infinite self-trigger loop.
@@ -118,10 +120,10 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     1. Branch prefix: orchestrator/* branches
     2. Label filter: PRs with 'orchestrator-docs' or 'orchestrator-docs-test' labels
 
-    The label filter is critical because:
-    - PRs created by Devin use 'devin/*' branches, not 'orchestrator/*'
-    - But they still have 'orchestrator-docs' label applied by the orchestrator
-    - Without label filtering, these PRs would trigger new docs PRs recursively
+    Defense in Depth (Dec 2025):
+    This function also checks UNKNOWN events, which may be CI events (check_suite,
+    check_run, status) that reference orchestrator PRs. Combined with the UNKNOWN
+    event filter in is_actionable(), this provides layered protection.
 
     This is a zero-cost check that uses only the webhook payload data.
 
@@ -131,23 +133,66 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     Returns:
         True if this is an orchestrator-generated PR that should be skipped
     """
-    # Only check PR-related events
+    # Only check PR-related events and UNKNOWN events (which may be CI events)
+    # Issue: Garbage PR Fix - UNKNOWN events can be check_suite/check_run/status
+    # that reference orchestrator PRs and should be filtered
     pr_event_types = {
         WebhookEventType.PR_OPENED,
         WebhookEventType.PR_CLOSED,
         WebhookEventType.PR_MERGED,
         WebhookEventType.PR_UPDATED,
         WebhookEventType.PR_REVIEWED,
+        WebhookEventType.UNKNOWN,  # CI events parsed as UNKNOWN
     }
     if event.event_type not in pr_event_types:
         return False
 
     repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
 
-    # Extract head branch from raw payload (needed for logging in both checks)
+    # Extract head branch from raw payload
+    # Defense in Depth: Check multiple payload locations for branch info
+    # - PR events: pull_request.head.ref
+    # - Check suite events: check_suite.head_branch or check_suite.pull_requests[0].head.ref
+    # - Check run events: check_run.check_suite.head_branch
+    # - Status events: branches[0].name
     raw_payload = event.raw_payload or {}
+
+    head_ref = ""
+
+    # Try PR payload first (most common)
     pr_data = raw_payload.get("pull_request", {})
-    head_ref = pr_data.get("head", {}).get("ref", "")
+    if pr_data:
+        head_ref = pr_data.get("head", {}).get("ref", "")
+
+    # Try check_suite payload (CI events)
+    if not head_ref:
+        check_suite = raw_payload.get("check_suite", {})
+        if check_suite and isinstance(check_suite, dict):
+            head_ref = check_suite.get("head_branch", "")
+            # Also check pull_requests array in check_suite
+            if not head_ref:
+                prs = check_suite.get("pull_requests", [])
+                if prs and isinstance(prs, list) and len(prs) > 0:
+                    first_pr = prs[0]
+                    if isinstance(first_pr, dict):
+                        head_ref = first_pr.get("head", {}).get("ref", "")
+
+    # Try check_run payload (CI events)
+    if not head_ref:
+        check_run = raw_payload.get("check_run", {})
+        if check_run and isinstance(check_run, dict):
+            check_suite_in_run = check_run.get("check_suite", {})
+            if isinstance(check_suite_in_run, dict):
+                head_ref = check_suite_in_run.get("head_branch", "")
+
+    # Try status event payload
+    if not head_ref:
+        branches = raw_payload.get("branches", [])
+        if branches and isinstance(branches, list) and len(branches) > 0:
+            first_branch = branches[0]
+            if isinstance(first_branch, dict):
+                head_ref = first_branch.get("name", "")
+
     if not isinstance(head_ref, str):
         head_ref = ""
 
@@ -180,12 +225,12 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 
     if matched_labels:
         logger.info(
-            "[EventNormalizer] Skipping orchestrator-generated PR event (label match)",
+            "[EventNormalizer] Skipping orchestrator-generated event (label match)",
             extra={
-                "operation": "orchestrator_pr_skip",
+                "operation": "orchestrator_event_skip",
                 "event_id": event.event_id,
                 "repo": repo,
-                "pr_number": event.resource_id,
+                "resource_id": event.resource_id,
                 "head_ref": head_ref,
                 "matched_labels": list(matched_labels),
                 "event_type": event.event_type.value,
@@ -194,16 +239,16 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
         )
         return True
 
-    # Check 2: Branch prefix - skip PRs from orchestrator/* branches
-    # (head_ref already extracted above for logging consistency)
+    # Check 2: Branch prefix - skip events from orchestrator/* branches
+    # This catches PR events, CI events (check_suite, check_run), and status events
     if head_ref.startswith("orchestrator/"):
         logger.info(
-            "[EventNormalizer] Skipping orchestrator-generated PR event (branch match)",
+            "[EventNormalizer] Skipping orchestrator-generated event (branch match)",
             extra={
-                "operation": "orchestrator_pr_skip",
+                "operation": "orchestrator_event_skip",
                 "event_id": event.event_id,
                 "repo": repo,
-                "pr_number": event.resource_id,
+                "resource_id": event.resource_id,
                 "head_ref": head_ref,
                 "event_type": event.event_type.value,
                 "reason": "orchestrator_branch_prefix",
@@ -577,7 +622,28 @@ class EventNormalizer:
         Issue: #2254 - is_actionable observability
         Phase B-B: Internal Repo Dogfooding support
         Issue: Self-Trigger Loop Prevention
+        Issue: Garbage PR Fix (Dec 2025)
         """
+        # P0: UNKNOWN Event Filter - Skip events that couldn't be parsed
+        # Issue: Garbage PR Fix (Dec 2025)
+        # When GitHub sends events not in GITHUB_EVENT_MAP (e.g., check_suite, check_run, status),
+        # they are parsed as UNKNOWN. Without this check, UNKNOWN events can bypass
+        # should_skip_orchestrator_pr_event() and trigger garbage PR creation via keyword matching.
+        # This is a critical early-exit to prevent self-trigger loops from non-PR events.
+        if event.event_type == WebhookEventType.UNKNOWN:
+            repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+            logger.info(
+                "[EventNormalizer] UNKNOWN event skipped - not actionable",
+                extra={
+                    "operation": "unknown_event_skip",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "event_type": event.event_type.value,
+                    "reason": "unknown_event_type_not_actionable",
+                }
+            )
+            return False
+
         # P1: Self-Review Detection - Skip our own reviews to prevent feedback loop
         # Issue: Self-Trigger Loop Prevention
         # When the orchestrator posts a review, GitHub sends a PR_REVIEWED webhook.
