@@ -33,7 +33,7 @@ services:
       pip uninstall -y jwt || true &&
       pip install -r handoff/20250928/40_App/api-backend/requirements.txt \
                   -r handoff/20250928/40_App/orchestrator/requirements.txt &&
-      pip install -e handoff/20250928/40_App/orchestrator &&
+      pip install -e handoff/20250928/40_App/orchestrator --no-deps &&
       pip check &&
       python -c "import jwt; assert hasattr(jwt, 'decode'), 'Wrong jwt package'" &&
       python -c "import httpx, websockets, supabase; print(f'httpx={httpx.__version__}, websockets={websockets.__version__}, supabase={supabase.__version__}')"
@@ -94,7 +94,7 @@ services:
       pip install --upgrade pip &&
       pip uninstall -y jwt || true &&
       pip install -r requirements.txt &&
-      pip install -e . &&
+      pip install -e . --no-deps &&
       pip check &&
       python -c "import httpx, websockets, supabase; print(f'httpx={httpx.__version__}, websockets={websockets.__version__}, supabase={supabase.__version__}')"
     startCommand: cd handoff/20250928/40_App/orchestrator && python redis_queue/worker.py
