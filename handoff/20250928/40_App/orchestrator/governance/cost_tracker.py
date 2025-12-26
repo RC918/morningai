@@ -76,6 +76,8 @@ class CostTracker:
 
         self.policies = self._load_policies(policies_path)
         self.budgets = self.policies.get('cost_budget', {})
+        self.pricing_config = self.budgets.get('pricing', {})
+        self.default_model = self.pricing_config.get('default_model', 'qwen-plus')
 
     def _load_policies(self, path: str) -> Dict:
         """Load policies from YAML"""
@@ -91,10 +93,21 @@ class CostTracker:
         trace_id: str,
         tokens: int,
         cost_usd: float,
-        model: str = "gpt-4",
+        model: str = None,
         operation: str = "completion"
     ) -> None:
-        """Track token and cost usage"""
+        """Track token and cost usage
+        
+        Args:
+            trace_id: Task trace ID
+            tokens: Number of tokens used
+            cost_usd: Cost in USD
+            model: Model name (defaults to self.default_model from config)
+            operation: Operation type (e.g., 'completion', 'faq_generation')
+        """
+        if model is None:
+            model = self.default_model
+            
         if not self.redis:
             print("[CostTracker] Redis unavailable, skipping tracking")
             return
@@ -228,17 +241,59 @@ class CostTracker:
             'daily': self.get_budget_status(trace_id, 'daily')
         }
 
-    def estimate_cost(self, tokens: int, model: str = "gpt-4") -> float:
-        """Estimate cost in USD for given tokens"""
-        pricing = {
-            'gpt-4': 0.03,  # Input
-            'gpt-4-output': 0.06,  # Output
-            'gpt-3.5-turbo': 0.0015,  # Input
-            'gpt-3.5-turbo-output': 0.002,  # Output
-        }
+    # Fallback pricing table - used when YAML config is unavailable
+    # Source: https://www.alibabacloud.com/help/doc-detail/2987148.html
+    # Last updated: 2025-12-26
+    FALLBACK_PRICING = {
+        'gpt-4': {'input': 0.03, 'output': 0.06},
+        'gpt-3.5-turbo': {'input': 0.0015, 'output': 0.002},
+        'qwen-plus': {'input': 0.0004, 'output': 0.0012},
+        'qwen-turbo': {'input': 0.00005, 'output': 0.0002},
+        'qwen-max': {'input': 0.0016, 'output': 0.0064},
+    }
+    FALLBACK_DEFAULT_MODEL = 'qwen-plus'
 
-        rate = pricing.get(model, 0.03)
+    def estimate_cost(self, tokens: int, model: str = None, token_type: str = "input") -> float:
+        """Estimate cost in USD for given tokens
+        
+        Args:
+            tokens: Number of tokens
+            model: Model name (defaults to self.default_model from config)
+            token_type: 'input' or 'output' (affects pricing for models with separate rates)
+        
+        Pricing loaded from policies.yaml (cost_budget.pricing)
+        Fallback to hardcoded values if config not available
+        """
+        if model is None:
+            model = self.default_model
+        
+        models_config = self.pricing_config.get('models', {})
+        
+        if models_config and model in models_config:
+            model_pricing = models_config[model]
+            rate = model_pricing.get(token_type, model_pricing.get('input', self.FALLBACK_PRICING[self.FALLBACK_DEFAULT_MODEL]['input']))
+        else:
+            # Using fallback pricing - log warning for visibility
+            if model not in self.FALLBACK_PRICING:
+                print(f"[CostTracker] WARNING: Unknown model '{model}', using default model '{self.default_model}' pricing")
+                model = self.default_model if self.default_model in self.FALLBACK_PRICING else self.FALLBACK_DEFAULT_MODEL
+            
+            if not models_config:
+                print(f"[CostTracker] WARNING: Pricing config not loaded, using fallback pricing for '{model}'")
+            
+            model_pricing = self.FALLBACK_PRICING.get(model, self.FALLBACK_PRICING[self.FALLBACK_DEFAULT_MODEL])
+            rate = model_pricing.get(token_type, model_pricing.get('input', self.FALLBACK_PRICING[self.FALLBACK_DEFAULT_MODEL]['input']))
+        
         return (tokens / 1000) * rate
+    
+    def get_pricing_info(self) -> Dict:
+        """Get current pricing configuration info"""
+        return {
+            'version': self.pricing_config.get('version', 'hardcoded'),
+            'last_updated': self.pricing_config.get('last_updated', 'unknown'),
+            'default_model': self.default_model,
+            'models': list(self.pricing_config.get('models', {}).keys()) or ['fallback']
+        }
 
     def reset_budget(self, period: str = "daily") -> None:
         """Reset budget for testing purposes"""

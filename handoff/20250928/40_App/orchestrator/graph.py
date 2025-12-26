@@ -521,8 +521,8 @@ def execute(
         )
         
         estimated_tokens = len(faq_content) // 4  # Rough estimate: 4 chars per token
-        estimated_cost = cost_tracker.estimate_cost(estimated_tokens, model='gpt-4')
-        cost_tracker.track_usage(trace_id, estimated_tokens, estimated_cost, model='gpt-4', operation='faq_generation')
+        estimated_cost = cost_tracker.estimate_cost(estimated_tokens, model='qwen-plus')
+        cost_tracker.track_usage(trace_id, estimated_tokens, estimated_cost, model='qwen-plus', operation='faq_generation')
         
     except Exception as e:
         logger.warning(

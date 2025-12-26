@@ -2124,7 +2124,7 @@ def cost_advisor_node(state: AgentState) -> AgentState:
         advisory = agent.analyze_cost_budget(
             trace_id=trace_id,
             estimated_tokens=estimated_tokens,
-            model="gpt-4"
+            model="qwen-plus"
         )
 
         advisory_dict = advisory.to_dict()
