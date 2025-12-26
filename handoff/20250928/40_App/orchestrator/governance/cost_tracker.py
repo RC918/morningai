@@ -228,16 +228,24 @@ class CostTracker:
             'daily': self.get_budget_status(trace_id, 'daily')
         }
 
-    def estimate_cost(self, tokens: int, model: str = "gpt-4") -> float:
+    def estimate_cost(self, tokens: int, model: str = "qwen-plus") -> float:
         """Estimate cost in USD for given tokens"""
         pricing = {
+            # OpenAI models (per 1K tokens)
             'gpt-4': 0.03,  # Input
             'gpt-4-output': 0.06,  # Output
             'gpt-3.5-turbo': 0.0015,  # Input
             'gpt-3.5-turbo-output': 0.002,  # Output
+            # Qwen models (per 1K tokens) - much cheaper
+            'qwen-plus': 0.0016,  # ~$0.0016/1K tokens
+            'qwen-plus-output': 0.0064,  # ~$0.0064/1K tokens
+            'qwen-turbo': 0.0003,  # ~$0.0003/1K tokens
+            'qwen-turbo-output': 0.0006,  # ~$0.0006/1K tokens
+            'qwen-max': 0.016,  # ~$0.016/1K tokens
+            'qwen-max-output': 0.064,  # ~$0.064/1K tokens
         }
 
-        rate = pricing.get(model, 0.03)
+        rate = pricing.get(model, 0.0016)  # Default to qwen-plus pricing
         return (tokens / 1000) * rate
 
     def reset_budget(self, period: str = "daily") -> None:
