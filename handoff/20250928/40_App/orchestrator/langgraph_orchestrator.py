@@ -119,6 +119,7 @@ from common.config.settings import settings
 from llm_reviewer_adapter import generate_llm_review
 from webhooks.review_follow_up import determine_hitl_requirement
 from tools.github_api import get_repo, get_pr_diff
+from exceptions import DatabaseException
 
 logger = logging.getLogger(__name__)
 
@@ -427,13 +428,16 @@ def get_postgres_checkpointer():
         return None
 
 
-class ResilientPostgresSaverCircuitOpen(Exception):
+class ResilientPostgresSaverCircuitOpen(DatabaseException):
     """
     Exception raised when the checkpoint circuit breaker is open.
 
     This exception is raised when too many consecutive checkpoint operations
     have failed, indicating a persistent DB connectivity issue. The job should
     be terminated to prevent memory buildup from accumulated state/writes.
+
+    Inherits from DatabaseException to allow upstream code to handle all
+    database-related errors consistently (e.g., for logging, metrics, alerting).
     """
     pass
 
@@ -487,11 +491,18 @@ class ResilientPostgresSaver:
         "pipeline [bad]",  # psycopg Pipeline [BAD] state - exact match to avoid false positives
     ]
 
-    # Circuit breaker threshold: after this many consecutive failures, fail fast
+    # Default circuit breaker threshold: after this many consecutive failures, fail fast
     # This prevents memory buildup during prolonged DB outages
-    CIRCUIT_BREAKER_THRESHOLD = 3
+    # Can be overridden via __init__ parameter for different environments
+    DEFAULT_CIRCUIT_BREAKER_THRESHOLD = 3
 
-    def __init__(self, inner_saver, max_retries: int = 3, base_delay: float = 0.5):
+    def __init__(
+        self,
+        inner_saver,
+        max_retries: int = 3,
+        base_delay: float = 0.5,
+        circuit_breaker_threshold: int = 3,
+    ):
         """
         Initialize ResilientPostgresSaver.
 
@@ -499,6 +510,9 @@ class ResilientPostgresSaver:
             inner_saver: The underlying PostgresSaver instance (already configured with pool)
             max_retries: Maximum number of retry attempts (default: 3)
             base_delay: Base delay in seconds for exponential backoff (default: 0.5)
+            circuit_breaker_threshold: Number of consecutive failures before circuit opens
+                                       (default: 3). Set higher for environments with
+                                       frequent transient errors.
 
         Note: The inner_saver already receives the ConnectionPool directly, so each
         checkpoint operation borrows a connection per-operation. This wrapper adds
@@ -508,6 +522,7 @@ class ResilientPostgresSaver:
         self._inner = inner_saver
         self._max_retries = max_retries
         self._base_delay = base_delay
+        self._circuit_breaker_threshold = circuit_breaker_threshold
         # Circuit breaker state (per-instance, not global)
         # This tracks consecutive failures within a single job/workflow
         self._consecutive_failures = 0
@@ -625,7 +640,7 @@ class ResilientPostgresSaver:
                     self._consecutive_failures += 1
 
                     # Check if we should open the circuit breaker
-                    if self._consecutive_failures >= self.CIRCUIT_BREAKER_THRESHOLD:
+                    if self._consecutive_failures >= self._circuit_breaker_threshold:
                         self._circuit_open = True
                         logger.error(
                             f"ResilientPostgresSaver: Circuit breaker OPENED after "
@@ -635,7 +650,7 @@ class ResilientPostgresSaver:
                                 "checkpoint_operation": operation_name,
                                 "circuit_breaker": "opened",
                                 "consecutive_failures": self._consecutive_failures,
-                                "threshold": self.CIRCUIT_BREAKER_THRESHOLD,
+                                "threshold": self._circuit_breaker_threshold,
                             }
                         )
 
