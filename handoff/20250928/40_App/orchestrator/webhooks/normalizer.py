@@ -107,29 +107,23 @@ def is_self_generated_review(event: "WebhookEvent") -> bool:
 
 def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     """
-    Check if an event should be skipped because it's from an orchestrator-generated PR.
+    Check if a PR event should be skipped because it's from an orchestrator-generated PR.
 
     Issue: Self-Trigger Loop Prevention (Dec 2025)
     Issue: Garbage PR Fix - Defense in Depth (Dec 2025)
 
-    When the orchestrator creates a docs PR, GitHub sends multiple webhook events back:
-    - PR events (pull_request.opened, pull_request.synchronize, etc.)
-    - CI events (check_suite, check_run, status, etc.)
-    - Other events that may reference the PR
-
-    Without this check, the orchestrator would process its own events and
+    When the orchestrator creates a docs PR, GitHub sends PR webhooks back.
+    Without this check, the orchestrator would process its own PR events and
     create more docs PRs, causing an infinite self-trigger loop.
 
     Detection methods (any match triggers skip):
-    1. Branch prefix: orchestrator/* branches (from raw_payload)
+    1. Branch prefix: orchestrator/* branches
     2. Label filter: PRs with 'orchestrator-docs' or 'orchestrator-docs-test' labels
-    3. Branch in title/description: Events mentioning orchestrator/* branches
 
     Defense in Depth (Dec 2025):
-    This function now checks ALL event types, not just PR events, to catch
-    CI events (check_suite, check_run) that reference orchestrator PRs.
-    Combined with the UNKNOWN event filter in is_actionable(), this provides
-    layered protection against self-trigger loops.
+    This function also checks UNKNOWN events, which may be CI events (check_suite,
+    check_run, status) that reference orchestrator PRs. Combined with the UNKNOWN
+    event filter in is_actionable(), this provides layered protection.
 
     This is a zero-cost check that uses only the webhook payload data.
 
@@ -137,8 +131,21 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
         event: The webhook event to check
 
     Returns:
-        True if this is an orchestrator-generated event that should be skipped
+        True if this is an orchestrator-generated PR that should be skipped
     """
+    # Only check PR-related events and UNKNOWN events (which may be CI events)
+    # Issue: Garbage PR Fix - UNKNOWN events can be check_suite/check_run/status
+    # that reference orchestrator PRs and should be filtered
+    pr_event_types = {
+        WebhookEventType.PR_OPENED,
+        WebhookEventType.PR_CLOSED,
+        WebhookEventType.PR_MERGED,
+        WebhookEventType.PR_UPDATED,
+        WebhookEventType.PR_REVIEWED,
+        WebhookEventType.UNKNOWN,  # CI events parsed as UNKNOWN
+    }
+    if event.event_type not in pr_event_types:
+        return False
 
     repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
 

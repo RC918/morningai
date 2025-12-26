@@ -7,8 +7,9 @@ trigger garbage PR creation via keyword matching in is_actionable().
 
 This test file validates:
 1. UNKNOWN events are not actionable (Fix 1)
-2. should_skip_orchestrator_pr_event() checks all event types (Fix 2)
+2. should_skip_orchestrator_pr_event() checks PR events AND UNKNOWN events (Fix 2)
 3. Branch detection works for CI events (check_suite, check_run, status)
+4. Non-PR events (ISSUE_CREATED, etc.) are NOT checked by should_skip_orchestrator_pr_event
 """
 
 import pytest
@@ -207,6 +208,30 @@ class TestShouldSkipOrchestratorEvent:
             },
         )
         assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_non_pr_events_not_checked(self):
+        """Test that non-PR events (ISSUE_CREATED, etc.) are NOT checked.
+
+        This ensures we don't accidentally skip legitimate non-PR workflows
+        that happen to have PR-like payload fragments.
+        """
+        non_pr_event_types = [
+            WebhookEventType.ISSUE_CREATED,
+            WebhookEventType.ISSUE_CLOSED,
+            WebhookEventType.ISSUE_COMMENTED,
+            WebhookEventType.PUSH,
+        ]
+        for event_type in non_pr_event_types:
+            event = create_mock_event(
+                event_type=event_type,
+                raw_payload={
+                    "pull_request": {
+                        "head": {"ref": "orchestrator/docs-test-123"}
+                    }
+                },
+            )
+            assert should_skip_orchestrator_pr_event(event) is False, \
+                f"Event type {event_type} should NOT be checked"
 
 
 class TestGarbagePRScenario:
