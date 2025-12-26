@@ -456,3 +456,135 @@ class TestGarbagePRScenario:
 
         assert event_normalizer.is_actionable(event) is False
         assert should_skip_orchestrator_pr_event(event) is True
+
+
+class TestExtractHeadBranchFromPayload:
+    """Tests for _extract_head_branch_from_payload helper function (#3047)"""
+
+    def test_extract_from_pull_request(self):
+        """Test extraction from PR payload"""
+        from ..normalizer import _extract_head_branch_from_payload
+        payload = {"pull_request": {"head": {"ref": "feature/my-branch"}}}
+        assert _extract_head_branch_from_payload(payload) == "feature/my-branch"
+
+    def test_extract_from_check_suite_head_branch(self):
+        """Test extraction from check_suite.head_branch"""
+        from ..normalizer import _extract_head_branch_from_payload
+        payload = {"check_suite": {"head_branch": "orchestrator/docs-123"}}
+        assert _extract_head_branch_from_payload(payload) == "orchestrator/docs-123"
+
+    def test_extract_from_check_suite_pull_requests(self):
+        """Test extraction from check_suite.pull_requests[0].head.ref"""
+        from ..normalizer import _extract_head_branch_from_payload
+        payload = {
+            "check_suite": {
+                "pull_requests": [{"head": {"ref": "feature/pr-branch"}}]
+            }
+        }
+        assert _extract_head_branch_from_payload(payload) == "feature/pr-branch"
+
+    def test_extract_from_check_run(self):
+        """Test extraction from check_run.check_suite.head_branch"""
+        from ..normalizer import _extract_head_branch_from_payload
+        payload = {"check_run": {"check_suite": {"head_branch": "main"}}}
+        assert _extract_head_branch_from_payload(payload) == "main"
+
+    def test_extract_from_status_branches(self):
+        """Test extraction from status event branches array"""
+        from ..normalizer import _extract_head_branch_from_payload
+        payload = {"branches": [{"name": "develop"}]}
+        assert _extract_head_branch_from_payload(payload) == "develop"
+
+    def test_empty_payload_returns_empty_string(self):
+        """Test empty payload returns empty string"""
+        from ..normalizer import _extract_head_branch_from_payload
+        assert _extract_head_branch_from_payload({}) == ""
+
+    def test_none_payload_returns_empty_string(self):
+        """Test None payload returns empty string"""
+        from ..normalizer import _extract_head_branch_from_payload
+        assert _extract_head_branch_from_payload(None) == ""
+
+    def test_non_dict_payload_returns_empty_string(self):
+        """Test non-dict payload returns empty string"""
+        from ..normalizer import _extract_head_branch_from_payload
+        assert _extract_head_branch_from_payload("not a dict") == ""
+        assert _extract_head_branch_from_payload([]) == ""
+
+    def test_priority_pr_over_check_suite(self):
+        """Test PR payload takes priority over check_suite"""
+        from ..normalizer import _extract_head_branch_from_payload
+        payload = {
+            "pull_request": {"head": {"ref": "pr-branch"}},
+            "check_suite": {"head_branch": "check-suite-branch"}
+        }
+        assert _extract_head_branch_from_payload(payload) == "pr-branch"
+
+
+class TestStagingObservationLogging:
+    """Tests for staging observation logging fields (#3047)"""
+
+    def test_unknown_event_logging_fields(self, event_normalizer, caplog):
+        """Test that UNKNOWN event skip logs contain required fields"""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        event = WebhookEvent(
+            event_id="test-event-456",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.UNKNOWN,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={"check_suite": {"head_branch": "orchestrator/test-123"}},
+            title="Test Event",
+            description="",
+            url="https://github.com/test/repo/pull/1",
+            actor_name="test-bot",
+            metadata={"github_event": "check_suite", "action": "completed"},
+            labels=[],
+            repo_owner="test",
+            repo_name="repo",
+        )
+
+        result = event_normalizer.is_actionable(event)
+        assert result is False
+
+        # Verify the log message contains expected text
+        assert any("UNKNOWN event skipped" in r.message for r in caplog.records)
+
+        # Find the log record and verify extra fields are present
+        log_records = [r for r in caplog.records if "UNKNOWN event skipped" in r.message]
+        assert len(log_records) >= 1
+        record = log_records[0]
+        # Verify extra fields are captured (they become attributes on the LogRecord)
+        assert hasattr(record, "operation") and record.operation == "unknown_event_skip"
+        assert hasattr(record, "github_event") and record.github_event == "check_suite"
+        assert hasattr(record, "github_action") and record.github_action == "completed"
+        assert hasattr(record, "head_branch") and record.head_branch == "orchestrator/test-123"
+        assert hasattr(record, "actor") and record.actor == "test-bot"
+
+    def test_orchestrator_branch_skip_logging_fields(self, caplog):
+        """Test that orchestrator branch skip logs contain required fields"""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        event = WebhookEvent(
+            event_id="test-event-789",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.PR_OPENED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={"pull_request": {"head": {"ref": "orchestrator/docs-456"}}},
+            title="Test PR",
+            description="",
+            url="https://github.com/test/repo/pull/1",
+            actor_name="test-user",
+            metadata={"github_event": "pull_request", "action": "opened"},
+            labels=[],
+            repo_owner="test",
+            repo_name="repo",
+        )
+
+        result = should_skip_orchestrator_pr_event(event)
+        assert result is True
+
+        # Verify the log message contains expected text
+        assert any("orchestrator-generated event" in r.message for r in caplog.records)
