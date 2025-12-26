@@ -9,7 +9,7 @@ It is part of EPIC B's governance measurement layer, used to determine:
 - Future P6 (Checks API/status gate) integration
 
 Usage:
-    GITHUB_TOKEN=xxx python tools/reviewer_stability_scorecard.py [--days 7] [--output json|markdown]
+    GITHUB_TOKEN=xxx python tools/reviewer_stability_scorecard.py [--days 7] [--since 2025-12-23] [--output json|markdown]
 
 Environment Variables:
     GITHUB_TOKEN: GitHub personal access token with repo read access
@@ -148,7 +148,11 @@ def check_rate_limit(response) -> None:
 
 
 def get_recent_prs(
-    session: requests.Session, repo: str, days: int, state: str = "all"
+    session: requests.Session,
+    repo: str,
+    days: int,
+    state: str = "all",
+    since_date: datetime | None = None,
 ) -> list:
     """Get PRs updated within the specified number of days.
 
@@ -157,9 +161,13 @@ def get_recent_prs(
         repo: Repository in owner/repo format
         days: Number of days to look back
         state: PR state filter (default: all)
+        since_date: Optional explicit start date (overrides days if provided)
     """
     url = f"{API_BASE}/repos/{repo}/pulls"
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    if since_date is not None:
+        since = since_date
+    else:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
     all_prs = []
     page = 1
@@ -365,7 +373,12 @@ def compute_health_score(
     return health_score, status
 
 
-def calculate_metrics(token: str, repo: str, days: int) -> dict:
+def calculate_metrics(
+    token: str,
+    repo: str,
+    days: int,
+    since_date: datetime | None = None,
+) -> dict:
     """Calculate reviewer stability metrics.
 
     This is the main orchestration function that:
@@ -373,6 +386,12 @@ def calculate_metrics(token: str, repo: str, days: int) -> dict:
     2. Analyzes reviews for each PR
     3. Computes aggregate statistics
     4. Returns a metrics dictionary
+
+    Args:
+        token: GitHub API token
+        repo: Repository in owner/repo format
+        days: Number of days to analyze (used if since_date not provided)
+        since_date: Optional explicit start date (overrides days if provided)
 
     Issue #2852: Uses requests.Session for connection reuse and better performance.
     Uses context manager for proper resource cleanup.
@@ -382,8 +401,11 @@ def calculate_metrics(token: str, repo: str, days: int) -> dict:
     with requests.Session() as session:
         session.headers.update(get_headers(token))
 
-        print(f"Fetching PRs from {repo} updated in last {days} days...")
-        prs = get_recent_prs(session, repo, days)
+        if since_date is not None:
+            print(f"Fetching PRs from {repo} since {since_date.date()}...")
+        else:
+            print(f"Fetching PRs from {repo} updated in last {days} days...")
+        prs = get_recent_prs(session, repo, days, since_date=since_date)
         print(f"Found {len(prs)} PRs")
 
         # Initialize tracking structures
@@ -447,6 +469,7 @@ def calculate_metrics(token: str, repo: str, days: int) -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "repo": repo,
         "days_analyzed": days,
+        "since_date": since_date.isoformat() if since_date else None,
         "total_prs": total_prs,
         "prs_with_morningai_review": prs_with_review,
         "review_coverage_percent": coverage_percent,
@@ -465,12 +488,17 @@ def calculate_metrics(token: str, repo: str, days: int) -> dict:
 
 def format_markdown(metrics: dict) -> str:
     """Format metrics as Markdown report."""
+    if metrics.get("since_date"):
+        period = f"Since {metrics['since_date'][:10]}"
+    else:
+        period = f"Last {metrics['days_analyzed']} days"
+
     lines = [
         "# MorningAI Reviewer Stability Scorecard",
         "",
         f"**Generated:** {metrics['generated_at']}",
         f"**Repository:** {metrics['repo']}",
-        f"**Analysis Period:** Last {metrics['days_analyzed']} days",
+        f"**Analysis Period:** {period}",
         "",
         "## Summary",
         "",
@@ -569,6 +597,12 @@ def main():
         default=None,
         help="Write Markdown output to file (optional, for CI workflows)",
     )
+    parser.add_argument(
+        "--since",
+        type=str,
+        default=None,
+        help="Start date in YYYY-MM-DD or ISO format (overrides --days)",
+    )
     args = parser.parse_args()
 
     token = os.environ.get("GITHUB_TOKEN")
@@ -578,8 +612,26 @@ def main():
 
     repo = args.repo or os.environ.get("GITHUB_REPO", DEFAULT_REPO)
 
+    # Parse --since date if provided
+    since_date = None
+    if args.since:
+        try:
+            # Try ISO format first (YYYY-MM-DDTHH:MM:SS)
+            since_date = datetime.fromisoformat(args.since.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                # Try simple date format (YYYY-MM-DD)
+                since_date = datetime.strptime(args.since, "%Y-%m-%d")
+            except ValueError:
+                print(f"ERROR: Invalid date format: {args.since}")
+                print("Use YYYY-MM-DD or ISO format (e.g., 2025-12-23)")
+                sys.exit(1)
+        # Ensure timezone-aware
+        if since_date.tzinfo is None:
+            since_date = since_date.replace(tzinfo=timezone.utc)
+
     try:
-        metrics = calculate_metrics(token, repo, args.days)
+        metrics = calculate_metrics(token, repo, args.days, since_date=since_date)
     except GitHubAPIError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
