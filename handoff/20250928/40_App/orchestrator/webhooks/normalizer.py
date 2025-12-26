@@ -223,6 +223,11 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 
     matched_labels = orchestrator_labels & event_labels
 
+    # Enhanced logging for staging observation (#3047)
+    metadata = event.metadata or {}
+    github_event = metadata.get("github_event", "unknown")
+    github_action = metadata.get("action", "unknown")
+
     if matched_labels:
         logger.info(
             "[EventNormalizer] Skipping orchestrator-generated event (label match)",
@@ -234,6 +239,9 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
                 "head_ref": head_ref,
                 "matched_labels": list(matched_labels),
                 "event_type": event.event_type.value,
+                "github_event": github_event,
+                "github_action": github_action,
+                "actor": event.actor_name or "unknown",
                 "reason": "orchestrator_label_match",
             }
         )
@@ -251,6 +259,9 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
                 "resource_id": event.resource_id,
                 "head_ref": head_ref,
                 "event_type": event.event_type.value,
+                "github_event": github_event,
+                "github_action": github_action,
+                "actor": event.actor_name or "unknown",
                 "reason": "orchestrator_branch_prefix",
             }
         )
@@ -632,6 +643,30 @@ class EventNormalizer:
         # This is a critical early-exit to prevent self-trigger loops from non-PR events.
         if event.event_type == WebhookEventType.UNKNOWN:
             repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+            # Enhanced logging for staging observation (#3047)
+            # Capture original GitHub event type and action for analysis
+            metadata = event.metadata or {}
+            github_event = metadata.get("github_event", "unknown")
+            github_action = metadata.get("action", "unknown")
+            raw_payload = event.raw_payload or {}
+            # Extract branch info for CI event analysis
+            head_branch = ""
+            if "check_suite" in raw_payload:
+                cs = raw_payload.get("check_suite", {})
+                if isinstance(cs, dict):
+                    head_branch = cs.get("head_branch", "")
+            elif "check_run" in raw_payload:
+                cr = raw_payload.get("check_run", {})
+                if isinstance(cr, dict):
+                    cs_in_cr = cr.get("check_suite", {})
+                    if isinstance(cs_in_cr, dict):
+                        head_branch = cs_in_cr.get("head_branch", "")
+            elif "branches" in raw_payload:
+                branches = raw_payload.get("branches", [])
+                if isinstance(branches, list) and branches:
+                    first_branch = branches[0]
+                    if isinstance(first_branch, dict):
+                        head_branch = first_branch.get("name", "")
             logger.info(
                 "[EventNormalizer] UNKNOWN event skipped - not actionable",
                 extra={
@@ -639,6 +674,10 @@ class EventNormalizer:
                     "event_id": event.event_id,
                     "repo": repo,
                     "event_type": event.event_type.value,
+                    "github_event": github_event,
+                    "github_action": github_action,
+                    "head_branch": head_branch,
+                    "actor": event.actor_name or "unknown",
                     "reason": "unknown_event_type_not_actionable",
                 }
             )
