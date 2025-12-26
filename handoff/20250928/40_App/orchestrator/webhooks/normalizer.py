@@ -368,7 +368,8 @@ SKIP_FILE_PATTERNS = {
         ".flake8",
         "pyproject.toml",
         "setup.cfg",
-        "setup.py",
+        # NOTE: setup.py intentionally NOT included - it can contain significant
+        # executable logic (custom build commands, entry points, etc.)
         "makefile",
         "dockerfile",
         "docker-compose.yml",
@@ -420,7 +421,9 @@ def _path_is_non_code(path: str) -> bool:
     if not path:
         return True  # Empty/invalid path treated as non-code for safety (fail-open)
 
-    path_lower = path.lower()
+    # Normalize path separators for cross-platform robustness
+    # GitHub API always uses forward slashes, but this makes the helper reusable
+    path_lower = path.lower().replace("\\", "/")
     filename = path_lower.split("/")[-1]
 
     # Check exact filename matches
@@ -1033,7 +1036,7 @@ class EventNormalizer:
         # - Test files (tests/*, *_test.py, *.spec.ts)
         # - CI/CD files (.github/*)
         # Or PRs with non-actionable title prefixes (chore:, ci:, test:, docs:, style:)
-        should_skip, skip_reason, skip_details = should_skip_pr_by_smart_filters(event)
+        should_skip, _, _ = should_skip_pr_by_smart_filters(event)
         if should_skip:
             return False
 

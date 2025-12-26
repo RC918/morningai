@@ -758,6 +758,21 @@ class TestPathIsNonCode:
         assert _path_is_non_code("") is True
         assert _path_is_non_code(None) is True
 
+    def test_setup_py_is_code(self):
+        """Test that setup.py is treated as code (can contain executable logic)"""
+        # setup.py can contain significant executable logic like custom build commands,
+        # dynamic dependency resolution, or registration of entry points
+        assert _path_is_non_code("setup.py") is False
+        assert _path_is_non_code("src/setup.py") is False
+
+    def test_backslash_paths_normalized(self):
+        """Test that Windows-style backslash paths are normalized correctly"""
+        # GitHub API always uses forward slashes, but this makes the helper reusable
+        assert _path_is_non_code("docs\\readme.md") is True
+        assert _path_is_non_code("tests\\test_main.py") is True
+        assert _path_is_non_code("src\\main.py") is False
+        assert _path_is_non_code("path\\to\\component.tsx") is False
+
 
 class TestShouldSkipByPaths:
     """Tests for _should_skip_by_paths() aggregate path filter"""
