@@ -98,9 +98,11 @@ before transitioning to END state.
 
 import contextlib
 import functools
+import gc
 import logging
 import threading as _threading
 import time
+import traceback
 from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict, Any, NotRequired
 from datetime import datetime
 import operator
@@ -326,6 +328,138 @@ def _get_postgres_pool():
             return None
 
 
+def _reset_postgres_pool():
+    """
+    Force reset the global PostgreSQL connection pool.
+
+    OOM Fix (Dec 2025): When connection-lost errors occur (Pipeline [BAD], SSL closed,
+    connection reset), the pool may contain poisoned connections that hold memory.
+    This function closes the old pool and creates a fresh one.
+
+    This should be called when:
+    1. Transient connection errors are detected during checkpoint operations
+    2. The pool appears to be in a bad state
+
+    Thread Safety:
+        Uses the same lock as _get_postgres_pool() to prevent races.
+        IMPORTANT: To avoid deadlocks, we minimize lock-hold time by:
+        1. Under lock: swap _postgres_pool to None and capture old_pool
+        2. Outside lock: close old_pool (may block waiting for borrowers)
+        3. Under lock: create and install new pool
+        This prevents holding the lock during potentially blocking close() operations.
+
+    Returns:
+        ConnectionPool: The new pool instance, or None if reset failed
+    """
+    global _postgres_pool
+    import os
+
+    # Step 1: Under lock, capture old pool and clear global reference
+    with _postgres_pool_lock:
+        old_pool = _postgres_pool
+        _postgres_pool = None
+
+    # Step 2: Outside lock, close old pool (may block waiting for borrowers)
+    if old_pool is not None:
+        try:
+            old_pool.close()
+            logger.info(
+                "PostgreSQL connection pool closed for reset",
+                extra={"operation": "_reset_postgres_pool"}
+            )
+        except Exception as e:
+            logger.warning(
+                f"Error closing old PostgreSQL pool during reset: {e}",
+                extra={
+                    "operation": "_reset_postgres_pool",
+                    "error": str(e)
+                }
+            )
+
+    # Force garbage collection to release any lingering connection objects
+    gc.collect()
+
+    # Step 3: Create new pool and install under lock
+    database_url = settings.database_url or os.environ.get("DATABASE_URL")
+    if not database_url:
+        logger.warning(
+            "DATABASE_URL not configured, cannot create new connection pool",
+            extra={"operation": "_reset_postgres_pool"}
+        )
+        return None
+
+    try:
+        from psycopg_pool import ConnectionPool
+        from psycopg.rows import dict_row
+
+        new_pool = ConnectionPool(
+            conninfo=database_url,
+            min_size=1,
+            max_size=5,
+            max_lifetime=1800,
+            max_idle=300,
+            reconnect_timeout=60,
+            kwargs={
+                "autocommit": True,
+                "row_factory": dict_row,
+                "prepare_threshold": 0,
+            },
+            check=ConnectionPool.check_connection,
+        )
+
+        new_pool.wait()
+
+        # Install new pool under lock with CAS pattern
+        # This prevents race condition where another thread created a pool
+        # while we were closing the old one and creating the new one
+        pool_to_close = None
+        with _postgres_pool_lock:
+            if _postgres_pool is None:
+                # Normal case: no one else created a pool, install ours
+                _postgres_pool = new_pool
+                installed_pool = new_pool
+            else:
+                # Race condition: another thread already created a pool
+                # Keep the existing pool, close our newly created one
+                pool_to_close = new_pool
+                installed_pool = _postgres_pool
+                logger.info(
+                    "Pool reset: another thread already created pool, using existing",
+                    extra={"operation": "_reset_postgres_pool"}
+                )
+
+        # Close unused pool outside lock to avoid blocking
+        if pool_to_close is not None:
+            try:
+                pool_to_close.close()
+            except Exception as close_err:
+                logger.warning(
+                    f"Error closing unused pool after race: {close_err}",
+                    extra={"operation": "_reset_postgres_pool", "error": str(close_err)}
+                )
+
+        logger.info(
+            "PostgreSQL connection pool reset successfully",
+            extra={
+                "operation": "_reset_postgres_pool",
+                "min_size": 1,
+                "max_size": 5,
+            }
+        )
+
+        return installed_pool
+
+    except Exception as e:
+        logger.error(
+            f"Failed to create new PostgreSQL connection pool during reset: {e}",
+            extra={
+                "operation": "_reset_postgres_pool",
+                "error": str(e)
+            }
+        )
+        return None
+
+
 def get_postgres_checkpointer():
     """
     Get a PostgreSQL checkpointer with per-operation connection borrowing.
@@ -381,15 +515,30 @@ def get_postgres_checkpointer():
         # This will borrow a connection briefly for the setup SQL
         inner_checkpointer.setup()
 
+        # OOM Fix (Dec 2025): Factory function to recreate inner saver after pool reset
+        # When connection-lost errors occur, the pool is reset and we need to recreate
+        # the inner PostgresSaver to use the new pool
+        def create_inner_saver():
+            new_pool = _get_postgres_pool()
+            if new_pool is None:
+                raise RuntimeError("Cannot recreate inner saver: pool unavailable")
+            new_inner = PostgresSaver(new_pool)
+            new_inner.setup()
+            return new_inner
+
         # Issue #2968: Wrap with ResilientPostgresSaver for auto-retry on transient errors
         # This implements "Design for Failure" from Blueprint - transient DB errors
         # (SSL closed, connection reset, etc.) are automatically retried with backoff
         # Note: The inner_checkpointer already has the pool, so each retry will naturally
         # get a fresh connection from the pool via per-operation borrowing
+        #
+        # OOM Fix (Dec 2025): Pass inner_factory to allow recreating inner saver after
+        # pool reset on connection-lost errors
         checkpointer = ResilientPostgresSaver(
             inner_saver=inner_checkpointer,
             max_retries=3,
             base_delay=0.5,
+            inner_factory=create_inner_saver,
         )
 
         # Get pool statistics safely
@@ -496,12 +645,24 @@ class ResilientPostgresSaver:
     # Can be overridden via __init__ parameter for different environments
     DEFAULT_CIRCUIT_BREAKER_THRESHOLD = 3
 
+    # Connection-lost error patterns that should trigger pool reset
+    # These are more severe than general transient errors and indicate the pool may be poisoned
+    CONNECTION_LOST_PATTERNS = [
+        "ssl connection has been closed",
+        "the connection is closed",
+        "connection is closed",
+        "server closed the connection",
+        "connection reset by peer",
+        "pipeline [bad]",
+    ]
+
     def __init__(
         self,
         inner_saver,
         max_retries: int = 3,
         base_delay: float = 0.5,
         circuit_breaker_threshold: int = 3,
+        inner_factory: Optional[Callable] = None,
     ):
         """
         Initialize ResilientPostgresSaver.
@@ -513,16 +674,26 @@ class ResilientPostgresSaver:
             circuit_breaker_threshold: Number of consecutive failures before circuit opens
                                        (default: 3). Set higher for environments with
                                        frequent transient errors.
+            inner_factory: Optional callable that returns a new PostgresSaver instance.
+                          Used to recreate the inner saver after pool reset on connection
+                          lost errors. If not provided, pool reset will still occur but
+                          the inner saver will not be recreated.
 
         Note: The inner_saver already receives the ConnectionPool directly, so each
         checkpoint operation borrows a connection per-operation. This wrapper adds
         retry logic on top of that - if a transient error occurs, the next retry
         will naturally get a fresh connection from the pool.
+
+        OOM Fix (Dec 2025):
+            When connection-lost errors occur, the pool may contain poisoned connections
+            that hold memory. If inner_factory is provided, the pool will be reset and
+            the inner saver recreated to ensure the next retry uses a fresh pool.
         """
         self._inner = inner_saver
         self._max_retries = max_retries
         self._base_delay = base_delay
         self._circuit_breaker_threshold = circuit_breaker_threshold
+        self._inner_factory = inner_factory
         # Circuit breaker state (per-instance, not global)
         # This tracks consecutive failures within a single job/workflow
         self._consecutive_failures = 0
@@ -544,14 +715,76 @@ class ResilientPostgresSaver:
 
         return False
 
-    def _retry_with_backoff(self, operation_name: str, operation: Callable, *args, **kwargs):
+    def _is_connection_lost_error(self, error_str: str) -> bool:
+        """
+        Check if an error indicates connection loss that should trigger pool reset.
+
+        OOM Fix (Dec 2025): Connection-lost errors indicate the pool may contain
+        poisoned connections. These are more severe than general transient errors
+        and warrant resetting the entire pool.
+
+        Args:
+            error_str: Lowercase string representation of the error
+
+        Returns:
+            True if this is a connection-lost error that should trigger pool reset
+        """
+        for pattern in self.CONNECTION_LOST_PATTERNS:
+            if pattern in error_str:
+                return True
+        return False
+
+    def _reset_pool_and_inner(self) -> None:
+        """
+        Reset the connection pool and recreate the inner saver.
+
+        OOM Fix (Dec 2025): When connection-lost errors occur, the pool may contain
+        poisoned connections (Pipeline [BAD], Connection [BAD]) that hold memory.
+        This method:
+        1. Resets the global connection pool (closes old, creates new)
+        2. Recreates the inner PostgresSaver using the factory (if provided)
+        3. Forces garbage collection to release lingering connection objects
+
+        This ensures the next retry attempt uses a completely fresh pool and saver.
+        """
+        logger.warning(
+            "ResilientPostgresSaver: Resetting connection pool due to connection-lost error",
+            extra={"operation": "resilient_postgres_saver", "action": "pool_reset"}
+        )
+
+        # Reset the global pool
+        new_pool = _reset_postgres_pool()
+
+        # Recreate the inner saver if factory is provided
+        if self._inner_factory is not None and new_pool is not None:
+            try:
+                self._inner = self._inner_factory()
+                logger.info(
+                    "ResilientPostgresSaver: Inner saver recreated after pool reset",
+                    extra={"operation": "resilient_postgres_saver", "action": "inner_recreated"}
+                )
+            except Exception as e:
+                logger.error(
+                    f"ResilientPostgresSaver: Failed to recreate inner saver: {e}",
+                    extra={
+                        "operation": "resilient_postgres_saver",
+                        "action": "inner_recreate_failed",
+                        "error": str(e)
+                    }
+                )
+        # Note: gc.collect() is already called in _reset_postgres_pool(), no need to call again
+
+    def _retry_with_backoff(self, operation_name: str, operation: Callable):
         """
         Execute an operation with retry and exponential backoff.
 
         Args:
             operation_name: Name of the operation (for logging)
-            operation: The callable to execute
-            *args, **kwargs: Arguments to pass to the operation
+            operation: A zero-argument callable to execute. Use a lambda to capture args.
+                       IMPORTANT: Must be a lambda that resolves self._inner at call time,
+                       not a bound method captured before the retry loop. This ensures
+                       that after _reset_pool_and_inner() updates self._inner, subsequent
+                       retries use the NEW inner saver.
 
         Returns:
             The result of the operation
@@ -568,13 +801,22 @@ class ResilientPostgresSaver:
             the reference would prevent garbage collection and cause memory buildup
             during failure storms.
 
-            Instead of: last_exception = e; ... raise last_exception
-            We use: raise directly on the last attempt
+            Key changes:
+            1. time.sleep() is moved OUTSIDE the except block
+            2. Exception traceback is cleared before sleep using traceback.clear_frames()
+            3. Exception reference is deleted before sleep
+            4. Pool is reset on connection-lost errors to release poisoned connections
 
         Circuit Breaker (Dec 2025 fix):
             After CIRCUIT_BREAKER_THRESHOLD consecutive operation failures, the
             circuit breaker opens and all subsequent operations fail immediately.
             This prevents memory buildup during prolonged DB outages.
+
+        Pool Reset (Dec 2025 fix):
+            On connection-lost errors (Pipeline [BAD], SSL closed, etc.), the pool
+            is reset and the inner saver is recreated to ensure the next retry uses
+            fresh connections. The operation lambda resolves self._inner on each call,
+            so the retry will use the newly created inner saver.
         """
         # Check circuit breaker BEFORE attempting operation
         if self._circuit_open:
@@ -593,8 +835,14 @@ class ResilientPostgresSaver:
             )
 
         for attempt in range(self._max_retries + 1):
+            # Variables to track retry state OUTSIDE the except block
+            # This prevents holding exception references during sleep
+            should_retry = False
+            delay = 0.0
+            is_connection_lost = False
+
             try:
-                result = operation(*args, **kwargs)
+                result = operation()
                 # Success! Reset consecutive failure counter
                 self._consecutive_failures = 0
                 return result
@@ -602,6 +850,7 @@ class ResilientPostgresSaver:
                 # Capture error info as strings BEFORE any potential re-raise
                 # This avoids holding the exception object (and its traceback) in memory
                 error_str = str(e)
+                error_str_lower = error_str.lower()
                 error_type = type(e).__name__
 
                 if not self._is_transient_error(e):
@@ -621,6 +870,9 @@ class ResilientPostgresSaver:
                 if attempt < self._max_retries:
                     # Calculate delay with exponential backoff
                     delay = self._base_delay * (2 ** attempt)
+                    should_retry = True
+                    is_connection_lost = self._is_connection_lost_error(error_str_lower)
+
                     logger.warning(
                         f"ResilientPostgresSaver: Transient error in {operation_name}, "
                         f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1})",
@@ -632,9 +884,17 @@ class ResilientPostgresSaver:
                             "attempt": attempt + 1,
                             "max_retries": self._max_retries + 1,
                             "delay_seconds": delay,
+                            "is_connection_lost": is_connection_lost,
                         }
                     )
-                    time.sleep(delay)
+
+                    # OOM Fix: Clear exception traceback BEFORE exiting except block
+                    # This releases all local variables held in the traceback frames
+                    if e.__traceback__ is not None:
+                        traceback.clear_frames(e.__traceback__)
+                    del e
+
+                    # DO NOT sleep here - sleep is moved outside except block
                 else:
                     # All retries exhausted - update circuit breaker state
                     self._consecutive_failures += 1
@@ -668,37 +928,58 @@ class ResilientPostgresSaver:
                     )
                     raise
 
+            # OOM Fix: Sleep and pool reset OUTSIDE the except block
+            # This ensures exception references are not held during sleep
+            if should_retry:
+                # Reset pool on connection-lost errors before sleeping
+                if is_connection_lost:
+                    self._reset_pool_and_inner()
+
+                # Now safe to sleep - no exception references held
+                time.sleep(delay)
+
     # Delegate all PostgresSaver methods with retry logic
+    #
+    # IMPORTANT (Dec 2025 fix): We use lambdas instead of passing self._inner.method directly.
+    # This ensures that after _reset_pool_and_inner() updates self._inner, the retry loop
+    # uses the NEW inner saver, not the old one that was captured when the method was called.
+    # Without this, pool reset would be ineffective because retries would still use the old
+    # (potentially poisoned) inner saver.
 
     def setup(self):
         """Setup checkpoint tables with retry."""
-        return self._retry_with_backoff("setup", self._inner.setup)
+        return self._retry_with_backoff("setup", lambda: self._inner.setup())
 
     def get(self, config):
         """Get checkpoint with retry."""
-        return self._retry_with_backoff("get", self._inner.get, config)
+        return self._retry_with_backoff("get", lambda: self._inner.get(config))
 
     def put(self, config, checkpoint, metadata, new_versions):
         """Put checkpoint with retry."""
         return self._retry_with_backoff(
-            "put", self._inner.put, config, checkpoint, metadata, new_versions
+            "put", lambda: self._inner.put(config, checkpoint, metadata, new_versions)
         )
 
     def put_writes(self, config, writes, task_id):
         """Put writes with retry."""
         return self._retry_with_backoff(
-            "put_writes", self._inner.put_writes, config, writes, task_id
+            "put_writes", lambda: self._inner.put_writes(config, writes, task_id)
         )
 
     def list(self, config, *, filter=None, before=None, limit=None):
         """List checkpoints with retry."""
+        # Use default-arg binding to capture filter/before/limit at lambda creation time
+        # This addresses reviewer concern about late-binding closure issues
         return self._retry_with_backoff(
-            "list", self._inner.list, config, filter=filter, before=before, limit=limit
+            "list",
+            lambda _cfg=config, _filter=filter, _before=before, _limit=limit: (
+                self._inner.list(_cfg, filter=_filter, before=_before, limit=_limit)
+            )
         )
 
     def get_tuple(self, config):
         """Get checkpoint tuple with retry."""
-        return self._retry_with_backoff("get_tuple", self._inner.get_tuple, config)
+        return self._retry_with_backoff("get_tuple", lambda: self._inner.get_tuple(config))
 
     # Pass through any other attributes to the inner saver
     def __getattr__(self, name):
