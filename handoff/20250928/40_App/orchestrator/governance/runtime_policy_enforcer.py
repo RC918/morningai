@@ -463,7 +463,7 @@ class RuntimePolicyEnforcer:
         self,
         task_id: str,
         estimated_tokens: int,
-        model: str = "gpt-4",
+        model: str = "qwen-plus",
         context: Optional[Dict[str, Any]] = None,
     ) -> CostCheckResult:
         """

@@ -278,7 +278,7 @@ class OpsAgentWorker:
                         trace_id=task.trace_id,
                         tokens=tokens_used,
                         cost_usd=cost_usd,
-                        model='gpt-4',
+                        model='qwen-plus',
                         operation=task.type.value
                     )
                     
