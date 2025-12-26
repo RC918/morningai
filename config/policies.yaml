@@ -43,6 +43,34 @@ cost_budget:
     warning_percent: 80  # Alert at 80% of budget
     critical_percent: 95  # Critical alert at 95%
 
+  # LLM Pricing Configuration
+  # Source: https://www.alibabacloud.com/help/doc-detail/2987148.html
+  # Last updated: 2025-12-26
+  # Pricing version: v1.0
+  pricing:
+    version: "1.0"
+    last_updated: "2025-12-26"
+    default_model: "qwen-plus"
+    models:
+      # OpenAI models (per 1K tokens)
+      gpt-4:
+        input: 0.03
+        output: 0.06
+      gpt-3.5-turbo:
+        input: 0.0015
+        output: 0.002
+      # Qwen models - Alibaba Cloud official pricing (Singapore region)
+      # Per 1K tokens = Per 1M tokens / 1000
+      qwen-plus:
+        input: 0.0004      # $0.4/M = $0.0004/1K
+        output: 0.0012     # $1.2/M = $0.0012/1K
+      qwen-turbo:
+        input: 0.00005     # $0.05/M = $0.00005/1K
+        output: 0.0002     # $0.2/M = $0.0002/1K
+      qwen-max:
+        input: 0.0016      # $1.6/M = $0.0016/1K
+        output: 0.0064     # $6.4/M = $0.0064/1K
+
 capability_constraints:
   restricted_tools:
     - name: "Shell_Tool"

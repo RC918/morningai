@@ -1176,7 +1176,7 @@ def run_meta_agent_task(task_id: str, goal_text: str, repo: str, tenant_id: str,
             cost_check = enforcer.check_cost(
                 task_id=task_id,
                 estimated_tokens=estimated_tokens,
-                model="gpt-4",
+                model="qwen-plus",
                 context={"tenant_id": tenant_id, "repo": repo, "goal_text": goal_text[:100]},
             )
             if not cost_check.allowed:
@@ -1583,7 +1583,7 @@ def run_auto_fix_task(task_data: dict):
             cost_check = enforcer.check_cost(
                 task_id=task_id,
                 estimated_tokens=estimated_tokens,
-                model="gpt-4",
+                model="qwen-plus",
                 context={"repo": task.repo, "pr_id": task.pr_id, "category": task.triage_result.get("category", "unknown")},
             )
             if not cost_check.allowed:

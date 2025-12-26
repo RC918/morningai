@@ -76,6 +76,8 @@ class CostTracker:
 
         self.policies = self._load_policies(policies_path)
         self.budgets = self.policies.get('cost_budget', {})
+        self.pricing_config = self.budgets.get('pricing', {})
+        self.default_model = self.pricing_config.get('default_model', 'qwen-plus')
 
     def _load_policies(self, path: str) -> Dict:
         """Load policies from YAML"""
@@ -228,30 +230,46 @@ class CostTracker:
             'daily': self.get_budget_status(trace_id, 'daily')
         }
 
-    def estimate_cost(self, tokens: int, model: str = "qwen-plus") -> float:
+    def estimate_cost(self, tokens: int, model: str = None, token_type: str = "input") -> float:
         """Estimate cost in USD for given tokens
         
-        Pricing source: https://www.alibabacloud.com/help/doc-detail/2987148.html
-        Last updated: 2025-12-26
+        Args:
+            tokens: Number of tokens
+            model: Model name (defaults to self.default_model from config)
+            token_type: 'input' or 'output' (affects pricing for models with separate rates)
+        
+        Pricing loaded from policies.yaml (cost_budget.pricing)
+        Fallback to hardcoded values if config not available
         """
-        pricing = {
-            # OpenAI models (per 1K tokens)
-            'gpt-4': 0.03,
-            'gpt-4-output': 0.06,
-            'gpt-3.5-turbo': 0.0015,
-            'gpt-3.5-turbo-output': 0.002,
-            # Qwen models - Alibaba Cloud official pricing (Singapore region)
-            # Per 1K tokens = Per 1M tokens / 1000
-            'qwen-plus': 0.0004,           # Input: $0.4/M = $0.0004/1K
-            'qwen-plus-output': 0.0012,    # Output: $1.2/M = $0.0012/1K
-            'qwen-turbo': 0.00005,         # Input: $0.05/M = $0.00005/1K
-            'qwen-turbo-output': 0.0002,   # Output: $0.2/M = $0.0002/1K
-            'qwen-max': 0.0016,            # Input: $1.6/M = $0.0016/1K
-            'qwen-max-output': 0.0064,     # Output: $6.4/M = $0.0064/1K
-        }
-
-        rate = pricing.get(model, 0.0004)  # Default to qwen-plus input pricing
+        if model is None:
+            model = self.default_model
+        
+        models_config = self.pricing_config.get('models', {})
+        
+        if models_config and model in models_config:
+            model_pricing = models_config[model]
+            rate = model_pricing.get(token_type, model_pricing.get('input', 0.0004))
+        else:
+            fallback_pricing = {
+                'gpt-4': {'input': 0.03, 'output': 0.06},
+                'gpt-3.5-turbo': {'input': 0.0015, 'output': 0.002},
+                'qwen-plus': {'input': 0.0004, 'output': 0.0012},
+                'qwen-turbo': {'input': 0.00005, 'output': 0.0002},
+                'qwen-max': {'input': 0.0016, 'output': 0.0064},
+            }
+            model_pricing = fallback_pricing.get(model, {'input': 0.0004, 'output': 0.0012})
+            rate = model_pricing.get(token_type, model_pricing.get('input', 0.0004))
+        
         return (tokens / 1000) * rate
+    
+    def get_pricing_info(self) -> Dict:
+        """Get current pricing configuration info"""
+        return {
+            'version': self.pricing_config.get('version', 'hardcoded'),
+            'last_updated': self.pricing_config.get('last_updated', 'unknown'),
+            'default_model': self.default_model,
+            'models': list(self.pricing_config.get('models', {}).keys()) or ['fallback']
+        }
 
     def reset_budget(self, period: str = "daily") -> None:
         """Reset budget for testing purposes"""
