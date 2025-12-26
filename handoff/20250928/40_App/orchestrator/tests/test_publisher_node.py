@@ -1080,8 +1080,21 @@ class TestReviewDedupFunctions:
         mock_settings = MockSettings()
         mock_settings.redis_url = "redis://localhost:6379"
 
+        # Import real redis to get the actual exception class
+        import redis as real_redis
+
+        # Create a mock Redis that raises RedisError on set (atomic claim uses r.set with nx=True)
+        mock_redis = MagicMock()
+        mock_redis.set.side_effect = real_redis.exceptions.RedisError("Connection refused")
+
+        # Mock the redis module that gets imported inside the function
+        # but keep the real exceptions module
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
+
         with patch("common.config.settings.settings", mock_settings):
-            with patch("redis.Redis.from_url", side_effect=Exception("Connection refused")):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
                 from tools.github_api import _check_review_already_posted
 
                 already_posted, dedup_key = _check_review_already_posted(
@@ -1118,11 +1131,20 @@ class TestReviewDedupFunctions:
         mock_settings = MockSettings()
         mock_settings.redis_url = "redis://localhost:6379"
 
+        # Import real redis to get the actual exception class
+        import redis as real_redis
+
         mock_redis = MagicMock()
-        mock_redis.setex.side_effect = Exception("Connection refused")
+        mock_redis.setex.side_effect = real_redis.exceptions.RedisError("Connection refused")
+
+        # Mock the redis module that gets imported inside the function
+        # but keep the real exceptions module
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
 
         with patch("common.config.settings.settings", mock_settings):
-            with patch("redis.Redis.from_url", return_value=mock_redis):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
                 from tools.github_api import _mark_review_posted
 
                 # Should not raise any exception
