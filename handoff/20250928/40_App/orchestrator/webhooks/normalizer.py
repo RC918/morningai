@@ -418,7 +418,7 @@ def _path_is_non_code(path: str) -> bool:
         True if the path is a non-code file
     """
     if not path:
-        return True  # Empty path = skip
+        return True  # Empty/invalid path treated as non-code for safety (fail-open)
 
     path_lower = path.lower()
     filename = path_lower.split("/")[-1]
