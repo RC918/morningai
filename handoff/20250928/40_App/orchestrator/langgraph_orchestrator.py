@@ -383,9 +383,10 @@ def get_postgres_checkpointer():
         # Issue #2968: Wrap with ResilientPostgresSaver for auto-retry on transient errors
         # This implements "Design for Failure" from Blueprint - transient DB errors
         # (SSL closed, connection reset, etc.) are automatically retried with backoff
+        # Note: The inner_checkpointer already has the pool, so each retry will naturally
+        # get a fresh connection from the pool via per-operation borrowing
         checkpointer = ResilientPostgresSaver(
             inner_saver=inner_checkpointer,
-            pool=pool,
             max_retries=3,
             base_delay=0.5,
         )
@@ -453,6 +454,7 @@ class ResilientPostgresSaver:
     """
 
     # Transient error patterns that should trigger retry
+    # These patterns are based on actual Sentry errors observed in production
     TRANSIENT_ERROR_PATTERNS = [
         "ssl connection has been closed",
         "the connection is closed",
@@ -462,21 +464,24 @@ class ResilientPostgresSaver:
         "connection timed out",
         "could not connect to server",
         "consuming input failed",
-        "pipeline",  # Pipeline [BAD] state
+        "pipeline [bad]",  # psycopg Pipeline [BAD] state - exact match to avoid false positives
     ]
 
-    def __init__(self, inner_saver, pool, max_retries: int = 3, base_delay: float = 0.5):
+    def __init__(self, inner_saver, max_retries: int = 3, base_delay: float = 0.5):
         """
         Initialize ResilientPostgresSaver.
 
         Args:
-            inner_saver: The underlying PostgresSaver instance
-            pool: The connection pool (for requesting fresh connections on retry)
+            inner_saver: The underlying PostgresSaver instance (already configured with pool)
             max_retries: Maximum number of retry attempts (default: 3)
             base_delay: Base delay in seconds for exponential backoff (default: 0.5)
+
+        Note: The inner_saver already receives the ConnectionPool directly, so each
+        checkpoint operation borrows a connection per-operation. This wrapper adds
+        retry logic on top of that - if a transient error occurs, the next retry
+        will naturally get a fresh connection from the pool.
         """
         self._inner = inner_saver
-        self._pool = pool
         self._max_retries = max_retries
         self._base_delay = base_delay
 

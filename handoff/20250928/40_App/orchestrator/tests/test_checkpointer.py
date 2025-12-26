@@ -234,16 +234,20 @@ class TestCheckpointerSuccessPaths:
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_postgres_checkpointer_context_returns_checkpointer(self):
-        """Test postgres_checkpointer_context() returns PostgresSaver with connection pool
+        """Test postgres_checkpointer_context() returns ResilientPostgresSaver wrapper
 
-        Note (Dec 2025): PostgreSQL checkpointer now uses per-operation connection borrowing.
-        The checkpointer receives the ConnectionPool directly, and each checkpoint operation
-        borrows a connection briefly from the pool. This prevents "connection is closed"
-        errors during long workflows (~2 minutes).
+        Note (Dec 2025): PostgreSQL checkpointer now uses:
+        1. Per-operation connection borrowing (PostgresSaver receives pool directly)
+        2. ResilientPostgresSaver wrapper for auto-retry on transient errors
 
-        Architecture change:
-        - OLD: PostgresSaver(conn) - held single connection for entire workflow
-        - NEW: PostgresSaver(pool) - borrows connection per-operation
+        Architecture change (Issue #2968):
+        - OLD: PostgresSaver(pool) - no retry on transient errors
+        - NEW: ResilientPostgresSaver(PostgresSaver(pool)) - auto-retry with backoff
+
+        This test verifies:
+        1. The returned checkpointer is a ResilientPostgresSaver wrapper
+        2. The wrapper's inner saver is PostgresSaver initialized with the pool
+        3. PostgresSaver.setup() is called during initialization
         """
         try:
             pytest.importorskip("langgraph.checkpoint.postgres")
@@ -270,14 +274,25 @@ class TestCheckpointerSuccessPaths:
             with patch('langgraph_orchestrator.logger'):
                 with patch('langgraph_orchestrator._get_postgres_pool', return_value=mock_pool):
                     with patch('langgraph.checkpoint.postgres.PostgresSaver', mock_pg_class):
-                        from langgraph_orchestrator import postgres_checkpointer_context
+                        from langgraph_orchestrator import (
+                            postgres_checkpointer_context,
+                            ResilientPostgresSaver,
+                        )
 
                         with postgres_checkpointer_context() as checkpointer:
                             # Verify PostgresSaver was instantiated with the POOL (not connection)
                             # This is the critical change: per-operation connection borrowing
                             mock_pg_class.assert_called_once_with(mock_pool)
                             mock_pg_instance.setup.assert_called_once()
-                            assert checkpointer is mock_pg_instance
+
+                            # Issue #2968: Verify the returned checkpointer is wrapped
+                            # with ResilientPostgresSaver for auto-retry on transient errors
+                            assert isinstance(checkpointer, ResilientPostgresSaver), \
+                                "Expected ResilientPostgresSaver wrapper for transient error handling"
+
+                            # Verify the wrapper contains the correct inner PostgresSaver
+                            assert checkpointer._inner is mock_pg_instance, \
+                                "ResilientPostgresSaver should wrap the PostgresSaver instance"
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_postgres_checkpointer_context_returns_none_when_pool_unavailable(self):
