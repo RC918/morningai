@@ -749,14 +749,17 @@ class ResilientPostgresSaver:
                 )
         # Note: gc.collect() is already called in _reset_postgres_pool(), no need to call again
 
-    def _retry_with_backoff(self, operation_name: str, operation: Callable, *args, **kwargs):
+    def _retry_with_backoff(self, operation_name: str, operation: Callable):
         """
         Execute an operation with retry and exponential backoff.
 
         Args:
             operation_name: Name of the operation (for logging)
-            operation: The callable to execute
-            *args, **kwargs: Arguments to pass to the operation
+            operation: A zero-argument callable to execute. Use a lambda to capture args.
+                       IMPORTANT: Must be a lambda that resolves self._inner at call time,
+                       not a bound method captured before the retry loop. This ensures
+                       that after _reset_pool_and_inner() updates self._inner, subsequent
+                       retries use the NEW inner saver.
 
         Returns:
             The result of the operation
@@ -787,7 +790,8 @@ class ResilientPostgresSaver:
         Pool Reset (Dec 2025 fix):
             On connection-lost errors (Pipeline [BAD], SSL closed, etc.), the pool
             is reset and the inner saver is recreated to ensure the next retry uses
-            fresh connections.
+            fresh connections. The operation lambda resolves self._inner on each call,
+            so the retry will use the newly created inner saver.
         """
         # Check circuit breaker BEFORE attempting operation
         if self._circuit_open:
@@ -813,7 +817,7 @@ class ResilientPostgresSaver:
             is_connection_lost = False
 
             try:
-                result = operation(*args, **kwargs)
+                result = operation()
                 # Success! Reset consecutive failure counter
                 self._consecutive_failures = 0
                 return result
@@ -910,36 +914,42 @@ class ResilientPostgresSaver:
                 time.sleep(delay)
 
     # Delegate all PostgresSaver methods with retry logic
+    #
+    # IMPORTANT (Dec 2025 fix): We use lambdas instead of passing self._inner.method directly.
+    # This ensures that after _reset_pool_and_inner() updates self._inner, the retry loop
+    # uses the NEW inner saver, not the old one that was captured when the method was called.
+    # Without this, pool reset would be ineffective because retries would still use the old
+    # (potentially poisoned) inner saver.
 
     def setup(self):
         """Setup checkpoint tables with retry."""
-        return self._retry_with_backoff("setup", self._inner.setup)
+        return self._retry_with_backoff("setup", lambda: self._inner.setup())
 
     def get(self, config):
         """Get checkpoint with retry."""
-        return self._retry_with_backoff("get", self._inner.get, config)
+        return self._retry_with_backoff("get", lambda: self._inner.get(config))
 
     def put(self, config, checkpoint, metadata, new_versions):
         """Put checkpoint with retry."""
         return self._retry_with_backoff(
-            "put", self._inner.put, config, checkpoint, metadata, new_versions
+            "put", lambda: self._inner.put(config, checkpoint, metadata, new_versions)
         )
 
     def put_writes(self, config, writes, task_id):
         """Put writes with retry."""
         return self._retry_with_backoff(
-            "put_writes", self._inner.put_writes, config, writes, task_id
+            "put_writes", lambda: self._inner.put_writes(config, writes, task_id)
         )
 
     def list(self, config, *, filter=None, before=None, limit=None):
         """List checkpoints with retry."""
         return self._retry_with_backoff(
-            "list", self._inner.list, config, filter=filter, before=before, limit=limit
+            "list", lambda: self._inner.list(config, filter=filter, before=before, limit=limit)
         )
 
     def get_tuple(self, config):
         """Get checkpoint tuple with retry."""
-        return self._retry_with_backoff("get_tuple", self._inner.get_tuple, config)
+        return self._retry_with_backoff("get_tuple", lambda: self._inner.get_tuple(config))
 
     # Pass through any other attributes to the inner saver
     def __getattr__(self, name):
