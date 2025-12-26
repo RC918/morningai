@@ -110,7 +110,8 @@ def _check_review_already_posted(
             # Key already exists - either claimed by another worker or already posted
             # Check the value to provide better logging
             existing_value = r.get(dedup_key)
-            status = "posted" if existing_value == "posted" else "claimed_by_other"
+            # Handle edge case: key may have expired between SET NX and GET
+            status = {None: "expired", "posted": "posted"}.get(existing_value, "claimed_by_other")
             logger.info(
                 f"[GitHub] Review already {status} for this SHA, skipping (dedup_key={dedup_key})",
                 extra={
@@ -124,7 +125,7 @@ def _check_review_already_posted(
             )
             return True, dedup_key
 
-    except Exception as e:
+    except redis.exceptions.RedisError as e:
         # Redis error, allow posting (graceful degradation / fail-open)
         logger.warning(
             f"[GitHub] Redis error during review dedup check, allowing post (fail-open): {e}",
@@ -181,14 +182,14 @@ def _mark_review_posted(dedup_key: Optional[str]) -> None:
             }
         )
 
-    except Exception as e:
+    except redis.exceptions.RedisError as e:
         # Redis error, log but don't fail the review
         # The review was already posted to GitHub, so this is not critical
         # The "claiming" key will expire after 5 minutes if not updated
         logger.warning(
             f"[GitHub] Failed to mark review as posted (review was still sent): {e}",
             extra={
-                "operation": "review_dedup_set_error",
+                "operation": "review_dedup_posted_write_failed",
                 "dedup_key": dedup_key,
                 "error": str(e),
             }

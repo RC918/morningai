@@ -140,7 +140,7 @@ class TestFailOpenBehavior:
     def test_redis_error_allows_posting(self):
         """Test that Redis connection error allows posting (fail-open)."""
         mock_redis_instance = MagicMock()
-        mock_redis_instance.set.side_effect = Exception("Connection refused")
+        mock_redis_instance.set.side_effect = redis_module.exceptions.ConnectionError("Connection refused")
 
         with patch.object(redis_module.Redis, 'from_url', return_value=mock_redis_instance):
             with patch('tools.github_api.settings') as mock_settings:
