@@ -29,14 +29,12 @@ services:
     runtime: python
     autoDeploy: false  # Disabled to prevent Dashboard settings from being overridden (#2897)
     buildCommand: |
-      cd handoff/20250928/40_App/api-backend &&
       pip install --upgrade pip &&
       pip uninstall -y jwt || true &&
-      pip install -r requirements.txt &&
-      cd ../orchestrator &&
-      pip uninstall -y jwt || true &&
-      pip install -r requirements.txt &&
-      pip install -e . &&
+      pip install -r handoff/20250928/40_App/api-backend/requirements.txt \
+                  -r handoff/20250928/40_App/orchestrator/requirements.txt &&
+      pip install -e handoff/20250928/40_App/orchestrator &&
+      pip check &&
       python -c "import jwt; assert hasattr(jwt, 'decode'), 'Wrong jwt package'"
     startCommand: cd handoff/20250928/40_App/api-backend && gunicorn -c gunicorn.conf.py src.main:app
     healthCheckPath: /health
