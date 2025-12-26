@@ -63,9 +63,11 @@ if [ -f "handoff/20250928/40_App/orchestrator/requirements.txt" ]; then
 fi
 
 # Install orchestrator as editable package
+# Use --no-deps to prevent setup.py dependencies from overriding requirements.txt pins
+# Dependencies are managed solely by requirements.txt for deterministic builds
 echo "Installing orchestrator package..."
 if [ -f "handoff/20250928/40_App/orchestrator/setup.py" ] || [ -f "handoff/20250928/40_App/orchestrator/pyproject.toml" ]; then
-    pip install -e handoff/20250928/40_App/orchestrator
+    pip install -e handoff/20250928/40_App/orchestrator --no-deps
 fi
 
 # IMPORTANT: Fix dirty environment where jwt 1.x and PyJWT coexist
