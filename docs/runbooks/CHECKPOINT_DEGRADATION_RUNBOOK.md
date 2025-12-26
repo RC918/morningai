@@ -289,6 +289,70 @@ all retries exhausted
 
 ---
 
+## False Positives and Edge Cases
+
+### Common False Positives
+
+| Symptom | Why It's Not Degradation | How to Confirm |
+|---------|--------------------------|----------------|
+| Single `checkpoint_degraded` event | Isolated transient error, workflow recovered | Check if subsequent workflows show `persistence_degraded=False` |
+| Low degradation ratio (< 1%) | Normal transient errors, system self-healed | Monitor for 15 minutes, ratio should stay low |
+| `circuit_breaker="opened"` but ratio low | Circuit breaker opened for one workflow, others healthy | Check if new workflows are succeeding |
+
+### Edge Cases
+
+**Q: What happens if I toggle `ENABLE_CHECKPOINT_FAILOVER` while workflows are running?**
+
+A: The flag is read at workflow start time, not per-operation. Changing the environment variable requires a **redeploy/restart** to take effect. In-flight workflows will continue with their original setting.
+
+**Q: Can a degraded workflow "recover" mid-execution if PostgreSQL comes back?**
+
+A: No. Sticky degradation is intentional. Once a workflow enters degraded mode, it stays degraded until completion. This prevents state inconsistency (e.g., Step 1 writes to DB, Step 2 writes to RAM, Step 3 reads from DB and misses Step 2's data).
+
+**Q: What are the side effects of temporarily disabling failover (`ENABLE_CHECKPOINT_FAILOVER=false`)?**
+
+A: Workflows will fail-fast on any checkpoint error instead of degrading. This means:
+- More task failures during DB issues
+- No "soft landing" - workflows crash instead of completing with degraded persistence
+- Use only if degraded mode is causing worse problems (e.g., worker OOM)
+
+**Q: How much memory does MemorySaver use per degraded workflow?**
+
+A: Depends on workflow state size. Monitor worker memory usage during degradation incidents. If memory pressure is high, consider using the kill switch.
+
+---
+
+## Runbook Drift Prevention
+
+This runbook references code artifacts that may change over time. To prevent drift:
+
+**When to Update This Runbook:**
+- When `DegradedPersistenceCheckpointer` class is modified
+- When `TRANSIENT_ERROR_PATTERNS` is updated
+- When event names or log formats change
+- When `ENABLE_CHECKPOINT_FAILOVER` behavior changes
+- When new error patterns are added to failover logic
+
+**Verification Checklist:**
+- [ ] Event names in runbook match code (`checkpoint_degraded`, `persistence_degraded`)
+- [ ] Error patterns in runbook match `TRANSIENT_ERROR_PATTERNS` frozenset
+- [ ] Log message prefixes match code (`CHECKPOINT DEGRADED:`, `ResilientPostgresSaver:`)
+- [ ] Feature flag name matches settings (`ENABLE_CHECKPOINT_FAILOVER`)
+
+**Quick Verification Commands:**
+```bash
+# Verify event name exists in code
+grep -r "checkpoint_degraded" handoff/20250928/40_App/orchestrator/
+
+# Verify error patterns match
+grep -A 15 "TRANSIENT_ERROR_PATTERNS = frozenset" handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py
+
+# Verify feature flag exists
+grep -r "enable_checkpoint_failover" common/config/settings.py
+```
+
+---
+
 ## Post-Incident Review
 
 After resolving a degradation incident:
@@ -326,6 +390,9 @@ If you cannot resolve the issue:
 
 ### Log Search Queries
 
+> **Note**: Different log platforms (Render, Sentry, ELK) may index `extra` fields differently. Use both structured field queries AND message text searches as fallback.
+
+**Structured Field Queries** (if your log platform indexes `extra` fields):
 ```bash
 # Find degradation events
 event="checkpoint_degraded"
@@ -340,6 +407,21 @@ circuit_breaker="opened"
 operation="resilient_postgres_saver" AND level=ERROR
 ```
 
+**Message Text Searches** (fallback for platforms that don't index `extra`):
+```bash
+# Find degradation events (fixed message prefix)
+"CHECKPOINT DEGRADED:"
+
+# Find degraded completions
+"persistence_degraded=True"
+
+# Find circuit breaker events
+"Circuit breaker OPENED"
+
+# Find ResilientPostgresSaver errors
+"ResilientPostgresSaver:" AND "error"
+```
+
 ### Key URLs
 
 - **Render Dashboard**: https://dashboard.render.com
@@ -349,9 +431,27 @@ operation="resilient_postgres_saver" AND level=ERROR
 
 ### Related Code
 
-- `DegradedPersistenceCheckpointer`: `langgraph_orchestrator.py:989-1203`
-- `ResilientPostgresSaver`: `langgraph_orchestrator.py:594-986`
-- Feature flag: `ENABLE_CHECKPOINT_FAILOVER` in `settings.py`
+> **Note**: Line numbers are approximate and may drift as code evolves. Use class/function names for searching.
+
+| Component | Location | Search Term |
+|-----------|----------|-------------|
+| `DegradedPersistenceCheckpointer` | `langgraph_orchestrator.py` | `class DegradedPersistenceCheckpointer` |
+| `ResilientPostgresSaver` | `langgraph_orchestrator.py` | `class ResilientPostgresSaver` |
+| `_maybe_failover()` | `langgraph_orchestrator.py` | `def _maybe_failover` |
+| `TRANSIENT_ERROR_PATTERNS` | `langgraph_orchestrator.py` | `TRANSIENT_ERROR_PATTERNS = frozenset` |
+| Feature flag | `common/config/settings.py` | `enable_checkpoint_failover` |
+
+**Quick Code Search:**
+```bash
+# Find DegradedPersistenceCheckpointer class
+grep -n "class DegradedPersistenceCheckpointer" handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py
+
+# Find failover logic
+grep -n "def _maybe_failover" handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py
+
+# Find transient error patterns
+grep -n "TRANSIENT_ERROR_PATTERNS" handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py
+```
 
 ---
 
@@ -378,4 +478,5 @@ After executing this runbook, record the results below:
 
 | Version | Date | Change | Author |
 |---------|------|--------|--------|
+| v1.1 | 2025-12-26 | Address code review feedback: replace line numbers with class/function names, add fallback message searches, add false positives/edge cases section, add drift prevention section | Engineering Team |
 | v1.0 | 2025-12-26 | Initial runbook created for DegradedPersistenceCheckpointer | Engineering Team |
