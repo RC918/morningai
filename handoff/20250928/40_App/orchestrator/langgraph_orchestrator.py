@@ -374,11 +374,21 @@ def get_postgres_checkpointer():
         # ConnectionPool by borrowing a connection per-operation via pool.connection()
         # This means each checkpoint I/O is isolated - network hiccups only affect
         # that single operation, not the entire 2-minute workflow
-        checkpointer = PostgresSaver(pool)
+        inner_checkpointer = PostgresSaver(pool)
 
         # Setup must be called once to create tables/run migrations
         # This will borrow a connection briefly for the setup SQL
-        checkpointer.setup()
+        inner_checkpointer.setup()
+
+        # Issue #2968: Wrap with ResilientPostgresSaver for auto-retry on transient errors
+        # This implements "Design for Failure" from Blueprint - transient DB errors
+        # (SSL closed, connection reset, etc.) are automatically retried with backoff
+        checkpointer = ResilientPostgresSaver(
+            inner_saver=inner_checkpointer,
+            pool=pool,
+            max_retries=3,
+            base_delay=0.5,
+        )
 
         # Get pool statistics safely
         try:
@@ -390,10 +400,12 @@ def get_postgres_checkpointer():
             pool_available = 'unknown'
 
         logger.info(
-            "PostgreSQL checkpointer initialized with per-operation connection borrowing",
+            "PostgreSQL checkpointer initialized with ResilientPostgresSaver wrapper",
             extra={
                 "operation": "get_postgres_checkpointer",
-                "checkpointer_type": "postgres_pool_per_op",
+                "checkpointer_type": "resilient_postgres_pool_per_op",
+                "max_retries": 3,
+                "base_delay": 0.5,
                 "pool_stats": {
                     "size": pool_size,
                     "available": pool_available,
@@ -412,6 +424,182 @@ def get_postgres_checkpointer():
             }
         )
         return None
+
+
+class ResilientPostgresSaver:
+    """
+    A resilient wrapper around PostgresSaver that handles transient DB errors.
+
+    Issue #2968: ResilientPostgresSaver with auto-retry for transient errors
+
+    This wrapper implements the "Design for Failure" principle from Blueprint by:
+    1. Catching transient DB errors (SSL closed, connection reset, etc.)
+    2. Retrying failed operations with exponential backoff
+    3. Requesting fresh connections from the pool on retry
+    4. Logging all retry attempts for observability
+
+    Transient errors that trigger retry:
+    - SSL connection has been closed unexpectedly
+    - the connection is closed
+    - server closed the connection unexpectedly
+    - connection reset by peer
+    - OperationalError with connection-related messages
+
+    Non-transient errors (not retried):
+    - Syntax errors
+    - Constraint violations
+    - Authentication failures
+    - Permission denied
+    """
+
+    # Transient error patterns that should trigger retry
+    TRANSIENT_ERROR_PATTERNS = [
+        "ssl connection has been closed",
+        "the connection is closed",
+        "connection is closed",
+        "server closed the connection",
+        "connection reset by peer",
+        "connection timed out",
+        "could not connect to server",
+        "consuming input failed",
+        "pipeline",  # Pipeline [BAD] state
+    ]
+
+    def __init__(self, inner_saver, pool, max_retries: int = 3, base_delay: float = 0.5):
+        """
+        Initialize ResilientPostgresSaver.
+
+        Args:
+            inner_saver: The underlying PostgresSaver instance
+            pool: The connection pool (for requesting fresh connections on retry)
+            max_retries: Maximum number of retry attempts (default: 3)
+            base_delay: Base delay in seconds for exponential backoff (default: 0.5)
+        """
+        self._inner = inner_saver
+        self._pool = pool
+        self._max_retries = max_retries
+        self._base_delay = base_delay
+
+    def _is_transient_error(self, error: Exception) -> bool:
+        """Check if an error is transient and should be retried."""
+        error_str = str(error).lower()
+        error_type = type(error).__name__
+
+        # Check for known transient error patterns
+        for pattern in self.TRANSIENT_ERROR_PATTERNS:
+            if pattern in error_str:
+                return True
+
+        # Check for psycopg-specific transient errors
+        if "OperationalError" in error_type or "InterfaceError" in error_type:
+            return True
+
+        return False
+
+    def _retry_with_backoff(self, operation_name: str, operation: Callable, *args, **kwargs):
+        """
+        Execute an operation with retry and exponential backoff.
+
+        Args:
+            operation_name: Name of the operation (for logging)
+            operation: The callable to execute
+            *args, **kwargs: Arguments to pass to the operation
+
+        Returns:
+            The result of the operation
+
+        Raises:
+            The last exception if all retries fail
+        """
+        last_exception = None
+
+        for attempt in range(self._max_retries + 1):
+            try:
+                return operation(*args, **kwargs)
+            except Exception as e:
+                last_exception = e
+
+                if not self._is_transient_error(e):
+                    # Non-transient error, don't retry
+                    logger.error(
+                        f"ResilientPostgresSaver: Non-transient error in {operation_name}, not retrying",
+                        extra={
+                            "operation": "resilient_postgres_saver",
+                            "checkpoint_operation": operation_name,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "attempt": attempt + 1,
+                        }
+                    )
+                    raise
+
+                if attempt < self._max_retries:
+                    # Calculate delay with exponential backoff
+                    delay = self._base_delay * (2 ** attempt)
+                    logger.warning(
+                        f"ResilientPostgresSaver: Transient error in {operation_name}, "
+                        f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1})",
+                        extra={
+                            "operation": "resilient_postgres_saver",
+                            "checkpoint_operation": operation_name,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "attempt": attempt + 1,
+                            "max_retries": self._max_retries + 1,
+                            "delay_seconds": delay,
+                        }
+                    )
+                    time.sleep(delay)
+                else:
+                    # All retries exhausted
+                    logger.error(
+                        f"ResilientPostgresSaver: All retries exhausted for {operation_name}",
+                        extra={
+                            "operation": "resilient_postgres_saver",
+                            "checkpoint_operation": operation_name,
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "total_attempts": self._max_retries + 1,
+                        }
+                    )
+
+        raise last_exception
+
+    # Delegate all PostgresSaver methods with retry logic
+
+    def setup(self):
+        """Setup checkpoint tables with retry."""
+        return self._retry_with_backoff("setup", self._inner.setup)
+
+    def get(self, config):
+        """Get checkpoint with retry."""
+        return self._retry_with_backoff("get", self._inner.get, config)
+
+    def put(self, config, checkpoint, metadata, new_versions):
+        """Put checkpoint with retry."""
+        return self._retry_with_backoff(
+            "put", self._inner.put, config, checkpoint, metadata, new_versions
+        )
+
+    def put_writes(self, config, writes, task_id):
+        """Put writes with retry."""
+        return self._retry_with_backoff(
+            "put_writes", self._inner.put_writes, config, writes, task_id
+        )
+
+    def list(self, config, *, filter=None, before=None, limit=None):
+        """List checkpoints with retry."""
+        return self._retry_with_backoff(
+            "list", self._inner.list, config, filter=filter, before=before, limit=limit
+        )
+
+    def get_tuple(self, config):
+        """Get checkpoint tuple with retry."""
+        return self._retry_with_backoff("get_tuple", self._inner.get_tuple, config)
+
+    # Pass through any other attributes to the inner saver
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
 
 
 @contextlib.contextmanager
