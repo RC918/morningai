@@ -27,3 +27,15 @@ REVIEW_DEDUP_TTL_SECONDS = 86400  # 24 hours
 # Increment this when review logic changes significantly to allow
 # re-reviewing PRs that were reviewed with an older version
 REVIEWER_VERSION = "v1"
+
+# Labels for documentation PRs
+# These labels are used by the orchestrator when creating docs PRs.
+# The webhook normalizer checks for these labels and skips PR events
+# that have them, preventing self-trigger loops.
+#
+# WARNING: These constants are used in both graph.py (for adding labels)
+# and normalizer.py (for detecting labels). If you change these values,
+# both files will automatically use the new values since they import from here.
+LABEL_ORCHESTRATOR_DOCS = "orchestrator-docs"
+LABEL_ORCHESTRATOR_DOCS_TEST = "orchestrator-docs-test"
+LABEL_ORCHESTRATOR_APPROVED = "orchestrator-approved"

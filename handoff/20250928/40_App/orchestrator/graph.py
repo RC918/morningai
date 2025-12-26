@@ -80,10 +80,13 @@ CORE_DOCS_PROTECTED = ["docs/FAQ.md", "docs/README.md", "README.md"]
 GENERATED_DOCS_PATH = "docs/generated"
 MAX_SLUG_LENGTH = 60
 
-# Labels for documentation PRs
-LABEL_ORCHESTRATOR_DOCS = "orchestrator-docs"
-LABEL_ORCHESTRATOR_DOCS_TEST = "orchestrator-docs-test"
-LABEL_ORCHESTRATOR_APPROVED = "orchestrator-approved"
+# Labels for documentation PRs - imported from shared constants
+# to ensure single source of truth (used by both graph.py and normalizer.py)
+from utils.constants import (
+    LABEL_ORCHESTRATOR_DOCS,
+    LABEL_ORCHESTRATOR_DOCS_TEST,
+    LABEL_ORCHESTRATOR_APPROVED,
+)
 
 
 class DocIssueLevel(Enum):
