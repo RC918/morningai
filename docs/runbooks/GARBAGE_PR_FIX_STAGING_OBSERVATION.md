@@ -63,6 +63,41 @@ Fields captured:
 - Same as branch match, plus:
 - `matched_labels`: Labels that triggered the skip (e.g., ["orchestrator-docs"])
 
+### Sample Log Output
+
+**UNKNOWN Event Skip (check_suite):**
+```json
+{
+  "message": "[EventNormalizer] UNKNOWN event skipped - not actionable",
+  "operation": "unknown_event_skip",
+  "event_id": "abc123-def456",
+  "repo": "RC918/morningai",
+  "event_type": "unknown",
+  "github_event": "check_suite",
+  "github_action": "completed",
+  "head_branch": "orchestrator/docs-update-789",
+  "actor": "github-actions[bot]",
+  "reason": "unknown_event_type_not_actionable"
+}
+```
+
+**Orchestrator Branch Skip (PR event):**
+```json
+{
+  "message": "[EventNormalizer] Skipping orchestrator-generated event (branch match)",
+  "operation": "orchestrator_event_skip",
+  "event_id": "xyz789-abc123",
+  "repo": "RC918/morningai",
+  "resource_id": "3040",
+  "head_ref": "orchestrator/docs-update-789",
+  "event_type": "pr_opened",
+  "github_event": "pull_request",
+  "github_action": "opened",
+  "actor": "devin-ai-integration[bot]",
+  "reason": "orchestrator_branch_prefix"
+}
+```
+
 ## Success Criteria
 
 The observation period is successful if:
@@ -80,6 +115,20 @@ Create a simple tracking table during observation:
 | Day 1 | | | | | |
 | Day 2 | | | | | |
 | ... | | | | | |
+
+### Baseline-Driven Thresholds
+
+Rather than setting absolute thresholds, use a baseline-driven approach:
+
+1. **Establish baseline (Day 1-2)**: Record the average hourly/daily count of each event type
+2. **Alert threshold**: Flag for review if any metric exceeds 3x the baseline
+3. **Investigation trigger**: Investigate immediately if garbage PRs > 0
+
+Example baseline expectations (adjust based on actual Day 1 data):
+- UNKNOWN events: ~10-50 per hour (mostly CI events)
+- Branch skips: ~1-5 per hour (depends on orchestrator activity)
+- Label skips: ~0-2 per hour (less common)
+- Garbage PRs: **Must be 0**
 
 ## Verification Steps
 
@@ -117,15 +166,26 @@ Create a simple tracking table during observation:
 2. Review any anomalies or edge cases
 3. Decision: Deploy to production or extend observation
 
+## Log Retention
+
+During the observation period, ensure logs are retained for auditability:
+
+- **Minimum retention**: 14 days (covers observation period + buffer for cross-team review)
+- **Recommended retention**: 30 days (allows for delayed analysis if needed)
+- **Export critical logs**: If your logging provider has shorter retention, export relevant logs to a shared document or spreadsheet for the team
+
+**Note**: Check your Render/Sentry log retention settings before starting observation. If retention is less than 14 days, consider exporting daily summaries.
+
 ## Rollback Plan
 
 If issues are discovered during observation:
 
-1. **Immediate**: Revert PR #3040 on staging
+1. **Immediate**: Revert PR #3040 on your staging deployment branch
    ```bash
    git revert <commit-sha>
-   git push origin main
+   git push origin <your-staging-branch>
    ```
+   **Note**: Replace `<your-staging-branch>` with your actual staging deployment branch (e.g., `main`, `staging`, `release/staging`). Check your CI/CD configuration to confirm which branch triggers staging deployments.
 
 2. **Investigate**: Check logs for the specific issue
 3. **Fix**: Create a new PR with the fix

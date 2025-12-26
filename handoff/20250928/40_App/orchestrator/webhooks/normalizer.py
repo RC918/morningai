@@ -105,6 +105,77 @@ def is_self_generated_review(event: "WebhookEvent") -> bool:
     return False
 
 
+def _extract_head_branch_from_payload(raw_payload: dict) -> str:
+    """
+    Extract head branch from various GitHub webhook payload structures.
+
+    Issue: Staging Observation (#3047) - Consolidated branch extraction
+    This helper unifies branch extraction logic used in multiple places:
+    - should_skip_orchestrator_pr_event() for orchestrator branch detection
+    - is_actionable() UNKNOWN event logging for staging observation
+
+    Supported payload structures:
+    - PR events: pull_request.head.ref
+    - Check suite events: check_suite.head_branch or check_suite.pull_requests[0].head.ref
+    - Check run events: check_run.check_suite.head_branch
+    - Status events: branches[0].name
+
+    Args:
+        raw_payload: The raw webhook payload dict
+
+    Returns:
+        The head branch name, or empty string if not found
+    """
+    if not isinstance(raw_payload, dict):
+        return ""
+
+    head_ref = ""
+
+    # Try PR payload first (most common for PR events)
+    pr_data = raw_payload.get("pull_request", {})
+    if pr_data and isinstance(pr_data, dict):
+        head_data = pr_data.get("head", {})
+        if isinstance(head_data, dict):
+            head_ref = head_data.get("ref", "")
+
+    # Try check_suite payload (CI events)
+    if not head_ref:
+        check_suite = raw_payload.get("check_suite", {})
+        if check_suite and isinstance(check_suite, dict):
+            head_ref = check_suite.get("head_branch", "")
+            # Also check pull_requests array in check_suite
+            if not head_ref:
+                prs = check_suite.get("pull_requests", [])
+                if prs and isinstance(prs, list) and len(prs) > 0:
+                    first_pr = prs[0]
+                    if isinstance(first_pr, dict):
+                        head_data = first_pr.get("head", {})
+                        if isinstance(head_data, dict):
+                            head_ref = head_data.get("ref", "")
+
+    # Try check_run payload (CI events)
+    if not head_ref:
+        check_run = raw_payload.get("check_run", {})
+        if check_run and isinstance(check_run, dict):
+            check_suite_in_run = check_run.get("check_suite", {})
+            if isinstance(check_suite_in_run, dict):
+                head_ref = check_suite_in_run.get("head_branch", "")
+
+    # Try status event payload
+    if not head_ref:
+        branches = raw_payload.get("branches", [])
+        if branches and isinstance(branches, list) and len(branches) > 0:
+            first_branch = branches[0]
+            if isinstance(first_branch, dict):
+                head_ref = first_branch.get("name", "")
+
+    # Ensure we return a string
+    if not isinstance(head_ref, str):
+        head_ref = ""
+
+    return head_ref
+
+
 def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     """
     Check if a PR event should be skipped because it's from an orchestrator-generated PR.
@@ -149,52 +220,10 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 
     repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
 
-    # Extract head branch from raw payload
-    # Defense in Depth: Check multiple payload locations for branch info
-    # - PR events: pull_request.head.ref
-    # - Check suite events: check_suite.head_branch or check_suite.pull_requests[0].head.ref
-    # - Check run events: check_run.check_suite.head_branch
-    # - Status events: branches[0].name
+    # Extract head branch using consolidated helper function
+    # See _extract_head_branch_from_payload() for supported payload structures
     raw_payload = event.raw_payload or {}
-
-    head_ref = ""
-
-    # Try PR payload first (most common)
-    pr_data = raw_payload.get("pull_request", {})
-    if pr_data:
-        head_ref = pr_data.get("head", {}).get("ref", "")
-
-    # Try check_suite payload (CI events)
-    if not head_ref:
-        check_suite = raw_payload.get("check_suite", {})
-        if check_suite and isinstance(check_suite, dict):
-            head_ref = check_suite.get("head_branch", "")
-            # Also check pull_requests array in check_suite
-            if not head_ref:
-                prs = check_suite.get("pull_requests", [])
-                if prs and isinstance(prs, list) and len(prs) > 0:
-                    first_pr = prs[0]
-                    if isinstance(first_pr, dict):
-                        head_ref = first_pr.get("head", {}).get("ref", "")
-
-    # Try check_run payload (CI events)
-    if not head_ref:
-        check_run = raw_payload.get("check_run", {})
-        if check_run and isinstance(check_run, dict):
-            check_suite_in_run = check_run.get("check_suite", {})
-            if isinstance(check_suite_in_run, dict):
-                head_ref = check_suite_in_run.get("head_branch", "")
-
-    # Try status event payload
-    if not head_ref:
-        branches = raw_payload.get("branches", [])
-        if branches and isinstance(branches, list) and len(branches) > 0:
-            first_branch = branches[0]
-            if isinstance(first_branch, dict):
-                head_ref = first_branch.get("name", "")
-
-    if not isinstance(head_ref, str):
-        head_ref = ""
+    head_ref = _extract_head_branch_from_payload(raw_payload)
 
     # Check 1: Label filter - skip PRs with orchestrator-docs labels
     # This catches PRs created by any actor (including Devin) that have the orchestrator label
@@ -223,7 +252,7 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 
     matched_labels = orchestrator_labels & event_labels
 
-    # Enhanced logging for staging observation (#3047)
+    # Staging observation (#3047) - capture GitHub event metadata for log analysis
     metadata = event.metadata or {}
     github_event = metadata.get("github_event", "unknown")
     github_action = metadata.get("action", "unknown")
@@ -643,30 +672,12 @@ class EventNormalizer:
         # This is a critical early-exit to prevent self-trigger loops from non-PR events.
         if event.event_type == WebhookEventType.UNKNOWN:
             repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
-            # Enhanced logging for staging observation (#3047)
-            # Capture original GitHub event type and action for analysis
+            # Staging observation logging (#3047) - capture metadata for analysis
             metadata = event.metadata or {}
             github_event = metadata.get("github_event", "unknown")
             github_action = metadata.get("action", "unknown")
             raw_payload = event.raw_payload or {}
-            # Extract branch info for CI event analysis
-            head_branch = ""
-            if "check_suite" in raw_payload:
-                cs = raw_payload.get("check_suite", {})
-                if isinstance(cs, dict):
-                    head_branch = cs.get("head_branch", "")
-            elif "check_run" in raw_payload:
-                cr = raw_payload.get("check_run", {})
-                if isinstance(cr, dict):
-                    cs_in_cr = cr.get("check_suite", {})
-                    if isinstance(cs_in_cr, dict):
-                        head_branch = cs_in_cr.get("head_branch", "")
-            elif "branches" in raw_payload:
-                branches = raw_payload.get("branches", [])
-                if isinstance(branches, list) and branches:
-                    first_branch = branches[0]
-                    if isinstance(first_branch, dict):
-                        head_branch = first_branch.get("name", "")
+            head_branch = _extract_head_branch_from_payload(raw_payload)
             logger.info(
                 "[EventNormalizer] UNKNOWN event skipped - not actionable",
                 extra={
