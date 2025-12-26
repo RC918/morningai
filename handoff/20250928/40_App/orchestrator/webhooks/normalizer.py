@@ -509,9 +509,9 @@ def _get_pr_files_from_api(repo: str, pr_number: int) -> tuple:
         for f in pr.get_files():
             file_paths.append(f.filename)
             # Early exit optimization: if we find a code file, we can stop
+            # Return all files seen so far for debugging context
             if not _path_is_non_code(f.filename):
-                # Found a code file, return immediately
-                return [f.filename], None
+                return file_paths, None
         return file_paths, None
     except Exception as e:
         logger.warning(
@@ -1025,7 +1025,7 @@ class EventNormalizer:
         if should_skip_orchestrator_pr_event(event):
             return False
 
-        # P3: Smart PR Filtering - Skip PRs that don't warrant documentation
+        # Smart PR Filtering - Skip PRs that don't warrant documentation
         # Smart PR Filtering (Dec 2025)
         # This filter reduces noise by skipping PRs that only modify:
         # - Config files (yaml, json, toml, etc.)
