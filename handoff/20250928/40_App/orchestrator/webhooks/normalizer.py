@@ -167,26 +167,31 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     # Try check_suite payload (CI events)
     if not head_ref:
         check_suite = raw_payload.get("check_suite", {})
-        if check_suite:
+        if check_suite and isinstance(check_suite, dict):
             head_ref = check_suite.get("head_branch", "")
             # Also check pull_requests array in check_suite
             if not head_ref:
                 prs = check_suite.get("pull_requests", [])
                 if prs and isinstance(prs, list) and len(prs) > 0:
-                    head_ref = prs[0].get("head", {}).get("ref", "")
+                    first_pr = prs[0]
+                    if isinstance(first_pr, dict):
+                        head_ref = first_pr.get("head", {}).get("ref", "")
 
     # Try check_run payload (CI events)
     if not head_ref:
         check_run = raw_payload.get("check_run", {})
-        if check_run:
+        if check_run and isinstance(check_run, dict):
             check_suite_in_run = check_run.get("check_suite", {})
-            head_ref = check_suite_in_run.get("head_branch", "")
+            if isinstance(check_suite_in_run, dict):
+                head_ref = check_suite_in_run.get("head_branch", "")
 
     # Try status event payload
     if not head_ref:
         branches = raw_payload.get("branches", [])
         if branches and isinstance(branches, list) and len(branches) > 0:
-            head_ref = branches[0].get("name", "")
+            first_branch = branches[0]
+            if isinstance(first_branch, dict):
+                head_ref = first_branch.get("name", "")
 
     if not isinstance(head_ref, str):
         head_ref = ""

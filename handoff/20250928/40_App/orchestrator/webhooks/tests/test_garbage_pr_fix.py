@@ -234,6 +234,163 @@ class TestShouldSkipOrchestratorEvent:
                 f"Event type {event_type} should NOT be checked"
 
 
+class TestAbnormalPayloads:
+    """Tests for abnormal/malformed payloads - edge case coverage
+
+    Issue: Review feedback (Dec 2025)
+    These tests ensure the branch extraction logic handles unexpected
+    payload structures gracefully without raising exceptions.
+    """
+
+    def test_missing_branch_field_in_check_suite(self):
+        """Test handling of check_suite payload without head_branch field"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "check_suite": {
+                    "id": 12345,
+                    "status": "completed",
+                }
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_missing_branch_field_in_check_run(self):
+        """Test handling of check_run payload without head_branch field"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "check_run": {
+                    "id": 12345,
+                    "check_suite": {
+                        "id": 67890,
+                    }
+                }
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_empty_branches_array_in_status(self):
+        """Test handling of status payload with empty branches array"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "branches": []
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_branches_array_with_missing_name(self):
+        """Test handling of status payload where branch object lacks name field"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "branches": [
+                    {"commit": {"sha": "abc123"}}
+                ]
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_null_values_in_payload(self):
+        """Test handling of payload with null/None values"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "check_suite": None,
+                "check_run": None,
+                "branches": None,
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_non_dict_check_suite(self):
+        """Test handling of check_suite that is not a dict"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "check_suite": "not a dict"
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_non_list_branches(self):
+        """Test handling of branches that is not a list"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "branches": "not a list"
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_non_string_head_branch(self):
+        """Test handling of head_branch that is not a string"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "check_suite": {
+                    "head_branch": 12345
+                }
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_deeply_nested_missing_fields(self):
+        """Test handling of deeply nested payload with missing intermediate fields"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "check_run": {
+                }
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_multiple_branches_first_is_orchestrator(self):
+        """Test that first branch in array is used for detection"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "branches": [
+                    {"name": "orchestrator/docs-test"},
+                    {"name": "main"},
+                    {"name": "feature/something"},
+                ]
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is True
+
+    def test_multiple_branches_first_is_not_orchestrator(self):
+        """Test that non-orchestrator first branch is not skipped"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={
+                "branches": [
+                    {"name": "main"},
+                    {"name": "orchestrator/docs-test"},
+                ]
+            },
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_empty_raw_payload(self):
+        """Test handling of completely empty raw_payload"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload={},
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+    def test_none_raw_payload(self):
+        """Test handling of None raw_payload"""
+        event = create_mock_event(
+            event_type=WebhookEventType.UNKNOWN,
+            raw_payload=None,
+        )
+        assert should_skip_orchestrator_pr_event(event) is False
+
+
 class TestGarbagePRScenario:
     """Integration tests for the garbage PR scenario"""
 
