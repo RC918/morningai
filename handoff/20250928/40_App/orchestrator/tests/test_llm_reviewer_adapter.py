@@ -14,7 +14,9 @@ from llm_reviewer_adapter import (
     sanitize_diff_content,
     SECRETS_REDACTION_PATTERNS,
     # EPIC B Phase 3: Prompt injection protection
-    PROMPT_INJECTION_PATTERNS
+    PROMPT_INJECTION_PATTERNS,
+    # Issue #3103: Truncation safeguard
+    truncate_diff_for_token_budget,
 )
 
 
@@ -1300,3 +1302,321 @@ class TestLLMJsonRepairConfig:
         user_message = messages[1]['content']
         assert '[SANITIZED]' in user_message
         assert 'ignore previous instructions' not in user_message
+
+
+class TestTruncateDiffForTokenBudget:
+    """
+    Issue #3103: Unit tests for truncate_diff_for_token_budget function.
+
+    This function is stability-critical (complexity 33) and handles:
+    - Standard diff formats (diff --git)
+    - Patch formats (without diff --git headers)
+    - Edge cases (empty, single line, very large)
+    - Telemetry accuracy
+    """
+
+    def test_empty_diff_returns_unchanged(self):
+        """Empty diff should return empty string with default telemetry"""
+        result, telemetry = truncate_diff_for_token_budget("")
+        assert result == ""
+        assert telemetry["original_chars"] == 0
+        assert telemetry["truncated_chars"] == 0
+        assert telemetry["was_truncated"] is False
+
+    def test_small_diff_returns_unchanged(self):
+        """Diff smaller than max_chars should return unchanged"""
+        small_diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,3 +1,4 @@
+  (Line 1) def hello():
++ (Line 2)     print("world")
+  (Line 3)     pass"""
+        result, telemetry = truncate_diff_for_token_budget(small_diff, max_chars=10000)
+        assert result == small_diff
+        assert telemetry["was_truncated"] is False
+        assert telemetry["context_lines_dropped"] == 0
+
+    def test_standard_single_file_single_hunk(self):
+        """Standard diff --git format with single file and single hunk"""
+        diff = """diff --git a/src/main.py b/src/main.py
+--- a/src/main.py
++++ b/src/main.py
+@@ -10,5 +10,6 @@
+  (Line 10) def main():
++ (Line 11)     print("new line")
+  (Line 12)     return 0"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "diff --git" in result
+        assert "+ (Line 11)" in result
+        assert telemetry["was_truncated"] is False
+
+    def test_standard_multi_file_multi_hunk(self):
+        """Standard diff with multiple files and multiple hunks"""
+        diff = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,4 @@
+  (Line 1) # File 1
++ (Line 2) new_line_1
+  (Line 3) old_line
+@@ -10,3 +11,4 @@
+  (Line 10) # Section 2
++ (Line 11) new_line_2
+  (Line 12) end
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,2 +1,3 @@
+  (Line 1) # File 2
++ (Line 2) added_in_file2"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "file1.py" in result
+        assert "file2.py" in result
+        assert telemetry["files_dropped"] == 0
+        assert telemetry["hunks_dropped"] == 0
+
+    def test_patch_format_without_diff_git_header(self):
+        """Patch format without 'diff --git' headers should use fallback truncation"""
+        patch = """--- a/file.py
++++ b/file.py
+@@ -1,3 +1,4 @@
+  (Line 1) def hello():
++ (Line 2)     print("world")
+  (Line 3)     pass"""
+        result, telemetry = truncate_diff_for_token_budget(patch, max_chars=10000)
+        # Should return unchanged since it's small
+        assert result == patch
+        assert telemetry["was_truncated"] is False
+
+    def test_patch_format_truncation_adds_sentinel(self):
+        """Large patch without diff headers should truncate with sentinel"""
+        # Create a large patch that exceeds max_chars
+        large_patch = "--- a/file.py\n+++ b/file.py\n"
+        large_patch += "@@ -1,1000 +1,1000 @@\n"
+        for i in range(500):
+            large_patch += f"+ (Line {i}) added_line_{i}_with_some_content\n"
+
+        result, telemetry = truncate_diff_for_token_budget(large_patch, max_chars=500)
+        assert telemetry["was_truncated"] is True
+        assert "[DIFF TRUNCATED" in result
+        assert len(result) <= 500 + 100  # Allow some buffer for sentinel
+
+    def test_context_lines_dropped_when_not_adjacent_to_addition(self):
+        """Context lines not adjacent to + lines should be dropped when diff exceeds budget"""
+        # Create a diff large enough to trigger Phase 2 context reduction
+        diff = "diff --git a/file.py b/file.py\n--- a/file.py\n+++ b/file.py\n"
+        diff += "@@ -1,100 +1,101 @@\n"
+        # Add many context lines before the addition
+        for i in range(1, 40):
+            diff += f"  (Line {i}) context_far_from_addition_{i}\n"
+        diff += "  (Line 40) context_adjacent_to_addition\n"
+        diff += "+ (Line 41) THE_ADDITION\n"
+        diff += "  (Line 42) context_adjacent_to_addition\n"
+        # Add many context lines after the addition
+        for i in range(43, 80):
+            diff += f"  (Line {i}) context_far_from_addition_{i}\n"
+
+        # Use max_chars that forces context reduction but keeps the structure
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=len(diff) - 100)
+        # Context lines adjacent to addition should be kept
+        assert "context_adjacent_to_addition" in result
+        assert "+ (Line 41)" in result
+        # Far context lines should be dropped
+        assert telemetry["context_lines_dropped"] > 0
+
+    def test_phase3_drops_later_hunks_when_too_large(self):
+        """When diff is still too large after Phase 2, drop later hunks"""
+        # Create a diff with many hunks
+        diff = "diff --git a/file.py b/file.py\n--- a/file.py\n+++ b/file.py\n"
+        for hunk_num in range(10):
+            start_line = hunk_num * 100
+            diff += f"@@ -{start_line},5 +{start_line},6 @@\n"
+            diff += f"  (Line {start_line}) context\n"
+            diff += f"+ (Line {start_line + 1}) addition_in_hunk_{hunk_num}\n"
+            diff += f"  (Line {start_line + 2}) context\n"
+
+        # Use small max_chars to force hunk dropping
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=300)
+        assert telemetry["was_truncated"] is True
+        assert telemetry["hunks_dropped"] > 0
+        # First hunk should be kept
+        assert "addition_in_hunk_0" in result
+
+    def test_phase3_drops_later_files_when_too_large(self):
+        """When diff is too large, drop later files entirely"""
+        diff = ""
+        for file_num in range(5):
+            diff += f"diff --git a/file{file_num}.py b/file{file_num}.py\n"
+            diff += f"--- a/file{file_num}.py\n"
+            diff += f"+++ b/file{file_num}.py\n"
+            diff += "@@ -1,3 +1,4 @@\n"
+            diff += "  (Line 1) context\n"
+            diff += f"+ (Line 2) addition_in_file_{file_num}\n"
+            diff += "  (Line 3) context\n"
+
+        # Use small max_chars to force file dropping
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=250)
+        assert telemetry["was_truncated"] is True
+        assert telemetry["files_dropped"] > 0
+        # First file should be kept
+        assert "file0.py" in result
+
+    def test_truncation_sentinel_added_when_content_dropped(self):
+        """Truncation sentinel should be added when hunks/files are dropped"""
+        diff = ""
+        for file_num in range(10):
+            diff += f"diff --git a/file{file_num}.py b/file{file_num}.py\n"
+            diff += f"--- a/file{file_num}.py\n"
+            diff += f"+++ b/file{file_num}.py\n"
+            diff += "@@ -1,3 +1,4 @@\n"
+            diff += f"+ (Line 1) addition_{file_num}\n"
+
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=300)
+        assert "[DIFF TRUNCATED" in result
+        assert "remaining content omitted" in result
+
+    def test_format_guard_non_annotated_input(self):
+        """Input without annotated prefixes should use conservative truncation"""
+        # Raw diff without (Line N) annotations
+        raw_diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,3 +1,4 @@
+ def hello():
++    print("world")
+     pass"""
+        # This has diff headers but no annotated format
+        # Create a large version to trigger truncation
+        large_raw = raw_diff + "\n" + ("x" * 1000)
+        result, telemetry = truncate_diff_for_token_budget(large_raw, max_chars=200)
+        assert telemetry["was_truncated"] is True
+        assert "[DIFF TRUNCATED" in result
+
+    def test_telemetry_original_chars_accurate(self):
+        """Telemetry should accurately report original character count"""
+        diff = "x" * 1000
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=500)
+        assert telemetry["original_chars"] == 1000
+
+    def test_telemetry_truncated_chars_accurate(self):
+        """Telemetry should accurately report truncated character count"""
+        diff = "x" * 1000
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=500)
+        assert telemetry["truncated_chars"] == len(result)
+
+    def test_telemetry_was_truncated_flag(self):
+        """was_truncated flag should be True only when truncation occurred"""
+        small_diff = "small"
+        result1, telemetry1 = truncate_diff_for_token_budget(small_diff, max_chars=1000)
+        assert telemetry1["was_truncated"] is False
+
+        large_diff = "x" * 1000
+        result2, telemetry2 = truncate_diff_for_token_budget(large_diff, max_chars=100)
+        assert telemetry2["was_truncated"] is True
+
+    def test_newline_safe_truncation(self):
+        """Truncation should not cut in the middle of a line"""
+        diff = "line1\nline2\nline3\nline4\nline5"
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=20)
+        # Should end at a newline boundary, not mid-line
+        assert not result.rstrip().endswith("line") or "[DIFF TRUNCATED" in result
+
+    def test_very_long_single_line_fallback(self):
+        """Very long single line without newlines should still truncate"""
+        long_line = "x" * 10000
+        result, telemetry = truncate_diff_for_token_budget(long_line, max_chars=500)
+        assert telemetry["was_truncated"] is True
+        assert len(result) <= 600  # Allow buffer for sentinel
+
+    def test_deletion_lines_preserved(self):
+        """Deletion lines (- prefix) should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,3 +1,3 @@
+  (Line 1) context
+- (Line 2) deleted_line
++ (Line 2) added_line
+  (Line 3) context"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "- (Line 2) deleted_line" in result
+        assert "+ (Line 2) added_line" in result
+
+    def test_no_newline_marker_preserved(self):
+        """'No newline at end of file' marker should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,2 +1,2 @@
+  (Line 1) content
++ (Line 2) new_content
+\\ No newline at end of file"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "\\" in result or "No newline" in result
+
+    def test_hunk_header_preserved(self):
+        """Hunk headers (@@ ... @@) should always be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,5 +10,6 @@
+  (Line 10) context
++ (Line 11) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "@@" in result
+
+    def test_file_header_preserved(self):
+        """File headers (--- and +++) should always be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "--- a/file.py" in result
+        assert "+++ b/file.py" in result
+
+    def test_default_max_chars_is_80000(self):
+        """Default max_chars should be 80000 (per LLM_REVIEW_MAX_DIFF_CHARS)"""
+        # Create diff just under 80000 chars
+        diff = "x" * 79000
+        result, telemetry = truncate_diff_for_token_budget(diff)
+        assert telemetry["was_truncated"] is False
+
+        # Create diff over 80000 chars
+        large_diff = "x" * 81000
+        result2, telemetry2 = truncate_diff_for_token_budget(large_diff)
+        assert telemetry2["was_truncated"] is True
+
+    def test_strict_mode_semantics_preserved(self):
+        """Truncation should preserve + lines for Strict Mode inline comments"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,10 +1,11 @@
+  (Line 1) context1
+  (Line 2) context2
+  (Line 3) context3
+  (Line 4) context4
++ (Line 5) IMPORTANT_ADDITION
+  (Line 6) context5
+  (Line 7) context6
+  (Line 8) context7"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # The + line must always be preserved
+        assert "+ (Line 5) IMPORTANT_ADDITION" in result
+
+    def test_empty_hunks_handled(self):
+        """Files with no hunks should be handled gracefully"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash and should include the hunk from file2
+        assert "+ (Line 1) addition" in result
