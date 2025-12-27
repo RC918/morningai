@@ -17,6 +17,11 @@
       "fallback": 2,
       "description": "Code review, PR analysis, quality assessment"
     },
+    "routing": {
+      "tier": 1,
+      "fallback": 2,
+      "description": "Flow routing decisions, next-step determination (C-2 Hybrid Router)"
+    },
     "ux_copy": {
       "tier": 3,
       "fallback": 2,
