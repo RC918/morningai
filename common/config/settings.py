@@ -998,6 +998,28 @@ class Settings(BaseSettings):
                     "Higher values reduce log noise during prolonged outages. (Issue #3109)"
     )
 
+    # Issue #3027: MemorySaver OOM Protection Settings
+    max_degraded_workflows_per_worker: int = Field(
+        default=100,
+        ge=1,
+        le=10000,
+        alias="MAX_DEGRADED_WORKFLOWS_PER_WORKER",
+        description="Maximum number of concurrent degraded workflows per worker. "
+                    "When PostgreSQL fails and workflows degrade to MemorySaver, this limit "
+                    "prevents OOM by rejecting new workflows when capacity is reached. "
+                    "Set based on worker memory and average checkpoint size. (Issue #3027)"
+    )
+
+    degraded_checkpoint_memory_warning_mb: int = Field(
+        default=512,
+        ge=64,
+        le=8192,
+        alias="DEGRADED_CHECKPOINT_MEMORY_WARNING_MB",
+        description="Memory usage threshold in MB for degraded checkpointer warnings. "
+                    "When MemorySaver memory usage exceeds this threshold, a warning is logged. "
+                    "This is an early warning signal before OOM occurs. (Issue #3027)"
+    )
+
     # Issue #2259: Review Follow-up Task Storage Settings
     review_follow_up_store_backend: str = Field(
         default="in_memory",
