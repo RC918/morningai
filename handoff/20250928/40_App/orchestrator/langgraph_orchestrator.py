@@ -715,6 +715,22 @@ class OOMProtectedMemorySaver:
                     if isinstance(cp_data, tuple):
                         for item in cp_data:
                             total += sys.getsizeof(item)
+        for outer_key, inner_dict in self._inner.writes.items():
+            total += sys.getsizeof(outer_key)
+            if isinstance(outer_key, tuple):
+                for item in outer_key:
+                    total += sys.getsizeof(item)
+            total += sys.getsizeof(inner_dict)
+            if isinstance(inner_dict, dict):
+                for inner_key, inner_value in inner_dict.items():
+                    total += sys.getsizeof(inner_key)
+                    if isinstance(inner_key, tuple):
+                        for item in inner_key:
+                            total += sys.getsizeof(item)
+                    total += sys.getsizeof(inner_value)
+                    if isinstance(inner_value, tuple):
+                        for item in inner_value:
+                            total += sys.getsizeof(item)
         for key, value in self._inner.blobs.items():
             total += sys.getsizeof(key)
             total += sys.getsizeof(value)
