@@ -41,6 +41,33 @@ def _safe_serialize(obj: Any) -> Any:
     return str(obj)
 
 
+def format_commit_id_for_display(commit_id: Optional[str], max_length: int = 8) -> str:
+    """
+    Format a commit ID for display in logs and diagnostics.
+
+    This function safely truncates a commit SHA for human-readable display
+    while preserving enough characters for identification.
+
+    Args:
+        commit_id: Full 40-character commit SHA, or None
+        max_length: Maximum length to display (default: 8 chars)
+
+    Returns:
+        Truncated commit ID or "null" if commit_id is None
+
+    Example:
+        >>> format_commit_id_for_display("abc123def456...")
+        'abc123de'
+        >>> format_commit_id_for_display(None)
+        'null'
+    """
+    if commit_id is None:
+        return "null"
+    if not isinstance(commit_id, str):
+        return "invalid"
+    return commit_id[:max_length] if len(commit_id) > max_length else commit_id
+
+
 def _sample_array(arr: List, max_size: int = MAX_SAMPLE_SIZE) -> Dict:
     """
     Sample an array to reduce size while preserving diagnostic value.
