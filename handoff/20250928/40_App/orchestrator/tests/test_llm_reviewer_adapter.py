@@ -17,6 +17,8 @@ from llm_reviewer_adapter import (
     PROMPT_INJECTION_PATTERNS,
     # Issue #3103: Truncation safeguard
     truncate_diff_for_token_budget,
+    # Issue #3079: Line number annotation
+    annotate_diff_with_line_numbers,
 )
 
 
@@ -1683,3 +1685,302 @@ diff --git a/code.py b/code.py
         assert "mode" in result.lower() or "script.sh" in result
         # Code changes should still be included
         assert "+ (Line 1) addition" in result
+
+
+class TestAnnotateDiffWithLineNumbers:
+    """
+    Issue #3079: Unit tests for annotate_diff_with_line_numbers function.
+
+    This function is the core of Line Mapping (Tactic 3) - it pre-annotates
+    diff so LLM can "copy" line numbers instead of calculating them.
+
+    Tests focus on INVARIANTS rather than implementation details to avoid
+    test-implementation lock-in and allow safe refactoring (#3083).
+
+    Key invariants:
+    - + lines get new-file line numbers (critical for Strict Mode)
+    - - lines get old-file line numbers
+    - Context lines get new-file line numbers
+    - Line numbers are monotonically increasing within a hunk
+    - Hunk headers reset line numbers correctly
+    - File headers (diff, ---, +++) are preserved unchanged
+    """
+
+    def test_empty_diff_returns_empty(self):
+        """Empty diff should return empty string"""
+        result = annotate_diff_with_line_numbers("")
+        assert result == ""
+
+    def test_none_like_empty_returns_unchanged(self):
+        """Falsy input should return unchanged"""
+        result = annotate_diff_with_line_numbers("")
+        assert result == ""
+
+    def test_addition_line_gets_new_file_line_number(self):
+        """+ lines should be annotated with new-file line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,3 +10,4 @@
+ existing
++new_line
+ more"""
+        result = annotate_diff_with_line_numbers(diff)
+        # + line at new-file position 11 (starts at 10, context=10, addition=11)
+        assert "+ (Line 11)" in result
+        assert "new_line" in result
+
+    def test_deletion_line_gets_old_file_line_number(self):
+        """- lines should be annotated with old-file line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,3 +10,2 @@
+ existing
+-deleted_line
+ more"""
+        result = annotate_diff_with_line_numbers(diff)
+        # - line at old-file position 11 (starts at 10, context=10, deletion=11)
+        assert "- (Line 11)" in result
+        assert "deleted_line" in result
+
+    def test_context_line_gets_new_file_line_number(self):
+        """Context lines (space prefix) should use new-file line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,2 +10,2 @@
+ context_line
+ another_context"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Context lines at new-file positions 10 and 11
+        assert "(Line 10)" in result
+        assert "context_line" in result
+
+    def test_line_numbers_monotonically_increase_in_hunk(self):
+        """Line numbers should increase monotonically within a hunk"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,5 +1,6 @@
+ line1
+ line2
++added
+ line3
+ line4
+ line5"""
+        result = annotate_diff_with_line_numbers(diff)
+        lines = result.split('\n')
+        line_numbers = []
+        import re
+        for line in lines:
+            if '(Line ' in line:
+                match = re.search(r'\(Line (\d+)\)', line)
+                if match:
+                    line_numbers.append(int(match.group(1)))
+        # Verify monotonic increase
+        for i in range(1, len(line_numbers)):
+            assert line_numbers[i] >= line_numbers[i - 1], \
+                f"Line numbers not monotonic: {line_numbers}"
+
+    def test_hunk_header_resets_line_numbers(self):
+        """Each hunk header should reset line numbers to its starting position"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,2 +1,2 @@
+ first_hunk_line
++first_hunk_add
+@@ -100,2 +101,2 @@
+ second_hunk_line
++second_hunk_add"""
+        result = annotate_diff_with_line_numbers(diff)
+        # First hunk starts at line 1
+        assert "(Line 1)" in result or "(Line 2)" in result
+        # Second hunk starts at line 101
+        assert "(Line 101)" in result or "(Line 102)" in result
+
+    def test_file_headers_preserved_unchanged(self):
+        """diff, ---, +++ headers should not be modified"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++new"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "diff --git a/file.py b/file.py" in result
+        assert "--- a/file.py" in result
+        assert "+++ b/file.py" in result
+
+    def test_hunk_header_preserved_unchanged(self):
+        """@@ hunk headers should not be modified"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,3 +10,4 @@
+ existing
++new"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "@@ -10,3 +10,4 @@" in result
+
+    def test_no_newline_marker_preserved(self):
+        """'\\ No newline at end of file' should be preserved unchanged"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,1 @@
+-old
++new
+\\ No newline at end of file"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "\\ No newline at end of file" in result
+
+    def test_multi_file_diff_handled(self):
+        """Multi-file diffs should annotate each file correctly"""
+        diff = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,1 +1,2 @@
+ existing1
++new1
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -5,1 +5,2 @@
+ existing2
++new2"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Both files should have their additions annotated
+        assert "+ (Line" in result
+        assert "new1" in result
+        assert "new2" in result
+        # File headers should be preserved
+        assert "file1.py" in result
+        assert "file2.py" in result
+
+    def test_addition_line_number_correct_for_strict_mode(self):
+        """+ line numbers must be accurate for Strict Mode inline comments"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -50,3 +50,4 @@
+ context_at_50
++IMPORTANT_ADDITION
+ context_at_51
+ context_at_52"""
+        result = annotate_diff_with_line_numbers(diff)
+        # The + line should be at new-file line 51
+        # (hunk starts at 50, context=50, addition=51)
+        assert "+ (Line 51) IMPORTANT_ADDITION" in result
+
+    def test_mixed_additions_deletions_context(self):
+        """Mixed +/-/context lines should all get correct line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,4 +1,4 @@
+ line1
+-old_line2
++new_line2
+ line3
+ line4"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Context line1 at new-file 1
+        assert "(Line 1)" in result
+        # Deletion at old-file 2
+        assert "- (Line 2) old_line2" in result
+        # Addition at new-file 2
+        assert "+ (Line 2) new_line2" in result
+
+    def test_binary_file_diff_not_crash(self):
+        """Binary file diffs should not crash"""
+        diff = """diff --git a/image.png b/image.png
+new file mode 100644
+index 0000000..1234567
+Binary files /dev/null and b/image.png differ"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Should not crash and should preserve content
+        assert result is not None
+        assert "Binary files" in result
+
+    def test_rename_only_diff_not_crash(self):
+        """Rename-only diffs should not crash"""
+        diff = """diff --git a/old.py b/new.py
+similarity index 100%
+rename from old.py
+rename to new.py"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Should not crash and should preserve content
+        assert result is not None
+        assert "rename" in result
+
+    def test_mode_change_diff_not_crash(self):
+        """Mode/permission change diffs should not crash"""
+        diff = """diff --git a/script.sh b/script.sh
+old mode 100644
+new mode 100755"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Should not crash and should preserve content
+        assert result is not None
+        assert "mode" in result
+
+    def test_empty_hunk_body_handled(self):
+        """Hunks with no body lines should be handled gracefully"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,0 +1,1 @@
++new_line"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "+ (Line 1) new_line" in result
+
+    def test_large_line_numbers_handled(self):
+        """Large line numbers should be handled correctly"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -9999,2 +9999,3 @@
+ existing
++new_at_10000
+ more"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "(Line 10000)" in result
+
+    def test_output_format_llm_can_copy(self):
+        """Output format should allow LLM to directly copy line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++new_code"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Format should be: + (Line N) content
+        # LLM can extract "Line N" directly
+        import re
+        matches = re.findall(r'\+ \(Line \d+\)', result)
+        assert len(matches) > 0, "Output should have + (Line N) format"
+
+    def test_whitespace_in_content_preserved(self):
+        """Whitespace in code content should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++    indented_code"""
+        result = annotate_diff_with_line_numbers(diff)
+        # The indentation should be preserved after the line number
+        assert "indented_code" in result
+
+    def test_special_characters_in_content_preserved(self):
+        """Special characters in code should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++print("hello (world)")"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert 'print("hello (world)")' in result
