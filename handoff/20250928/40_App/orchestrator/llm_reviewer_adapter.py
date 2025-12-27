@@ -190,6 +190,162 @@ def annotate_diff_with_line_numbers(diff: str) -> str:
     return '\n'.join(result)
 
 
+def truncate_diff_for_token_budget(
+    annotated_diff: str,
+    max_chars: int = 80000
+) -> tuple[str, dict]:
+    """
+    Truncate annotated diff to fit within token budget while preserving Strict Mode semantics.
+
+    Strategy (hybrid approach per Blueprint Stability requirements):
+    1. First pass: Aggressively reduce context lines (keep only 1 line around + lines)
+    2. Second pass: If still too large, drop later hunks/files while keeping structure
+
+    This preserves the most reviewable content (+ lines) since Strict Mode only allows
+    inline comments on addition lines anyway.
+
+    Args:
+        annotated_diff: Diff already annotated with line numbers via annotate_diff_with_line_numbers()
+        max_chars: Maximum characters allowed (default 80k chars ~= 20k tokens)
+
+    Returns:
+        Tuple of (truncated_diff, telemetry_dict) where telemetry_dict contains:
+        - original_chars: Original diff length
+        - truncated_chars: Final diff length
+        - was_truncated: Whether truncation occurred
+        - context_lines_dropped: Number of context lines removed
+        - hunks_dropped: Number of hunks removed
+        - files_dropped: Number of files removed
+    """
+    telemetry = {
+        "original_chars": len(annotated_diff),
+        "truncated_chars": len(annotated_diff),
+        "was_truncated": False,
+        "context_lines_dropped": 0,
+        "hunks_dropped": 0,
+        "files_dropped": 0,
+    }
+
+    if not annotated_diff or len(annotated_diff) <= max_chars:
+        return annotated_diff, telemetry
+
+    lines = annotated_diff.split('\n')
+
+    # Phase 1: Identify line types and structure
+    # Track which lines are: file headers, hunk headers, additions, deletions, context
+    line_types = []
+    current_file = None
+    files_structure = []  # List of (file_header_start, file_header_end, hunks)
+    current_file_start = None
+    current_hunks = []
+    current_hunk_start = None
+
+    for i, line in enumerate(lines):
+        if line.startswith('diff '):
+            # New file
+            if current_file is not None and current_file_start is not None:
+                if current_hunk_start is not None:
+                    current_hunks.append((current_hunk_start, i - 1))
+                files_structure.append((current_file_start, current_hunks))
+            current_file = line
+            current_file_start = i
+            current_hunks = []
+            current_hunk_start = None
+            line_types.append('file_header')
+        elif line.startswith('---') or line.startswith('+++'):
+            line_types.append('file_header')
+        elif line.startswith('@@'):
+            if current_hunk_start is not None:
+                current_hunks.append((current_hunk_start, i - 1))
+            current_hunk_start = i
+            line_types.append('hunk_header')
+        elif line.startswith('+ (Line'):
+            line_types.append('addition')
+        elif line.startswith('- (Line'):
+            line_types.append('deletion')
+        elif line.startswith('  (Line'):
+            line_types.append('context')
+        elif line.startswith('\\'):
+            line_types.append('no_newline')
+        else:
+            line_types.append('other')
+
+    # Finalize last file/hunk
+    if current_file_start is not None:
+        if current_hunk_start is not None:
+            current_hunks.append((current_hunk_start, len(lines) - 1))
+        files_structure.append((current_file_start, current_hunks))
+
+    # Phase 2: Reduce context lines (keep only 1 line before/after each + line)
+    # This is the primary truncation strategy for Strict Mode
+    keep_lines = set()
+
+    for i, line_type in enumerate(line_types):
+        if line_type in ('file_header', 'hunk_header', 'addition', 'deletion', 'no_newline'):
+            keep_lines.add(i)
+        elif line_type == 'context':
+            # Keep context line only if adjacent to an addition
+            prev_is_addition = i > 0 and line_types[i - 1] == 'addition'
+            next_is_addition = i < len(line_types) - 1 and line_types[i + 1] == 'addition'
+            if prev_is_addition or next_is_addition:
+                keep_lines.add(i)
+            else:
+                telemetry["context_lines_dropped"] += 1
+        else:
+            keep_lines.add(i)
+
+    # Build reduced diff
+    reduced_lines = [lines[i] for i in sorted(keep_lines)]
+    reduced_diff = '\n'.join(reduced_lines)
+
+    if len(reduced_diff) <= max_chars:
+        telemetry["truncated_chars"] = len(reduced_diff)
+        telemetry["was_truncated"] = telemetry["context_lines_dropped"] > 0
+        return reduced_diff, telemetry
+
+    # Phase 3: Still too large - drop later files/hunks
+    # Keep structure intact by dropping complete hunks from the end
+    result_lines = []
+    current_chars = 0
+    files_kept = 0
+    hunks_kept = 0
+    total_hunks = sum(len(hunks) for _, hunks in files_structure)
+    total_files = len(files_structure)
+
+    for file_start, hunks in files_structure:
+        # Calculate file header size
+        file_header_end = hunks[0][0] if hunks else file_start + 2
+        file_header_lines = [lines[i] for i in range(file_start, file_header_end) if i in keep_lines]
+        file_header_text = '\n'.join(file_header_lines)
+
+        if current_chars + len(file_header_text) > max_chars:
+            break
+
+        result_lines.extend(file_header_lines)
+        current_chars += len(file_header_text) + 1
+        files_kept += 1
+
+        for hunk_start, hunk_end in hunks:
+            hunk_lines = [lines[i] for i in range(hunk_start, hunk_end + 1) if i in keep_lines]
+            hunk_text = '\n'.join(hunk_lines)
+
+            if current_chars + len(hunk_text) > max_chars:
+                break
+
+            result_lines.extend(hunk_lines)
+            current_chars += len(hunk_text) + 1
+            hunks_kept += 1
+
+    telemetry["hunks_dropped"] = total_hunks - hunks_kept
+    telemetry["files_dropped"] = total_files - files_kept
+    telemetry["was_truncated"] = True
+
+    final_diff = '\n'.join(result_lines)
+    telemetry["truncated_chars"] = len(final_diff)
+
+    return final_diff, telemetry
+
+
 def sanitize_diff_content(diff: str) -> tuple[str, int]:
     """
     Sanitize diff content by redacting potential secrets.
@@ -730,15 +886,43 @@ IMPORTANT:
         # Tactic 3 (Line Number Mapping): Annotate diff with explicit line numbers
         # This allows LLM to "copy" line numbers instead of calculating them
         annotated_diff = annotate_diff_with_line_numbers(sanitized_diff)
-        logger.debug(
-            f"[LLM Reviewer] Annotated diff with line numbers for PR #{pr_number}",
-            extra={
-                "operation": "build_diff_aware_prompt",
-                "pr_number": pr_number,
-                "original_length": len(sanitized_diff),
-                "annotated_length": len(annotated_diff)
-            }
+
+        # Issue #3080: Truncation safeguard for token budget
+        # Preserve + lines (Strict Mode requirement), sacrifice context lines first
+        max_diff_chars = settings.llm_review_max_diff_chars
+        truncated_diff, truncation_telemetry = truncate_diff_for_token_budget(
+            annotated_diff, max_chars=max_diff_chars
         )
+
+        # Log truncation telemetry (WARNING level for visibility per Blueprint Telemetry v2)
+        if truncation_telemetry["was_truncated"]:
+            logger.warning(
+                f"[LLM Reviewer] Diff truncated for PR #{pr_number}: "
+                f"{truncation_telemetry['original_chars']} -> {truncation_telemetry['truncated_chars']} chars "
+                f"(context_lines_dropped={truncation_telemetry['context_lines_dropped']}, "
+                f"hunks_dropped={truncation_telemetry['hunks_dropped']}, "
+                f"files_dropped={truncation_telemetry['files_dropped']})",
+                extra={
+                    "operation": "truncate_diff_for_token_budget",
+                    "pr_number": pr_number,
+                    "diff_truncated_by_budget": True,
+                    **truncation_telemetry
+                }
+            )
+            # Mark diff as truncated for downstream handling
+            diff_truncated = True
+        else:
+            logger.debug(
+                f"[LLM Reviewer] Annotated diff with line numbers for PR #{pr_number}",
+                extra={
+                    "operation": "build_diff_aware_prompt",
+                    "pr_number": pr_number,
+                    "original_length": len(sanitized_diff),
+                    "annotated_length": len(annotated_diff),
+                    "truncated_length": len(truncated_diff),
+                    "diff_truncated_by_budget": False
+                }
+            )
 
         # Build file summary if available
         file_summary = ""
@@ -752,10 +936,28 @@ IMPORTANT:
             if len(diff_files) > 10:
                 file_summary += f"\n  ... and {len(diff_files) - 10} more files"
 
-        # Build truncation warning if applicable
+        # Build truncation warning if applicable (enhanced for #3080)
         truncation_warning = ""
         if diff_truncated:
-            truncation_warning = "\n\n**Note:** The diff has been truncated due to size limits. Some files may not be shown."
+            warning_parts = ["**Note:** The diff has been truncated due to size limits."]
+            if truncation_telemetry["was_truncated"]:
+                if truncation_telemetry["files_dropped"] > 0:
+                    warning_parts.append(
+                        f"{truncation_telemetry['files_dropped']} file(s) not shown."
+                    )
+                if truncation_telemetry["hunks_dropped"] > 0:
+                    warning_parts.append(
+                        f"{truncation_telemetry['hunks_dropped']} hunk(s) not shown."
+                    )
+                if truncation_telemetry["context_lines_dropped"] > 0:
+                    warning_parts.append(
+                        f"{truncation_telemetry['context_lines_dropped']} context line(s) removed."
+                    )
+                warning_parts.append(
+                    "Focus your review on the visible + lines. "
+                    "Do NOT claim 'no issues found' based on this partial view."
+                )
+            truncation_warning = "\n\n" + " ".join(warning_parts)
 
         return f"""**Pull Request Information**
 - Repository: {repo}
@@ -770,7 +972,7 @@ IMPORTANT:
 
 **Code Diff (with line numbers annotated):**
 ```diff
-{annotated_diff}
+{truncated_diff}
 ```
 
 Please review the code changes above and provide your assessment as JSON.

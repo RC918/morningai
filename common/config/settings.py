@@ -1308,6 +1308,12 @@ class Settings(BaseSettings):
         description="Enable JSON mode for LLM reviewer (ensures valid JSON responses)"
     )
 
+    llm_review_max_diff_chars: int = Field(
+        default=80000,
+        alias="LLM_REVIEW_MAX_DIFF_CHARS",
+        description="Maximum characters for annotated diff in LLM reviewer prompt. Diffs exceeding this limit will be truncated (preserving + lines over context lines). Default 80k chars (~20k tokens) leaves room for system prompt and response."
+    )
+
     planner_json_mode: bool = Field(
         default=True,
         alias="PLANNER_JSON_MODE",
