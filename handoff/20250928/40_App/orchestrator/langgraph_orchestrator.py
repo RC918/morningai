@@ -100,6 +100,7 @@ import contextlib
 import functools
 import gc
 import logging
+import sys
 import threading as _threading
 import time
 import traceback
@@ -605,6 +606,255 @@ class ResilientPostgresSaverCircuitOpen(DatabaseException):
     database-related errors consistently (e.g., for logging, metrics, alerting).
     """
     pass
+
+
+class DegradedCheckpointerCapacityExceeded(DatabaseException):
+    """
+    Exception raised when degraded checkpointer capacity is exceeded.
+
+    Issue #3027: MemorySaver OOM Protection Strategy
+
+    This exception is raised when the number of degraded workflows exceeds
+    MAX_DEGRADED_WORKFLOWS_PER_WORKER, implementing fail-fast behavior to
+    prevent OOM conditions on workers.
+
+    Inherits from DatabaseException to allow upstream code to handle all
+    database-related errors consistently.
+    """
+    pass
+
+
+class OOMProtectedMemorySaver:
+    """
+    A memory-safe wrapper around MemorySaver with OOM protection.
+
+    Issue #3027: MemorySaver OOM Protection Strategy
+
+    When PostgreSQL fails and workflows degrade to MemorySaver, all checkpoint
+    data is stored in worker process memory. This wrapper implements safeguards
+    to prevent Out-Of-Memory (OOM) conditions:
+
+    1. Workflow Limits: Limits concurrent degraded workflows per worker
+       (MAX_DEGRADED_WORKFLOWS_PER_WORKER). Rejects new workflows when limit reached.
+
+    2. Memory Monitoring: Tracks estimated memory usage and logs warnings
+       when threshold exceeded (DEGRADED_CHECKPOINT_MEMORY_WARNING_MB).
+
+    3. Metrics Exposure: Exposes checkpoint_memory_bytes, degraded_workflow_count,
+       and checkpoint_count for monitoring.
+
+    Blueprint Alignment:
+        - Safety Governor v2: Self-Governed / 自我修復
+        - Telemetry v2: Observable degradation events
+
+    Usage:
+        inner_saver = MemorySaver()
+        protected_saver = OOMProtectedMemorySaver(
+            inner_saver,
+            max_workflows=100,
+            memory_warning_mb=512,
+        )
+    """
+
+    def __init__(
+        self,
+        inner_saver,
+        max_workflows: int = 100,
+        memory_warning_mb: int = 512,
+        trace_id: str = "unknown",
+    ):
+        """
+        Initialize OOMProtectedMemorySaver.
+
+        Args:
+            inner_saver: The underlying MemorySaver instance
+            max_workflows: Maximum number of concurrent workflows (thread_ids)
+            memory_warning_mb: Memory threshold in MB for warning logs
+            trace_id: Trace ID for logging context
+        """
+        self._inner = inner_saver
+        self._max_workflows = max_workflows
+        self._memory_warning_mb = memory_warning_mb
+        self._trace_id = trace_id
+        self._memory_warning_logged = False
+
+    @property
+    def workflow_count(self) -> int:
+        """Get the number of unique workflows (thread_ids) in storage."""
+        return len(self._inner.storage)
+
+    @property
+    def checkpoint_count(self) -> int:
+        """Get the total number of checkpoints across all workflows."""
+        count = 0
+        for thread_storage in self._inner.storage.values():
+            for ns_storage in thread_storage.values():
+                count += len(ns_storage)
+        return count
+
+    def get_memory_estimate_bytes(self) -> int:
+        """
+        Estimate memory usage of the MemorySaver storage.
+
+        This is a rough estimate using sys.getsizeof on the storage dicts.
+        Actual memory usage may be higher due to object overhead.
+        """
+        total = 0
+        total += sys.getsizeof(self._inner.storage)
+        total += sys.getsizeof(self._inner.writes)
+        total += sys.getsizeof(self._inner.blobs)
+        for thread_id, thread_storage in self._inner.storage.items():
+            total += sys.getsizeof(thread_id)
+            total += sys.getsizeof(thread_storage)
+            for ns, ns_storage in thread_storage.items():
+                total += sys.getsizeof(ns)
+                total += sys.getsizeof(ns_storage)
+                for cp_id, cp_data in ns_storage.items():
+                    total += sys.getsizeof(cp_id)
+                    total += sys.getsizeof(cp_data)
+                    if isinstance(cp_data, tuple):
+                        for item in cp_data:
+                            total += sys.getsizeof(item)
+        for outer_key, inner_dict in self._inner.writes.items():
+            total += sys.getsizeof(outer_key)
+            if isinstance(outer_key, tuple):
+                for item in outer_key:
+                    total += sys.getsizeof(item)
+            total += sys.getsizeof(inner_dict)
+            if isinstance(inner_dict, dict):
+                for inner_key, inner_value in inner_dict.items():
+                    total += sys.getsizeof(inner_key)
+                    if isinstance(inner_key, tuple):
+                        for item in inner_key:
+                            total += sys.getsizeof(item)
+                    total += sys.getsizeof(inner_value)
+                    if isinstance(inner_value, tuple):
+                        for item in inner_value:
+                            total += sys.getsizeof(item)
+        for key, value in self._inner.blobs.items():
+            total += sys.getsizeof(key)
+            total += sys.getsizeof(value)
+            if isinstance(value, tuple):
+                for item in value:
+                    total += sys.getsizeof(item)
+        return total
+
+    def get_metrics(self) -> dict:
+        """
+        Get OOM protection metrics for monitoring.
+
+        Returns:
+            Dict with checkpoint_memory_bytes, degraded_workflow_count,
+            checkpoint_count, max_workflows, and memory_warning_mb.
+        """
+        return {
+            "checkpoint_memory_bytes": self.get_memory_estimate_bytes(),
+            "degraded_workflow_count": self.workflow_count,
+            "checkpoint_count": self.checkpoint_count,
+            "max_workflows": self._max_workflows,
+            "memory_warning_mb": self._memory_warning_mb,
+        }
+
+    def _check_capacity(self, config) -> None:
+        """
+        Check if adding a new workflow would exceed capacity.
+
+        Raises:
+            DegradedCheckpointerCapacityExceeded: If capacity would be exceeded
+        """
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id is None:
+            return
+        if thread_id in self._inner.storage:
+            return
+        if self.workflow_count >= self._max_workflows:
+            logger.error(
+                f"DEGRADED CHECKPOINTER CAPACITY EXCEEDED: Cannot accept new workflow. "
+                f"trace_id={self._trace_id} thread_id={thread_id} "
+                f"current_workflows={self.workflow_count} max_workflows={self._max_workflows}",
+                extra={
+                    "operation": "oom_protected_memory_saver",
+                    "event": "capacity_exceeded",
+                    "trace_id": self._trace_id,
+                    "thread_id": thread_id,
+                    "current_workflows": self.workflow_count,
+                    "max_workflows": self._max_workflows,
+                }
+            )
+            raise DegradedCheckpointerCapacityExceeded(
+                f"Degraded checkpointer capacity exceeded: {self.workflow_count}/{self._max_workflows} workflows. "
+                f"Cannot accept new workflow {thread_id}. Consider increasing MAX_DEGRADED_WORKFLOWS_PER_WORKER "
+                f"or resolving the primary checkpointer failure."
+            )
+
+    def _check_memory_warning(self) -> None:
+        """Log warning if memory usage exceeds threshold."""
+        memory_bytes = self.get_memory_estimate_bytes()
+        memory_mb = memory_bytes / (1024 * 1024)
+        if memory_mb >= self._memory_warning_mb and not self._memory_warning_logged:
+            self._memory_warning_logged = True
+            logger.warning(
+                f"DEGRADED CHECKPOINTER MEMORY WARNING: Memory usage exceeds threshold. "
+                f"trace_id={self._trace_id} memory_mb={memory_mb:.2f} "
+                f"threshold_mb={self._memory_warning_mb} workflows={self.workflow_count}",
+                extra={
+                    "operation": "oom_protected_memory_saver",
+                    "event": "memory_warning",
+                    "trace_id": self._trace_id,
+                    "memory_bytes": memory_bytes,
+                    "memory_mb": memory_mb,
+                    "threshold_mb": self._memory_warning_mb,
+                    "workflow_count": self.workflow_count,
+                    "checkpoint_count": self.checkpoint_count,
+                }
+            )
+
+    def setup(self):
+        """Setup - delegate to inner saver."""
+        return self._inner.setup()
+
+    def get(self, config):
+        """Get checkpoint - delegate to inner saver."""
+        return self._inner.get(config)
+
+    def get_tuple(self, config):
+        """Get checkpoint tuple - delegate to inner saver."""
+        return self._inner.get_tuple(config)
+
+    def put(self, config, checkpoint, metadata, new_versions):
+        """Put checkpoint with capacity check."""
+        self._check_capacity(config)
+        result = self._inner.put(config, checkpoint, metadata, new_versions)
+        self._check_memory_warning()
+        return result
+
+    def put_writes(self, config, writes, task_id):
+        """Put writes with capacity check."""
+        self._check_capacity(config)
+        result = self._inner.put_writes(config, writes, task_id)
+        self._check_memory_warning()
+        return result
+
+    def list(self, config, *, filter=None, before=None, limit=None):
+        """List checkpoints - delegate to inner saver."""
+        return self._inner.list(config, filter=filter, before=before, limit=limit)
+
+    def get_next_version(self, current, channel):
+        """Get next version - delegate to inner saver."""
+        return self._inner.get_next_version(current, channel)
+
+    def delete_thread(self, thread_id: str) -> None:
+        """Delete thread - delegate to inner saver and reset memory warning."""
+        result = self._inner.delete_thread(thread_id)
+        memory_bytes = self.get_memory_estimate_bytes()
+        memory_mb = memory_bytes / (1024 * 1024)
+        if memory_mb < self._memory_warning_mb:
+            self._memory_warning_logged = False
+        return result
+
+    def __getattr__(self, name):
+        """Pass through any other attributes to the inner saver."""
+        return getattr(self._inner, name)
 
 
 class ResilientPostgresSaver:
@@ -1360,7 +1610,10 @@ def get_degraded_persistence_checkpointer(
     Factory function to create a DegradedPersistenceCheckpointer.
 
     This function wraps the primary checkpointer with automatic failover
-    to MemorySaver when ENABLE_CHECKPOINT_FAILOVER is True.
+    to OOMProtectedMemorySaver when ENABLE_CHECKPOINT_FAILOVER is True.
+
+    Issue #3027: The fallback MemorySaver is now wrapped with OOMProtectedMemorySaver
+    to prevent OOM conditions when many workflows degrade simultaneously.
 
     Args:
         primary: The primary checkpointer (typically ResilientPostgresSaver)
@@ -1380,7 +1633,35 @@ def get_degraded_persistence_checkpointer(
         )
         return primary
 
-    fallback = MemorySaver()
+    # Issue #3027: Wrap MemorySaver with OOM protection
+    # Get config values with defensive defaults for mocked settings in tests
+    max_workflows = getattr(
+        settings,
+        "max_degraded_workflows_per_worker",
+        100
+    )
+    try:
+        max_workflows = int(max_workflows)
+    except (TypeError, ValueError):
+        max_workflows = 100
+
+    memory_warning_mb = getattr(
+        settings,
+        "degraded_checkpoint_memory_warning_mb",
+        512
+    )
+    try:
+        memory_warning_mb = int(memory_warning_mb)
+    except (TypeError, ValueError):
+        memory_warning_mb = 512
+
+    inner_saver = MemorySaver()
+    fallback = OOMProtectedMemorySaver(
+        inner_saver=inner_saver,
+        max_workflows=max_workflows,
+        memory_warning_mb=memory_warning_mb,
+        trace_id=trace_id,
+    )
 
     logger.info(
         f"Checkpoint failover enabled, wrapping with DegradedPersistenceCheckpointer trace_id={trace_id}",
@@ -1389,7 +1670,9 @@ def get_degraded_persistence_checkpointer(
             "trace_id": trace_id,
             "failover_enabled": True,
             "primary_type": type(primary).__name__,
-            "fallback_type": "MemorySaver",
+            "fallback_type": "OOMProtectedMemorySaver",
+            "max_degraded_workflows": max_workflows,
+            "memory_warning_mb": memory_warning_mb,
         }
     )
 
