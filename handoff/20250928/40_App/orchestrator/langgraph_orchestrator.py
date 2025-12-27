@@ -705,22 +705,34 @@ class ResilientPostgresSaver:
         self._circuit_open = False
 
     @staticmethod
-    def _is_pool_already_closed_with_name(error_str: str) -> bool:
+    def _is_pool_closed_with_name(error_str: str) -> bool:
         """
-        Check if error matches "the pool '<name>' is already closed" pattern.
+        Check if error matches pool closed patterns with variable pool name.
 
-        This compound check handles the production error format where the pool name
-        varies (e.g., "the pool 'pool-1' is already closed"). Using a compound check
-        avoids false positives from generic "is already closed" patterns like
-        "connection is already closed" or "file handle is already closed".
+        psycopg_pool emits two different error message formats:
+        1. "the pool 'pool-1' is closed" - PoolClosed exception
+        2. "the pool 'pool-1' is already closed" - PoolClosed exception (different code path)
+
+        This compound check handles both production error formats where the pool name
+        varies. Using a compound check avoids false positives from generic patterns
+        like "connection is already closed" or "file handle is already closed".
+
+        Assumptions & Limitations:
+        - Only matches single-quote format: "the pool '<name>' is [already] closed"
+        - Double-quote variants (e.g., 'the pool "pool-1" is closed') are NOT matched
+        - Other quote/format variants are tracked in GitHub issue #3117
+        - Exception type classification (PoolClosed) is tracked in GitHub issue #3108
 
         Args:
             error_str: Lowercase string representation of the error
 
         Returns:
-            True if this is a pool-already-closed error with variable pool name
+            True if this is a pool-closed error with variable pool name
         """
-        return "the pool '" in error_str and "is already closed" in error_str
+        if "the pool '" not in error_str:
+            return False
+        # Match both "' is closed" and "' is already closed" variants
+        return "' is closed" in error_str or "' is already closed" in error_str
 
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if an error is transient and should be retried."""
@@ -732,8 +744,8 @@ class ResilientPostgresSaver:
             if pattern in error_str:
                 return True
 
-        # Check for pool closed with variable pool name (e.g., "the pool 'pool-1' is already closed")
-        if self._is_pool_already_closed_with_name(error_str):
+        # Check for pool closed with variable pool name (e.g., "the pool 'pool-1' is closed")
+        if self._is_pool_closed_with_name(error_str):
             return True
 
         # Check for psycopg-specific transient errors
@@ -760,8 +772,8 @@ class ResilientPostgresSaver:
             if pattern in error_str:
                 return True
 
-        # Check for pool closed with variable pool name (e.g., "the pool 'pool-1' is already closed")
-        if self._is_pool_already_closed_with_name(error_str):
+        # Check for pool closed with variable pool name (e.g., "the pool 'pool-1' is closed")
+        if self._is_pool_closed_with_name(error_str):
             return True
 
         return False
