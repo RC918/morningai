@@ -805,9 +805,9 @@ class Settings(BaseSettings):
     )
 
     value_gate_dry_run: bool = Field(
-        default=True,
+        default=False,
         alias="VALUE_GATE_DRY_RUN",
-        description="Log-only mode for Value Gate. When True, logs what would be blocked but allows PR creation."
+        description="Log-only mode for Value Gate. When True, logs what would be blocked but allows PR creation. Default changed from True to False (Dec 2025) for Secure by Default. Set VALUE_GATE_DRY_RUN=true to restore old behavior."
     )
 
     # PR Deduplication Settings (Memory v2 Short-term)
