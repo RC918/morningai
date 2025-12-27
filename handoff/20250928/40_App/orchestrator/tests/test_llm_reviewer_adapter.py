@@ -14,7 +14,11 @@ from llm_reviewer_adapter import (
     sanitize_diff_content,
     SECRETS_REDACTION_PATTERNS,
     # EPIC B Phase 3: Prompt injection protection
-    PROMPT_INJECTION_PATTERNS
+    PROMPT_INJECTION_PATTERNS,
+    # Issue #3103: Truncation safeguard
+    truncate_diff_for_token_budget,
+    # Issue #3079: Line number annotation
+    annotate_diff_with_line_numbers,
 )
 
 
@@ -1300,3 +1304,692 @@ class TestLLMJsonRepairConfig:
         user_message = messages[1]['content']
         assert '[SANITIZED]' in user_message
         assert 'ignore previous instructions' not in user_message
+
+
+class TestTruncateDiffForTokenBudget:
+    """
+    Issue #3103: Unit tests for truncate_diff_for_token_budget function.
+
+    This function is stability-critical (complexity 33) and handles:
+    - Standard diff formats (diff --git)
+    - Patch formats (without diff --git headers)
+    - Edge cases (empty, single line, very large)
+    - Telemetry accuracy
+    """
+
+    def test_empty_diff_returns_unchanged(self):
+        """Empty diff should return empty string with default telemetry"""
+        result, telemetry = truncate_diff_for_token_budget("")
+        assert result == ""
+        assert telemetry["original_chars"] == 0
+        assert telemetry["truncated_chars"] == 0
+        assert telemetry["was_truncated"] is False
+
+    def test_small_diff_returns_unchanged(self):
+        """Diff smaller than max_chars should return unchanged"""
+        small_diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,3 +1,4 @@
+  (Line 1) def hello():
++ (Line 2)     print("world")
+  (Line 3)     pass"""
+        result, telemetry = truncate_diff_for_token_budget(small_diff, max_chars=10000)
+        assert result == small_diff
+        assert telemetry["was_truncated"] is False
+        assert telemetry["context_lines_dropped"] == 0
+
+    def test_standard_single_file_single_hunk(self):
+        """Standard diff --git format with single file and single hunk"""
+        diff = """diff --git a/src/main.py b/src/main.py
+--- a/src/main.py
++++ b/src/main.py
+@@ -10,5 +10,6 @@
+  (Line 10) def main():
++ (Line 11)     print("new line")
+  (Line 12)     return 0"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "diff --git" in result
+        assert "+ (Line 11)" in result
+        assert telemetry["was_truncated"] is False
+
+    def test_standard_multi_file_multi_hunk(self):
+        """Standard diff with multiple files and multiple hunks"""
+        diff = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,4 @@
+  (Line 1) # File 1
++ (Line 2) new_line_1
+  (Line 3) old_line
+@@ -10,3 +11,4 @@
+  (Line 10) # Section 2
++ (Line 11) new_line_2
+  (Line 12) end
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,2 +1,3 @@
+  (Line 1) # File 2
++ (Line 2) added_in_file2"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "file1.py" in result
+        assert "file2.py" in result
+        assert telemetry["files_dropped"] == 0
+        assert telemetry["hunks_dropped"] == 0
+
+    def test_patch_format_without_diff_git_header(self):
+        """Patch format without 'diff --git' headers should use fallback truncation"""
+        patch = """--- a/file.py
++++ b/file.py
+@@ -1,3 +1,4 @@
+  (Line 1) def hello():
++ (Line 2)     print("world")
+  (Line 3)     pass"""
+        result, telemetry = truncate_diff_for_token_budget(patch, max_chars=10000)
+        # Should return unchanged since it's small
+        assert result == patch
+        assert telemetry["was_truncated"] is False
+
+    def test_patch_format_truncation_adds_sentinel(self):
+        """Large patch without diff headers should truncate with sentinel"""
+        # Create a large patch that exceeds max_chars
+        large_patch = "--- a/file.py\n+++ b/file.py\n"
+        large_patch += "@@ -1,1000 +1,1000 @@\n"
+        for i in range(500):
+            large_patch += f"+ (Line {i}) added_line_{i}_with_some_content\n"
+
+        max_chars = 500
+        result, telemetry = truncate_diff_for_token_budget(large_patch, max_chars=max_chars)
+        assert telemetry["was_truncated"] is True
+        assert "[DIFF TRUNCATED" in result
+        # Invariant: truncated result should be smaller than original
+        assert len(result) < len(large_patch)
+        # Invariant: telemetry should be self-consistent
+        assert telemetry["truncated_chars"] == len(result)
+
+    def test_context_lines_dropped_when_not_adjacent_to_addition(self):
+        """Context lines not adjacent to + lines should be dropped when diff exceeds budget"""
+        # Create a diff large enough to trigger Phase 2 context reduction
+        diff = "diff --git a/file.py b/file.py\n--- a/file.py\n+++ b/file.py\n"
+        diff += "@@ -1,100 +1,101 @@\n"
+        # Add many context lines before the addition
+        for i in range(1, 40):
+            diff += f"  (Line {i}) context_far_from_addition_{i}\n"
+        diff += "  (Line 40) context_adjacent_to_addition\n"
+        diff += "+ (Line 41) THE_ADDITION\n"
+        diff += "  (Line 42) context_adjacent_to_addition\n"
+        # Add many context lines after the addition
+        for i in range(43, 80):
+            diff += f"  (Line {i}) context_far_from_addition_{i}\n"
+
+        # Use max_chars that forces context reduction but keeps the structure
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=len(diff) - 100)
+        # Context lines adjacent to addition should be kept
+        assert "context_adjacent_to_addition" in result
+        assert "+ (Line 41)" in result
+        # Far context lines should be dropped
+        assert telemetry["context_lines_dropped"] > 0
+
+    def test_phase3_drops_later_hunks_when_too_large(self):
+        """When diff is still too large after Phase 2, drop later hunks"""
+        # Create a diff with many hunks
+        diff = "diff --git a/file.py b/file.py\n--- a/file.py\n+++ b/file.py\n"
+        for hunk_num in range(10):
+            start_line = hunk_num * 100
+            diff += f"@@ -{start_line},5 +{start_line},6 @@\n"
+            diff += f"  (Line {start_line}) context\n"
+            diff += f"+ (Line {start_line + 1}) addition_in_hunk_{hunk_num}\n"
+            diff += f"  (Line {start_line + 2}) context\n"
+
+        # Use small max_chars to force hunk dropping
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=300)
+        assert telemetry["was_truncated"] is True
+        assert telemetry["hunks_dropped"] > 0
+        # First hunk should be kept
+        assert "addition_in_hunk_0" in result
+
+    def test_phase3_drops_later_files_when_too_large(self):
+        """When diff is too large, drop later files entirely"""
+        diff = ""
+        for file_num in range(5):
+            diff += f"diff --git a/file{file_num}.py b/file{file_num}.py\n"
+            diff += f"--- a/file{file_num}.py\n"
+            diff += f"+++ b/file{file_num}.py\n"
+            diff += "@@ -1,3 +1,4 @@\n"
+            diff += "  (Line 1) context\n"
+            diff += f"+ (Line 2) addition_in_file_{file_num}\n"
+            diff += "  (Line 3) context\n"
+
+        # Use small max_chars to force file dropping
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=250)
+        assert telemetry["was_truncated"] is True
+        assert telemetry["files_dropped"] > 0
+        # First file should be kept
+        assert "file0.py" in result
+
+    def test_truncation_sentinel_added_when_content_dropped(self):
+        """Truncation sentinel should be added when hunks/files are dropped"""
+        diff = ""
+        for file_num in range(10):
+            diff += f"diff --git a/file{file_num}.py b/file{file_num}.py\n"
+            diff += f"--- a/file{file_num}.py\n"
+            diff += f"+++ b/file{file_num}.py\n"
+            diff += "@@ -1,3 +1,4 @@\n"
+            diff += f"+ (Line 1) addition_{file_num}\n"
+
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=300)
+        assert "[DIFF TRUNCATED" in result
+        assert "remaining content omitted" in result
+
+    def test_format_guard_non_annotated_input(self):
+        """Input without annotated prefixes should use conservative truncation"""
+        # Raw diff without (Line N) annotations
+        raw_diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,3 +1,4 @@
+ def hello():
++    print("world")
+     pass"""
+        # This has diff headers but no annotated format
+        # Create a large version to trigger truncation
+        large_raw = raw_diff + "\n" + ("x" * 1000)
+        result, telemetry = truncate_diff_for_token_budget(large_raw, max_chars=200)
+        assert telemetry["was_truncated"] is True
+        assert "[DIFF TRUNCATED" in result
+
+    def test_telemetry_original_chars_accurate(self):
+        """Telemetry should accurately report original character count"""
+        diff = "x" * 1000
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=500)
+        assert telemetry["original_chars"] == 1000
+
+    def test_telemetry_truncated_chars_accurate(self):
+        """Telemetry should accurately report truncated character count"""
+        diff = "x" * 1000
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=500)
+        assert telemetry["truncated_chars"] == len(result)
+
+    def test_telemetry_was_truncated_flag(self):
+        """was_truncated flag should be True only when truncation occurred"""
+        small_diff = "small"
+        result1, telemetry1 = truncate_diff_for_token_budget(small_diff, max_chars=1000)
+        assert telemetry1["was_truncated"] is False
+
+        large_diff = "x" * 1000
+        result2, telemetry2 = truncate_diff_for_token_budget(large_diff, max_chars=100)
+        assert telemetry2["was_truncated"] is True
+
+    def test_newline_safe_truncation(self):
+        """Truncation should not cut in the middle of a line"""
+        diff = "line1\nline2\nline3\nline4\nline5"
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=20)
+        # Should end at a newline boundary, not mid-line
+        assert not result.rstrip().endswith("line") or "[DIFF TRUNCATED" in result
+
+    def test_very_long_single_line_fallback(self):
+        """Very long single line without newlines should still truncate"""
+        long_line = "x" * 10000
+        result, telemetry = truncate_diff_for_token_budget(long_line, max_chars=500)
+        assert telemetry["was_truncated"] is True
+        # Invariant: truncated result should be smaller than original
+        assert len(result) < len(long_line)
+        # Invariant: telemetry should be self-consistent
+        assert telemetry["truncated_chars"] == len(result)
+
+    def test_deletion_lines_preserved(self):
+        """Deletion lines (- prefix) should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,3 +1,3 @@
+  (Line 1) context
+- (Line 2) deleted_line
++ (Line 2) added_line
+  (Line 3) context"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "- (Line 2) deleted_line" in result
+        assert "+ (Line 2) added_line" in result
+
+    def test_no_newline_marker_preserved(self):
+        """'No newline at end of file' marker should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,2 +1,2 @@
+  (Line 1) content
++ (Line 2) new_content
+\\ No newline at end of file"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "\\" in result or "No newline" in result
+
+    def test_hunk_header_preserved(self):
+        """Hunk headers (@@ ... @@) should always be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,5 +10,6 @@
+  (Line 10) context
++ (Line 11) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "@@" in result
+
+    def test_file_header_preserved(self):
+        """File headers (--- and +++) should always be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        assert "--- a/file.py" in result
+        assert "+++ b/file.py" in result
+
+    def test_default_max_chars_is_80000(self):
+        """Default max_chars should be 80000 (per LLM_REVIEW_MAX_DIFF_CHARS)"""
+        # Create diff just under 80000 chars
+        diff = "x" * 79000
+        result, telemetry = truncate_diff_for_token_budget(diff)
+        assert telemetry["was_truncated"] is False
+
+        # Create diff over 80000 chars
+        large_diff = "x" * 81000
+        result2, telemetry2 = truncate_diff_for_token_budget(large_diff)
+        assert telemetry2["was_truncated"] is True
+
+    def test_strict_mode_semantics_preserved(self):
+        """Truncation should preserve + lines for Strict Mode inline comments"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,10 +1,11 @@
+  (Line 1) context1
+  (Line 2) context2
+  (Line 3) context3
+  (Line 4) context4
++ (Line 5) IMPORTANT_ADDITION
+  (Line 6) context5
+  (Line 7) context6
+  (Line 8) context7"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # The + line must always be preserved
+        assert "+ (Line 5) IMPORTANT_ADDITION" in result
+
+    def test_empty_hunks_handled(self):
+        """Files with no hunks should be handled gracefully"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash and should include the hunk from file2
+        assert "+ (Line 1) addition" in result
+
+    def test_binary_file_diff_handled(self):
+        """Binary file diffs (no patch content) should be handled gracefully"""
+        diff = """diff --git a/image.png b/image.png
+new file mode 100644
+index 0000000..1234567
+Binary files /dev/null and b/image.png differ
+diff --git a/code.py b/code.py
+--- a/code.py
++++ b/code.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash
+        assert result is not None
+        # Binary file marker should be preserved
+        assert "Binary files" in result or "image.png" in result
+        # Code changes should still be included
+        assert "+ (Line 1) addition" in result
+
+    def test_rename_only_diff_handled(self):
+        """Rename-only diffs (no content changes) should be handled gracefully"""
+        diff = """diff --git a/old_name.py b/new_name.py
+similarity index 100%
+rename from old_name.py
+rename to new_name.py
+diff --git a/code.py b/code.py
+--- a/code.py
++++ b/code.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash
+        assert result is not None
+        # Rename info should be preserved
+        assert "rename" in result.lower() or "new_name.py" in result
+        # Code changes should still be included
+        assert "+ (Line 1) addition" in result
+
+    def test_mode_change_diff_handled(self):
+        """Mode/permission change diffs should be handled gracefully"""
+        diff = """diff --git a/script.sh b/script.sh
+old mode 100644
+new mode 100755
+diff --git a/code.py b/code.py
+--- a/code.py
++++ b/code.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash
+        assert result is not None
+        # Mode change info should be preserved
+        assert "mode" in result.lower() or "script.sh" in result
+        # Code changes should still be included
+        assert "+ (Line 1) addition" in result
+
+
+class TestAnnotateDiffWithLineNumbers:
+    """
+    Issue #3079: Unit tests for annotate_diff_with_line_numbers function.
+
+    This function is the core of Line Mapping (Tactic 3) - it pre-annotates
+    diff so LLM can "copy" line numbers instead of calculating them.
+
+    Tests focus on INVARIANTS rather than implementation details to avoid
+    test-implementation lock-in and allow safe refactoring (#3083).
+
+    Key invariants:
+    - + lines get new-file line numbers (critical for Strict Mode)
+    - - lines get old-file line numbers
+    - Context lines get new-file line numbers
+    - Line numbers are monotonically increasing within a hunk
+    - Hunk headers reset line numbers correctly
+    - File headers (diff, ---, +++) are preserved unchanged
+    """
+
+    def test_empty_diff_returns_empty(self):
+        """Empty diff should return empty string"""
+        result = annotate_diff_with_line_numbers("")
+        assert result == ""
+
+    def test_none_like_empty_returns_unchanged(self):
+        """Falsy input should return unchanged"""
+        result = annotate_diff_with_line_numbers("")
+        assert result == ""
+
+    def test_addition_line_gets_new_file_line_number(self):
+        """+ lines should be annotated with new-file line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,3 +10,4 @@
+ existing
++new_line
+ more"""
+        result = annotate_diff_with_line_numbers(diff)
+        # + line at new-file position 11 (starts at 10, context=10, addition=11)
+        assert "+ (Line 11)" in result
+        assert "new_line" in result
+
+    def test_deletion_line_gets_old_file_line_number(self):
+        """- lines should be annotated with old-file line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,3 +10,2 @@
+ existing
+-deleted_line
+ more"""
+        result = annotate_diff_with_line_numbers(diff)
+        # - line at old-file position 11 (starts at 10, context=10, deletion=11)
+        assert "- (Line 11)" in result
+        assert "deleted_line" in result
+
+    def test_context_line_gets_new_file_line_number(self):
+        """Context lines (space prefix) should use new-file line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,2 +10,2 @@
+ context_line
+ another_context"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Context lines at new-file positions 10 and 11
+        assert "(Line 10)" in result
+        assert "context_line" in result
+
+    def test_line_numbers_monotonically_increase_in_hunk(self):
+        """Line numbers should increase monotonically within a hunk"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,5 +1,6 @@
+ line1
+ line2
++added
+ line3
+ line4
+ line5"""
+        result = annotate_diff_with_line_numbers(diff)
+        lines = result.split('\n')
+        line_numbers = []
+        import re
+        for line in lines:
+            if '(Line ' in line:
+                match = re.search(r'\(Line (\d+)\)', line)
+                if match:
+                    line_numbers.append(int(match.group(1)))
+        # Verify monotonic increase
+        for i in range(1, len(line_numbers)):
+            assert line_numbers[i] >= line_numbers[i - 1], \
+                f"Line numbers not monotonic: {line_numbers}"
+
+    def test_hunk_header_resets_line_numbers(self):
+        """Each hunk header should reset line numbers to its starting position"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,2 +1,2 @@
+ first_hunk_line
++first_hunk_add
+@@ -100,2 +101,2 @@
+ second_hunk_line
++second_hunk_add"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Verify hunk headers are preserved unchanged
+        assert "@@ -1,2 +1,2 @@" in result
+        assert "@@ -100,2 +101,2 @@" in result
+        # First hunk: context at 1, addition at 2
+        assert "+ (Line 2) first_hunk_add" in result
+        # Second hunk: context at 101, addition at 102
+        assert "+ (Line 102) second_hunk_add" in result
+
+    def test_file_headers_preserved_unchanged(self):
+        """diff, ---, +++ headers should not be modified"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++new"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "diff --git a/file.py b/file.py" in result
+        assert "--- a/file.py" in result
+        assert "+++ b/file.py" in result
+
+    def test_hunk_header_preserved_unchanged(self):
+        """@@ hunk headers should not be modified"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -10,3 +10,4 @@
+ existing
++new"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "@@ -10,3 +10,4 @@" in result
+
+    def test_no_newline_marker_preserved(self):
+        """'\\ No newline at end of file' should be preserved unchanged"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,1 @@
+-old
++new
+\\ No newline at end of file"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "\\ No newline at end of file" in result
+
+    def test_multi_file_diff_handled(self):
+        """Multi-file diffs should annotate each file correctly"""
+        diff = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,1 +1,2 @@
+ existing1
++new1
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -5,1 +5,2 @@
+ existing2
++new2"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Both files should have their additions annotated
+        assert "+ (Line" in result
+        assert "new1" in result
+        assert "new2" in result
+        # File headers should be preserved
+        assert "file1.py" in result
+        assert "file2.py" in result
+
+    def test_addition_line_number_correct_for_strict_mode(self):
+        """+ line numbers must be accurate for Strict Mode inline comments"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -50,3 +50,4 @@
+ context_at_50
++IMPORTANT_ADDITION
+ context_at_51
+ context_at_52"""
+        result = annotate_diff_with_line_numbers(diff)
+        # The + line should be at new-file line 51
+        # (hunk starts at 50, context=50, addition=51)
+        assert "+ (Line 51) IMPORTANT_ADDITION" in result
+
+    def test_mixed_additions_deletions_context(self):
+        """Mixed +/-/context lines should all get correct line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,4 +1,4 @@
+ line1
+-old_line2
++new_line2
+ line3
+ line4"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Context line1 at new-file 1
+        assert "(Line 1)" in result
+        # Deletion at old-file 2
+        assert "- (Line 2) old_line2" in result
+        # Addition at new-file 2
+        assert "+ (Line 2) new_line2" in result
+
+    def test_binary_file_diff_not_crash(self):
+        """Binary file diffs should not crash and preserve headers unchanged"""
+        diff = """diff --git a/image.png b/image.png
+new file mode 100644
+index 0000000..1234567
+Binary files /dev/null and b/image.png differ"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Should not crash and should preserve content
+        assert result is not None
+        assert "Binary files" in result
+        # Headers should NOT have (Line N) added
+        assert "(Line" not in result
+
+    def test_rename_only_diff_not_crash(self):
+        """Rename-only diffs should not crash and preserve headers unchanged"""
+        diff = """diff --git a/old.py b/new.py
+similarity index 100%
+rename from old.py
+rename to new.py"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Should not crash and should preserve content
+        assert result is not None
+        assert "rename" in result
+        # Headers should NOT have (Line N) added
+        assert "(Line" not in result
+
+    def test_mode_change_diff_not_crash(self):
+        """Mode/permission change diffs should not crash and preserve headers unchanged"""
+        diff = """diff --git a/script.sh b/script.sh
+old mode 100644
+new mode 100755"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Should not crash and should preserve content
+        assert result is not None
+        assert "mode" in result
+        # Headers should NOT have (Line N) added
+        assert "(Line" not in result
+
+    def test_empty_hunk_body_handled(self):
+        """Hunks with no body lines should be handled gracefully"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,0 +1,1 @@
++new_line"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "+ (Line 1) new_line" in result
+
+    def test_large_line_numbers_handled(self):
+        """Large line numbers should be handled correctly"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -9999,2 +9999,3 @@
+ existing
++new_at_10000
+ more"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert "(Line 10000)" in result
+
+    def test_output_format_llm_can_copy(self):
+        """Output format should allow LLM to directly copy line numbers"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++new_code"""
+        result = annotate_diff_with_line_numbers(diff)
+        # Format should be: + (Line N) content
+        # LLM can extract "Line N" directly
+        import re
+        matches = re.findall(r'\+ \(Line \d+\)', result)
+        assert len(matches) > 0, "Output should have + (Line N) format"
+
+    def test_whitespace_in_content_preserved(self):
+        """Whitespace in code content should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++    indented_code"""
+        result = annotate_diff_with_line_numbers(diff)
+        # The indentation should be preserved after the line number
+        assert "indented_code" in result
+
+    def test_special_characters_in_content_preserved(self):
+        """Special characters in code should be preserved"""
+        diff = """diff --git a/file.py b/file.py
+--- a/file.py
++++ b/file.py
+@@ -1,1 +1,2 @@
+ existing
++print("hello (world)")"""
+        result = annotate_diff_with_line_numbers(diff)
+        assert 'print("hello (world)")' in result
