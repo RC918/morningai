@@ -378,15 +378,21 @@ class RouterMetrics:
 
 # Global metrics instance (singleton pattern)
 _global_metrics: Optional[RouterMetrics] = None
+_global_metrics_lock = Lock()
 
 
 def get_router_metrics() -> RouterMetrics:
     """Get the global RouterMetrics instance.
+
+    Thread-safe singleton using double-checked locking pattern.
 
     Returns:
         The global RouterMetrics singleton
     """
     global _global_metrics
     if _global_metrics is None:
-        _global_metrics = RouterMetrics()
+        with _global_metrics_lock:
+            # Double-check after acquiring lock to prevent race condition
+            if _global_metrics is None:
+                _global_metrics = RouterMetrics()
     return _global_metrics

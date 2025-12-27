@@ -2026,7 +2026,7 @@ class Settings(BaseSettings):
         )
     )
 
-    router_model_tier: str = Field(
+    router_model_tier: Literal["tier1", "tier2"] = Field(
         default="tier1",
         alias="ROUTER_MODEL_TIER",
         description=(

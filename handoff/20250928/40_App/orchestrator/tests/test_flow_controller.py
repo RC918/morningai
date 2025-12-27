@@ -1026,3 +1026,76 @@ class TestDequeOptimization:
         # Should have test-2, test-3, test-4
         trace_ids = [r.trace_id for r in metrics._records]
         assert trace_ids == ["test-2", "test-3", "test-4"]
+
+
+# =============================================================================
+# Thread-Safe Singleton Tests
+# =============================================================================
+
+
+class TestThreadSafeSingleton:
+    """Tests for thread-safe singleton pattern in get_router_metrics."""
+
+    def test_singleton_uses_lock(self):
+        """Test that get_router_metrics uses a module-level lock."""
+        from core.flow import router_metrics
+        assert hasattr(router_metrics, '_global_metrics_lock')
+        from threading import Lock
+        assert isinstance(router_metrics._global_metrics_lock, type(Lock()))
+
+    def test_concurrent_access_returns_same_instance(self):
+        """Test that concurrent calls return the same instance."""
+        import threading
+        from core.flow import router_metrics
+
+        # Reset global metrics for test
+        router_metrics._global_metrics = None
+
+        results = []
+        errors = []
+
+        def get_metrics():
+            try:
+                m = router_metrics.get_router_metrics()
+                results.append(id(m))
+            except Exception as e:
+                errors.append(e)
+
+        # Create multiple threads to call get_router_metrics concurrently
+        threads = [threading.Thread(target=get_metrics) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All threads should get the same instance
+        assert len(errors) == 0
+        assert len(set(results)) == 1  # All IDs should be the same
+
+
+# =============================================================================
+# Literal Type Validation Tests
+# =============================================================================
+
+
+class TestLiteralTypeValidation:
+    """Tests for Literal type validation in settings."""
+
+    def test_router_model_tier_valid_values(self):
+        """Test that router_model_tier accepts valid values."""
+        with patch.dict("os.environ", {"ROUTER_MODEL_TIER": "tier1"}):
+            from common.config.settings import Settings
+            settings = Settings()
+            assert settings.router_model_tier == "tier1"
+
+        with patch.dict("os.environ", {"ROUTER_MODEL_TIER": "tier2"}):
+            from common.config.settings import Settings
+            settings = Settings()
+            assert settings.router_model_tier == "tier2"
+
+    def test_router_model_tier_invalid_value_raises_error(self):
+        """Test that invalid router_model_tier raises ValidationError."""
+        with patch.dict("os.environ", {"ROUTER_MODEL_TIER": "tier3"}):
+            from common.config.settings import Settings
+            with pytest.raises(ValidationError):
+                Settings()
