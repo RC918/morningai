@@ -842,3 +842,187 @@ class TestFallbackReason:
         assert FallbackReason.EMPTY_OUTPUT == "empty_output"
         assert FallbackReason.LLM_ERROR == "llm_error"
         assert FallbackReason.UNKNOWN == "unknown"
+
+    def test_json_safety_error_fallback_reason(self):
+        """Test JSON_SAFETY_ERROR fallback reason exists."""
+        assert FallbackReason.JSON_SAFETY_ERROR == "json_safety_error"
+
+
+# =============================================================================
+# JSON Safety Tests
+# =============================================================================
+
+
+class TestJSONSafety:
+    """Tests for JSON safety checks in RouterNode."""
+
+    def _create_context(self):
+        """Create a test RoutingContext."""
+        candidates = [
+            RoutingCandidate(node_name="publisher", description="Deploy"),
+            RoutingCandidate(node_name="fixer", description="Fix code"),
+        ]
+        return RoutingContext(
+            task_type="code_review",
+            current_stage="review",
+            candidates=candidates
+        )
+
+    def _create_fallback_fn(self):
+        """Create a test fallback function."""
+        def fallback_fn(context: RoutingContext) -> RoutingDecision:
+            return RoutingDecision(
+                next_node="fixer",
+                reasoning="Fallback: default to fixer",
+                risk_assessment="Low - deterministic fallback"
+            )
+        return fallback_fn
+
+    def test_oversized_response_triggers_fallback(self):
+        """Test that oversized LLM response triggers fallback."""
+        from core.flow.router_node import MAX_RESPONSE_SIZE
+
+        # Create a response larger than MAX_RESPONSE_SIZE
+        oversized_response = '{"next_node": "fixer", "reasoning": "' + 'x' * (MAX_RESPONSE_SIZE + 100) + '", "risk_assessment": "Low"}'
+
+        llm_client = MockLLMClient(response=oversized_response)
+        router = RouterNode(
+            llm_client=llm_client,
+            fallback_fn=self._create_fallback_fn()
+        )
+        context = self._create_context()
+        decision = router.route(context)
+
+        # Should fall back due to size limit
+        assert decision.next_node == "fixer"
+        assert "Fallback" in decision.reasoning
+
+    def test_deeply_nested_json_triggers_fallback(self):
+        """Test that deeply nested JSON triggers fallback."""
+        from core.flow.router_node import MAX_NESTING_DEPTH
+
+        # Create deeply nested JSON (exceeds MAX_NESTING_DEPTH)
+        nested = '{"a": ' * (MAX_NESTING_DEPTH + 5) + '"value"' + '}' * (MAX_NESTING_DEPTH + 5)
+
+        llm_client = MockLLMClient(response=nested)
+        router = RouterNode(
+            llm_client=llm_client,
+            fallback_fn=self._create_fallback_fn()
+        )
+        context = self._create_context()
+        decision = router.route(context)
+
+        # Should fall back due to nesting depth
+        assert decision.next_node == "fixer"
+
+    def test_valid_json_passes_safety_check(self):
+        """Test that valid JSON passes safety check."""
+        valid_response = json.dumps({
+            "next_node": "publisher",
+            "reasoning": "Code looks good",
+            "risk_assessment": "Low risk"
+        })
+
+        llm_client = MockLLMClient(response=valid_response)
+        router = RouterNode(
+            llm_client=llm_client,
+            fallback_fn=self._create_fallback_fn()
+        )
+        context = self._create_context()
+        decision = router.route(context)
+
+        # Should succeed
+        assert decision.next_node == "publisher"
+        assert decision.reasoning == "Code looks good"
+
+
+# =============================================================================
+# Metrics Version Tests
+# =============================================================================
+
+
+class TestMetricsVersion:
+    """Tests for metrics versioning."""
+
+    def test_summary_includes_metrics_version(self):
+        """Test that get_summary includes metrics_version."""
+        from core.flow.router_metrics import METRICS_VERSION
+
+        metrics = RouterMetrics()
+        metrics.record_decision(
+            trace_id="test-1",
+            latency_ms=100.0,
+            success=True,
+            chosen_node="fixer"
+        )
+
+        summary = metrics.get_summary(window_minutes=60)
+        assert "metrics_version" in summary
+        assert summary["metrics_version"] == METRICS_VERSION
+
+    def test_all_time_summary_includes_metrics_version(self):
+        """Test that get_all_time_summary includes metrics_version."""
+        from core.flow.router_metrics import METRICS_VERSION
+
+        metrics = RouterMetrics()
+        metrics.record_decision(
+            trace_id="test-1",
+            latency_ms=100.0,
+            success=True,
+            chosen_node="fixer"
+        )
+
+        summary = metrics.get_all_time_summary()
+        assert "metrics_version" in summary
+        assert summary["metrics_version"] == METRICS_VERSION
+
+    def test_metrics_version_is_v1(self):
+        """Test that current metrics version is v1."""
+        from core.flow.router_metrics import METRICS_VERSION
+        assert METRICS_VERSION == "v1"
+
+
+# =============================================================================
+# Deque Optimization Tests
+# =============================================================================
+
+
+class TestDequeOptimization:
+    """Tests for deque-based record storage optimization."""
+
+    def test_records_use_deque(self):
+        """Test that _records is a deque."""
+        from collections import deque
+        metrics = RouterMetrics(max_records=10)
+        assert isinstance(metrics._records, deque)
+
+    def test_deque_maxlen_enforced(self):
+        """Test that deque maxlen is enforced."""
+        metrics = RouterMetrics(max_records=5)
+        for i in range(10):
+            metrics.record_decision(
+                trace_id=f"test-{i}",
+                latency_ms=100.0,
+                success=True,
+                chosen_node="fixer"
+            )
+
+        # Should only have 5 records (FIFO eviction)
+        assert len(metrics._records) == 5
+        # First record should be test-5 (oldest 5 were evicted)
+        assert metrics._records[0].trace_id == "test-5"
+
+    def test_deque_fifo_order(self):
+        """Test that deque maintains FIFO order."""
+        metrics = RouterMetrics(max_records=3)
+        for i in range(5):
+            metrics.record_decision(
+                trace_id=f"test-{i}",
+                latency_ms=float(i * 10),
+                success=True,
+                chosen_node="fixer"
+            )
+
+        # Should have test-2, test-3, test-4
+        trace_ids = [r.trace_id for r in metrics._records]
+        assert trace_ids == ["test-2", "test-3", "test-4"]

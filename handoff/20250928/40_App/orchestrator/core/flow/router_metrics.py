@@ -32,21 +32,29 @@ Usage:
     rate = metrics.get_fallback_rate(window_minutes=60)
 """
 import logging
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Dict, List, Optional
+from typing import Deque, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 
+# Metrics schema version for safe evolution
+METRICS_VERSION = "v1"
+
+
 @dataclass
 class RouterDecisionRecord:
-    """Record of a single router decision."""
+    """Record of a single router decision.
+
+    Note:
+        All timestamps are in UTC (using datetime.utcnow()).
+    """
 
     trace_id: str
-    timestamp: datetime
+    timestamp: datetime  # UTC timestamp
     latency_ms: float
     success: bool
     chosen_node: str
@@ -68,9 +76,10 @@ class RouterMetrics:
         """Initialize RouterMetrics.
 
         Args:
-            max_records: Maximum number of records to keep in memory
+            max_records: Maximum number of records to keep in memory.
+                         Uses deque with maxlen for O(1) FIFO eviction.
         """
-        self._records: List[RouterDecisionRecord] = []
+        self._records: Deque[RouterDecisionRecord] = deque(maxlen=max_records)
         self._max_records = max_records
         self._lock = Lock()
 
@@ -117,12 +126,8 @@ class RouterMetrics:
         )
 
         with self._lock:
-            # Add record
+            # Add record (deque with maxlen handles FIFO eviction automatically)
             self._records.append(record)
-
-            # Trim if over max
-            if len(self._records) > self._max_records:
-                self._records = self._records[-self._max_records:]
 
             # Update aggregates
             self._total_decisions += 1
@@ -295,7 +300,18 @@ class RouterMetrics:
                 if r.cost_estimate
             )
 
+            # Compute distributions inline to avoid deadlock
+            # (calling get_fallback_distribution/get_node_distribution would
+            # try to acquire the lock again)
+            fallback_dist: Dict[str, int] = defaultdict(int)
+            node_dist: Dict[str, int] = defaultdict(int)
+            for r in recent_records:
+                node_dist[r.chosen_node] += 1
+                if r.fallback_reason:
+                    fallback_dist[r.fallback_reason] += 1
+
             return {
+                "metrics_version": METRICS_VERSION,
                 "window_minutes": window_minutes,
                 "total_decisions": total,
                 "successes": successes,
@@ -305,8 +321,8 @@ class RouterMetrics:
                 "average_latency_ms": avg_latency,
                 "total_tokens": total_tokens,
                 "total_cost_usd": total_cost,
-                "fallback_distribution": self.get_fallback_distribution(window_minutes),
-                "node_distribution": self.get_node_distribution(window_minutes),
+                "fallback_distribution": dict(fallback_dist),
+                "node_distribution": dict(node_dist),
             }
 
     def get_all_time_summary(self) -> dict:
@@ -322,6 +338,7 @@ class RouterMetrics:
             )
 
             return {
+                "metrics_version": METRICS_VERSION,
                 "total_decisions": self._total_decisions,
                 "total_successes": self._total_successes,
                 "total_fallbacks": self._total_fallbacks,

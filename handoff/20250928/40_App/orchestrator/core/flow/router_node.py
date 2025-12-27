@@ -74,11 +74,70 @@ class LLMClient(Protocol):
         ...
 
 
+MAX_RESPONSE_SIZE = 10000
+MAX_NESTING_DEPTH = 10
+
+
+class JSONSafetyError(Exception):
+    """Raised when JSON response fails safety checks."""
+
+    pass
+
+
+def _check_json_safety(response: str) -> None:
+    """Check JSON response for size and nesting depth limits.
+
+    This prevents DoS attacks via deeply nested payloads or memory exhaustion.
+
+    Args:
+        response: The raw JSON string to check
+
+    Raises:
+        JSONSafetyError: If response exceeds size or nesting limits
+    """
+    if len(response) > MAX_RESPONSE_SIZE:
+        raise JSONSafetyError(
+            f"Response size {len(response)} exceeds limit {MAX_RESPONSE_SIZE}"
+        )
+
+    depth = 0
+    max_depth = 0
+    in_string = False
+    escape_next = False
+
+    for char in response:
+        if escape_next:
+            escape_next = False
+            continue
+
+        if char == '\\' and in_string:
+            escape_next = True
+            continue
+
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            continue
+
+        if in_string:
+            continue
+
+        if char in '{[':
+            depth += 1
+            max_depth = max(max_depth, depth)
+            if max_depth > MAX_NESTING_DEPTH:
+                raise JSONSafetyError(
+                    f"Nesting depth {max_depth} exceeds limit {MAX_NESTING_DEPTH}"
+                )
+        elif char in '}]':
+            depth -= 1
+
+
 class FallbackReason:
     """Constants for fallback reasons (for metrics)."""
 
     TIMEOUT = "timeout"
     JSON_PARSE_ERROR = "json_parse_error"
+    JSON_SAFETY_ERROR = "json_safety_error"
     VALIDATION_ERROR = "validation_error"
     INVALID_NEXT_NODE = "invalid_next_node"
     EMPTY_OUTPUT = "empty_output"
@@ -163,6 +222,12 @@ class RouterNode:
                 f"[Router] JSON parse error, using fallback: {e}"
             )
 
+        except JSONSafetyError as e:
+            fallback_reason = FallbackReason.JSON_SAFETY_ERROR
+            logger.warning(
+                f"[Router] JSON safety check failed, using fallback: {e}"
+            )
+
         except ValidationError as e:
             fallback_reason = FallbackReason.VALIDATION_ERROR
             logger.warning(
@@ -225,10 +290,13 @@ class RouterNode:
                 if not response or not response.strip():
                     raise ValueError("Empty LLM response")
 
+                # Safety check before parsing (prevents DoS via large/nested payloads)
+                _check_json_safety(response)
+
                 decision_dict = json.loads(response)
                 return RoutingDecision(**decision_dict)
 
-            except (TimeoutError, JSONDecodeError, ValidationError) as e:
+            except (TimeoutError, JSONDecodeError, ValidationError, JSONSafetyError) as e:
                 last_error = e
                 if attempt < self.max_retries:
                     logger.debug(
