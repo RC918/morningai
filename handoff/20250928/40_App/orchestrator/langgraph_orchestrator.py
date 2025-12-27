@@ -1508,9 +1508,9 @@ class AgentState(TypedDict):
         ai_reviewer_agreement: Agreement level (agree, partial, disagree)
 
     EPIC B Phase B-3 New Fields (Diff-aware review for commit pinning):
-        diff_head_sha: PR head commit SHA for commit pinning (prevents 422 errors)
-        diff_content: Sanitized diff content for inline comment validation
-        diff_truncated: Whether diff was truncated due to size limits
+        diff_head_sha: Optional[str] - PR head commit SHA (40-char) for commit pinning
+        diff_content: Optional[str] - Sanitized diff content (max ~512KB) for validation
+        diff_truncated: Optional[bool] - Whether diff was truncated due to size limits
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -1583,9 +1583,10 @@ class AgentState(TypedDict):
     # EPIC B Phase B-3: Diff-aware review fields for commit pinning
     # These fields are set by reviewer_node and read by publisher_node
     # Fix: Added to schema to ensure persistence across checkpoints (PR #3089 follow-up)
-    diff_head_sha: str  # PR head commit SHA for commit pinning (prevents 422 errors)
-    diff_content: str  # Sanitized diff content for inline comment validation
-    diff_truncated: bool  # Whether diff was truncated due to size limits
+    # Note: Optional because these are set by reviewer_node, not in initial state
+    diff_head_sha: Optional[str]  # PR head commit SHA (40-char) for commit pinning (prevents 422 errors)
+    diff_content: Optional[str]  # Sanitized diff content for inline comment validation (max ~512KB)
+    diff_truncated: Optional[bool]  # Whether diff was truncated due to size limits
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
