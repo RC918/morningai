@@ -987,6 +987,17 @@ class Settings(BaseSettings):
                     "Set to False to fail-fast on checkpoint errors. (Blueprint: Fail-Fast Recovery)"
     )
 
+    checkpoint_retry_log_sample_rate: int = Field(
+        default=1,
+        ge=1,
+        le=100,
+        alias="CHECKPOINT_RETRY_LOG_SAMPLE_RATE",
+        description="Sample rate for retry warning logs during transient errors. "
+                    "1 = log every retry (default), 10 = log every 10th retry. "
+                    "First and last retries are always logged regardless of this setting. "
+                    "Higher values reduce log noise during prolonged outages. (Issue #3109)"
+    )
+
     # Issue #2259: Review Follow-up Task Storage Settings
     review_follow_up_store_backend: str = Field(
         default="in_memory",
