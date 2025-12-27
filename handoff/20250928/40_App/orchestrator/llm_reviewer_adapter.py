@@ -276,6 +276,21 @@ def truncate_diff_for_token_budget(
             current_hunks.append((current_hunk_start, len(lines) - 1))
         files_structure.append((current_file_start, current_hunks))
 
+    # Fallback: If no 'diff ' headers found, treat entire input as single reviewable block
+    # This prevents returning empty diff when input uses non-standard format (e.g., patch files)
+    if not files_structure:
+        # Simple truncation: keep all lines up to max_chars with newline-safe boundary
+        if len(annotated_diff) > max_chars:
+            # Find last newline before max_chars to avoid cutting mid-line
+            truncate_at = annotated_diff.rfind('\n', 0, max_chars)
+            if truncate_at == -1:
+                truncate_at = max_chars
+            truncated = annotated_diff[:truncate_at]
+            telemetry["truncated_chars"] = len(truncated)
+            telemetry["was_truncated"] = True
+            return truncated, telemetry
+        return annotated_diff, telemetry
+
     # Phase 2: Reduce context lines (keep only 1 line before/after each + line)
     # This is the primary truncation strategy for Strict Mode
     keep_lines = set()
@@ -313,8 +328,17 @@ def truncate_diff_for_token_budget(
     total_files = len(files_structure)
 
     for file_start, hunks in files_structure:
-        # Calculate file header size
-        file_header_end = hunks[0][0] if hunks else file_start + 2
+        # Calculate file header size by finding first hunk or next file boundary
+        # This avoids hardcoded assumptions about header line count
+        if hunks:
+            file_header_end = hunks[0][0]
+        else:
+            # No hunks: scan forward to find next 'diff ' or '@@' or end of lines
+            file_header_end = len(lines)
+            for j in range(file_start + 1, len(lines)):
+                if lines[j].startswith('diff ') or lines[j].startswith('@@'):
+                    file_header_end = j
+                    break
         file_header_lines = [lines[i] for i in range(file_start, file_header_end) if i in keep_lines]
         file_header_text = '\n'.join(file_header_lines)
 
