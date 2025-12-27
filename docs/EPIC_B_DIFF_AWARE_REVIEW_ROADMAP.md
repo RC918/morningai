@@ -232,7 +232,15 @@ from pydantic import BaseModel
 from typing import Literal
 
 class ReviewOutcome(BaseModel):
-    """Reviewer → Router 穩定介面 (EPIC B-6)"""
+    """Reviewer → Router 穩定介面 (EPIC B-6)
+    
+    Schema Version: 1
+    Evolution Strategy: Only additive changes (new optional fields).
+    Breaking changes require version bump and Router compatibility handling.
+    """
+    
+    # Schema version for backward-compatible evolution
+    schema_version: Literal[1] = 1
     
     # 決策訊號 (Router 用)
     verdict: Literal["approve", "request_changes", "comment", "blocked", "unknown"]
@@ -242,7 +250,7 @@ class ReviewOutcome(BaseModel):
     # 資料品質訊號 (Router 做 fail-safe 決策用)
     diff_truncated: bool = False
     schema_validated: bool = True
-    blocker_count: int = 0  # severity=critical/high 的數量
+    blocker_count: int = 0  # count of comments where severity in {"high", "critical"}
 ```
 
 ### Verdict Semantics
@@ -253,7 +261,35 @@ class ReviewOutcome(BaseModel):
 | `request_changes` | Issues found that need fixing | Route to fixer or escalate |
 | `comment` | Suggestions but not blocking | Proceed to publisher (with suggestions) |
 | `blocked` | Safety/Compliance block | Force escalate or abort |
-| `unknown` | Reviewer failed (timeout/parse error) | Fallback to deterministic routing |
+| `unknown` | Reviewer runtime failure (timeout/parse error/exception) | **MUST** fallback to deterministic routing |
+
+### Router Decision Rules (Deterministic)
+
+The Router MUST apply the following precedence rules when reading `ReviewOutcome`:
+
+1. **`unknown` verdict overrides all other fields**: If `verdict == "unknown"`, Router MUST ignore `severity`, `blocker_count`, and `summary`, and immediately fallback to rule-based routing. This verdict is ONLY produced when Reviewer encounters runtime failure (timeout, parse error, exception) - it is NOT a valid LLM output for "uncertain" reviews.
+
+2. **`blocked` verdict forces escalation**: If `verdict == "blocked"`, Router MUST escalate regardless of other fields. This is reserved for Safety/Compliance blocks.
+
+3. **`schema_validated == False` triggers fallback**: If Pydantic validation failed but a partial object was constructed, Router MUST treat this as equivalent to `unknown`.
+
+4. **Business verdicts follow normal routing**: `approve`, `request_changes`, `comment` are processed according to Router's LLM-driven or rule-based logic.
+
+### Field Definitions
+
+| Field | Definition | Source |
+|-------|------------|--------|
+| `blocker_count` | Count of `review_comments` where `severity in {"high", "critical"}` | Computed from `state["review_comments"]` |
+| `severity` | Worst severity across all comments: `max(comment.severity for comment in review_comments)` | Computed from `state["review_comments"]` |
+| `diff_truncated` | Whether the PR diff was truncated due to size limits | From `state["diff_truncated"]` |
+
+### Schema Evolution Strategy
+
+This schema follows **additive-only evolution**:
+- New optional fields may be added without version bump
+- Existing field semantics MUST NOT change
+- Breaking changes require `schema_version` bump
+- Router MUST handle unknown `schema_version` by falling back to deterministic routing
 
 ### Implementation Items
 
