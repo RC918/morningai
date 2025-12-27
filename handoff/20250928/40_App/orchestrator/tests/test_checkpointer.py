@@ -639,7 +639,8 @@ class TestResilientPostgresSaver:
             Exception("psycopg.Pipeline [BAD] state"),
             # PR #3104: Pool closed patterns for race condition fix
             Exception("pool is closed"),
-            Exception("the pool 'pool-1' is already closed"),  # Uses "is already closed" pattern
+            Exception("pool is already closed"),  # Exact pattern match
+            Exception("the pool 'pool-1' is already closed"),  # Compound check match
         ]
 
         for error in transient_errors:
@@ -960,6 +961,37 @@ class TestResilientPostgresSaver:
         assert mock_inner.get.call_count == 2
         mock_sleep.assert_called_once_with(0.5)
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_generic_is_already_closed_not_matched(self):
+        """Test that generic 'is already closed' errors do NOT trigger retry
+
+        This test ensures the compound check avoids false positives.
+        Errors like 'connection is already closed' should NOT be classified
+        as transient pool errors.
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        # These should NOT be classified as transient errors
+        non_pool_errors = [
+            Exception("connection is already closed"),
+            Exception("file handle is already closed"),
+            Exception("socket is already closed"),
+        ]
+
+        for error in non_pool_errors:
+            assert not wrapper._is_transient_error(error), \
+                f"Error '{error}' should NOT be classified as transient"
+
 
 class TestResilientPostgresSaverOOMFix:
     """Tests for OOM fix (Dec 2025): pool reset and memory release
@@ -1164,7 +1196,8 @@ class TestResilientPostgresSaverOOMFix:
             "pipeline [bad]",
             # PR #3104: Pool closed patterns for race condition fix
             "pool is closed",
-            "is already closed",  # Matches "the pool 'pool-1' is already closed"
+            "pool is already closed",  # Exact pattern match
+            "the pool 'pool-1' is already closed",  # Compound check match
         ]
 
         for pattern in connection_lost_patterns:

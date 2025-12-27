@@ -639,7 +639,7 @@ class ResilientPostgresSaver:
         "consuming input failed",
         "pipeline [bad]",  # psycopg Pipeline [BAD] state - exact match to avoid false positives
         "pool is closed",  # psycopg_pool PoolClosed - occurs when pool reset races with checkpoint ops
-        "is already closed",  # Catches "the pool 'pool-1' is already closed" (pool name varies)
+        "pool is already closed",  # Catches exact match (compound check below handles pool name variants)
     ]
 
     # Default circuit breaker threshold: after this many consecutive failures, fail fast
@@ -657,7 +657,7 @@ class ResilientPostgresSaver:
         "connection reset by peer",
         "pipeline [bad]",
         "pool is closed",  # psycopg_pool PoolClosed - pool was reset by another operation
-        "is already closed",  # Catches "the pool 'pool-1' is already closed" (pool name varies)
+        "pool is already closed",  # Catches exact match (compound check below handles pool name variants)
     ]
 
     def __init__(
@@ -713,6 +713,12 @@ class ResilientPostgresSaver:
             if pattern in error_str:
                 return True
 
+        # Compound check for pool closed with variable pool name
+        # Matches: "the pool 'pool-1' is already closed" (pool name varies)
+        # This avoids false positives from generic "is already closed" patterns
+        if "the pool '" in error_str and "is already closed" in error_str:
+            return True
+
         # Check for psycopg-specific transient errors
         if "OperationalError" in error_type or "InterfaceError" in error_type:
             return True
@@ -736,6 +742,13 @@ class ResilientPostgresSaver:
         for pattern in self.CONNECTION_LOST_PATTERNS:
             if pattern in error_str:
                 return True
+
+        # Compound check for pool closed with variable pool name
+        # Matches: "the pool 'pool-1' is already closed" (pool name varies)
+        # This avoids false positives from generic "is already closed" patterns
+        if "the pool '" in error_str and "is already closed" in error_str:
+            return True
+
         return False
 
     def _reset_pool_and_inner(self) -> None:
