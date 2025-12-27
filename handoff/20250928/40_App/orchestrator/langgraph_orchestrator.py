@@ -537,12 +537,17 @@ def get_postgres_checkpointer():
         # pool reset on connection-lost errors
         #
         # Issue #3109: Get retry log sample rate from settings for rate-limited logging
-        # Use getattr with default to handle mocked settings in tests
-        retry_log_sample_rate = getattr(
+        # Use defensive type check to handle mocked settings (MagicMock returns MagicMock
+        # for any attribute access, not the default value from getattr)
+        raw_sample_rate = getattr(
             settings,
             "checkpoint_retry_log_sample_rate",
             ResilientPostgresSaver.DEFAULT_RETRY_LOG_SAMPLE_RATE
         )
+        try:
+            retry_log_sample_rate = int(raw_sample_rate)
+        except (TypeError, ValueError):
+            retry_log_sample_rate = ResilientPostgresSaver.DEFAULT_RETRY_LOG_SAMPLE_RATE
         checkpointer = ResilientPostgresSaver(
             inner_saver=inner_checkpointer,
             max_retries=3,
