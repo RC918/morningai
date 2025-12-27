@@ -299,6 +299,326 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
     return False
 
 
+# =============================================================================
+# Smart PR Filtering - Trigger Threshold Layer (Dec 2025)
+# =============================================================================
+# These filters determine if a PR event is "worth documenting" based on:
+# 1. Semantic title prefix (chore/ci/test/docs/style = skip)
+# 2. File path patterns (config/docs/tests/CI only = skip)
+#
+# This is separate from the "orchestrator self-loop prevention" layer above.
+# The goal is to reduce noise by only generating docs PRs for meaningful changes.
+# =============================================================================
+
+# Title prefixes that indicate non-actionable changes (skip docs generation)
+# Only feat:, fix:, refactor: should trigger docs PR creation
+SKIP_TITLE_PREFIXES = (
+    "chore:",
+    "chore(",
+    "ci:",
+    "ci(",
+    "test:",
+    "test(",
+    "tests:",
+    "tests(",
+    "docs:",
+    "docs(",
+    "style:",
+    "style(",
+    "build:",
+    "build(",
+)
+
+# File path patterns that indicate non-code changes
+# If a PR ONLY modifies these patterns, skip docs generation
+SKIP_FILE_PATTERNS = {
+    # Config files
+    "extensions": {".yaml", ".yml", ".json", ".toml", ".ini", ".cfg", ".conf"},
+    # Documentation files
+    "doc_extensions": {".md", ".rst", ".txt"},
+    # Specific paths/prefixes
+    "path_prefixes": (
+        "docs/",
+        ".github/",
+        "tests/",
+        "test/",
+        "__tests__/",
+    ),
+    # Specific filenames
+    "filenames": {
+        "license",
+        "license.md",
+        "license.txt",
+        "readme.md",
+        "readme",
+        "changelog.md",
+        "changelog",
+        "contributing.md",
+        "requirements.txt",
+        "requirements-dev.txt",
+        "package-lock.json",
+        "yarn.lock",
+        "poetry.lock",
+        "pipfile.lock",
+        ".gitignore",
+        ".gitattributes",
+        ".editorconfig",
+        ".prettierrc",
+        ".eslintrc",
+        ".flake8",
+        "pyproject.toml",
+        "setup.cfg",
+        # NOTE: setup.py intentionally NOT included - it can contain significant
+        # executable logic (custom build commands, entry points, etc.)
+        "makefile",
+        "dockerfile",
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        ".dockerignore",
+        "render.yaml",
+        ".env.example",
+        ".env.sample",
+    },
+    # Test file patterns (suffix matching)
+    "test_suffixes": ("_test.py", ".test.py", ".spec.ts", ".spec.js", ".test.ts", ".test.js"),
+}
+
+
+def _title_is_non_actionable(title: str) -> bool:
+    """
+    Check if a PR title indicates non-actionable changes.
+
+    Smart PR Filtering (Dec 2025)
+    PRs with titles starting with chore/ci/test/docs/style are considered
+    non-actionable for docs generation purposes.
+
+    Args:
+        title: The PR title string
+
+    Returns:
+        True if the title indicates non-actionable changes (should skip)
+    """
+    if not title:
+        return False
+
+    title_lower = title.lower().strip()
+    return title_lower.startswith(SKIP_TITLE_PREFIXES)
+
+
+def _path_is_non_code(path: str) -> bool:
+    """
+    Check if a file path is a non-code file (config/docs/tests/CI).
+
+    Smart PR Filtering (Dec 2025)
+    Files matching these patterns are considered non-code changes.
+
+    Args:
+        path: The file path string
+
+    Returns:
+        True if the path is a non-code file
+    """
+    if not path:
+        return True  # Empty/invalid path treated as non-code for safety (fail-open)
+
+    # Normalize path separators for cross-platform robustness
+    # GitHub API always uses forward slashes, but this makes the helper reusable
+    path_lower = path.lower().replace("\\", "/")
+    filename = path_lower.split("/")[-1]
+
+    # Check exact filename matches
+    if filename in SKIP_FILE_PATTERNS["filenames"]:
+        return True
+
+    # Check file extension
+    ext = ""
+    if "." in filename:
+        ext = "." + filename.rsplit(".", 1)[-1]
+    if ext in SKIP_FILE_PATTERNS["extensions"]:
+        return True
+    if ext in SKIP_FILE_PATTERNS["doc_extensions"]:
+        return True
+
+    # Check path prefixes
+    for prefix in SKIP_FILE_PATTERNS["path_prefixes"]:
+        if path_lower.startswith(prefix):
+            return True
+
+    # Check test file suffixes
+    for suffix in SKIP_FILE_PATTERNS["test_suffixes"]:
+        if path_lower.endswith(suffix):
+            return True
+
+    return False
+
+
+def _should_skip_by_paths(file_paths: list) -> tuple:
+    """
+    Check if all changed files are non-code files.
+
+    Smart PR Filtering (Dec 2025)
+    If a PR ONLY modifies config/docs/tests/CI files, skip docs generation.
+
+    Args:
+        file_paths: List of changed file paths
+
+    Returns:
+        Tuple of (should_skip: bool, reason: str, sample_paths: list)
+    """
+    if not file_paths:
+        # No files = skip (nothing to document)
+        return True, "no_files", []
+
+    non_code_paths = []
+    code_paths = []
+
+    for path in file_paths:
+        if _path_is_non_code(path):
+            non_code_paths.append(path)
+        else:
+            code_paths.append(path)
+            # Early exit: found a code file, no need to check more
+            if len(code_paths) >= 1:
+                return False, "has_code_files", code_paths[:3]
+
+    # All files are non-code
+    return True, "only_non_code_files", non_code_paths[:5]
+
+
+def _get_pr_files_from_api(repo: str, pr_number: int) -> tuple:
+    """
+    Fetch PR changed files from GitHub API.
+
+    Smart PR Filtering (Dec 2025)
+    This function fetches the list of changed files for a PR.
+    It handles pagination and rate limiting gracefully.
+
+    Args:
+        repo: Repository in owner/repo format
+        pr_number: Pull request number
+
+    Returns:
+        Tuple of (file_paths: list, error: str or None)
+    """
+    try:
+        from tools.github_api import get_repo
+        github_repo = get_repo()
+        if not github_repo:
+            return [], "repo_not_available"
+
+        pr = github_repo.get_pull(pr_number)
+        # get_files() returns a paginated list, iterate to get all
+        file_paths = []
+        for f in pr.get_files():
+            file_paths.append(f.filename)
+            # Early exit optimization: if we find a code file, we can stop
+            # Return all files seen so far for debugging context
+            if not _path_is_non_code(f.filename):
+                return file_paths, None
+        return file_paths, None
+    except Exception as e:
+        logger.warning(
+            "[SmartFilter] Failed to fetch PR files from API",
+            extra={
+                "operation": "smart_filter_api_error",
+                "repo": repo,
+                "pr_number": pr_number,
+                "error": str(e)[:200],
+            }
+        )
+        return [], f"api_error: {str(e)[:100]}"
+
+
+def should_skip_pr_by_smart_filters(event: "WebhookEvent") -> tuple:
+    """
+    Check if a PR event should be skipped based on smart filtering rules.
+
+    Smart PR Filtering (Dec 2025)
+    This function applies content-based and semantic filtering to determine
+    if a PR is "worth documenting". It's separate from the orchestrator
+    self-loop prevention layer.
+
+    Filter Pipeline:
+    1. Semantic title filter (cheap, runs first)
+    2. File path filter (requires API call, runs only if title passes)
+
+    Args:
+        event: The webhook event to check
+
+    Returns:
+        Tuple of (should_skip: bool, reason: str, details: dict)
+    """
+    # Only apply to PR events
+    pr_event_types = {
+        WebhookEventType.PR_OPENED,
+        WebhookEventType.PR_MERGED,
+    }
+    if event.event_type not in pr_event_types:
+        return False, "not_pr_event", {}
+
+    repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+    pr_number = event.resource_id
+    title = event.title or ""
+
+    # Filter 1: Semantic title filter (cheap, runs first)
+    if _title_is_non_actionable(title):
+        logger.info(
+            "[SmartFilter] Skipping PR by semantic title filter",
+            extra={
+                "operation": "pr_event_skip_semantic_title",
+                "event_id": event.event_id,
+                "repo": repo,
+                "pr_number": pr_number,
+                "title": title[:100],
+                "reason": "non_actionable_title_prefix",
+            }
+        )
+        return True, "semantic_title_skip", {"title_prefix": title.split(":")[0] if ":" in title else title[:20]}
+
+    # Filter 2: File path filter (requires API call)
+    # Only fetch files if title didn't trigger skip
+    try:
+        pr_number_int = int(pr_number) if pr_number else 0
+    except (ValueError, TypeError):
+        pr_number_int = 0
+
+    if pr_number_int > 0:
+        file_paths, api_error = _get_pr_files_from_api(repo, pr_number_int)
+
+        if api_error:
+            # API error: fail open (don't skip, let the PR be processed)
+            logger.warning(
+                "[SmartFilter] API error fetching PR files, failing open",
+                extra={
+                    "operation": "smart_filter_api_fail_open",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "pr_number": pr_number_int,
+                    "error": api_error,
+                }
+            )
+            return False, "api_error_fail_open", {"error": api_error}
+
+        should_skip, reason, sample_paths = _should_skip_by_paths(file_paths)
+
+        if should_skip:
+            logger.info(
+                "[SmartFilter] Skipping PR by file path filter",
+                extra={
+                    "operation": "pr_event_skip_file_paths_only",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "pr_number": pr_number_int,
+                    "reason": reason,
+                    "file_count": len(file_paths),
+                    "sample_paths": sample_paths,
+                }
+            )
+            return True, f"file_path_skip:{reason}", {"file_count": len(file_paths), "sample_paths": sample_paths}
+
+    return False, "passed_all_filters", {}
+
+
 def is_internal_repo_allowed(repo: str) -> bool:
     """
     Check if an internal repo is allowed for AI review in Staging.
@@ -706,6 +1026,18 @@ class EventNormalizer:
         # When the orchestrator creates a docs PR, GitHub sends PR webhooks back.
         # Without this check, we would process our own PRs and create more noise.
         if should_skip_orchestrator_pr_event(event):
+            return False
+
+        # Smart PR Filtering - Skip PRs that don't warrant documentation
+        # Smart PR Filtering (Dec 2025)
+        # This filter reduces noise by skipping PRs that only modify:
+        # - Config files (yaml, json, toml, etc.)
+        # - Documentation files (md, rst, txt)
+        # - Test files (tests/*, *_test.py, *.spec.ts)
+        # - CI/CD files (.github/*)
+        # Or PRs with non-actionable title prefixes (chore:, ci:, test:, docs:, style:)
+        should_skip, _, _ = should_skip_pr_by_smart_filters(event)
+        if should_skip:
             return False
 
         # P0: Disable PR_COMMENTED events entirely (CTO decision 2025-12-22)
