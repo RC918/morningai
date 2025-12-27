@@ -5842,7 +5842,10 @@ def run_orchestrator(
     if pr_url:
         initial_state["pr_url"] = pr_url
 
-    config = {"configurable": {"thread_id": trace_id}}
+    config = {
+        "configurable": {"thread_id": trace_id},
+        "recursion_limit": settings.orchestrator_recursion_limit,
+    }
 
     try:
         result = app.invoke(initial_state, config)
@@ -6027,7 +6030,10 @@ def run_review_follow_up_orchestrator(
         "requires_hitl_approval": review_task.get("requires_approval", False),
     })
 
-    config = {"configurable": {"thread_id": trace_id}}
+    config = {
+        "configurable": {"thread_id": trace_id},
+        "recursion_limit": settings.orchestrator_recursion_limit,
+    }
 
     try:
         result = app.invoke(initial_state, config)
@@ -6230,7 +6236,10 @@ def run_internal_review_orchestrator(
         "ai_reviewer_agreement": "",
     })
 
-    config = {"configurable": {"thread_id": trace_id}}
+    config = {
+        "configurable": {"thread_id": trace_id},
+        "recursion_limit": settings.orchestrator_recursion_limit,
+    }
 
     try:
         result = app.invoke(initial_state, config)
