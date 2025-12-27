@@ -15,6 +15,7 @@ from orchestrator.langgraph_orchestrator import (
     should_retry_or_finish,
     create_orchestrator_graph,
     _create_base_initial_state,
+    _get_workflow_config,
 )
 
 
@@ -390,6 +391,61 @@ class TestCreateBaseInitialState:
         assert state["comment_url"] == "https://github.com/RC918/morningai/pull/123#comment-1"
         assert state["comment_body"] == "Please fix this issue"
         assert state["task_type"] == "review_follow_up"
+
+
+class TestGetWorkflowConfig:
+    """
+    Test _get_workflow_config helper function.
+
+    Issue: P0 DB Optimization - Step Cap protection
+    Blueprint: Flow Controller v3 Fail-Fast Recovery
+
+    This helper centralizes workflow configuration to ensure consistent
+    recursion_limit across all orchestrator entry points.
+    """
+
+    @patch('orchestrator.langgraph_orchestrator.settings')
+    def test_get_workflow_config_includes_recursion_limit(self, mock_settings):
+        """Test helper returns config with recursion_limit from settings"""
+        mock_settings.orchestrator_recursion_limit = 30
+
+        config = _get_workflow_config("test-trace-123")
+
+        assert "recursion_limit" in config
+        assert config["recursion_limit"] == 30
+
+    @patch('orchestrator.langgraph_orchestrator.settings')
+    def test_get_workflow_config_includes_thread_id(self, mock_settings):
+        """Test helper returns config with thread_id in configurable"""
+        mock_settings.orchestrator_recursion_limit = 30
+
+        config = _get_workflow_config("my-unique-trace-id")
+
+        assert "configurable" in config
+        assert config["configurable"]["thread_id"] == "my-unique-trace-id"
+
+    @patch('orchestrator.langgraph_orchestrator.settings')
+    def test_get_workflow_config_custom_limit(self, mock_settings):
+        """Test helper respects custom recursion_limit from settings"""
+        mock_settings.orchestrator_recursion_limit = 50
+
+        config = _get_workflow_config("test-trace")
+
+        assert config["recursion_limit"] == 50
+
+    @patch('orchestrator.langgraph_orchestrator.settings')
+    def test_get_workflow_config_structure(self, mock_settings):
+        """Test helper returns correct config structure for LangGraph invoke"""
+        mock_settings.orchestrator_recursion_limit = 30
+
+        config = _get_workflow_config("trace-id-123")
+
+        # Verify structure matches what LangGraph expects
+        assert isinstance(config, dict)
+        assert isinstance(config.get("configurable"), dict)
+        assert isinstance(config.get("recursion_limit"), int)
+        # Verify no extra keys that could cause issues
+        assert set(config.keys()) == {"configurable", "recursion_limit"}
 
 
 if __name__ == "__main__":
