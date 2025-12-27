@@ -639,7 +639,7 @@ class ResilientPostgresSaver:
         "consuming input failed",
         "pipeline [bad]",  # psycopg Pipeline [BAD] state - exact match to avoid false positives
         "pool is closed",  # psycopg_pool PoolClosed - occurs when pool reset races with checkpoint ops
-        "pool is already closed",  # Catches "the pool 'pool-1' is already closed"
+        "is already closed",  # Catches "the pool 'pool-1' is already closed" (pool name varies)
     ]
 
     # Default circuit breaker threshold: after this many consecutive failures, fail fast
@@ -657,7 +657,7 @@ class ResilientPostgresSaver:
         "connection reset by peer",
         "pipeline [bad]",
         "pool is closed",  # psycopg_pool PoolClosed - pool was reset by another operation
-        "pool is already closed",  # Catches "the pool 'pool-1' is already closed"
+        "is already closed",  # Catches "the pool 'pool-1' is already closed" (pool name varies)
     ]
 
     def __init__(
