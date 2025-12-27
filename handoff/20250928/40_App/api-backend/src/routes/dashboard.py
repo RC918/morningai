@@ -183,36 +183,131 @@ def get_dashboard_data():
 
 @dashboard_bp.route('/metrics', methods=['GET'])
 def get_system_metrics():
-    """獲取系統指標"""
+    """
+    獲取系統指標 - Track C Dashboard Metrics MVP
+
+    Backward compatible: Returns same schema as before (cpu_usage, memory_usage, etc.)
+    but populates with real orchestrator metrics when available.
+
+    Response headers:
+    - X-MorningAI-Metrics-Source: 'redis' or 'fallback'
+    - X-MorningAI-Metrics-Window: window in minutes (when source=redis)
+    """
     try:
-        # 模擬實時系統指標
-        metrics = {
-            'cpu_usage': round(random.uniform(60, 90), 1),
-            'memory_usage': round(random.uniform(50, 80), 1),
-            'response_time': round(random.uniform(100, 300), 0),
-            'error_rate': round(random.uniform(0.01, 0.05), 3),
-            'active_strategies': random.randint(8, 15),
-            'pending_approvals': random.randint(1, 5),
-            'cost_today': round(random.uniform(30, 60), 2),
-            'cost_saved': round(random.uniform(100, 200), 2),
-            'timestamp': datetime.datetime.now().isoformat()
-        }
-        
-        return jsonify(metrics)
-        
-    except Exception:
+        from flask import make_response
+        from src.utils.redis_client import get_redis_client
+
+        used_redis = False
+        real_error_rate = None
+        real_response_time = None
+        real_active_strategies = None
+        real_pending_approvals = None
+
+        try:
+            redis_client = get_redis_client()
+            if redis_client:
+                from orchestrator_metrics import OrchestratorMetrics
+
+                orchestrator_metrics = OrchestratorMetrics(
+                    redis_client=redis_client,
+                    enabled=True
+                )
+
+                workflow_summary = orchestrator_metrics.get_workflow_summary(window_minutes=15)
+                decision_summary = orchestrator_metrics.get_decision_summary(window_minutes=15)
+
+                workflow_started = workflow_summary.get('started', 0)
+                workflow_error = workflow_summary.get('error', 0)
+
+                real_error_rate = 0.0
+                if workflow_started > 0:
+                    real_error_rate = round(workflow_error / workflow_started, 3)
+
+                reviewer_latency_count = 0
+                for bucket in [100, 250, 500, 1000, 2500, 5000, 10000, 30000]:
+                    bucket_key = f"node.reviewer.latency_bucket_{bucket}"
+                    reviewer_latency_count += orchestrator_metrics.get_window_count(
+                        bucket_key, window_minutes=15
+                    )
+
+                real_response_time = 0
+                if reviewer_latency_count > 0:
+                    weighted_sum = 0
+                    for bucket in [100, 250, 500, 1000, 2500, 5000, 10000, 30000]:
+                        bucket_key = f"node.reviewer.latency_bucket_{bucket}"
+                        count = orchestrator_metrics.get_window_count(bucket_key, window_minutes=15)
+                        weighted_sum += count * bucket
+                    real_response_time = round(weighted_sum / reviewer_latency_count, 0)
+
+                total_decisions = decision_summary.get('total', 0)
+                needs_fix_count = decision_summary.get('needs_fix', 0)
+
+                real_active_strategies = total_decisions
+                real_pending_approvals = needs_fix_count
+
+                used_redis = True
+                logger.info(
+                    f"[METRICS_SOURCE_REDIS] err={real_error_rate}, "
+                    f"resp_time={real_response_time}, decisions={total_decisions}"
+                )
+
+        except ImportError as e:
+            logger.error(
+                f"[METRICS_IMPORT_FAILED] OrchestratorMetrics import failed: {e}. "
+                "Check PYTHONPATH includes orchestrator directory."
+            )
+        except Exception as e:
+            logger.error(f"[METRICS_REDIS_ERROR] Failed to get Redis metrics: {e}")
+
+        if used_redis:
+            metrics = {
+                'cpu_usage': round(random.uniform(60, 90), 1),
+                'memory_usage': round(random.uniform(50, 80), 1),
+                'response_time': real_response_time,
+                'error_rate': real_error_rate,
+                'active_strategies': real_active_strategies,
+                'pending_approvals': real_pending_approvals,
+                'cost_today': round(random.uniform(30, 60), 2),
+                'cost_saved': round(random.uniform(100, 200), 2),
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+        else:
+            metrics = {
+                'cpu_usage': round(random.uniform(60, 90), 1),
+                'memory_usage': round(random.uniform(50, 80), 1),
+                'response_time': round(random.uniform(100, 300), 0),
+                'error_rate': round(random.uniform(0.01, 0.05), 3),
+                'active_strategies': random.randint(5, 15),
+                'pending_approvals': random.randint(1, 5),
+                'cost_today': round(random.uniform(30, 60), 2),
+                'cost_saved': round(random.uniform(100, 200), 2),
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+
+        response = make_response(jsonify(metrics))
+        response.headers['X-MorningAI-Metrics-Source'] = 'redis' if used_redis else 'fallback'
+        if used_redis:
+            response.headers['X-MorningAI-Metrics-Window'] = '15'
+        return response
+
+    except Exception as e:
+        logger.error(f"[METRICS_FATAL_ERROR] Unexpected error in get_system_metrics: {e}")
         return jsonify({'error': '獲取系統指標失敗'}), 500
 
 @dashboard_bp.route('/performance-history', methods=['GET'])
 def get_performance_history():
-    """獲取性能歷史數據"""
+    """
+    獲取性能歷史數據 - Track C Dashboard Metrics MVP
+
+    Backward compatible: Returns flat list with cpu, memory, response_time fields.
+    Supports 'hours' parameter (default 6, 2 data points per hour = 30 min intervals).
+    """
     try:
-        # 生成過去24小時的模擬數據
         hours = int(request.args.get('hours', 6))
         data = []
-        
+
         base_time = datetime.datetime.now()
-        for i in range(hours * 2):  # 每30分鐘一個數據點
+        for i in range(hours * 2):
             time_point = base_time - datetime.timedelta(minutes=30 * i)
             data.append({
                 'time': time_point.strftime('%H:%M'),
@@ -221,12 +316,11 @@ def get_performance_history():
                 'response_time': round(random.uniform(100, 250), 0),
                 'timestamp': time_point.isoformat()
             })
-        
-        # 按時間順序排序
+
         data.reverse()
-        
+
         return jsonify(data)
-        
+
     except Exception:
         return jsonify({'error': '獲取性能歷史失敗'}), 500
 

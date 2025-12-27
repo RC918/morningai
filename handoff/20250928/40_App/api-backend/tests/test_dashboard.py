@@ -209,3 +209,41 @@ def test_get_available_widgets_no_auth(client):
     assert response.status_code == 401
     data = response.get_json()
     assert 'error' in data
+
+
+# Track C MVP: Redis/Fallback path tests
+def test_metrics_has_source_header(client):
+    """Test GET /api/dashboard/metrics returns X-MorningAI-Metrics-Source header"""
+    response = client.get('/api/dashboard/metrics')
+
+    assert response.status_code == 200
+    assert 'X-MorningAI-Metrics-Source' in response.headers
+    source = response.headers['X-MorningAI-Metrics-Source']
+    assert source in ['redis', 'fallback']
+
+
+def test_metrics_fallback_returns_valid_schema(client, monkeypatch):
+    """Test /metrics returns valid schema when Redis unavailable (fallback path)"""
+    import src.utils.redis_client as redis_client_mod
+    monkeypatch.setattr(redis_client_mod, 'get_redis_client', lambda: None)
+
+    response = client.get('/api/dashboard/metrics')
+
+    assert response.status_code == 200
+    assert response.headers.get('X-MorningAI-Metrics-Source') == 'fallback'
+
+    data = response.get_json()
+    assert 'cpu_usage' in data
+    assert 'memory_usage' in data
+    assert 'response_time' in data
+    assert 'error_rate' in data
+    assert 'active_strategies' in data
+    assert 'pending_approvals' in data
+    assert 'cost_today' in data
+    assert 'cost_saved' in data
+    assert 'timestamp' in data
+
+    assert isinstance(data['cpu_usage'], (int, float))
+    assert isinstance(data['memory_usage'], (int, float))
+    assert isinstance(data['response_time'], (int, float))
+    assert isinstance(data['error_rate'], (int, float))
