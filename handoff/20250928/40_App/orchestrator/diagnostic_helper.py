@@ -7,6 +7,7 @@ as JSON in log messages. It handles:
 - Size limits to prevent log truncation
 - Consistent formatting with | delimiter
 - Version tracking for diagnostic data format
+- Commit pinning verification support
 
 Usage:
     from diagnostic_helper import format_diagnostic
@@ -16,6 +17,7 @@ Version History:
     v1.0.0 - Initial implementation with format_diagnostic()
     v1.1.0 - Added DIAGNOSTIC_VERSION for tracking format changes
     v1.2.0 - Added _ts timestamp field for log correlation
+    v1.2.1 - Added commit pinning verification support
 """
 import json
 import hashlib
