@@ -50,6 +50,7 @@ class TestPlanner:
 class TestExecute:
     """Test execute function"""
     
+    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -134,6 +135,7 @@ class TestExecute:
         assert trace_id is not None
         assert len(trace_id) > 0
     
+    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -162,6 +164,7 @@ class TestExecute:
         # But PR should still be created successfully
         assert pr_url == "https://github.com/test/pr/4"
     
+    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -187,6 +190,7 @@ class TestExecute:
         
         assert pr_url == "https://github.com/test/pr/5"
     
+    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -731,6 +735,7 @@ class TestDocsSafetyConstants:
 class TestExecuteDocsSafety:
     """Test execute function with docs safety features for Issue #2100"""
     
+    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -759,6 +764,7 @@ class TestExecuteDocsSafety:
         call_args = mock_rate_limit.call_args
         assert call_args[1]['max_per_hour'] == 3
     
+    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
