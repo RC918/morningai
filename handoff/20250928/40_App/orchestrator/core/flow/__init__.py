@@ -26,6 +26,14 @@ from .schema import (
     RoutingDecision,
     RoutingContext,
 )
+from .llm_safety import (
+    check_json_safety,
+    extract_json_from_response,
+    parse_json_safely,
+    JSONSafetyError,
+    MAX_RESPONSE_SIZE,
+    MAX_NESTING_DEPTH,
+)
 from .router_node import RouterNode
 from .router_metrics import RouterMetrics
 from .hybrid_router import (
@@ -42,6 +50,13 @@ __all__ = [
     'RoutingCandidate',
     'RoutingDecision',
     'RoutingContext',
+    # LLM Safety (shared utilities)
+    'check_json_safety',
+    'extract_json_from_response',
+    'parse_json_safely',
+    'JSONSafetyError',
+    'MAX_RESPONSE_SIZE',
+    'MAX_NESTING_DEPTH',
     # C-2: Router node
     'RouterNode',
     # C-2: Hybrid router (Stage 1)

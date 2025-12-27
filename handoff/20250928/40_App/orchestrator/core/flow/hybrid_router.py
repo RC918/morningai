@@ -40,6 +40,10 @@ Usage:
 import logging
 from typing import Optional, Dict, Callable, FrozenSet
 
+from .llm_safety import (
+    parse_json_safely,
+    JSONSafetyError,
+)
 from .schema import (
     RoutingContext,
     RoutingDecision,
@@ -315,6 +319,9 @@ Your response (JSON only):"""
     ) -> RoutingDecision:
         """Parse LLM response and create RoutingDecision.
 
+        Uses shared llm_safety module for JSON parsing with safety checks.
+        CTO Directive: DRY - reuse RouterNode's JSON safety logic.
+
         Args:
             response: Raw LLM response (expected JSON)
             severity: Review severity for fallback
@@ -323,64 +330,47 @@ Your response (JSON only):"""
         Returns:
             RoutingDecision from parsed response or fallback
         """
-        import json
-        import re
+        data = parse_json_safely(response, log_prefix="[HybridRouter]")
+
+        if data is None:
+            return self._deterministic_fallback(severity, blocker_count)
+
+        raw_node = data.get("next_node", "")
+        reasoning = data.get("reasoning", "LLM decision")
+
+        if not isinstance(raw_node, str) or not raw_node:
+            logger.warning(
+                "[HybridRouter] LLM response missing or invalid 'next_node' field"
+            )
+            return self._deterministic_fallback(severity, blocker_count)
 
         try:
-            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.DOTALL)
-            if json_match:
-                response_clean = json_match.group(1)
-            else:
-                response_clean = response.strip()
-
-            data = json.loads(response_clean)
-
-            if not isinstance(data, dict):
-                logger.warning(
-                    f"[HybridRouter] LLM response is not a dict: {type(data).__name__}"
-                )
-                return self._deterministic_fallback(severity, blocker_count)
-
-            raw_node = data.get("next_node", "")
-            reasoning = data.get("reasoning", "LLM decision")
-
-            if not isinstance(raw_node, str) or not raw_node:
-                logger.warning(
-                    "[HybridRouter] LLM response missing or invalid 'next_node' field"
-                )
-                return self._deterministic_fallback(severity, blocker_count)
-
-            try:
-                next_node = canonicalize_node_name(raw_node)
-            except ValueError:
-                logger.warning(
-                    f"[HybridRouter] LLM returned invalid node '{raw_node}', "
-                    f"using fallback"
-                )
-                return self._deterministic_fallback(severity, blocker_count)
-
-            if next_node not in ("fixer", "executor"):
-                logger.warning(
-                    f"[HybridRouter] LLM returned unexpected node '{next_node}', "
-                    f"using deterministic fallback"
-                )
-                return self._deterministic_fallback(severity, blocker_count)
-
-            logger.info(
-                f"[HybridRouter] Slow path: LLM decided -> {next_node} "
-                f"(reasoning: {reasoning[:50]}...)"
+            next_node = canonicalize_node_name(raw_node)
+        except ValueError:
+            logger.warning(
+                f"[HybridRouter] LLM returned invalid node '{raw_node}', "
+                f"using fallback"
             )
-
-            return RoutingDecision(
-                next_node=next_node,
-                reasoning=f"LLM decision: {reasoning}",
-                risk_assessment=f"Medium - LLM-driven decision for {severity} severity",
-                requires_hitl_approval=False
-            )
-
-        except json.JSONDecodeError as e:
-            logger.warning(f"[HybridRouter] Failed to parse LLM JSON: {e}")
             return self._deterministic_fallback(severity, blocker_count)
+
+        if next_node not in ("fixer", "executor"):
+            logger.warning(
+                f"[HybridRouter] LLM returned unexpected node '{next_node}', "
+                f"using deterministic fallback"
+            )
+            return self._deterministic_fallback(severity, blocker_count)
+
+        logger.info(
+            f"[HybridRouter] Slow path: LLM decided -> {next_node} "
+            f"(reasoning: {reasoning[:50]}...)"
+        )
+
+        return RoutingDecision(
+            next_node=next_node,
+            reasoning=f"LLM decision: {reasoning}",
+            risk_assessment=f"Medium - LLM-driven decision for {severity} severity",
+            requires_hitl_approval=False
+        )
 
     def _deterministic_fallback(
         self,

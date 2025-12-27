@@ -880,7 +880,7 @@ class TestJSONSafety:
 
     def test_oversized_response_triggers_fallback(self):
         """Test that oversized LLM response triggers fallback."""
-        from core.flow.router_node import MAX_RESPONSE_SIZE
+        from core.flow.llm_safety import MAX_RESPONSE_SIZE
 
         # Create a response larger than MAX_RESPONSE_SIZE
         oversized_response = '{"next_node": "fixer", "reasoning": "' + 'x' * (MAX_RESPONSE_SIZE + 100) + '", "risk_assessment": "Low"}'
@@ -899,7 +899,7 @@ class TestJSONSafety:
 
     def test_deeply_nested_json_triggers_fallback(self):
         """Test that deeply nested JSON triggers fallback."""
-        from core.flow.router_node import MAX_NESTING_DEPTH
+        from core.flow.llm_safety import MAX_NESTING_DEPTH
 
         # Create deeply nested JSON (exceeds MAX_NESTING_DEPTH)
         nested = '{"a": ' * (MAX_NESTING_DEPTH + 5) + '"value"' + '}' * (MAX_NESTING_DEPTH + 5)
