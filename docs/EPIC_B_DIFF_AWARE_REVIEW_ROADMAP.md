@@ -217,6 +217,8 @@ P6 is "Governance Interface for 2026 Full-Auto PR Lifecycle" - should be on road
 > **Issue**: [#3130](https://github.com/RC918/morningai/issues/3130)
 > **Target**: EPIC C Stage 1 (C-5 Review Routing Pilot)
 
+> **Note**: This is a **design document**. The actual schema and logic implementation will be delivered in the B-6 implementation PR. Until that PR is merged, this document defines the contract; the implementation PR will be the source of truth.
+
 ### Overview
 
 Phase 6 defines the stable interface contract between Reviewer and Router, enabling Flow Controller v3 to make routing decisions based on review results.
@@ -271,17 +273,37 @@ The Router MUST apply the following precedence rules when reading `ReviewOutcome
 
 2. **`blocked` verdict forces escalation**: If `verdict == "blocked"`, Router MUST escalate regardless of other fields. This is reserved for Safety/Compliance blocks.
 
-3. **`schema_validated == False` triggers fallback**: If Pydantic validation failed but a partial object was constructed, Router MUST treat this as equivalent to `unknown`.
+3. **`schema_validated == False` triggers fallback**: If Pydantic validation failed, the producer MUST catch the exception and explicitly construct a minimal dict with `verdict="unknown"` and `schema_validated=False`. Router MUST treat this as equivalent to `unknown`.
 
 4. **Business verdicts follow normal routing**: `approve`, `request_changes`, `comment` are processed according to Router's LLM-driven or rule-based logic.
+
+### Router Behavior Examples
+
+| Scenario | ReviewOutcome | Router Action |
+|----------|---------------|---------------|
+| **Reviewer timeout** | `verdict="unknown", schema_validated=False` | Fallback to rule-based routing (ignore all other fields) |
+| **Safety block detected** | `verdict="blocked", severity="critical"` | Force escalate to human review |
+| **Clean review** | `verdict="approve", severity="low", blocker_count=0` | Proceed to publisher |
+| **Issues found** | `verdict="request_changes", severity="high", blocker_count=3` | Route to fixer or escalate based on blocker_count |
+| **Suggestions only** | `verdict="comment", severity="medium", blocker_count=0` | Proceed to publisher (attach suggestions) |
 
 ### Field Definitions
 
 | Field | Definition | Source |
 |-------|------------|--------|
 | `blocker_count` | Count of `review_comments` where `severity in {"high", "critical"}` | Computed from `state["review_comments"]` |
-| `severity` | Worst severity across all comments: `max(comment.severity for comment in review_comments)` | Computed from `state["review_comments"]` |
+| `severity` | Worst severity across all comments: `max(comment.severity for comment in review_comments)`. If no comments exist, defaults to `"low"`. | Computed from `state["review_comments"]` |
 | `diff_truncated` | Whether the PR diff was truncated due to size limits | From `state["diff_truncated"]` |
+
+**Severity Mapping Note**: The current `reviewer_node` outputs `review_severity` with possible value `"none"` when no issues are found. `ReviewOutcome.severity` does NOT include `"none"` - implementations MUST map `"none"` to `"low"` as the baseline.
+
+### Current Implementation Evidence
+
+As of `main` branch, `reviewer_node` (see `langgraph_orchestrator.py` lines 3583-3588) outputs:
+- `review_comments: List[Dict]` where each comment contains `severity` and `message` fields
+- `review_severity: "none" | "low" | "medium" | "high" | "critical"` (aggregate severity)
+
+This confirms `blocker_count` can be deterministically computed from `state["review_comments"]`.
 
 ### Schema Evolution Strategy
 
