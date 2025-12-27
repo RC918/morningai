@@ -224,8 +224,8 @@ def test_metrics_has_source_header(client):
 
 def test_metrics_fallback_returns_valid_schema(client, monkeypatch):
     """Test /metrics returns valid schema when Redis unavailable (fallback path)"""
-    from src.routes import dashboard
-    monkeypatch.setattr(dashboard, 'get_redis_client', lambda: None)
+    import src.utils.redis_client as redis_client_mod
+    monkeypatch.setattr(redis_client_mod, 'get_redis_client', lambda: None)
 
     response = client.get('/api/dashboard/metrics')
 
