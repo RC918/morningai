@@ -52,9 +52,11 @@ LLMSeverity = Literal["nit", "suggestion", "warning", "error"]
 CISeverity = Literal["low", "medium", "high", "critical"]
 
 # Comment categories
+# Major Brain Upgrade (2025-12): Added "contract" for API/schema/timestamp changes
+# Removed "style" from prompt (but kept here for backward compatibility)
 CommentCategory = Literal[
     "style", "bug", "performance", "security",
-    "maintainability", "documentation", "other"
+    "maintainability", "documentation", "contract", "other"
 ]
 
 
@@ -508,7 +510,8 @@ TRUNCATION_SENTINEL = "... (truncated"
 class DiffFileInfo(TypedDict):
     """Information about a file in the diff."""
     filename: str
-    allowed_lines: Set[int]  # RIGHT-side line numbers that appear in diff
+    allowed_lines: Set[int]  # RIGHT-side line numbers that appear in diff (all: + and context)
+    addition_lines: Set[int]  # RIGHT-side line numbers for + (addition) lines only (Strict Mode)
     patch_truncated: bool  # Whether the patch was truncated mid-file
 
 
@@ -552,6 +555,7 @@ def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
     lines = diff_content.split('\n')
     current_file: Optional[str] = None
     current_allowed: Set[int] = set()
+    current_additions: Set[int] = set()  # Strict Mode: track + lines separately
     current_truncated = False
     new_line_counter = 0
     in_hunk = False
@@ -567,6 +571,7 @@ def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
                 result[current_file] = {
                     "filename": current_file,
                     "allowed_lines": current_allowed,
+                    "addition_lines": current_additions,  # Strict Mode
                     "patch_truncated": current_truncated
                 }
 
@@ -582,6 +587,7 @@ def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
                     raw_path = raw_path[1:-1]  # Strip surrounding quotes
                 current_file = raw_path
                 current_allowed = set()
+                current_additions = set()  # Strict Mode: reset additions for new file
                 current_truncated = False
             in_hunk = False
             i += 1
@@ -612,10 +618,12 @@ def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
             if first_char == ' ':
                 # Context line: appears on both sides
                 current_allowed.add(new_line_counter)
+                # Note: context lines are NOT added to current_additions (Strict Mode)
                 new_line_counter += 1
             elif first_char == '+':
                 # Addition: only on RIGHT side
                 current_allowed.add(new_line_counter)
+                current_additions.add(new_line_counter)  # Strict Mode: track + lines
                 new_line_counter += 1
             elif first_char == '-':
                 # Deletion: only on LEFT side, don't add to allowed
@@ -635,6 +643,7 @@ def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
         result[current_file] = {
             "filename": current_file,
             "allowed_lines": current_allowed,
+            "addition_lines": current_additions,  # Strict Mode
             "patch_truncated": current_truncated
         }
 
@@ -650,18 +659,22 @@ def is_line_in_diff(
     file_path: str,
     start_line: Optional[int],
     end_line: Optional[int],
-    allowed_lines_map: Dict[str, DiffFileInfo]
+    allowed_lines_map: Dict[str, DiffFileInfo],
+    strict_additions_only: bool = True
 ) -> Tuple[bool, str]:
     """
     Check if a comment's line range is valid within the diff.
 
     Phase B-3.1: Inline Comment Validation
+    Major Brain Upgrade (2025-12): Strict Mode - only allow + (addition) lines
 
     Args:
         file_path: File path from the comment
         start_line: Start line number (1-indexed)
         end_line: End line number (1-indexed)
         allowed_lines_map: Result from parse_diff_allowed_lines
+        strict_additions_only: If True (default), only allow lines marked with "+"
+                              If False, allow both "+" and " " (context) lines
 
     Returns:
         Tuple of (is_valid, reason)
@@ -684,10 +697,19 @@ def is_line_in_diff(
 
     # Check if all lines in range are allowed
     start = start_line if start_line is not None else end_line
-    allowed = file_info["allowed_lines"]
+
+    # Strict Mode: Use addition_lines (only + lines) instead of allowed_lines (+ and context)
+    if strict_additions_only:
+        target_lines = file_info.get("addition_lines", file_info["allowed_lines"])
+    else:
+        target_lines = file_info["allowed_lines"]
 
     for line_num in range(start, end_line + 1):
-        if line_num not in allowed:
+        if line_num not in target_lines:
+            if strict_additions_only:
+                # Check if it's in allowed_lines but not addition_lines (context line)
+                if line_num in file_info["allowed_lines"]:
+                    return False, f"line_{line_num}_is_context_not_addition"
             return False, f"line_{line_num}_not_in_diff"
 
     return True, "valid"
@@ -698,10 +720,12 @@ def _bucket_downgrade_reason(reason: str) -> str:
     Bucket raw downgrade reasons into canonical categories for telemetry.
 
     Phase B-B Telemetry: Downgrade reason bucketing
+    Major Brain Upgrade (2025-12): Added context_line_rejected for Strict Mode
 
     Categories:
     - file_not_in_diff: File path not found in diff
     - line_not_in_diff: Line number(s) not visible in diff hunk
+    - context_line_rejected: Line is context (not +), rejected by Strict Mode
     - missing_end_line: Comment missing required end_line
     - strict_truncated: Truncated patch forced inline rejection
 
@@ -717,6 +741,9 @@ def _bucket_downgrade_reason(reason: str) -> str:
         return "missing_end_line"
     elif reason == "patch_truncated":
         return "strict_truncated"
+    elif "is_context_not_addition" in reason:
+        # Strict Mode: line is context (space prefix), not addition (+ prefix)
+        return "context_line_rejected"
     elif "not_in_diff" in reason:
         # Matches "line_N_not_in_diff" patterns
         return "line_not_in_diff"
@@ -756,9 +783,11 @@ def validate_inline_comments(
     valid: List[ReviewComment] = []
     invalid: List[ReviewComment] = []
     # Phase B-B Telemetry: Track downgrade reasons by bucket
+    # Major Brain Upgrade (2025-12): Added context_line_rejected for Strict Mode
     downgrade_reasons: Dict[str, int] = {
         "file_not_in_diff": 0,
         "line_not_in_diff": 0,
+        "context_line_rejected": 0,  # Strict Mode: line is context, not addition
         "missing_end_line": 0,
         "strict_truncated": 0,
         "other": 0

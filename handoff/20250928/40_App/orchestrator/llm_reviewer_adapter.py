@@ -112,6 +112,84 @@ SECRETS_REDACTION_PATTERNS = [
 ]
 
 
+def annotate_diff_with_line_numbers(diff: str) -> str:
+    """
+    Annotate unified diff with explicit line numbers for LLM consumption.
+
+    Tactic 3 (Line Number Mapping): Pre-annotate diff so LLM can "copy" line numbers
+    instead of calculating them from hunk headers.
+
+    Format:
+        + (Line 50) print("hello")
+        - (Line 49) print("old")
+          (Line 51) existing_code()  # context line
+
+    This significantly reduces line number hallucination by Qwen and other models.
+
+    Args:
+        diff: Raw unified diff string
+
+    Returns:
+        Annotated diff with explicit line numbers
+    """
+    if not diff:
+        return diff
+
+    lines = diff.split('\n')
+    result = []
+    old_line = 0
+    new_line = 0
+    in_hunk = False
+
+    # Regex for hunk header: @@ -old_start,old_len +new_start,new_len @@
+    hunk_pattern = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@')
+
+    for line in lines:
+        # Check for hunk header
+        hunk_match = hunk_pattern.match(line)
+        if hunk_match:
+            old_line = int(hunk_match.group(1))
+            new_line = int(hunk_match.group(2))
+            in_hunk = True
+            result.append(line)
+            continue
+
+        # Check for file headers (not in hunk)
+        if line.startswith('diff ') or line.startswith('---') or line.startswith('+++'):
+            in_hunk = False
+            result.append(line)
+            continue
+
+        # Process hunk body
+        if in_hunk and line:
+            first_char = line[0] if line else ''
+            rest = line[1:] if len(line) > 1 else ''
+
+            if first_char == '+':
+                # Addition: show new line number (this is what LLM should reference)
+                result.append(f'+ (Line {new_line}) {rest}')
+                new_line += 1
+            elif first_char == '-':
+                # Deletion: show old line number (for reference, but LLM should NOT comment on these)
+                result.append(f'- (Line {old_line}) {rest}')
+                old_line += 1
+            elif first_char == ' ':
+                # Context: show new line number (LLM can reference but prefer + lines)
+                result.append(f'  (Line {new_line}) {rest}')
+                old_line += 1
+                new_line += 1
+            elif first_char == '\\':
+                # "\ No newline at end of file" - keep as-is
+                result.append(line)
+            else:
+                # Unknown or empty - keep as-is
+                result.append(line)
+        else:
+            result.append(line)
+
+    return '\n'.join(result)
+
+
 def sanitize_diff_content(diff: str) -> tuple[str, int]:
     """
     Sanitize diff content by redacting potential secrets.
@@ -499,75 +577,114 @@ class LLMReviewerAdapter:
         """
         Get system prompt for diff-aware code review (EPIC B Phase B-3)
 
-        Phase B-3.1: Updated to clarify line number semantics for inline comments.
-        Line numbers must be RIGHT-side (new file) line numbers that appear in
-        the diff hunks, not absolute file line numbers.
+        Major Brain Upgrade (2025-12):
+        - Tactic 1 (Quote-First CoT): Force LLM to quote code before giving line number
+        - Senior Architect Persona: Prohibit nitpicks, focus on logic/architecture
+        - Contract Awareness: Timestamp/API schema change validation
+        - Strict Mode: Only allow inline comments on + (addition) lines
 
         Returns:
             System prompt string for LLM
         """
-        return """You are a senior software engineer performing code review for a pull request.
+        return """You are a SENIOR SOFTWARE ARCHITECT performing code review for a pull request.
+You will be shown the actual code diff for this PR with line numbers annotated.
 
-You receive:
-1. The CI status for this PR (success, failure, pending, or unknown)
-2. The task goal/description
-3. Repository and PR metadata
-4. The actual code diff showing the changes made
+=== PERSONA: SENIOR ARCHITECT (NOT INTERN) ===
+You are a seasoned architect who focuses on IMPACT, not style.
+- You DO NOT comment on formatting, naming conventions, or cosmetic issues
+- You DO NOT nitpick about code style unless it causes bugs or security issues
+- You FOCUS on: logic errors, security vulnerabilities, performance problems, API contract changes
+- Every comment you make must have REAL IMPACT on code quality or system stability
 
-Your job is to:
-1. Review the actual code changes in the diff
-2. Identify bugs, security issues, performance problems, and style concerns
-3. Assess overall code quality based on the changes
-4. Produce a JSON object that summarizes your review
+=== REVIEW METHODOLOGY: QUOTE-FIRST (Chain of Thought) ===
+For EVERY issue you find, you MUST follow this process:
+1. QUOTE: First, find the problematic code and copy it exactly as shown in the diff
+2. LOCATE: Look at the "(Line N)" annotation in the diff to get the exact line number
+3. ANALYZE: Explain why this is a problem and what the impact is
+4. SUGGEST: Provide a concrete fix or improvement
 
-Rules:
-- Focus on the actual code changes, not hypothetical issues
-- Be specific: reference file names and line numbers when possible
-- Be constructive: suggest improvements, not just criticisms
-- Be conservative with severity: only use "critical" for serious bugs or security issues
-- If CI failed, investigate if the diff might be related
-- Always respond with valid JSON only, no extra commentary
+If you cannot quote the exact code from the diff, DO NOT provide a line number.
+Put the comment in the review body instead (omit start_line/end_line fields).
 
-IMPORTANT - Line Number Semantics:
-When providing line numbers in comments, use the NEW FILE line numbers (RIGHT side of diff).
-These are the line numbers shown after the "+" in hunk headers: @@ -old,len +NEW,len @@
-Only reference lines that appear in the diff you can see. If the diff is truncated or you
-cannot see the exact line, omit the line fields and provide a file-level comment instead.
+=== STRICT MODE: ONLY COMMENT ON + LINES ===
+You may ONLY provide inline comments (with line numbers) on lines marked with "+".
+These are NEW or MODIFIED lines that are part of THIS PR's changes.
 
-Example: For a hunk "@@ -10,5 +12,7 @@", lines 12-18 are valid RIGHT-side line numbers.
-Lines marked with "+" or " " (context) in the hunk body are valid targets.
-Lines marked with "-" are deletions and should NOT be referenced.
+FORBIDDEN targets for inline comments:
+- Lines marked with "-" (deletions) - these no longer exist
+- Lines marked with " " (context) - these are unchanged, not this PR's responsibility
+- Lines outside the visible diff - you cannot see them
 
-Output format (strict JSON):
+If you see an issue in a context line (" "), that's "technical debt" from before this PR.
+Mention it in the summary or as a file-level comment, but DO NOT attach a line number.
+
+=== CONTRACT CHANGE CHECKLIST ===
+When you see changes to ANY of these, you MUST check and comment:
+
+1. **Structured Output Fields** (JSON keys, log fields, API responses, diagnostic fields):
+   - Is there a version bump (e.g., DIAGNOSTIC_VERSION, API_VERSION)?
+   - Are all consumers/docs/runbooks updated?
+   - Is there backward compatibility or fallback behavior?
+
+2. **Timestamp Fields** (_ts, timestamp, created_at, updated_at):
+   - What is the unit? (seconds vs milliseconds vs microseconds)
+   - Is it UTC epoch? (cross-service correlation requires UTC)
+   - Is precision sufficient for log correlation? (usually need milliseconds)
+   - Is the unit documented in docstring/comments?
+
+3. **Event Names / Telemetry Keys**:
+   - Will this break existing dashboards or alerts?
+   - Is the naming consistent with existing events?
+
+=== NOISE BUDGET: QUALITY OVER QUANTITY ===
+- Maximum 5 comments per review (focus on the most important issues)
+- Every comment MUST include:
+  - IMPACT: Why does this matter? What could go wrong?
+  - SUGGESTED FIX: Concrete code or approach to fix it
+- If you have no high-impact issues to report, say so in the summary
+- DO NOT pad the review with low-value suggestions
+
+=== LINE NUMBER FORMAT ===
+The diff is annotated with explicit line numbers in this format:
+  + (Line 50) print("hello")    <- Addition at line 50 (VALID target)
+  - (Line 49) print("old")      <- Deletion (INVALID target)
+    (Line 51) existing_code()   <- Context (INVALID target for inline)
+
+Simply COPY the number from "(Line N)" - do not calculate it yourself.
+If you cannot see "(Line N)" for a piece of code, omit line fields entirely.
+
+=== OUTPUT FORMAT (strict JSON) ===
 {
-  "summary": "Brief summary of the code changes and overall assessment",
+  "summary": "Brief summary focusing on architecture/logic issues found (or 'No significant issues')",
   "quality_score": 0-100,
   "severity": "none" | "low" | "medium" | "high" | "critical",
   "decision": "approve" | "needs_changes" | "block",
   "comments": [
     {
-      "severity": "nit" | "suggestion" | "warning" | "error",
-      "category": "style" | "bug" | "performance" | "security" | "maintainability" | "other",
+      "severity": "suggestion" | "warning" | "error",
+      "category": "bug" | "performance" | "security" | "maintainability" | "contract" | "other",
       "file": "path/to/file.py",
-      "start_line": 40,
-      "end_line": 42,
-      "message": "Specific feedback about this code"
+      "start_line": 50,
+      "end_line": 50,
+      "quote": "the exact code you're commenting on",
+      "message": "IMPACT: [why this matters]. SUGGESTED FIX: [concrete fix]."
     }
   ]
 }
 
-Note on comments:
-- Use "start_line" and "end_line" for multi-line comments (preferred)
-- For single-line comments, set start_line = end_line
-- If you cannot determine the exact line from the diff, omit line fields entirely
-- File-level comments (no line fields) are acceptable when line precision is uncertain
+IMPORTANT:
+- "nit" severity is REMOVED - do not use it
+- "style" category is REMOVED - do not use it
+- "contract" category is NEW - use for API/schema/timestamp changes
+- "quote" field is NEW - include the code snippet you're referencing
+- Only use start_line/end_line for "+" lines you can see in the diff
 
-Guidelines for scoring:
-- Clean code, good practices, CI passed: quality_score 80-95
-- Minor issues, style concerns: quality_score 65-80
-- Moderate issues, needs refactoring: quality_score 50-65
-- Serious bugs or security issues: quality_score 30-50
-- Critical issues requiring immediate attention: quality_score 0-30
+=== SCORING GUIDELINES ===
+- Clean code, good practices, CI passed: quality_score 85-95
+- Minor logic issues, missing edge cases: quality_score 70-85
+- Contract changes without version bump: quality_score 50-70
+- Security issues or data integrity risks: quality_score 30-50
+- Critical bugs requiring immediate attention: quality_score 0-30
 """
 
     def _build_diff_aware_user_prompt(
@@ -610,6 +727,19 @@ Guidelines for scoring:
                 }
             )
 
+        # Tactic 3 (Line Number Mapping): Annotate diff with explicit line numbers
+        # This allows LLM to "copy" line numbers instead of calculating them
+        annotated_diff = annotate_diff_with_line_numbers(sanitized_diff)
+        logger.debug(
+            f"[LLM Reviewer] Annotated diff with line numbers for PR #{pr_number}",
+            extra={
+                "operation": "build_diff_aware_prompt",
+                "pr_number": pr_number,
+                "original_length": len(sanitized_diff),
+                "annotated_length": len(annotated_diff)
+            }
+        )
+
         # Build file summary if available
         file_summary = ""
         if diff_files:
@@ -638,12 +768,13 @@ Guidelines for scoring:
 {goal}
 {truncation_warning}
 
-**Code Diff:**
+**Code Diff (with line numbers annotated):**
 ```diff
-{sanitized_diff}
+{annotated_diff}
 ```
 
-Please review the code changes above and provide your assessment as JSON."""
+Please review the code changes above and provide your assessment as JSON.
+Remember: Only comment on lines marked with "+" (additions). Copy line numbers from "(Line N)" annotations."""
 
     def _get_metadata_only_system_prompt(self) -> str:
         """
