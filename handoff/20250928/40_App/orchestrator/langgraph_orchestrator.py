@@ -3753,6 +3753,7 @@ def reviewer_node(state: AgentState) -> AgentState:
                     # Previously this was inside `if diff_content:` which caused commit_id: null
                     # when diff_content was empty (e.g., lockfile-only PRs, truncation edge cases).
                     # Fix: Store head_sha regardless of diff_content to ensure commit pinning works.
+                    # TRUST: diff_head_sha originates from GitHub API (pr.head.sha via get_pr_diff)
                     if diff_head_sha:
                         state["diff_head_sha"] = diff_head_sha
                         logger.info("[Reviewer] Stored diff_head_sha for commit pinning", extra={
@@ -4245,13 +4246,14 @@ def publisher_node(state: AgentState) -> AgentState:
     line_drift_detected = False
 
     # DIAGNOSTIC: Log stored_head_sha presence for commit pinning verification
+    # Note: diff_content is already sanitized by reviewer_node, so length reflects sanitized content
     logger.info("[Publisher] Retrieved state for commit pinning", extra={
         "operation": "publisher",
         "trace_id": trace_id,
         "pr_number": pr_number,
         "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None,
         "has_diff_content": bool(diff_content),
-        "diff_content_length": len(diff_content) if diff_content else 0
+        "sanitized_diff_length": len(diff_content) if diff_content else 0
     })
 
     if diff_content and inline_comments:
@@ -4266,7 +4268,7 @@ def publisher_node(state: AgentState) -> AgentState:
             "trace_id": trace_id,
             "pr_number": pr_number,
             "diff_coverage": diff_coverage,
-            "diff_content_length": len(diff_content) if diff_content else 0,
+            "sanitized_diff_length": len(diff_content) if diff_content else 0,
             "diff_truncated": diff_truncated,
             "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None
         }
