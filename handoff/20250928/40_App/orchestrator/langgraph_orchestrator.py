@@ -4654,11 +4654,22 @@ def hitl_gate_node(state: AgentState) -> AgentState:
                 AIMessage(content=f"[HITL_GATE] Human approval received: {approval}. Resuming workflow.")
             ]
         else:
-            logger.warning("[HITL_GATE] HITL approval not received or rejected", extra={
+            # HIGH SEVERITY FIX: Prevent infinite loop on rejection
+            # If approval is falsy (rejected/None), we must terminate the workflow
+            # by setting merge_decision to a value that routes to finalizer.
+            # The should_fix_or_finalize routing logic sends all non-pending,
+            # non-needs_fix values to finalizer, so "rejected" will work.
+            logger.warning("[HITL_GATE] HITL approval not received or rejected. Terminating workflow.", extra={
                 "operation": "hitl_gate",
                 "trace_id": trace_id,
+                "event_code": "ROUTER_HITL_REJECTED",
             })
             state["hitl_approved"] = False
+            state["error"] = "Workflow terminated due to HITL rejection."
+            state["merge_decision"] = "rejected"
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content="[HITL_GATE] Human approval rejected. Workflow will terminate.")
+            ]
 
     elif requires_hitl and hitl_approved:
         logger.info("[HITL_GATE] HITL already approved, continuing", extra={
@@ -5378,23 +5389,18 @@ def finalizer_node(state: AgentState) -> AgentState:
     ]
 
     # EPIC C Phase C-5: HITL Wiring (Issue #3155)
-    # Reset hitl_approved to False to prevent state leakage between executions.
+    # Reset HITL-related flags to prevent state leakage between executions.
     # CTO Directive: "實作 hitl_approved 時，請確保它在任務完成後會被重置 (Reset)，
     # 以免影響同一個 Session 的下一次執行。"
-    if state.get("hitl_approved", False):
-        logger.info("[Finalizer] Resetting hitl_approved to False", extra={
-            "operation": "finalizer",
-            "trace_id": trace_id,
-        })
-        state["hitl_approved"] = False
-
-    # Also reset requires_hitl_approval to prevent stale state
-    if state.get("requires_hitl_approval", False):
-        logger.info("[Finalizer] Resetting requires_hitl_approval to False", extra={
-            "operation": "finalizer",
-            "trace_id": trace_id,
-        })
-        state["requires_hitl_approval"] = False
+    # Refactored per code review: consolidated into loop for maintainability
+    hitl_flags_to_reset = ["hitl_approved", "requires_hitl_approval"]
+    for flag in hitl_flags_to_reset:
+        if state.get(flag):
+            logger.info(f"[Finalizer] Resetting {flag} to False", extra={
+                "operation": "finalizer",
+                "trace_id": trace_id,
+            })
+            state[flag] = False
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("finalizer", trace_id, success=True, latency_ms=latency_ms)
