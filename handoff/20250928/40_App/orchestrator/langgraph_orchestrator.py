@@ -238,10 +238,11 @@ def _get_postgres_pool():
     Pool Configuration:
     - min_size: 1 (minimum connections to keep open)
     - max_size: 5 (maximum connections, prevents Supabase limit exhaustion)
-    - max_lifetime: 1800 (30 minutes, prevents stale connections)
-    - max_idle: 300 (5 minutes, recycle idle connections)
+    - max_lifetime: 600 (10 minutes, aggressive recycling to prevent stale connections)
+    - max_idle: 120 (2 minutes, aggressive recycling of idle connections)
     - reconnect_timeout: 60 (1 minute timeout for reconnection attempts)
     - check: ConnectionPool.check_connection (validates connection health)
+    - TCP Keepalive: Enabled to prevent NAT/LB from dropping idle connections
 
     Returns:
         ConnectionPool: The global connection pool instance, or None if initialization fails
@@ -277,17 +278,27 @@ def _get_postgres_pool():
             # statement caching. This prevents "prepared statement _pg3_1 does not exist"
             # errors when Supabase resets connections mid-workflow. The official
             # PostgresSaver.from_conn_string() also uses prepare_threshold=0.
+            # SSL Connection Fix (Dec 2025): Aggressive recycling + TCP Keepalive
+            # to prevent "SSL connection has been closed unexpectedly" errors.
+            # Root cause: Network layer (NAT/LB) may drop idle connections before
+            # the pool's max_idle timeout, causing "flushing failed" errors.
             _postgres_pool = ConnectionPool(
                 conninfo=database_url,
                 min_size=1,  # Keep at least 1 connection ready
                 max_size=5,  # Limit to prevent Supabase connection exhaustion
-                max_lifetime=1800,  # 30 minutes - recycle connections periodically
-                max_idle=300,  # 5 minutes - close idle connections
+                max_lifetime=600,  # 10 minutes - aggressive recycling to prevent stale connections
+                max_idle=120,  # 2 minutes - aggressive recycling of idle connections
                 reconnect_timeout=60,  # 1 minute timeout for reconnection
                 kwargs={
                     "autocommit": True,  # Required by PostgresSaver
                     "row_factory": dict_row,  # Required by PostgresSaver
                     "prepare_threshold": 0,  # Disable prepared statements to avoid state loss on reconnect
+                    # TCP Keepalive settings (vital for cloud NAT/LB)
+                    # These prevent network devices from dropping idle connections
+                    "keepalives": 1,  # Enable TCP keepalive
+                    "keepalives_idle": 30,  # Send keepalive after 30s of idle
+                    "keepalives_interval": 10,  # Retry every 10s
+                    "keepalives_count": 5,  # Give up after 5 failed probes
                 },
                 # Health check: validates connection before returning from pool
                 check=ConnectionPool.check_connection,
@@ -302,8 +313,10 @@ def _get_postgres_pool():
                     "operation": "_get_postgres_pool",
                     "min_size": 1,
                     "max_size": 5,
-                    "max_lifetime": 1800,
-                    "max_idle": 300,
+                    "max_lifetime": 600,
+                    "max_idle": 120,
+                    "tcp_keepalive": True,
+                    "keepalives_idle": 30,
                     "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
                 }
             )
