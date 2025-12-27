@@ -637,6 +637,10 @@ class TestResilientPostgresSaver:
             Exception("could not connect to server: Connection refused"),
             Exception("consuming input failed: SSL error"),
             Exception("psycopg.Pipeline [BAD] state"),
+            # PR #3104: Pool closed patterns for race condition fix
+            Exception("pool is closed"),
+            Exception("pool is already closed"),  # Exact pattern match
+            Exception("the pool 'pool-1' is already closed"),  # Compound check match
         ]
 
         for error in transient_errors:
@@ -891,6 +895,139 @@ class TestResilientPostgresSaver:
         except DatabaseException as e:
             assert "Test error" in str(e)
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_is_closed_error_triggers_retry(self):
+        """Test that 'pool is closed' error triggers retry (PR #3104 fix)
+
+        This test verifies the fix for the production incident where pool reset
+        races with checkpoint operations, causing 'pool is closed' errors that
+        were incorrectly classified as non-transient.
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.put.side_effect = [
+            Exception("pool is closed"),
+            None,  # Success on second attempt
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                wrapper.put({"config": "test"}, {}, {}, {})
+
+        # Verify retry occurred
+        assert mock_inner.put.call_count == 2
+        mock_sleep.assert_called_once_with(0.5)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_is_already_closed_error_triggers_retry(self):
+        """Test that 'pool is already closed' error triggers retry (PR #3104 fix)
+
+        This test verifies the fix for the production error message:
+        "the pool 'pool-1' is already closed"
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("the pool 'pool-1' is already closed"),
+            {"checkpoint": "data"},  # Success on second attempt
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                result = wrapper.get({"config": "test"})
+
+        # Verify result
+        assert result == {"checkpoint": "data"}
+
+        # Verify retry occurred
+        assert mock_inner.get.call_count == 2
+        mock_sleep.assert_called_once_with(0.5)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_generic_is_already_closed_not_matched(self):
+        """Test that generic 'is already closed' errors do NOT trigger retry
+
+        This test ensures the compound check avoids false positives.
+        Errors like 'connection is already closed' should NOT be classified
+        as transient pool errors.
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        # These should NOT be classified as transient errors
+        non_pool_errors = [
+            Exception("connection is already closed"),
+            Exception("file handle is already closed"),
+            Exception("socket is already closed"),
+        ]
+
+        for error in non_pool_errors:
+            assert not wrapper._is_transient_error(error), \
+                f"Error '{error}' should NOT be classified as transient"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_closed_with_special_characters_in_name(self):
+        """Test that pool closed errors with special characters in pool name are matched
+
+        This test ensures the compound check handles edge cases where pool names
+        contain special characters, Unicode, or unusual formatting.
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        special_pool_name_errors = [
+            Exception("the pool 'pool-with-dashes-123' is already closed"),
+            Exception("the pool 'pool_with_underscores' is already closed"),
+            Exception("the pool 'pool.with.dots' is already closed"),
+            Exception("the pool 'pool:with:colons' is already closed"),
+            Exception("the pool 'pool/with/slashes' is already closed"),
+            Exception("the pool 'pool@special#chars!' is already closed"),
+            Exception("the pool 'unicode-pool' is already closed"),
+        ]
+
+        for error in special_pool_name_errors:
+            assert wrapper._is_transient_error(error), \
+                f"Error '{error}' should be classified as transient"
+            error_str = str(error).lower()
+            assert wrapper._is_connection_lost_error(error_str), \
+                f"Error '{error}' should trigger pool reset"
+
 
 class TestResilientPostgresSaverOOMFix:
     """Tests for OOM fix (Dec 2025): pool reset and memory release
@@ -1093,6 +1230,10 @@ class TestResilientPostgresSaverOOMFix:
             "server closed the connection",
             "connection reset by peer",
             "pipeline [bad]",
+            # PR #3104: Pool closed patterns for race condition fix
+            "pool is closed",
+            "pool is already closed",  # Exact pattern match
+            "the pool 'pool-1' is already closed",  # Compound check match
         ]
 
         for pattern in connection_lost_patterns:
@@ -1147,6 +1288,82 @@ class TestResilientPostgresSaverOOMFix:
         assert result == {"checkpoint": "data"}
         mock_reset.assert_called_once()
         assert wrapper._inner is mock_inner
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_is_closed_error_triggers_pool_reset(self):
+        """Test that 'pool is closed' error triggers pool reset (PR #3104 fix)
+
+        This test verifies that the new 'pool is closed' pattern in
+        CONNECTION_LOST_PATTERNS triggers pool reset, not just retry.
+        """
+        from unittest.mock import MagicMock, patch
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("pool is closed"),
+            {"checkpoint": "data"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+            inner_factory=lambda: mock_inner,
+        )
+
+        with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+            mock_reset.return_value = MagicMock()
+            with patch('langgraph_orchestrator.logger'):
+                with patch.object(time, 'sleep'):
+                    result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "data"}
+        mock_reset.assert_called_once()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_is_already_closed_error_triggers_pool_reset(self):
+        """Test that 'pool is already closed' error triggers pool reset (PR #3104 fix)
+
+        This test verifies that the production error message
+        "the pool 'pool-1' is already closed" triggers pool reset.
+        """
+        from unittest.mock import MagicMock, patch
+        import time
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.put.side_effect = [
+            Exception("the pool 'pool-1' is already closed"),
+            None,  # Success on second attempt
+        ]
+
+        factory_called = []
+
+        def mock_factory():
+            factory_called.append(True)
+            return mock_inner
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+            inner_factory=mock_factory,
+        )
+
+        with patch('langgraph_orchestrator._reset_postgres_pool') as mock_reset:
+            mock_reset.return_value = MagicMock()
+            with patch('langgraph_orchestrator.logger'):
+                with patch.object(time, 'sleep'):
+                    wrapper.put({"config": "test"}, {}, {}, {})
+
+        # Verify pool was reset
+        mock_reset.assert_called_once()
+        # Verify factory was called to recreate inner saver
+        assert len(factory_called) == 1
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_consecutive_connection_lost_triggers_multiple_resets(self):

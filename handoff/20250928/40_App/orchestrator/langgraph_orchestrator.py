@@ -640,7 +640,7 @@ class ResilientPostgresSaver:
         "consuming input failed",
         "pipeline [bad]",  # psycopg Pipeline [BAD] state - exact match to avoid false positives
         "pool is closed",  # psycopg_pool PoolClosed - occurs when pool reset races with checkpoint ops
-        "pool is already closed",  # Catches "the pool 'pool-1' is already closed"
+        "pool is already closed",  # Catches exact match (compound check below handles pool name variants)
     ]
 
     # Default circuit breaker threshold: after this many consecutive failures, fail fast
@@ -658,7 +658,7 @@ class ResilientPostgresSaver:
         "connection reset by peer",
         "pipeline [bad]",
         "pool is closed",  # psycopg_pool PoolClosed - pool was reset by another operation
-        "pool is already closed",  # Catches "the pool 'pool-1' is already closed"
+        "pool is already closed",  # Catches exact match (compound check below handles pool name variants)
     ]
 
     def __init__(
@@ -704,6 +704,24 @@ class ResilientPostgresSaver:
         self._consecutive_failures = 0
         self._circuit_open = False
 
+    @staticmethod
+    def _is_pool_already_closed_with_name(error_str: str) -> bool:
+        """
+        Check if error matches "the pool '<name>' is already closed" pattern.
+
+        This compound check handles the production error format where the pool name
+        varies (e.g., "the pool 'pool-1' is already closed"). Using a compound check
+        avoids false positives from generic "is already closed" patterns like
+        "connection is already closed" or "file handle is already closed".
+
+        Args:
+            error_str: Lowercase string representation of the error
+
+        Returns:
+            True if this is a pool-already-closed error with variable pool name
+        """
+        return "the pool '" in error_str and "is already closed" in error_str
+
     def _is_transient_error(self, error: Exception) -> bool:
         """Check if an error is transient and should be retried."""
         error_str = str(error).lower()
@@ -713,6 +731,10 @@ class ResilientPostgresSaver:
         for pattern in self.TRANSIENT_ERROR_PATTERNS:
             if pattern in error_str:
                 return True
+
+        # Check for pool closed with variable pool name (e.g., "the pool 'pool-1' is already closed")
+        if self._is_pool_already_closed_with_name(error_str):
+            return True
 
         # Check for psycopg-specific transient errors
         if "OperationalError" in error_type or "InterfaceError" in error_type:
@@ -737,6 +759,11 @@ class ResilientPostgresSaver:
         for pattern in self.CONNECTION_LOST_PATTERNS:
             if pattern in error_str:
                 return True
+
+        # Check for pool closed with variable pool name (e.g., "the pool 'pool-1' is already closed")
+        if self._is_pool_already_closed_with_name(error_str):
+            return True
+
         return False
 
     def _reset_pool_and_inner(self) -> None:
@@ -1512,6 +1539,11 @@ class AgentState(TypedDict):
         internal_review_result: Result from internal re-review
         internal_review_decision: Decision (approve, request_changes, escalate)
         ai_reviewer_agreement: Agreement level (agree, partial, disagree)
+
+    EPIC B Phase B-3 New Fields (Diff-aware review for commit pinning):
+        diff_head_sha: Optional[str] - PR head commit SHA (40-char hex, case-insensitive)
+        diff_content: Optional[str] - Sanitized diff content (max 100KB per DIFF_MAX_SIZE_BYTES)
+        diff_truncated: Optional[bool] - Whether diff was truncated due to size limits
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -1581,6 +1613,11 @@ class AgentState(TypedDict):
     internal_review_result: dict
     internal_review_decision: str
     ai_reviewer_agreement: str
+    # EPIC B Phase B-3: Diff-aware review fields for commit pinning
+    # Set by reviewer_node, read by publisher_node. See docstring for field details.
+    diff_head_sha: Optional[str]
+    diff_content: Optional[str]
+    diff_truncated: Optional[bool]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
