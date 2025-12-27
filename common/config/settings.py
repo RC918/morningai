@@ -788,6 +788,17 @@ class Settings(BaseSettings):
         description="Skip PR creation in orchestrator, return synthetic results. Use in staging to avoid PR bombing."
     )
 
+    orchestrator_recursion_limit: int = Field(
+        default=30,
+        ge=5,
+        le=200,
+        alias="ORCHESTRATOR_RECURSION_LIMIT",
+        description="Maximum number of LangGraph workflow steps before forced termination. "
+                    "Prevents runaway workflows from infinite loops or excessive checkpoint writes. "
+                    "Default: 30 (sufficient for typical PR review workflows). "
+                    "Blueprint: Flow Controller v3 Fail-Fast Recovery."
+    )
+
     # Value Gate Settings (Publisher Node Governance)
     # Blueprint: Flow Controller v3 + Safety Governor v2
     enable_value_gate: bool = Field(
