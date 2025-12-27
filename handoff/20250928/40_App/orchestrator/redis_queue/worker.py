@@ -2125,6 +2125,24 @@ def cleanup_stale_legacy_worker():
 if __name__ == "__main__":
     from rq import Worker
     
+    if settings.worker_drain_mode:
+        # Sleep before exit to prevent rapid restart loops on Render
+        # This reduces container orchestrator churn and avoids health check failures
+        drain_sleep_seconds = 60
+        logger.info(
+            "Drain mode active, worker exiting without consuming jobs",
+            extra={
+                "operation": "drain_mode",
+                "drain_mode": True,
+                "drain_sleep_seconds": drain_sleep_seconds,
+                "heartbeat_id": HEARTBEAT_ID,
+                "rq_worker_name": RQ_WORKER_NAME,
+                "queue": RQ_QUEUE_NAME,
+            }
+        )
+        time.sleep(drain_sleep_seconds)
+        sys.exit(0)
+    
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     atexit.register(cleanup_heartbeat)

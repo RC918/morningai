@@ -799,6 +799,15 @@ class Settings(BaseSettings):
                     "Blueprint: Flow Controller v3 Fail-Fast Recovery."
     )
 
+    worker_drain_mode: bool = Field(
+        default=False,
+        alias="WORKER_DRAIN_MODE",
+        description="When True, NEW worker instances exit immediately without consuming jobs. "
+                    "Note: This does NOT stop in-progress jobs on already-running workers. "
+                    "See runbook for full DB maintenance procedure. "
+                    "Blueprint: Flow Controller v3 Operational Control."
+    )
+
     # Value Gate Settings (Publisher Node Governance)
     # Blueprint: Flow Controller v3 + Safety Governor v2
     enable_value_gate: bool = Field(
