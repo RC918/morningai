@@ -80,7 +80,9 @@ class TestFormatDiagnostic:
 
         json_part = result[3:]
         parsed = json.loads(json_part)
-        assert parsed == {}
+        # Empty data should only contain the version field
+        assert "_v" in parsed
+        assert len(parsed) == 1  # Only version field
 
     def test_allowed_lines_sample_limiting(self):
         """Test that allowed_lines_sample is limited."""

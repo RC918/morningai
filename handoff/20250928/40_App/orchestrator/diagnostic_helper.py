@@ -6,14 +6,22 @@ as JSON in log messages. It handles:
 - JSON serialization with fallback for non-serializable objects
 - Size limits to prevent log truncation
 - Consistent formatting with | delimiter
+- Version tracking for diagnostic data format
 
 Usage:
     from diagnostic_helper import format_diagnostic
     logger.info(f"[Reviewer] DIAGNOSTIC: LLM raw comment output{format_diagnostic(data)}")
+
+Version History:
+    v1.0.0 - Initial implementation with format_diagnostic()
+    v1.1.0 - Added DIAGNOSTIC_VERSION for tracking format changes
 """
 import json
 import hashlib
 from typing import Any, Dict, List, Optional
+
+# Diagnostic format version - increment when changing output structure
+DIAGNOSTIC_VERSION = "1.1.0"
 
 
 # Maximum number of items to include in array samples
@@ -84,7 +92,8 @@ def format_diagnostic(
 
     try:
         # Create a copy to avoid modifying the original
-        output_data = {}
+        # Include diagnostic version for tracking format changes
+        output_data = {"_v": DIAGNOSTIC_VERSION}
 
         for key, value in data.items():
             if key in sample_keys and isinstance(value, list):
