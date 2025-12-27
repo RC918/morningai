@@ -1843,6 +1843,27 @@ def _planner_success(
     return state
 
 
+def _get_workflow_config(trace_id: str) -> dict:
+    """Creates the config dictionary for a LangGraph workflow invocation.
+
+    Centralizes workflow configuration to ensure consistent settings across all
+    orchestrator entry points (run_orchestrator, run_review_follow_up_orchestrator,
+    run_internal_review_orchestrator).
+
+    Args:
+        trace_id: Unique identifier for this workflow execution (used as thread_id)
+
+    Returns:
+        Config dict with thread_id and recursion_limit for LangGraph invoke()
+
+    Blueprint: Flow Controller v3 Fail-Fast Recovery (Step Cap protection)
+    """
+    return {
+        "configurable": {"thread_id": trace_id},
+        "recursion_limit": settings.orchestrator_recursion_limit,
+    }
+
+
 class AgentState(TypedDict):
     """
     State of the agent workflow
@@ -5842,10 +5863,7 @@ def run_orchestrator(
     if pr_url:
         initial_state["pr_url"] = pr_url
 
-    config = {
-        "configurable": {"thread_id": trace_id},
-        "recursion_limit": settings.orchestrator_recursion_limit,
-    }
+    config = _get_workflow_config(trace_id)
 
     try:
         result = app.invoke(initial_state, config)
@@ -6030,10 +6048,7 @@ def run_review_follow_up_orchestrator(
         "requires_hitl_approval": review_task.get("requires_approval", False),
     })
 
-    config = {
-        "configurable": {"thread_id": trace_id},
-        "recursion_limit": settings.orchestrator_recursion_limit,
-    }
+    config = _get_workflow_config(trace_id)
 
     try:
         result = app.invoke(initial_state, config)
@@ -6236,10 +6251,7 @@ def run_internal_review_orchestrator(
         "ai_reviewer_agreement": "",
     })
 
-    config = {
-        "configurable": {"thread_id": trace_id},
-        "recursion_limit": settings.orchestrator_recursion_limit,
-    }
+    config = _get_workflow_config(trace_id)
 
     try:
         result = app.invoke(initial_state, config)
