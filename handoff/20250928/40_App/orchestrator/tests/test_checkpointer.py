@@ -992,6 +992,42 @@ class TestResilientPostgresSaver:
             assert not wrapper._is_transient_error(error), \
                 f"Error '{error}' should NOT be classified as transient"
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_closed_with_special_characters_in_name(self):
+        """Test that pool closed errors with special characters in pool name are matched
+
+        This test ensures the compound check handles edge cases where pool names
+        contain special characters, Unicode, or unusual formatting.
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        special_pool_name_errors = [
+            Exception("the pool 'pool-with-dashes-123' is already closed"),
+            Exception("the pool 'pool_with_underscores' is already closed"),
+            Exception("the pool 'pool.with.dots' is already closed"),
+            Exception("the pool 'pool:with:colons' is already closed"),
+            Exception("the pool 'pool/with/slashes' is already closed"),
+            Exception("the pool 'pool@special#chars!' is already closed"),
+            Exception("the pool 'unicode-pool' is already closed"),
+        ]
+
+        for error in special_pool_name_errors:
+            assert wrapper._is_transient_error(error), \
+                f"Error '{error}' should be classified as transient"
+            error_str = str(error).lower()
+            assert wrapper._is_connection_lost_error(error_str), \
+                f"Error '{error}' should trigger pool reset"
+
 
 class TestResilientPostgresSaverOOMFix:
     """Tests for OOM fix (Dec 2025): pool reset and memory release
