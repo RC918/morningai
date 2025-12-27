@@ -41,6 +41,27 @@ def _safe_serialize(obj: Any) -> Any:
     return str(obj)
 
 
+def compute_diagnostic_hash(data: Dict[str, Any]) -> str:
+    """
+    Compute a hash of diagnostic data for deduplication.
+
+    This function creates a deterministic hash of the diagnostic data
+    that can be used to identify duplicate diagnostic entries.
+
+    Args:
+        data: Dictionary of diagnostic data to hash
+
+    Returns:
+        A hex string representing the SHA256 hash (first 16 chars)
+    """
+    try:
+        json_str = json.dumps(data, sort_keys=True, default=str)
+        hash_value = hashlib.sha256(json_str.encode()).hexdigest()[:16]
+        return hash_value
+    except Exception:
+        return "hash_error"
+
+
 def _sample_array(arr: List, max_size: int = MAX_SAMPLE_SIZE) -> Dict:
     """
     Sample an array to reduce size while preserving diagnostic value.
