@@ -242,7 +242,7 @@ def _get_postgres_pool():
     - max_idle: 120 (2 minutes, aggressive recycling of idle connections)
     - reconnect_timeout: 60 (1 minute timeout for reconnection attempts)
     - check: ConnectionPool.check_connection (validates connection health)
-    - TCP Keepalive: keepalives_idle=30s, interval=10s, count=5 (prevents NAT/LB drops)
+    - TCP Keepalive (libpq seconds): idle=30, interval=10, count=5 (~80s worst-case detection)
 
     Returns:
         ConnectionPool: The global connection pool instance, or None if initialization fails
@@ -295,9 +295,11 @@ def _get_postgres_pool():
                     "prepare_threshold": 0,  # Disable prepared statements to avoid state loss on reconnect
                     # TCP Keepalive settings (vital for cloud NAT/LB)
                     # These prevent network devices from dropping idle connections
+                    # All values are in seconds (libpq convention)
+                    # Worst-case dead peer detection: idle(30) + interval(10) * count(5) = ~80s
                     "keepalives": 1,  # Enable TCP keepalive
-                    "keepalives_idle": 30,  # Send keepalive after 30s of idle
-                    "keepalives_interval": 10,  # Retry every 10s
+                    "keepalives_idle": 30,  # Start probing after 30s idle (seconds, libpq)
+                    "keepalives_interval": 10,  # Probe every 10s (~50s probe window)
                     "keepalives_count": 5,  # Give up after 5 failed probes
                 },
                 # Health check: validates connection before returning from pool
