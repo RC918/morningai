@@ -535,11 +535,25 @@ def get_postgres_checkpointer():
         #
         # OOM Fix (Dec 2025): Pass inner_factory to allow recreating inner saver after
         # pool reset on connection-lost errors
+        #
+        # Issue #3109: Get retry log sample rate from settings for rate-limited logging
+        # Use defensive type check to handle mocked settings (MagicMock returns MagicMock
+        # for any attribute access, not the default value from getattr)
+        raw_sample_rate = getattr(
+            settings,
+            "checkpoint_retry_log_sample_rate",
+            ResilientPostgresSaver.DEFAULT_RETRY_LOG_SAMPLE_RATE
+        )
+        try:
+            retry_log_sample_rate = int(raw_sample_rate)
+        except (TypeError, ValueError):
+            retry_log_sample_rate = ResilientPostgresSaver.DEFAULT_RETRY_LOG_SAMPLE_RATE
         checkpointer = ResilientPostgresSaver(
             inner_saver=inner_checkpointer,
             max_retries=3,
             base_delay=0.5,
             inner_factory=create_inner_saver,
+            retry_log_sample_rate=retry_log_sample_rate,
         )
 
         # Get pool statistics safely
@@ -558,6 +572,7 @@ def get_postgres_checkpointer():
                 "checkpointer_type": "resilient_postgres_pool_per_op",
                 "max_retries": 3,
                 "base_delay": 0.5,
+                "retry_log_sample_rate": retry_log_sample_rate,
                 "pool_stats": {
                     "size": pool_size,
                     "available": pool_available,
@@ -661,6 +676,10 @@ class ResilientPostgresSaver:
         "pool is already closed",  # Catches exact match (compound check below handles pool name variants)
     ]
 
+    # Default retry log sample rate: log every Nth retry (1 = log all)
+    # Can be overridden via settings.checkpoint_retry_log_sample_rate
+    DEFAULT_RETRY_LOG_SAMPLE_RATE = 1
+
     def __init__(
         self,
         inner_saver,
@@ -668,6 +687,7 @@ class ResilientPostgresSaver:
         base_delay: float = 0.5,
         circuit_breaker_threshold: int = 3,
         inner_factory: Optional[Callable] = None,
+        retry_log_sample_rate: int = 1,
     ):
         """
         Initialize ResilientPostgresSaver.
@@ -683,6 +703,9 @@ class ResilientPostgresSaver:
                           Used to recreate the inner saver after pool reset on connection
                           lost errors. If not provided, pool reset will still occur but
                           the inner saver will not be recreated.
+            retry_log_sample_rate: Sample rate for retry warning logs (default: 1 = log all).
+                                   Set to N to log every Nth retry. First and last retries
+                                   are always logged regardless of this setting. (Issue #3109)
 
         Note: The inner_saver already receives the ConnectionPool directly, so each
         checkpoint operation borrows a connection per-operation. This wrapper adds
@@ -699,10 +722,15 @@ class ResilientPostgresSaver:
         self._base_delay = base_delay
         self._circuit_breaker_threshold = circuit_breaker_threshold
         self._inner_factory = inner_factory
+        self._retry_log_sample_rate = max(1, retry_log_sample_rate)
         # Circuit breaker state (per-instance, not global)
         # This tracks consecutive failures within a single job/workflow
         self._consecutive_failures = 0
         self._circuit_open = False
+        # Rate-limited logging state (Issue #3109)
+        # Tracks retry attempts for log sampling to reduce noise during outages
+        self._total_retry_attempts = 0
+        self._retry_log_count = 0
 
     @staticmethod
     def _is_pool_closed_with_name(error_str: str) -> bool:
@@ -777,6 +805,42 @@ class ResilientPostgresSaver:
             return True
 
         return False
+
+    def _should_log_retry(self, is_first: bool, is_last: bool) -> bool:
+        """
+        Determine if this retry attempt should be logged based on sampling rate.
+
+        Issue #3109: Rate-limited logging for repeated transient errors.
+        During prolonged outages, each retry generates a log entry which can
+        overwhelm log systems and make it harder to identify root causes.
+
+        This method implements sampling: log every Nth retry, but always log
+        the first and last attempts for visibility.
+
+        Note: This is a pure function with no side effects. Counter increments
+        are handled by the caller (_retry_with_backoff) before calling this method.
+
+        Args:
+            is_first: True if this is the first retry attempt
+            is_last: True if this is the final retry attempt before exhaustion
+
+        Returns:
+            True if this retry should be logged, False to skip logging
+        """
+        # Always log first retry warning
+        if is_first:
+            return True
+
+        # Always log last retry warning (before exhaustion)
+        if is_last:
+            return True
+
+        # Sample based on configured rate
+        # retry_log_count is 1-indexed (incremented before this call)
+        if self._retry_log_sample_rate == 1:
+            return True
+
+        return self._retry_log_count % self._retry_log_sample_rate == 0
 
     def _reset_pool_and_inner(self) -> None:
         """
@@ -930,22 +994,34 @@ class ResilientPostgresSaver:
                     should_retry = True
                     is_connection_lost = self._is_connection_lost_error(error_str_lower)
 
-                    logger.warning(
-                        f"ResilientPostgresSaver: Transient error in {operation_name}, "
-                        f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1}). "
-                        f"error_type={error_type} error={sanitized_error[:200]}",
-                        extra={
-                            "operation": "resilient_postgres_saver",
-                            "checkpoint_operation": operation_name,
-                            "error": sanitized_error,
-                            "error_type": error_type,
-                            "attempt": attempt + 1,
-                            "max_retries": self._max_retries + 1,
-                            "delay_seconds": delay,
-                            "is_connection_lost": is_connection_lost,
-                            "masking_failed": masking_failed,
-                        }
-                    )
+                    # Issue #3109: Track retry attempts for metrics and sampling
+                    # These counters are always incremented, even when log is sampled out
+                    self._total_retry_attempts += 1
+                    self._retry_log_count += 1
+
+                    # Issue #3109: Rate-limited logging to reduce noise during outages
+                    # Always log first and last retry warnings; sample intermediate retries
+                    is_first_retry = (attempt == 0)
+                    is_last_retry = (attempt == self._max_retries - 1)
+                    if self._should_log_retry(is_first_retry, is_last_retry):
+                        logger.warning(
+                            f"ResilientPostgresSaver: Transient error in {operation_name}, "
+                            f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1}). "
+                            f"error_type={error_type} error={sanitized_error[:200]}",
+                            extra={
+                                "operation": "resilient_postgres_saver",
+                                "checkpoint_operation": operation_name,
+                                "error": sanitized_error,
+                                "error_type": error_type,
+                                "attempt": attempt + 1,
+                                "max_retries": self._max_retries + 1,
+                                "delay_seconds": delay,
+                                "is_connection_lost": is_connection_lost,
+                                "masking_failed": masking_failed,
+                                "total_retry_attempts": self._total_retry_attempts,
+                                "log_sampled": self._retry_log_sample_rate > 1,
+                            }
+                        )
 
                     # OOM Fix: Clear exception traceback BEFORE exiting except block
                     # This releases all local variables held in the traceback frames

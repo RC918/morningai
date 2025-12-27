@@ -1537,3 +1537,357 @@ class TestResilientPostgresSaverOOMFix:
         mock_inner_1.get.assert_called_once()
         mock_inner_2.get.assert_called_once()
         mock_inner_3.get.assert_called_once()
+
+
+class TestResilientPostgresSaverRateLimitedLogging:
+    """Tests for rate-limited logging in ResilientPostgresSaver (Issue #3109)
+
+    During prolonged database outages, each retry generates a log entry which can
+    overwhelm log systems. This test class verifies the rate-limited logging behavior:
+    - First retry is always logged
+    - Last retry is always logged
+    - Intermediate retries are sampled based on retry_log_sample_rate
+    - Total retry attempts are tracked even when logs are sampled out
+    """
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_default_sample_rate_logs_all_retries(self):
+        """Test that default sample_rate=1 logs all retry attempts"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("ssl connection has been closed unexpectedly"),
+            Exception("ssl connection has been closed unexpectedly"),
+            {"checkpoint": "success"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=2,
+            base_delay=0.01,
+            retry_log_sample_rate=1,
+        )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            with patch.object(time, 'sleep'):
+                result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "success"}
+        warning_calls = [c for c in mock_logger.warning.call_args_list
+                         if "Transient error" in str(c)]
+        assert len(warning_calls) == 2
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_sample_rate_5_logs_first_and_sampled_retries(self):
+        """Test that sample_rate=5 logs first retry and every 5th retry"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        errors = [Exception("ssl connection has been closed unexpectedly")] * 10
+        errors.append({"checkpoint": "success"})
+        mock_inner.get.side_effect = errors
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=10,
+            base_delay=0.001,
+            retry_log_sample_rate=5,
+        )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            with patch.object(time, 'sleep'):
+                result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "success"}
+        warning_calls = [c for c in mock_logger.warning.call_args_list
+                         if "Transient error" in str(c)]
+        assert len(warning_calls) >= 2
+        assert wrapper._total_retry_attempts == 10
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_first_retry_always_logged(self):
+        """Test that first retry (attempt=0) is always logged regardless of sample rate"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("ssl connection has been closed unexpectedly"),
+            {"checkpoint": "success"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=1,
+            base_delay=0.01,
+            retry_log_sample_rate=100,
+        )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            with patch.object(time, 'sleep'):
+                result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "success"}
+        warning_calls = [c for c in mock_logger.warning.call_args_list
+                         if "Transient error" in str(c)]
+        assert len(warning_calls) == 1
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_last_retry_always_logged(self):
+        """Test that last retry is always logged regardless of sample rate"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("ssl connection has been closed unexpectedly"),
+            Exception("ssl connection has been closed unexpectedly"),
+            {"checkpoint": "success"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=2,
+            base_delay=0.01,
+            retry_log_sample_rate=100,
+        )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            with patch.object(time, 'sleep'):
+                result = wrapper.get({"config": "test"})
+
+        assert result == {"checkpoint": "success"}
+        warning_calls = [c for c in mock_logger.warning.call_args_list
+                         if "Transient error" in str(c)]
+        assert len(warning_calls) == 2
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_total_retry_attempts_counter_increments(self):
+        """Test that _total_retry_attempts counter increments for every retry"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        errors = [Exception("ssl connection has been closed unexpectedly")] * 5
+        errors.append({"checkpoint": "success"})
+        mock_inner.get.side_effect = errors
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=5,
+            base_delay=0.001,
+            retry_log_sample_rate=10,
+        )
+
+        assert wrapper._total_retry_attempts == 0
+
+        with patch('langgraph_orchestrator.logger'):
+            with patch.object(time, 'sleep'):
+                wrapper.get({"config": "test"})
+
+        assert wrapper._total_retry_attempts == 5
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_retry_log_count_increments(self):
+        """Test that _retry_log_count increments for every retry"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        errors = [Exception("ssl connection has been closed unexpectedly")] * 3
+        errors.append({"checkpoint": "success"})
+        mock_inner.get.side_effect = errors
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.001,
+            retry_log_sample_rate=1,
+        )
+
+        assert wrapper._retry_log_count == 0
+
+        with patch('langgraph_orchestrator.logger'):
+            with patch.object(time, 'sleep'):
+                wrapper.get({"config": "test"})
+
+        assert wrapper._retry_log_count == 3
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_sample_rate_minimum_is_1(self):
+        """Test that sample_rate is clamped to minimum of 1"""
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+            retry_log_sample_rate=0,
+        )
+
+        assert wrapper._retry_log_sample_rate == 1
+
+        wrapper2 = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.01,
+            retry_log_sample_rate=-5,
+        )
+
+        assert wrapper2._retry_log_sample_rate == 1
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_log_extra_includes_total_retry_attempts(self):
+        """Test that log extra includes total_retry_attempts for metrics"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("ssl connection has been closed unexpectedly"),
+            {"checkpoint": "success"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=1,
+            base_delay=0.01,
+            retry_log_sample_rate=1,
+        )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            with patch.object(time, 'sleep'):
+                wrapper.get({"config": "test"})
+
+        warning_calls = [c for c in mock_logger.warning.call_args_list
+                         if "Transient error" in str(c)]
+        assert len(warning_calls) == 1
+        extra = warning_calls[0][1].get('extra', {})
+        assert 'total_retry_attempts' in extra
+        assert extra['total_retry_attempts'] == 1
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_log_extra_includes_log_sampled_flag(self):
+        """Test that log extra includes log_sampled flag"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("ssl connection has been closed unexpectedly"),
+            {"checkpoint": "success"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=1,
+            base_delay=0.01,
+            retry_log_sample_rate=5,
+        )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            with patch.object(time, 'sleep'):
+                wrapper.get({"config": "test"})
+
+        warning_calls = [c for c in mock_logger.warning.call_args_list
+                         if "Transient error" in str(c)]
+        assert len(warning_calls) == 1
+        extra = warning_calls[0][1].get('extra', {})
+        assert 'log_sampled' in extra
+        assert extra['log_sampled'] is True
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_should_log_retry_method_directly(self):
+        """Test _should_log_retry method behavior directly
+
+        Note: _should_log_retry is now a pure function with no side effects.
+        Counter increments are handled by the caller (_retry_with_backoff).
+        The method signature is _should_log_retry(is_first, is_last).
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=10,
+            base_delay=0.01,
+            retry_log_sample_rate=5,
+        )
+
+        # First retry is always logged
+        assert wrapper._should_log_retry(is_first=True, is_last=False) is True
+
+        # Last retry is always logged
+        assert wrapper._should_log_retry(is_first=False, is_last=True) is True
+
+        # Intermediate retries depend on counter and sample rate
+        # Simulate counter increments (normally done by caller)
+        wrapper._retry_log_count = 1
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is False
+
+        wrapper._retry_log_count = 5
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is True
+
+        wrapper._retry_log_count = 10
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is True
+
+        wrapper._retry_log_count = 7
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is False
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_backward_compatibility_default_logs_all(self):
+        """Test backward compatibility: default behavior logs all retries"""
+        import time
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("ssl connection has been closed unexpectedly"),
+            Exception("ssl connection has been closed unexpectedly"),
+            Exception("ssl connection has been closed unexpectedly"),
+            {"checkpoint": "success"},
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.001,
+        )
+
+        assert wrapper._retry_log_sample_rate == 1
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            with patch.object(time, 'sleep'):
+                wrapper.get({"config": "test"})
+
+        warning_calls = [c for c in mock_logger.warning.call_args_list
+                         if "Transient error" in str(c)]
+        assert len(warning_calls) == 3
