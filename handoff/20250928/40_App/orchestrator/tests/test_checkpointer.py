@@ -1028,6 +1028,77 @@ class TestResilientPostgresSaver:
             assert wrapper._is_connection_lost_error(error_str), \
                 f"Error '{error}' should trigger pool reset"
 
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_is_closed_variant_triggers_retry(self):
+        """Test that 'the pool is closed' variant (without 'already') triggers retry
+
+        This test verifies the fix for the production error message observed in Sentry:
+        "the pool 'pool-1' is closed" (different from "is already closed")
+
+        psycopg_pool emits two different error formats:
+        1. "the pool 'pool-1' is closed" - PoolClosed exception
+        2. "the pool 'pool-1' is already closed" - PoolClosed exception (different code path)
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+        mock_inner.get.side_effect = [
+            Exception("the pool 'pool-1' is closed"),  # Note: "is closed" not "is already closed"
+            {"checkpoint": "data"},  # Success on second attempt
+        ]
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        with patch('langgraph_orchestrator.time.sleep') as mock_sleep:
+            with patch('langgraph_orchestrator.logger'):
+                result = wrapper.get({"config": "test"})
+
+        # Verify result
+        assert result == {"checkpoint": "data"}
+
+        # Verify retry occurred
+        assert mock_inner.get.call_count == 2
+        mock_sleep.assert_called_once_with(0.5)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_both_pool_closed_variants_classified_correctly(self):
+        """Test that both 'is closed' and 'is already closed' variants are classified as transient
+
+        This test ensures the compound check handles both production error formats.
+        """
+        from unittest.mock import MagicMock
+
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        mock_inner = MagicMock()
+
+        wrapper = ResilientPostgresSaver(
+            inner_saver=mock_inner,
+            max_retries=3,
+            base_delay=0.5,
+        )
+
+        # Both variants should be classified as transient
+        pool_closed_variants = [
+            Exception("the pool 'pool-1' is closed"),  # Variant 1: "is closed"
+            Exception("the pool 'pool-1' is already closed"),  # Variant 2: "is already closed"
+            Exception("the pool 'my-custom-pool' is closed"),
+            Exception("the pool 'my-custom-pool' is already closed"),
+        ]
+
+        for error in pool_closed_variants:
+            assert wrapper._is_transient_error(error), \
+                f"Error '{error}' should be classified as transient"
+            error_str = str(error).lower()
+            assert wrapper._is_connection_lost_error(error_str), \
+                f"Error '{error}' should trigger pool reset"
+
 
 class TestResilientPostgresSaverOOMFix:
     """Tests for OOM fix (Dec 2025): pool reset and memory release
