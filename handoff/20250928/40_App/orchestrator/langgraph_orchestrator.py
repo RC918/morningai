@@ -638,6 +638,8 @@ class ResilientPostgresSaver:
         "could not connect to server",
         "consuming input failed",
         "pipeline [bad]",  # psycopg Pipeline [BAD] state - exact match to avoid false positives
+        "pool is closed",  # psycopg_pool PoolClosed - occurs when pool reset races with checkpoint ops
+        "pool is already closed",  # Catches "the pool 'pool-1' is already closed"
     ]
 
     # Default circuit breaker threshold: after this many consecutive failures, fail fast
@@ -654,6 +656,8 @@ class ResilientPostgresSaver:
         "server closed the connection",
         "connection reset by peer",
         "pipeline [bad]",
+        "pool is closed",  # psycopg_pool PoolClosed - pool was reset by another operation
+        "pool is already closed",  # Catches "the pool 'pool-1' is already closed"
     ]
 
     def __init__(
@@ -856,7 +860,8 @@ class ResilientPostgresSaver:
                 if not self._is_transient_error(e):
                     # Non-transient error, don't retry
                     logger.error(
-                        f"ResilientPostgresSaver: Non-transient error in {operation_name}, not retrying",
+                        f"ResilientPostgresSaver: Non-transient error in {operation_name}, not retrying. "
+                        f"error_type={error_type} error={error_str[:200]}",
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
@@ -875,7 +880,8 @@ class ResilientPostgresSaver:
 
                     logger.warning(
                         f"ResilientPostgresSaver: Transient error in {operation_name}, "
-                        f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1})",
+                        f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1}). "
+                        f"error_type={error_type} error={error_str[:200]}",
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
@@ -916,7 +922,8 @@ class ResilientPostgresSaver:
 
                     # Log and raise directly instead of storing exception
                     logger.error(
-                        f"ResilientPostgresSaver: All retries exhausted for {operation_name}",
+                        f"ResilientPostgresSaver: All retries exhausted for {operation_name}. "
+                        f"error_type={error_type} error={error_str[:200]}",
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
