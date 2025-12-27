@@ -25,7 +25,8 @@ import time
 from typing import Any, Dict, List, Optional
 
 # Diagnostic format version - increment when changing output structure
-DIAGNOSTIC_VERSION = "1.2.0"
+# Note: Version updated to 1.2.1 for commit pinning verification
+DIAGNOSTIC_VERSION = "1.2.1"
 
 
 # Maximum number of items to include in array samples
