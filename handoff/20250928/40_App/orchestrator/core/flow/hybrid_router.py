@@ -94,10 +94,6 @@ def canonicalize_node_name(name: str) -> str:
     if normalized in CANONICAL_NODES:
         return normalized
 
-    for alias, canonical in NODE_ALIASES.items():
-        if normalized == alias.lower():
-            return canonical
-
     raise ValueError(
         f"Unknown node name '{name}'. "
         f"Valid aliases: {list(NODE_ALIASES.keys())}, "
@@ -132,23 +128,19 @@ class HybridRoutingPolicy:
 
     Attributes:
         llm_generate_fn: Function to call LLM for slow path decisions
-        timeout_seconds: Timeout for LLM calls
     """
 
     def __init__(
         self,
-        llm_generate_fn: Optional[Callable[[str], str]] = None,
-        timeout_seconds: float = 30.0
+        llm_generate_fn: Optional[Callable[[str], str]] = None
     ):
         """Initialize HybridRoutingPolicy.
 
         Args:
             llm_generate_fn: Function that takes a prompt and returns LLM response.
                             If None, slow path will fall back to deterministic.
-            timeout_seconds: Timeout for LLM calls
         """
         self.llm_generate_fn = llm_generate_fn
-        self.timeout_seconds = timeout_seconds
 
     def route(
         self,
@@ -332,15 +324,14 @@ Your response (JSON only):"""
             RoutingDecision from parsed response or fallback
         """
         import json
+        import re
 
         try:
-            response_clean = response.strip()
-            if response_clean.startswith("```"):
-                lines = response_clean.split("\n")
-                response_clean = "\n".join(
-                    line for line in lines
-                    if not line.startswith("```")
-                )
+            json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.DOTALL)
+            if json_match:
+                response_clean = json_match.group(1)
+            else:
+                response_clean = response.strip()
 
             data = json.loads(response_clean)
             raw_node = data.get("next_node", "")
