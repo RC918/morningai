@@ -209,3 +209,74 @@ def test_get_available_widgets_no_auth(client):
     assert response.status_code == 401
     data = response.get_json()
     assert 'error' in data
+
+
+# Track C MVP: Redis/Fallback path tests
+def test_metrics_has_source_header(client):
+    """Test GET /api/dashboard/metrics returns X-MorningAI-Metrics-Source header"""
+    response = client.get('/api/dashboard/metrics')
+
+    assert response.status_code == 200
+    assert 'X-MorningAI-Metrics-Source' in response.headers
+    source = response.headers['X-MorningAI-Metrics-Source']
+    assert source in ['redis', 'fallback']
+
+
+def test_metrics_fallback_returns_valid_schema(client, mocker):
+    """Test /metrics returns valid schema when Redis unavailable (fallback path)"""
+    mocker.patch(
+        'src.routes.dashboard.get_redis_client',
+        return_value=None
+    )
+
+    response = client.get('/api/dashboard/metrics')
+
+    assert response.status_code == 200
+    assert response.headers.get('X-MorningAI-Metrics-Source') == 'fallback'
+
+    data = response.get_json()
+    assert 'cpu_usage' in data
+    assert 'memory_usage' in data
+    assert 'response_time' in data
+    assert 'error_rate' in data
+    assert 'active_strategies' in data
+    assert 'pending_approvals' in data
+    assert 'cost_today' in data
+    assert 'cost_saved' in data
+    assert 'timestamp' in data
+
+    assert isinstance(data['cpu_usage'], (int, float))
+    assert isinstance(data['memory_usage'], (int, float))
+    assert isinstance(data['response_time'], (int, float))
+    assert isinstance(data['error_rate'], (int, float))
+
+
+def test_metrics_import_error_falls_back_gracefully(client, mocker):
+    """Test /metrics falls back gracefully when OrchestratorMetrics import fails"""
+    mock_redis = mocker.MagicMock()
+    mocker.patch(
+        'src.routes.dashboard.get_redis_client',
+        return_value=mock_redis
+    )
+
+    import sys
+    if 'orchestrator_metrics' in sys.modules:
+        del sys.modules['orchestrator_metrics']
+
+    import builtins
+    original_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == 'orchestrator_metrics':
+            raise ImportError("Mocked import failure")
+        return original_import(name, *args, **kwargs)
+
+    mocker.patch.object(builtins, '__import__', mock_import)
+
+    response = client.get('/api/dashboard/metrics')
+
+    assert response.status_code == 200
+    assert response.headers.get('X-MorningAI-Metrics-Source') == 'fallback'
+    data = response.get_json()
+    assert 'cpu_usage' in data
+    assert 'error_rate' in data

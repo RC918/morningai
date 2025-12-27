@@ -188,14 +188,20 @@ def get_system_metrics():
 
     Backward compatible: Returns same schema as before (cpu_usage, memory_usage, etc.)
     but populates with real orchestrator metrics when available.
+
+    Response headers:
+    - X-MorningAI-Metrics-Source: 'redis' or 'fallback'
+    - X-MorningAI-Metrics-Window: window in minutes (when source=redis)
     """
     try:
+        from flask import make_response
         from src.utils.redis_client import get_redis_client
 
-        real_error_rate = 0.0
-        real_response_time = 200
-        real_active_strategies = 10
-        real_pending_approvals = 2
+        used_redis = False
+        real_error_rate = None
+        real_response_time = None
+        real_active_strategies = None
+        real_pending_approvals = None
 
         try:
             redis_client = get_redis_client()
@@ -213,6 +219,7 @@ def get_system_metrics():
                 workflow_started = workflow_summary.get('started', 0)
                 workflow_error = workflow_summary.get('error', 0)
 
+                real_error_rate = 0.0
                 if workflow_started > 0:
                     real_error_rate = round(workflow_error / workflow_started, 3)
 
@@ -223,6 +230,7 @@ def get_system_metrics():
                         bucket_key, window_minutes=15
                     )
 
+                real_response_time = 0
                 if reviewer_latency_count > 0:
                     weighted_sum = 0
                     for bucket in [100, 250, 500, 1000, 2500, 5000, 10000, 30000]:
@@ -234,33 +242,56 @@ def get_system_metrics():
                 total_decisions = decision_summary.get('total', 0)
                 needs_fix_count = decision_summary.get('needs_fix', 0)
 
-                if total_decisions > 0:
-                    real_active_strategies = total_decisions
-                if needs_fix_count > 0:
-                    real_pending_approvals = needs_fix_count
+                real_active_strategies = total_decisions
+                real_pending_approvals = needs_fix_count
 
-                logger.info(f"Redis metrics: err={real_error_rate}, resp_time={real_response_time}")
+                used_redis = True
+                logger.info(
+                    f"[METRICS_SOURCE_REDIS] err={real_error_rate}, "
+                    f"resp_time={real_response_time}, decisions={total_decisions}"
+                )
 
         except ImportError as e:
-            logger.warning(f"OrchestratorMetrics not available: {e}")
+            logger.error(
+                f"[METRICS_IMPORT_FAILED] OrchestratorMetrics import failed: {e}. "
+                "Check PYTHONPATH includes orchestrator directory."
+            )
         except Exception as e:
-            logger.warning(f"Failed to get orchestrator metrics: {e}")
+            logger.error(f"[METRICS_REDIS_ERROR] Failed to get Redis metrics: {e}")
 
-        metrics = {
-            'cpu_usage': round(random.uniform(60, 90), 1),
-            'memory_usage': round(random.uniform(50, 80), 1),
-            'response_time': real_response_time,
-            'error_rate': real_error_rate if real_error_rate > 0 else round(random.uniform(0.01, 0.05), 3),
-            'active_strategies': real_active_strategies,
-            'pending_approvals': real_pending_approvals,
-            'cost_today': round(random.uniform(30, 60), 2),
-            'cost_saved': round(random.uniform(100, 200), 2),
-            'timestamp': datetime.datetime.now().isoformat()
-        }
+        if used_redis:
+            metrics = {
+                'cpu_usage': round(random.uniform(60, 90), 1),
+                'memory_usage': round(random.uniform(50, 80), 1),
+                'response_time': real_response_time,
+                'error_rate': real_error_rate,
+                'active_strategies': real_active_strategies,
+                'pending_approvals': real_pending_approvals,
+                'cost_today': round(random.uniform(30, 60), 2),
+                'cost_saved': round(random.uniform(100, 200), 2),
+                'timestamp': datetime.datetime.now().isoformat()
+            }
+        else:
+            metrics = {
+                'cpu_usage': round(random.uniform(60, 90), 1),
+                'memory_usage': round(random.uniform(50, 80), 1),
+                'response_time': round(random.uniform(100, 300), 0),
+                'error_rate': round(random.uniform(0.01, 0.05), 3),
+                'active_strategies': random.randint(5, 15),
+                'pending_approvals': random.randint(1, 5),
+                'cost_today': round(random.uniform(30, 60), 2),
+                'cost_saved': round(random.uniform(100, 200), 2),
+                'timestamp': datetime.datetime.now().isoformat()
+            }
 
-        return jsonify(metrics)
+        response = make_response(jsonify(metrics))
+        response.headers['X-MorningAI-Metrics-Source'] = 'redis' if used_redis else 'fallback'
+        if used_redis:
+            response.headers['X-MorningAI-Metrics-Window'] = '15'
+        return response
 
-    except Exception:
+    except Exception as e:
+        logger.error(f"[METRICS_FATAL_ERROR] Unexpected error in get_system_metrics: {e}")
         return jsonify({'error': '獲取系統指標失敗'}), 500
 
 @dashboard_bp.route('/performance-history', methods=['GET'])
