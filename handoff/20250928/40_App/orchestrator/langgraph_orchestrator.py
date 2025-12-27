@@ -4312,15 +4312,21 @@ def reviewer_node(state: AgentState) -> AgentState:
         except Exception as outcome_error:
             # Fallback: build unknown outcome if ReviewOutcome construction fails
             from core.routing.review_outcome import build_unknown_outcome
+            error_type = type(outcome_error).__name__
+            error_msg = str(outcome_error)[:500]  # Truncate to avoid log bloat
             state["review_outcome"] = build_unknown_outcome(
-                error=str(outcome_error),
+                error=f"{error_type}: {error_msg}",
                 diff_truncated=state.get("diff_truncated", False)
             )
-            logger.warning("[Reviewer] ReviewOutcome build failed, using fallback", extra={
-                "operation": "reviewer",
-                "trace_id": trace_id,
-                "error": str(outcome_error)
-            })
+            logger.warning(
+                f"[Reviewer] ReviewOutcome build failed ({error_type}), using fallback",
+                extra={
+                    "operation": "reviewer",
+                    "trace_id": trace_id,
+                    "error_type": error_type,
+                    "error_message": error_msg
+                }
+            )
 
     except Exception as e:
         success = False
@@ -4339,8 +4345,10 @@ def reviewer_node(state: AgentState) -> AgentState:
 
         # EPIC B-6: Build unknown ReviewOutcome for error case
         from core.routing.review_outcome import build_unknown_outcome
+        error_type = type(e).__name__
+        error_msg = str(e)[:500]  # Truncate to avoid log bloat
         state["review_outcome"] = build_unknown_outcome(
-            error=str(e),
+            error=f"{error_type}: {error_msg}",
             diff_truncated=state.get("diff_truncated", False)
         )
 

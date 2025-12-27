@@ -128,14 +128,17 @@ def _map_severity(severity: Optional[str]) -> SeverityType:
     return "low"
 
 
-def _compute_blocker_count(review_comments: List[Dict[str, Any]]) -> int:
+def _compute_blocker_count(
+    review_comments: Optional[List[Dict[str, Any]]]
+) -> int:
     """
     Compute blocker count from review comments.
 
     Blockers are comments where severity in {"high", "critical"}.
 
     Args:
-        review_comments: List of review comment dicts with severity field
+        review_comments: List of review comment dicts with severity field.
+                         Can be None (defensive handling for edge cases).
 
     Returns:
         Count of blocker comments
@@ -143,12 +146,10 @@ def _compute_blocker_count(review_comments: List[Dict[str, Any]]) -> int:
     if not review_comments:
         return 0
 
-    count = 0
-    for comment in review_comments:
-        severity = comment.get("severity", "").lower()
-        if severity in BLOCKER_SEVERITIES:
-            count += 1
-    return count
+    return sum(
+        1 for comment in review_comments
+        if comment.get("severity", "").lower() in BLOCKER_SEVERITIES
+    )
 
 
 def _determine_verdict(
