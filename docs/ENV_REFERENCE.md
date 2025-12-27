@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 227
+- **Total Variables**: 232
 - **Required**: 21
-- **Optional**: 206
+- **Optional**: 211
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -32,7 +32,7 @@
 - [Integration](#integration) (19 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
-- [Feature Flags](#feature-flags) (58 variables)
+- [Feature Flags](#feature-flags) (63 variables)
 - [Orchestrator](#orchestrator) (6 variables)
 - [Frontend](#frontend) (6 variables)
 - [Testing](#testing) (17 variables)
@@ -1777,6 +1777,11 @@ Application logging level
 | `PHASE3_SUCCESS_RATE_THRESHOLD` | number | No | 95.0 | PUBLIC |
 | `PHASE3_TIMEOUT_RATE_THRESHOLD` | number | No | 2.0 | PUBLIC |
 | `FEATURE_COOKIE_AUTH` | boolean | No | true | PUBLIC |
+| `ENABLE_DYNAMIC_ROUTING` | boolean | No | false | PUBLIC |
+| `ROUTER_MODEL_TIER` | string (tier1, tier2) | No | tier1 | PUBLIC |
+| `ROUTER_TIMEOUT_SECONDS` | integer | No | 10 | PUBLIC |
+| `ROUTER_MAX_RETRIES` | integer | No | 2 | PUBLIC |
+| `ROUTER_FALLBACK_RATE_THRESHOLD` | float | No | 0.3 | PUBLIC |
 
 ### Details
 
@@ -2517,6 +2522,79 @@ Enable cookie-based authentication (vs header-only)
 - **Required**: No
 - **Default**: `true`
 - **Security Level**: PUBLIC
+
+#### `ENABLE_DYNAMIC_ROUTING`
+
+Enable LLM-driven dynamic routing (Flow Controller v3)
+
+- **Type**: boolean
+- **Required**: No
+- **Default**: `false`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> EPIC C Stage 0: Flow Controller v3 foundations (Issues #2744-#2747).
+> When false (default): 100% of traffic uses existing conditional_edges routing.
+> When true: Enables Router v3 with fail-safe fallback to deterministic routing.
+> MUST default to false per Blueprint guarantee - no impact on existing behavior.
+
+#### `ROUTER_MODEL_TIER`
+
+Model tier for router decisions (tier1=235B, tier2=80B)
+
+- **Type**: string (tier1, tier2)
+- **Required**: No
+- **Default**: `tier1`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Controls which model tier is used for router LLM calls:
+> - tier1 (default): 235B parameter model (highest quality, recommended for production)
+> - tier2: 80B parameter model (faster, lower cost, suitable for staging)
+
+#### `ROUTER_TIMEOUT_SECONDS`
+
+Timeout for router LLM calls in seconds (1-60)
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `10`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> If the LLM doesn't respond within this time, falls back to deterministic routing.
+> Lower values (5s): Faster fallback, may miss valid LLM responses.
+> Higher values (30s+): More time for LLM, but longer latency on failures.
+
+#### `ROUTER_MAX_RETRIES`
+
+Maximum retries for router LLM calls (0-5)
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `2`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Number of times to retry the LLM call before falling back to deterministic routing.
+> 0 = no retries, fail immediately to deterministic.
+> Higher values = more resilient but longer latency on persistent failures.
+
+#### `ROUTER_FALLBACK_RATE_THRESHOLD`
+
+Fallback rate threshold for automatic rollback (0.0-1.0)
+
+- **Type**: float
+- **Required**: No
+- **Default**: `0.3`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> If the fallback rate exceeds this threshold, consider disabling dynamic routing.
+> Monitor via RouterMetrics.get_fallback_rate() or dashboard.
+> 0.3 (default): Alert if >30% of routing decisions fall back to deterministic.
+> Lower values: More sensitive alerting.
+> Higher values: More tolerant of LLM failures.
 
 ## Orchestrator
 
