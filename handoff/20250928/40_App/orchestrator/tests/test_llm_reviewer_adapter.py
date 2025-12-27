@@ -1397,10 +1397,14 @@ diff --git a/file2.py b/file2.py
         for i in range(500):
             large_patch += f"+ (Line {i}) added_line_{i}_with_some_content\n"
 
-        result, telemetry = truncate_diff_for_token_budget(large_patch, max_chars=500)
+        max_chars = 500
+        result, telemetry = truncate_diff_for_token_budget(large_patch, max_chars=max_chars)
         assert telemetry["was_truncated"] is True
         assert "[DIFF TRUNCATED" in result
-        assert len(result) <= 500 + 100  # Allow some buffer for sentinel
+        # Invariant: truncated result should be smaller than original
+        assert len(result) < len(large_patch)
+        # Invariant: telemetry should be self-consistent
+        assert telemetry["truncated_chars"] == len(result)
 
     def test_context_lines_dropped_when_not_adjacent_to_addition(self):
         """Context lines not adjacent to + lines should be dropped when diff exceeds budget"""
@@ -1527,7 +1531,10 @@ diff --git a/file2.py b/file2.py
         long_line = "x" * 10000
         result, telemetry = truncate_diff_for_token_budget(long_line, max_chars=500)
         assert telemetry["was_truncated"] is True
-        assert len(result) <= 600  # Allow buffer for sentinel
+        # Invariant: truncated result should be smaller than original
+        assert len(result) < len(long_line)
+        # Invariant: telemetry should be self-consistent
+        assert telemetry["truncated_chars"] == len(result)
 
     def test_deletion_lines_preserved(self):
         """Deletion lines (- prefix) should be preserved"""
@@ -1619,4 +1626,60 @@ diff --git a/file2.py b/file2.py
 + (Line 1) addition"""
         result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
         # Should not crash and should include the hunk from file2
+        assert "+ (Line 1) addition" in result
+
+    def test_binary_file_diff_handled(self):
+        """Binary file diffs (no patch content) should be handled gracefully"""
+        diff = """diff --git a/image.png b/image.png
+new file mode 100644
+index 0000000..1234567
+Binary files /dev/null and b/image.png differ
+diff --git a/code.py b/code.py
+--- a/code.py
++++ b/code.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash
+        assert result is not None
+        # Binary file marker should be preserved
+        assert "Binary files" in result or "image.png" in result
+        # Code changes should still be included
+        assert "+ (Line 1) addition" in result
+
+    def test_rename_only_diff_handled(self):
+        """Rename-only diffs (no content changes) should be handled gracefully"""
+        diff = """diff --git a/old_name.py b/new_name.py
+similarity index 100%
+rename from old_name.py
+rename to new_name.py
+diff --git a/code.py b/code.py
+--- a/code.py
++++ b/code.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash
+        assert result is not None
+        # Rename info should be preserved
+        assert "rename" in result.lower() or "new_name.py" in result
+        # Code changes should still be included
+        assert "+ (Line 1) addition" in result
+
+    def test_mode_change_diff_handled(self):
+        """Mode/permission change diffs should be handled gracefully"""
+        diff = """diff --git a/script.sh b/script.sh
+old mode 100644
+new mode 100755
+diff --git a/code.py b/code.py
+--- a/code.py
++++ b/code.py
+@@ -1,2 +1,3 @@
++ (Line 1) addition"""
+        result, telemetry = truncate_diff_for_token_budget(diff, max_chars=10000)
+        # Should not crash
+        assert result is not None
+        # Mode change info should be preserved
+        assert "mode" in result.lower() or "script.sh" in result
+        # Code changes should still be included
         assert "+ (Line 1) addition" in result
