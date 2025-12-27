@@ -6,8 +6,11 @@ Tests the format_diagnostic function for:
 - Fallback mechanism on serialization errors
 - Size limits and array sampling
 - Special characters handling
+- Deterministic timestamp with mocked time
+- Complex nested data structures
 """
 import json
+from unittest.mock import patch
 from diagnostic_helper import format_diagnostic, _sample_array, MAX_SAMPLE_SIZE
 
 
@@ -80,9 +83,10 @@ class TestFormatDiagnostic:
 
         json_part = result[3:]
         parsed = json.loads(json_part)
-        # Empty data should only contain the version field
+        # Empty data should only contain version and timestamp fields
         assert "_v" in parsed
-        assert len(parsed) == 1  # Only version field
+        assert "_ts" in parsed
+        assert len(parsed) == 2  # Only version and timestamp fields
 
     def test_allowed_lines_sample_limiting(self):
         """Test that allowed_lines_sample is limited."""
@@ -104,6 +108,56 @@ class TestFormatDiagnostic:
         json_part = result[3:]
         parsed = json.loads(json_part)
         assert parsed["lines"] == [1, 2, 3]
+
+    def test_timestamp_is_deterministic_with_mock(self):
+        """Test that _ts field is deterministic when time.time() is mocked."""
+        fixed_time = 1735278000  # 2024-12-27 00:00:00 UTC
+        with patch('diagnostic_helper.time.time', return_value=fixed_time):
+            result = format_diagnostic({"pr_number": 123})
+
+        json_part = result[3:]
+        parsed = json.loads(json_part)
+        assert parsed["_ts"] == fixed_time
+        assert parsed["_v"] == "1.2.0"
+        assert parsed["pr_number"] == 123
+
+    def test_complex_nested_data_structure(self):
+        """Test that _ts and _v are preserved with complex nested data."""
+        complex_data = {
+            "pr_number": 456,
+            "nested": {
+                "level1": {
+                    "level2": ["a", "b", "c"],
+                    "value": 42
+                }
+            },
+            "raw_comment_structures": [
+                {"file": f"file{i}.py", "line": i, "nested": {"deep": True}}
+                for i in range(20)
+            ],
+            "metadata": {
+                "tags": ["diagnostic", "test"],
+                "counts": {"success": 10, "failure": 2}
+            }
+        }
+        result = format_diagnostic(complex_data)
+
+        json_part = result[3:]
+        parsed = json.loads(json_part)
+
+        # Metadata fields should always be present
+        assert "_v" in parsed
+        assert "_ts" in parsed
+        assert isinstance(parsed["_ts"], int)
+
+        # Original data should be preserved (except sampled arrays)
+        assert parsed["pr_number"] == 456
+        assert parsed["nested"]["level1"]["level2"] == ["a", "b", "c"]
+        assert parsed["metadata"]["tags"] == ["diagnostic", "test"]
+
+        # Large array should be sampled
+        assert parsed["raw_comment_structures"]["count"] == 20
+        assert len(parsed["raw_comment_structures"]["sample"]) == MAX_SAMPLE_SIZE
 
 
 class TestSampleArray:
