@@ -886,7 +886,15 @@ class ResilientPostgresSaver:
                 error_type = type(e).__name__
                 # Sanitize error string to mask sensitive data (Issue #3107)
                 # This prevents PostgreSQL DSNs, passwords, and other secrets from being logged
-                sanitized_error = mask_sensitive_data(error_str)
+                # Wrap in try/except to ensure masking failure doesn't break retry/failover logic
+                masking_failed = False
+                try:
+                    sanitized_error = mask_sensitive_data(error_str)
+                except Exception:
+                    # Fallback to original error string if masking fails
+                    # This ensures retry/failover logic is not affected by masking issues
+                    sanitized_error = error_str
+                    masking_failed = True
 
                 if not self._is_transient_error(e):
                     # Non-transient error, don't retry
@@ -899,6 +907,7 @@ class ResilientPostgresSaver:
                             "error": sanitized_error,
                             "error_type": error_type,
                             "attempt": attempt + 1,
+                            "masking_failed": masking_failed,
                         }
                     )
                     raise
@@ -922,6 +931,7 @@ class ResilientPostgresSaver:
                             "max_retries": self._max_retries + 1,
                             "delay_seconds": delay,
                             "is_connection_lost": is_connection_lost,
+                            "masking_failed": masking_failed,
                         }
                     )
 
@@ -962,6 +972,7 @@ class ResilientPostgresSaver:
                             "error_type": error_type,
                             "total_attempts": self._max_retries + 1,
                             "consecutive_failures": self._consecutive_failures,
+                            "masking_failed": masking_failed,
                         }
                     )
                     raise
@@ -1122,7 +1133,16 @@ class DegradedPersistenceCheckpointer:
         self._degraded_operation = operation_name
         # Sanitize error string to mask sensitive data (Issue #3107)
         # This prevents PostgreSQL DSNs, passwords, and other secrets from being logged
-        self._degraded_error = mask_sensitive_data(str(error))
+        # Wrap in try/except to ensure masking failure doesn't break failover logic
+        error_str = str(error)
+        masking_failed = False
+        try:
+            self._degraded_error = mask_sensitive_data(error_str)
+        except Exception:
+            # Fallback to original error string if masking fails
+            # This ensures failover logic is not affected by masking issues
+            self._degraded_error = error_str
+            masking_failed = True
 
         logger.warning(
             f"CHECKPOINT DEGRADED: Primary checkpointer failed, switching to fallback. "
@@ -1137,6 +1157,7 @@ class DegradedPersistenceCheckpointer:
                 "error_type": type(error).__name__,
                 "degraded_since": self._degraded_since,
                 "checkpointer_mode": "degraded",
+                "masking_failed": masking_failed,
             }
         )
 

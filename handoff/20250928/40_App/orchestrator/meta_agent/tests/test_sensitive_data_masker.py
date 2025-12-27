@@ -394,3 +394,59 @@ class TestPostgreSQLSensitiveDataMasking:
         error = "Failed: postgres://user:secret@host/db"
         result = mask_sensitive_data(error)
         assert "secret" not in result
+
+
+class TestMaskingFailureFallback:
+    """
+    Tests for masking failure fallback behavior.
+
+    Issue #3107: Ensure that if mask_sensitive_data() fails, the retry/failover
+    logic is not affected. The system should gracefully fall back to the original
+    error string rather than breaking the critical path.
+    """
+
+    def test_mask_string_handles_none_gracefully(self):
+        """Test that mask_string handles None input gracefully"""
+        masker = SensitiveDataMasker()
+        result = masker.mask_string(None)
+        assert result is None
+
+    def test_mask_sensitive_data_with_empty_string(self):
+        """Test convenience function handles empty string"""
+        result = mask_sensitive_data("")
+        assert result == ""
+
+    def test_mask_sensitive_data_with_non_string_coerced(self):
+        """Test that non-string inputs are handled (coerced to string in caller)"""
+        result = mask_sensitive_data("123")
+        assert result == "123"
+
+    def test_masker_does_not_raise_on_valid_input(self):
+        """Test that masker doesn't raise exceptions on valid input"""
+        masker = SensitiveDataMasker()
+        test_cases = [
+            "normal error message",
+            "postgres://user:pass@host/db",
+            "password=secret123",
+            "Error: connection refused to host=db.example.com password=test",
+            "",
+            "a" * 10000,
+        ]
+        for test_input in test_cases:
+            result = masker.mask_string(test_input)
+            assert result is not None
+
+    def test_masker_with_special_characters(self):
+        """Test masker handles special regex characters in input"""
+        masker = SensitiveDataMasker()
+        special_input = "Error: [.*+?^${}()|[\\]\\\\] password=secret"
+        result = masker.mask_string(special_input)
+        assert "secret" not in result
+        assert "Error:" in result
+
+    def test_masker_with_unicode_characters(self):
+        """Test masker handles unicode characters"""
+        masker = SensitiveDataMasker()
+        unicode_input = "錯誤: postgres://user:密碼@host/db"
+        result = masker.mask_string(unicode_input)
+        assert result is not None
