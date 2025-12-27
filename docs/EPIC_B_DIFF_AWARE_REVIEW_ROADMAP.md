@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2025-12-22
+> Last Updated: 2025-12-27
 
 ## Overview
 
@@ -14,6 +14,7 @@ EPIC B focuses on implementing intelligent PR review with inline comments, ensur
 | Phase 2: Publishing Correctness | Completed | [#2788](https://github.com/RC918/morningai/pull/2788), [#2803](https://github.com/RC918/morningai/pull/2803) |
 | Phase 3: Security & Reliability | Completed | [#2809](https://github.com/RC918/morningai/pull/2809), [#2829](https://github.com/RC918/morningai/pull/2829), [#2836](https://github.com/RC918/morningai/pull/2836) |
 | Phase 4: Checks API (P6) | Planned | - |
+| **Phase 6: Router Interface (B-6)** | **In Progress** | [#3130](https://github.com/RC918/morningai/issues/3130) |
 
 ---
 
@@ -207,3 +208,71 @@ Before implementing P6, the following must be completed:
 ### Conclusion
 
 P6 is "Governance Interface for 2026 Full-Auto PR Lifecycle" - should be on roadmap but wait for prerequisites to be ready.
+
+---
+
+## Phase 6: Router Interface (B-6) - In Progress
+
+> **Status**: In Progress
+> **Issue**: [#3130](https://github.com/RC918/morningai/issues/3130)
+> **Target**: EPIC C Stage 1 (C-5 Review Routing Pilot)
+
+### Overview
+
+Phase 6 defines the stable interface contract between Reviewer and Router, enabling Flow Controller v3 to make routing decisions based on review results.
+
+### Why This Phase
+
+EPIC C (Flow Controller v3) depends on a structured output from Reviewer to make routing decisions. Without a well-defined `ReviewOutcome` schema, the Router cannot determine whether to proceed to publisher, fixer, or escalate.
+
+### Schema Definition (CTO Approved)
+
+```python
+from pydantic import BaseModel
+from typing import Literal
+
+class ReviewOutcome(BaseModel):
+    """Reviewer → Router 穩定介面 (EPIC B-6)"""
+    
+    # 決策訊號 (Router 用)
+    verdict: Literal["approve", "request_changes", "comment", "blocked", "unknown"]
+    severity: Literal["low", "medium", "high", "critical"]
+    summary: str  # 給 Router 的一句話摘要
+    
+    # 資料品質訊號 (Router 做 fail-safe 決策用)
+    diff_truncated: bool = False
+    schema_validated: bool = True
+    blocker_count: int = 0  # severity=critical/high 的數量
+```
+
+### Verdict Semantics
+
+| Verdict | Description | Router Behavior |
+|---------|-------------|-----------------|
+| `approve` | Review passed, no blocking issues | Proceed to publisher |
+| `request_changes` | Issues found that need fixing | Route to fixer or escalate |
+| `comment` | Suggestions but not blocking | Proceed to publisher (with suggestions) |
+| `blocked` | Safety/Compliance block | Force escalate or abort |
+| `unknown` | Reviewer failed (timeout/parse error) | Fallback to deterministic routing |
+
+### Implementation Items
+
+| Item | Description | Status |
+|------|-------------|--------|
+| B-6.1 Schema Definition | Add `ReviewOutcome` to `core/flow/schema.py` | Pending |
+| B-6.2 reviewer_node Integration | Wrap review result in `ReviewOutcome` before return | Pending |
+| B-6.3 State Update | Add `review_outcome: dict` to `AgentState` | Pending |
+| B-6.4 Unit Tests | Test all verdict scenarios | Pending |
+
+### Blueprint Alignment
+
+| Blueprint Guarantee | Implementation |
+|--------------------|----------------|
+| Deterministic | `unknown` verdict triggers fallback to rule-based routing |
+| Safe by Design | `blocked` verdict forces escalate |
+| Self-Governed | Router can make dynamic decisions based on verdict |
+
+### Dependencies
+
+- **Depends on**: Phase 3 (Security & Reliability) - Completed
+- **Blocks**: EPIC C Stage 1 (C-5 Review Routing Pilot)
