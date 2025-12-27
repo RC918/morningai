@@ -27,8 +27,11 @@ DIAGNOSTIC_VERSION = "1.2.0"
 
 
 # Maximum number of items to include in array samples
+# This prevents log truncation while preserving diagnostic value
 MAX_SAMPLE_SIZE = 10
+
 # Maximum length of the JSON string before truncation warning is added
+# Render logs typically truncate at ~4KB, so 2KB provides safety margin
 MAX_JSON_LENGTH = 2000
 
 
