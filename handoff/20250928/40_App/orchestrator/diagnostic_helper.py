@@ -15,13 +15,15 @@ Usage:
 Version History:
     v1.0.0 - Initial implementation with format_diagnostic()
     v1.1.0 - Added DIAGNOSTIC_VERSION for tracking format changes
+    v1.2.0 - Added _ts timestamp field for log correlation
 """
 import json
 import hashlib
+import time
 from typing import Any, Dict, List, Optional
 
 # Diagnostic format version - increment when changing output structure
-DIAGNOSTIC_VERSION = "1.1.0"
+DIAGNOSTIC_VERSION = "1.2.0"
 
 
 # Maximum number of items to include in array samples
@@ -92,8 +94,11 @@ def format_diagnostic(
 
     try:
         # Create a copy to avoid modifying the original
-        # Include diagnostic version for tracking format changes
-        output_data = {"_v": DIAGNOSTIC_VERSION}
+        # Include diagnostic version and timestamp for tracking and correlation
+        output_data = {
+            "_v": DIAGNOSTIC_VERSION,
+            "_ts": int(time.time())
+        }
 
         for key, value in data.items():
             if key in sample_keys and isinstance(value, list):
