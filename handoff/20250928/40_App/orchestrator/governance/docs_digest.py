@@ -29,7 +29,7 @@ import json
 import logging
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -48,7 +48,20 @@ DEFAULT_ITEM_TTL_SECONDS = 86400 * 7  # 7 days
 
 @dataclass
 class BlockedDocChange:
-    """Record of a blocked documentation change for digest accumulation"""
+    """Record of a blocked documentation change for digest accumulation.
+    
+    Attributes:
+        trace_id: Unique identifier for tracing this change
+        repo: Repository in owner/repo format
+        doc_file_path: Target file path for the documentation
+        content: The documentation content to be committed
+        goal: Task description/goal for this change
+        score: Value Gate significance score
+        downgrade_reason: Reason why this change was blocked
+        created_at: Unix timestamp in seconds (float, from time.time())
+        changeset_hash: Hash for deduplication
+        branch: Optional branch name (empty if not yet created)
+    """
     trace_id: str
     repo: str
     doc_file_path: str
@@ -56,7 +69,7 @@ class BlockedDocChange:
     goal: str
     score: int
     downgrade_reason: str
-    created_at: float
+    created_at: float  # Unix epoch seconds (from time.time())
     changeset_hash: str
     branch: str = ""
 
@@ -658,7 +671,7 @@ periodic summary PRs like this one.
 
 ---
 
-**Digest Timestamp:** {datetime.now(timezone.utc).isoformat()}
+**Digest Timestamp:** {datetime.now(timezone.utc).replace(microsecond=0).isoformat()}
 **Total Changes:** {len(changes)}
 **Trace IDs:** {', '.join(trace_ids)}
 
