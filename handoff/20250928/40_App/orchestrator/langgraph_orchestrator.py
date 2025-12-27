@@ -1533,6 +1533,11 @@ class AgentState(TypedDict):
         internal_review_result: Result from internal re-review
         internal_review_decision: Decision (approve, request_changes, escalate)
         ai_reviewer_agreement: Agreement level (agree, partial, disagree)
+
+    EPIC B Phase B-3 New Fields (Diff-aware review for commit pinning):
+        diff_head_sha: Optional[str] - PR head commit SHA (40-char hex, case-insensitive)
+        diff_content: Optional[str] - Sanitized diff content (max 100KB per DIFF_MAX_SIZE_BYTES)
+        diff_truncated: Optional[bool] - Whether diff was truncated due to size limits
     """
     messages: Annotated[Sequence[BaseMessage], operator.add]
     goal: str
@@ -1602,6 +1607,11 @@ class AgentState(TypedDict):
     internal_review_result: dict
     internal_review_decision: str
     ai_reviewer_agreement: str
+    # EPIC B Phase B-3: Diff-aware review fields for commit pinning
+    # Set by reviewer_node, read by publisher_node. See docstring for field details.
+    diff_head_sha: Optional[str]
+    diff_content: Optional[str]
+    diff_truncated: Optional[bool]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
