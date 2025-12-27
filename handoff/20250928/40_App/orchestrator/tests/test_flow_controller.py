@@ -1442,3 +1442,175 @@ class TestTaskTypeRouting:
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
         tier = engine.get_tier_for_task(TaskType.ROUTING)
         assert tier == Tier.TIER_1
+
+
+# =============================================================================
+# EPIC C Phase C-5: HITL Gate Node Tests (Issue #3155)
+# =============================================================================
+
+
+class TestHITLRoutingDecision:
+    """Tests for HITL-related routing decisions.
+
+    EPIC C Phase C-5: HITL Wiring (Issue #3155)
+
+    CTO Directive:
+    - Router's Job: DECIDE (set requires_hitl_approval=True in state)
+    - Orchestrator's Job: EXECUTE (implement interrupt logic in LangGraph)
+
+    Note: These tests verify the routing logic without importing the full
+    langgraph_orchestrator module to avoid import chain issues in CI.
+    """
+
+    def test_routing_decision_supports_hitl_approval(self):
+        """Test that RoutingDecision supports requires_hitl_approval field."""
+        decision = RoutingDecision(
+            next_node="fixer",
+            reasoning="Code needs fixing",
+            risk_assessment="Low risk",
+            requires_hitl_approval=True
+        )
+        assert decision.requires_hitl_approval is True
+
+    def test_routing_decision_hitl_default_false(self):
+        """Test that requires_hitl_approval defaults to False."""
+        decision = RoutingDecision(
+            next_node="publisher",
+            reasoning="Ready to publish",
+            risk_assessment="Low risk"
+        )
+        assert decision.requires_hitl_approval is False
+
+    def test_routing_decision_hitl_serialization(self):
+        """Test that requires_hitl_approval is included in serialization."""
+        decision = RoutingDecision(
+            next_node="executor",
+            reasoning="Execute changes",
+            risk_assessment="Medium risk",
+            requires_hitl_approval=True
+        )
+        data = decision.model_dump()
+        assert "requires_hitl_approval" in data
+        assert data["requires_hitl_approval"] is True
+
+
+class TestHITLStateManagement:
+    """Tests for HITL state management patterns.
+
+    EPIC C Phase C-5: HITL Wiring (Issue #3155)
+
+    CTO Directive: "實作 hitl_approved 時，請確保它在任務完成後會被重置 (Reset)，
+    以免影響同一個 Session 的下一次執行。"
+
+    Note: These tests verify state management patterns without importing
+    the full langgraph_orchestrator module.
+    """
+
+    def test_hitl_state_fields_exist_in_schema(self):
+        """Test that HITL fields are defined in RoutingDecision schema."""
+        assert "requires_hitl_approval" in RoutingDecision.model_fields
+
+    def test_hitl_approval_field_is_boolean(self):
+        """Test that requires_hitl_approval is typed as boolean."""
+        field_info = RoutingDecision.model_fields["requires_hitl_approval"]
+        assert field_info.annotation == bool
+
+    def test_hitl_approval_has_default(self):
+        """Test that requires_hitl_approval has a default value."""
+        field_info = RoutingDecision.model_fields["requires_hitl_approval"]
+        assert field_info.default is False
+
+
+class TestHITLRoutingIntegration:
+    """Tests for HITL integration with routing policy.
+
+    EPIC C Phase C-5: HITL Wiring (Issue #3155)
+
+    These tests verify that the routing policy correctly sets
+    requires_hitl_approval for slow path decisions.
+    """
+
+    def test_fast_path_no_hitl_required(self):
+        """Test that fast path decisions don't require HITL."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        policy = HybridRoutingPolicy()
+        decision = policy.route(
+            verdict="approve",
+            severity="low",
+            summary="All good",
+            blocker_count=0
+        )
+        assert decision.requires_hitl_approval is False
+
+    def test_blocked_verdict_requires_hitl(self):
+        """Test that blocked verdict requires HITL approval."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        policy = HybridRoutingPolicy()
+        decision = policy.route(
+            verdict="blocked",
+            severity="critical",
+            summary="Security issue",
+            blocker_count=1
+        )
+        assert decision.requires_hitl_approval is True
+
+    def test_unknown_verdict_requires_hitl(self):
+        """Test that unknown verdict requires HITL approval."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        policy = HybridRoutingPolicy()
+        decision = policy.route(
+            verdict="unknown",
+            severity="medium",
+            summary="Unclear outcome",
+            blocker_count=0
+        )
+        assert decision.requires_hitl_approval is True
+
+    def test_slow_path_llm_decision_no_hitl(self):
+        """Test that slow path LLM decisions don't require HITL by default."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        def mock_llm(prompt: str) -> str:
+            return '{"next_node": "fixer", "reasoning": "Fix needed"}'
+
+        policy = HybridRoutingPolicy(llm_generate_fn=mock_llm)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="medium",
+            summary="Medium issues",
+            blocker_count=0
+        )
+        assert decision.requires_hitl_approval is False
+
+
+class TestHITLGateNodeDesign:
+    """Tests for HITL Gate Node design requirements.
+
+    EPIC C Phase C-5: HITL Wiring (Issue #3155)
+
+    CTO Directive: "請將 HITL Gate Node 設計為一個獨立的節點，置於 router_node 下游。
+    這樣我們可以保持 Router 的純粹性（只做決策），將控制權交給 Gate。"
+
+    Note: These tests verify design requirements without importing
+    the full langgraph_orchestrator module.
+    """
+
+    def test_langgraph_interrupt_import_available(self):
+        """Test that LangGraph interrupt function is available."""
+        from langgraph.types import interrupt
+        assert callable(interrupt)
+
+    def test_langgraph_memory_saver_available(self):
+        """Test that LangGraph MemorySaver is available for checkpointing."""
+        from langgraph.checkpoint.memory import MemorySaver
+        saver = MemorySaver()
+        assert saver is not None
+
+    def test_state_graph_available(self):
+        """Test that LangGraph StateGraph is available."""
+        from langgraph.graph import StateGraph, END
+        assert StateGraph is not None
+        assert END is not None
