@@ -118,7 +118,7 @@ class TestFormatDiagnostic:
         json_part = result[3:]
         parsed = json.loads(json_part)
         assert parsed["_ts"] == fixed_time
-        assert parsed["_v"] == "1.2.0"
+        assert parsed["_v"] == "1.2.1"
         assert parsed["pr_number"] == 123
 
     def test_complex_nested_data_structure(self):
