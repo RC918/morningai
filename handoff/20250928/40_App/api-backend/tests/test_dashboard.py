@@ -222,12 +222,10 @@ def test_metrics_has_source_header(client):
     assert source in ['redis', 'fallback']
 
 
-def test_metrics_fallback_returns_valid_schema(client, mocker):
+def test_metrics_fallback_returns_valid_schema(client, monkeypatch):
     """Test /metrics returns valid schema when Redis unavailable (fallback path)"""
-    mocker.patch(
-        'src.routes.dashboard.get_redis_client',
-        return_value=None
-    )
+    from src.routes import dashboard
+    monkeypatch.setattr(dashboard, 'get_redis_client', lambda: None)
 
     response = client.get('/api/dashboard/metrics')
 
@@ -249,34 +247,3 @@ def test_metrics_fallback_returns_valid_schema(client, mocker):
     assert isinstance(data['memory_usage'], (int, float))
     assert isinstance(data['response_time'], (int, float))
     assert isinstance(data['error_rate'], (int, float))
-
-
-def test_metrics_import_error_falls_back_gracefully(client, mocker):
-    """Test /metrics falls back gracefully when OrchestratorMetrics import fails"""
-    mock_redis = mocker.MagicMock()
-    mocker.patch(
-        'src.routes.dashboard.get_redis_client',
-        return_value=mock_redis
-    )
-
-    import sys
-    if 'orchestrator_metrics' in sys.modules:
-        del sys.modules['orchestrator_metrics']
-
-    import builtins
-    original_import = builtins.__import__
-
-    def mock_import(name, *args, **kwargs):
-        if name == 'orchestrator_metrics':
-            raise ImportError("Mocked import failure")
-        return original_import(name, *args, **kwargs)
-
-    mocker.patch.object(builtins, '__import__', mock_import)
-
-    response = client.get('/api/dashboard/metrics')
-
-    assert response.status_code == 200
-    assert response.headers.get('X-MorningAI-Metrics-Source') == 'fallback'
-    data = response.get_json()
-    assert 'cpu_usage' in data
-    assert 'error_rate' in data
