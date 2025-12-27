@@ -788,6 +788,15 @@ class Settings(BaseSettings):
         description="Skip PR creation in orchestrator, return synthetic results. Use in staging to avoid PR bombing."
     )
 
+    worker_drain_mode: bool = Field(
+        default=False,
+        alias="WORKER_DRAIN_MODE",
+        description="When True, worker exits immediately without consuming any jobs. "
+                    "Use this to safely stop all workers before DB maintenance (TRUNCATE/VACUUM FULL). "
+                    "Deploy with WORKER_DRAIN_MODE=true, wait for current jobs to complete, "
+                    "then perform maintenance. Blueprint: Flow Controller v3 Operational Control."
+    )
+
     # Value Gate Settings (Publisher Node Governance)
     # Blueprint: Flow Controller v3 + Safety Governor v2
     enable_value_gate: bool = Field(

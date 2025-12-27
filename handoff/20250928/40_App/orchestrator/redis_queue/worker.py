@@ -2125,6 +2125,20 @@ def cleanup_stale_legacy_worker():
 if __name__ == "__main__":
     from rq import Worker
     
+    if settings.worker_drain_mode:
+        logger.info(
+            "WORKER_DRAIN_MODE=true: Worker exiting immediately without consuming jobs. "
+            "This is expected during DB maintenance windows. "
+            "Set WORKER_DRAIN_MODE=false and redeploy to resume normal operation.",
+            extra={
+                "operation": "drain_mode",
+                "heartbeat_id": HEARTBEAT_ID,
+                "rq_worker_name": RQ_WORKER_NAME,
+                "queue": RQ_QUEUE_NAME,
+            }
+        )
+        sys.exit(0)
+    
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     atexit.register(cleanup_heartbeat)
