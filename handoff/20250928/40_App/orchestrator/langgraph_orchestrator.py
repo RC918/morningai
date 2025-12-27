@@ -242,7 +242,7 @@ def _get_postgres_pool():
     - max_idle: 120 (2 minutes, aggressive recycling of idle connections)
     - reconnect_timeout: 60 (1 minute timeout for reconnection attempts)
     - check: ConnectionPool.check_connection (validates connection health)
-    - TCP Keepalive: Enabled to prevent NAT/LB from dropping idle connections
+    - TCP Keepalive: keepalives_idle=30s, interval=10s, count=5 (prevents NAT/LB drops)
 
     Returns:
         ConnectionPool: The global connection pool instance, or None if initialization fails
@@ -315,8 +315,10 @@ def _get_postgres_pool():
                     "max_size": 5,
                     "max_lifetime": 600,
                     "max_idle": 120,
-                    "tcp_keepalive": True,
+                    "keepalives": 1,
                     "keepalives_idle": 30,
+                    "keepalives_interval": 10,
+                    "keepalives_count": 5,
                     "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
                 }
             )
