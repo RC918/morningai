@@ -2265,3 +2265,180 @@ class TestGetDegradedPersistenceCheckpointerOOMIntegration:
             )
 
         assert result is mock_primary
+
+
+class TestPostgresPoolConfiguration:
+    """Tests for _get_postgres_pool() configuration parameters.
+
+    SSL Connection Fix (Dec 2025): These tests verify the connection pool parameters
+    that were introduced to fix "SSL connection has been closed unexpectedly" errors.
+    The configuration acts as a regression guard to prevent accidental changes to
+    critical pool settings (max_lifetime, max_idle, TCP keepalive).
+    """
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_initialized_with_correct_recycling_params(self):
+        """Test that ConnectionPool is initialized with aggressive recycling parameters.
+
+        SSL Connection Fix (Dec 2025): Aggressive recycling prevents stale connections
+        that cause "SSL connection has been closed unexpectedly" errors.
+        - max_lifetime: 600s (10 min) - recycle connections before they go stale
+        - max_idle: 120s (2 min) - recycle idle connections before NAT/LB drops them
+        """
+        from unittest.mock import MagicMock
+
+        mock_pool_instance = MagicMock()
+        captured_kwargs = {}
+
+        def capture_init(*args, **kwargs):
+            captured_kwargs.update(kwargs)
+            return mock_pool_instance
+
+        mock_pool_class = MagicMock(side_effect=capture_init)
+        mock_pool_class.check_connection = MagicMock()
+        mock_dict_row = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
+
+            with patch('langgraph_orchestrator.logger'):
+                with patch('langgraph_orchestrator._postgres_pool', None):
+                    with patch('psycopg_pool.ConnectionPool', mock_pool_class):
+                        with patch('psycopg.rows.dict_row', mock_dict_row):
+                            from langgraph_orchestrator import _get_postgres_pool
+                            import langgraph_orchestrator
+                            langgraph_orchestrator._postgres_pool = None
+
+                            _get_postgres_pool()
+
+                            assert captured_kwargs.get('max_lifetime') == 600, \
+                                "max_lifetime should be 600s (10 min) for aggressive recycling"
+                            assert captured_kwargs.get('max_idle') == 120, \
+                                "max_idle should be 120s (2 min) for aggressive recycling"
+                            assert captured_kwargs.get('min_size') == 1
+                            assert captured_kwargs.get('max_size') == 5
+                            assert captured_kwargs.get('reconnect_timeout') == 60
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_initialized_with_tcp_keepalive_params(self):
+        """Test that ConnectionPool kwargs include TCP keepalive settings.
+
+        SSL Connection Fix (Dec 2025): TCP keepalive prevents NAT/LB from dropping
+        idle connections before the pool's timeout.
+        - keepalives: 1 (enabled)
+        - keepalives_idle: 30s (start probing after 30s idle)
+        - keepalives_interval: 10s (probe every 10s)
+        - keepalives_count: 5 (give up after 5 failed probes)
+        - Worst-case detection: ~80s (idle + interval * count)
+        """
+        from unittest.mock import MagicMock
+
+        mock_pool_instance = MagicMock()
+        captured_kwargs = {}
+
+        def capture_init(*args, **kwargs):
+            captured_kwargs.update(kwargs)
+            return mock_pool_instance
+
+        mock_pool_class = MagicMock(side_effect=capture_init)
+        mock_pool_class.check_connection = MagicMock()
+        mock_dict_row = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
+
+            with patch('langgraph_orchestrator.logger'):
+                with patch('langgraph_orchestrator._postgres_pool', None):
+                    with patch('psycopg_pool.ConnectionPool', mock_pool_class):
+                        with patch('psycopg.rows.dict_row', mock_dict_row):
+                            from langgraph_orchestrator import _get_postgres_pool
+                            import langgraph_orchestrator
+                            langgraph_orchestrator._postgres_pool = None
+
+                            _get_postgres_pool()
+
+                            conn_kwargs = captured_kwargs.get('kwargs', {})
+                            assert conn_kwargs.get('keepalives') == 1, \
+                                "keepalives should be 1 (enabled)"
+                            assert conn_kwargs.get('keepalives_idle') == 30, \
+                                "keepalives_idle should be 30s (libpq seconds)"
+                            assert conn_kwargs.get('keepalives_interval') == 10, \
+                                "keepalives_interval should be 10s (libpq seconds)"
+                            assert conn_kwargs.get('keepalives_count') == 5, \
+                                "keepalives_count should be 5 (give up after 5 failed probes)"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_wait_called_after_initialization(self):
+        """Test that pool.wait() is called to ensure connections are ready."""
+        from unittest.mock import MagicMock
+
+        mock_pool_instance = MagicMock()
+        mock_pool_class = MagicMock(return_value=mock_pool_instance)
+        mock_pool_class.check_connection = MagicMock()
+        mock_dict_row = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
+
+            with patch('langgraph_orchestrator.logger'):
+                with patch('langgraph_orchestrator._postgres_pool', None):
+                    with patch('psycopg_pool.ConnectionPool', mock_pool_class):
+                        with patch('psycopg.rows.dict_row', mock_dict_row):
+                            from langgraph_orchestrator import _get_postgres_pool
+                            import langgraph_orchestrator
+                            langgraph_orchestrator._postgres_pool = None
+
+                            _get_postgres_pool()
+
+                            mock_pool_instance.wait.assert_called_once()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_returns_none_when_database_url_missing(self):
+        """Test that _get_postgres_pool() returns None when DATABASE_URL is not configured."""
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.database_url = None
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                env_copy = os.environ.copy()
+                if 'DATABASE_URL' in env_copy:
+                    del env_copy['DATABASE_URL']
+                with patch.dict(os.environ, env_copy, clear=True):
+                    from langgraph_orchestrator import _get_postgres_pool
+                    import langgraph_orchestrator
+                    langgraph_orchestrator._postgres_pool = None
+
+                    result = _get_postgres_pool()
+
+                    assert result is None
+                    mock_logger.warning.assert_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_logs_keepalive_params_on_success(self):
+        """Test that successful pool initialization logs keepalive parameters."""
+        from unittest.mock import MagicMock
+
+        mock_pool_instance = MagicMock()
+        mock_pool_class = MagicMock(return_value=mock_pool_instance)
+        mock_pool_class.check_connection = MagicMock()
+        mock_dict_row = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.database_url = "postgresql://user:pass@localhost:5432/db"
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                with patch('langgraph_orchestrator._postgres_pool', None):
+                    with patch('psycopg_pool.ConnectionPool', mock_pool_class):
+                        with patch('psycopg.rows.dict_row', mock_dict_row):
+                            from langgraph_orchestrator import _get_postgres_pool
+                            import langgraph_orchestrator
+                            langgraph_orchestrator._postgres_pool = None
+
+                            _get_postgres_pool()
+
+                            mock_logger.info.assert_called()
+                            call_args = mock_logger.info.call_args
+                            extra = call_args[1].get('extra', {}) if call_args[1] else {}
+                            assert extra.get('keepalives') == 1
+                            assert extra.get('keepalives_idle') == 30
+                            assert extra.get('keepalives_interval') == 10
+                            assert extra.get('keepalives_count') == 5
