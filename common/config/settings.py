@@ -2011,6 +2011,58 @@ class Settings(BaseSettings):
         description="Setuptools extension suffix (auto-detected)"
     )
 
+    # =========================================================================
+    # Flow Controller v3 (EPIC C) - Dynamic Routing Feature Flags
+    # Issue #2746: Feature Flag configuration for LLM-driven routing
+    # =========================================================================
+
+    enable_dynamic_routing: bool = Field(
+        default=False,
+        alias="ENABLE_DYNAMIC_ROUTING",
+        description=(
+            "Enable LLM-driven dynamic routing (Flow Controller v3). "
+            "Default False = 100% old behavior (conditional_edges). "
+            "When True, enables Router v3 with fail-safe fallback to deterministic routing."
+        )
+    )
+
+    router_model_tier: Literal["tier1", "tier2"] = Field(
+        default="tier1",
+        alias="ROUTER_MODEL_TIER",
+        description=(
+            "Model tier for router decisions. "
+            "tier1 = 235B parameter model (highest quality), "
+            "tier2 = 80B parameter model (faster, lower cost)"
+        )
+    )
+
+    router_timeout_seconds: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        alias="ROUTER_TIMEOUT_SECONDS",
+        description="Timeout for router LLM calls in seconds (1-60)"
+    )
+
+    router_max_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        alias="ROUTER_MAX_RETRIES",
+        description="Maximum retries for router LLM calls (0-5)"
+    )
+
+    router_fallback_rate_threshold: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        alias="ROUTER_FALLBACK_RATE_THRESHOLD",
+        description=(
+            "Fallback rate threshold for automatic rollback (0.0-1.0). "
+            "If fallback rate exceeds this threshold, consider disabling dynamic routing."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""
