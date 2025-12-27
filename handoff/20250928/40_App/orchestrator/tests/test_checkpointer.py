@@ -1891,3 +1891,377 @@ class TestResilientPostgresSaverRateLimitedLogging:
         warning_calls = [c for c in mock_logger.warning.call_args_list
                          if "Transient error" in str(c)]
         assert len(warning_calls) == 3
+
+
+class TestOOMProtectedMemorySaver:
+    """Tests for OOMProtectedMemorySaver wrapper class (Issue #3027)"""
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_workflow_count_tracks_unique_thread_ids(self):
+        """Test that workflow_count correctly counts unique thread_ids"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=10,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        assert wrapper.workflow_count == 0
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+        assert wrapper.workflow_count == 1
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-2", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+            {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:01Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+        assert wrapper.workflow_count == 2
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp3"}},
+            {"v": 1, "id": "cp3", "ts": "2024-01-01T00:00:02Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 1, "writes": None, "parents": {}},
+            {},
+        )
+        assert wrapper.workflow_count == 2
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_checkpoint_count_tracks_total_checkpoints(self):
+        """Test that checkpoint_count correctly counts total checkpoints"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=10,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        assert wrapper.checkpoint_count == 0
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+        assert wrapper.checkpoint_count == 1
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+            {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:01Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 1, "writes": None, "parents": {}},
+            {},
+        )
+        assert wrapper.checkpoint_count == 2
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_capacity_exceeded_raises_exception(self):
+        """Test that exceeding max_workflows raises DegradedCheckpointerCapacityExceeded"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import (
+            OOMProtectedMemorySaver,
+            DegradedCheckpointerCapacityExceeded,
+        )
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=2,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-2", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+            {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:01Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+
+        with pytest.raises(DegradedCheckpointerCapacityExceeded):
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-3", "checkpoint_ns": "", "checkpoint_id": "cp3"}},
+                {"v": 1, "id": "cp3", "ts": "2024-01-01T00:00:02Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": 0, "writes": None, "parents": {}},
+                {},
+            )
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_existing_workflow_does_not_count_toward_limit(self):
+        """Test that existing workflows can continue without hitting capacity limit"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=2,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-2", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+            {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:01Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp3"}},
+            {"v": 1, "id": "cp3", "ts": "2024-01-01T00:00:02Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 1, "writes": None, "parents": {}},
+            {},
+        )
+        assert wrapper.workflow_count == 2
+        assert wrapper.checkpoint_count == 3
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_get_metrics_returns_correct_values(self):
+        """Test that get_metrics returns correct metric values"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+
+        metrics = wrapper.get_metrics()
+
+        assert metrics["degraded_workflow_count"] == 1
+        assert metrics["checkpoint_count"] == 1
+        assert metrics["max_workflows"] == 100
+        assert metrics["memory_warning_mb"] == 512
+        assert "checkpoint_memory_bytes" in metrics
+        assert metrics["checkpoint_memory_bytes"] > 0
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_memory_warning_logged_once(self):
+        """Test that memory warning is logged only once until reset"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=0,
+            trace_id="test-trace",
+        )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+                {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": 0, "writes": None, "parents": {}},
+                {},
+            )
+
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+                {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:01Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": 1, "writes": None, "parents": {}},
+                {},
+            )
+
+            warning_calls = [
+                c for c in mock_logger.warning.call_args_list
+                if "MEMORY WARNING" in str(c)
+            ]
+            assert len(warning_calls) == 1
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_get_memory_estimate_bytes_returns_positive_value(self):
+        """Test that get_memory_estimate_bytes returns a positive value"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {"data": "x" * 1000}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+
+        memory_bytes = wrapper.get_memory_estimate_bytes()
+        assert memory_bytes > 0
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_exception_inherits_database_exception(self):
+        """Test that DegradedCheckpointerCapacityExceeded inherits from DatabaseException"""
+        from langgraph_orchestrator import (
+            DegradedCheckpointerCapacityExceeded,
+            DatabaseException,
+        )
+
+        assert issubclass(DegradedCheckpointerCapacityExceeded, DatabaseException)
+
+        exc = DegradedCheckpointerCapacityExceeded("test message")
+        assert isinstance(exc, DatabaseException)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_delegates_to_inner_saver(self):
+        """Test that operations are delegated to inner MemorySaver"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}}
+        checkpoint = {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []}
+        metadata = {"source": "input", "step": 0, "writes": None, "parents": {}}
+
+        wrapper.put(config, checkpoint, metadata, {})
+
+        result = wrapper.get_tuple(config)
+        assert result is not None
+        assert result.checkpoint["id"] == "cp1"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_delete_thread_removes_workflow(self):
+        """Test that delete_thread removes the workflow from storage"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            trace_id="test-trace",
+        )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+        assert wrapper.workflow_count == 1
+
+        wrapper.delete_thread("thread-1")
+        assert wrapper.workflow_count == 0
+
+
+class TestGetDegradedPersistenceCheckpointerOOMIntegration:
+    """Tests for OOM protection integration in get_degraded_persistence_checkpointer"""
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_factory_wraps_with_oom_protected_memory_saver(self):
+        """Test that factory function wraps fallback with OOMProtectedMemorySaver"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = 50
+            mock_settings.degraded_checkpoint_memory_warning_mb = 256
+
+            result = get_degraded_persistence_checkpointer(
+                primary=mock_primary,
+                trace_id="test-trace",
+            )
+
+        assert hasattr(result, '_fallback')
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_workflows == 50
+        assert result._fallback._memory_warning_mb == 256
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_factory_uses_default_values_when_settings_missing(self):
+        """Test that factory uses defaults when settings attributes are missing"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            del mock_settings.max_degraded_workflows_per_worker
+            del mock_settings.degraded_checkpoint_memory_warning_mb
+
+            result = get_degraded_persistence_checkpointer(
+                primary=mock_primary,
+                trace_id="test-trace",
+            )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_workflows == 100
+        assert result._fallback._memory_warning_mb == 512
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_factory_returns_primary_when_failover_disabled(self):
+        """Test that factory returns primary when failover is disabled"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import get_degraded_persistence_checkpointer
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = False
+
+            result = get_degraded_persistence_checkpointer(
+                primary=mock_primary,
+                trace_id="test-trace",
+            )
+
+        assert result is mock_primary
