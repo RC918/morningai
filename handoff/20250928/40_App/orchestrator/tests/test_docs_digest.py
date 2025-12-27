@@ -90,14 +90,13 @@ class TestBlockedDocChange:
 class TestRedisKeyGeneration:
     """Tests for Redis key generation"""
 
-    @patch('governance.docs_digest.settings', None)
-    def test_get_key_without_prefix(self):
-        """Test key generation without prefix"""
-        with patch('governance.docs_digest._get_key') as mock_get_key:
-            mock_get_key.return_value = "orchestrator:docs_digest:pending:RC918/morningai"
-            key = mock_get_key("pending", "RC918/morningai")
-            assert "pending" in key
-            assert "RC918/morningai" in key
+    def test_get_key_format(self):
+        """Test key generation format"""
+        from governance.docs_digest import _get_key
+        key = _get_key("pending", "RC918/morningai")
+        assert "pending" in key
+        assert "RC918/morningai" in key
+        assert "docs_digest" in key
 
 
 class TestRecordBlockedDocChange:
