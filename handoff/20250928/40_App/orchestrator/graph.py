@@ -34,6 +34,11 @@ from governance.pr_deduplication import (
     complete_pr_lease,
     generate_deterministic_branch,
 )
+from governance.docs_digest import (
+    record_blocked_doc_change,
+    maybe_flush_docs_digest,
+    BlockedDocChange,
+)
 from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -612,6 +617,25 @@ new file mode 100644
                 "goal": goal[:100]
             }
         )
+        
+        # Issue #3087: Record blocked change for Docs Digest Strategy (Layer 2)
+        # Instead of discarding, accumulate for periodic summary PR
+        changeset_hash_for_digest = get_changeset_hash(synthetic_diff)
+        blocked_change = BlockedDocChange(
+            trace_id=trace_id,
+            repo=repo_full,
+            doc_file_path=doc_file_path,
+            content=faq_content,
+            goal=goal,
+            score=value_gate_result.score,
+            downgrade_reason=value_gate_result.downgrade_reason or "value_gate_blocked",
+            created_at=time.time(),
+            changeset_hash=changeset_hash_for_digest,
+            branch="",
+        )
+        record_blocked_doc_change(blocked_change, redis_url=settings.redis_url)
+        maybe_flush_docs_digest(repo_full, redis_url=settings.redis_url)
+        
         return None, "value_gate_blocked", trace_id
     
     # ==========================================================================
@@ -656,6 +680,24 @@ new file mode 100644
                     "goal": goal[:100]
                 }
             )
+            
+            # Issue #3087: Record blocked change for Docs Digest Strategy (Layer 2)
+            # Duplicate changes can also be accumulated for digest
+            blocked_change = BlockedDocChange(
+                trace_id=trace_id,
+                repo=repo_full,
+                doc_file_path=doc_file_path,
+                content=faq_content,
+                goal=goal,
+                score=value_gate_result.score,
+                downgrade_reason=f"duplicate_blocked:{dedup_result.duplicate_type}",
+                created_at=time.time(),
+                changeset_hash=changeset_hash,
+                branch="",
+            )
+            record_blocked_doc_change(blocked_change, redis_url=settings.redis_url)
+            maybe_flush_docs_digest(repo_full, redis_url=settings.redis_url)
+            
             return None, "duplicate_blocked", trace_id
     
     # ==========================================================================
