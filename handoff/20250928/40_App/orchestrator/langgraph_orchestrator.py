@@ -3683,6 +3683,8 @@ def reviewer_node(state: AgentState) -> AgentState:
 
                         # DIAGNOSTIC: Log LLM raw comment output for 422 debugging
                         # Extract only structural fields (file, line, start_line, end_line) - no message content
+                        # Uses diagnostic_helper for consistent formatting, fallback, and size limits
+                        from diagnostic_helper import format_diagnostic
                         raw_comment_structures = [
                             {
                                 "file": c.get("file") or c.get("path") or c.get("file_path"),
@@ -3693,16 +3695,16 @@ def reviewer_node(state: AgentState) -> AgentState:
                             }
                             for c in raw_llm_comments
                         ]
+                        diagnostic_data = {
+                            "trace_id": trace_id,
+                            "pr_number": pr_number,
+                            "llm_provider": llm_provider,
+                            "raw_comment_count": raw_comment_count,
+                            "raw_comment_structures": raw_comment_structures
+                        }
                         logger.info(
-                            "[Reviewer] DIAGNOSTIC: LLM raw comment output",
-                            extra={
-                                "operation": "reviewer_diagnostic",
-                                "trace_id": trace_id,
-                                "pr_number": pr_number,
-                                "llm_provider": llm_provider,
-                                "raw_comment_count": raw_comment_count,
-                                "raw_comment_structures": raw_comment_structures
-                            }
+                            f"[Reviewer] DIAGNOSTIC: LLM raw comment output{format_diagnostic(diagnostic_data)}",
+                            extra={"operation": "reviewer_diagnostic"}
                         )
 
                         # Phase B-3.1: Normalize LLM comments using canonical schema
@@ -4235,19 +4237,21 @@ def publisher_node(state: AgentState) -> AgentState:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
 
         # DIAGNOSTIC: Log allowed_lines_map summary for 422 debugging
+        # Uses diagnostic_helper for consistent formatting, fallback, and size limits
+        from diagnostic_helper import format_diagnostic
         from review_comment_schema import get_diff_coverage_info
         diff_coverage = get_diff_coverage_info(allowed_lines_map)
+        coverage_diagnostic = {
+            "trace_id": trace_id,
+            "pr_number": pr_number,
+            "diff_coverage": diff_coverage,
+            "diff_content_length": len(diff_content) if diff_content else 0,
+            "diff_truncated": diff_truncated,
+            "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None
+        }
         logger.info(
-            "[Publisher] DIAGNOSTIC: Diff coverage for validation",
-            extra={
-                "operation": "publisher_diagnostic",
-                "trace_id": trace_id,
-                "pr_number": pr_number,
-                "diff_coverage": diff_coverage,
-                "diff_content_length": len(diff_content) if diff_content else 0,
-                "diff_truncated": diff_truncated,
-                "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None
-            }
+            f"[Publisher] DIAGNOSTIC: Diff coverage for validation{format_diagnostic(coverage_diagnostic)}",
+            extra={"operation": "publisher_diagnostic"}
         )
 
         # DIAGNOSTIC: Log each comment's validation decision
@@ -4260,20 +4264,20 @@ def publisher_node(state: AgentState) -> AgentState:
             allowed_lines = file_info["allowed_lines"] if file_info else set()
             line_in_allowed = end_line in allowed_lines if end_line else False
             start_in_allowed = start_line in allowed_lines if start_line else True
+            validation_diagnostic = {
+                "trace_id": trace_id,
+                "comment_index": idx,
+                "file": file_path,
+                "start_line": start_line,
+                "end_line": end_line,
+                "file_in_diff": file_in_diff,
+                "end_line_in_allowed": line_in_allowed,
+                "start_line_in_allowed": start_in_allowed,
+                "allowed_lines_sample": sorted(list(allowed_lines))[:20] if allowed_lines else []
+            }
             logger.info(
-                f"[Publisher] DIAGNOSTIC: Comment {idx + 1} validation check",
-                extra={
-                    "operation": "publisher_diagnostic",
-                    "trace_id": trace_id,
-                    "comment_index": idx,
-                    "file": file_path,
-                    "start_line": start_line,
-                    "end_line": end_line,
-                    "file_in_diff": file_in_diff,
-                    "end_line_in_allowed": line_in_allowed,
-                    "start_line_in_allowed": start_in_allowed,
-                    "allowed_lines_sample": sorted(list(allowed_lines))[:20] if allowed_lines else []
-                }
+                f"[Publisher] DIAGNOSTIC: Comment {idx + 1} validation check{format_diagnostic(validation_diagnostic)}",
+                extra={"operation": "publisher_diagnostic"}
             )
 
         # Use strict mode for truncated diffs (safer)
