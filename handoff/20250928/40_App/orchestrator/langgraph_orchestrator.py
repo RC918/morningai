@@ -3747,6 +3747,20 @@ def reviewer_node(state: AgentState) -> AgentState:
                             llm_api_failed=False
                         )
 
+                    # Phase 2: Store head_sha for commit pinning (UNCONDITIONALLY)
+                    # This is critical for preventing 422 errors from race conditions
+                    # where new commits are pushed between diff generation and review posting.
+                    # Previously this was inside `if diff_content:` which caused commit_id: null
+                    # when diff_content was empty (e.g., lockfile-only PRs, truncation edge cases).
+                    # Fix: Store head_sha regardless of diff_content to ensure commit pinning works.
+                    if diff_head_sha:
+                        state["diff_head_sha"] = diff_head_sha
+                        logger.info("[Reviewer] Stored diff_head_sha for commit pinning", extra={
+                            "operation": "reviewer",
+                            "trace_id": trace_id,
+                            "diff_head_sha": diff_head_sha[:8] if diff_head_sha else None
+                        })
+
                     # Phase B-3.1: Store diff content in state for publisher validation
                     # This allows publisher_node to validate inline comments against
                     # the actual diff that was shown to the LLM
@@ -3763,10 +3777,6 @@ def reviewer_node(state: AgentState) -> AgentState:
                             })
                         state["diff_content"] = sanitized_diff
                         state["diff_truncated"] = diff_truncated
-                        # Phase 2: Store head_sha for line drift protection
-                        # publisher_node will compare this with current head_sha
-                        if diff_head_sha:
-                            state["diff_head_sha"] = diff_head_sha
 
                     llm_decision = llm_review.get("decision", "needs_changes")
                     llm_summary = llm_review.get("summary", "")
@@ -4228,10 +4238,21 @@ def publisher_node(state: AgentState) -> AgentState:
     # This prevents 422 errors from GitHub when line numbers are invalid
     diff_content = state.get("diff_content")
     diff_truncated = state.get("diff_truncated", False)
-    # Phase 2: Get stored head_sha for line drift protection
+    # Phase 2: Get stored head_sha for commit pinning
+    # Fix: This should now always be set by reviewer_node (moved outside if diff_content: block)
     stored_head_sha = state.get("diff_head_sha")
     downgraded_count = 0
     line_drift_detected = False
+
+    # DIAGNOSTIC: Log stored_head_sha presence for commit pinning verification
+    logger.info("[Publisher] Retrieved state for commit pinning", extra={
+        "operation": "publisher",
+        "trace_id": trace_id,
+        "pr_number": pr_number,
+        "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None,
+        "has_diff_content": bool(diff_content),
+        "diff_content_length": len(diff_content) if diff_content else 0
+    })
 
     if diff_content and inline_comments:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
