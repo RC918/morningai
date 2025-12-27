@@ -110,6 +110,7 @@ import operator
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import interrupt
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
 from orchestrator_metrics import get_orchestrator_metrics, OrchestratorMetrics
@@ -2036,6 +2037,11 @@ class AgentState(TypedDict):
     # Contains verdict, severity, summary, blocker_count, and data quality signals.
     # See core/routing/review_outcome.py for schema definition.
     review_outcome: Optional[dict]
+    # EPIC C Phase C-5: HITL Wiring (Issue #3155)
+    # Set by hitl_gate_node after human approval is received via Command(resume=True).
+    # Reset to False by finalizer_node to prevent state leakage between executions.
+    # CTO Directive: Router DECIDES (requires_hitl_approval=True), Orchestrator EXECUTES (interrupt).
+    hitl_approved: bool
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -4570,6 +4576,123 @@ def should_fix_or_finalize(state: AgentState) -> str:
     return outcome
 
 
+def hitl_gate_node(state: AgentState) -> AgentState:
+    """
+    HITL Gate Node: Controls human-in-the-loop approval flow.
+
+    EPIC C Phase C-5: HITL Wiring (Issue #3155)
+
+    This node is placed downstream of the decision node (router) and implements
+    the interrupt/resume mechanism for human approval.
+
+    CTO Directive (Separation of Concerns):
+    - Router's Job: DECIDE (set requires_hitl_approval=True in state)
+    - Orchestrator's Job: EXECUTE (implement interrupt logic in LangGraph)
+
+    Flow:
+    1. If requires_hitl_approval=True AND hitl_approved=False:
+       - Call interrupt() to pause the graph
+       - Wait for human approval via Command(resume=True)
+    2. If requires_hitl_approval=True AND hitl_approved=True:
+       - Continue (approval already granted)
+    3. If requires_hitl_approval=False:
+       - Continue without interruption
+
+    The hitl_approved flag is set to True after resume to prevent infinite loops.
+    It is reset to False by finalizer_node to prevent state leakage.
+
+    Args:
+        state: Current agent state
+
+    Returns:
+        Updated state with hitl_approved set appropriately
+    """
+    start_time = time.time()
+    metrics = _get_metrics()
+    trace_id = state.get("trace_id", "unknown")
+
+    metrics.record_node_start("hitl_gate", trace_id)
+
+    requires_hitl = state.get("requires_hitl_approval", False)
+    hitl_approved = state.get("hitl_approved", False)
+
+    logger.info("[HITL_GATE] Checking HITL approval requirement", extra={
+        "operation": "hitl_gate",
+        "trace_id": trace_id,
+        "requires_hitl_approval": requires_hitl,
+        "hitl_approved": hitl_approved,
+    })
+
+    if requires_hitl and not hitl_approved:
+        logger.info("[HITL_GATE] HITL approval required, pausing workflow", extra={
+            "operation": "hitl_gate",
+            "trace_id": trace_id,
+            "event_code": "ROUTER_HITL",
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content="[HITL_GATE] Workflow paused. Human approval required before proceeding.")
+        ]
+
+        approval = interrupt({
+            "type": "hitl_approval_required",
+            "trace_id": trace_id,
+            "message": "Human approval required before proceeding with this action.",
+            "merge_decision": state.get("merge_decision", "unknown"),
+            "review_severity": state.get("review_severity", "unknown"),
+            "code_quality_score": state.get("code_quality_score", 100),
+        })
+
+        if approval:
+            logger.info("[HITL_GATE] HITL approval received, resuming workflow", extra={
+                "operation": "hitl_gate",
+                "trace_id": trace_id,
+                "approval": approval,
+            })
+            state["hitl_approved"] = True
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"[HITL_GATE] Human approval received: {approval}. Resuming workflow.")
+            ]
+        else:
+            logger.warning("[HITL_GATE] HITL approval not received or rejected", extra={
+                "operation": "hitl_gate",
+                "trace_id": trace_id,
+            })
+            state["hitl_approved"] = False
+
+    elif requires_hitl and hitl_approved:
+        logger.info("[HITL_GATE] HITL already approved, continuing", extra={
+            "operation": "hitl_gate",
+            "trace_id": trace_id,
+        })
+    else:
+        logger.info("[HITL_GATE] No HITL approval required, continuing", extra={
+            "operation": "hitl_gate",
+            "trace_id": trace_id,
+        })
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("hitl_gate", trace_id, success=True, latency_ms=latency_ms)
+
+    return state
+
+
+def should_proceed_after_hitl_gate(state: AgentState) -> str:
+    """
+    Determines next step after HITL gate node.
+
+    EPIC C Phase C-5: HITL Wiring (Issue #3155)
+
+    Routes based on the original decision from should_fix_or_finalize:
+    - fix: If merge_decision is needs_fix and retries available
+    - monitor_ci: If merge_decision is pending (waiting for CI)
+    - finalize: If approved, request_changes, or max retries reached
+
+    This function mirrors should_fix_or_finalize but is called after HITL gate.
+    """
+    return should_fix_or_finalize(state)
+
+
 class FileLevelComment(TypedDict):
     """
     TypedDict for file-level comment structure.
@@ -5254,6 +5377,25 @@ def finalizer_node(state: AgentState) -> AgentState:
         AIMessage(content=f"Workflow completed. Status: {final_result['status']}")
     ]
 
+    # EPIC C Phase C-5: HITL Wiring (Issue #3155)
+    # Reset hitl_approved to False to prevent state leakage between executions.
+    # CTO Directive: "實作 hitl_approved 時，請確保它在任務完成後會被重置 (Reset)，
+    # 以免影響同一個 Session 的下一次執行。"
+    if state.get("hitl_approved", False):
+        logger.info("[Finalizer] Resetting hitl_approved to False", extra={
+            "operation": "finalizer",
+            "trace_id": trace_id,
+        })
+        state["hitl_approved"] = False
+
+    # Also reset requires_hitl_approval to prevent stale state
+    if state.get("requires_hitl_approval", False):
+        logger.info("[Finalizer] Resetting requires_hitl_approval to False", extra={
+            "operation": "finalizer",
+            "trace_id": trace_id,
+        })
+        state["requires_hitl_approval"] = False
+
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("finalizer", trace_id, success=True, latency_ms=latency_ms)
     return state
@@ -5460,7 +5602,13 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     Creates the LangGraph StateGraph for orchestration
 
     Phase 2 PR-1813 Update (Agent Evaluation):
-        planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → policy_enforcement → (executor | finalizer) → ci_monitor → reviewer → decision → (fixer if needed) → finalizer → evaluation → END
+        planner → security_advisor → governance_advisor → cost_advisor → permission_advisor → reputation_advisor → policy_enforcement → (executor | finalizer) → ci_monitor → reviewer → decision → hitl_gate → (fixer if needed) → finalizer → evaluation → END
+
+    EPIC C Phase C-5: HITL Wiring (Issue #3155):
+        - hitl_gate: Human-in-the-loop approval gate node
+        - Placed downstream of decision node (router)
+        - Checks requires_hitl_approval flag and calls interrupt() if needed
+        - CTO Directive: Router DECIDES, Orchestrator EXECUTES
 
     Phase 7 Issue #2211 Review Follow-up Mode:
         review_intake → planner → ... (same as above)
@@ -5544,6 +5692,8 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     workflow.add_node("finalizer", finalizer_node)
     # Phase 2 PR-1813: Agent Evaluation node
     workflow.add_node("evaluation", evaluation_node)
+    # EPIC C Phase C-5: HITL Gate node for human-in-the-loop approval (Issue #3155)
+    workflow.add_node("hitl_gate", hitl_gate_node)
 
     # Set entry point (Issue #2211: support review_intake as alternative entry point)
     workflow.set_entry_point(entry_point)
@@ -5613,11 +5763,18 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     # reviewer → decision
     workflow.add_edge("reviewer", "decision")
 
-    # decision → (fix | monitor_ci | publisher)
+    # EPIC C Phase C-5: HITL Wiring (Issue #3155)
+    # decision → hitl_gate (always route through HITL gate for approval check)
+    # CTO Directive: "請將 HITL Gate Node 設計為一個獨立的節點，置於 router_node 下游。
+    # 這樣我們可以保持 Router 的純粹性（只做決策），將控制權交給 Gate。"
+    workflow.add_edge("decision", "hitl_gate")
+
+    # hitl_gate → (fix | monitor_ci | publisher)
     # EPIC B Phase B-3: Route finalize through publisher for review posting
+    # EPIC C Phase C-5: HITL gate checks requires_hitl_approval before routing
     workflow.add_conditional_edges(
-        "decision",
-        should_fix_or_finalize,
+        "hitl_gate",
+        should_proceed_after_hitl_gate,
         {
             "fix": "fixer",
             "monitor_ci": "ci_monitor",
