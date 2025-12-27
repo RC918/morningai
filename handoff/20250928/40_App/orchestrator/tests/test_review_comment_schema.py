@@ -801,6 +801,7 @@ class TestIsLineInDiff:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3, 4, 5},
+                "addition_lines": {1, 2, 3, 4, 5},  # Strict Mode: all lines are additions
                 "patch_truncated": False
             }
         }
@@ -815,6 +816,7 @@ class TestIsLineInDiff:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": False
             }
         }
@@ -829,6 +831,7 @@ class TestIsLineInDiff:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": False
             }
         }
@@ -849,6 +852,7 @@ class TestIsLineInDiff:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": False
             }
         }
@@ -879,6 +883,7 @@ class TestValidateInlineComments:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3, 4, 5},
+                "addition_lines": {1, 2, 3, 4, 5},  # Strict Mode: all lines are additions
                 "patch_truncated": False
             }
         }
@@ -912,6 +917,7 @@ class TestValidateInlineComments:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": False
             }
         }
@@ -950,6 +956,7 @@ class TestValidateInlineComments:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": True  # Truncated!
             }
         }
@@ -982,6 +989,7 @@ class TestValidateInlineComments:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": True
             }
         }
@@ -1032,6 +1040,7 @@ class TestValidateInlineComments:
             "test.py": {
                 "filename": "test.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": False
             }
         }
@@ -1065,11 +1074,13 @@ class TestGetDiffCoverageInfo:
             "file1.py": {
                 "filename": "file1.py",
                 "allowed_lines": {1, 2, 3},
+                "addition_lines": {1, 2, 3},  # Strict Mode
                 "patch_truncated": False
             },
             "file2.py": {
                 "filename": "file2.py",
                 "allowed_lines": {1, 2},
+                "addition_lines": {1, 2},  # Strict Mode
                 "patch_truncated": True
             }
         }
