@@ -276,20 +276,41 @@ def truncate_diff_for_token_budget(
             current_hunks.append((current_hunk_start, len(lines) - 1))
         files_structure.append((current_file_start, current_hunks))
 
+    # Truncation sentinel to signal incomplete diff to LLM
+    TRUNCATION_SENTINEL = "\n\n... [DIFF TRUNCATED - remaining content omitted due to size limit] ..."
+
     # Fallback: If no 'diff ' headers found, treat entire input as single reviewable block
     # This prevents returning empty diff when input uses non-standard format (e.g., patch files)
     if not files_structure:
         # Simple truncation: keep all lines up to max_chars with newline-safe boundary
         if len(annotated_diff) > max_chars:
-            # Find last newline before max_chars to avoid cutting mid-line
-            truncate_at = annotated_diff.rfind('\n', 0, max_chars)
+            # Reserve space for sentinel
+            effective_max = max_chars - len(TRUNCATION_SENTINEL)
+            # Find last newline before effective_max to avoid cutting mid-line
+            truncate_at = annotated_diff.rfind('\n', 0, effective_max)
             if truncate_at == -1:
-                truncate_at = max_chars
-            truncated = annotated_diff[:truncate_at]
+                truncate_at = effective_max
+            truncated = annotated_diff[:truncate_at] + TRUNCATION_SENTINEL
             telemetry["truncated_chars"] = len(truncated)
             telemetry["was_truncated"] = True
             return truncated, telemetry
         return annotated_diff, telemetry
+
+    # Format guard: Check if input appears to be properly annotated
+    # If no annotated line prefixes found, the Phase 2 logic won't work correctly
+    has_annotated_format = any(
+        lt in ('addition', 'deletion', 'context') for lt in line_types
+    )
+    if not has_annotated_format and len(annotated_diff) > max_chars:
+        # Input is not in expected annotated format - use conservative truncation
+        effective_max = max_chars - len(TRUNCATION_SENTINEL)
+        truncate_at = annotated_diff.rfind('\n', 0, effective_max)
+        if truncate_at == -1:
+            truncate_at = effective_max
+        truncated = annotated_diff[:truncate_at] + TRUNCATION_SENTINEL
+        telemetry["truncated_chars"] = len(truncated)
+        telemetry["was_truncated"] = True
+        return truncated, telemetry
 
     # Phase 2: Reduce context lines (keep only 1 line before/after each + line)
     # This is the primary truncation strategy for Strict Mode
@@ -365,6 +386,9 @@ def truncate_diff_for_token_budget(
     telemetry["was_truncated"] = True
 
     final_diff = '\n'.join(result_lines)
+    # Add truncation sentinel if we actually dropped content
+    if telemetry["hunks_dropped"] > 0 or telemetry["files_dropped"] > 0:
+        final_diff += TRUNCATION_SENTINEL
     telemetry["truncated_chars"] = len(final_diff)
 
     return final_diff, telemetry
