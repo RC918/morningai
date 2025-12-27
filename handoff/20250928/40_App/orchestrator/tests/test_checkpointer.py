@@ -962,35 +962,75 @@ class TestResilientPostgresSaver:
         mock_sleep.assert_called_once_with(0.5)
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
-    def test_generic_is_already_closed_not_matched(self):
-        """Test that generic 'is already closed' errors do NOT trigger retry
+    def test_pool_closed_compound_check_avoids_false_positives(self):
+        """Test that _is_pool_closed_with_name() compound check avoids false positives
 
-        This test ensures the compound check avoids false positives.
-        Errors like 'connection is already closed' should NOT be classified
-        as transient pool errors.
+        This test ensures the compound check requires BOTH "the pool '" prefix
+        AND "' is closed" / "' is already closed" suffix to match.
+        This prevents misclassifying errors from other resources as pool errors.
+
+        Assumption: Only psycopg_pool errors with format "the pool '<name>' is [already] closed"
+        should be matched by this helper. Other quote/format variants are tracked in #3117.
+
+        Note: This test specifically tests _is_pool_closed_with_name(), NOT _is_transient_error().
+        Some of these error strings (e.g., "connection is closed") ARE transient errors via
+        other patterns in TRANSIENT_ERROR_PATTERNS, but they should NOT match the pool-closed
+        compound check.
         """
-        from unittest.mock import MagicMock
-
         from langgraph_orchestrator import ResilientPostgresSaver
 
-        mock_inner = MagicMock()
-
-        wrapper = ResilientPostgresSaver(
-            inner_saver=mock_inner,
-            max_retries=3,
-            base_delay=0.5,
-        )
-
-        # These should NOT be classified as transient errors
-        non_pool_errors = [
-            Exception("connection is already closed"),
-            Exception("file handle is already closed"),
-            Exception("socket is already closed"),
+        # These should NOT match the pool-closed compound check
+        # They test various false positive scenarios for _is_pool_closed_with_name()
+        non_pool_error_strings = [
+            # Generic "is already closed" without pool prefix
+            "connection is already closed",
+            "file handle is already closed",
+            "socket is already closed",
+            # Generic "is closed" without pool prefix
+            "connection is closed",
+            "file 'foo' is closed",
+            "resource is closed",
+            # Pool-like but missing proper format
+            "the pool is closed",  # Missing pool name in quotes
+            "pool 'pool-1' is closed",  # Missing "the " prefix
+            'the pool "pool-1" is closed',  # Double quotes instead of single
+            # Partial matches that should not trigger
+            "the pool 'pool-1' was closed",  # Different verb tense
+            "closing the pool 'pool-1'",  # Different phrasing
         ]
 
-        for error in non_pool_errors:
-            assert not wrapper._is_transient_error(error), \
-                f"Error '{error}' should NOT be classified as transient"
+        for error_str in non_pool_error_strings:
+            result = ResilientPostgresSaver._is_pool_closed_with_name(error_str.lower())
+            assert not result, \
+                f"Error '{error_str}' should NOT match pool-closed compound check"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_pool_closed_compound_check_matches_valid_patterns(self):
+        """Test that _is_pool_closed_with_name() matches valid pool-closed patterns
+
+        This test ensures the compound check correctly identifies both variants:
+        1. "the pool '<name>' is closed"
+        2. "the pool '<name>' is already closed"
+        """
+        from langgraph_orchestrator import ResilientPostgresSaver
+
+        # These SHOULD match the pool-closed compound check
+        valid_pool_error_strings = [
+            # Standard format - "is closed" variant
+            "the pool 'pool-1' is closed",
+            "the pool 'my-pool' is closed",
+            # Standard format - "is already closed" variant
+            "the pool 'pool-1' is already closed",
+            "the pool 'my-pool' is already closed",
+            # Special characters in pool name
+            "the pool 'pool-with-dashes-123' is closed",
+            "the pool 'pool_with_underscores' is already closed",
+        ]
+
+        for error_str in valid_pool_error_strings:
+            result = ResilientPostgresSaver._is_pool_closed_with_name(error_str.lower())
+            assert result, \
+                f"Error '{error_str}' SHOULD match pool-closed compound check"
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_pool_closed_with_special_characters_in_name(self):

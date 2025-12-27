@@ -717,6 +717,12 @@ class ResilientPostgresSaver:
         varies. Using a compound check avoids false positives from generic patterns
         like "connection is already closed" or "file handle is already closed".
 
+        Assumptions & Limitations:
+        - Only matches single-quote format: "the pool '<name>' is [already] closed"
+        - Double-quote variants (e.g., 'the pool "pool-1" is closed') are NOT matched
+        - Other quote/format variants are tracked in GitHub issue #3117
+        - Exception type classification (PoolClosed) is tracked in GitHub issue #3108
+
         Args:
             error_str: Lowercase string representation of the error
 
