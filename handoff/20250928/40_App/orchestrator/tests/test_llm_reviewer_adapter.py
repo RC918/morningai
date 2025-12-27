@@ -1795,10 +1795,13 @@ class TestAnnotateDiffWithLineNumbers:
  second_hunk_line
 +second_hunk_add"""
         result = annotate_diff_with_line_numbers(diff)
-        # First hunk starts at line 1
-        assert "(Line 1)" in result or "(Line 2)" in result
-        # Second hunk starts at line 101
-        assert "(Line 101)" in result or "(Line 102)" in result
+        # Verify hunk headers are preserved unchanged
+        assert "@@ -1,2 +1,2 @@" in result
+        assert "@@ -100,2 +101,2 @@" in result
+        # First hunk: context at 1, addition at 2
+        assert "+ (Line 2) first_hunk_add" in result
+        # Second hunk: context at 101, addition at 102
+        assert "+ (Line 102) second_hunk_add" in result
 
     def test_file_headers_preserved_unchanged(self):
         """diff, ---, +++ headers should not be modified"""
@@ -1894,7 +1897,7 @@ diff --git a/file2.py b/file2.py
         assert "+ (Line 2) new_line2" in result
 
     def test_binary_file_diff_not_crash(self):
-        """Binary file diffs should not crash"""
+        """Binary file diffs should not crash and preserve headers unchanged"""
         diff = """diff --git a/image.png b/image.png
 new file mode 100644
 index 0000000..1234567
@@ -1903,9 +1906,11 @@ Binary files /dev/null and b/image.png differ"""
         # Should not crash and should preserve content
         assert result is not None
         assert "Binary files" in result
+        # Headers should NOT have (Line N) added
+        assert "(Line" not in result
 
     def test_rename_only_diff_not_crash(self):
-        """Rename-only diffs should not crash"""
+        """Rename-only diffs should not crash and preserve headers unchanged"""
         diff = """diff --git a/old.py b/new.py
 similarity index 100%
 rename from old.py
@@ -1914,9 +1919,11 @@ rename to new.py"""
         # Should not crash and should preserve content
         assert result is not None
         assert "rename" in result
+        # Headers should NOT have (Line N) added
+        assert "(Line" not in result
 
     def test_mode_change_diff_not_crash(self):
-        """Mode/permission change diffs should not crash"""
+        """Mode/permission change diffs should not crash and preserve headers unchanged"""
         diff = """diff --git a/script.sh b/script.sh
 old mode 100644
 new mode 100755"""
@@ -1924,6 +1931,8 @@ new mode 100755"""
         # Should not crash and should preserve content
         assert result is not None
         assert "mode" in result
+        # Headers should NOT have (Line N) added
+        assert "(Line" not in result
 
     def test_empty_hunk_body_handled(self):
         """Hunks with no body lines should be handled gracefully"""
