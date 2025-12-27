@@ -76,6 +76,10 @@ def format_diagnostic(
     """
     Format diagnostic data as JSON string for log messages.
 
+    The output JSON always includes two metadata fields:
+    - _v: Diagnostic format version (e.g., "1.2.0") for tracking schema changes
+    - _ts: Unix timestamp (seconds since epoch) for log correlation across services
+
     Args:
         data: Dictionary of diagnostic data to format
         sample_keys: List of keys that contain arrays to be sampled
@@ -87,7 +91,7 @@ def format_diagnostic(
 
     Example:
         >>> format_diagnostic({"pr_number": 123, "items": [1,2,3]})
-        ' | {"pr_number":123,"items":[1,2,3]}'
+        ' | {"_v":"1.2.0","_ts":1735278000,"pr_number":123,"items":[1,2,3]}'
     """
     if sample_keys is None:
         sample_keys = ["raw_comment_structures", "payload_structures"]
