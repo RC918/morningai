@@ -57,6 +57,14 @@ class SensitiveDataMasker:
         r"xoxp-[a-zA-Z0-9-]+",  # Slack user tokens
         r"Bearer\s+[a-zA-Z0-9._-]+",  # Bearer tokens
         r"Basic\s+[a-zA-Z0-9+/=]+",  # Basic auth
+        # PostgreSQL DSN patterns (Issue #3107)
+        # Format: postgres://user:password@host:port/database
+        # Format: postgresql://user:password@host:port/database
+        r"postgres(?:ql)?://[^:]+:[^@]+@[^\s]+",
+        # Password in query params or config: password=secret, pwd=secret
+        r"(?:password|passwd|pwd)\s*[=:]\s*[^\s,;\"']+",
+        # DSN-style connection strings with password
+        r"host=[^\s]+\s+.*password=[^\s]+",
     ]
 
     # Minimum length for masking (shorter values are fully masked)

@@ -267,10 +267,130 @@ class TestRealWorldScenarios:
         # Use a token that matches the pattern (ghp_ + exactly 36 chars)
         error = "Failed to connect with token ghp_abcdefghijklmnopqrstuvwxyz123456"
         result = masker.mask_string(error)
+        # Verify the error message is processed (token is 40 chars, pattern expects 36)
+        assert "Failed to connect" in result
 
-        # The token is 40 chars after ghp_, pattern expects 36, so it won't match
         # Test with a properly formatted token
         error2 = "Failed with ghp_123456789012345678901234567890123456"
         result2 = masker.mask_string(error2)
         assert "ghp_123456789012345678901234567890123456" not in result2
         assert "Failed with" in result2
+
+
+class TestPostgreSQLSensitiveDataMasking:
+    """
+    Tests for PostgreSQL DSN and password masking patterns.
+
+    Issue #3107: Add sensitive data sanitization to checkpoint error logs
+    These tests verify that PostgreSQL connection strings and passwords
+    are properly masked in error messages to prevent credential exposure.
+    """
+
+    @pytest.fixture
+    def masker(self):
+        return SensitiveDataMasker()
+
+    def test_mask_postgres_dsn_with_password(self, masker):
+        """Test masking PostgreSQL DSN with embedded password"""
+        dsn = "postgres://myuser:supersecretpassword@db.example.com:5432/mydb"
+        result = masker.mask_string(dsn)
+        assert "supersecretpassword" not in result
+        assert "postgres://" in result or "post****" in result
+
+    def test_mask_postgresql_dsn_with_password(self, masker):
+        """Test masking PostgreSQL DSN with postgresql:// scheme"""
+        dsn = "postgresql://admin:p@ssw0rd123@localhost:5432/production"
+        result = masker.mask_string(dsn)
+        assert "p@ssw0rd123" not in result
+
+    def test_mask_postgres_dsn_in_error_message(self, masker):
+        """Test masking PostgreSQL DSN embedded in error message"""
+        error = (
+            "OperationalError: could not connect to server: "
+            "postgres://dbuser:mypassword123@db.host.com:5432/appdb "
+            "Connection refused"
+        )
+        result = masker.mask_string(error)
+        assert "mypassword123" not in result
+        assert "could not connect to server" in result
+        assert "Connection refused" in result
+
+    def test_mask_password_equals_pattern(self, masker):
+        """Test masking password=value pattern"""
+        config = "host=localhost port=5432 password=secretpass123 dbname=mydb"
+        result = masker.mask_string(config)
+        assert "secretpass123" not in result
+        assert "host=localhost" in result
+        assert "dbname=mydb" in result
+
+    def test_mask_password_colon_pattern(self, masker):
+        """Test masking password: value pattern"""
+        log = "Database config: password: mysecretvalue user: admin"
+        result = masker.mask_string(log)
+        assert "mysecretvalue" not in result
+
+    def test_mask_pwd_pattern(self, masker):
+        """Test masking pwd=value pattern"""
+        config = "server=db.example.com;pwd=hunter2;database=prod"
+        result = masker.mask_string(config)
+        assert "hunter2" not in result
+
+    def test_mask_passwd_pattern(self, masker):
+        """Test masking passwd=value pattern"""
+        error = "Authentication failed: passwd=wrongpassword"
+        result = masker.mask_string(error)
+        assert "wrongpassword" not in result
+
+    def test_mask_dsn_style_connection_string(self, masker):
+        """Test masking DSN-style connection string with password"""
+        dsn = "host=db.example.com port=5432 user=admin password=topsecret dbname=app"
+        result = masker.mask_string(dsn)
+        assert "topsecret" not in result
+        assert "host=db.example.com" in result
+
+    def test_mask_checkpoint_error_with_dsn(self, masker):
+        """Test masking real-world checkpoint error containing DSN"""
+        error = (
+            "ResilientPostgresSaver: Transient error in put, retrying. "
+            "error_type=OperationalError error=SSL connection has been closed "
+            "unexpectedly while connecting to postgres://checkpoint_user:Str0ngP@ss!@"
+            "checkpoint-db.internal:5432/langgraph_checkpoints"
+        )
+        result = masker.mask_string(error)
+        assert "Str0ngP@ss!" not in result
+        assert "ResilientPostgresSaver" in result
+        assert "Transient error" in result
+
+    def test_mask_degraded_checkpointer_error(self, masker):
+        """Test masking DegradedPersistenceCheckpointer error message"""
+        error = (
+            "CHECKPOINT DEGRADED: Primary checkpointer failed. "
+            "error='could not connect to postgresql://app:dbpassword@host/db'"
+        )
+        result = masker.mask_string(error)
+        assert "dbpassword" not in result
+        assert "CHECKPOINT DEGRADED" in result
+
+    def test_preserve_non_sensitive_postgres_info(self, masker):
+        """Test that non-sensitive PostgreSQL info is preserved"""
+        message = "Connected to PostgreSQL database on port 5432"
+        result = masker.mask_string(message)
+        assert result == message
+
+    def test_mask_multiple_passwords_in_message(self, masker):
+        """Test masking multiple password patterns in one message"""
+        message = (
+            "Primary: postgres://u1:pass1@h1/db1 "
+            "Fallback: password=pass2 "
+            "Backup: pwd=pass3"
+        )
+        result = masker.mask_string(message)
+        assert "pass1" not in result
+        assert "pass2" not in result
+        assert "pass3" not in result
+
+    def test_mask_sensitive_data_convenience_function(self):
+        """Test convenience function masks PostgreSQL credentials"""
+        error = "Failed: postgres://user:secret@host/db"
+        result = mask_sensitive_data(error)
+        assert "secret" not in result
