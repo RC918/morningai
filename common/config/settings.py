@@ -791,10 +791,10 @@ class Settings(BaseSettings):
     worker_drain_mode: bool = Field(
         default=False,
         alias="WORKER_DRAIN_MODE",
-        description="When True, worker exits immediately without consuming any jobs. "
-                    "Use this to safely stop all workers before DB maintenance (TRUNCATE/VACUUM FULL). "
-                    "Deploy with WORKER_DRAIN_MODE=true, wait for current jobs to complete, "
-                    "then perform maintenance. Blueprint: Flow Controller v3 Operational Control."
+        description="When True, NEW worker instances exit immediately without consuming jobs. "
+                    "Note: This does NOT stop in-progress jobs on already-running workers. "
+                    "See runbook for full DB maintenance procedure. "
+                    "Blueprint: Flow Controller v3 Operational Control."
     )
 
     # Value Gate Settings (Publisher Node Governance)

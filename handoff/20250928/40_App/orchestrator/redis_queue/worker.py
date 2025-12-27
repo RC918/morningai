@@ -2127,11 +2127,10 @@ if __name__ == "__main__":
     
     if settings.worker_drain_mode:
         logger.info(
-            "WORKER_DRAIN_MODE=true: Worker exiting immediately without consuming jobs. "
-            "This is expected during DB maintenance windows. "
-            "Set WORKER_DRAIN_MODE=false and redeploy to resume normal operation.",
+            "Drain mode active, worker exiting without consuming jobs",
             extra={
                 "operation": "drain_mode",
+                "drain_mode": True,
                 "heartbeat_id": HEARTBEAT_ID,
                 "rq_worker_name": RQ_WORKER_NAME,
                 "queue": RQ_QUEUE_NAME,
