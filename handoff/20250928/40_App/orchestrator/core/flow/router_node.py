@@ -37,6 +37,10 @@ from typing import Callable, Optional, Protocol
 
 from pydantic import ValidationError
 
+from .llm_safety import (
+    check_json_safety,
+    JSONSafetyError,
+)
 from .schema import (
     InvalidNextNodeError,
     RoutingContext,
@@ -72,64 +76,6 @@ class LLMClient(Protocol):
             Exception: For any other LLM errors
         """
         ...
-
-
-MAX_RESPONSE_SIZE = 10000
-MAX_NESTING_DEPTH = 10
-
-
-class JSONSafetyError(Exception):
-    """Raised when JSON response fails safety checks."""
-
-    pass
-
-
-def _check_json_safety(response: str) -> None:
-    """Check JSON response for size and nesting depth limits.
-
-    This prevents DoS attacks via deeply nested payloads or memory exhaustion.
-
-    Args:
-        response: The raw JSON string to check
-
-    Raises:
-        JSONSafetyError: If response exceeds size or nesting limits
-    """
-    if len(response) > MAX_RESPONSE_SIZE:
-        raise JSONSafetyError(
-            f"Response size {len(response)} exceeds limit {MAX_RESPONSE_SIZE}"
-        )
-
-    depth = 0
-    max_depth = 0
-    in_string = False
-    escape_next = False
-
-    for char in response:
-        if escape_next:
-            escape_next = False
-            continue
-
-        if char == '\\' and in_string:
-            escape_next = True
-            continue
-
-        if char == '"' and not escape_next:
-            in_string = not in_string
-            continue
-
-        if in_string:
-            continue
-
-        if char in '{[':
-            depth += 1
-            max_depth = max(max_depth, depth)
-            if max_depth > MAX_NESTING_DEPTH:
-                raise JSONSafetyError(
-                    f"Nesting depth {max_depth} exceeds limit {MAX_NESTING_DEPTH}"
-                )
-        elif char in '}]':
-            depth -= 1
 
 
 class FallbackReason:
@@ -291,7 +237,7 @@ class RouterNode:
                     raise ValueError("Empty LLM response")
 
                 # Safety check before parsing (prevents DoS via large/nested payloads)
-                _check_json_safety(response)
+                check_json_safety(response)
 
                 decision_dict = json.loads(response)
                 return RoutingDecision(**decision_dict)

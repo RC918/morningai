@@ -880,7 +880,7 @@ class TestJSONSafety:
 
     def test_oversized_response_triggers_fallback(self):
         """Test that oversized LLM response triggers fallback."""
-        from core.flow.router_node import MAX_RESPONSE_SIZE
+        from core.flow.llm_safety import MAX_RESPONSE_SIZE
 
         # Create a response larger than MAX_RESPONSE_SIZE
         oversized_response = '{"next_node": "fixer", "reasoning": "' + 'x' * (MAX_RESPONSE_SIZE + 100) + '", "risk_assessment": "Low"}'
@@ -899,7 +899,7 @@ class TestJSONSafety:
 
     def test_deeply_nested_json_triggers_fallback(self):
         """Test that deeply nested JSON triggers fallback."""
-        from core.flow.router_node import MAX_NESTING_DEPTH
+        from core.flow.llm_safety import MAX_NESTING_DEPTH
 
         # Create deeply nested JSON (exceeds MAX_NESTING_DEPTH)
         nested = '{"a": ' * (MAX_NESTING_DEPTH + 5) + '"value"' + '}' * (MAX_NESTING_DEPTH + 5)
@@ -1099,3 +1099,346 @@ class TestLiteralTypeValidation:
             from common.config.settings import Settings
             with pytest.raises(ValidationError):
                 Settings()
+
+
+# =============================================================================
+# C-2: Hybrid Router Tests (Stage 1)
+# =============================================================================
+
+
+class TestNodeNameMapping:
+    """Tests for node name canonicalization and mapping."""
+
+    def test_canonicalize_alias_publisher_node(self):
+        """Test that publisher_node maps to publisher."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        assert canonicalize_node_name("publisher_node") == "publisher"
+
+    def test_canonicalize_alias_fixer_node(self):
+        """Test that fixer_node maps to fixer."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        assert canonicalize_node_name("fixer_node") == "fixer"
+
+    def test_canonicalize_alias_coder_node(self):
+        """Test that coder_node maps to executor."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        assert canonicalize_node_name("coder_node") == "executor"
+
+    def test_canonicalize_alias_human_fallback(self):
+        """Test that human_fallback maps to decision."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        assert canonicalize_node_name("human_fallback") == "decision"
+
+    def test_canonicalize_canonical_node(self):
+        """Test that canonical node names pass through."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        assert canonicalize_node_name("publisher") == "publisher"
+        assert canonicalize_node_name("fixer") == "fixer"
+        assert canonicalize_node_name("executor") == "executor"
+        assert canonicalize_node_name("decision") == "decision"
+
+    def test_canonicalize_case_insensitive(self):
+        """Test that canonicalization is case-insensitive."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        assert canonicalize_node_name("PUBLISHER_NODE") == "publisher"
+        assert canonicalize_node_name("Fixer_Node") == "fixer"
+
+    def test_canonicalize_strips_whitespace(self):
+        """Test that canonicalization strips whitespace."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        assert canonicalize_node_name("  publisher  ") == "publisher"
+
+    def test_canonicalize_unknown_raises_error(self):
+        """Test that unknown node names raise ValueError."""
+        from core.flow.hybrid_router import canonicalize_node_name
+        with pytest.raises(ValueError) as exc_info:
+            canonicalize_node_name("unknown_node")
+        assert "Unknown node name" in str(exc_info.value)
+
+
+class TestSeverityComparison:
+    """Tests for severity comparison logic."""
+
+    def test_severity_gte_low_vs_low(self):
+        """Test low >= low is True."""
+        from core.flow.hybrid_router import severity_gte
+        assert severity_gte("low", "low") is True
+
+    def test_severity_gte_medium_vs_low(self):
+        """Test medium >= low is True."""
+        from core.flow.hybrid_router import severity_gte
+        assert severity_gte("medium", "low") is True
+
+    def test_severity_gte_low_vs_medium(self):
+        """Test low >= medium is False."""
+        from core.flow.hybrid_router import severity_gte
+        assert severity_gte("low", "medium") is False
+
+    def test_severity_gte_high_vs_medium(self):
+        """Test high >= medium is True."""
+        from core.flow.hybrid_router import severity_gte
+        assert severity_gte("high", "medium") is True
+
+    def test_severity_gte_critical_vs_high(self):
+        """Test critical >= high is True."""
+        from core.flow.hybrid_router import severity_gte
+        assert severity_gte("critical", "high") is True
+
+    def test_severity_gte_case_insensitive(self):
+        """Test severity comparison is case-insensitive."""
+        from core.flow.hybrid_router import severity_gte
+        assert severity_gte("MEDIUM", "low") is True
+        assert severity_gte("Low", "MEDIUM") is False
+
+
+class TestHybridRoutingPolicyFastPath:
+    """Tests for HybridRoutingPolicy fast path (deterministic) routing."""
+
+    def test_fast_path_approve_routes_to_publisher(self):
+        """Test that approve verdict routes to publisher."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="approve",
+            severity="low",
+            summary="All good",
+            blocker_count=0
+        )
+        assert decision.next_node == "publisher"
+        assert decision.requires_hitl_approval is False
+
+    def test_fast_path_blocked_routes_to_decision_with_hitl(self):
+        """Test that blocked verdict routes to decision with HITL."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="blocked",
+            severity="critical",
+            summary="Blocked",
+            blocker_count=5
+        )
+        assert decision.next_node == "decision"
+        assert decision.requires_hitl_approval is True
+
+    def test_fast_path_unknown_routes_to_decision_with_hitl(self):
+        """Test that unknown verdict routes to decision with HITL."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="unknown",
+            severity="low",
+            summary="Unknown",
+            blocker_count=0
+        )
+        assert decision.next_node == "decision"
+        assert decision.requires_hitl_approval is True
+
+    def test_fast_path_request_changes_low_severity_routes_to_fixer(self):
+        """Test that request_changes with low severity routes to fixer."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="low",
+            summary="Minor issues",
+            blocker_count=0
+        )
+        assert decision.next_node == "fixer"
+        assert decision.requires_hitl_approval is False
+
+    def test_fast_path_comment_routes_to_fixer(self):
+        """Test that comment verdict routes to fixer."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="comment",
+            severity="low",
+            summary="Suggestions",
+            blocker_count=0
+        )
+        assert decision.next_node == "fixer"
+        assert decision.requires_hitl_approval is False
+
+
+class TestHybridRoutingPolicySlowPath:
+    """Tests for HybridRoutingPolicy slow path (LLM) routing."""
+
+    def test_slow_path_request_changes_medium_calls_llm(self):
+        """Test that request_changes with medium severity calls LLM."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        llm_called = [False]
+
+        def mock_llm(prompt: str) -> str:
+            llm_called[0] = True
+            return '{"next_node": "fixer", "reasoning": "Can be auto-fixed"}'
+
+        policy = HybridRoutingPolicy(llm_generate_fn=mock_llm)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="medium",
+            summary="Medium issues",
+            blocker_count=0
+        )
+        assert llm_called[0] is True
+        assert decision.next_node == "fixer"
+
+    def test_slow_path_llm_returns_executor(self):
+        """Test that LLM can return executor for major issues."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        def mock_llm(prompt: str) -> str:
+            return '{"next_node": "executor", "reasoning": "Needs re-generation"}'
+
+        policy = HybridRoutingPolicy(llm_generate_fn=mock_llm)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="high",
+            summary="Major issues",
+            blocker_count=3
+        )
+        assert decision.next_node == "executor"
+
+    def test_slow_path_llm_alias_canonicalized(self):
+        """Test that LLM returning alias is canonicalized."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        def mock_llm(prompt: str) -> str:
+            return '{"next_node": "coder_node", "reasoning": "Needs re-generation"}'
+
+        policy = HybridRoutingPolicy(llm_generate_fn=mock_llm)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="high",
+            summary="Major issues",
+            blocker_count=3
+        )
+        assert decision.next_node == "executor"
+
+    def test_slow_path_llm_failure_uses_fallback(self):
+        """Test that LLM failure uses deterministic fallback."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        def mock_llm(prompt: str) -> str:
+            raise RuntimeError("LLM error")
+
+        policy = HybridRoutingPolicy(llm_generate_fn=mock_llm)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="medium",
+            summary="Issues",
+            blocker_count=0
+        )
+        assert decision.next_node == "fixer"
+
+    def test_slow_path_llm_invalid_json_uses_fallback(self):
+        """Test that invalid JSON from LLM uses fallback."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        def mock_llm(prompt: str) -> str:
+            return "not valid json"
+
+        policy = HybridRoutingPolicy(llm_generate_fn=mock_llm)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="high",
+            summary="Issues",
+            blocker_count=2
+        )
+        assert decision.next_node == "executor"
+
+    def test_slow_path_llm_invalid_node_uses_fallback(self):
+        """Test that invalid node from LLM uses fallback."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+
+        def mock_llm(prompt: str) -> str:
+            return '{"next_node": "invalid_node", "reasoning": "Bad"}'
+
+        policy = HybridRoutingPolicy(llm_generate_fn=mock_llm)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="medium",
+            summary="Issues",
+            blocker_count=0
+        )
+        assert decision.next_node == "fixer"
+
+
+class TestHybridRoutingPolicyDeterministicFallback:
+    """Tests for deterministic fallback logic."""
+
+    def test_fallback_medium_no_blockers_routes_to_fixer(self):
+        """Test that medium severity with no blockers routes to fixer."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="medium",
+            summary="Issues",
+            blocker_count=0
+        )
+        assert decision.next_node == "fixer"
+
+    def test_fallback_high_severity_routes_to_executor(self):
+        """Test that high severity routes to executor."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="high",
+            summary="Issues",
+            blocker_count=0
+        )
+        assert decision.next_node == "executor"
+
+    def test_fallback_medium_with_blockers_routes_to_executor(self):
+        """Test that medium severity with blockers routes to executor."""
+        from core.flow.hybrid_router import HybridRoutingPolicy
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+        decision = policy.route(
+            verdict="request_changes",
+            severity="medium",
+            summary="Issues",
+            blocker_count=2
+        )
+        assert decision.next_node == "executor"
+
+
+class TestRoutingDecisionHITL:
+    """Tests for requires_hitl_approval field in RoutingDecision."""
+
+    def test_routing_decision_default_hitl_false(self):
+        """Test that requires_hitl_approval defaults to False."""
+        decision = RoutingDecision(
+            next_node="fixer",
+            reasoning="Reason",
+            risk_assessment="Risk"
+        )
+        assert decision.requires_hitl_approval is False
+
+    def test_routing_decision_hitl_true(self):
+        """Test that requires_hitl_approval can be set to True."""
+        decision = RoutingDecision(
+            next_node="decision",
+            reasoning="Reason",
+            risk_assessment="Risk",
+            requires_hitl_approval=True
+        )
+        assert decision.requires_hitl_approval is True
+
+
+class TestTaskTypeRouting:
+    """Tests for TaskType.ROUTING in RoutingEngine."""
+
+    def test_task_type_routing_exists(self):
+        """Test that TaskType.ROUTING exists."""
+        from core.routing import TaskType
+        assert hasattr(TaskType, "ROUTING")
+        assert TaskType.ROUTING.value == "routing"
+
+    def test_routing_task_maps_to_tier_1(self):
+        """Test that ROUTING task maps to Tier 1."""
+        from core.routing import RoutingEngine, TaskType, Tier
+        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+        tier = engine.get_tier_for_task(TaskType.ROUTING)
+        assert tier == Tier.TIER_1
