@@ -100,6 +100,7 @@ import contextlib
 import functools
 import gc
 import logging
+import sys
 import threading as _threading
 import time
 import traceback
@@ -698,7 +699,6 @@ class OOMProtectedMemorySaver:
         This is a rough estimate using sys.getsizeof on the storage dicts.
         Actual memory usage may be higher due to object overhead.
         """
-        import sys
         total = 0
         total += sys.getsizeof(self._inner.storage)
         total += sys.getsizeof(self._inner.writes)
