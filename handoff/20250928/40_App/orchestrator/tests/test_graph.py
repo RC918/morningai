@@ -50,7 +50,7 @@ class TestPlanner:
 class TestExecute:
     """Test execute function"""
     
-    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
+    @patch('graph.check_value_gate')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -61,7 +61,7 @@ class TestExecute:
     @patch('subprocess.run')
     def test_execute_success(self, mock_subprocess, mock_get_repo, mock_create_branch, 
                             mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks,
-                            mock_rate_limit):
+                            mock_rate_limit, mock_value_gate):
         """Test execute function with successful workflow"""
         mock_repo = Mock()
         mock_get_repo.return_value = mock_repo
@@ -70,6 +70,14 @@ class TestExecute:
         mock_open_pr.return_value = ("https://github.com/test/pr/1", 1)
         mock_pr_checks.return_value = ("success", {"check1": "passed"})
         mock_rate_limit.return_value = (True, 1)  # Not rate limited
+        
+        # Mock Value Gate to allow PR creation
+        mock_value_gate_result = Mock()
+        mock_value_gate_result.should_create_pr = True
+        mock_value_gate_result.score = 50
+        mock_value_gate_result.primary_change_type = Mock(value="documentation")
+        mock_value_gate_result.downgrade_reason = None
+        mock_value_gate.return_value = mock_value_gate_result
         
         goal = "Create FAQ"
         repo_full = "owner/repo"
@@ -135,7 +143,7 @@ class TestExecute:
         assert trace_id is not None
         assert len(trace_id) > 0
     
-    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
+    @patch('graph.check_value_gate')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -146,7 +154,7 @@ class TestExecute:
     @patch('subprocess.run')
     def test_execute_auto_merge_enabled(self, mock_subprocess, mock_get_repo, mock_create_branch, 
                                        mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks,
-                                       mock_rate_limit):
+                                       mock_rate_limit, mock_value_gate):
         """Test execute disables auto-merge for docs PRs (Issue #2100 human gate)"""
         mock_repo = Mock()
         mock_get_repo.return_value = mock_repo
@@ -156,6 +164,14 @@ class TestExecute:
         mock_pr_checks.return_value = ("success", {})
         mock_rate_limit.return_value = (True, 1)  # Not rate limited
         
+        # Mock Value Gate to allow PR creation
+        mock_value_gate_result = Mock()
+        mock_value_gate_result.should_create_pr = True
+        mock_value_gate_result.score = 50
+        mock_value_gate_result.primary_change_type = Mock(value="documentation")
+        mock_value_gate_result.downgrade_reason = None
+        mock_value_gate.return_value = mock_value_gate_result
+        
         pr_url, state, trace_id = execute("Test", "owner/repo")
         
         # Issue #2100: Auto-merge is now disabled for docs PRs (human gate)
@@ -164,7 +180,7 @@ class TestExecute:
         # But PR should still be created successfully
         assert pr_url == "https://github.com/test/pr/4"
     
-    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
+    @patch('graph.check_value_gate')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -175,7 +191,7 @@ class TestExecute:
     @patch('subprocess.run')
     def test_execute_handles_auto_merge_failure(self, mock_subprocess, mock_get_repo, mock_create_branch, 
                                                 mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks,
-                                                mock_rate_limit):
+                                                mock_rate_limit, mock_value_gate):
         """Test execute creates PR successfully (auto-merge disabled for docs PRs per Issue #2100)"""
         mock_repo = Mock()
         mock_get_repo.return_value = mock_repo
@@ -186,11 +202,19 @@ class TestExecute:
         mock_rate_limit.return_value = (True, 1)  # Not rate limited
         # Note: subprocess.run side_effect no longer matters since auto-merge is disabled
         
+        # Mock Value Gate to allow PR creation
+        mock_value_gate_result = Mock()
+        mock_value_gate_result.should_create_pr = True
+        mock_value_gate_result.score = 50
+        mock_value_gate_result.primary_change_type = Mock(value="documentation")
+        mock_value_gate_result.downgrade_reason = None
+        mock_value_gate.return_value = mock_value_gate_result
+        
         pr_url, state, trace_id = execute("Test", "owner/repo")
         
         assert pr_url == "https://github.com/test/pr/5"
     
-    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
+    @patch('graph.check_value_gate')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -200,7 +224,7 @@ class TestExecute:
     @patch('graph.get_repo')
     def test_execute_handles_faq_generation_failure(self, mock_get_repo, mock_create_branch, 
                                                     mock_generate_faq, mock_commit, mock_open_pr, mock_pr_checks,
-                                                    mock_rate_limit):
+                                                    mock_rate_limit, mock_value_gate):
         """Test execute handles FAQ generation failure with fallback"""
         mock_repo = Mock()
         mock_get_repo.return_value = mock_repo
@@ -213,6 +237,14 @@ class TestExecute:
         ]
         mock_open_pr.return_value = ("https://github.com/test/pr/6", 6)
         mock_pr_checks.return_value = ("success", {})
+        
+        # Mock Value Gate to allow PR creation
+        mock_value_gate_result = Mock()
+        mock_value_gate_result.should_create_pr = True
+        mock_value_gate_result.score = 50
+        mock_value_gate_result.primary_change_type = Mock(value="documentation")
+        mock_value_gate_result.downgrade_reason = None
+        mock_value_gate.return_value = mock_value_gate_result
         
         pr_url, state, trace_id = execute("Test", "owner/repo")
         
@@ -735,7 +767,7 @@ class TestDocsSafetyConstants:
 class TestExecuteDocsSafety:
     """Test execute function with docs safety features for Issue #2100"""
     
-    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
+    @patch('graph.check_value_gate')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -745,7 +777,7 @@ class TestExecuteDocsSafety:
     @patch('graph.get_repo')
     def test_execute_uses_docs_rate_limit(
         self, mock_get_repo, mock_create_branch, mock_generate_faq,
-        mock_commit, mock_open_pr, mock_pr_checks, mock_rate_limit
+        mock_commit, mock_open_pr, mock_pr_checks, mock_rate_limit, mock_value_gate
     ):
         """Test execute uses configurable docs PR rate limit (Issue #2969: decoupled)"""
         mock_repo = Mock()
@@ -756,6 +788,14 @@ class TestExecuteDocsSafety:
         mock_pr_checks.return_value = ("success", {"check1": "passed"})
         mock_rate_limit.return_value = (True, 1)  # Not rate limited
         
+        # Mock Value Gate to allow PR creation
+        mock_value_gate_result = Mock()
+        mock_value_gate_result.should_create_pr = True
+        mock_value_gate_result.score = 50
+        mock_value_gate_result.primary_change_type = Mock(value="documentation")
+        mock_value_gate_result.downgrade_reason = None
+        mock_value_gate.return_value = mock_value_gate_result
+        
         execute("Test FAQ", "owner/repo", trace_id="test-123")
         
         # Issue #2969: Rate limit is now called just before PR creation
@@ -764,7 +804,7 @@ class TestExecuteDocsSafety:
         call_args = mock_rate_limit.call_args
         assert call_args[1]['max_per_hour'] == 3
     
-    @patch.dict(os.environ, {"VALUE_GATE_DRY_RUN": "true"})
+    @patch('graph.check_value_gate')
     @patch('graph.check_pr_rate_limit')
     @patch('graph.get_pr_checks')
     @patch('graph.open_pr')
@@ -774,7 +814,7 @@ class TestExecuteDocsSafety:
     @patch('graph.get_repo')
     def test_execute_rate_limited_returns_early(
         self, mock_get_repo, mock_create_branch, mock_generate_faq,
-        mock_commit, mock_open_pr, mock_pr_checks, mock_rate_limit
+        mock_commit, mock_open_pr, mock_pr_checks, mock_rate_limit, mock_value_gate
     ):
         """Test execute returns early when rate limited (Issue #2969: decoupled)"""
         mock_repo = Mock()
@@ -782,6 +822,14 @@ class TestExecuteDocsSafety:
         mock_generate_faq.return_value = "# FAQ Content\n\nTest content with enough length to pass validation.\n\nGenerated by MorningAI\ntrace-id: test-123"
         # Rate limited - already created 4 PRs
         mock_rate_limit.return_value = (False, 4)
+        
+        # Mock Value Gate to allow PR creation (so we can test rate limit behavior)
+        mock_value_gate_result = Mock()
+        mock_value_gate_result.should_create_pr = True
+        mock_value_gate_result.score = 50
+        mock_value_gate_result.primary_change_type = Mock(value="documentation")
+        mock_value_gate_result.downgrade_reason = None
+        mock_value_gate.return_value = mock_value_gate_result
         
         pr_url, state, trace_id = execute("Test FAQ", "owner/repo", trace_id="test-123")
         

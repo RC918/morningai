@@ -879,6 +879,47 @@ class Settings(BaseSettings):
         description="Comma-separated list of security-related keywords for risk detection in PM Agent and changeset analysis."
     )
 
+    # Docs Digest Strategy Settings (Layer 2 Value Gate)
+    # Blueprint: Flow Controller v3 + Safety Governor v2
+    # Issue #3087: Implement Docs Digest Strategy
+    docs_digest_enabled: bool = Field(
+        default=False,
+        alias="DOCS_DIGEST_ENABLED",
+        description="Enable Docs Digest Strategy to accumulate blocked changes and create periodic summary PRs. Default is False (disabled)."
+    )
+
+    docs_digest_count_threshold: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        alias="DOCS_DIGEST_COUNT_THRESHOLD",
+        description="Number of blocked changes needed to trigger a digest PR (default: 5)."
+    )
+
+    docs_digest_flush_hour_utc: int = Field(
+        default=0,
+        ge=0,
+        le=23,
+        alias="DOCS_DIGEST_FLUSH_HOUR_UTC",
+        description="Hour (0-23 UTC) for daily digest flush. Uses opportunistic triggering (default: 0 = midnight UTC)."
+    )
+
+    docs_digest_lock_ttl_seconds: int = Field(
+        default=600,
+        ge=60,
+        le=1800,
+        alias="DOCS_DIGEST_LOCK_TTL_SECONDS",
+        description="TTL in seconds for distributed lock during digest flush (default: 600 = 10 min)."
+    )
+
+    docs_digest_max_items: int = Field(
+        default=50,
+        ge=10,
+        le=200,
+        alias="DOCS_DIGEST_MAX_ITEMS",
+        description="Maximum number of blocked changes to accumulate before rejecting new ones (default: 50)."
+    )
+
     # Issue #2874: Routing engine candidate selection weights
     routing_cost_weight: float = Field(
         default=0.3,
