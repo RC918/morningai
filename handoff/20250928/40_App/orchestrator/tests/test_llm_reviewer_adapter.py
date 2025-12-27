@@ -1993,3 +1993,161 @@ new mode 100755"""
 +print("hello (world)")"""
         result = annotate_diff_with_line_numbers(diff)
         assert 'print("hello (world)")' in result
+
+
+class TestContractAwarenessAndNoiseBudget:
+    """
+    Test suite for Contract Awareness and Noise Budget validation (Issue #3084).
+
+    These tests verify that the system prompt contains the required sections
+    from the Major Brain Upgrade (PR #3076). This prevents regression if the
+    prompt is accidentally modified.
+
+    Blueprint Alignment:
+        - Telemetry v2: Observable contract changes (Section 5.2)
+        - Stability First: Prevent prompt regression
+    """
+
+    def test_system_prompt_contains_contract_change_checklist(self):
+        """Test that system prompt contains CONTRACT CHANGE CHECKLIST section."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "CONTRACT CHANGE CHECKLIST" in prompt
+        assert "Structured Output Fields" in prompt
+        assert "Timestamp Fields" in prompt
+        assert "Event Names / Telemetry Keys" in prompt
+
+    def test_system_prompt_contains_noise_budget(self):
+        """Test that system prompt contains NOISE BUDGET section."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "NOISE BUDGET" in prompt
+        assert "Maximum 5 comments" in prompt
+        assert "IMPACT" in prompt
+        assert "SUGGESTED FIX" in prompt
+
+    def test_system_prompt_contains_strict_mode(self):
+        """Test that system prompt contains STRICT MODE section."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "STRICT MODE" in prompt
+        assert 'ONLY COMMENT ON + LINES' in prompt
+        assert "FORBIDDEN targets" in prompt
+
+    def test_system_prompt_contains_senior_architect_persona(self):
+        """Test that system prompt contains SENIOR ARCHITECT persona."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "SENIOR" in prompt
+        assert "ARCHITECT" in prompt
+        assert "NOT INTERN" in prompt
+        assert "DO NOT nitpick" in prompt
+
+    def test_system_prompt_contains_quote_first_methodology(self):
+        """Test that system prompt contains QUOTE-FIRST methodology."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "QUOTE-FIRST" in prompt
+        assert "Chain of Thought" in prompt
+        assert "QUOTE:" in prompt
+        assert "LOCATE:" in prompt
+        assert "ANALYZE:" in prompt
+        assert "SUGGEST:" in prompt
+
+    def test_system_prompt_forbids_nit_severity(self):
+        """Test that system prompt explicitly forbids 'nit' severity."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert '"nit" severity is REMOVED' in prompt
+
+    def test_system_prompt_forbids_style_category(self):
+        """Test that system prompt explicitly forbids 'style' category."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert '"style" category is REMOVED' in prompt
+
+    def test_system_prompt_includes_contract_category(self):
+        """Test that system prompt includes new 'contract' category."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert '"contract" category is NEW' in prompt
+        assert '"contract"' in prompt
+
+    def test_system_prompt_includes_quote_field(self):
+        """Test that system prompt includes new 'quote' field requirement."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert '"quote" field is NEW' in prompt
+        assert '"quote":' in prompt
+
+    def test_system_prompt_timestamp_validation_requirements(self):
+        """Test that system prompt includes timestamp validation requirements."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "unit" in prompt.lower()
+        assert "UTC" in prompt
+        assert "milliseconds" in prompt
+
+    def test_system_prompt_line_number_format_instructions(self):
+        """Test that system prompt includes line number format instructions."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "(Line N)" in prompt or "(Line 50)" in prompt
+        assert "COPY the number" in prompt
+
+    def test_system_prompt_scoring_guidelines(self):
+        """Test that system prompt includes scoring guidelines."""
+        adapter = LLMReviewerAdapter.__new__(LLMReviewerAdapter)
+        adapter.trace_id = "test"
+        adapter.llm_client = None
+
+        prompt = adapter._get_diff_aware_system_prompt()
+
+        assert "SCORING GUIDELINES" in prompt
+        assert "quality_score" in prompt
+        assert "85-95" in prompt
+        assert "Security issues" in prompt
