@@ -122,6 +122,7 @@ from llm_reviewer_adapter import generate_llm_review
 from webhooks.review_follow_up import determine_hitl_requirement
 from tools.github_api import get_repo, get_pr_diff
 from exceptions import DatabaseException
+from meta_agent.sensitive_data_masker import mask_sensitive_data
 
 logger = logging.getLogger(__name__)
 
@@ -883,18 +884,30 @@ class ResilientPostgresSaver:
                 error_str = str(e)
                 error_str_lower = error_str.lower()
                 error_type = type(e).__name__
+                # Sanitize error string to mask sensitive data (Issue #3107)
+                # This prevents PostgreSQL DSNs, passwords, and other secrets from being logged
+                # Wrap in try/except to ensure masking failure doesn't break retry/failover logic
+                masking_failed = False
+                try:
+                    sanitized_error = mask_sensitive_data(error_str)
+                except Exception:
+                    # Fallback to original error string if masking fails
+                    # This ensures retry/failover logic is not affected by masking issues
+                    sanitized_error = error_str
+                    masking_failed = True
 
                 if not self._is_transient_error(e):
                     # Non-transient error, don't retry
                     logger.error(
                         f"ResilientPostgresSaver: Non-transient error in {operation_name}, not retrying. "
-                        f"error_type={error_type} error={error_str[:200]}",
+                        f"error_type={error_type} error={sanitized_error[:200]}",
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
-                            "error": error_str,
+                            "error": sanitized_error,
                             "error_type": error_type,
                             "attempt": attempt + 1,
+                            "masking_failed": masking_failed,
                         }
                     )
                     raise
@@ -908,16 +921,17 @@ class ResilientPostgresSaver:
                     logger.warning(
                         f"ResilientPostgresSaver: Transient error in {operation_name}, "
                         f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1}). "
-                        f"error_type={error_type} error={error_str[:200]}",
+                        f"error_type={error_type} error={sanitized_error[:200]}",
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
-                            "error": error_str,
+                            "error": sanitized_error,
                             "error_type": error_type,
                             "attempt": attempt + 1,
                             "max_retries": self._max_retries + 1,
                             "delay_seconds": delay,
                             "is_connection_lost": is_connection_lost,
+                            "masking_failed": masking_failed,
                         }
                     )
 
@@ -950,14 +964,15 @@ class ResilientPostgresSaver:
                     # Log and raise directly instead of storing exception
                     logger.error(
                         f"ResilientPostgresSaver: All retries exhausted for {operation_name}. "
-                        f"error_type={error_type} error={error_str[:200]}",
+                        f"error_type={error_type} error={sanitized_error[:200]}",
                         extra={
                             "operation": "resilient_postgres_saver",
                             "checkpoint_operation": operation_name,
-                            "error": error_str,
+                            "error": sanitized_error,
                             "error_type": error_type,
                             "total_attempts": self._max_retries + 1,
                             "consecutive_failures": self._consecutive_failures,
+                            "masking_failed": masking_failed,
                         }
                     )
                     raise
@@ -1116,7 +1131,18 @@ class DegradedPersistenceCheckpointer:
         self._degraded = True
         self._degraded_since = datetime.utcnow().isoformat()
         self._degraded_operation = operation_name
-        self._degraded_error = str(error)
+        # Sanitize error string to mask sensitive data (Issue #3107)
+        # This prevents PostgreSQL DSNs, passwords, and other secrets from being logged
+        # Wrap in try/except to ensure masking failure doesn't break failover logic
+        error_str = str(error)
+        masking_failed = False
+        try:
+            self._degraded_error = mask_sensitive_data(error_str)
+        except Exception:
+            # Fallback to original error string if masking fails
+            # This ensures failover logic is not affected by masking issues
+            self._degraded_error = error_str
+            masking_failed = True
 
         logger.warning(
             f"CHECKPOINT DEGRADED: Primary checkpointer failed, switching to fallback. "
@@ -1131,6 +1157,7 @@ class DegradedPersistenceCheckpointer:
                 "error_type": type(error).__name__,
                 "degraded_since": self._degraded_since,
                 "checkpointer_mode": "degraded",
+                "masking_failed": masking_failed,
             }
         )
 
