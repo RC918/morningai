@@ -1710,7 +1710,12 @@ class TestResilientPostgresSaverRateLimitedLogging:
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_should_log_retry_method_directly(self):
-        """Test _should_log_retry method behavior directly"""
+        """Test _should_log_retry method behavior directly
+
+        Note: _should_log_retry is now a pure function with no side effects.
+        Counter increments are handled by the caller (_retry_with_backoff).
+        The method signature is _should_log_retry(is_first, is_last).
+        """
         from unittest.mock import MagicMock
 
         from langgraph_orchestrator import ResilientPostgresSaver
@@ -1724,12 +1729,25 @@ class TestResilientPostgresSaverRateLimitedLogging:
             retry_log_sample_rate=5,
         )
 
-        assert wrapper._should_log_retry(attempt=0, is_last_attempt=False) is True
-        assert wrapper._should_log_retry(attempt=1, is_last_attempt=False) is False
-        assert wrapper._should_log_retry(attempt=2, is_last_attempt=False) is False
-        assert wrapper._should_log_retry(attempt=3, is_last_attempt=False) is False
-        assert wrapper._should_log_retry(attempt=4, is_last_attempt=False) is True
-        assert wrapper._should_log_retry(attempt=5, is_last_attempt=True) is True
+        # First retry is always logged
+        assert wrapper._should_log_retry(is_first=True, is_last=False) is True
+
+        # Last retry is always logged
+        assert wrapper._should_log_retry(is_first=False, is_last=True) is True
+
+        # Intermediate retries depend on counter and sample rate
+        # Simulate counter increments (normally done by caller)
+        wrapper._retry_log_count = 1
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is False
+
+        wrapper._retry_log_count = 5
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is True
+
+        wrapper._retry_log_count = 10
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is True
+
+        wrapper._retry_log_count = 7
+        assert wrapper._should_log_retry(is_first=False, is_last=False) is False
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_backward_compatibility_default_logs_all(self):

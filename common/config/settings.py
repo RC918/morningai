@@ -990,7 +990,7 @@ class Settings(BaseSettings):
     checkpoint_retry_log_sample_rate: int = Field(
         default=1,
         ge=1,
-        le=100,
+        le=1000,
         alias="CHECKPOINT_RETRY_LOG_SAMPLE_RATE",
         description="Sample rate for retry warning logs during transient errors. "
                     "1 = log every retry (default), 10 = log every 10th retry. "

@@ -537,7 +537,12 @@ def get_postgres_checkpointer():
         # pool reset on connection-lost errors
         #
         # Issue #3109: Get retry log sample rate from settings for rate-limited logging
-        retry_log_sample_rate = settings.checkpoint_retry_log_sample_rate
+        # Use getattr with default to handle mocked settings in tests
+        retry_log_sample_rate = getattr(
+            settings,
+            "checkpoint_retry_log_sample_rate",
+            ResilientPostgresSaver.DEFAULT_RETRY_LOG_SAMPLE_RATE
+        )
         checkpointer = ResilientPostgresSaver(
             inner_saver=inner_checkpointer,
             max_retries=3,
@@ -784,7 +789,7 @@ class ResilientPostgresSaver:
 
         return False
 
-    def _should_log_retry(self, attempt: int, is_last_attempt: bool) -> bool:
+    def _should_log_retry(self, is_first: bool, is_last: bool) -> bool:
         """
         Determine if this retry attempt should be logged based on sampling rate.
 
@@ -795,25 +800,29 @@ class ResilientPostgresSaver:
         This method implements sampling: log every Nth retry, but always log
         the first and last attempts for visibility.
 
+        Note: This is a pure function with no side effects. Counter increments
+        are handled by the caller (_retry_with_backoff) before calling this method.
+
         Args:
-            attempt: Current attempt number (0-indexed)
-            is_last_attempt: True if this is the final retry attempt
+            is_first: True if this is the first retry attempt
+            is_last: True if this is the final retry attempt before exhaustion
 
         Returns:
             True if this retry should be logged, False to skip logging
         """
-        self._retry_log_count += 1
-
-        # Always log first attempt (attempt == 0)
-        if attempt == 0:
+        # Always log first retry warning
+        if is_first:
             return True
 
-        # Always log last attempt
-        if is_last_attempt:
+        # Always log last retry warning (before exhaustion)
+        if is_last:
             return True
 
         # Sample based on configured rate
-        # retry_log_count starts at 1 for first retry, so we check modulo
+        # retry_log_count is 1-indexed (incremented before this call)
+        if self._retry_log_sample_rate == 1:
+            return True
+
         return self._retry_log_count % self._retry_log_sample_rate == 0
 
     def _reset_pool_and_inner(self) -> None:
@@ -968,14 +977,16 @@ class ResilientPostgresSaver:
                     should_retry = True
                     is_connection_lost = self._is_connection_lost_error(error_str_lower)
 
-                    # Issue #3109: Track total retry attempts for metrics
-                    # This counter is always incremented, even when log is sampled out
+                    # Issue #3109: Track retry attempts for metrics and sampling
+                    # These counters are always incremented, even when log is sampled out
                     self._total_retry_attempts += 1
+                    self._retry_log_count += 1
 
                     # Issue #3109: Rate-limited logging to reduce noise during outages
-                    # Always log first and last attempts; sample intermediate retries
+                    # Always log first and last retry warnings; sample intermediate retries
+                    is_first_retry = (attempt == 0)
                     is_last_retry = (attempt == self._max_retries - 1)
-                    if self._should_log_retry(attempt, is_last_retry):
+                    if self._should_log_retry(is_first_retry, is_last_retry):
                         logger.warning(
                             f"ResilientPostgresSaver: Transient error in {operation_name}, "
                             f"retrying in {delay:.2f}s (attempt {attempt + 1}/{self._max_retries + 1}). "
