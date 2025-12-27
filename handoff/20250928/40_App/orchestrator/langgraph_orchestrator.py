@@ -1727,6 +1727,11 @@ class AgentState(TypedDict):
     diff_head_sha: Optional[str]
     diff_content: Optional[str]
     diff_truncated: Optional[bool]
+    # EPIC B Phase B-6: Reviewer -> Router interface (Issue #3130)
+    # Set by reviewer_node, read by Router for routing decisions.
+    # Contains verdict, severity, summary, blocker_count, and data quality signals.
+    # See core/routing/review_outcome.py for schema definition.
+    review_outcome: Optional[dict]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -4003,6 +4008,37 @@ def reviewer_node(state: AgentState) -> AgentState:
             AIMessage(content=f"Code review completed ({review_method}). Quality score: {state['code_quality_score']}, Severity: {state['review_severity']}")
         ]
 
+        # EPIC B-6: Build ReviewOutcome for Router interface (Issue #3130)
+        # This provides a stable interface for Router to make routing decisions
+        try:
+            from core.routing.review_outcome import build_review_outcome
+            review_outcome = build_review_outcome(
+                review_comments=state.get("review_comments", []),
+                review_severity=state.get("review_severity", "none"),
+                review_result=state.get("review_result", {}),
+                diff_truncated=state.get("diff_truncated", False)
+            )
+            state["review_outcome"] = review_outcome.model_dump()
+            logger.info("[Reviewer] ReviewOutcome built successfully", extra={
+                "operation": "reviewer",
+                "trace_id": trace_id,
+                "verdict": review_outcome.verdict,
+                "severity": review_outcome.severity,
+                "blocker_count": review_outcome.blocker_count
+            })
+        except Exception as outcome_error:
+            # Fallback: build unknown outcome if ReviewOutcome construction fails
+            from core.routing.review_outcome import build_unknown_outcome
+            state["review_outcome"] = build_unknown_outcome(
+                error=str(outcome_error),
+                diff_truncated=state.get("diff_truncated", False)
+            )
+            logger.warning("[Reviewer] ReviewOutcome build failed, using fallback", extra={
+                "operation": "reviewer",
+                "trace_id": trace_id,
+                "error": str(outcome_error)
+            })
+
     except Exception as e:
         success = False
         logger.error(f"[Reviewer] Review failed: {e}", extra={
@@ -4017,6 +4053,13 @@ def reviewer_node(state: AgentState) -> AgentState:
         state["messages"] = state.get("messages", []) + [
             AIMessage(content=f"Code review failed: {str(e)}")
         ]
+
+        # EPIC B-6: Build unknown ReviewOutcome for error case
+        from core.routing.review_outcome import build_unknown_outcome
+        state["review_outcome"] = build_unknown_outcome(
+            error=str(e),
+            diff_truncated=state.get("diff_truncated", False)
+        )
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("reviewer", trace_id, success=success, latency_ms=latency_ms)
