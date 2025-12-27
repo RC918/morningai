@@ -15,13 +15,15 @@ Usage:
 Version History:
     v1.0.0 - Initial implementation with format_diagnostic()
     v1.1.0 - Added DIAGNOSTIC_VERSION for tracking format changes
+    v1.2.0 - Added _ts timestamp field for log correlation
 """
 import json
 import hashlib
+import time
 from typing import Any, Dict, List, Optional
 
 # Diagnostic format version - increment when changing output structure
-DIAGNOSTIC_VERSION = "1.1.0"
+DIAGNOSTIC_VERSION = "1.2.0"
 
 
 # Maximum number of items to include in array samples
@@ -74,6 +76,10 @@ def format_diagnostic(
     """
     Format diagnostic data as JSON string for log messages.
 
+    The output JSON always includes two metadata fields:
+    - _v: Diagnostic format version (e.g., "1.2.0") for tracking schema changes
+    - _ts: Unix timestamp (seconds since epoch) for log correlation across services
+
     Args:
         data: Dictionary of diagnostic data to format
         sample_keys: List of keys that contain arrays to be sampled
@@ -85,15 +91,18 @@ def format_diagnostic(
 
     Example:
         >>> format_diagnostic({"pr_number": 123, "items": [1,2,3]})
-        ' | {"pr_number":123,"items":[1,2,3]}'
+        ' | {"_v":"1.2.0","_ts":1735278000,"pr_number":123,"items":[1,2,3]}'
     """
     if sample_keys is None:
         sample_keys = ["raw_comment_structures", "payload_structures"]
 
     try:
         # Create a copy to avoid modifying the original
-        # Include diagnostic version for tracking format changes
-        output_data = {"_v": DIAGNOSTIC_VERSION}
+        # Include diagnostic version and timestamp for tracking and correlation
+        output_data = {
+            "_v": DIAGNOSTIC_VERSION,
+            "_ts": int(time.time())
+        }
 
         for key, value in data.items():
             if key in sample_keys and isinstance(value, list):
