@@ -3761,6 +3761,15 @@ def reviewer_node(state: AgentState) -> AgentState:
                             "trace_id": trace_id,
                             "diff_head_sha": diff_head_sha[:8] if diff_head_sha else None
                         })
+                    else:
+                        # Warning: commit pinning will be disabled without diff_head_sha
+                        # This can happen if GitHub API returns null or get_pr_diff fails
+                        logger.warning("[Reviewer] diff_head_sha is null - commit pinning disabled", extra={
+                            "operation": "reviewer",
+                            "trace_id": trace_id,
+                            "pr_number": pr_number,
+                            "has_diff_content": bool(diff_content)
+                        })
 
                     # Phase B-3.1: Store diff content in state for publisher validation
                     # This allows publisher_node to validate inline comments against
@@ -4247,13 +4256,16 @@ def publisher_node(state: AgentState) -> AgentState:
 
     # DIAGNOSTIC: Log stored_head_sha presence for commit pinning verification
     # Note: diff_content is already sanitized by reviewer_node, so length reflects sanitized content
+    # Emit both sanitized_diff_length (new) and diff_content_length (legacy) for backward compatibility
+    _diff_len = len(diff_content) if diff_content else 0
     logger.info("[Publisher] Retrieved state for commit pinning", extra={
         "operation": "publisher",
         "trace_id": trace_id,
         "pr_number": pr_number,
         "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None,
         "has_diff_content": bool(diff_content),
-        "sanitized_diff_length": len(diff_content) if diff_content else 0
+        "sanitized_diff_length": _diff_len,
+        "diff_content_length": _diff_len  # Legacy key for backward compatibility
     })
 
     if diff_content and inline_comments:
@@ -4268,7 +4280,8 @@ def publisher_node(state: AgentState) -> AgentState:
             "trace_id": trace_id,
             "pr_number": pr_number,
             "diff_coverage": diff_coverage,
-            "sanitized_diff_length": len(diff_content) if diff_content else 0,
+            "sanitized_diff_length": _diff_len,
+            "diff_content_length": _diff_len,  # Legacy key for backward compatibility
             "diff_truncated": diff_truncated,
             "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None
         }
