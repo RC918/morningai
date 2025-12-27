@@ -43,6 +43,7 @@ class TaskType(Enum):
     PLANNING = "planning"
     CODING = "coding"
     REVIEW = "review"
+    ROUTING = "routing"
     UX_COPY = "ux_copy"
     TRANSLATION = "translation"
     SUMMARIZATION = "summarization"
@@ -130,6 +131,7 @@ DEFAULT_TASK_ROUTING: Dict[str, Dict[str, int]] = {
     "planning": {"tier": 0, "fallback": 1},
     "coding": {"tier": 1, "fallback": 2},
     "review": {"tier": 1, "fallback": 2},
+    "routing": {"tier": 1, "fallback": 2},
     "ux_copy": {"tier": 3, "fallback": 2},
     "translation": {"tier": 2, "fallback": 3},
     "summarization": {"tier": 2, "fallback": 3},

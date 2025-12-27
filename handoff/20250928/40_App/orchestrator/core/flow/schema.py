@@ -100,6 +100,11 @@ class RoutingDecision(BaseModel):
         le=1.0,
         description="Optional confidence score (0.0 to 1.0)"
     )
+    requires_hitl_approval: bool = Field(
+        default=False,
+        description="Whether this decision requires Human-in-the-Loop approval. "
+                    "Set to True for blocked/unknown verdicts or high-risk decisions."
+    )
 
     @field_validator("next_node")
     @classmethod
