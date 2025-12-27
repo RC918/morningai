@@ -239,7 +239,7 @@ def get_system_metrics():
                 if needs_fix_count > 0:
                     real_pending_approvals = needs_fix_count
 
-                logger.info(f"Real metrics from Redis: error_rate={real_error_rate}, response_time={real_response_time}")
+                logger.info(f"Redis metrics: err={real_error_rate}, resp_time={real_response_time}")
 
         except ImportError as e:
             logger.warning(f"OrchestratorMetrics not available: {e}")
