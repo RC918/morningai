@@ -774,3 +774,172 @@ class TestFullWebhookFlowOrchestratorFiltering:
             "PR without orchestrator-docs label should be actionable, "
             "even with malformed labels in payload."
         )
+
+
+class TestDocsDigestSelfTriggerPrevention:
+    """
+    Regression tests for Docs Digest Strategy self-trigger loop prevention.
+
+    Issue: #3087 - Implement Docs Digest Strategy
+    The Docs Digest feature creates aggregated PRs with:
+    - Branch: orchestrator/docs-digest-{timestamp}
+    - Label: orchestrator-docs
+
+    These PRs MUST be filtered to prevent infinite self-trigger loops.
+    This test class ensures the filtering works correctly for Docs Digest PRs.
+    """
+
+    def _create_docs_digest_pr_event(
+        self,
+        event_type: WebhookEventType = WebhookEventType.PR_OPENED,
+        timestamp: int = 1735286400,  # Example timestamp
+    ) -> WebhookEvent:
+        """
+        Create a WebhookEvent that simulates a Docs Digest PR.
+
+        This matches the exact PR format created by docs_digest.py:
+        - Branch: orchestrator/docs-digest-{timestamp}
+        - Label: orchestrator-docs
+        """
+        branch_name = f"orchestrator/docs-digest-{timestamp}"
+        return WebhookEvent(
+            event_id="test-docs-digest-event",
+            source=WebhookSource.GITHUB,
+            event_type=event_type,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={
+                "action": "opened",
+                "pull_request": {
+                    "number": 9999,
+                    "title": "Automated Documentation Digest",
+                    "body": "This PR aggregates blocked documentation changes.",
+                    "head": {
+                        "ref": branch_name,
+                        "sha": "digest123",
+                    },
+                    "base": {
+                        "ref": "main",
+                    },
+                    "labels": [
+                        {"id": 1, "name": "orchestrator-docs"},
+                    ],
+                },
+                "repository": {
+                    "owner": {"login": "RC918"},
+                    "name": "morningai",
+                },
+                "sender": {"login": "github-actions[bot]", "id": 41898282},
+            },
+            title="Automated Documentation Digest",
+            description="This PR aggregates blocked documentation changes.",
+            url="https://github.com/RC918/morningai/pull/9999",
+            actor_id="41898282",
+            actor_name="github-actions[bot]",
+            resource_id="9999",
+            resource_type="pull_request",
+            resource_url="https://github.com/RC918/morningai/pull/9999",
+            repo_owner="RC918",
+            repo_name="morningai",
+            labels=["orchestrator-docs"],
+            assignees=[],
+            metadata={
+                "github_event": "pull_request",
+                "action": "opened",
+            },
+        )
+
+    def test_docs_digest_branch_is_skipped(self):
+        """
+        Regression test: Docs Digest PR branch pattern is correctly filtered.
+
+        Issue: #3087 - Docs Digest Strategy creates PRs with branch:
+        orchestrator/docs-digest-{timestamp}
+
+        This MUST be filtered by should_skip_orchestrator_pr_event().
+        """
+        event = self._create_docs_digest_pr_event()
+        assert should_skip_orchestrator_pr_event(event) is True, (
+            "Docs Digest PR with orchestrator/docs-digest-* branch should be skipped! "
+            "This is critical for preventing self-trigger loops."
+        )
+
+    def test_docs_digest_label_is_skipped(self):
+        """
+        Regression test: Docs Digest PR label is correctly filtered.
+
+        Even if the branch detection fails, the label filter should catch it.
+        """
+        # Create event with non-orchestrator branch but with orchestrator-docs label
+        event = WebhookEvent(
+            event_id="test-docs-digest-label",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.PR_OPENED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={
+                "action": "opened",
+                "pull_request": {
+                    "number": 9998,
+                    "title": "Automated Documentation Digest",
+                    "head": {"ref": "some-other-branch", "sha": "abc123"},
+                    "base": {"ref": "main"},
+                },
+                "repository": {
+                    "owner": {"login": "RC918"},
+                    "name": "morningai",
+                },
+                "sender": {"login": "bot", "id": 12345},
+            },
+            title="Automated Documentation Digest",
+            description="Test",
+            url="https://github.com/RC918/morningai/pull/9998",
+            actor_id="12345",
+            actor_name="bot",
+            resource_id="9998",
+            resource_type="pull_request",
+            resource_url="https://github.com/RC918/morningai/pull/9998",
+            repo_owner="RC918",
+            repo_name="morningai",
+            labels=["orchestrator-docs"],  # Has the label
+            assignees=[],
+            metadata={},
+        )
+        assert should_skip_orchestrator_pr_event(event) is True, (
+            "PR with orchestrator-docs label should be skipped! "
+            "This provides defense-in-depth for self-trigger prevention."
+        )
+
+    def test_docs_digest_all_event_types_filtered(self):
+        """
+        Regression test: All PR event types are filtered for Docs Digest PRs.
+
+        The self-trigger loop can occur on any PR event type, not just PR_OPENED.
+        """
+        event_types = [
+            WebhookEventType.PR_OPENED,
+            WebhookEventType.PR_UPDATED,
+            WebhookEventType.PR_CLOSED,
+            WebhookEventType.PR_MERGED,
+            WebhookEventType.PR_REVIEWED,
+        ]
+        for event_type in event_types:
+            event = self._create_docs_digest_pr_event(event_type=event_type)
+            assert should_skip_orchestrator_pr_event(event) is True, (
+                f"Docs Digest PR with event type {event_type.value} should be skipped!"
+            )
+
+    def test_docs_digest_normalizer_integration(self):
+        """
+        Integration test: EventNormalizer correctly filters Docs Digest PRs.
+
+        This tests the full flow from webhook event to is_actionable() decision.
+        """
+        normalizer = EventNormalizer()
+        event = self._create_docs_digest_pr_event()
+
+        # The event should NOT be actionable
+        is_actionable = normalizer.is_actionable(event)
+        assert is_actionable is False, (
+            "Docs Digest PR should NOT be actionable! "
+            "This would cause a self-trigger loop where the orchestrator "
+            "processes its own digest PRs and creates more digest PRs."
+        )
