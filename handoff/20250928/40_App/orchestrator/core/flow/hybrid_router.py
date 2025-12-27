@@ -334,8 +334,21 @@ Your response (JSON only):"""
                 response_clean = response.strip()
 
             data = json.loads(response_clean)
+
+            if not isinstance(data, dict):
+                logger.warning(
+                    f"[HybridRouter] LLM response is not a dict: {type(data).__name__}"
+                )
+                return self._deterministic_fallback(severity, blocker_count)
+
             raw_node = data.get("next_node", "")
             reasoning = data.get("reasoning", "LLM decision")
+
+            if not isinstance(raw_node, str) or not raw_node:
+                logger.warning(
+                    "[HybridRouter] LLM response missing or invalid 'next_node' field"
+                )
+                return self._deterministic_fallback(severity, blocker_count)
 
             try:
                 next_node = canonicalize_node_name(raw_node)
@@ -349,9 +362,9 @@ Your response (JSON only):"""
             if next_node not in ("fixer", "executor"):
                 logger.warning(
                     f"[HybridRouter] LLM returned unexpected node '{next_node}', "
-                    f"constraining to fixer/executor"
+                    f"using deterministic fallback"
                 )
-                next_node = "fixer" if severity == "medium" else "executor"
+                return self._deterministic_fallback(severity, blocker_count)
 
             logger.info(
                 f"[HybridRouter] Slow path: LLM decided -> {next_node} "
