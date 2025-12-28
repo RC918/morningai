@@ -13,9 +13,15 @@ All events include trace_id for correlation.
 
 import logging
 import os
+import time
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _get_timestamp_ms() -> int:
+    """Get current timestamp in milliseconds (UTC) for cross-service correlation."""
+    return time.time_ns() // 1_000_000
 
 
 def get_current_rss_mb() -> float:
@@ -79,7 +85,8 @@ def log_resource_peak(
             "trace_id": trace_id,
             "event_code": "RESOURCE_PEAK",
             "node_name": node_name,
-            "current_rss_mb": round(rss_mb, 2)
+            "current_rss_mb": round(rss_mb, 2),
+            "timestamp_ms": _get_timestamp_ms()
         }
     )
 
@@ -117,7 +124,8 @@ def log_diff_fetch_bytes(
             "file_count": file_count,
             "truncated": truncated,
             "pr_number": pr_number,
-            "current_rss_mb": round(rss_mb, 2)
+            "current_rss_mb": round(rss_mb, 2),
+            "timestamp_ms": _get_timestamp_ms()
         }
     )
 
@@ -153,7 +161,8 @@ def log_prompt_build_bytes(
             "system_prompt_bytes": system_prompt_bytes,
             "user_prompt_bytes": user_prompt_bytes,
             "diff_included": diff_included,
-            "current_rss_mb": round(rss_mb, 2)
+            "current_rss_mb": round(rss_mb, 2),
+            "timestamp_ms": _get_timestamp_ms()
         }
     )
 
@@ -189,7 +198,8 @@ def log_llm_response_bytes(
             "token_count": token_count,
             "provider": provider,
             "model": model,
-            "current_rss_mb": round(rss_mb, 2)
+            "current_rss_mb": round(rss_mb, 2),
+            "timestamp_ms": _get_timestamp_ms()
         }
     )
 
@@ -205,9 +215,13 @@ def log_checkpoint_put_bytes(
     """
     Log [CHECKPOINT_PUT_BYTES] event during checkpoint put.
 
+    Note: payload_bytes uses sys.getsizeof() which only measures shallow object
+    size. The actual memory footprint of nested structures may be larger.
+    The size_method field indicates this is an estimate.
+
     Args:
         trace_id: Trace ID for correlation
-        payload_bytes: Size of checkpoint payload in bytes
+        payload_bytes: Shallow size estimate of checkpoint payload in bytes
         checkpoint_count: Current number of checkpoints
         thread_id: Thread ID for the checkpoint
         is_degraded: Whether using degraded (MemorySaver) mode
@@ -216,15 +230,17 @@ def log_checkpoint_put_bytes(
     rss_mb = get_current_rss_mb()
 
     logger.info(
-        f"[CHECKPOINT_PUT_BYTES] Checkpoint put: {payload_bytes} bytes",
+        f"[CHECKPOINT_PUT_BYTES] Checkpoint put: {payload_bytes} bytes (shallow)",
         extra={
             "operation": operation,
             "trace_id": trace_id,
             "event_code": "CHECKPOINT_PUT_BYTES",
-            "payload_bytes": payload_bytes,
+            "payload_shallow_bytes": payload_bytes,
+            "size_method": "shallow_getsizeof",
             "checkpoint_count": checkpoint_count,
             "thread_id": thread_id,
             "is_degraded": is_degraded,
-            "current_rss_mb": round(rss_mb, 2)
+            "current_rss_mb": round(rss_mb, 2),
+            "timestamp_ms": _get_timestamp_ms()
         }
     )

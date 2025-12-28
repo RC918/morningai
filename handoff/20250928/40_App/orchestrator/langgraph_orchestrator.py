@@ -4393,7 +4393,7 @@ def reviewer_node(state: AgentState) -> AgentState:
                                         "outcome": "continue"
                                     }
                                 )
-                            diff_data = get_pr_diff(github_repo, pr_number)
+                            diff_data = get_pr_diff(github_repo, pr_number, trace_id=trace_id)
                             if diff_data and not diff_data.get("error"):
                                 diff_content = diff_data.get("diff", "")
                                 diff_truncated = diff_data.get("truncated", False)

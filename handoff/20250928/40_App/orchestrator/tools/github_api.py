@@ -439,7 +439,9 @@ def get_pr_diff(
     pr_number: int,
     max_files: int = DIFF_MAX_FILES,
     max_lines: int = DIFF_MAX_LINES,
-    max_size_bytes: int = DIFF_MAX_SIZE_BYTES
+    max_size_bytes: int = DIFF_MAX_SIZE_BYTES,
+    *,
+    trace_id: Optional[str] = None
 ) -> dict:
     """
     Get PR diff with intelligent truncation strategy.
@@ -462,6 +464,7 @@ def get_pr_diff(
         max_files: Maximum number of files to include (default: 20)
         max_lines: Maximum total lines in diff (default: 1000)
         max_size_bytes: Maximum total size in bytes (default: 100KB)
+        trace_id: Optional trace ID for telemetry correlation (keyword-only)
 
     Returns:
         dict with keys:
@@ -652,14 +655,14 @@ def get_pr_diff(
         )
 
         # P1 瘦身計畫 (#3197): Log diff fetch bytes for resource profiling
-        # trace_id is passed via caller context, use "unknown" as fallback
-        log_diff_fetch_bytes(
-            trace_id="unknown",  # Will be enriched by caller if available
-            diff_bytes=total_size,
-            file_count=len(included_files),
-            truncated=result["truncated"],
-            pr_number=pr_number
-        )
+        if trace_id:
+            log_diff_fetch_bytes(
+                trace_id=trace_id,
+                diff_bytes=total_size,
+                file_count=len(included_files),
+                truncated=result["truncated"],
+                pr_number=pr_number
+            )
 
         return result
 
