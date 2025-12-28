@@ -988,13 +988,21 @@ class OOMProtectedMemorySaver:
         return self._inner.get_tuple(config)
 
     def put(self, config, checkpoint, metadata, new_versions):
-        """Put checkpoint with capacity check, hard limit check, and eviction."""
+        """Put checkpoint with capacity check, hard limit check, and eviction.
+
+        Order of operations:
+        1. Check capacity (workflow count limit)
+        2. Check hard memory limit (fail-fast before adding more data)
+        3. Store the checkpoint
+        4. Evict old checkpoints for this thread (keep last N by insertion order)
+        5. Check memory warning (log if approaching limit)
+        """
         self._check_capacity(config)
         self._check_memory_hard_limit()
+        result = self._inner.put(config, checkpoint, metadata, new_versions)
         thread_id = config.get("configurable", {}).get("thread_id")
         if thread_id:
             self._evict_old_checkpoints(thread_id)
-        result = self._inner.put(config, checkpoint, metadata, new_versions)
         self._check_memory_warning()
         return result
 

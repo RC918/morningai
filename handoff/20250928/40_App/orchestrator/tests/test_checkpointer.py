@@ -2470,16 +2470,14 @@ class TestOOMProtectedMemorySaverHardLimit:
             trace_id="test-trace",
         )
 
-        large_data = {"data": "x" * (2 * 1024 * 1024)}
-        wrapper._inner.storage["thread-1"] = {"": {"cp1": large_data}}
-
-        with pytest.raises(DegradedCheckpointerMemoryExceeded) as exc_info:
-            wrapper.put(
-                {"configurable": {"thread_id": "thread-2", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
-                {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
-                {"source": "input", "step": 0, "writes": None, "parents": {}},
-                {},
-            )
+        with patch.object(wrapper, 'get_memory_estimate_bytes', return_value=2 * 1024 * 1024):
+            with pytest.raises(DegradedCheckpointerMemoryExceeded) as exc_info:
+                wrapper.put(
+                    {"configurable": {"thread_id": "thread-2", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+                    {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                    {"source": "input", "step": 0, "writes": None, "parents": {}},
+                    {},
+                )
 
         assert "hard limit exceeded" in str(exc_info.value).lower()
         assert "test-trace" in str(exc_info.value)
