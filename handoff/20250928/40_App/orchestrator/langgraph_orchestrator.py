@@ -283,25 +283,37 @@ def _get_postgres_pool():
             # to prevent "SSL connection has been closed unexpectedly" errors.
             # Root cause: Network layer (NAT/LB) may drop idle connections before
             # the pool's max_idle timeout, causing "flushing failed" errors.
+
+            # Pool configuration - single source of truth for both pool creation and logging
+            pool_max_lifetime = 600  # 10 minutes - aggressive recycling to prevent stale connections
+            pool_max_idle = 120  # 2 minutes - aggressive recycling of idle connections
+            pool_min_size = 1  # Keep at least 1 connection ready
+            pool_max_size = 5  # Limit to prevent Supabase connection exhaustion
+
+            # TCP Keepalive settings (vital for cloud NAT/LB)
+            # These prevent network devices from dropping idle connections
+            # All values are in seconds (libpq convention)
+            # Worst-case dead peer detection: idle(30) + interval(10) * count(5) = ~80s
+            keepalives = 1  # Enable TCP keepalive
+            keepalives_idle = 30  # Start probing after 30s idle (seconds, libpq)
+            keepalives_interval = 10  # Probe every 10s (~50s probe window)
+            keepalives_count = 5  # Give up after 5 failed probes
+
             _postgres_pool = ConnectionPool(
                 conninfo=database_url,
-                min_size=1,  # Keep at least 1 connection ready
-                max_size=5,  # Limit to prevent Supabase connection exhaustion
-                max_lifetime=600,  # 10 minutes - aggressive recycling to prevent stale connections
-                max_idle=120,  # 2 minutes - aggressive recycling of idle connections
+                min_size=pool_min_size,
+                max_size=pool_max_size,
+                max_lifetime=pool_max_lifetime,
+                max_idle=pool_max_idle,
                 reconnect_timeout=60,  # 1 minute timeout for reconnection
                 kwargs={
                     "autocommit": True,  # Required by PostgresSaver
                     "row_factory": dict_row,  # Required by PostgresSaver
                     "prepare_threshold": 0,  # Disable prepared statements to avoid state loss on reconnect
-                    # TCP Keepalive settings (vital for cloud NAT/LB)
-                    # These prevent network devices from dropping idle connections
-                    # All values are in seconds (libpq convention)
-                    # Worst-case dead peer detection: idle(30) + interval(10) * count(5) = ~80s
-                    "keepalives": 1,  # Enable TCP keepalive
-                    "keepalives_idle": 30,  # Start probing after 30s idle (seconds, libpq)
-                    "keepalives_interval": 10,  # Probe every 10s (~50s probe window)
-                    "keepalives_count": 5,  # Give up after 5 failed probes
+                    "keepalives": keepalives,
+                    "keepalives_idle": keepalives_idle,
+                    "keepalives_interval": keepalives_interval,
+                    "keepalives_count": keepalives_count,
                 },
                 # Health check: validates connection before returning from pool
                 check=ConnectionPool.check_connection,
@@ -311,19 +323,20 @@ def _get_postgres_pool():
             _postgres_pool.wait()
 
             logger.info(
-                "PostgreSQL connection pool initialized successfully "
-                "[max_lifetime=600 max_idle=120 keepalives=1 "
-                "keepalives_idle=30 keepalives_interval=10 keepalives_count=5]",
+                f"PostgreSQL connection pool initialized successfully "
+                f"[max_lifetime={pool_max_lifetime} max_idle={pool_max_idle} keepalives={keepalives} "
+                f"keepalives_idle={keepalives_idle} keepalives_interval={keepalives_interval} "
+                f"keepalives_count={keepalives_count}]",
                 extra={
                     "operation": "_get_postgres_pool",
-                    "min_size": 1,
-                    "max_size": 5,
-                    "max_lifetime": 600,
-                    "max_idle": 120,
-                    "keepalives": 1,
-                    "keepalives_idle": 30,
-                    "keepalives_interval": 10,
-                    "keepalives_count": 5,
+                    "min_size": pool_min_size,
+                    "max_size": pool_max_size,
+                    "max_lifetime": pool_max_lifetime,
+                    "max_idle": pool_max_idle,
+                    "keepalives": keepalives,
+                    "keepalives_idle": keepalives_idle,
+                    "keepalives_interval": keepalives_interval,
+                    "keepalives_count": keepalives_count,
                     "database_url_masked": database_url[:30] + "..." if len(database_url) > 30 else "[hidden]"
                 }
             )
