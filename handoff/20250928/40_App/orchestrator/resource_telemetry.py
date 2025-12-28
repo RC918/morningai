@@ -28,10 +28,14 @@ def _is_telemetry_enabled() -> bool:
     """
     Check if resource telemetry is enabled via environment variable.
 
+    Accepts common falsey values: "false", "0", "no", "off", "" (empty string).
+    Default is enabled (true).
+
     Returns:
         True if telemetry is enabled (default), False if explicitly disabled.
     """
-    return os.environ.get("RESOURCE_TELEMETRY_ENABLED", "true").lower() != "false"
+    value = os.environ.get("RESOURCE_TELEMETRY_ENABLED", "true").strip().lower()
+    return value not in ("false", "0", "no", "off", "")
 
 
 def _get_timestamp_ms() -> int:
