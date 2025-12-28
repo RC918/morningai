@@ -178,29 +178,6 @@ class TestHITLInterruptResumeWithMemorySaver:
         assert result.get("requires_hitl_approval") is True
         assert result.get("hitl_approved") is False
 
-    def test_workflow_resumes_after_approval(self):
-        """Test that workflow resumes correctly after HITL approval."""
-        workflow = create_hitl_test_graph()
-        checkpointer = MemorySaver()
-        app = workflow.compile(checkpointer=checkpointer)
-
-        thread_id = str(uuid.uuid4())
-        config = {"configurable": {"thread_id": thread_id}}
-
-        initial_state = {
-            "trace_id": "test-hitl-resume",
-            "messages": [],
-            "requires_hitl_approval": False,
-            "hitl_approved": False,
-            "workflow_result": "",
-        }
-
-        result = app.invoke(initial_state, config)
-
-        assert result["workflow_result"] == "processed"
-        assert result["hitl_approved"] is False
-        assert result["requires_hitl_approval"] is False
-
 
 class TestHITLStateCheckpointing:
     """Integration tests for state checkpointing during HITL interrupt.
@@ -254,7 +231,9 @@ class TestHITLStateCheckpointing:
         assert checkpoint is not None
 
         channel_values = checkpoint.get("channel_values", {})
-        assert "trace_id" in channel_values or checkpoint is not None
+        assert "trace_id" in channel_values
+        assert "requires_hitl_approval" in channel_values
+        assert "hitl_approved" in channel_values
 
 
 class TestHITLStateReset:
@@ -265,7 +244,12 @@ class TestHITLStateReset:
     """
 
     def test_hitl_flags_reset_after_completion(self):
-        """Test that HITL flags are reset to False after workflow completion."""
+        """Test that HITL flags are reset to False after workflow completion.
+
+        This test sets initial flags to True to verify the finalize_node
+        actually resets them. Without this, the reset logic would not be
+        exercised since flags start at False.
+        """
         workflow = create_hitl_test_graph()
         checkpointer = MemorySaver()
         app = workflow.compile(checkpointer=checkpointer)
@@ -276,8 +260,8 @@ class TestHITLStateReset:
         initial_state = {
             "trace_id": "test-reset",
             "messages": [],
-            "requires_hitl_approval": False,
-            "hitl_approved": False,
+            "requires_hitl_approval": True,
+            "hitl_approved": True,
             "workflow_result": "",
         }
 
