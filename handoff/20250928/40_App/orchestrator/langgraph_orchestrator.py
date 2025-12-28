@@ -4831,8 +4831,9 @@ def router_node(state: AgentState) -> AgentState:
         elif next_node == "executor":
             merge_decision = "needs_fix"  # Executor also means we need to fix/regenerate
         elif next_node == "decision":
-            # HITL required - keep original decision but mark for HITL
-            merge_decision = state.get("merge_decision", "request_changes")
+            # HITL required - force request_changes to prevent infinite loop
+            # (state.get could return "pending" which routes to monitor_ci, causing loop)
+            merge_decision = "request_changes"
         else:
             merge_decision = "request_changes"
 
