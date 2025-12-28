@@ -1630,6 +1630,10 @@ class TestCanonicalNodesValidation:
     Risk: If CANONICAL_NODES doesn't match actual graph nodes:
     - Router may route to non-existent nodes
     - Flow Controller will fail at runtime
+
+    Constants:
+    - ACTUAL_GRAPH_NODES: All nodes defined in langgraph_orchestrator.py
+    - EXPECTED_CANONICAL_NODES: Expected content of CANONICAL_NODES (single source of truth)
     """
 
     ACTUAL_GRAPH_NODES = frozenset({
@@ -1653,6 +1657,17 @@ class TestCanonicalNodesValidation:
         "finalizer",
         "evaluation",
         "hitl_gate",
+    })
+
+    EXPECTED_CANONICAL_NODES = frozenset({
+        "publisher",
+        "fixer",
+        "executor",
+        "decision",
+        "finalizer",
+        "reviewer",
+        "planner",
+        "ci_monitor",
     })
 
     def test_all_canonical_nodes_exist_in_graph(self):
@@ -1704,13 +1719,14 @@ class TestCanonicalNodesValidation:
         """Test that CANONICAL_NODES has expected count.
 
         This test will fail if nodes are added/removed, prompting review.
+        Count is derived from EXPECTED_CANONICAL_NODES to avoid duplication.
         """
         from core.flow.hybrid_router import CANONICAL_NODES
 
-        expected_count = 8
+        expected_count = len(self.EXPECTED_CANONICAL_NODES)
         assert len(CANONICAL_NODES) == expected_count, (
             f"CANONICAL_NODES count changed from {expected_count} to {len(CANONICAL_NODES)}. "
-            f"If intentional, update this test. Current nodes: {sorted(CANONICAL_NODES)}"
+            f"If intentional, update EXPECTED_CANONICAL_NODES. Current nodes: {sorted(CANONICAL_NODES)}"
         )
 
     def test_canonical_nodes_subset_of_actual_graph(self):
@@ -1756,21 +1772,11 @@ class TestCanonicalNodesValidation:
         """Document the expected mapping between CANONICAL_NODES and graph nodes.
 
         This test serves as documentation and will fail if the mapping changes.
+        Uses EXPECTED_CANONICAL_NODES constant to avoid duplication (per code review).
         """
         from core.flow.hybrid_router import CANONICAL_NODES
 
-        expected_canonical_nodes = {
-            "publisher",
-            "fixer",
-            "executor",
-            "decision",
-            "finalizer",
-            "reviewer",
-            "planner",
-            "ci_monitor",
-        }
-
-        assert CANONICAL_NODES == expected_canonical_nodes, (
-            f"CANONICAL_NODES changed. Expected: {sorted(expected_canonical_nodes)}, "
-            f"Got: {sorted(CANONICAL_NODES)}. Update this test if change is intentional."
+        assert CANONICAL_NODES == self.EXPECTED_CANONICAL_NODES, (
+            f"CANONICAL_NODES changed. Expected: {sorted(self.EXPECTED_CANONICAL_NODES)}, "
+            f"Got: {sorted(CANONICAL_NODES)}. Update EXPECTED_CANONICAL_NODES if change is intentional."
         )
