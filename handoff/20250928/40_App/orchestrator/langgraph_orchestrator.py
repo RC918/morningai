@@ -912,12 +912,16 @@ class OOMProtectedMemorySaver:
 
     def _evict_old_checkpoints(self, thread_id: str) -> int:
         """
-        Evict old checkpoints for a thread using LRU policy.
+        Evict oldest checkpoints for a thread by insertion order.
 
-        Issue #3027: Checkpoint Eviction (LRU) for OOM Protection (Dec 2025)
+        Issue #3027: Checkpoint Eviction for OOM Protection (Dec 2025)
 
-        Keeps only the most recent N checkpoints per thread to prevent unbounded
-        growth in MemorySaver.
+        Keeps only the most recently written N checkpoints per thread to prevent
+        unbounded growth in MemorySaver. Uses dict insertion order (Python 3.7+)
+        to determine recency - oldest inserted checkpoints are evicted first.
+
+        Note: This is "keep last N checkpoints by write order", not true LRU
+        (which would track reads). This is appropriate for the OOM safety goal.
 
         MemorySaver uses nested dict structure: storage[thread_id][checkpoint_ns][checkpoint_id]
         We iterate through all namespaces and checkpoint IDs for the given thread.
@@ -946,8 +950,8 @@ class OOMProtectedMemorySaver:
         if len(all_checkpoints) <= self._max_checkpoints_per_thread:
             return 0
 
-        all_checkpoints.sort(key=lambda x: x[1], reverse=True)
-        to_evict = all_checkpoints[self._max_checkpoints_per_thread:]
+        overage = len(all_checkpoints) - self._max_checkpoints_per_thread
+        to_evict = all_checkpoints[:overage]
         evicted_count = 0
         for checkpoint_ns, checkpoint_id in to_evict:
             if checkpoint_ns in thread_data and checkpoint_id in thread_data[checkpoint_ns]:
