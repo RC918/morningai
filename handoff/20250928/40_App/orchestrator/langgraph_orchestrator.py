@@ -919,6 +919,9 @@ class OOMProtectedMemorySaver:
         Keeps only the most recent N checkpoints per thread to prevent unbounded
         growth in MemorySaver.
 
+        MemorySaver uses nested dict structure: storage[thread_id][checkpoint_ns][checkpoint_id]
+        We iterate through all namespaces and checkpoint IDs for the given thread.
+
         Args:
             thread_id: The thread ID to evict checkpoints for
 
@@ -929,27 +932,33 @@ class OOMProtectedMemorySaver:
             return 0
 
         storage = self._inner.storage
-        thread_checkpoints = []
-        for key in list(storage.keys()):
-            if isinstance(key, tuple) and len(key) >= 1 and key[0] == thread_id:
-                thread_checkpoints.append(key)
-
-        if len(thread_checkpoints) <= self._max_checkpoints_per_thread:
+        if thread_id not in storage:
             return 0
 
-        thread_checkpoints.sort(key=lambda k: k[1] if len(k) > 1 else "", reverse=True)
-        to_evict = thread_checkpoints[self._max_checkpoints_per_thread:]
+        thread_data = storage[thread_id]
+        all_checkpoints = []
+        for checkpoint_ns in list(thread_data.keys()):
+            ns_data = thread_data[checkpoint_ns]
+            if isinstance(ns_data, dict):
+                for checkpoint_id in list(ns_data.keys()):
+                    all_checkpoints.append((checkpoint_ns, checkpoint_id))
+
+        if len(all_checkpoints) <= self._max_checkpoints_per_thread:
+            return 0
+
+        all_checkpoints.sort(key=lambda x: x[1], reverse=True)
+        to_evict = all_checkpoints[self._max_checkpoints_per_thread:]
         evicted_count = 0
-        for key in to_evict:
-            if key in storage:
-                del storage[key]
+        for checkpoint_ns, checkpoint_id in to_evict:
+            if checkpoint_ns in thread_data and checkpoint_id in thread_data[checkpoint_ns]:
+                del thread_data[checkpoint_ns][checkpoint_id]
                 evicted_count += 1
 
         if evicted_count > 0:
             logger.info(
                 f"DEGRADED CHECKPOINTER EVICTION: Evicted old checkpoints. "
                 f"trace_id={self._trace_id} thread_id={thread_id} "
-                f"evicted={evicted_count} remaining={len(thread_checkpoints) - evicted_count}",
+                f"evicted={evicted_count} remaining={len(all_checkpoints) - evicted_count}",
                 extra={
                     "operation": "oom_protected_memory_saver",
                     "event": "checkpoint_eviction",
