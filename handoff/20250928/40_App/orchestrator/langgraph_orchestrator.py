@@ -3833,6 +3833,8 @@ def executor_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("executor", trace_id)
 
+    # Defensive bounds check: Extract step name before try block to prevent secondary
+    # IndexError in exception handler if current_step is out of bounds
     current_step_name = plan[current_step] if current_step < len(plan) else "unknown"
     logger.info(f"[Executor] Executing step {current_step + 1}/{len(plan)} source_pr_number={source_pr_number}", extra={
         "operation": "executor",
