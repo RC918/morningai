@@ -2442,3 +2442,266 @@ class TestPostgresPoolConfiguration:
                             assert extra.get('keepalives_idle') == 30
                             assert extra.get('keepalives_interval') == 10
                             assert extra.get('keepalives_count') == 5
+
+
+class TestOOMProtectedMemorySaverHardLimit:
+    """Tests for Hard Memory Limit feature in OOMProtectedMemorySaver (Issue #3027 Dec 2025)
+
+    The hard memory limit is the 'safety airbag' that terminates tasks when memory
+    usage exceeds the threshold, protecting the worker from OOM kills.
+    """
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_hard_limit_raises_exception_when_exceeded(self):
+        """Test that exceeding hard memory limit raises DegradedCheckpointerMemoryExceeded"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import (
+            OOMProtectedMemorySaver,
+            DegradedCheckpointerMemoryExceeded,
+        )
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=1,
+            memory_hard_limit_mb=1,
+            max_checkpoints_per_thread=100,
+            trace_id="test-trace",
+        )
+
+        with patch.object(wrapper, 'get_memory_estimate_bytes', return_value=2 * 1024 * 1024):
+            with pytest.raises(DegradedCheckpointerMemoryExceeded) as exc_info:
+                wrapper.put(
+                    {"configurable": {"thread_id": "thread-2", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+                    {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                    {"source": "input", "step": 0, "writes": None, "parents": {}},
+                    {},
+                )
+
+        assert "hard limit exceeded" in str(exc_info.value).lower()
+        assert "test-trace" in str(exc_info.value)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_hard_limit_not_triggered_when_below_threshold(self):
+        """Test that operations succeed when memory is below hard limit"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            memory_hard_limit_mb=1024,
+            max_checkpoints_per_thread=100,
+            trace_id="test-trace",
+        )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp1"}},
+            {"v": 1, "id": "cp1", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+
+        assert wrapper.checkpoint_count == 1
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_hard_limit_exception_inherits_database_exception(self):
+        """Test that DegradedCheckpointerMemoryExceeded inherits from DatabaseException"""
+        from langgraph_orchestrator import DegradedCheckpointerMemoryExceeded
+
+        assert DegradedCheckpointerMemoryExceeded.__bases__[0].__name__ == "DatabaseException"
+
+
+class TestOOMProtectedMemorySaverEviction:
+    """Tests for Checkpoint Eviction (LRU) feature in OOMProtectedMemorySaver (Issue #3027 Dec 2025)
+
+    The eviction mechanism keeps only the most recent N checkpoints per thread
+    to prevent unbounded growth in MemorySaver.
+    """
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_eviction_removes_old_checkpoints(self):
+        """Test that old checkpoints are evicted when limit is exceeded"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            memory_hard_limit_mb=1024,
+            max_checkpoints_per_thread=3,
+            trace_id="test-trace",
+        )
+
+        for i in range(5):
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": f"cp{i}"}},
+                {"v": 1, "id": f"cp{i}", "ts": f"2024-01-01T00:00:0{i}Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": i, "writes": None, "parents": {}},
+                {},
+            )
+
+        thread_data = inner.storage.get("thread-1", {})
+        checkpoint_count = sum(len(ns_data) for ns_data in thread_data.values() if isinstance(ns_data, dict))
+        assert checkpoint_count <= 3
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_eviction_keeps_most_recent_checkpoints(self):
+        """Test that eviction keeps the most recent checkpoints (LRU policy)"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            memory_hard_limit_mb=1024,
+            max_checkpoints_per_thread=2,
+            trace_id="test-trace",
+        )
+
+        for i in range(4):
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": f"cp{i}"}},
+                {"v": 1, "id": f"cp{i}", "ts": f"2024-01-01T00:00:0{i}Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": i, "writes": None, "parents": {}},
+                {},
+            )
+
+        thread_data = inner.storage.get("thread-1", {})
+        checkpoint_count = sum(len(ns_data) for ns_data in thread_data.values() if isinstance(ns_data, dict))
+        assert checkpoint_count <= 2
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_eviction_does_not_affect_other_threads(self):
+        """Test that eviction only affects the specific thread"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            memory_hard_limit_mb=1024,
+            max_checkpoints_per_thread=2,
+            trace_id="test-trace",
+        )
+
+        for i in range(4):
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": f"cp1-{i}"}},
+                {"v": 1, "id": f"cp1-{i}", "ts": f"2024-01-01T00:00:0{i}Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": i, "writes": None, "parents": {}},
+                {},
+            )
+
+        wrapper.put(
+            {"configurable": {"thread_id": "thread-2", "checkpoint_ns": "", "checkpoint_id": "cp2-0"}},
+            {"v": 1, "id": "cp2-0", "ts": "2024-01-01T00:00:00Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+            {"source": "input", "step": 0, "writes": None, "parents": {}},
+            {},
+        )
+
+        thread2_data = inner.storage.get("thread-2", {})
+        checkpoint_count = sum(len(ns_data) for ns_data in thread2_data.values() if isinstance(ns_data, dict))
+        assert checkpoint_count == 1
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_eviction_logs_when_checkpoints_removed(self):
+        """Test that eviction logs when checkpoints are removed"""
+        from langgraph.checkpoint.memory import MemorySaver
+        from langgraph_orchestrator import OOMProtectedMemorySaver
+
+        inner = MemorySaver()
+        wrapper = OOMProtectedMemorySaver(
+            inner_saver=inner,
+            max_workflows=100,
+            memory_warning_mb=512,
+            memory_hard_limit_mb=1024,
+            max_checkpoints_per_thread=2,
+            trace_id="test-trace",
+        )
+
+        for i in range(2):
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": f"cp{i}"}},
+                {"v": 1, "id": f"cp{i}", "ts": f"2024-01-01T00:00:0{i}Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": i, "writes": None, "parents": {}},
+                {},
+            )
+
+        with patch('langgraph_orchestrator.logger') as mock_logger:
+            wrapper.put(
+                {"configurable": {"thread_id": "thread-1", "checkpoint_ns": "", "checkpoint_id": "cp2"}},
+                {"v": 1, "id": "cp2", "ts": "2024-01-01T00:00:02Z", "channel_values": {}, "channel_versions": {}, "versions_seen": {}, "pending_sends": []},
+                {"source": "input", "step": 2, "writes": None, "parents": {}},
+                {},
+            )
+
+            info_calls = [c for c in mock_logger.info.call_args_list if "EVICTION" in str(c)]
+            assert len(info_calls) >= 1
+
+
+class TestOOMProtectedMemorySaverFactoryNewSettings:
+    """Tests for factory function with new hard limit and eviction settings (Issue #3027 Dec 2025)"""
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_factory_uses_hard_limit_setting(self):
+        """Test that factory function uses degraded_checkpoint_memory_hard_limit_mb setting"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = 50
+            mock_settings.degraded_checkpoint_memory_warning_mb = 256
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = 512
+            mock_settings.degraded_checkpoint_max_per_thread = 5
+
+            result = get_degraded_persistence_checkpointer(
+                primary=mock_primary,
+                trace_id="test-trace",
+            )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._memory_hard_limit_mb == 512
+        assert result._fallback._max_checkpoints_per_thread == 5
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_factory_uses_default_hard_limit_when_setting_missing(self):
+        """Test that factory uses default hard limit when setting is missing"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = 100
+            mock_settings.degraded_checkpoint_memory_warning_mb = 512
+            del mock_settings.degraded_checkpoint_memory_hard_limit_mb
+            del mock_settings.degraded_checkpoint_max_per_thread
+
+            result = get_degraded_persistence_checkpointer(
+                primary=mock_primary,
+                trace_id="test-trace",
+            )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._memory_hard_limit_mb == 1024
+        assert result._fallback._max_checkpoints_per_thread == 10
