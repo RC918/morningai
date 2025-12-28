@@ -1786,6 +1786,7 @@ def _get_validated_int_setting(
     default: int,
     min_value: int = 1,
     trace_id: str = "unknown",
+    fallback_to_default_on_invalid: bool = False,
 ) -> int:
     """
     Get and validate an integer setting with boundary checks.
@@ -1795,14 +1796,19 @@ def _get_validated_int_setting(
     This helper function:
     1. Gets the setting value from settings object
     2. Converts to int (falls back to default on failure)
-    3. Clamps to minimum value to prevent invalid configurations
+    3. For values below min_value:
+       - If fallback_to_default_on_invalid=True: returns default (safer for memory limits)
+       - Otherwise: clamps to min_value (for count-based settings)
     4. Logs a warning when values are corrected
 
     Args:
         setting_name: Name of the setting attribute on settings object
         default: Default value if setting is missing or invalid
-        min_value: Minimum allowed value (values below this are clamped)
+        min_value: Minimum allowed value (values below this trigger correction)
         trace_id: Trace ID for logging context
+        fallback_to_default_on_invalid: If True, invalid values fallback to default
+            instead of clamping to min_value. Use True for memory limits where
+            clamping to 1MB would be dangerous.
 
     Returns:
         Validated integer value, guaranteed to be >= min_value
@@ -1826,20 +1832,36 @@ def _get_validated_int_setting(
         return default
 
     if value < min_value:
-        logger.warning(
-            f"Config {setting_name}={value} is below minimum {min_value}, clamping to {min_value}. "
-            f"trace_id={trace_id}",
-            extra={
-                "operation": "get_degraded_persistence_checkpointer",
-                "event": "config_validation_clamped",
-                "trace_id": trace_id,
-                "setting_name": setting_name,
-                "original_value": value,
-                "clamped_value": min_value,
-                "min_value": min_value,
-            }
-        )
-        return min_value
+        if fallback_to_default_on_invalid:
+            logger.warning(
+                f"Config {setting_name}={value} is invalid (below {min_value}), "
+                f"using default {default}. trace_id={trace_id}",
+                extra={
+                    "operation": "get_degraded_persistence_checkpointer",
+                    "event": "config_validation_fallback",
+                    "trace_id": trace_id,
+                    "setting_name": setting_name,
+                    "original_value": value,
+                    "default_value": default,
+                    "min_value": min_value,
+                }
+            )
+            return default
+        else:
+            logger.warning(
+                f"Config {setting_name}={value} is below minimum {min_value}, "
+                f"clamping to {min_value}. trace_id={trace_id}",
+                extra={
+                    "operation": "get_degraded_persistence_checkpointer",
+                    "event": "config_validation_clamped",
+                    "trace_id": trace_id,
+                    "setting_name": setting_name,
+                    "original_value": value,
+                    "clamped_value": min_value,
+                    "min_value": min_value,
+                }
+            )
+            return min_value
 
     return value
 
@@ -1883,11 +1905,14 @@ def get_degraded_persistence_checkpointer(
         trace_id=trace_id,
     )
 
+    # Memory settings use fallback_to_default_on_invalid=True because clamping
+    # to 1MB would be dangerous (almost immediately trigger hard limit)
     memory_warning_mb = _get_validated_int_setting(
         "degraded_checkpoint_memory_warning_mb",
         default=512,
         min_value=1,
         trace_id=trace_id,
+        fallback_to_default_on_invalid=True,
     )
 
     memory_hard_limit_mb = _get_validated_int_setting(
@@ -1895,6 +1920,7 @@ def get_degraded_persistence_checkpointer(
         default=1024,
         min_value=1,
         trace_id=trace_id,
+        fallback_to_default_on_invalid=True,
     )
 
     max_checkpoints_per_thread = _get_validated_int_setting(

@@ -2736,7 +2736,17 @@ class TestConfigBoundaryValidation:
 
         assert isinstance(result._fallback, OOMProtectedMemorySaver)
         assert result._fallback._max_workflows == 1
-        mock_logger.warning.assert_called()
+        # Verify warning was logged with correct event type and values
+        warning_calls = mock_logger.warning.call_args_list
+        workflows_warning = next(
+            (call for call in warning_calls
+             if call.kwargs.get('extra', {}).get('setting_name') == 'max_degraded_workflows_per_worker'),
+            None
+        )
+        assert workflows_warning is not None
+        assert workflows_warning.kwargs['extra']['event'] == 'config_validation_clamped'
+        assert workflows_warning.kwargs['extra']['original_value'] == -10
+        assert workflows_warning.kwargs['extra']['clamped_value'] == 1
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_zero_max_checkpoints_clamped_to_minimum(self):
@@ -2764,11 +2774,25 @@ class TestConfigBoundaryValidation:
 
         assert isinstance(result._fallback, OOMProtectedMemorySaver)
         assert result._fallback._max_checkpoints_per_thread == 1
-        mock_logger.warning.assert_called()
+        # Verify warning was logged with correct event type and values
+        warning_calls = mock_logger.warning.call_args_list
+        checkpoints_warning = next(
+            (call for call in warning_calls
+             if call.kwargs.get('extra', {}).get('setting_name') == 'degraded_checkpoint_max_per_thread'),
+            None
+        )
+        assert checkpoints_warning is not None
+        assert checkpoints_warning.kwargs['extra']['event'] == 'config_validation_clamped'
+        assert checkpoints_warning.kwargs['extra']['original_value'] == 0
+        assert checkpoints_warning.kwargs['extra']['clamped_value'] == 1
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
-    def test_negative_memory_hard_limit_clamped_to_minimum(self):
-        """Test that negative memory_hard_limit_mb is clamped to minimum value of 1"""
+    def test_negative_memory_hard_limit_falls_back_to_default(self):
+        """Test that negative memory_hard_limit_mb falls back to default (1024)
+
+        Memory settings use fallback_to_default_on_invalid=True because clamping
+        to 1MB would be dangerous (almost immediately trigger hard limit).
+        """
         from unittest.mock import MagicMock
         from langgraph_orchestrator import (
             get_degraded_persistence_checkpointer,
@@ -2791,8 +2815,18 @@ class TestConfigBoundaryValidation:
                 )
 
         assert isinstance(result._fallback, OOMProtectedMemorySaver)
-        assert result._fallback._memory_hard_limit_mb == 1
-        mock_logger.warning.assert_called()
+        # Memory settings fallback to default instead of clamping to 1
+        assert result._fallback._memory_hard_limit_mb == 1024
+        # Verify warning was logged with correct event type
+        warning_calls = mock_logger.warning.call_args_list
+        memory_warning = next(
+            (call for call in warning_calls
+             if call.kwargs.get('extra', {}).get('setting_name') == 'degraded_checkpoint_memory_hard_limit_mb'),
+            None
+        )
+        assert memory_warning is not None
+        assert memory_warning.kwargs['extra']['event'] == 'config_validation_fallback'
+        assert memory_warning.kwargs['extra']['default_value'] == 1024
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_invalid_string_value_falls_back_to_default(self):
@@ -2820,7 +2854,17 @@ class TestConfigBoundaryValidation:
 
         assert isinstance(result._fallback, OOMProtectedMemorySaver)
         assert result._fallback._max_workflows == 100
-        mock_logger.warning.assert_called()
+        # Verify warning was logged with correct event type and values
+        warning_calls = mock_logger.warning.call_args_list
+        workflows_warning = next(
+            (call for call in warning_calls
+             if call.kwargs.get('extra', {}).get('setting_name') == 'max_degraded_workflows_per_worker'),
+            None
+        )
+        assert workflows_warning is not None
+        assert workflows_warning.kwargs['extra']['event'] == 'config_validation_fallback'
+        assert workflows_warning.kwargs['extra']['default_value'] == 100
+        assert workflows_warning.kwargs['extra']['raw_value'] == 'invalid'
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_float_value_converted_to_int(self):
@@ -2880,9 +2924,13 @@ class TestConfigBoundaryValidation:
         assert result._fallback._memory_warning_mb == 256
         assert result._fallback._memory_hard_limit_mb == 2048
         assert result._fallback._max_checkpoints_per_thread == 20
-        warning_calls = [call for call in mock_logger.warning.call_args_list
-                        if 'config_validation' in str(call)]
-        assert len(warning_calls) == 0
+        # Valid values should not trigger any config validation warnings
+        # Check that no warnings with config_validation event were logged
+        config_warnings = [
+            call for call in mock_logger.warning.call_args_list
+            if call.kwargs.get('extra', {}).get('event', '').startswith('config_validation')
+        ]
+        assert len(config_warnings) == 0
 
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_all_settings_invalid_uses_all_defaults(self):
