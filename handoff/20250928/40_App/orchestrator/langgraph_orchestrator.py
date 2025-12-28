@@ -657,6 +657,25 @@ class DegradedCheckpointerCapacityExceeded(DatabaseException):
     pass
 
 
+class DegradedCheckpointerMemoryExceeded(DatabaseException):
+    """
+    Exception raised when degraded checkpointer memory hard limit is exceeded.
+
+    Issue #3027: MemorySaver OOM Protection Strategy (Dec 2025)
+
+    This exception is raised when the estimated memory usage of the degraded
+    checkpointer exceeds DEGRADED_CHECKPOINT_MEMORY_HARD_LIMIT_MB. This is the
+    'safety airbag' that terminates the task to protect the worker from OOM kills.
+
+    Unlike the warning threshold (DEGRADED_CHECKPOINT_MEMORY_WARNING_MB), this
+    hard limit causes immediate task termination rather than just logging.
+
+    Inherits from DatabaseException to allow upstream code to handle all
+    database-related errors consistently.
+    """
+    pass
+
+
 class OOMProtectedMemorySaver:
     """
     A memory-safe wrapper around MemorySaver with OOM protection.
@@ -673,7 +692,14 @@ class OOMProtectedMemorySaver:
     2. Memory Monitoring: Tracks estimated memory usage and logs warnings
        when threshold exceeded (DEGRADED_CHECKPOINT_MEMORY_WARNING_MB).
 
-    3. Metrics Exposure: Exposes checkpoint_memory_bytes, degraded_workflow_count,
+    3. Hard Memory Limit (Dec 2025): Terminates task when memory exceeds
+       DEGRADED_CHECKPOINT_MEMORY_HARD_LIMIT_MB. This is the 'safety airbag'
+       that prevents OOM kills.
+
+    4. Checkpoint Eviction (Dec 2025): Implements LRU eviction to keep only
+       the most recent N checkpoints per thread (DEGRADED_CHECKPOINT_MAX_PER_THREAD).
+
+    5. Metrics Exposure: Exposes checkpoint_memory_bytes, degraded_workflow_count,
        and checkpoint_count for monitoring.
 
     Blueprint Alignment:
@@ -686,6 +712,8 @@ class OOMProtectedMemorySaver:
             inner_saver,
             max_workflows=100,
             memory_warning_mb=512,
+            memory_hard_limit_mb=1024,
+            max_checkpoints_per_thread=10,
         )
     """
 
@@ -694,6 +722,8 @@ class OOMProtectedMemorySaver:
         inner_saver,
         max_workflows: int = 100,
         memory_warning_mb: int = 512,
+        memory_hard_limit_mb: int = 1024,
+        max_checkpoints_per_thread: int = 10,
         trace_id: str = "unknown",
     ):
         """
@@ -703,11 +733,15 @@ class OOMProtectedMemorySaver:
             inner_saver: The underlying MemorySaver instance
             max_workflows: Maximum number of concurrent workflows (thread_ids)
             memory_warning_mb: Memory threshold in MB for warning logs
+            memory_hard_limit_mb: Hard memory limit in MB that triggers task termination
+            max_checkpoints_per_thread: Maximum checkpoints per thread (LRU eviction)
             trace_id: Trace ID for logging context
         """
         self._inner = inner_saver
         self._max_workflows = max_workflows
         self._memory_warning_mb = memory_warning_mb
+        self._memory_hard_limit_mb = memory_hard_limit_mb
+        self._max_checkpoints_per_thread = max_checkpoints_per_thread
         self._trace_id = trace_id
         self._memory_warning_logged = False
 
@@ -842,6 +876,92 @@ class OOMProtectedMemorySaver:
                 }
             )
 
+    def _check_memory_hard_limit(self) -> None:
+        """
+        Check if memory usage exceeds hard limit and raise exception if so.
+
+        Issue #3027: Hard Memory Limit for OOM Protection (Dec 2025)
+
+        This is the 'safety airbag' that terminates the task to protect the worker
+        from OOM kills. Unlike the warning threshold, this causes immediate task
+        termination.
+        """
+        memory_bytes = self.get_memory_estimate_bytes()
+        memory_mb = memory_bytes / (1024 * 1024)
+        if memory_mb >= self._memory_hard_limit_mb:
+            logger.error(
+                f"DEGRADED CHECKPOINTER HARD LIMIT EXCEEDED: Terminating task. "
+                f"trace_id={self._trace_id} memory_mb={memory_mb:.2f} "
+                f"hard_limit_mb={self._memory_hard_limit_mb} workflows={self.workflow_count}",
+                extra={
+                    "operation": "oom_protected_memory_saver",
+                    "event": "memory_hard_limit_exceeded",
+                    "trace_id": self._trace_id,
+                    "memory_bytes": memory_bytes,
+                    "memory_mb": memory_mb,
+                    "hard_limit_mb": self._memory_hard_limit_mb,
+                    "workflow_count": self.workflow_count,
+                    "checkpoint_count": self.checkpoint_count,
+                }
+            )
+            raise DegradedCheckpointerMemoryExceeded(
+                f"Degraded checkpointer memory hard limit exceeded: "
+                f"{memory_mb:.2f}MB >= {self._memory_hard_limit_mb}MB. "
+                f"Task terminated to protect worker from OOM. trace_id={self._trace_id}"
+            )
+
+    def _evict_old_checkpoints(self, thread_id: str) -> int:
+        """
+        Evict old checkpoints for a thread using LRU policy.
+
+        Issue #3027: Checkpoint Eviction (LRU) for OOM Protection (Dec 2025)
+
+        Keeps only the most recent N checkpoints per thread to prevent unbounded
+        growth in MemorySaver.
+
+        Args:
+            thread_id: The thread ID to evict checkpoints for
+
+        Returns:
+            Number of checkpoints evicted
+        """
+        if not hasattr(self._inner, 'storage'):
+            return 0
+
+        storage = self._inner.storage
+        thread_checkpoints = []
+        for key in list(storage.keys()):
+            if isinstance(key, tuple) and len(key) >= 1 and key[0] == thread_id:
+                thread_checkpoints.append(key)
+
+        if len(thread_checkpoints) <= self._max_checkpoints_per_thread:
+            return 0
+
+        thread_checkpoints.sort(key=lambda k: k[1] if len(k) > 1 else "", reverse=True)
+        to_evict = thread_checkpoints[self._max_checkpoints_per_thread:]
+        evicted_count = 0
+        for key in to_evict:
+            if key in storage:
+                del storage[key]
+                evicted_count += 1
+
+        if evicted_count > 0:
+            logger.info(
+                f"DEGRADED CHECKPOINTER EVICTION: Evicted old checkpoints. "
+                f"trace_id={self._trace_id} thread_id={thread_id} "
+                f"evicted={evicted_count} remaining={len(thread_checkpoints) - evicted_count}",
+                extra={
+                    "operation": "oom_protected_memory_saver",
+                    "event": "checkpoint_eviction",
+                    "trace_id": self._trace_id,
+                    "thread_id": thread_id,
+                    "evicted_count": evicted_count,
+                    "max_per_thread": self._max_checkpoints_per_thread,
+                }
+            )
+
+        return evicted_count
+
     def setup(self):
         """Setup - delegate to inner saver."""
         return self._inner.setup()
@@ -855,15 +975,20 @@ class OOMProtectedMemorySaver:
         return self._inner.get_tuple(config)
 
     def put(self, config, checkpoint, metadata, new_versions):
-        """Put checkpoint with capacity check."""
+        """Put checkpoint with capacity check, hard limit check, and eviction."""
         self._check_capacity(config)
+        self._check_memory_hard_limit()
+        thread_id = config.get("configurable", {}).get("thread_id")
+        if thread_id:
+            self._evict_old_checkpoints(thread_id)
         result = self._inner.put(config, checkpoint, metadata, new_versions)
         self._check_memory_warning()
         return result
 
     def put_writes(self, config, writes, task_id):
-        """Put writes with capacity check."""
+        """Put writes with capacity check and hard limit check."""
         self._check_capacity(config)
+        self._check_memory_hard_limit()
         result = self._inner.put_writes(config, writes, task_id)
         self._check_memory_warning()
         return result
@@ -1688,11 +1813,35 @@ def get_degraded_persistence_checkpointer(
     except (TypeError, ValueError):
         memory_warning_mb = 512
 
+    # Issue #3027: Hard Memory Limit for OOM Protection (Dec 2025)
+    memory_hard_limit_mb = getattr(
+        settings,
+        "degraded_checkpoint_memory_hard_limit_mb",
+        1024
+    )
+    try:
+        memory_hard_limit_mb = int(memory_hard_limit_mb)
+    except (TypeError, ValueError):
+        memory_hard_limit_mb = 1024
+
+    # Issue #3027: Checkpoint Eviction (LRU) for OOM Protection (Dec 2025)
+    max_checkpoints_per_thread = getattr(
+        settings,
+        "degraded_checkpoint_max_per_thread",
+        10
+    )
+    try:
+        max_checkpoints_per_thread = int(max_checkpoints_per_thread)
+    except (TypeError, ValueError):
+        max_checkpoints_per_thread = 10
+
     inner_saver = MemorySaver()
     fallback = OOMProtectedMemorySaver(
         inner_saver=inner_saver,
         max_workflows=max_workflows,
         memory_warning_mb=memory_warning_mb,
+        memory_hard_limit_mb=memory_hard_limit_mb,
+        max_checkpoints_per_thread=max_checkpoints_per_thread,
         trace_id=trace_id,
     )
 
@@ -1706,6 +1855,8 @@ def get_degraded_persistence_checkpointer(
             "fallback_type": "OOMProtectedMemorySaver",
             "max_degraded_workflows": max_workflows,
             "memory_warning_mb": memory_warning_mb,
+            "memory_hard_limit_mb": memory_hard_limit_mb,
+            "max_checkpoints_per_thread": max_checkpoints_per_thread,
         }
     )
 

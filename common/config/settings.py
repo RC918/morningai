@@ -1040,6 +1040,29 @@ class Settings(BaseSettings):
                     "This is an early warning signal before OOM occurs. (Issue #3027)"
     )
 
+    # Issue #3027: Hard Memory Limit for OOM Protection (Dec 2025)
+    degraded_checkpoint_memory_hard_limit_mb: int = Field(
+        default=1024,
+        ge=128,
+        le=16384,
+        alias="DEGRADED_CHECKPOINT_MEMORY_HARD_LIMIT_MB",
+        description="Hard memory limit in MB for degraded checkpointer. "
+                    "When MemorySaver memory usage exceeds this threshold, the task is terminated "
+                    "with DegradedCheckpointerMemoryExceeded exception to protect the worker. "
+                    "This is the 'safety airbag' that prevents OOM kills. (Issue #3027)"
+    )
+
+    # Issue #3027: Checkpoint Eviction (LRU) for OOM Protection (Dec 2025)
+    degraded_checkpoint_max_per_thread: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        alias="DEGRADED_CHECKPOINT_MAX_PER_THREAD",
+        description="Maximum number of checkpoints to retain per thread in degraded mode. "
+                    "When exceeded, oldest checkpoints are evicted (LRU policy). "
+                    "Prevents unbounded checkpoint growth in MemorySaver. (Issue #3027)"
+    )
+
     # Issue #2259: Review Follow-up Task Storage Settings
     review_follow_up_store_backend: str = Field(
         default="in_memory",
