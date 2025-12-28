@@ -4743,6 +4743,155 @@ def decision_node(state: AgentState) -> AgentState:
     return state
 
 
+def router_node(state: AgentState) -> AgentState:
+    """
+    Router Node: LLM-driven dynamic routing using Hybrid Router (C-2).
+
+    EPIC C Phase C-6: Graph Wiring for Hybrid Router (Issue #3182)
+
+    This node replaces decision_node when ENABLE_DYNAMIC_ROUTING=true.
+    It uses the HybridRoutingPolicy to make routing decisions based on
+    ReviewOutcome fields (verdict, severity, summary, blocker_count).
+
+    Routing Rules (from HybridRoutingPolicy):
+    1. approve -> publisher (Fast Path)
+    2. blocked/unknown -> decision + HITL (Fast Path)
+    3. request_changes + low severity -> fixer (Fast Path)
+    4. request_changes + medium+ severity -> LLM decides (Slow Path)
+    5. comment -> fixer (Fast Path)
+
+    Event Codes (greppable):
+    - [ROUTER_FAST_PATH] - Deterministic routing
+    - [ROUTER_SLOW_PATH] - LLM-driven routing
+    - [ROUTER_HITL] - Human-in-the-loop required
+    - [ROUTER_LLM_FALLBACK] - LLM failed, using deterministic fallback
+
+    Args:
+        state: Current agent state with review_outcome fields
+
+    Returns:
+        Updated state with merge_decision and requires_hitl_approval
+    """
+    from core.flow.hybrid_router import get_hybrid_router
+
+    start_time = time.time()
+    metrics = _get_metrics()
+
+    trace_id = state.get("trace_id", "unknown")
+
+    metrics.record_node_start("router", trace_id)
+
+    # Extract ReviewOutcome fields from state
+    # These are set by reviewer_node via ReviewOutcome schema
+    review_outcome = state.get("review_outcome", {})
+    verdict = review_outcome.get("verdict") or state.get("merge_decision", "pending")
+    severity = review_outcome.get("severity") or state.get("review_severity", "none")
+    summary = review_outcome.get("summary", "")
+    blocker_count = review_outcome.get("blocker_count", 0)
+
+    # Map old decision values to verdict if needed
+    if verdict == "approve":
+        pass  # Already correct
+    elif verdict == "needs_fix":
+        verdict = "request_changes"
+    elif verdict == "request_changes":
+        pass  # Already correct
+    elif verdict == "pending":
+        verdict = "unknown"
+
+    logger.info("[Router] Starting Hybrid Router decision", extra={
+        "operation": "router",
+        "trace_id": trace_id,
+        "verdict": verdict,
+        "severity": severity,
+        "blocker_count": blocker_count,
+    })
+
+    try:
+        # Get Hybrid Router instance (with LLM for slow path)
+        router = get_hybrid_router(use_llm=True)
+
+        # Make routing decision
+        decision = router.route(
+            verdict=verdict,
+            severity=severity,
+            summary=summary,
+            blocker_count=blocker_count
+        )
+
+        # Map routing decision to state fields
+        next_node = decision.next_node
+        requires_hitl = decision.requires_hitl_approval
+
+        # Map next_node to merge_decision for compatibility with existing flow
+        if next_node == "publisher":
+            merge_decision = "approve"
+        elif next_node == "fixer":
+            merge_decision = "needs_fix"
+        elif next_node == "executor":
+            merge_decision = "needs_fix"  # Executor also means we need to fix/regenerate
+        elif next_node == "decision":
+            # HITL required - keep original decision but mark for HITL
+            merge_decision = state.get("merge_decision", "request_changes")
+        else:
+            merge_decision = "request_changes"
+
+        state["merge_decision"] = merge_decision
+        state["requires_hitl_approval"] = requires_hitl
+        state["routing_decision"] = {
+            "next_node": next_node,
+            "reasoning": decision.reasoning,
+            "risk_assessment": decision.risk_assessment,
+            "requires_hitl_approval": requires_hitl,
+        }
+
+        logger.info("[Router] Hybrid Router decision complete", extra={
+            "operation": "router",
+            "trace_id": trace_id,
+            "next_node": next_node,
+            "merge_decision": merge_decision,
+            "requires_hitl_approval": requires_hitl,
+            "reasoning": decision.reasoning,
+        })
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Router decision: {next_node}. Reason: {decision.reasoning}")
+        ]
+
+    except Exception as e:
+        # Fallback to deterministic decision on any error
+        logger.error(f"[Router] Hybrid Router failed, falling back to decision_node: {e}", extra={
+            "operation": "router",
+            "trace_id": trace_id,
+            "error": str(e),
+        })
+
+        # Use decision_node logic as fallback
+        ci_state = state.get("ci_state", "unknown")
+        code_quality_score = state.get("code_quality_score", 100)
+
+        if ci_state == "failure" or severity == "critical" or code_quality_score < 50:
+            merge_decision = "needs_fix"
+        elif severity == "high" or code_quality_score < 70:
+            merge_decision = "request_changes"
+        elif ci_state == "success" and code_quality_score >= 70:
+            merge_decision = "approve"
+        else:
+            merge_decision = "pending"
+
+        state["merge_decision"] = merge_decision
+        state["requires_hitl_approval"] = False
+
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"Router fallback decision: {merge_decision}")
+        ]
+
+    latency_ms = (time.time() - start_time) * 1000
+    metrics.record_node_complete("router", trace_id, success=True, latency_ms=latency_ms)
+
+    return state
+
+
 def should_fix_or_finalize(state: AgentState) -> str:
     """
     Determines next step after decision node
@@ -5896,6 +6045,9 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     workflow.add_node("ci_monitor", ci_monitor_node)
     workflow.add_node("reviewer", reviewer_node)
     workflow.add_node("decision", decision_node)
+    # EPIC C Phase C-6: Router node for Hybrid Router (Issue #3182)
+    # Only added when ENABLE_DYNAMIC_ROUTING=true
+    workflow.add_node("router", router_node)
     workflow.add_node("fixer", fixer_node)
     # EPIC B Phase B-3: Publisher node for GitHub inline comment posting
     workflow.add_node("publisher", publisher_node)
@@ -5970,14 +6122,25 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     # ci_monitor → reviewer (Phase 3: always go to reviewer after CI check)
     workflow.add_edge("ci_monitor", "reviewer")
 
-    # reviewer → decision
-    workflow.add_edge("reviewer", "decision")
+    # EPIC C Phase C-6: Graph Wiring for Hybrid Router (Issue #3182)
+    # When ENABLE_DYNAMIC_ROUTING=true: reviewer → router → hitl_gate
+    # When ENABLE_DYNAMIC_ROUTING=false: reviewer → decision → hitl_gate (legacy)
+    enable_dynamic_routing = getattr(settings, 'enable_dynamic_routing', False)
 
-    # EPIC C Phase C-5: HITL Wiring (Issue #3155)
-    # decision → hitl_gate (always route through HITL gate for approval check)
-    # CTO Directive: "請將 HITL Gate Node 設計為一個獨立的節點，置於 router_node 下游。
-    # 這樣我們可以保持 Router 的純粹性（只做決策），將控制權交給 Gate。"
-    workflow.add_edge("decision", "hitl_gate")
+    if enable_dynamic_routing:
+        # New flow: reviewer → router → hitl_gate
+        logger.info("[Graph] ENABLE_DYNAMIC_ROUTING=true, using Hybrid Router (C-6)")
+        workflow.add_edge("reviewer", "router")
+        workflow.add_edge("router", "hitl_gate")
+    else:
+        # Legacy flow: reviewer → decision → hitl_gate
+        logger.info("[Graph] ENABLE_DYNAMIC_ROUTING=false, using legacy decision node")
+        workflow.add_edge("reviewer", "decision")
+        # EPIC C Phase C-5: HITL Wiring (Issue #3155)
+        # decision → hitl_gate (always route through HITL gate for approval check)
+        # CTO Directive: "請將 HITL Gate Node 設計為一個獨立的節點，置於 router_node 下游。
+        # 這樣我們可以保持 Router 的純粹性（只做決策），將控制權交給 Gate。"
+        workflow.add_edge("decision", "hitl_gate")
 
     # hitl_gate → (fix | monitor_ci | publisher)
     # EPIC B Phase B-3: Route finalize through publisher for review posting
