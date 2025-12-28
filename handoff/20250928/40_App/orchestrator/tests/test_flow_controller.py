@@ -1814,8 +1814,9 @@ class TestRoutingDecisionBackwardCompatibility:
         behavior is preserved. If this test fails, it means the schema config
         changed and backward compatibility may be affected.
 
-        Evidence: router_node.py:243 uses RoutingDecision(**decision_dict) which
-        relies on this behavior when parsing LLM JSON responses.
+        Note: Production code (router_node.py:243) uses RoutingDecision(**dict),
+        but model_validate() is the canonical Pydantic v2 API and both paths
+        go through the same validation pipeline.
         """
         input_with_extra = {
             "next_node": "fixer",
@@ -1825,7 +1826,7 @@ class TestRoutingDecisionBackwardCompatibility:
             "another_unknown": 123,
         }
 
-        decision = RoutingDecision(**input_with_extra)
+        decision = RoutingDecision.model_validate(input_with_extra)
 
         assert decision.next_node == "fixer"
         assert decision.reasoning == "Code needs fixing"
@@ -1848,21 +1849,23 @@ class TestRoutingDecisionBackwardCompatibility:
             "risk_assessment": "Low risk",
         }
 
-        decision = RoutingDecision(**minimal_input)
+        decision = RoutingDecision.model_validate(minimal_input)
 
         assert decision.confidence is None
         assert decision.requires_hitl_approval is False
 
-    def test_schema_has_no_extra_forbid(self):
-        """Test that RoutingDecision doesn't use extra='forbid'.
+    def test_schema_enforces_extra_ignore(self):
+        """Test that RoutingDecision uses extra='ignore'.
 
-        This is a contract test to ensure the schema remains backward compatible.
-        If someone adds extra='forbid' to the Config, this test will fail as a
-        reminder to consider backward compatibility implications.
+        This is a contract test to ensure the schema remains backward compatible
+        by ignoring extra fields from sources like LLM responses.
+        If this test fails, it means the schema config changed from the expected
+        default of extra='ignore', which could break backward compatibility.
         """
         config = RoutingDecision.model_config
         extra_setting = config.get("extra", "ignore")
-        assert extra_setting != "forbid", (
-            "RoutingDecision should not use extra='forbid' to maintain "
-            "backward compatibility with LLM JSON parsing in router_node.py"
+        assert extra_setting == "ignore", (
+            "RoutingDecision must use extra='ignore' to maintain "
+            "backward compatibility with LLM JSON parsing in router_node.py. "
+            f"Current setting is '{extra_setting}'."
         )
