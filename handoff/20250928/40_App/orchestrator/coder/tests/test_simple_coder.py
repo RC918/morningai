@@ -11,6 +11,7 @@ from coder.simple_coder import (
     SimpleCoder,
     CoderOutput,
     CoderStatus,
+    CODER_OUTPUT_SCHEMA_VERSION,
     validate_python_syntax,
     is_python_file,
     get_simple_coder,
@@ -43,18 +44,20 @@ class TestCoderOutput:
         assert output.syntax_valid is True
 
     def test_to_dict_skipped(self):
-        """Test to_dict for skipped output."""
+        """Test to_dict for skipped output includes schema_version."""
         output = CoderOutput.create_skipped("Reason", file_path="test.py")
         d = output.to_dict()
+        assert d["schema_version"] == CODER_OUTPUT_SCHEMA_VERSION
         assert d["status"] == "skipped"
         assert d["reason"] == "Reason"
         assert "patch" not in d
         assert d["file_path"] == "test.py"
 
     def test_to_dict_patch(self):
-        """Test to_dict for patch output."""
+        """Test to_dict for patch output includes schema_version."""
         output = CoderOutput.create_patch("code", file_path="test.py", syntax_valid=True)
         d = output.to_dict()
+        assert d["schema_version"] == CODER_OUTPUT_SCHEMA_VERSION
         assert d["status"] == "patch"
         assert d["patch"] == "code"
         assert "reason" not in d
@@ -62,12 +65,17 @@ class TestCoderOutput:
         assert d["syntax_valid"] is True
 
     def test_to_json(self):
-        """Test to_json serialization."""
+        """Test to_json serialization includes schema_version."""
         output = CoderOutput.create_skipped("Reason")
         j = output.to_json()
         parsed = json.loads(j)
+        assert parsed["schema_version"] == CODER_OUTPUT_SCHEMA_VERSION
         assert parsed["status"] == "skipped"
         assert parsed["reason"] == "Reason"
+
+    def test_schema_version_constant(self):
+        """Test schema version constant is set correctly."""
+        assert CODER_OUTPUT_SCHEMA_VERSION == 1
 
 
 class TestValidatePythonSyntax:

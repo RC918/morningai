@@ -11,12 +11,28 @@ This module implements the SimpleCoder agent with Three Don'ts safety guardrails
 2. Side-effect Gate (handled by autofix_gate.py in Router)
 3. Verification Gate (Python syntax check using ast.parse)
 
-Structured Output Format:
-{
-    "status": "skipped" | "patch",
-    "reason": "string (required if skipped)",
-    "patch": "string (required if patch)"
-}
+Schema Design:
+--------------
+There are TWO distinct schemas in this module:
+
+1. LLM Response Schema (what the LLM must output):
+   {
+       "status": "skipped" | "patch",
+       "reason": "string (required if skipped)",
+       "patch": "string (required if patch)"
+   }
+   This is the ONLY format the LLM should emit. Keep it minimal and strict.
+
+2. Final CoderOutput Schema (what downstream consumers receive):
+   {
+       "schema_version": 1,
+       "status": "skipped" | "patch",
+       "reason": "string (present if skipped)",
+       "patch": "string (present if patch)",
+       "file_path": "string (system-added)",
+       "syntax_valid": bool | null (system-added, Python files only)
+   }
+   The system enriches the LLM response with file_path and syntax_valid.
 
 Usage:
     from coder.simple_coder import get_simple_coder, CoderOutput
@@ -54,9 +70,17 @@ class CoderStatus(str, Enum):
     PATCH = "patch"
 
 
+# Schema version for backward-compatible evolution (consistent with ReviewOutcome)
+CODER_OUTPUT_SCHEMA_VERSION = 1
+
+
 @dataclass
 class CoderOutput:
-    """Structured output from SimpleCoder.
+    """Structured output from SimpleCoder (Final Output Schema).
+
+    This is the enriched output that downstream consumers receive.
+    The LLM only outputs {status, reason, patch}; the system adds
+    schema_version, file_path, and syntax_valid.
 
     Three Don'ts Principle #1: Low Confidence = Abort
     If the coder is not 100% confident, it returns status=skipped.
@@ -65,8 +89,8 @@ class CoderOutput:
         status: "skipped" or "patch"
         reason: Required if status is "skipped", explains why
         patch: Required if status is "patch", the code fix
-        file_path: Path to the file being modified
-        syntax_valid: Whether the patch passed syntax check (Python only)
+        file_path: Path to the file being modified (system-added)
+        syntax_valid: Whether the patch passed syntax check (system-added, Python only)
     """
     status: CoderStatus
     reason: Optional[str] = None
@@ -75,8 +99,14 @@ class CoderOutput:
     syntax_valid: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
-        result: Dict[str, Any] = {"status": self.status.value}
+        """Convert to dictionary for JSON serialization.
+
+        Returns the Final CoderOutput Schema with schema_version.
+        """
+        result: Dict[str, Any] = {
+            "schema_version": CODER_OUTPUT_SCHEMA_VERSION,
+            "status": self.status.value
+        }
         if self.reason is not None:
             result["reason"] = self.reason
         if self.patch is not None:
