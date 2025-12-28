@@ -1614,3 +1614,175 @@ class TestHITLGateNodeDesign:
         from langgraph.graph import StateGraph, END
         assert StateGraph is not None
         assert END is not None
+
+
+# =============================================================================
+# C-5 Pilot: CANONICAL_NODES Validation Tests (Issue #3157)
+# =============================================================================
+
+
+class TestCanonicalNodesValidation:
+    """Tests to validate CANONICAL_NODES against actual LangGraph node IDs.
+
+    Issue #3157: Ensure CANONICAL_NODES in hybrid_router.py matches actual
+    graph nodes in langgraph_orchestrator.py to prevent runtime routing failures.
+
+    Risk: If CANONICAL_NODES doesn't match actual graph nodes:
+    - Router may route to non-existent nodes
+    - Flow Controller will fail at runtime
+
+    Constants:
+    - ACTUAL_GRAPH_NODES: All nodes defined in langgraph_orchestrator.py
+    - EXPECTED_CANONICAL_NODES: Expected content of CANONICAL_NODES (single source of truth)
+    """
+
+    # IMPORTANT: This list must be manually kept in sync with the nodes defined
+    # in `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`.
+    # See workflow.add_node() calls in create_orchestrator_graph().
+    ACTUAL_GRAPH_NODES = frozenset({
+        "review_intake",
+        "internal_review",
+        "planner",
+        "pm_advisor",
+        "ops_advisor",
+        "security_advisor",
+        "governance_advisor",
+        "cost_advisor",
+        "permission_advisor",
+        "reputation_advisor",
+        "policy_enforcement",
+        "executor",
+        "ci_monitor",
+        "reviewer",
+        "decision",
+        "fixer",
+        "publisher",
+        "finalizer",
+        "evaluation",
+        "hitl_gate",
+    })
+
+    EXPECTED_CANONICAL_NODES = frozenset({
+        "publisher",
+        "fixer",
+        "executor",
+        "decision",
+        "finalizer",
+        "reviewer",
+        "planner",
+        "ci_monitor",
+    })
+
+    def test_all_canonical_nodes_exist_in_graph(self):
+        """Test that all CANONICAL_NODES exist in actual LangGraph definition.
+
+        This is the primary validation test to prevent routing to non-existent nodes.
+        """
+        from core.flow.hybrid_router import CANONICAL_NODES
+
+        missing_nodes = CANONICAL_NODES - self.ACTUAL_GRAPH_NODES
+        assert not missing_nodes, (
+            f"CANONICAL_NODES contains nodes not in actual graph: {missing_nodes}. "
+            f"Either add these nodes to langgraph_orchestrator.py or remove from CANONICAL_NODES."
+        )
+
+    def test_canonical_nodes_contains_required_routing_targets(self):
+        """Test that CANONICAL_NODES contains all nodes the router can route to.
+
+        These are the nodes that HybridRoutingPolicy can return as next_node.
+        """
+        from core.flow.hybrid_router import CANONICAL_NODES
+
+        required_routing_targets = {"publisher", "fixer", "executor", "decision"}
+        missing = required_routing_targets - CANONICAL_NODES
+        assert not missing, (
+            f"CANONICAL_NODES missing required routing targets: {missing}. "
+            f"HybridRoutingPolicy routes to these nodes."
+        )
+
+    def test_canonical_nodes_is_frozen(self):
+        """Test that CANONICAL_NODES is immutable (frozenset)."""
+        from core.flow.hybrid_router import CANONICAL_NODES
+
+        assert isinstance(CANONICAL_NODES, frozenset), (
+            "CANONICAL_NODES should be a frozenset to prevent accidental modification"
+        )
+
+    def test_node_aliases_map_to_canonical_nodes(self):
+        """Test that all NODE_ALIASES values are in CANONICAL_NODES."""
+        from core.flow.hybrid_router import NODE_ALIASES, CANONICAL_NODES
+
+        for alias, canonical in NODE_ALIASES.items():
+            assert canonical in CANONICAL_NODES, (
+                f"NODE_ALIASES['{alias}'] = '{canonical}' is not in CANONICAL_NODES. "
+                f"Add '{canonical}' to CANONICAL_NODES or fix the alias mapping."
+            )
+
+    def test_canonical_nodes_count(self):
+        """Test that CANONICAL_NODES has expected count.
+
+        This test will fail if nodes are added/removed, prompting review.
+        Count is derived from EXPECTED_CANONICAL_NODES to avoid duplication.
+        """
+        from core.flow.hybrid_router import CANONICAL_NODES
+
+        expected_count = len(self.EXPECTED_CANONICAL_NODES)
+        assert len(CANONICAL_NODES) == expected_count, (
+            f"CANONICAL_NODES count changed from {expected_count} to {len(CANONICAL_NODES)}. "
+            f"If intentional, update EXPECTED_CANONICAL_NODES. Current nodes: {sorted(CANONICAL_NODES)}"
+        )
+
+    def test_canonical_nodes_subset_of_actual_graph(self):
+        """Test that CANONICAL_NODES is a subset of actual graph nodes.
+
+        CANONICAL_NODES doesn't need to contain ALL graph nodes, just the ones
+        the router can route to. But all CANONICAL_NODES must exist in the graph.
+        """
+        from core.flow.hybrid_router import CANONICAL_NODES
+
+        assert CANONICAL_NODES.issubset(self.ACTUAL_GRAPH_NODES), (
+            f"CANONICAL_NODES is not a subset of actual graph nodes. "
+            f"Extra nodes: {CANONICAL_NODES - self.ACTUAL_GRAPH_NODES}"
+        )
+
+    @pytest.mark.parametrize(
+        "verdict, severity, summary, blockers",
+        [
+            ("approve", "low", "Test", 0),
+            ("blocked", "high", "Test", 1),
+            ("unknown", "medium", "Test", 0),
+            ("request_changes", "low", "Test", 0),
+            ("request_changes", "medium", "Test", 0),
+            ("request_changes", "high", "Test", 2),
+            ("comment", "low", "Test", 0),
+        ],
+    )
+    def test_hybrid_router_routing_targets_in_canonical_nodes(
+        self, verdict, severity, summary, blockers
+    ):
+        """Test that all nodes HybridRoutingPolicy can route to are in CANONICAL_NODES.
+
+        This validates the routing logic won't produce invalid node names.
+        """
+        from core.flow.hybrid_router import HybridRoutingPolicy, CANONICAL_NODES
+
+        policy = HybridRoutingPolicy(llm_generate_fn=None)
+
+        decision = policy.route(verdict, severity, summary, blockers)
+        assert decision.next_node in CANONICAL_NODES, (
+            f"HybridRoutingPolicy.route({verdict}, {severity}) returned "
+            f"'{decision.next_node}' which is not in CANONICAL_NODES"
+        )
+
+    def test_document_canonical_nodes_mapping(self):
+        """Document the expected mapping between CANONICAL_NODES and graph nodes.
+
+        This test serves as documentation and will fail if the mapping changes.
+        Uses EXPECTED_CANONICAL_NODES constant to avoid duplication (per code review).
+        """
+        from core.flow.hybrid_router import CANONICAL_NODES
+
+        assert CANONICAL_NODES == self.EXPECTED_CANONICAL_NODES, (
+            f"CANONICAL_NODES changed. Expected: {sorted(self.EXPECTED_CANONICAL_NODES)}, "
+            f"Got: {sorted(CANONICAL_NODES)}. Update EXPECTED_CANONICAL_NODES if change is intentional."
+        )
