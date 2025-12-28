@@ -1786,3 +1786,86 @@ class TestCanonicalNodesValidation:
             f"CANONICAL_NODES changed. Expected: {sorted(self.EXPECTED_CANONICAL_NODES)}, "
             f"Got: {sorted(CANONICAL_NODES)}. Update EXPECTED_CANONICAL_NODES if change is intentional."
         )
+
+
+class TestRoutingDecisionBackwardCompatibility:
+    """Tests for RoutingDecision schema backward compatibility.
+
+    Issue #3156: Schema backward compatibility audit
+
+    These tests verify that RoutingDecision schema changes are backward compatible,
+    specifically that:
+    1. Extra fields in input are ignored (Pydantic v2 default behavior)
+    2. New fields with defaults don't break existing consumers
+
+    Audit Findings (Issue #3156):
+    - No strict consumers (extra='forbid') found
+    - No external serialization boundaries (DB/queue/HTTP)
+    - All consumers are internal to orchestrator module
+    - Pydantic v2 default extra handling: "ignore" (doesn't error)
+
+    Decision Matrix Result: "No strict consumers found -> Close as non-issue"
+    """
+
+    def test_extra_fields_ignored_on_parse(self):
+        """Test that unknown fields don't break RoutingDecision parsing.
+
+        This is a guardrail test to ensure Pydantic v2's default extra="ignore"
+        behavior is preserved. If this test fails, it means the schema config
+        changed and backward compatibility may be affected.
+
+        Note: Production code (router_node.py:243) uses RoutingDecision(**dict),
+        but model_validate() is the canonical Pydantic v2 API and both paths
+        go through the same validation pipeline.
+        """
+        input_with_extra = {
+            "next_node": "fixer",
+            "reasoning": "Code needs fixing",
+            "risk_assessment": "Low risk",
+            "unknown_future_field": "some value",
+            "another_unknown": 123,
+        }
+
+        decision = RoutingDecision.model_validate(input_with_extra)
+
+        assert decision.next_node == "fixer"
+        assert decision.reasoning == "Code needs fixing"
+        assert decision.risk_assessment == "Low risk"
+        assert decision.requires_hitl_approval is False
+
+        dumped = decision.model_dump()
+        assert "unknown_future_field" not in dumped
+        assert "another_unknown" not in dumped
+
+    def test_missing_optional_fields_use_defaults(self):
+        """Test that missing optional fields use their defaults.
+
+        This verifies backward compatibility for existing data/code that
+        doesn't include newer optional fields like requires_hitl_approval.
+        """
+        minimal_input = {
+            "next_node": "publisher",
+            "reasoning": "All checks passed",
+            "risk_assessment": "Low risk",
+        }
+
+        decision = RoutingDecision.model_validate(minimal_input)
+
+        assert decision.confidence is None
+        assert decision.requires_hitl_approval is False
+
+    def test_schema_enforces_extra_ignore(self):
+        """Test that RoutingDecision uses extra='ignore'.
+
+        This is a contract test to ensure the schema remains backward compatible
+        by ignoring extra fields from sources like LLM responses.
+        If this test fails, it means the schema config changed from the expected
+        default of extra='ignore', which could break backward compatibility.
+        """
+        config = RoutingDecision.model_config
+        extra_setting = config.get("extra", "ignore")
+        assert extra_setting == "ignore", (
+            "RoutingDecision must use extra='ignore' to maintain "
+            "backward compatibility with LLM JSON parsing in router_node.py. "
+            f"Current setting is '{extra_setting}'."
+        )
