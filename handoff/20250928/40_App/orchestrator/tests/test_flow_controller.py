@@ -1636,6 +1636,9 @@ class TestCanonicalNodesValidation:
     - EXPECTED_CANONICAL_NODES: Expected content of CANONICAL_NODES (single source of truth)
     """
 
+    # IMPORTANT: This list must be manually kept in sync with the nodes defined
+    # in `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`.
+    # See workflow.add_node() calls in create_orchestrator_graph().
     ACTUAL_GRAPH_NODES = frozenset({
         "review_intake",
         "internal_review",
@@ -1742,7 +1745,21 @@ class TestCanonicalNodesValidation:
             f"Extra nodes: {CANONICAL_NODES - self.ACTUAL_GRAPH_NODES}"
         )
 
-    def test_hybrid_router_routing_targets_in_canonical_nodes(self):
+    @pytest.mark.parametrize(
+        "verdict, severity, summary, blockers",
+        [
+            ("approve", "low", "Test", 0),
+            ("blocked", "high", "Test", 1),
+            ("unknown", "medium", "Test", 0),
+            ("request_changes", "low", "Test", 0),
+            ("request_changes", "medium", "Test", 0),
+            ("request_changes", "high", "Test", 2),
+            ("comment", "low", "Test", 0),
+        ],
+    )
+    def test_hybrid_router_routing_targets_in_canonical_nodes(
+        self, verdict, severity, summary, blockers
+    ):
         """Test that all nodes HybridRoutingPolicy can route to are in CANONICAL_NODES.
 
         This validates the routing logic won't produce invalid node names.
@@ -1751,22 +1768,11 @@ class TestCanonicalNodesValidation:
 
         policy = HybridRoutingPolicy(llm_generate_fn=None)
 
-        test_cases = [
-            ("approve", "low", "Test", 0),
-            ("blocked", "high", "Test", 1),
-            ("unknown", "medium", "Test", 0),
-            ("request_changes", "low", "Test", 0),
-            ("request_changes", "medium", "Test", 0),
-            ("request_changes", "high", "Test", 2),
-            ("comment", "low", "Test", 0),
-        ]
-
-        for verdict, severity, summary, blockers in test_cases:
-            decision = policy.route(verdict, severity, summary, blockers)
-            assert decision.next_node in CANONICAL_NODES, (
-                f"HybridRoutingPolicy.route({verdict}, {severity}) returned "
-                f"'{decision.next_node}' which is not in CANONICAL_NODES"
-            )
+        decision = policy.route(verdict, severity, summary, blockers)
+        assert decision.next_node in CANONICAL_NODES, (
+            f"HybridRoutingPolicy.route({verdict}, {severity}) returned "
+            f"'{decision.next_node}' which is not in CANONICAL_NODES"
+        )
 
     def test_document_canonical_nodes_mapping(self):
         """Document the expected mapping between CANONICAL_NODES and graph nodes.
