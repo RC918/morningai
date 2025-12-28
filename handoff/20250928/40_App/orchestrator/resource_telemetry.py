@@ -24,7 +24,10 @@ def _get_timestamp_ms() -> int:
     return time.time_ns() // 1_000_000
 
 
-def get_current_rss_mb() -> float:
+_rss_warning_logged = False
+
+
+def get_current_rss_mb() -> tuple[float, bool]:
     """
     Get current RSS (Resident Set Size) memory usage in MB.
 
@@ -32,8 +35,10 @@ def get_current_rss_mb() -> float:
     Falls back to psutil if available, otherwise returns 0.
 
     Returns:
-        Current RSS in MB, or 0 if measurement fails
+        Tuple of (RSS in MB, success flag). Returns (0.0, False) if measurement fails.
     """
+    global _rss_warning_logged
+
     try:
         # Linux: Read from /proc/self/statm (most accurate, no dependencies)
         # Format: size resident shared text lib data dt
@@ -43,7 +48,7 @@ def get_current_rss_mb() -> float:
             if len(parts) >= 2:
                 resident_pages = int(parts[1])
                 page_size = os.sysconf('SC_PAGE_SIZE')
-                return (resident_pages * page_size) / (1024 * 1024)
+                return ((resident_pages * page_size) / (1024 * 1024), True)
     except (FileNotFoundError, OSError, ValueError):
         pass
 
@@ -51,13 +56,21 @@ def get_current_rss_mb() -> float:
     try:
         import psutil
         process = psutil.Process()
-        return process.memory_info().rss / (1024 * 1024)
+        return (process.memory_info().rss / (1024 * 1024), True)
     except ImportError:
         pass
     except Exception:
         pass
 
-    return 0.0
+    # Log warning once if RSS measurement is unavailable
+    if not _rss_warning_logged:
+        logger.warning(
+            "[RESOURCE_TELEMETRY] RSS measurement unavailable on this platform",
+            extra={"operation": "resource_telemetry", "event_code": "RSS_UNAVAILABLE"}
+        )
+        _rss_warning_logged = True
+
+    return (0.0, False)
 
 
 def log_resource_peak(
@@ -76,7 +89,7 @@ def log_resource_peak(
     Returns:
         Current RSS in MB
     """
-    rss_mb = get_current_rss_mb()
+    rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
         f"[RESOURCE_PEAK] Node {node_name} completed",
@@ -86,6 +99,7 @@ def log_resource_peak(
             "event_code": "RESOURCE_PEAK",
             "node_name": node_name,
             "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
             "timestamp_ms": _get_timestamp_ms()
         }
     )
@@ -112,7 +126,7 @@ def log_diff_fetch_bytes(
         pr_number: PR number (optional)
         operation: Operation name for log filtering
     """
-    rss_mb = get_current_rss_mb()
+    rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
         f"[DIFF_FETCH_BYTES] Diff fetched: {diff_bytes} bytes, {file_count} files",
@@ -125,6 +139,7 @@ def log_diff_fetch_bytes(
             "truncated": truncated,
             "pr_number": pr_number,
             "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
             "timestamp_ms": _get_timestamp_ms()
         }
     )
@@ -149,7 +164,7 @@ def log_prompt_build_bytes(
         diff_included: Whether diff was included in prompt
         operation: Operation name for log filtering
     """
-    rss_mb = get_current_rss_mb()
+    rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
         f"[PROMPT_BUILD_BYTES] Prompt built: {prompt_bytes} bytes total",
@@ -162,6 +177,7 @@ def log_prompt_build_bytes(
             "user_prompt_bytes": user_prompt_bytes,
             "diff_included": diff_included,
             "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
             "timestamp_ms": _get_timestamp_ms()
         }
     )
@@ -186,7 +202,7 @@ def log_llm_response_bytes(
         model: LLM model name
         operation: Operation name for log filtering
     """
-    rss_mb = get_current_rss_mb()
+    rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
         f"[LLM_RESPONSE_BYTES] Response received: {response_bytes} bytes",
@@ -199,6 +215,7 @@ def log_llm_response_bytes(
             "provider": provider,
             "model": model,
             "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
             "timestamp_ms": _get_timestamp_ms()
         }
     )
@@ -227,7 +244,7 @@ def log_checkpoint_put_bytes(
         is_degraded: Whether using degraded (MemorySaver) mode
         operation: Operation name for log filtering
     """
-    rss_mb = get_current_rss_mb()
+    rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
         f"[CHECKPOINT_PUT_BYTES] Checkpoint put: {payload_bytes} bytes (shallow)",
@@ -241,6 +258,7 @@ def log_checkpoint_put_bytes(
             "thread_id": thread_id,
             "is_degraded": is_degraded,
             "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
             "timestamp_ms": _get_timestamp_ms()
         }
     )
