@@ -3833,10 +3833,13 @@ def executor_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("executor", trace_id)
 
+    # Defensive bounds check: Extract step name before try block to prevent secondary
+    # IndexError in exception handler if current_step is out of bounds
+    current_step_name = plan[current_step] if current_step < len(plan) else "unknown"
     logger.info(f"[Executor] Executing step {current_step + 1}/{len(plan)} source_pr_number={source_pr_number}", extra={
         "operation": "executor",
         "trace_id": trace_id,
-        "step": plan[current_step] if current_step < len(plan) else "unknown",
+        "step": current_step_name,
         "source_pr_number": source_pr_number,
     })
 
@@ -3851,7 +3854,7 @@ def executor_node(state: AgentState) -> AgentState:
         state["ci_state"] = ci_state
         state["error"] = None
         state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Executed step: {plan[current_step]}. PR created: {pr_url}")
+            AIMessage(content=f"Executed step: {current_step_name}. PR created: {pr_url}")
         ]
 
         logger.info("[Executor] Step completed successfully", extra={
@@ -3864,7 +3867,7 @@ def executor_node(state: AgentState) -> AgentState:
     except Exception as e:
         success = False
         error_msg = str(e)
-        logger.error(f"[Executor] Step failed: {error_msg}", extra={
+        logger.error(f"[Executor] Step failed: {error_msg}", exc_info=True, extra={
             "operation": "executor",
             "trace_id": trace_id,
             "error": error_msg
@@ -3873,7 +3876,7 @@ def executor_node(state: AgentState) -> AgentState:
         state["error"] = error_msg
         state["retry_count"] = state.get("retry_count", 0) + 1
         state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Error in step {plan[current_step]}: {error_msg}")
+            AIMessage(content=f"Error in step {current_step_name}: {error_msg}")
         ]
 
     state["current_step"] = current_step + 1
