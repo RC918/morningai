@@ -49,14 +49,14 @@ EXCLUDED_PATHS: FrozenSet[str] = frozenset({
 })
 
 
-def is_path_excluded(file_path: str) -> bool:
+def is_path_excluded(file_path: Optional[str]) -> bool:
     """Check if a file path is in the excluded list.
 
     High-risk paths are excluded from auto-fix to prevent
     accidental changes to configuration, migrations, or CI/CD.
 
     Args:
-        file_path: File path to check (can be relative or absolute)
+        file_path: File path to check (can be relative or absolute, or None)
 
     Returns:
         True if the path should be excluded from auto-fix

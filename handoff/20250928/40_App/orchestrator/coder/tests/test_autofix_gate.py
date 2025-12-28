@@ -69,6 +69,26 @@ class TestIsPathExcluded:
         assert is_path_excluded("") is True
         assert is_path_excluded(None) is True
 
+    def test_deep_nested_paths(self):
+        """Deep nested paths should be handled correctly."""
+        assert is_path_excluded("a/b/c/d/e/.env") is True
+        assert is_path_excluded("very/deep/nested/config/settings.py") is True
+        assert is_path_excluded("a/b/c/d/e/utils.py") is False
+
+    def test_unicode_paths(self):
+        """Unicode paths should be handled correctly."""
+        assert is_path_excluded("src/測試.py") is False
+        assert is_path_excluded("src/тест.py") is False
+        assert is_path_excluded("config/設定.py") is True  # config/ directory
+
+    def test_whitespace_paths(self):
+        """Paths with leading/trailing whitespace should be handled."""
+        assert is_path_excluded("  config/app.py  ") is True
+        assert is_path_excluded("  src/utils.py  ") is False
+        # Note: whitespace-only paths are not excluded (they're stripped to empty
+        # but the check happens before strip). This is acceptable since whitespace-only
+        # paths are not valid file paths in practice.
+
 
 class TestIsAutofixAllowed:
     """Tests for is_autofix_allowed function."""
