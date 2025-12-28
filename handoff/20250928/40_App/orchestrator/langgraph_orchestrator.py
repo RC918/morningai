@@ -2164,9 +2164,19 @@ def prune_messages_reducer(
 
     Blueprint: Safety Governor v2 (Self-Governed/Self-Healing)
 
+    Contract Assumption:
+        This reducer assumes LangGraph passes incremental deltas in `new` (standard
+        reducer contract). If a node mistakenly returns full state instead of delta,
+        the reducer still produces bounded output but with temporary duplication.
+
+    Breaking Change Notice:
+        This change modifies AgentState.messages behavior. Old messages beyond the
+        window are permanently pruned. To rollback: set MESSAGE_WINDOW_SIZE=200 or
+        revert this commit. For audit/analytics, use [STATE_PRUNED] telemetry logs.
+
     Args:
         old: Existing messages in state
-        new: New messages to append
+        new: New messages to append (incremental delta from node)
 
     Returns:
         Pruned list of messages (SystemMessage + last K non-system messages)
