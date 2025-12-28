@@ -14,6 +14,7 @@ from exceptions import (
 )
 from utils.retry import retry_with_backoff, API_RETRY_CONFIG
 from common.config.settings import settings
+from resource_telemetry import log_diff_fetch_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -648,6 +649,16 @@ def get_pr_diff(
                 "size_bytes": total_size,
                 "truncated": result["truncated"]
             }
+        )
+
+        # P1 瘦身計畫 (#3197): Log diff fetch bytes for resource profiling
+        # trace_id is passed via caller context, use "unknown" as fallback
+        log_diff_fetch_bytes(
+            trace_id="unknown",  # Will be enriched by caller if available
+            diff_bytes=total_size,
+            file_count=len(included_files),
+            truncated=result["truncated"],
+            pr_number=pr_number
         )
 
         return result

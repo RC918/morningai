@@ -33,6 +33,7 @@ from typing import Dict, Any, Optional
 from common.config.settings import settings
 from llm.client import get_client_for_task
 from core.routing import TaskType
+from resource_telemetry import log_prompt_build_bytes, log_llm_response_bytes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -717,6 +718,18 @@ class LLMReviewerAdapter:
 
         start_time = time.time()
 
+        # P1 瘦身計畫 (#3197): Log prompt bytes for resource profiling
+        system_prompt_bytes = len(system_prompt.encode('utf-8'))
+        user_prompt_bytes = len(user_prompt.encode('utf-8'))
+        total_prompt_bytes = system_prompt_bytes + user_prompt_bytes
+        log_prompt_build_bytes(
+            trace_id=self.trace_id,
+            prompt_bytes=total_prompt_bytes,
+            system_prompt_bytes=system_prompt_bytes,
+            user_prompt_bytes=user_prompt_bytes,
+            diff_included=has_diff
+        )
+
         try:
             if use_json_mode:
                 logger.info(f"[LLM Reviewer] Using JSON mode for trace_id={self.trace_id}")
@@ -753,6 +766,20 @@ class LLMReviewerAdapter:
             review_time_ms = (time.time() - start_time) * 1000
 
             content = response.content
+
+            # P1 瘦身計畫 (#3197): Log LLM response bytes for resource profiling
+            response_bytes = len(content.encode('utf-8')) if content else 0
+            token_count = None
+            if response.usage:
+                token_count = response.usage.get('completion_tokens') or response.usage.get('output_tokens')
+            log_llm_response_bytes(
+                trace_id=self.trace_id,
+                response_bytes=response_bytes,
+                token_count=token_count,
+                provider=response.provider,
+                model=response.model
+            )
+
             review = self._parse_json_with_retry(content, use_json_mode)
 
             logger.info(
