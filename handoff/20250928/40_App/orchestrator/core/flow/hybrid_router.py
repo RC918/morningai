@@ -444,6 +444,9 @@ def create_llm_generate_fn(
     return generate
 
 
+_CACHED_ROUTERS: Dict[bool, HybridRoutingPolicy] = {}
+
+
 def get_hybrid_router(
     llm_generate_fn: Optional[Callable[[str], str]] = None,
     use_llm: bool = True
@@ -453,26 +456,36 @@ def get_hybrid_router(
     CTO Directive: Application Layer (Router) should not know specific model strings.
     Model selection is delegated to RoutingEngine via get_client_for_task(TaskType.ROUTING).
 
+    Note: Instances are cached by use_llm flag to avoid expensive LLM initialization
+    overhead on every call. Custom llm_generate_fn bypasses the cache.
+
     Args:
         llm_generate_fn: Optional custom LLM function. If None and use_llm=True,
                         creates one using get_client_for_task(TaskType.ROUTING).
+                        Custom functions bypass the cache.
         use_llm: Whether to enable LLM for slow path. If False, uses deterministic only.
 
     Returns:
-        Configured HybridRoutingPolicy instance
+        Configured HybridRoutingPolicy instance (cached when using default LLM)
     """
     if llm_generate_fn is not None:
         return HybridRoutingPolicy(llm_generate_fn=llm_generate_fn)
 
+    if use_llm in _CACHED_ROUTERS:
+        return _CACHED_ROUTERS[use_llm]
+
     if use_llm:
         try:
             fn = create_llm_generate_fn()
-            return HybridRoutingPolicy(llm_generate_fn=fn)
+            router = HybridRoutingPolicy(llm_generate_fn=fn)
         except Exception as e:
             logger.warning(
                 f"[ROUTER_LLM_FALLBACK] Failed to create LLM function: {e}, "
                 f"using deterministic-only mode"
             )
-            return HybridRoutingPolicy(llm_generate_fn=None)
+            router = HybridRoutingPolicy(llm_generate_fn=None)
+    else:
+        router = HybridRoutingPolicy(llm_generate_fn=None)
 
-    return HybridRoutingPolicy(llm_generate_fn=None)
+    _CACHED_ROUTERS[use_llm] = router
+    return router

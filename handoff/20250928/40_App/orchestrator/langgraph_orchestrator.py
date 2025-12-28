@@ -4839,6 +4839,7 @@ def router_node(state: AgentState) -> AgentState:
         state["merge_decision"] = merge_decision
         state["requires_hitl_approval"] = requires_hitl
         state["routing_decision"] = {
+            "version": 1,
             "next_node": next_node,
             "reasoning": decision.reasoning,
             "risk_assessment": decision.risk_assessment,
@@ -4855,7 +4856,7 @@ def router_node(state: AgentState) -> AgentState:
         })
 
         state["messages"] = state.get("messages", []) + [
-            AIMessage(content=f"Router decision: {next_node}. Reason: {decision.reasoning}")
+            AIMessage(content=f"Router decision: {next_node}.")
         ]
 
     except Exception as e:
