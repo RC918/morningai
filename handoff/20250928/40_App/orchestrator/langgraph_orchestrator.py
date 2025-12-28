@@ -311,7 +311,9 @@ def _get_postgres_pool():
             _postgres_pool.wait()
 
             logger.info(
-                "PostgreSQL connection pool initialized successfully",
+                "PostgreSQL connection pool initialized successfully "
+                "[max_lifetime=600 max_idle=120 keepalives=1 "
+                "keepalives_idle=30 keepalives_interval=10 keepalives_count=5]",
                 extra={
                     "operation": "_get_postgres_pool",
                     "min_size": 1,
