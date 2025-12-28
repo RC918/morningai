@@ -4,6 +4,7 @@ Flow Controller v3 - Hybrid Router (C-2)
 Issue #2745: C-2 Router Node Logic
 EPIC C: Flow Controller v3 - LLM-driven Dynamic Routing
 Stage 1: Hybrid Router Implementation
+Version: 1.0.0 - Production Ready (2025-12-29)
 
 This module implements the HybridRoutingPolicy which:
 - Fast Path: Deterministic routing for clear-cut cases (approve -> publisher)
