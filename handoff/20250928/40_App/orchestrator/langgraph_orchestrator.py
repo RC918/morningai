@@ -124,6 +124,7 @@ from webhooks.review_follow_up import determine_hitl_requirement
 from tools.github_api import get_repo, get_pr_diff
 from exceptions import DatabaseException
 from meta_agent.sensitive_data_masker import mask_sensitive_data
+from resource_telemetry import log_resource_peak, log_checkpoint_put_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,8 @@ def node_metrics(node_name: str) -> Callable:
                 metrics.record_node_complete(
                     node_name, trace_id, success=success[0], latency_ms=latency_ms
                 )
+                # P1 瘦身計畫 (#3197): Log RSS after each node for resource profiling
+                log_resource_peak(node_name, trace_id)
 
             return result
         return wrapper
@@ -992,14 +995,30 @@ class OOMProtectedMemorySaver:
         Order of operations:
         1. Check capacity (workflow count limit)
         2. Check hard memory limit (fail-fast before adding more data)
-        3. Store the checkpoint
-        4. Evict old checkpoints for this thread (keep last N by insertion order)
-        5. Check memory warning (log if approaching limit)
+        3. Log checkpoint payload size for resource profiling
+        4. Store the checkpoint
+        5. Evict old checkpoints for this thread (keep last N by insertion order)
+        6. Check memory warning (log if approaching limit)
         """
         self._check_capacity(config)
         self._check_memory_hard_limit()
-        result = self._inner.put(config, checkpoint, metadata, new_versions)
+
+        # P1 瘦身計畫 (#3197): Log checkpoint payload bytes for resource profiling
         thread_id = config.get("configurable", {}).get("thread_id")
+        try:
+            # Estimate payload size using sys.getsizeof for top-level objects
+            payload_bytes = sys.getsizeof(checkpoint) + sys.getsizeof(metadata)
+        except Exception:
+            payload_bytes = 0
+        log_checkpoint_put_bytes(
+            trace_id=self._trace_id,
+            payload_bytes=payload_bytes,
+            checkpoint_count=self.checkpoint_count,
+            thread_id=thread_id,
+            is_degraded=False
+        )
+
+        result = self._inner.put(config, checkpoint, metadata, new_versions)
         if thread_id:
             self._evict_old_checkpoints(thread_id)
         self._check_memory_warning()
@@ -4374,7 +4393,7 @@ def reviewer_node(state: AgentState) -> AgentState:
                                         "outcome": "continue"
                                     }
                                 )
-                            diff_data = get_pr_diff(github_repo, pr_number)
+                            diff_data = get_pr_diff(github_repo, pr_number, trace_id=trace_id)
                             if diff_data and not diff_data.get("error"):
                                 diff_content = diff_data.get("diff", "")
                                 diff_truncated = diff_data.get("truncated", False)
