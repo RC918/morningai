@@ -1063,6 +1063,18 @@ class Settings(BaseSettings):
                     "Prevents unbounded checkpoint growth in MemorySaver. (Issue #3027)"
     )
 
+    # Issue #3027: Message Window Size for OOM Protection (Dec 2025)
+    message_window_size: int = Field(
+        default=30,
+        ge=5,
+        le=200,
+        alias="MESSAGE_WINDOW_SIZE",
+        description="Maximum number of non-system messages to retain in AgentState. "
+                    "When exceeded, oldest messages are pruned (keeping SystemMessage + last K). "
+                    "This is a global limit that applies to both Postgres and MemorySaver modes. "
+                    "Prevents unbounded message accumulation and reduces checkpoint size. (Issue #3027)"
+    )
+
     # Issue #2259: Review Follow-up Task Storage Settings
     review_follow_up_store_backend: str = Field(
         default="in_memory",

@@ -106,7 +106,6 @@ import time
 import traceback
 from typing import TypedDict, Annotated, Sequence, Optional, Callable, Dict, Any, NotRequired
 from datetime import datetime
-import operator
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
@@ -2143,6 +2142,56 @@ def _get_workflow_config(trace_id: str) -> dict:
     }
 
 
+def prune_messages_reducer(
+    old: Sequence[BaseMessage],
+    new: Sequence[BaseMessage]
+) -> list[BaseMessage]:
+    """Custom reducer that appends new messages then prunes to bounded size.
+
+    This reducer solves the OOM problem caused by unbounded message accumulation
+    in LangGraph's AgentState. Unlike operator.add which only appends, this reducer
+    enforces a maximum message window size after each update.
+
+    Pruning Strategy:
+        - Keep the FIRST SystemMessage (system prompt, never changes)
+        - Keep the last K non-system messages (configurable via MESSAGE_WINDOW_SIZE)
+        - Prune oldest non-system messages when limit exceeded
+
+    CTO Directive (Issue #3027):
+        - This is Global Logic, applies to both Postgres and MemorySaver modes
+        - Prevents Postgres from storing 1GB+ state
+        - Prevents MemorySaver from causing OOM in degraded mode
+
+    Blueprint: Safety Governor v2 (Self-Governed/Self-Healing)
+
+    Args:
+        old: Existing messages in state
+        new: New messages to append
+
+    Returns:
+        Pruned list of messages (SystemMessage + last K non-system messages)
+    """
+    combined = list(old) + list(new)
+
+    system_msgs = [m for m in combined if isinstance(m, SystemMessage)]
+    other_msgs = [m for m in combined if not isinstance(m, SystemMessage)]
+
+    first_system = system_msgs[:1] if system_msgs else []
+
+    window_size = settings.message_window_size
+
+    if len(other_msgs) > window_size:
+        pruned_count = len(other_msgs) - window_size
+        other_msgs = other_msgs[-window_size:]
+        current_size = len(first_system) + len(other_msgs)
+        logger.info(
+            f"[STATE_PRUNED] Pruned {pruned_count} messages. "
+            f"Current size: {current_size}"
+        )
+
+    return first_system + other_msgs
+
+
 class AgentState(TypedDict):
     """
     State of the agent workflow
@@ -2237,7 +2286,7 @@ class AgentState(TypedDict):
         diff_content: Optional[str] - Sanitized diff content (max 100KB per DIFF_MAX_SIZE_BYTES)
         diff_truncated: Optional[bool] - Whether diff was truncated due to size limits
     """
-    messages: Annotated[Sequence[BaseMessage], operator.add]
+    messages: Annotated[list[BaseMessage], prune_messages_reducer]
     goal: str
     trace_id: str
     repo: str
