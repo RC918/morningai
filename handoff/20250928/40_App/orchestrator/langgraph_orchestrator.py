@@ -2173,10 +2173,16 @@ def prune_messages_reducer(
     """
     combined = list(old) + list(new)
 
-    system_msgs = [m for m in combined if isinstance(m, SystemMessage)]
-    other_msgs = [m for m in combined if not isinstance(m, SystemMessage)]
+    first_system_msg = None
+    other_msgs = []
+    for m in combined:
+        if isinstance(m, SystemMessage):
+            if first_system_msg is None:
+                first_system_msg = m
+        else:
+            other_msgs.append(m)
 
-    first_system = system_msgs[:1] if system_msgs else []
+    first_system = [first_system_msg] if first_system_msg else []
 
     window_size = settings.message_window_size
 
