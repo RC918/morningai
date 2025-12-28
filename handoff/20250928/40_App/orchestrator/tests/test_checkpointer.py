@@ -2961,3 +2961,194 @@ class TestConfigBoundaryValidation:
         assert result._fallback._memory_warning_mb == 512
         assert result._fallback._memory_hard_limit_mb == 1024
         assert result._fallback._max_checkpoints_per_thread == 10
+
+
+class TestPruneMessagesReducer:
+    """Tests for prune_messages_reducer function (Issue #3027 OOM Protection)
+
+    CTO Directive: Verify that pruning logic truly DELETES old messages,
+    not APPENDS truncated messages (critical LangGraph reducer semantics).
+
+    Test Cases:
+    1. Inject 100 messages, execute pruning, assert message count becomes K+1
+    2. Assert memory/state size actually decreased (verify reducer behavior)
+    3. Verify SystemMessage is always preserved (first one only)
+    """
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_prune_100_messages_to_k_plus_1(self):
+        """Test: 100 messages → prune → K+1 messages (SystemMessage + last K)
+
+        This is the critical test case requested by CTO to verify that
+        the reducer actually DELETES messages, not APPENDS truncated list.
+        """
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+        from langgraph_orchestrator import prune_messages_reducer
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.message_window_size = 20
+
+            system_msg = SystemMessage(content="You are a helpful assistant")
+            old_messages = [system_msg]
+            for i in range(99):
+                if i % 2 == 0:
+                    old_messages.append(HumanMessage(content=f"Human message {i}"))
+                else:
+                    old_messages.append(AIMessage(content=f"AI message {i}"))
+
+            assert len(old_messages) == 100
+
+            new_messages = [HumanMessage(content="New human message")]
+            result = prune_messages_reducer(old_messages, new_messages)
+
+            assert len(result) == 21
+            assert isinstance(result[0], SystemMessage)
+            assert result[0].content == "You are a helpful assistant"
+            assert isinstance(result[-1], HumanMessage)
+            assert result[-1].content == "New human message"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_prune_preserves_first_system_message_only(self):
+        """Test: Only the FIRST SystemMessage is preserved (CTO directive)
+
+        If multiple SystemMessages exist, only keep the first one to avoid
+        confusing the LLM with multiple system prompts.
+        """
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+        from langgraph_orchestrator import prune_messages_reducer
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.message_window_size = 10
+
+            old_messages = [
+                SystemMessage(content="First system message"),
+                HumanMessage(content="Human 1"),
+                SystemMessage(content="Second system message"),
+                AIMessage(content="AI 1"),
+                HumanMessage(content="Human 2"),
+            ]
+
+            new_messages = [AIMessage(content="AI 2")]
+            result = prune_messages_reducer(old_messages, new_messages)
+
+            system_msgs = [m for m in result if isinstance(m, SystemMessage)]
+            assert len(system_msgs) == 1
+            assert system_msgs[0].content == "First system message"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_prune_no_pruning_when_under_limit(self):
+        """Test: No pruning occurs when message count is under the limit"""
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+        from langgraph_orchestrator import prune_messages_reducer
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.message_window_size = 30
+
+            old_messages = [
+                SystemMessage(content="System"),
+                HumanMessage(content="Human 1"),
+                AIMessage(content="AI 1"),
+            ]
+
+            new_messages = [HumanMessage(content="Human 2")]
+            result = prune_messages_reducer(old_messages, new_messages)
+
+            assert len(result) == 4
+            assert result[0].content == "System"
+            assert result[-1].content == "Human 2"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_prune_logs_state_pruned_telemetry(self):
+        """Test: [STATE_PRUNED] telemetry log is emitted when pruning occurs"""
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+        from langgraph_orchestrator import prune_messages_reducer
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.message_window_size = 5
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                old_messages = [
+                    SystemMessage(content="System"),
+                ]
+                for i in range(10):
+                    old_messages.append(HumanMessage(content=f"Human {i}"))
+
+                new_messages = [AIMessage(content="AI response")]
+                prune_messages_reducer(old_messages, new_messages)
+
+                mock_logger.info.assert_called()
+                call_args = mock_logger.info.call_args[0][0]
+                assert "[STATE_PRUNED]" in call_args
+                assert "Pruned" in call_args
+                assert "Current size:" in call_args
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_prune_handles_empty_old_messages(self):
+        """Test: Reducer handles empty old messages gracefully"""
+        from langchain_core.messages import HumanMessage, SystemMessage
+        from langgraph_orchestrator import prune_messages_reducer
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.message_window_size = 30
+
+            old_messages = []
+            new_messages = [
+                SystemMessage(content="System"),
+                HumanMessage(content="Human 1"),
+            ]
+            result = prune_messages_reducer(old_messages, new_messages)
+
+            assert len(result) == 2
+            assert isinstance(result[0], SystemMessage)
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_prune_handles_no_system_message(self):
+        """Test: Reducer handles case with no SystemMessage"""
+        from langchain_core.messages import HumanMessage, AIMessage
+        from langgraph_orchestrator import prune_messages_reducer
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.message_window_size = 5
+
+            old_messages = [
+                HumanMessage(content="Human 1"),
+                AIMessage(content="AI 1"),
+                HumanMessage(content="Human 2"),
+                AIMessage(content="AI 2"),
+                HumanMessage(content="Human 3"),
+                AIMessage(content="AI 3"),
+                HumanMessage(content="Human 4"),
+            ]
+
+            new_messages = [AIMessage(content="AI 4")]
+            result = prune_messages_reducer(old_messages, new_messages)
+
+            assert len(result) == 5
+            assert result[-1].content == "AI 4"
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_prune_state_size_actually_decreases(self):
+        """Test: Verify state size actually decreases after pruning
+
+        This test verifies the reducer behavior is correct (DELETES, not APPENDS).
+        """
+        from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+        from langgraph_orchestrator import prune_messages_reducer
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.message_window_size = 10
+
+            system_msg = SystemMessage(content="System prompt")
+            old_messages = [system_msg]
+            for i in range(50):
+                old_messages.append(HumanMessage(content=f"Long message content {i} " * 100))
+
+            old_size = sum(len(m.content) for m in old_messages)
+
+            new_messages = [AIMessage(content="Short response")]
+            result = prune_messages_reducer(old_messages, new_messages)
+
+            new_size = sum(len(m.content) for m in result)
+
+            assert new_size < old_size
+            assert len(result) == 11
