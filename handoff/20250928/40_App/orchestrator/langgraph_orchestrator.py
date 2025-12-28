@@ -1781,6 +1781,69 @@ class DegradedPersistenceCheckpointer:
         return getattr(self._primary, name)
 
 
+def _get_validated_int_setting(
+    setting_name: str,
+    default: int,
+    min_value: int = 1,
+    trace_id: str = "unknown",
+) -> int:
+    """
+    Get and validate an integer setting with boundary checks.
+
+    Issue #3181: Config Boundary Validation for OOM Protection (Dec 2025)
+
+    This helper function:
+    1. Gets the setting value from settings object
+    2. Converts to int (falls back to default on failure)
+    3. Clamps to minimum value to prevent invalid configurations
+    4. Logs a warning when values are corrected
+
+    Args:
+        setting_name: Name of the setting attribute on settings object
+        default: Default value if setting is missing or invalid
+        min_value: Minimum allowed value (values below this are clamped)
+        trace_id: Trace ID for logging context
+
+    Returns:
+        Validated integer value, guaranteed to be >= min_value
+    """
+    raw_value = getattr(settings, setting_name, default)
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        logger.warning(
+            f"Invalid {setting_name} value '{raw_value}', using default {default}. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "get_degraded_persistence_checkpointer",
+                "event": "config_validation_fallback",
+                "trace_id": trace_id,
+                "setting_name": setting_name,
+                "raw_value": str(raw_value),
+                "default_value": default,
+            }
+        )
+        return default
+
+    if value < min_value:
+        logger.warning(
+            f"Config {setting_name}={value} is below minimum {min_value}, clamping to {min_value}. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "get_degraded_persistence_checkpointer",
+                "event": "config_validation_clamped",
+                "trace_id": trace_id,
+                "setting_name": setting_name,
+                "original_value": value,
+                "clamped_value": min_value,
+                "min_value": min_value,
+            }
+        )
+        return min_value
+
+    return value
+
+
 def get_degraded_persistence_checkpointer(
     primary,
     trace_id: str = "unknown",
@@ -1812,49 +1875,34 @@ def get_degraded_persistence_checkpointer(
         )
         return primary
 
-    # Issue #3027: Wrap MemorySaver with OOM protection
-    # Get config values with defensive defaults for mocked settings in tests
-    max_workflows = getattr(
-        settings,
+    # Issue #3027 & #3181: Get validated config values with boundary checks
+    max_workflows = _get_validated_int_setting(
         "max_degraded_workflows_per_worker",
-        100
+        default=100,
+        min_value=1,
+        trace_id=trace_id,
     )
-    try:
-        max_workflows = int(max_workflows)
-    except (TypeError, ValueError):
-        max_workflows = 100
 
-    memory_warning_mb = getattr(
-        settings,
+    memory_warning_mb = _get_validated_int_setting(
         "degraded_checkpoint_memory_warning_mb",
-        512
+        default=512,
+        min_value=1,
+        trace_id=trace_id,
     )
-    try:
-        memory_warning_mb = int(memory_warning_mb)
-    except (TypeError, ValueError):
-        memory_warning_mb = 512
 
-    # Issue #3027: Hard Memory Limit for OOM Protection (Dec 2025)
-    memory_hard_limit_mb = getattr(
-        settings,
+    memory_hard_limit_mb = _get_validated_int_setting(
         "degraded_checkpoint_memory_hard_limit_mb",
-        1024
+        default=1024,
+        min_value=1,
+        trace_id=trace_id,
     )
-    try:
-        memory_hard_limit_mb = int(memory_hard_limit_mb)
-    except (TypeError, ValueError):
-        memory_hard_limit_mb = 1024
 
-    # Issue #3027: Checkpoint Eviction (LRU) for OOM Protection (Dec 2025)
-    max_checkpoints_per_thread = getattr(
-        settings,
+    max_checkpoints_per_thread = _get_validated_int_setting(
         "degraded_checkpoint_max_per_thread",
-        10
+        default=10,
+        min_value=1,
+        trace_id=trace_id,
     )
-    try:
-        max_checkpoints_per_thread = int(max_checkpoints_per_thread)
-    except (TypeError, ValueError):
-        max_checkpoints_per_thread = 10
 
     inner_saver = MemorySaver()
     fallback = OOMProtectedMemorySaver(

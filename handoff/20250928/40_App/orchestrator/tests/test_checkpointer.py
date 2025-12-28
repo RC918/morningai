@@ -2705,3 +2705,211 @@ class TestOOMProtectedMemorySaverFactoryNewSettings:
         assert isinstance(result._fallback, OOMProtectedMemorySaver)
         assert result._fallback._memory_hard_limit_mb == 1024
         assert result._fallback._max_checkpoints_per_thread == 10
+
+
+class TestConfigBoundaryValidation:
+    """Tests for config boundary validation (Issue #3181 Dec 2025)"""
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_negative_max_workflows_clamped_to_minimum(self):
+        """Test that negative max_workflows is clamped to minimum value of 1"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = -10
+            mock_settings.degraded_checkpoint_memory_warning_mb = 512
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = 1024
+            mock_settings.degraded_checkpoint_max_per_thread = 10
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                result = get_degraded_persistence_checkpointer(
+                    primary=mock_primary,
+                    trace_id="test-trace",
+                )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_workflows == 1
+        mock_logger.warning.assert_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_zero_max_checkpoints_clamped_to_minimum(self):
+        """Test that zero max_checkpoints_per_thread is clamped to minimum value of 1"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = 100
+            mock_settings.degraded_checkpoint_memory_warning_mb = 512
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = 1024
+            mock_settings.degraded_checkpoint_max_per_thread = 0
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                result = get_degraded_persistence_checkpointer(
+                    primary=mock_primary,
+                    trace_id="test-trace",
+                )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_checkpoints_per_thread == 1
+        mock_logger.warning.assert_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_negative_memory_hard_limit_clamped_to_minimum(self):
+        """Test that negative memory_hard_limit_mb is clamped to minimum value of 1"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = 100
+            mock_settings.degraded_checkpoint_memory_warning_mb = 512
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = -100
+            mock_settings.degraded_checkpoint_max_per_thread = 10
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                result = get_degraded_persistence_checkpointer(
+                    primary=mock_primary,
+                    trace_id="test-trace",
+                )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._memory_hard_limit_mb == 1
+        mock_logger.warning.assert_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_invalid_string_value_falls_back_to_default(self):
+        """Test that invalid string value falls back to default"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = "invalid"
+            mock_settings.degraded_checkpoint_memory_warning_mb = 512
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = 1024
+            mock_settings.degraded_checkpoint_max_per_thread = 10
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                result = get_degraded_persistence_checkpointer(
+                    primary=mock_primary,
+                    trace_id="test-trace",
+                )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_workflows == 100
+        mock_logger.warning.assert_called()
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_float_value_converted_to_int(self):
+        """Test that float values are converted to int"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = 50.7
+            mock_settings.degraded_checkpoint_memory_warning_mb = 512.5
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = 1024.9
+            mock_settings.degraded_checkpoint_max_per_thread = 10.3
+
+            result = get_degraded_persistence_checkpointer(
+                primary=mock_primary,
+                trace_id="test-trace",
+            )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_workflows == 50
+        assert result._fallback._memory_warning_mb == 512
+        assert result._fallback._memory_hard_limit_mb == 1024
+        assert result._fallback._max_checkpoints_per_thread == 10
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_valid_positive_values_unchanged(self):
+        """Test that valid positive values are not modified"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = 200
+            mock_settings.degraded_checkpoint_memory_warning_mb = 256
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = 2048
+            mock_settings.degraded_checkpoint_max_per_thread = 20
+
+            with patch('langgraph_orchestrator.logger') as mock_logger:
+                result = get_degraded_persistence_checkpointer(
+                    primary=mock_primary,
+                    trace_id="test-trace",
+                )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_workflows == 200
+        assert result._fallback._memory_warning_mb == 256
+        assert result._fallback._memory_hard_limit_mb == 2048
+        assert result._fallback._max_checkpoints_per_thread == 20
+        warning_calls = [call for call in mock_logger.warning.call_args_list
+                        if 'config_validation' in str(call)]
+        assert len(warning_calls) == 0
+
+    @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+    def test_all_settings_invalid_uses_all_defaults(self):
+        """Test that all invalid settings fall back to defaults"""
+        from unittest.mock import MagicMock
+        from langgraph_orchestrator import (
+            get_degraded_persistence_checkpointer,
+            OOMProtectedMemorySaver,
+        )
+
+        mock_primary = MagicMock()
+
+        with patch('langgraph_orchestrator.settings') as mock_settings:
+            mock_settings.enable_checkpoint_failover = True
+            mock_settings.max_degraded_workflows_per_worker = "not_a_number"
+            mock_settings.degraded_checkpoint_memory_warning_mb = None
+            mock_settings.degraded_checkpoint_memory_hard_limit_mb = []
+            mock_settings.degraded_checkpoint_max_per_thread = {}
+
+            with patch('langgraph_orchestrator.logger'):
+                result = get_degraded_persistence_checkpointer(
+                    primary=mock_primary,
+                    trace_id="test-trace",
+                )
+
+        assert isinstance(result._fallback, OOMProtectedMemorySaver)
+        assert result._fallback._max_workflows == 100
+        assert result._fallback._memory_warning_mb == 512
+        assert result._fallback._memory_hard_limit_mb == 1024
+        assert result._fallback._max_checkpoints_per_thread == 10
