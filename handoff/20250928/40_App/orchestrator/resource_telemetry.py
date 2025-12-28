@@ -9,6 +9,11 @@ Provides per-workflow resource measurement and telemetry events:
 - [LLM_RESPONSE_BYTES]: LLM response size
 
 All events include trace_id for correlation.
+
+Controllability (Issue #3205):
+- RESOURCE_TELEMETRY_ENABLED: Set to "false" to disable all telemetry logging.
+  Default is "true" (enabled). This provides a kill-switch for production
+  if log volume becomes problematic.
 """
 
 import logging
@@ -17,6 +22,20 @@ import time
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _is_telemetry_enabled() -> bool:
+    """
+    Check if resource telemetry is enabled via environment variable.
+
+    Accepts common falsey values: "false", "0", "no", "off", "" (empty string).
+    Default is enabled (true).
+
+    Returns:
+        True if telemetry is enabled (default), False if explicitly disabled.
+    """
+    value = os.environ.get("RESOURCE_TELEMETRY_ENABLED", "true").strip().lower()
+    return value not in ("false", "0", "no", "off", "")
 
 
 def _get_timestamp_ms() -> int:
@@ -87,8 +106,11 @@ def log_resource_peak(
         operation: Operation name for log filtering
 
     Returns:
-        Current RSS in MB
+        Current RSS in MB (0.0 if telemetry disabled)
     """
+    if not _is_telemetry_enabled():
+        return 0.0
+
     rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
@@ -126,6 +148,9 @@ def log_diff_fetch_bytes(
         pr_number: PR number (optional)
         operation: Operation name for log filtering
     """
+    if not _is_telemetry_enabled():
+        return
+
     rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
@@ -164,6 +189,9 @@ def log_prompt_build_bytes(
         diff_included: Whether diff was included in prompt
         operation: Operation name for log filtering
     """
+    if not _is_telemetry_enabled():
+        return
+
     rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
@@ -202,6 +230,9 @@ def log_llm_response_bytes(
         model: LLM model name
         operation: Operation name for log filtering
     """
+    if not _is_telemetry_enabled():
+        return
+
     rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
@@ -244,6 +275,9 @@ def log_checkpoint_put_bytes(
         is_degraded: Whether using degraded (MemorySaver) mode
         operation: Operation name for log filtering
     """
+    if not _is_telemetry_enabled():
+        return
+
     rss_mb, rss_available = get_current_rss_mb()
 
     logger.info(
