@@ -121,6 +121,38 @@ def construct_task_payload(pr_data: dict, repo: str) -> dict:
     }
 
 
+def validate_payload(payload: dict) -> list[str]:
+    """
+    Validate task payload structure.
+
+    Returns a list of validation errors (empty if valid).
+    This provides lightweight self-validation without external dependencies.
+    """
+    errors = []
+
+    required_fields = ["task_id", "question", "repo", "task_type", "context"]
+    for field in required_fields:
+        if field not in payload:
+            errors.append(f"Missing required field: {field}")
+
+    if "context" in payload:
+        context = payload["context"]
+        context_fields = ["resource_id", "resource_type", "url", "head_sha", "source"]
+        for field in context_fields:
+            if field not in context:
+                errors.append(f"Missing context field: {field}")
+
+        if "resource_id" in context and not isinstance(context["resource_id"], int):
+            errors.append("context.resource_id must be an integer")
+
+        if "head_sha" in context:
+            sha = context["head_sha"]
+            if not isinstance(sha, str) or len(sha) != 40:
+                errors.append("context.head_sha must be a 40-character hex string")
+
+    return errors
+
+
 def enqueue_task(redis_url: str, payload: dict, queue_name: str = "orchestrator") -> str:
     """
     Enqueue task to Redis queue.
@@ -220,6 +252,13 @@ Examples:
     print(f"  Head SHA: {pr_data['head']['sha'][:12]}")
 
     payload = construct_task_payload(pr_data, args.repo)
+
+    validation_errors = validate_payload(payload)
+    if validation_errors:
+        print("Error: Invalid payload structure:")
+        for error in validation_errors:
+            print(f"  - {error}")
+        sys.exit(1)
 
     if args.verbose or args.dry_run:
         print("\nTask payload:")
