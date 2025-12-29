@@ -641,11 +641,29 @@ def _create_digest_pr(
         # Commit each file
         trace_ids = []
         goals = []
+        failed_commits = []
         for path, change in changes.items():
             commit_msg = f"docs: {change.goal[:50]} (digest trace: {change.trace_id[:8]})"
-            commit_file(github_repo, branch, path, change.content, commit_msg)
-            trace_ids.append(change.trace_id[:8])
-            goals.append(change.goal[:100])
+            result = commit_file(github_repo, branch, path, change.content, commit_msg)
+            if result.success:
+                trace_ids.append(change.trace_id[:8])
+                goals.append(change.goal[:100])
+            else:
+                logger.warning(
+                    f"[DocsDigest] Failed to commit {path}: {result.status} - {result.message}",
+                    extra={
+                        "operation": "docs_digest_commit_failed",
+                        "path": path,
+                        "status": result.status,
+                        "message": result.message,
+                    }
+                )
+                failed_commits.append(path)
+
+        # If all commits failed, abort PR creation
+        if not trace_ids:
+            logger.error("[DocsDigest] All commits failed, aborting PR creation")
+            return None
 
         # Build PR body
         pr_body = f"""## Automated Documentation Digest

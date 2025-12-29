@@ -733,7 +733,21 @@ new file mode 100644
     branch = create_branch(repo, base="main", new_branch=branch_name)
     
     # Commit the FAQ content to the branch
-    commit_file(repo, branch, doc_file_path, faq_content, f"docs: add {topic_slug}.md (trace-id: {trace_id})")
+    commit_result = commit_file(repo, branch, doc_file_path, faq_content, f"docs: add {topic_slug}.md (trace-id: {trace_id})")
+    if not commit_result.success:
+        # Release lease before returning (if we acquired it)
+        if lease_acquired:
+            release_pr_lease(dedup_key=dedup_key, trace_id=trace_id)
+        logger.error(
+            f"[GraphExecute] Commit failed trace_id={trace_id} status={commit_result.status} message={commit_result.message}",
+            extra={
+                "operation": "commit_failed",
+                "trace_id": trace_id,
+                "status": commit_result.status,
+                "message": commit_result.message,
+            }
+        )
+        return None, f"commit_failed:{commit_result.status}", trace_id
     
     # Issue #2100: Build quality report for PR body
     quality_report = ""
