@@ -747,7 +747,7 @@ new file mode 100644
                 "message": commit_result.message,
             }
         )
-        return None, f"commit_failed:{commit_result.status}", trace_id
+        return None, "commit_failed", trace_id
     
     # Issue #2100: Build quality report for PR body
     quality_report = ""

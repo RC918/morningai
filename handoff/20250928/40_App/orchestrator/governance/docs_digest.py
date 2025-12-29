@@ -638,16 +638,14 @@ def _create_digest_pr(
             logger.error("[DocsDigest] Failed to create branch")
             return None
 
-        # Commit each file
-        trace_ids = []
-        goals = []
-        failed_commits = []
+        # Commit each file, tracking successes and failures
+        successful_changes: dict = {}
+        failed_commits: list = []
         for path, change in changes.items():
             commit_msg = f"docs: {change.goal[:50]} (digest trace: {change.trace_id[:8]})"
             result = commit_file(github_repo, branch, path, change.content, commit_msg)
             if result.success:
-                trace_ids.append(change.trace_id[:8])
-                goals.append(change.goal[:100])
+                successful_changes[path] = change
             else:
                 logger.warning(
                     f"[DocsDigest] Failed to commit {path}: {result.status} - {result.message}",
@@ -661,22 +659,35 @@ def _create_digest_pr(
                 failed_commits.append(path)
 
         # If all commits failed, abort PR creation
-        if not trace_ids:
+        if not successful_changes:
             logger.error("[DocsDigest] All commits failed, aborting PR creation")
             return None
 
-        # Build PR body
+        # Generate trace_ids from successful changes
+        trace_ids = [c.trace_id[:8] for c in successful_changes.values()]
+
+        # Build PR body using only successful changes
         pr_body = f"""## Automated Documentation Digest
 
-This PR aggregates {len(changes)} blocked documentation changes that were below the Value Gate threshold.
+This PR aggregates {len(successful_changes)} blocked documentation changes that were below the Value Gate threshold.
 
 ### Included Changes
 
 | File | Goal | Score | Trace ID |
 |------|------|-------|----------|
 """
-        for path, change in changes.items():
+        for path, change in successful_changes.items():
             pr_body += f"| `{path}` | {change.goal[:50]}... | {change.score} | `{change.trace_id[:8]}` |\n"
+
+        # Add failed commits section if any
+        if failed_commits:
+            pr_body += f"""
+### Failed Commits
+
+The following {len(failed_commits)} file(s) could not be committed and are not included in this PR:
+"""
+            for path in failed_commits:
+                pr_body += f"- `{path}`\n"
 
         pr_body += f"""
 ### Why This PR Exists
@@ -690,7 +701,7 @@ periodic summary PRs like this one.
 ---
 
 **Digest Timestamp:** {datetime.now(timezone.utc).replace(microsecond=0).isoformat()}
-**Total Changes:** {len(changes)}
+**Successful Changes:** {len(successful_changes)}
 **Trace IDs:** {', '.join(trace_ids)}
 
 [Link to Devin run](https://app.devin.ai/sessions/199f2f07612d42fd88f6b030768a3247)
@@ -701,7 +712,7 @@ Requested by: @RC918
         pr_url, pr_num = open_pr(
             github_repo,
             branch,
-            f"docs: Digest update ({len(changes)} changes)",
+            f"docs: Digest update ({len(successful_changes)} changes)",
             body=pr_body,
             draft=False,
             labels=[LABEL_ORCHESTRATOR_DOCS, "orchestrator-digest"]
