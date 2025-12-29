@@ -472,16 +472,22 @@ def commit_file(repo, branch, path, content, message, max_retries: int = None) -
 
             elif error_type == CommitResult.TRANSIENT_ERROR:
                 if attempt < effective_max_retries:
+                    # Apply jitter to delay first (Issue #3229: avoid thundering herd)
+                    jitter = delay * cfg_jitter_factor * (2 * random.random() - 1)
+                    jittered_delay = max(0.1, delay + jitter)  # Ensure minimum 0.1s delay
+
                     # Check total time budget before retrying (Issue #3229)
+                    # Use jittered_delay (actual sleep time) for accurate budget check
                     total_elapsed = time.time() - start_time
-                    if total_elapsed + delay > cfg_max_total_time:
+                    if total_elapsed + jittered_delay > cfg_max_total_time:
                         logger.error(
                             f"[COMMIT_FILE_BUDGET_EXCEEDED] Total retry budget exceeded for {path} on {branch}. "
-                            f"Elapsed: {total_elapsed:.1f}s, budget: {cfg_max_total_time}s",
+                            f"Elapsed: {total_elapsed:.1f}s, next delay: {jittered_delay:.1f}s, budget: {cfg_max_total_time}s",
                             extra={
                                 **log_context,
                                 "error": error_msg,
                                 "elapsed": total_elapsed,
+                                "next_delay": jittered_delay,
                                 "budget": cfg_max_total_time,
                                 "attempt": attempt + 1,
                             }
@@ -490,10 +496,6 @@ def commit_file(repo, branch, path, content, message, max_retries: int = None) -
                             CommitResult.TRANSIENT_ERROR,
                             f"Retry budget exceeded ({total_elapsed:.1f}s/{cfg_max_total_time}s): {error_msg}"
                         )
-
-                    # Apply jitter to delay (Issue #3229: avoid thundering herd)
-                    jitter = delay * cfg_jitter_factor * (2 * random.random() - 1)
-                    jittered_delay = max(0.1, delay + jitter)  # Ensure minimum 0.1s delay
 
                     logger.warning(
                         f"[COMMIT_FILE_RETRY] Transient error for {path} on {branch}, "
