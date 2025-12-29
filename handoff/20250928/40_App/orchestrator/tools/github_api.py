@@ -301,8 +301,14 @@ class CommitResult:
 
 
 def _is_transient_error(status_code: int) -> bool:
-    """Check if HTTP status code indicates a transient error worth retrying."""
-    return status_code >= 500 or status_code == 429
+    """Check if HTTP status code indicates a transient error worth retrying.
+
+    Transient errors (Issue #3230):
+    - 408: Request Timeout - server took too long, worth retrying
+    - 429: Too Many Requests - rate limited, retry with backoff
+    - 5xx: Server errors - temporary server issues
+    """
+    return status_code >= 500 or status_code == 429 or status_code == 408
 
 
 def _extract_commit_sha(result) -> str:
@@ -334,8 +340,39 @@ def _extract_commit_sha(result) -> str:
     return ""
 
 
+def _is_rate_limit_error(error_msg: str, headers: dict) -> bool:
+    """Check if a 403 error is actually a rate limit error (Issue #3230).
+
+    GitHub rate limiting can manifest as 403 with specific messages or headers.
+    See: https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api
+
+    Args:
+        error_msg: Error message from the exception
+        headers: Response headers from the exception
+
+    Returns:
+        bool: True if this is a rate limit error that should be retried
+    """
+    error_lower = str(error_msg).lower()
+    if "rate limit" in error_lower or "secondary rate limit" in error_lower:
+        return True
+    if headers and headers.get("x-ratelimit-remaining") == "0":
+        return True
+    return False
+
+
 def _classify_github_error(e: Exception) -> tuple[str, str]:
     """Classify a GitHub exception into error type and message.
+
+    Status code classification (Issue #3230):
+    - 401: Unauthorized - bad credentials, fail fast
+    - 403: Permission denied OR rate limit (check message/headers)
+    - 404: Not found - resource doesn't exist
+    - 408: Request timeout - transient, retry
+    - 409: Conflict - SHA mismatch, fail fast
+    - 422: Unprocessable entity - validation error, fail fast
+    - 429: Too many requests - rate limited, retry
+    - 5xx: Server errors - transient, retry
 
     Returns:
         tuple: (error_type, error_message)
@@ -343,16 +380,23 @@ def _classify_github_error(e: Exception) -> tuple[str, str]:
     if isinstance(e, GithubException):
         status = getattr(e, 'status', 0)
         data = getattr(e, 'data', {}) or {}
+        headers = getattr(e, 'headers', {}) or {}
         error_msg = data.get('message', str(e)) if isinstance(data, dict) else str(e)
 
         if status == 409:
             return CommitResult.CONFLICT, f"SHA conflict - file was modified externally: {error_msg}"
+        elif status == 401:
+            return CommitResult.PERMISSION_DENIED, f"Unauthorized - invalid credentials: {error_msg}"
         elif status == 403:
             if "protected branch" in str(error_msg).lower():
                 return CommitResult.PERMISSION_DENIED, f"Branch protection prevents commit: {error_msg}"
+            if _is_rate_limit_error(error_msg, headers):
+                return CommitResult.TRANSIENT_ERROR, f"Rate limited (HTTP 403): {error_msg}"
             return CommitResult.PERMISSION_DENIED, f"Permission denied: {error_msg}"
         elif status == 404:
             return CommitResult.NOT_FOUND, f"Resource not found: {error_msg}"
+        elif status == 422:
+            return CommitResult.UNKNOWN_ERROR, f"Validation error (HTTP 422): {error_msg}"
         elif _is_transient_error(status):
             return CommitResult.TRANSIENT_ERROR, f"Transient error (HTTP {status}): {error_msg}"
 
