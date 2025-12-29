@@ -42,6 +42,7 @@ from .fix_handoff import (
     should_route_to_fixer,
     build_empty_handoff,
     FixCategoryType,
+    HIGH_CONFIDENCE_THRESHOLD,
 )
 
 __all__ = [
@@ -63,4 +64,5 @@ __all__ = [
     'should_route_to_fixer',
     'build_empty_handoff',
     'FixCategoryType',
+    'HIGH_CONFIDENCE_THRESHOLD',
 ]

@@ -16,12 +16,12 @@ Usage:
         FixSuggestion,
         ReviewToFixHandoff,
         build_fix_handoff,
-        should_route_to_fixer
+        should_route_to_fixer,
+        HIGH_CONFIDENCE_THRESHOLD
     )
 
     # Build from ReviewOutcome and suggestions
     handoff = build_fix_handoff(
-        review_outcome=state["review_outcome"],
         pr_number=state["pr_number"],
         suggestions=[
             FixSuggestion(
@@ -34,11 +34,13 @@ Usage:
                 confidence=0.9,
                 category="style"
             )
-        ]
+        ],
+        review_outcome=state.get("review_outcome"),
+        requires_human_review=False  # Router determines this
     )
 
-    # Check if should route to fixer
-    if should_route_to_fixer(review_outcome, handoff):
+    # Check if should route to fixer (trusts auto_fix_eligible flag)
+    if should_route_to_fixer(handoff):
         # Route to fixer_node
         ...
 
@@ -72,6 +74,10 @@ FixCategoryType = Literal["bug_fix", "style", "refactor", "security", "performan
 
 # Severity levels (aligned with ReviewOutcome)
 SeverityType = Literal["low", "medium", "high", "critical"]
+
+# Confidence threshold for auto-fix eligibility (single source of truth)
+# Suggestions with confidence >= this threshold are considered "high confidence"
+HIGH_CONFIDENCE_THRESHOLD = 0.8
 
 
 class FixSuggestion(BaseModel):
@@ -212,12 +218,12 @@ class ReviewToFixHandoff(BaseModel):
 
     def get_high_confidence_suggestions(
         self,
-        threshold: float = 0.8
+        threshold: float = HIGH_CONFIDENCE_THRESHOLD
     ) -> List[FixSuggestion]:
         """Get suggestions with confidence >= threshold.
 
         Args:
-            threshold: Minimum confidence score (default 0.8)
+            threshold: Minimum confidence score (default HIGH_CONFIDENCE_THRESHOLD)
 
         Returns:
             List of high-confidence suggestions
@@ -352,9 +358,8 @@ def _is_auto_fix_eligible(
         )
         return False
 
-    # Check for high-confidence suggestions
-    high_confidence = [s for s in suggestions if s.confidence >= 0.8]
-    if not high_confidence:
+    # Check for high-confidence suggestions (use any() for efficiency)
+    if not any(s.confidence >= HIGH_CONFIDENCE_THRESHOLD for s in suggestions):
         logger.debug(
             "[FIX_HANDOFF] auto_fix_eligible=False: no high-confidence suggestions"
         )
