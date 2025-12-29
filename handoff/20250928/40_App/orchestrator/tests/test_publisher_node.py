@@ -1306,6 +1306,170 @@ class TestReviewDedupFunctions:
                 _mark_review_posted(dedup_key="review_posted:test/repo:123:abc123:v1")
 
 
+class TestDedupObservability:
+    """
+    Issue #3260: Tests for Redis dedup observability events.
+
+    These tests verify that proper warning logs are emitted when dedup is skipped:
+    1. When head_sha (commit_id) is None
+    2. When Redis operations fail
+    """
+
+    def test_no_head_sha_logs_warning_with_correct_operation(self):
+        """When head_sha is None, should log warning with operation=review_dedup_skipped_no_commit_id"""
+        mock_settings = MockSettings()
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch("tools.github_api.logger") as mock_logger:
+                from tools.github_api import _check_review_already_posted
+
+                already_posted, dedup_key = _check_review_already_posted(
+                    repo="test/repo",
+                    pr_number=123,
+                    head_sha=None,
+                )
+
+                assert already_posted is False
+                assert dedup_key is None
+
+                mock_logger.warning.assert_called_once()
+                call_args = mock_logger.warning.call_args
+                assert "Dedup skipped" in call_args[0][0]
+                assert "head_sha is None" in call_args[0][0]
+                extra = call_args[1]["extra"]
+                assert extra["operation"] == "review_dedup_skipped_no_commit_id"
+                assert extra["repo"] == "test/repo"
+                assert extra["pr_number"] == 123
+                assert extra["reason"] == "head_sha_none"
+                assert extra["fail_open"] is True
+
+    def test_redis_error_logs_warning_with_correct_operation(self):
+        """When Redis raises an error, should log warning with operation=review_dedup_skipped_redis_error"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        import redis as real_redis
+
+        mock_redis = MagicMock()
+        mock_redis.set.side_effect = real_redis.exceptions.RedisError("Connection refused")
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                with patch("tools.github_api.logger") as mock_logger:
+                    from tools.github_api import _check_review_already_posted
+
+                    already_posted, dedup_key = _check_review_already_posted(
+                        repo="test/repo",
+                        pr_number=123,
+                        head_sha="abc123def456",
+                    )
+
+                    assert already_posted is False
+                    assert dedup_key is None
+
+                    mock_logger.warning.assert_called_once()
+                    call_args = mock_logger.warning.call_args
+                    assert "Dedup skipped" in call_args[0][0]
+                    assert "Redis error" in call_args[0][0]
+                    extra = call_args[1]["extra"]
+                    assert extra["operation"] == "review_dedup_skipped_redis_error"
+                    assert extra["repo"] == "test/repo"
+                    assert extra["pr_number"] == 123
+                    assert extra["reason"] == "redis_error"
+                    assert extra["fail_open"] is True
+                    assert "error" in extra
+                    assert "error_type" in extra
+
+    def test_dedup_hit_logs_info_with_correct_operation(self):
+        """When dedup hit occurs, should log info with operation=review_dedup_hit"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        import redis as real_redis
+
+        mock_redis = MagicMock()
+        mock_redis.set.return_value = False
+        mock_redis.get.return_value = "posted"
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                with patch("tools.github_api.logger") as mock_logger:
+                    from tools.github_api import _check_review_already_posted
+
+                    already_posted, dedup_key = _check_review_already_posted(
+                        repo="test/repo",
+                        pr_number=123,
+                        head_sha="abc123def456",
+                    )
+
+                    assert already_posted is True
+                    assert dedup_key is not None
+
+                    info_calls = mock_logger.info.call_args_list
+                    dedup_hit_call = None
+                    for call in info_calls:
+                        if call[1].get("extra", {}).get("operation") == "review_dedup_hit":
+                            dedup_hit_call = call
+                            break
+
+                    assert dedup_hit_call is not None
+                    extra = dedup_hit_call[1]["extra"]
+                    assert extra["operation"] == "review_dedup_hit"
+                    assert extra["repo"] == "test/repo"
+                    assert extra["pr_number"] == 123
+                    assert extra["existing_status"] == "posted"
+
+    def test_dedup_claimed_logs_info_with_correct_operation(self):
+        """When dedup claim succeeds, should log info with operation=review_dedup_claimed"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        import redis as real_redis
+
+        mock_redis = MagicMock()
+        mock_redis.set.return_value = True
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                with patch("tools.github_api.logger") as mock_logger:
+                    from tools.github_api import _check_review_already_posted
+
+                    already_posted, dedup_key = _check_review_already_posted(
+                        repo="test/repo",
+                        pr_number=123,
+                        head_sha="abc123def456",
+                    )
+
+                    assert already_posted is False
+                    assert dedup_key is not None
+
+                    info_calls = mock_logger.info.call_args_list
+                    claimed_call = None
+                    for call in info_calls:
+                        if call[1].get("extra", {}).get("operation") == "review_dedup_claimed":
+                            claimed_call = call
+                            break
+
+                    assert claimed_call is not None
+                    extra = claimed_call[1]["extra"]
+                    assert extra["operation"] == "review_dedup_claimed"
+                    assert extra["repo"] == "test/repo"
+                    assert extra["pr_number"] == 123
+                    assert "dedup_key" in extra
+
+
 class TestRedisDedupIntegration:
     """
     Issue #3258: Integration tests for Redis dedup verification.
