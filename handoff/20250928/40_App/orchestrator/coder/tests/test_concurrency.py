@@ -98,6 +98,59 @@ class TestGetSimpleCoderConcurrency:
             "This indicates a race condition in singleton initialization."
         )
 
+    def test_singleton_constructor_called_once(self):
+        """
+        Test that SimpleCoder.__init__ is called exactly once under concurrent access.
+
+        This test verifies the singleton initialization process itself, not just
+        the result. It catches race conditions where multiple instances might be
+        created and then one overwrites the other (non-atomic initialization).
+
+        Race Condition Scenario:
+        - Thread A checks _CACHED_CODER is None
+        - Thread B checks _CACHED_CODER is None (before A sets it)
+        - Both threads create new SimpleCoder instances
+        - One instance overwrites the other in _CACHED_CODER
+
+        This test detects such race conditions by counting constructor calls.
+        """
+        init_count = [0]
+        init_lock = threading.Lock()
+        original_init = SimpleCoder.__init__
+
+        def counting_init(self, *args, **kwargs):
+            with init_lock:
+                init_count[0] += 1
+            original_init(self, *args, **kwargs)
+
+        num_threads = 20
+        barrier = threading.Barrier(num_threads)
+        results = []
+
+        def get_coder_with_barrier():
+            barrier.wait()
+            coder = get_simple_coder()
+            results.append(id(coder))
+
+        with patch.object(SimpleCoder, '__init__', counting_init):
+            threads = [
+                threading.Thread(target=get_coder_with_barrier)
+                for _ in range(num_threads)
+            ]
+
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+        assert len(results) == num_threads
+        assert len(set(results)) == 1, "All threads should get the same instance"
+        assert init_count[0] == 1, (
+            f"SimpleCoder.__init__ was called {init_count[0]} times, expected 1. "
+            "This indicates a race condition in singleton initialization where "
+            "multiple instances were created before one was cached."
+        )
+
 
 class TestAutofixGateConcurrency:
     """Tests for thread-safety of autofix gate checks."""
@@ -434,46 +487,113 @@ class TestCommitFileConcurrency:
 
 
 class TestAttemptSimpleCoderFixConcurrency:
-    """Tests for concurrent _attempt_simple_coder_fix() calls."""
+    """Tests for concurrent SimpleCoder fix attempts.
 
-    def test_concurrent_state_access_isolation(self):
+    These tests verify that the SimpleCoder-based fix workflow handles
+    concurrent invocations correctly, with proper state isolation between
+    different PR processing tasks.
+
+    Note: We cannot directly import _attempt_simple_coder_fix from
+    langgraph_orchestrator.py because it triggers a full import chain
+    requiring the langgraph module. Instead, we test the core SimpleCoder
+    execution pattern that _attempt_simple_coder_fix uses internally.
+    """
+
+    @patch.object(SimpleCoder, 'call_llm')
+    def test_concurrent_simple_coder_fix_workflow(self, mock_call_llm):
         """
-        Test that concurrent calls with different states don't interfere.
+        Test that concurrent SimpleCoder fix workflows don't cross-contaminate state.
 
         Race Condition Scenario:
         - Multiple workers process different PRs simultaneously
+        - Each worker: checks gate -> executes SimpleCoder -> returns result
         - Each should access only its own state without cross-contamination
+
+        This test simulates the core workflow of _attempt_simple_coder_fix:
+        1. Check is_autofix_allowed() gate
+        2. Execute SimpleCoder with file context
+        3. Return success/failure based on CoderOutput
+
+        The test verifies that concurrent executions maintain state isolation.
         """
-        states = []
-        for i in range(5):
-            states.append({
-                "repo": f"owner/repo{i}",
-                "branch": f"branch-{i}",
-                "review_outcome": {
-                    "severity": "low",
-                    "diff_truncated": False,
-                    "schema_validated": True
-                },
-                "review_file_path": f"file_{i}.py",
-                "comment_body": f"Fix issue {i}",
-            })
+        call_tracker = []
+        call_lock = threading.Lock()
+
+        def track_llm_call(*args, **kwargs):
+            with call_lock:
+                call_tracker.append(threading.current_thread().name)
+            return {
+                "content": json.dumps({"status": "patch", "patch": "def fixed(): pass"})
+            }
+
+        mock_call_llm.side_effect = track_llm_call
 
         results = []
+        errors = []
         lock = threading.Lock()
+        num_workers = 5
+        barrier = threading.Barrier(num_workers)
 
-        def process_state(state, state_id):
-            repo = state.get("repo")
-            branch = state.get("branch")
-            with lock:
-                results.append({
-                    "state_id": state_id,
-                    "repo": repo,
-                    "branch": branch,
-                })
+        def attempt_fix_workflow(worker_id):
+            """Simulate _attempt_simple_coder_fix workflow."""
+            try:
+                state = {
+                    "repo": f"owner/repo{worker_id}",
+                    "branch": f"branch-{worker_id}",
+                    "review_outcome": {
+                        "severity": "low",
+                        "diff_truncated": False,
+                        "schema_validated": True,
+                    },
+                    "review_file_path": f"file_{worker_id}.py",
+                    "review_file_content": f"def foo_{worker_id}(): pass",
+                    "comment_body": f"Fix issue {worker_id}",
+                }
+
+                barrier.wait()
+
+                review_outcome = state["review_outcome"]
+                if not is_autofix_allowed(review_outcome):
+                    with lock:
+                        results.append({
+                            "worker_id": worker_id,
+                            "success": False,
+                            "reason": "gate_failed",
+                        })
+                    return
+
+                coder = get_simple_coder()
+                from core.agents import AgentInput
+                input_data = AgentInput(
+                    task_id=f"fix-{worker_id}",
+                    prompt="Fix the code",
+                    context={
+                        "file_path": state["review_file_path"],
+                        "file_content": state["review_file_content"],
+                        "review_comment": state["comment_body"],
+                        "severity": review_outcome.get("severity", "low"),
+                    }
+                )
+                output = coder.execute(input_data)
+
+                with lock:
+                    results.append({
+                        "worker_id": worker_id,
+                        "success": output.success,
+                        "input_file": state["review_file_path"],
+                        "input_content": state["review_file_content"],
+                    })
+            except Exception as e:
+                with lock:
+                    errors.append((worker_id, str(e)))
 
         threads = []
-        for i, state in enumerate(states):
-            t = threading.Thread(target=process_state, args=(state, i))
+        for i in range(num_workers):
+            t = threading.Thread(
+                target=attempt_fix_workflow,
+                args=(i,),
+                name=f"worker-{i}"
+            )
             threads.append(t)
 
         for t in threads:
@@ -481,11 +601,19 @@ class TestAttemptSimpleCoderFixConcurrency:
         for t in threads:
             t.join()
 
-        assert len(results) == 5
+        assert len(errors) == 0, f"Errors occurred: {errors}"
+        assert len(results) == num_workers
+
         for result in results:
-            state_id = result["state_id"]
-            assert result["repo"] == f"owner/repo{state_id}"
-            assert result["branch"] == f"branch-{state_id}"
+            worker_id = result["worker_id"]
+            assert result["success"] is True, f"Worker {worker_id} failed unexpectedly"
+            assert result["input_file"] == f"file_{worker_id}.py", (
+                f"Worker {worker_id} file path was cross-contaminated: "
+                f"expected file_{worker_id}.py, got {result['input_file']}"
+            )
+            assert f"foo_{worker_id}" in result["input_content"], (
+                f"Worker {worker_id} content was cross-contaminated"
+            )
 
 
 class TestRedisAtomicClaimConcurrency:
