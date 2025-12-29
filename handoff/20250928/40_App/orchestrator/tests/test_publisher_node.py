@@ -782,6 +782,51 @@ class TestPublisherNodeNoOp:
                         call_args = mock_post.call_args
                         assert call_args.kwargs.get("commit_id") == test_commit_id
 
+    def test_summary_report_handles_missing_or_invalid_diff_head_sha(self):
+        """Issue #3253: Summary Report should gracefully handle missing/invalid diff_head_sha"""
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
+
+        # Test cases: None, empty string, non-string types
+        invalid_values = [None, "", 123, {"sha": "abc"}, []]
+
+        for invalid_value in invalid_values:
+            state = {
+                "trace_id": "test-trace",
+                "pr_number": 123,
+                "review_comments": [],
+                "messages": [],
+                "diff_head_sha": invalid_value
+            }
+
+            with patch("langgraph_orchestrator.settings", mock_settings):
+                with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                    with patch("tools.github_api.get_repo", return_value=mock_repo):
+                        with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                            from langgraph_orchestrator import publisher_node
+
+                            # Should not raise exception
+                            result = publisher_node(state)
+
+                            # Verify commit_id is normalized to None for invalid values
+                            mock_post.assert_called_once()
+                            call_args = mock_post.call_args
+                            assert call_args.kwargs.get("commit_id") is None, \
+                                f"Expected commit_id=None for invalid value {invalid_value!r}"
+
+                            mock_post.reset_mock()
+
 
 @pytest.mark.skipif(not LANGGRAPH_AVAILABLE, reason="langgraph not installed")
 class TestPublisherNodeIntegration:
