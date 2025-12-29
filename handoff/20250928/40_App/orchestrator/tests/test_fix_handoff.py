@@ -616,3 +616,166 @@ class TestHelperFunctions:
         """Test _is_auto_fix_eligible with no review_outcome."""
         result = _is_auto_fix_eligible(None, [], "low")
         assert result is False
+
+
+class TestConfidenceThresholdBoundary:
+    """Boundary tests for HIGH_CONFIDENCE_THRESHOLD (0.8).
+
+    These tests verify edge cases around the confidence threshold to ensure
+    the auto-fix eligibility logic handles boundary values correctly.
+    """
+
+    def test_confidence_exactly_at_threshold(self):
+        """Test suggestion with confidence exactly at 0.8 threshold."""
+        from core.routing.fix_handoff import HIGH_CONFIDENCE_THRESHOLD
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=HIGH_CONFIDENCE_THRESHOLD,  # exactly 0.8
+                category="style"
+            )
+        ]
+        review_outcome = {
+            "severity": "low",
+            "diff_truncated": False,
+            "schema_validated": True
+        }
+        handoff = build_fix_handoff(
+            pr_number=123,
+            suggestions=suggestions,
+            review_outcome=review_outcome
+        )
+        # Confidence exactly at threshold should be eligible
+        assert handoff.auto_fix_eligible is True
+
+    def test_confidence_just_below_threshold(self):
+        """Test suggestion with confidence just below 0.8 threshold (0.79)."""
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.79,  # just below 0.8
+                category="style"
+            )
+        ]
+        review_outcome = {
+            "severity": "low",
+            "diff_truncated": False,
+            "schema_validated": True
+        }
+        handoff = build_fix_handoff(
+            pr_number=123,
+            suggestions=suggestions,
+            review_outcome=review_outcome
+        )
+        # Confidence below threshold should NOT be eligible
+        assert handoff.auto_fix_eligible is False
+
+    def test_confidence_just_above_threshold(self):
+        """Test suggestion with confidence just above 0.8 threshold (0.81)."""
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.81,  # just above 0.8
+                category="style"
+            )
+        ]
+        review_outcome = {
+            "severity": "low",
+            "diff_truncated": False,
+            "schema_validated": True
+        }
+        handoff = build_fix_handoff(
+            pr_number=123,
+            suggestions=suggestions,
+            review_outcome=review_outcome
+        )
+        # Confidence above threshold should be eligible
+        assert handoff.auto_fix_eligible is True
+
+    def test_get_high_confidence_at_threshold(self):
+        """Test get_high_confidence_suggestions with confidence exactly at threshold."""
+        from core.routing.fix_handoff import HIGH_CONFIDENCE_THRESHOLD
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=HIGH_CONFIDENCE_THRESHOLD,  # exactly 0.8
+                category="style"
+            ),
+            FixSuggestion(
+                file_path="b.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.79,  # just below
+                category="style"
+            ),
+        ]
+        handoff = ReviewToFixHandoff(
+            review_id="review-abc123",
+            pr_number=123,
+            suggestions=suggestions
+        )
+        # Default threshold is HIGH_CONFIDENCE_THRESHOLD (0.8)
+        high_conf = handoff.get_high_confidence_suggestions()
+        assert len(high_conf) == 1
+        assert high_conf[0].confidence == HIGH_CONFIDENCE_THRESHOLD
+
+    def test_mixed_confidence_only_high_counted(self):
+        """Test that only high-confidence suggestions count for eligibility."""
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.5,  # low confidence
+                category="style"
+            ),
+            FixSuggestion(
+                file_path="b.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.6,  # low confidence
+                category="style"
+            ),
+        ]
+        review_outcome = {
+            "severity": "low",
+            "diff_truncated": False,
+            "schema_validated": True
+        }
+        handoff = build_fix_handoff(
+            pr_number=123,
+            suggestions=suggestions,
+            review_outcome=review_outcome
+        )
+        # No high-confidence suggestions, should NOT be eligible
+        assert handoff.auto_fix_eligible is False
+
+    def test_at_least_one_high_confidence_required(self):
+        """Test that at least one high-confidence suggestion is required."""
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.5,  # low confidence
+                category="style"
+            ),
+            FixSuggestion(
+                file_path="b.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.85,  # high confidence
+                category="style"
+            ),
+        ]
+        review_outcome = {
+            "severity": "low",
+            "diff_truncated": False,
+            "schema_validated": True
+        }
+        handoff = build_fix_handoff(
+            pr_number=123,
+            suggestions=suggestions,
+            review_outcome=review_outcome
+        )
+        # At least one high-confidence suggestion, should be eligible
+        assert handoff.auto_fix_eligible is True

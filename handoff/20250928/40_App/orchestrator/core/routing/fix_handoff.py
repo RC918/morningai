@@ -395,6 +395,15 @@ def build_fix_handoff(
         requires_human_review: Whether human review is required (default True
             for safety). The caller (Router/producer) should determine this.
 
+    Security Warning:
+        Setting `requires_human_review=False` bypasses human review for auto-fix.
+        Only set this to False when ALL of the following are true:
+        1. The suggestions are low-risk (style, refactor only)
+        2. The confidence scores are high (>= HIGH_CONFIDENCE_THRESHOLD)
+        3. The PR is from a trusted source
+        4. The repository has adequate test coverage
+        Misuse of this parameter can lead to unreviewed code changes.
+
     Returns:
         ReviewToFixHandoff instance ready to be stored in state
 
