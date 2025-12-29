@@ -11,9 +11,43 @@ Tests cover:
 4. Fallback to AutoFixer when SimpleCoder skips
 5. Patch application via commit_file
 """
+import sys
 import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
 from typing import Optional
+from types import ModuleType
+
+
+def setup_fake_modules():
+    """Set up fake modules to avoid ImportError in tests.
+
+    This injects fake modules into sys.modules so that the imports
+    inside _attempt_simple_coder_fix() succeed in the test environment.
+    """
+    if "common" not in sys.modules:
+        common = ModuleType("common")
+        sys.modules["common"] = common
+
+    if "common.agents" not in sys.modules:
+        common_agents = ModuleType("common.agents")
+        sys.modules["common.agents"] = common_agents
+        sys.modules["common"].agents = common_agents
+
+    if "common.agents.base_agent" not in sys.modules:
+        base_agent = ModuleType("common.agents.base_agent")
+
+        class FakeAgentInput:
+            def __init__(self, task_id="", prompt="", context=None):
+                self.task_id = task_id
+                self.prompt = prompt
+                self.context = context or {}
+
+        base_agent.AgentInput = FakeAgentInput
+        sys.modules["common.agents.base_agent"] = base_agent
+        sys.modules["common.agents"].base_agent = base_agent
+
+
+setup_fake_modules()
 
 from langgraph_orchestrator import (
     AgentState,
@@ -75,253 +109,296 @@ def create_test_state(
 class TestSimpleCoderFeatureFlag:
     """Tests for SimpleCoder feature flag gating"""
 
-    @patch("langgraph_orchestrator.settings")
-    def test_simple_coder_disabled_by_default(self, mock_settings):
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_simple_coder_disabled_by_default(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
+    ):
         """Test that SimpleCoder is disabled when feature flag is False"""
-        mock_settings.enable_simple_coder = False
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = False
 
-        state = create_test_state(
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "feature flag disabled" in message.lower()
+            assert success is False
+            assert "disabled" in message.lower()
 
-    @patch("langgraph_orchestrator.settings")
-    @patch("langgraph_orchestrator.get_repo")
-    def test_simple_coder_enabled_attempts_fix(self, mock_get_repo, mock_settings):
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("tools.github_api.commit_file")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_simple_coder_enabled_attempts_fix(
+        self, mock_status, mock_coder, mock_commit, mock_get_repo,
+        mock_excluded, mock_allowed
+    ):
         """Test that SimpleCoder attempts fix when enabled"""
-        mock_settings.enable_simple_coder = True
-        mock_repo = MagicMock()
-        mock_get_repo.return_value = mock_repo
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
+            mock_repo = MagicMock()
+            mock_get_repo.return_value = mock_repo
 
-        mock_file = MagicMock()
-        mock_file.decoded_content = b"def foo():\n    pass"
-        mock_repo.get_contents.return_value = mock_file
+            mock_file = MagicMock()
+            mock_file.decoded_content = b"def foo():\n    pass"
+            mock_repo.get_contents.return_value = mock_file
 
-        state = create_test_state(
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
-
-        with patch("langgraph_orchestrator.get_simple_coder") as mock_coder:
             mock_output = MagicMock()
             mock_output.success = False
             mock_output.data = {"reason": "Low confidence"}
             mock_coder.return_value.execute.return_value = mock_output
 
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
+
             success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "skipped" in message.lower() or "low confidence" in message.lower()
+            assert success is False
+            assert "skipped" in message.lower() or "low confidence" in message.lower()
 
 
 class TestSimpleCoderGateChecks:
     """Tests for SimpleCoder gate checks"""
 
-    @patch("langgraph_orchestrator.settings")
-    def test_gate_fails_without_review_outcome(self, mock_settings):
-        """Test that gate fails when review_outcome is missing"""
-        mock_settings.enable_simple_coder = True
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=False)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_gate_fails_without_valid_review_outcome(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
+    ):
+        """Test that gate fails when review_outcome doesn't pass autofix check"""
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        state = create_test_state(
-            review_outcome=None,
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
+            state = create_test_state(
+                review_outcome={"severity": "high"},
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "gate" in message.lower() or "autofix" in message.lower()
+            assert success is False
+            assert "gate" in message.lower() or "autofix" in message.lower()
 
-    @patch("langgraph_orchestrator.settings")
-    def test_gate_fails_with_high_severity(self, mock_settings):
-        """Test that gate fails when severity is not low"""
-        mock_settings.enable_simple_coder = True
-
-        state = create_test_state(
-            review_outcome={
-                "severity": "high",
-                "diff_truncated": False,
-                "schema_validated": True,
-            },
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
-
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
-
-        assert success is False
-        assert "gate" in message.lower()
-
-    @patch("langgraph_orchestrator.settings")
-    def test_gate_fails_without_file_path(self, mock_settings):
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_gate_fails_without_file_path(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
+    ):
         """Test that gate fails when file path is missing"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        state = create_test_state(
-            review_file_path="",
-            comment_body="Add docstring",
-        )
+            state = create_test_state(
+                review_file_path="",
+                comment_body="Add docstring",
+            )
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "file path" in message.lower() or "gate" in message.lower()
+            assert success is False
+            assert "file path" in message.lower() or "no file" in message.lower()
 
-    @patch("langgraph_orchestrator.settings")
-    def test_gate_fails_for_excluded_path(self, mock_settings):
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=True)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_gate_fails_for_excluded_path(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
+    ):
         """Test that gate fails for excluded file paths"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        state = create_test_state(
-            review_file_path=".env",
-            comment_body="Add docstring",
-        )
+            state = create_test_state(
+                review_file_path=".env",
+                comment_body="Add docstring",
+            )
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "excluded" in message.lower() or "gate" in message.lower()
+            assert success is False
+            assert "excluded" in message.lower()
 
-    @patch("langgraph_orchestrator.settings")
-    def test_gate_fails_without_review_comment(self, mock_settings):
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_gate_fails_without_review_comment(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
+    ):
         """Test that gate fails when review comment is missing"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        state = create_test_state(
-            review_file_path="src/test.py",
-            comment_body="",
-        )
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="",
+            )
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "comment" in message.lower() or "gate" in message.lower()
+            assert success is False
+            assert "comment" in message.lower() or "no review" in message.lower()
 
-    @patch("langgraph_orchestrator.settings")
-    def test_gate_fails_without_repo(self, mock_settings):
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_gate_fails_without_repo(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
+    ):
         """Test that gate fails when repo is missing"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        state = create_test_state(
-            repo="",
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
+            state = create_test_state(
+                repo="",
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "repo" in message.lower() or "branch" in message.lower()
+            assert success is False
+            assert "repo" in message.lower() or "branch" in message.lower()
 
 
 class TestSimpleCoderExecution:
     """Tests for SimpleCoder execution flow"""
 
-    @patch("langgraph_orchestrator.settings")
-    @patch("langgraph_orchestrator.get_repo")
-    @patch("langgraph_orchestrator.get_simple_coder")
-    @patch("langgraph_orchestrator.commit_file")
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("tools.github_api.commit_file")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
     def test_successful_patch_application(
-        self, mock_commit, mock_coder, mock_get_repo, mock_settings
+        self, mock_status, mock_coder, mock_commit, mock_get_repo,
+        mock_excluded, mock_allowed
     ):
         """Test successful patch application via commit_file"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        mock_repo = MagicMock()
-        mock_get_repo.return_value = mock_repo
-        mock_file = MagicMock()
-        mock_file.decoded_content = b"def foo():\n    pass"
-        mock_repo.get_contents.return_value = mock_file
+            mock_repo = MagicMock()
+            mock_get_repo.return_value = mock_repo
+            mock_file = MagicMock()
+            mock_file.decoded_content = b"def foo():\n    pass"
+            mock_repo.get_contents.return_value = mock_file
 
-        mock_output = MagicMock()
-        mock_output.success = True
-        mock_output.data = {
-            "status": "patch",
-            "patch": 'def foo():\n    """Docstring."""\n    pass',
-            "syntax_valid": True,
-        }
-        mock_coder.return_value.execute.return_value = mock_output
+            mock_status.PATCH.value = "patch"
 
-        state = create_test_state(
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
+            mock_output = MagicMock()
+            mock_output.success = True
+            mock_output.data = {
+                "status": "patch",
+                "patch": 'def foo():\n    """Docstring."""\n    pass',
+                "syntax_valid": True,
+            }
+            mock_coder.return_value.execute.return_value = mock_output
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
 
-        assert success is True
-        assert "successfully" in message.lower()
-        mock_commit.assert_called_once()
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-    @patch("langgraph_orchestrator.settings")
-    @patch("langgraph_orchestrator.get_repo")
-    @patch("langgraph_orchestrator.get_simple_coder")
+            assert success is True
+            assert "successfully" in message.lower()
+            mock_commit.assert_called_once()
+
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
     def test_coder_skips_low_confidence(
-        self, mock_coder, mock_get_repo, mock_settings
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
     ):
         """Test that SimpleCoder skip results in fallback"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        mock_repo = MagicMock()
-        mock_get_repo.return_value = mock_repo
-        mock_file = MagicMock()
-        mock_file.decoded_content = b"complex code"
-        mock_repo.get_contents.return_value = mock_file
+            mock_repo = MagicMock()
+            mock_get_repo.return_value = mock_repo
+            mock_file = MagicMock()
+            mock_file.decoded_content = b"complex code"
+            mock_repo.get_contents.return_value = mock_file
 
-        mock_output = MagicMock()
-        mock_output.success = False
-        mock_output.data = {"status": "skipped", "reason": "Complex fix required"}
-        mock_coder.return_value.execute.return_value = mock_output
+            mock_output = MagicMock()
+            mock_output.success = False
+            mock_output.data = {"status": "skipped", "reason": "Complex fix required"}
+            mock_coder.return_value.execute.return_value = mock_output
 
-        state = create_test_state(
-            review_file_path="src/test.py",
-            comment_body="Refactor this function",
-        )
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Refactor this function",
+            )
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-        assert success is False
-        assert "skipped" in message.lower()
+            assert success is False
+            assert "skipped" in message.lower()
 
-    @patch("langgraph_orchestrator.settings")
-    @patch("langgraph_orchestrator.get_repo")
-    @patch("langgraph_orchestrator.get_simple_coder")
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
     def test_syntax_validation_failure(
-        self, mock_coder, mock_get_repo, mock_settings
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed
     ):
         """Test that syntax validation failure results in skip"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        mock_repo = MagicMock()
-        mock_get_repo.return_value = mock_repo
-        mock_file = MagicMock()
-        mock_file.decoded_content = b"def foo():\n    pass"
-        mock_repo.get_contents.return_value = mock_file
+            mock_repo = MagicMock()
+            mock_get_repo.return_value = mock_repo
+            mock_file = MagicMock()
+            mock_file.decoded_content = b"def foo():\n    pass"
+            mock_repo.get_contents.return_value = mock_file
 
-        mock_output = MagicMock()
-        mock_output.success = True
-        mock_output.data = {
-            "status": "patch",
-            "patch": "def foo(\n    pass",
-            "syntax_valid": False,
-        }
-        mock_coder.return_value.execute.return_value = mock_output
+            mock_status.PATCH.value = "patch"
 
-        state = create_test_state(
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
+            mock_output = MagicMock()
+            mock_output.success = True
+            mock_output.data = {
+                "status": "patch",
+                "patch": "def foo(\n    pass",
+                "syntax_valid": False,
+            }
+            mock_coder.return_value.execute.return_value = mock_output
 
-        success, message = _attempt_simple_coder_fix(state, "test-trace")
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
 
-        assert success is False
-        assert "syntax" in message.lower()
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
+
+            assert success is False
+            assert "syntax" in message.lower()
 
 
 class TestFixerNodeIntegration:
@@ -340,9 +417,7 @@ class TestFixerNodeIntegration:
 
         state = create_test_state()
 
-        with patch(
-            "langgraph_orchestrator.AutoFixer", None
-        ):
+        with patch.dict(sys.modules, {"project_engineer.fixer_integration": MagicMock()}):
             result = fixer_node(state)
 
         mock_attempt.assert_called_once()
@@ -384,9 +459,7 @@ class TestFixerNodeIntegration:
 
         state = create_test_state()
 
-        with patch(
-            "langgraph_orchestrator.AutoFixer", None
-        ):
+        with patch.dict(sys.modules, {"project_engineer.fixer_integration": MagicMock()}):
             result = fixer_node(state)
 
         mock_attempt.assert_called_once()
@@ -396,35 +469,55 @@ class TestFixerNodeIntegration:
 class TestEventCodes:
     """Tests for greppable event codes"""
 
-    @patch("langgraph_orchestrator.settings")
-    def test_simple_coder_disabled_event_code(self, mock_settings, caplog):
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_simple_coder_disabled_event_code(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed, caplog
+    ):
         """Test that SIMPLE_CODER_DISABLED event is logged"""
-        mock_settings.enable_simple_coder = False
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = False
 
-        state = create_test_state(
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
 
-        import logging
-        with caplog.at_level(logging.DEBUG):
-            _attempt_simple_coder_fix(state, "test-trace")
+            import logging
+            with caplog.at_level(logging.DEBUG):
+                success, message = _attempt_simple_coder_fix(state, "test-trace")
 
-    @patch("langgraph_orchestrator.settings")
-    def test_simple_coder_gate_fail_event_code(self, mock_settings, caplog):
+            assert success is False
+            assert "disabled" in message.lower()
+
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=False)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_simple_coder_gate_fail_event_code(
+        self, mock_status, mock_coder, mock_get_repo, mock_excluded, mock_allowed, caplog
+    ):
         """Test that SIMPLE_CODER_GATE_FAIL event is logged"""
-        mock_settings.enable_simple_coder = True
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
 
-        state = create_test_state(
-            review_outcome={
-                "severity": "high",
-                "diff_truncated": False,
-                "schema_validated": True,
-            },
-            review_file_path="src/test.py",
-            comment_body="Add docstring",
-        )
+            state = create_test_state(
+                review_outcome={
+                    "severity": "high",
+                    "diff_truncated": False,
+                    "schema_validated": True,
+                },
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
 
-        import logging
-        with caplog.at_level(logging.INFO):
-            _attempt_simple_coder_fix(state, "test-trace")
+            import logging
+            with caplog.at_level(logging.INFO):
+                success, message = _attempt_simple_coder_fix(state, "test-trace")
+
+            assert success is False
+            assert "gate" in message.lower() or "autofix" in message.lower()
