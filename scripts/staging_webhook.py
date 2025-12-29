@@ -122,7 +122,13 @@ def construct_task_payload(pr_data: dict, repo: str) -> dict:
 
 
 def enqueue_task(redis_url: str, payload: dict, queue_name: str = "orchestrator") -> str:
-    """Enqueue task to Redis queue."""
+    """
+    Enqueue task to Redis queue.
+
+    Uses string-based function reference to avoid importing worker module directly,
+    which would trigger module-level initialization (Redis connections, Sentry, etc.)
+    even in dry-run mode.
+    """
     redis_client = redis.Redis.from_url(
         redis_url,
         decode_responses=False,
@@ -131,10 +137,8 @@ def enqueue_task(redis_url: str, payload: dict, queue_name: str = "orchestrator"
 
     q = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
 
-    from redis_queue.worker import run_orchestrator_task
-
     job = q.enqueue(
-        run_orchestrator_task,
+        "redis_queue.worker.run_orchestrator_task",
         task_id=payload["task_id"],
         question=payload["question"],
         repo=payload["repo"],
