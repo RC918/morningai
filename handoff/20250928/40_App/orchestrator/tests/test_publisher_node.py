@@ -1398,14 +1398,18 @@ class TestRedisDedupIntegration:
                 assert result2.get("skipped_reason") == "review_already_posted"
                 assert not mock_pr.create_review.called
 
-    def test_dedup_key_includes_commit_id_and_version(self):
+    def test_dedup_key_includes_commit_id_and_version_with_ttl(self):
         """
-        Issue #3258: Verify dedup key format includes commit_id and reviewer version.
+        Issue #3258: Verify dedup key format and TTL enforcement.
 
         The dedup key should be: review_posted:{repo}:{pr}:{head_sha[:12]}:{version}
+        TTL values should be:
+        - Claim TTL: 300 seconds (5 minutes) for initial SET NX
+        - Posted TTL: 86400 seconds (24 hours) for SETEX after successful post
         """
         import redis as real_redis
-        from utils.constants import REVIEWER_VERSION
+        from utils.constants import REVIEWER_VERSION, REVIEW_DEDUP_TTL_SECONDS
+        from tools.github_api import REVIEW_CLAIM_TTL_SECONDS
 
         mock_settings = MockSettings(
             enable_github_review_posting=True,
@@ -1422,14 +1426,19 @@ class TestRedisDedupIntegration:
         mock_repo.owner.login = "RC918"
         mock_repo.name = "morningai"
 
-        captured_keys = []
+        captured_set_calls = []
+        captured_setex_calls = []
 
         def mock_set(key, value, nx=False, ex=None):
-            captured_keys.append(key)
+            captured_set_calls.append({"key": key, "value": value, "nx": nx, "ex": ex})
             return True
+
+        def mock_setex(key, ttl, value):
+            captured_setex_calls.append({"key": key, "ttl": ttl, "value": value})
 
         mock_redis_instance = MagicMock()
         mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.setex.side_effect = mock_setex
 
         mock_redis_module = MagicMock()
         mock_redis_module.Redis.from_url.return_value = mock_redis_instance
@@ -1449,11 +1458,19 @@ class TestRedisDedupIntegration:
                     commit_id=test_commit_id
                 )
 
-                assert len(captured_keys) == 1
-                dedup_key = captured_keys[0]
-
+                assert len(captured_set_calls) == 1
+                set_call = captured_set_calls[0]
                 expected_key = f"review_posted:RC918/morningai:123:abc123def456:{REVIEWER_VERSION}"
-                assert dedup_key == expected_key
+                assert set_call["key"] == expected_key
+                assert set_call["value"] == "claiming"
+                assert set_call["nx"] is True
+                assert set_call["ex"] == REVIEW_CLAIM_TTL_SECONDS
+
+                assert len(captured_setex_calls) == 1
+                setex_call = captured_setex_calls[0]
+                assert setex_call["key"] == expected_key
+                assert setex_call["ttl"] == REVIEW_DEDUP_TTL_SECONDS
+                assert setex_call["value"] == "posted"
 
     def test_different_commit_ids_are_not_deduplicated(self):
         """
