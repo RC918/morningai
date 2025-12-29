@@ -401,6 +401,28 @@ class TestSimpleCoderExecution:
             assert "syntax" in message.lower()
 
 
+def create_fake_fixer_module():
+    """Create a fake project_engineer.fixer_integration module.
+
+    This creates a proper fake module with AutoFixer class that has
+    the required MAX_FIX_RETRIES attribute as an integer, avoiding
+    the TypeError when comparing int >= MagicMock.
+    """
+    fixer_module = ModuleType("project_engineer.fixer_integration")
+
+    class FakeAutoFixer:
+        MAX_FIX_RETRIES = 3
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def fix(self, *args, **kwargs):
+            return None
+
+    fixer_module.AutoFixer = FakeAutoFixer
+    return fixer_module
+
+
 class TestFixerNodeIntegration:
     """Tests for fixer_node integration with SimpleCoder"""
 
@@ -417,7 +439,8 @@ class TestFixerNodeIntegration:
 
         state = create_test_state()
 
-        with patch.dict(sys.modules, {"project_engineer.fixer_integration": MagicMock()}):
+        fake_fixer_module = create_fake_fixer_module()
+        with patch.dict(sys.modules, {"project_engineer.fixer_integration": fake_fixer_module}):
             result = fixer_node(state)
 
         mock_attempt.assert_called_once()
@@ -459,7 +482,8 @@ class TestFixerNodeIntegration:
 
         state = create_test_state()
 
-        with patch.dict(sys.modules, {"project_engineer.fixer_integration": MagicMock()}):
+        fake_fixer_module = create_fake_fixer_module()
+        with patch.dict(sys.modules, {"project_engineer.fixer_integration": fake_fixer_module}):
             result = fixer_node(state)
 
         mock_attempt.assert_called_once()
