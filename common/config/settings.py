@@ -1142,6 +1142,37 @@ class Settings(BaseSettings):
         description="Maximum consecutive retries when Redis is in read-only mode. After this, worker exits to trigger restart."
     )
 
+    # Issue #3229: commit_file() Retry Policy Configuration
+    commit_file_max_retries: int = Field(
+        default=3,
+        alias="COMMIT_FILE_MAX_RETRIES",
+        description="Maximum retry attempts for transient GitHub API errors in commit_file() (default: 3)."
+    )
+
+    commit_file_initial_delay: float = Field(
+        default=2.0,
+        alias="COMMIT_FILE_INITIAL_DELAY",
+        description="Initial delay in seconds before first retry in commit_file() (default: 2.0)."
+    )
+
+    commit_file_backoff_factor: float = Field(
+        default=2.0,
+        alias="COMMIT_FILE_BACKOFF_FACTOR",
+        description="Exponential backoff multiplier for commit_file() retries (default: 2.0). Delay doubles each retry."
+    )
+
+    commit_file_max_total_time: float = Field(
+        default=30.0,
+        alias="COMMIT_FILE_MAX_TOTAL_TIME",
+        description="Maximum total time budget in seconds for all commit_file() retries (default: 30.0). Prevents unbounded retry loops."
+    )
+
+    commit_file_jitter_factor: float = Field(
+        default=0.25,
+        alias="COMMIT_FILE_JITTER_FACTOR",
+        description="Jitter factor for commit_file() retry delays (default: 0.25). Adds random ±25% to delay to avoid thundering herd."
+    )
+
     policies_path: str = Field(
         default="policies",
         alias="POLICIES_PATH",

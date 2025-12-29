@@ -1,5 +1,6 @@
 import os
 import logging
+import random
 import sys
 import time
 from typing import Optional
@@ -358,7 +359,7 @@ def _classify_github_error(e: Exception) -> tuple[str, str]:
     return CommitResult.UNKNOWN_ERROR, str(e)
 
 
-def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> CommitResult:
+def commit_file(repo, branch, path, content, message, max_retries: int = None) -> CommitResult:
     """Commit a file to a GitHub repository branch.
 
     This function handles file updates with SHA-based concurrency protection.
@@ -367,7 +368,14 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
     Error handling:
     - 409 Conflict: File was modified externally (SHA mismatch). Fails fast, no retry.
     - 403 Forbidden: Permission denied or branch protection. Fails fast, no retry.
-    - 5xx/429: Transient errors. Retries with exponential backoff.
+    - 5xx/429: Transient errors. Retries with exponential backoff + jitter.
+
+    Retry Policy (Issue #3229):
+    - Configurable via settings: COMMIT_FILE_MAX_RETRIES, COMMIT_FILE_INITIAL_DELAY,
+      COMMIT_FILE_BACKOFF_FACTOR, COMMIT_FILE_MAX_TOTAL_TIME, COMMIT_FILE_JITTER_FACTOR
+    - Jitter: Random ±jitter_factor applied to delay to avoid thundering herd
+    - Total budget: Retries stop if cumulative time exceeds max_total_time
+    - Defaults: max_retries=3, initial_delay=2s, backoff=2x, max_total_time=30s, jitter=0.25
 
     Protected Branch Behavior (D-1.5):
     - SimpleCoder is designed to only operate on PR branches, not main/protected branches
@@ -387,7 +395,7 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
         path: File path within the repository
         content: New file content
         message: Commit message
-        max_retries: Maximum retries for transient errors (default: 3)
+        max_retries: Maximum retries for transient errors (default: from settings)
 
     Returns:
         CommitResult: Object with status, message, and optional SHA
@@ -396,13 +404,31 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
         logger.warning("[COMMIT_FILE_SKIP] Repository not available")
         return CommitResult(CommitResult.NOT_FOUND, "Repository not available")
 
+    # Load retry configuration from settings (Issue #3229)
+    cfg_max_retries = getattr(settings, 'commit_file_max_retries', 3)
+    cfg_initial_delay = getattr(settings, 'commit_file_initial_delay', 2.0)
+    cfg_backoff_factor = getattr(settings, 'commit_file_backoff_factor', 2.0)
+    cfg_max_total_time = getattr(settings, 'commit_file_max_total_time', 30.0)
+    cfg_jitter_factor = getattr(settings, 'commit_file_jitter_factor', 0.25)
+
+    # Allow override via parameter for backward compatibility
+    effective_max_retries = max_retries if max_retries is not None else cfg_max_retries
+
     repo_name = getattr(repo, 'full_name', 'unknown')
-    log_context = {"repo": repo_name, "branch": branch, "path": path}
+    log_context = {
+        "repo": repo_name,
+        "branch": branch,
+        "path": path,
+        "max_retries": effective_max_retries,
+        "max_total_time": cfg_max_total_time,
+    }
 
-    delay = 2.0
+    delay = cfg_initial_delay
     last_error = None
+    start_time = time.time()
+    total_elapsed = 0.0
 
-    for attempt in range(max_retries + 1):
+    for attempt in range(effective_max_retries + 1):
         try:
             try:
                 file = repo.get_contents(path, ref=branch)
@@ -445,20 +471,52 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
                 return CommitResult(CommitResult.PERMISSION_DENIED, error_msg)
 
             elif error_type == CommitResult.TRANSIENT_ERROR:
-                if attempt < max_retries:
+                if attempt < effective_max_retries:
+                    # Apply jitter to delay first (Issue #3229: avoid thundering herd)
+                    jitter = delay * cfg_jitter_factor * (2 * random.random() - 1)
+                    jittered_delay = max(0.1, delay + jitter)  # Ensure minimum 0.1s delay
+
+                    # Check total time budget before retrying (Issue #3229)
+                    # Use jittered_delay (actual sleep time) for accurate budget check
+                    total_elapsed = time.time() - start_time
+                    if total_elapsed + jittered_delay > cfg_max_total_time:
+                        logger.error(
+                            f"[COMMIT_FILE_BUDGET_EXCEEDED] Total retry budget exceeded for {path} on {branch}. "
+                            f"Elapsed: {total_elapsed:.1f}s, next delay: {jittered_delay:.1f}s, budget: {cfg_max_total_time}s",
+                            extra={
+                                **log_context,
+                                "error": error_msg,
+                                "elapsed": total_elapsed,
+                                "next_delay": jittered_delay,
+                                "budget": cfg_max_total_time,
+                                "attempt": attempt + 1,
+                            }
+                        )
+                        return CommitResult(
+                            CommitResult.TRANSIENT_ERROR,
+                            f"Retry budget exceeded ({total_elapsed:.1f}s/{cfg_max_total_time}s): {error_msg}"
+                        )
+
                     logger.warning(
                         f"[COMMIT_FILE_RETRY] Transient error for {path} on {branch}, "
-                        f"attempt {attempt + 1}/{max_retries + 1}, retrying in {delay}s",
-                        extra={**log_context, "error": error_msg, "attempt": attempt + 1, "delay": delay}
+                        f"attempt {attempt + 1}/{effective_max_retries + 1}, retrying in {jittered_delay:.2f}s",
+                        extra={
+                            **log_context,
+                            "error": error_msg,
+                            "attempt": attempt + 1,
+                            "delay": jittered_delay,
+                            "base_delay": delay,
+                            "elapsed": total_elapsed,
+                        }
                     )
-                    time.sleep(delay)
-                    delay *= 2
+                    time.sleep(jittered_delay)
+                    delay *= cfg_backoff_factor
                     continue
                 else:
                     logger.error(
                         f"[COMMIT_FILE_FAILED] Transient error for {path} on {branch} "
-                        f"after {max_retries + 1} attempts",
-                        extra={**log_context, "error": error_msg, "attempts": max_retries + 1}
+                        f"after {effective_max_retries + 1} attempts",
+                        extra={**log_context, "error": error_msg, "attempts": effective_max_retries + 1}
                     )
                     return CommitResult(CommitResult.TRANSIENT_ERROR, error_msg)
 
@@ -476,7 +534,7 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
             )
             return CommitResult(CommitResult.UNKNOWN_ERROR, str(e))
 
-    return CommitResult(CommitResult.UNKNOWN_ERROR, f"Failed after {max_retries + 1} attempts: {last_error}")
+    return CommitResult(CommitResult.UNKNOWN_ERROR, f"Failed after {effective_max_retries + 1} attempts: {last_error}")
 
 def open_pr(repo, branch, title, body="", base="main", draft=False, labels=None):
     """
