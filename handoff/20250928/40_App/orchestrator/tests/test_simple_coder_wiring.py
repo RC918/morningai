@@ -490,6 +490,119 @@ class TestFixerNodeIntegration:
         assert result["retry_count"] == 1
 
 
+class TestProtectedBranchSafety:
+    """Tests for protected branch safety checks (D-1.5)
+
+    SimpleCoder is designed to only operate on PR branches, not main/protected branches.
+    When commit_file fails with PERMISSION_DENIED (403), SimpleCoder should gracefully
+    return False to trigger AutoFixer fallback.
+    """
+
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("tools.github_api.commit_file")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_protected_branch_error_triggers_fallback(
+        self, mock_status, mock_coder, mock_commit, mock_get_repo,
+        mock_excluded, mock_allowed
+    ):
+        """Test that 403 protected branch error triggers AutoFixer fallback"""
+        from tools.github_api import CommitResult
+
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
+
+            mock_repo = MagicMock()
+            mock_get_repo.return_value = mock_repo
+            mock_file = MagicMock()
+            mock_file.decoded_content = b"def foo():\n    pass"
+            mock_repo.get_contents.return_value = mock_file
+
+            mock_status.PATCH.value = "patch"
+
+            mock_output = MagicMock()
+            mock_output.success = True
+            mock_output.data = {
+                "status": "patch",
+                "patch": 'def foo():\n    """Docstring."""\n    pass',
+                "syntax_valid": True,
+            }
+            mock_coder.return_value.execute.return_value = mock_output
+
+            mock_commit.return_value = CommitResult(
+                CommitResult.PERMISSION_DENIED,
+                "Branch protection prevents commit: Protected branch rules"
+            )
+
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+                branch="main",
+            )
+
+            success, message = _attempt_simple_coder_fix(state, "test-trace")
+
+            assert success is False
+            assert "failed to apply patch" in message.lower()
+            assert "branch protection" in message.lower()
+            mock_commit.assert_called_once()
+
+    @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)
+    @patch("coder.autofix_gate.is_path_excluded", return_value=False)
+    @patch("tools.github_api.get_repo")
+    @patch("tools.github_api.commit_file")
+    @patch("coder.simple_coder.get_simple_coder")
+    @patch("coder.simple_coder.CoderStatus")
+    def test_permission_denied_logs_clear_message(
+        self, mock_status, mock_coder, mock_commit, mock_get_repo,
+        mock_excluded, mock_allowed, caplog
+    ):
+        """Test that permission denied error logs clear message for debugging"""
+        from tools.github_api import CommitResult
+        import logging
+
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_simple_coder = True
+
+            mock_repo = MagicMock()
+            mock_get_repo.return_value = mock_repo
+            mock_file = MagicMock()
+            mock_file.decoded_content = b"def foo():\n    pass"
+            mock_repo.get_contents.return_value = mock_file
+
+            mock_status.PATCH.value = "patch"
+
+            mock_output = MagicMock()
+            mock_output.success = True
+            mock_output.data = {
+                "status": "patch",
+                "patch": 'def foo():\n    """Docstring."""\n    pass',
+                "syntax_valid": True,
+            }
+            mock_coder.return_value.execute.return_value = mock_output
+
+            mock_commit.return_value = CommitResult(
+                CommitResult.PERMISSION_DENIED,
+                "Permission denied: Resource not accessible"
+            )
+
+            state = create_test_state(
+                review_file_path="src/test.py",
+                comment_body="Add docstring",
+            )
+
+            with caplog.at_level(logging.ERROR):
+                success, message = _attempt_simple_coder_fix(state, "test-trace")
+
+            assert success is False
+            assert any(
+                "SIMPLE_CODER_PATCH_FAILED" in record.message
+                for record in caplog.records
+            )
+
+
 class TestEventCodes:
     """Tests for greppable event codes"""
 

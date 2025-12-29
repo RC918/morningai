@@ -1,6 +1,7 @@
 import os
 import logging
 import sys
+import time
 from typing import Optional
 from github import Github, GithubException, RateLimitExceededException, UnknownObjectException, BadCredentialsException
 
@@ -65,7 +66,18 @@ def _check_review_already_posted(
         - dedup_key: The Redis key used for deduplication (for logging)
     """
     if not head_sha:
-        # Can't deduplicate without SHA, allow posting
+        # Can't deduplicate without SHA, allow posting (fail-open)
+        # Issue #3260: Add observability for skipped dedup
+        logger.warning(
+            "[GitHub] Dedup skipped: no valid commit_id (head_sha is None)",
+            extra={
+                "operation": "review_dedup_skipped_no_commit_id",
+                "repo": repo,
+                "pr_number": pr_number,
+                "reason": "head_sha_none",
+                "fail_open": True,
+            }
+        )
         return False, None
 
     try:
@@ -128,13 +140,16 @@ def _check_review_already_posted(
 
     except redis.exceptions.RedisError as e:
         # Redis error, allow posting (graceful degradation / fail-open)
+        # Issue #3260: Add observability for Redis dedup failures
         logger.warning(
-            f"[GitHub] Redis error during review dedup check, allowing post (fail-open): {e}",
+            f"[GitHub] Dedup skipped: Redis error during dedup check (fail-open): {e}",
             extra={
-                "operation": "review_dedup_error",
+                "operation": "review_dedup_skipped_redis_error",
                 "repo": repo,
                 "pr_number": pr_number,
                 "error": str(e),
+                "error_type": type(e).__name__,
+                "reason": "redis_error",
                 "fail_open": True,
             }
         )
@@ -261,21 +276,207 @@ def create_branch(repo, base="main", new_branch="orchestrator/demo-branch"):
         print(f"[GitHub] Failed to create branch: {e}")
         return "demo-branch"
 
-def commit_file(repo, branch, path, content, message):
-    try:
-        if repo is None:
-            print("[GitHub] Repository not available")
-            return
-        file = repo.get_contents(path, ref=branch)
-        repo.update_file(path, message, content, file.sha, branch=branch)
-    except Exception as e:
-        if repo is None:
-            print("[GitHub] Repository not available")
-        else:
+class CommitResult:
+    """Result of a commit_file operation with detailed status information."""
+
+    SUCCESS = "success"
+    CONFLICT = "conflict"
+    PERMISSION_DENIED = "permission_denied"
+    NOT_FOUND = "not_found"
+    TRANSIENT_ERROR = "transient_error"
+    UNKNOWN_ERROR = "unknown_error"
+
+    def __init__(self, status: str, message: str = "", sha: str = ""):
+        self.status = status
+        self.message = message
+        self.sha = sha
+
+    @property
+    def success(self) -> bool:
+        return self.status == self.SUCCESS
+
+    def __repr__(self):
+        return f"CommitResult(status={self.status}, message={self.message})"
+
+
+def _is_transient_error(status_code: int) -> bool:
+    """Check if HTTP status code indicates a transient error worth retrying."""
+    return status_code >= 500 or status_code == 429
+
+
+def _extract_commit_sha(result) -> str:
+    """Safely extract commit SHA from GitHub API response.
+
+    Handles both PyGithub Commit objects (with .sha attribute) and
+    dict responses (with ['sha'] key) for robustness.
+
+    Args:
+        result: Response from update_file() or create_file()
+
+    Returns:
+        str: Commit SHA or empty string if not found
+    """
+    if not result or not isinstance(result, dict):
+        return ""
+
+    commit_obj = result.get("commit")
+    if commit_obj is None:
+        return ""
+
+    sha = getattr(commit_obj, "sha", None)
+    if sha:
+        return sha
+
+    if isinstance(commit_obj, dict):
+        return commit_obj.get("sha", "")
+
+    return ""
+
+
+def _classify_github_error(e: Exception) -> tuple[str, str]:
+    """Classify a GitHub exception into error type and message.
+
+    Returns:
+        tuple: (error_type, error_message)
+    """
+    if isinstance(e, GithubException):
+        status = getattr(e, 'status', 0)
+        data = getattr(e, 'data', {}) or {}
+        error_msg = data.get('message', str(e)) if isinstance(data, dict) else str(e)
+
+        if status == 409:
+            return CommitResult.CONFLICT, f"SHA conflict - file was modified externally: {error_msg}"
+        elif status == 403:
+            if "protected branch" in str(error_msg).lower():
+                return CommitResult.PERMISSION_DENIED, f"Branch protection prevents commit: {error_msg}"
+            return CommitResult.PERMISSION_DENIED, f"Permission denied: {error_msg}"
+        elif status == 404:
+            return CommitResult.NOT_FOUND, f"Resource not found: {error_msg}"
+        elif _is_transient_error(status):
+            return CommitResult.TRANSIENT_ERROR, f"Transient error (HTTP {status}): {error_msg}"
+
+    return CommitResult.UNKNOWN_ERROR, str(e)
+
+
+def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> CommitResult:
+    """Commit a file to a GitHub repository branch.
+
+    This function handles file updates with SHA-based concurrency protection.
+    If the file doesn't exist, it creates a new file.
+
+    Error handling:
+    - 409 Conflict: File was modified externally (SHA mismatch). Fails fast, no retry.
+    - 403 Forbidden: Permission denied or branch protection. Fails fast, no retry.
+    - 5xx/429: Transient errors. Retries with exponential backoff.
+
+    Protected Branch Behavior (D-1.5):
+    - SimpleCoder is designed to only operate on PR branches, not main/protected branches
+    - If a commit is attempted on a protected branch, GitHub returns 403 with
+      "protected branch" in the error message
+    - This function detects protected branch errors via substring matching on the
+      GitHub error message (case-insensitive). If GitHub changes their error wording,
+      the detection may need to be updated in _classify_github_error()
+    - Returns PERMISSION_DENIED status for protected branch errors
+    - The caller (SimpleCoder wiring in fixer_node) handles this gracefully by
+      falling back to AutoFixer when commit_file returns a non-success status
+    - Log event: [COMMIT_FILE_PERMISSION_DENIED] with branch protection context
+
+    Args:
+        repo: GitHub repository object
+        branch: Target branch name
+        path: File path within the repository
+        content: New file content
+        message: Commit message
+        max_retries: Maximum retries for transient errors (default: 3)
+
+    Returns:
+        CommitResult: Object with status, message, and optional SHA
+    """
+    if repo is None:
+        logger.warning("[COMMIT_FILE_SKIP] Repository not available")
+        return CommitResult(CommitResult.NOT_FOUND, "Repository not available")
+
+    repo_name = getattr(repo, 'full_name', 'unknown')
+    log_context = {"repo": repo_name, "branch": branch, "path": path}
+
+    delay = 2.0
+    last_error = None
+
+    for attempt in range(max_retries + 1):
+        try:
             try:
-                repo.create_file(path, message, content, branch=branch)
-            except Exception as create_error:
-                print(f"[GitHub] Failed to commit file: {create_error}")
+                file = repo.get_contents(path, ref=branch)
+                result = repo.update_file(path, message, content, file.sha, branch=branch)
+                new_sha = _extract_commit_sha(result)
+                logger.info(
+                    f"[COMMIT_FILE_SUCCESS] Updated {path} on {branch}",
+                    extra={**log_context, "sha": new_sha, "attempt": attempt + 1}
+                )
+                return CommitResult(CommitResult.SUCCESS, f"Updated {path}", new_sha)
+            except GithubException as e:
+                if getattr(e, 'status', 0) == 404:
+                    result = repo.create_file(path, message, content, branch=branch)
+                    new_sha = _extract_commit_sha(result)
+                    logger.info(
+                        f"[COMMIT_FILE_SUCCESS] Created {path} on {branch}",
+                        extra={**log_context, "sha": new_sha, "attempt": attempt + 1}
+                    )
+                    return CommitResult(CommitResult.SUCCESS, f"Created {path}", new_sha)
+                raise
+
+        except GithubException as e:
+            error_type, error_msg = _classify_github_error(e)
+            last_error = e
+
+            if error_type == CommitResult.CONFLICT:
+                logger.error(
+                    f"[COMMIT_FILE_CONFLICT] SHA conflict for {path} on {branch} - "
+                    "file was modified externally. Not retrying.",
+                    extra={**log_context, "error": error_msg, "status": 409}
+                )
+                return CommitResult(CommitResult.CONFLICT, error_msg)
+
+            elif error_type == CommitResult.PERMISSION_DENIED:
+                logger.error(
+                    f"[COMMIT_FILE_PERMISSION_DENIED] Cannot commit to {path} on {branch}. "
+                    "Check branch protection rules and token permissions. Not retrying.",
+                    extra={**log_context, "error": error_msg, "status": 403}
+                )
+                return CommitResult(CommitResult.PERMISSION_DENIED, error_msg)
+
+            elif error_type == CommitResult.TRANSIENT_ERROR:
+                if attempt < max_retries:
+                    logger.warning(
+                        f"[COMMIT_FILE_RETRY] Transient error for {path} on {branch}, "
+                        f"attempt {attempt + 1}/{max_retries + 1}, retrying in {delay}s",
+                        extra={**log_context, "error": error_msg, "attempt": attempt + 1, "delay": delay}
+                    )
+                    time.sleep(delay)
+                    delay *= 2
+                    continue
+                else:
+                    logger.error(
+                        f"[COMMIT_FILE_FAILED] Transient error for {path} on {branch} "
+                        f"after {max_retries + 1} attempts",
+                        extra={**log_context, "error": error_msg, "attempts": max_retries + 1}
+                    )
+                    return CommitResult(CommitResult.TRANSIENT_ERROR, error_msg)
+
+            else:
+                logger.error(
+                    f"[COMMIT_FILE_ERROR] Unexpected error committing {path} on {branch}",
+                    extra={**log_context, "error": error_msg, "exception_type": type(e).__name__}
+                )
+                return CommitResult(CommitResult.UNKNOWN_ERROR, error_msg)
+
+        except Exception as e:
+            logger.error(
+                f"[COMMIT_FILE_ERROR] Unexpected exception committing {path} on {branch}: {e}",
+                extra={**log_context, "error": str(e), "exception_type": type(e).__name__}
+            )
+            return CommitResult(CommitResult.UNKNOWN_ERROR, str(e))
+
+    return CommitResult(CommitResult.UNKNOWN_ERROR, f"Failed after {max_retries + 1} attempts: {last_error}")
 
 def open_pr(repo, branch, title, body="", base="main", draft=False, labels=None):
     """
@@ -868,10 +1069,10 @@ def post_pr_review(
         result["error"] = "Feature disabled"
         return result
 
-    if not comments:
-        logger.info("[GitHub] No comments to post")
-        result["success"] = True
-        return result
+    # Issue #3220: Allow posting summary-only reviews (no inline comments)
+    # When comments is empty but summary is provided, we still want to post
+    # the review body to provide visibility (e.g., Summary Report feature)
+    summary_only_mode = not comments
 
     try:
         if repo is None:
@@ -967,7 +1168,9 @@ def post_pr_review(
 
             gh_comments.append(item)
 
-        if not gh_comments:
+        # Issue #3220: Allow summary-only reviews (no inline comments)
+        # When summary_only_mode is True, we still want to post the review body
+        if not gh_comments and not summary_only_mode:
             logger.info("[GitHub] No valid comments to post after filtering")
             result["success"] = True
             return result
@@ -1000,18 +1203,24 @@ def post_pr_review(
 
         # Check dry-run mode
         if settings.github_review_posting_dry_run:
-            logger.info(
-                f"[GitHub][DRY-RUN] Would post review to PR #{pr_number} "
-                f"with {len(gh_comments)} comments"
-            )
-            for i, c in enumerate(gh_comments):
+            if summary_only_mode:
                 logger.info(
-                    f"[GitHub][DRY-RUN] Comment {i + 1}: "
-                    f"{c['path']}:{c.get('start_line', c['line'])}-{c['line']}"
+                    f"[GitHub][DRY-RUN] Would post summary-only review to PR #{pr_number}"
                 )
+            else:
+                logger.info(
+                    f"[GitHub][DRY-RUN] Would post review to PR #{pr_number} "
+                    f"with {len(gh_comments)} comments"
+                )
+                for i, c in enumerate(gh_comments):
+                    logger.info(
+                        f"[GitHub][DRY-RUN] Comment {i + 1}: "
+                        f"{c['path']}:{c.get('start_line', c['line'])}-{c['line']}"
+                    )
             result["success"] = True
             result["posted_count"] = len(gh_comments)
             result["dry_run"] = True
+            result["summary_only"] = summary_only_mode
             return result
 
         # Phase B-B: Fault injection for 422 fallback verification (Staging only)
@@ -1098,25 +1307,43 @@ def post_pr_review(
         result["posted_count"] = len(gh_comments)
         result["commit_pinning_attempted"] = commit_pinning_attempted
         result["commit_pinning_success"] = commit_pinning_success
+        result["summary_only"] = summary_only_mode
 
         # P2: Mark review as posted for artifact idempotency
         _mark_review_posted(dedup_key)
 
-        logger.info(
-            f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments "
-            f"(commit_pinning_attempted={commit_pinning_attempted}, "
-            f"commit_pinning_success={commit_pinning_success})",
-            extra={
-                "operation": "post_pr_review",
-                "pr_number": pr_number,
-                "comment_count": len(gh_comments),
-                "skipped_count": result["skipped_count"],
-                "truncated_count": result["truncated_count"],
-                "commit_id": commit_id[:8] if commit_id else None,
-                "commit_pinning_attempted": commit_pinning_attempted,
-                "commit_pinning_success": commit_pinning_success
-            }
-        )
+        # Issue #3220: Log summary-only mode for visibility
+        if summary_only_mode:
+            logger.info(
+                f"[GitHub] Posted summary-only review to PR #{pr_number} "
+                f"(commit_pinning_attempted={commit_pinning_attempted}, "
+                f"commit_pinning_success={commit_pinning_success})",
+                extra={
+                    "operation": "post_pr_review",
+                    "pr_number": pr_number,
+                    "comment_count": 0,
+                    "summary_only": True,
+                    "commit_id": commit_id[:8] if commit_id else None,
+                    "commit_pinning_attempted": commit_pinning_attempted,
+                    "commit_pinning_success": commit_pinning_success
+                }
+            )
+        else:
+            logger.info(
+                f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments "
+                f"(commit_pinning_attempted={commit_pinning_attempted}, "
+                f"commit_pinning_success={commit_pinning_success})",
+                extra={
+                    "operation": "post_pr_review",
+                    "pr_number": pr_number,
+                    "comment_count": len(gh_comments),
+                    "skipped_count": result["skipped_count"],
+                    "truncated_count": result["truncated_count"],
+                    "commit_id": commit_id[:8] if commit_id else None,
+                    "commit_pinning_attempted": commit_pinning_attempted,
+                    "commit_pinning_success": commit_pinning_success
+                }
+            )
 
         return result
 

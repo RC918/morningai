@@ -2320,6 +2320,25 @@ class AgentState(TypedDict):
         diff_head_sha: Optional[str] - PR head commit SHA (40-char hex, case-insensitive)
         diff_content: Optional[str] - Sanitized diff content (max 100KB per DIFF_MAX_SIZE_BYTES)
         diff_truncated: Optional[bool] - Whether diff was truncated due to size limits
+
+    Issue #3259: diff_head_sha Contract Definition
+    -----------------------------------------------
+    Source: Captured from GitHub API via get_pr_diff() -> pr.head.sha
+    Format: 40-character hex string (case-insensitive), or None if unavailable
+    Availability: Best-effort; may be None if get_pr_diff() fails or PR fetch fails
+
+    Usage by path:
+    - Inline comments path: MUST use diff_head_sha from get_pr_diff() to ensure
+      line positions align with the diff. If None, commit pinning is disabled
+      (commit_id=None) to avoid 422 errors from line drift.
+    - Summary-only / file-level fallback path: Can use any valid PR head SHA
+      since no line positions are involved. Safe to use fallback if available.
+    - Redis dedup: Uses diff_head_sha[:12] as part of dedup key. If None,
+      dedup is skipped (fail-open) per _check_review_already_posted().
+
+    Important: diff_head_sha represents the PR head at "review time" (when
+    get_pr_diff was called), NOT the current/latest head. Do not confuse with
+    a "live" head SHA which may have changed due to new commits.
     """
     messages: Annotated[list[BaseMessage], prune_messages_reducer]
     goal: str
@@ -4240,20 +4259,21 @@ def _attempt_simple_coder_fix(
         )
         return False, "Patch failed syntax validation"
 
-    try:
-        commit_message = f"fix: SimpleCoder auto-fix for {file_path}"
-        commit_file(repo, branch, file_path, patch_content, commit_message)
+    commit_message = f"fix: SimpleCoder auto-fix for {file_path}"
+    result = commit_file(repo, branch, file_path, patch_content, commit_message)
+
+    if result.success:
         logger.info(
             f"[SIMPLE_CODER_PATCH_APPLIED] Successfully applied patch. "
-            f"file_path={file_path}, branch={branch}, trace_id={trace_id}"
+            f"file_path={file_path}, branch={branch}, sha={result.sha}, trace_id={trace_id}"
         )
         return True, f"SimpleCoder successfully fixed {file_path}"
-    except Exception as e:
+    else:
         logger.error(
-            f"[SIMPLE_CODER_PATCH_FAILED] Failed to apply patch: {e}. "
+            f"[SIMPLE_CODER_PATCH_FAILED] Failed to apply patch: {result.status} - {result.message}. "
             f"file_path={file_path}, trace_id={trace_id}"
         )
-        return False, f"Failed to apply patch: {e}"
+        return False, f"Failed to apply patch: {result.message}"
 
 
 def fixer_node(state: AgentState) -> AgentState:
@@ -5579,14 +5599,116 @@ def publisher_node(state: AgentState) -> AgentState:
         return state
 
     if not review_comments:
-        logger.info("[Publisher] No review comments to publish", extra={
+        logger.info("[Publisher] No review comments to publish, posting summary report", extra={
             "operation": "publisher",
             "trace_id": trace_id,
             "pr_number": pr_number
         })
-        state["messages"] = state.get("messages", []) + [
-            AIMessage(content="No review comments to publish")
-        ]
+
+        # Issue #3220: Post Summary Report when no inline comments
+        # This provides visibility that the Reviewer Agent ran and what it found
+        try:
+            from tools.github_api import get_repo, post_pr_review
+
+            # Build Summary Report from review_outcome or review_result
+            review_outcome = state.get("review_outcome", {})
+            review_result = state.get("review_result", {})
+            code_quality_score = state.get("code_quality_score", 0)
+
+            # Determine verdict and emoji
+            verdict = review_outcome.get("verdict", "unknown")
+            llm_decision = review_result.get("llm_decision", verdict)
+            llm_summary = review_result.get("llm_summary", "")
+
+            if llm_decision == "approve":
+                verdict_emoji = "Approve"
+                verdict_icon = "white_check_mark"
+            elif llm_decision == "needs_changes":
+                verdict_emoji = "Needs Changes"
+                verdict_icon = "warning"
+            elif llm_decision == "block":
+                verdict_emoji = "Block"
+                verdict_icon = "x"
+            else:
+                verdict_emoji = "Reviewed"
+                verdict_icon = "mag"
+
+            # Build the summary report body
+            summary_body = f"""## :robot: MorningAI Review Summary
+
+**Verdict:** :{verdict_icon}: {verdict_emoji} (Score: {code_quality_score})
+
+**Analysis:**
+{llm_summary if llm_summary else "No significant issues found."}
+
+---
+*Note: This review follows the Senior Architect policy - style, formatting, and naming convention issues are intentionally filtered out to reduce noise. The reviewer focuses on logic errors, security vulnerabilities, performance problems, and API contract changes.*
+"""
+
+            repo = get_repo()
+            # Issue #3253: Get commit_id for Redis dedup idempotency
+            # Normalize to None if not a valid non-empty string (defensive)
+            raw_head_sha = state.get("diff_head_sha")
+            stored_head_sha = raw_head_sha if isinstance(raw_head_sha, str) and raw_head_sha else None
+            if repo:
+                result = post_pr_review(
+                    repo=repo,
+                    pr_number=pr_number,
+                    comments=[],
+                    summary=summary_body,
+                    commit_id=stored_head_sha  # Enable Redis dedup
+                )
+
+                state["publish_result"]["success"] = result.get("success", False)
+                state["publish_result"]["summary_report_posted"] = result.get("success", False)
+                state["publish_result"]["dry_run"] = result.get("dry_run", False)
+
+                if result.get("success"):
+                    mode = "[DRY-RUN]" if result.get("dry_run") else ""
+                    logger.info(f"[Publisher] Summary report posted {mode}", extra={
+                        "operation": "publisher",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "verdict": llm_decision,
+                        "score": code_quality_score,
+                        "dry_run": result.get("dry_run", False)
+                    })
+                    state["messages"] = state.get("messages", []) + [
+                        AIMessage(content=f"Summary report posted {mode}: {verdict_emoji} (Score: {code_quality_score})")
+                    ]
+                else:
+                    logger.warning("[Publisher] Failed to post summary report", extra={
+                        "operation": "publisher",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "error": result.get("error")
+                    })
+                    state["publish_result"]["error"] = result.get("error")
+                    state["messages"] = state.get("messages", []) + [
+                        AIMessage(content="Failed to post summary report")
+                    ]
+            else:
+                logger.warning("[Publisher] Repository not available for summary report", extra={
+                    "operation": "publisher",
+                    "trace_id": trace_id,
+                    "pr_number": pr_number
+                })
+                state["messages"] = state.get("messages", []) + [
+                    AIMessage(content="Repository not available for summary report")
+                ]
+
+        except Exception as e:
+            logger.warning(f"[Publisher] Failed to post summary report: {e}", extra={
+                "operation": "publisher",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "error": str(e)
+            })
+            state["publish_result"]["error"] = str(e)
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"Failed to post summary report: {e}")
+            ]
+
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
         return state
@@ -5625,7 +5747,9 @@ def publisher_node(state: AgentState) -> AgentState:
     diff_truncated = state.get("diff_truncated", False)
     # Phase 2: Get stored head_sha for commit pinning
     # Fix: This should now always be set by reviewer_node (moved outside if diff_content: block)
-    stored_head_sha = state.get("diff_head_sha")
+    # Issue #3253: Normalize to None if not a valid non-empty string (defensive)
+    _raw_head_sha = state.get("diff_head_sha")
+    stored_head_sha = _raw_head_sha if isinstance(_raw_head_sha, str) and _raw_head_sha else None
     downgraded_count = 0
     line_drift_detected = False
 
@@ -5816,11 +5940,13 @@ def publisher_node(state: AgentState) -> AgentState:
                 )
 
                 repo = get_repo()
+                # Issue #3253: Pass commit_id for Redis dedup idempotency
                 result = post_pr_review(
                     repo=repo,
                     pr_number=pr_number,
                     comments=[],
-                    summary=file_level_body
+                    summary=file_level_body,
+                    commit_id=stored_head_sha  # Enable Redis dedup
                 )
 
                 state["publish_result"]["success"] = result.get("success", False)

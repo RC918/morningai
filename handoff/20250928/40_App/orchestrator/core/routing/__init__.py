@@ -35,6 +35,15 @@ from .review_outcome import (
     VerdictType,
     SeverityType,
 )
+from .fix_handoff import (
+    FixSuggestion,
+    ReviewToFixHandoff,
+    build_fix_handoff,
+    should_route_to_fixer,
+    build_empty_handoff,
+    FixCategoryType,
+    HIGH_CONFIDENCE_THRESHOLD,
+)
 
 __all__ = [
     'RoutingEngine',
@@ -48,4 +57,12 @@ __all__ = [
     'build_unknown_outcome',
     'VerdictType',
     'SeverityType',
+    # EPIC D: Review -> Fix Handoff interface
+    'FixSuggestion',
+    'ReviewToFixHandoff',
+    'build_fix_handoff',
+    'should_route_to_fixer',
+    'build_empty_handoff',
+    'FixCategoryType',
+    'HIGH_CONFIDENCE_THRESHOLD',
 ]

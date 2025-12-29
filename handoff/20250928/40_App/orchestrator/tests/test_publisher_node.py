@@ -620,29 +620,46 @@ class TestPublisherNodeNoOp:
                     mock_get_repo.assert_not_called()
                     assert "No PR available" in result["messages"][-1].content
 
-    def test_empty_review_comments_skips_publish(self):
-        """When review_comments is empty, should skip publish"""
+    def test_empty_review_comments_posts_summary_report(self):
+        """Issue #3220: When review_comments is empty, should post Summary Report for visibility"""
         mock_settings = MagicMock()
         mock_settings.enable_github_review_posting = True
 
         mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
 
         state = {
             "trace_id": "test-trace",
             "pr_number": 123,
             "review_comments": [],
-            "messages": []
+            "messages": [],
+            "diff_head_sha": "abc123def456"
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
             with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
-                with patch("tools.github_api.get_repo") as mock_get_repo:
-                    from langgraph_orchestrator import publisher_node
+                with patch("tools.github_api.get_repo", return_value=mock_repo) as mock_get_repo:
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
 
-                    result = publisher_node(state)
+                        result = publisher_node(state)
 
-                    mock_get_repo.assert_not_called()
-                    assert "No review comments" in result["messages"][-1].content
+                        # Issue #3220: Summary Report should be posted even with no inline comments
+                        mock_get_repo.assert_called_once()
+                        mock_post.assert_called_once()
+                        # Verify post_pr_review was called with empty comments and Summary Report body
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("comments") == []
+                        # Summary Report uses "MorningAI Review Summary" as the header
+                        assert "MorningAI Review Summary" in call_args.kwargs.get("summary", "")
 
     def test_file_level_comments_published_in_review_body(self):
         """When no inline-eligible comments but file-level exist, should publish in review body"""
@@ -686,29 +703,167 @@ class TestPublisherNodeNoOp:
                             assert result["publish_result"]["file_level_in_body"] == 1
                             assert "file-level comments in review body" in result["messages"][-1].content
 
-    def test_no_comments_at_all_skips_publish(self):
-        """When no inline-eligible comments and no file-level comments, should skip publish"""
+    def test_no_comments_at_all_posts_summary_report(self):
+        """Issue #3220: When no inline-eligible comments and no file-level comments, should post Summary Report"""
         mock_settings = MagicMock()
         mock_settings.enable_github_review_posting = True
 
         mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
 
         state = {
             "trace_id": "test-trace",
             "pr_number": 123,
             "review_comments": [],
-            "messages": []
+            "messages": [],
+            "diff_head_sha": "abc123def456"
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
             with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
-                with patch("tools.github_api.get_repo") as mock_get_repo:
-                    from langgraph_orchestrator import publisher_node
+                with patch("tools.github_api.get_repo", return_value=mock_repo) as mock_get_repo:
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
 
-                    result = publisher_node(state)
+                        result = publisher_node(state)
 
-                    mock_get_repo.assert_not_called()
-                    assert "No review comments" in result["messages"][-1].content
+                        # Issue #3220: Summary Report should be posted even with no comments
+                        mock_get_repo.assert_called_once()
+                        mock_post.assert_called_once()
+                        # Verify post_pr_review was called with empty comments and Summary Report body
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("comments") == []
+                        # Summary Report uses "MorningAI Review Summary" as the header
+                        assert "MorningAI Review Summary" in call_args.kwargs.get("summary", "")
+
+    def test_summary_report_passes_commit_id_for_dedup(self):
+        """Issue #3253: Summary Report should pass commit_id to enable Redis dedup idempotency"""
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+        state = {
+            "trace_id": "test-trace",
+            "pr_number": 123,
+            "review_comments": [],
+            "messages": [],
+            "diff_head_sha": test_commit_id
+        }
+
+        with patch("langgraph_orchestrator.settings", mock_settings):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
+
+                        result = publisher_node(state)
+
+                        # Issue #3253: Verify commit_id is passed for Redis dedup
+                        mock_post.assert_called_once()
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("commit_id") == test_commit_id
+
+    def test_summary_report_handles_missing_or_invalid_diff_head_sha(self):
+        """Issue #3253: Summary Report should gracefully handle missing/invalid diff_head_sha"""
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
+
+        # Test cases: None, empty string, non-string types
+        invalid_values = [None, "", 123, {"sha": "abc"}, []]
+
+        for invalid_value in invalid_values:
+            state = {
+                "trace_id": "test-trace",
+                "pr_number": 123,
+                "review_comments": [],
+                "messages": [],
+                "diff_head_sha": invalid_value
+            }
+
+            with patch("langgraph_orchestrator.settings", mock_settings):
+                with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                    with patch("tools.github_api.get_repo", return_value=mock_repo):
+                        with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                            from langgraph_orchestrator import publisher_node
+
+                            # Should not raise exception
+                            result = publisher_node(state)
+
+                            # Verify commit_id is normalized to None for invalid values
+                            mock_post.assert_called_once()
+                            call_args = mock_post.call_args
+                            assert call_args.kwargs.get("commit_id") is None, \
+                                f"Expected commit_id=None for invalid value {invalid_value!r}"
+
+                            mock_post.reset_mock()
+
+    def test_file_level_fallback_passes_commit_id_for_dedup(self):
+        """Issue #3253: File-level fallback path should pass commit_id for Redis dedup"""
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None
+        }
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+        state = {
+            "trace_id": "test-trace",
+            "pr_number": 123,
+            "review_comments": [{"message": "General comment", "file": "test.py", "severity": "warning"}],
+            "messages": [],
+            "diff_head_sha": test_commit_id
+        }
+
+        with patch("langgraph_orchestrator.settings", mock_settings):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("review_comment_schema.is_inline_comment", return_value=False):
+                    with patch("tools.github_api.get_repo", return_value=mock_repo):
+                        with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                            from langgraph_orchestrator import publisher_node
+
+                            result = publisher_node(state)
+
+                            # Issue #3253: Verify commit_id is passed for Redis dedup in file-level fallback
+                            mock_post.assert_called_once()
+                            call_args = mock_post.call_args
+                            assert call_args.kwargs.get("commit_id") == test_commit_id
 
 
 @pytest.mark.skipif(not LANGGRAPH_AVAILABLE, reason="langgraph not installed")
@@ -1149,3 +1304,639 @@ class TestReviewDedupFunctions:
 
                 # Should not raise any exception
                 _mark_review_posted(dedup_key="review_posted:test/repo:123:abc123:v1")
+
+
+class TestDedupObservability:
+    """
+    Issue #3260: Tests for Redis dedup observability events.
+
+    These tests verify that proper warning logs are emitted when dedup is skipped:
+    1. When head_sha (commit_id) is None
+    2. When Redis operations fail
+    """
+
+    def test_no_head_sha_logs_warning_with_correct_operation(self):
+        """When head_sha is None, should log warning with operation=review_dedup_skipped_no_commit_id"""
+        mock_settings = MockSettings()
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch("tools.github_api.logger") as mock_logger:
+                from tools.github_api import _check_review_already_posted
+
+                already_posted, dedup_key = _check_review_already_posted(
+                    repo="test/repo",
+                    pr_number=123,
+                    head_sha=None,
+                )
+
+                assert already_posted is False
+                assert dedup_key is None
+
+                mock_logger.warning.assert_called_once()
+                call_args = mock_logger.warning.call_args
+                assert "Dedup skipped" in call_args[0][0]
+                assert "head_sha is None" in call_args[0][0]
+                extra = call_args[1]["extra"]
+                assert extra["operation"] == "review_dedup_skipped_no_commit_id"
+                assert extra["repo"] == "test/repo"
+                assert extra["pr_number"] == 123
+                assert extra["reason"] == "head_sha_none"
+                assert extra["fail_open"] is True
+
+    def test_redis_error_logs_warning_with_correct_operation(self):
+        """When Redis raises an error, should log warning with operation=review_dedup_skipped_redis_error"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        import redis as real_redis
+
+        mock_redis = MagicMock()
+        mock_redis.set.side_effect = real_redis.exceptions.RedisError("Connection refused")
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                with patch("tools.github_api.logger") as mock_logger:
+                    from tools.github_api import _check_review_already_posted
+
+                    already_posted, dedup_key = _check_review_already_posted(
+                        repo="test/repo",
+                        pr_number=123,
+                        head_sha="abc123def456",
+                    )
+
+                    assert already_posted is False
+                    assert dedup_key is None
+
+                    mock_logger.warning.assert_called_once()
+                    call_args = mock_logger.warning.call_args
+                    assert "Dedup skipped" in call_args[0][0]
+                    assert "Redis error" in call_args[0][0]
+                    extra = call_args[1]["extra"]
+                    assert extra["operation"] == "review_dedup_skipped_redis_error"
+                    assert extra["repo"] == "test/repo"
+                    assert extra["pr_number"] == 123
+                    assert extra["reason"] == "redis_error"
+                    assert extra["fail_open"] is True
+                    assert "error" in extra
+                    assert "error_type" in extra
+
+    def test_dedup_hit_logs_info_with_correct_operation(self):
+        """When dedup hit occurs, should log info with operation=review_dedup_hit"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        import redis as real_redis
+
+        mock_redis = MagicMock()
+        mock_redis.set.return_value = False
+        mock_redis.get.return_value = "posted"
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                with patch("tools.github_api.logger") as mock_logger:
+                    from tools.github_api import _check_review_already_posted
+
+                    already_posted, dedup_key = _check_review_already_posted(
+                        repo="test/repo",
+                        pr_number=123,
+                        head_sha="abc123def456",
+                    )
+
+                    assert already_posted is True
+                    assert dedup_key is not None
+
+                    info_calls = mock_logger.info.call_args_list
+                    dedup_hit_call = None
+                    for call in info_calls:
+                        if call[1].get("extra", {}).get("operation") == "review_dedup_hit":
+                            dedup_hit_call = call
+                            break
+
+                    assert dedup_hit_call is not None
+                    extra = dedup_hit_call[1]["extra"]
+                    assert extra["operation"] == "review_dedup_hit"
+                    assert extra["repo"] == "test/repo"
+                    assert extra["pr_number"] == 123
+                    assert extra["existing_status"] == "posted"
+
+    def test_dedup_claimed_logs_info_with_correct_operation(self):
+        """When dedup claim succeeds, should log info with operation=review_dedup_claimed"""
+        mock_settings = MockSettings()
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        import redis as real_redis
+
+        mock_redis = MagicMock()
+        mock_redis.set.return_value = True
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        with patch("tools.github_api.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                with patch("tools.github_api.logger") as mock_logger:
+                    from tools.github_api import _check_review_already_posted
+
+                    already_posted, dedup_key = _check_review_already_posted(
+                        repo="test/repo",
+                        pr_number=123,
+                        head_sha="abc123def456",
+                    )
+
+                    assert already_posted is False
+                    assert dedup_key is not None
+
+                    info_calls = mock_logger.info.call_args_list
+                    claimed_call = None
+                    for call in info_calls:
+                        if call[1].get("extra", {}).get("operation") == "review_dedup_claimed":
+                            claimed_call = call
+                            break
+
+                    assert claimed_call is not None
+                    extra = claimed_call[1]["extra"]
+                    assert extra["operation"] == "review_dedup_claimed"
+                    assert extra["repo"] == "test/repo"
+                    assert extra["pr_number"] == 123
+                    assert "dedup_key" in extra
+
+
+class TestRedisDedupIntegration:
+    """
+    Issue #3258: Integration tests for Redis dedup verification.
+
+    These tests verify the full dedup flow from post_pr_review through to
+    Redis dedup functions, ensuring that:
+    1. First call claims and posts successfully
+    2. Second call with same commit_id is deduplicated
+    3. The dedup key format is correct and consistent
+    """
+
+    def test_full_dedup_flow_first_call_posts_second_call_skipped(self):
+        """
+        Issue #3258: Verify full dedup flow - first call posts, second call is deduplicated.
+
+        This integration test simulates:
+        1. First call: claim succeeds, review is posted, mark as posted
+        2. Second call: claim fails (key exists), review is skipped
+        """
+        import redis as real_redis
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        redis_store = {}
+        call_count = {"set": 0}
+
+        def mock_set(key, value, nx=False, ex=None):
+            call_count["set"] += 1
+            if nx and key in redis_store:
+                return None
+            redis_store[key] = value
+            return True
+
+        def mock_get(key):
+            return redis_store.get(key)
+
+        def mock_setex(key, ttl, value):
+            redis_store[key] = value
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance.setex.side_effect = mock_setex
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+        comments = [{"file": "test.py", "end_line": 10, "message": "Test comment"}]
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                result1 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=test_commit_id
+                )
+
+                assert result1["success"] is True
+                assert result1.get("skipped_reason") is None
+                assert mock_pr.create_review.called
+
+                mock_pr.create_review.reset_mock()
+
+                result2 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=test_commit_id
+                )
+
+                assert result2["success"] is True
+                assert result2.get("skipped_reason") == "review_already_posted"
+                assert not mock_pr.create_review.called
+
+    def test_dedup_key_includes_commit_id_and_version_with_ttl(self):
+        """
+        Issue #3258: Verify dedup key format and TTL enforcement.
+
+        The dedup key should be: review_posted:{repo}:{pr}:{head_sha[:12]}:{version}
+        TTL values should be:
+        - Claim TTL: 300 seconds (5 minutes) for initial SET NX
+        - Posted TTL: 86400 seconds (24 hours) for SETEX after successful post
+        """
+        import redis as real_redis
+        from utils.constants import REVIEWER_VERSION, REVIEW_DEDUP_TTL_SECONDS
+        from tools.github_api import REVIEW_CLAIM_TTL_SECONDS
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        captured_set_calls = []
+        captured_setex_calls = []
+
+        def mock_set(key, value, nx=False, ex=None):
+            captured_set_calls.append({"key": key, "value": value, "nx": nx, "ex": ex})
+            return True
+
+        def mock_setex(key, ttl, value):
+            captured_setex_calls.append({"key": key, "ttl": ttl, "value": value})
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.setex.side_effect = mock_setex
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+        comments = [{"file": "test.py", "end_line": 10, "message": "Test comment"}]
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=test_commit_id
+                )
+
+                assert len(captured_set_calls) == 1
+                set_call = captured_set_calls[0]
+                expected_key = f"review_posted:RC918/morningai:123:abc123def456:{REVIEWER_VERSION}"
+                assert set_call["key"] == expected_key
+                assert set_call["value"] == "claiming"
+                assert set_call["nx"] is True
+                assert set_call["ex"] == REVIEW_CLAIM_TTL_SECONDS
+
+                assert len(captured_setex_calls) == 1
+                setex_call = captured_setex_calls[0]
+                assert setex_call["key"] == expected_key
+                assert setex_call["ttl"] == REVIEW_DEDUP_TTL_SECONDS
+                assert setex_call["value"] == "posted"
+
+    def test_different_commit_ids_are_not_deduplicated(self):
+        """
+        Issue #3258: Verify that different commit_ids result in separate reviews.
+
+        When a new commit is pushed, the review should be posted again because
+        the commit_id is different.
+        """
+        import redis as real_redis
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        redis_store = {}
+
+        def mock_set(key, value, nx=False, ex=None):
+            if nx and key in redis_store:
+                return None
+            redis_store[key] = value
+            return True
+
+        def mock_get(key):
+            return redis_store.get(key)
+
+        def mock_setex(key, ttl, value):
+            redis_store[key] = value
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance.setex.side_effect = mock_setex
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        commit_id_1 = "abc123def456789012345678901234567890abcd"
+        commit_id_2 = "def456abc789012345678901234567890abcdef"
+        comments = [{"file": "test.py", "end_line": 10, "message": "Test comment"}]
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                result1 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=commit_id_1
+                )
+
+                assert result1["success"] is True
+                assert result1.get("skipped_reason") is None
+                assert mock_pr.create_review.call_count == 1
+
+                result2 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=commit_id_2
+                )
+
+                assert result2["success"] is True
+                assert result2.get("skipped_reason") is None
+                assert mock_pr.create_review.call_count == 2
+
+    def test_summary_report_dedup_integration(self):
+        """
+        Issue #3258: Verify Summary Report (empty comments) uses dedup correctly.
+
+        When posting a Summary Report (no inline comments), the dedup mechanism
+        should still work correctly using the commit_id.
+        """
+        import redis as real_redis
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        redis_store = {}
+
+        def mock_set(key, value, nx=False, ex=None):
+            if nx and key in redis_store:
+                return None
+            redis_store[key] = value
+            return True
+
+        def mock_get(key):
+            return redis_store.get(key)
+
+        def mock_setex(key, ttl, value):
+            redis_store[key] = value
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance.setex.side_effect = mock_setex
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                result1 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=[],
+                    summary="Summary Report: No issues found",
+                    commit_id=test_commit_id
+                )
+
+                assert result1["success"] is True
+                assert result1.get("skipped_reason") is None
+                assert mock_pr.create_review.called
+
+                mock_pr.create_review.reset_mock()
+
+                result2 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=[],
+                    summary="Summary Report: No issues found",
+                    commit_id=test_commit_id
+                )
+
+                assert result2["success"] is True
+                assert result2.get("skipped_reason") == "review_already_posted"
+                assert not mock_pr.create_review.called
+
+
+class TestDiffHeadShaContract:
+    """
+    Issue #3259: Tests to verify diff_head_sha contract enforcement.
+
+    Contract (from AgentState docstring):
+    - Source: Captured from GitHub API via get_pr_diff() -> pr.head.sha
+    - Format: 40-character hex string (case-insensitive), or None if unavailable
+    - Availability: Best-effort; may be None if get_pr_diff() fails
+
+    Usage by path:
+    - Inline comments: MUST use diff_head_sha from get_pr_diff() for line alignment
+    - Summary-only / file-level: Can work with or without diff_head_sha
+    - Redis dedup: Uses diff_head_sha[:12] in key; skips dedup if None
+    """
+
+    def test_inline_path_disables_commit_pinning_when_diff_head_sha_none(self):
+        """
+        Issue #3259: Inline comments path should disable commit pinning
+        (commit_id=None) when diff_head_sha is None to avoid 422 errors.
+        """
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 1,
+            "dry_run": False,
+            "error": None
+        }
+
+        state = {
+            "trace_id": "test-trace",
+            "pr_number": 123,
+            "review_comments": [
+                {"message": "Inline comment", "file": "test.py", "line": 10, "severity": "warning"}
+            ],
+            "messages": [],
+            "diff_head_sha": None
+        }
+
+        with patch("langgraph_orchestrator.settings", mock_settings):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
+
+                        result = publisher_node(state)
+
+                        mock_post.assert_called_once()
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("commit_id") is None, \
+                            "Inline path should disable commit pinning when diff_head_sha is None"
+
+    def test_summary_only_path_works_without_diff_head_sha(self):
+        """
+        Issue #3259: Summary-only path should work gracefully without diff_head_sha.
+        No line positions involved, so commit pinning is optional.
+        """
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
+
+        state = {
+            "trace_id": "test-trace",
+            "pr_number": 123,
+            "review_comments": [],
+            "messages": [],
+            "diff_head_sha": None
+        }
+
+        with patch("langgraph_orchestrator.settings", mock_settings):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
+
+                        result = publisher_node(state)
+
+                        assert "error" not in result or result.get("error") is None
+                        mock_post.assert_called_once()
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("commit_id") is None
+
+    def test_redis_dedup_skips_when_diff_head_sha_none(self):
+        """
+        Issue #3259: Redis dedup should skip (fail-open) when diff_head_sha is None.
+        This is verified by _check_review_already_posted returning (False, None).
+        """
+        from tools.github_api import _check_review_already_posted
+
+        already_posted, dedup_key = _check_review_already_posted(
+            repo="owner/repo",
+            pr_number=123,
+            head_sha=None
+        )
+
+        assert already_posted is False, "Should not block posting when head_sha is None"
+        assert dedup_key is None, "Should not generate dedup key when head_sha is None"
+
+    def test_diff_head_sha_format_validation(self):
+        """
+        Issue #3259: Verify diff_head_sha format is validated correctly.
+
+        Current validation: non-empty string check only (defensive, not strict).
+        The actual format (40-char hex) is trusted from GitHub API source.
+
+        Invalid (normalized to None): None, empty string, non-string types
+        Valid (preserved as-is): Any non-empty string (trusted from GitHub API)
+        """
+        valid_sha = "abc123def456789012345678901234567890abcd"
+        invalid_values = [None, "", 123, {"sha": "abc"}, []]
+
+        for invalid_value in invalid_values:
+            raw_head_sha = invalid_value
+            stored_head_sha = raw_head_sha if isinstance(raw_head_sha, str) and raw_head_sha else None
+            assert stored_head_sha is None, f"Invalid value {invalid_value!r} should normalize to None"
+
+        raw_head_sha = valid_sha
+        stored_head_sha = raw_head_sha if isinstance(raw_head_sha, str) and raw_head_sha else None
+        assert stored_head_sha == valid_sha, "Valid 40-char hex should be preserved"
+
+    def test_diff_head_sha_represents_review_time_not_current(self):
+        """
+        Issue #3259: Document that diff_head_sha represents the PR head at
+        'review time' (when get_pr_diff was called), NOT the current/latest head.
+
+        This is a documentation test - it verifies the contract is understood.
+        """
+        from langgraph_orchestrator import AgentState
+
+        docstring = AgentState.__doc__
+        assert "review time" in docstring.lower() or "review_time" in docstring.lower() or \
+               "when get_pr_diff was called" in docstring, \
+            "AgentState docstring should document that diff_head_sha is captured at review time"
+        assert "NOT the current/latest head" in docstring or "not the current" in docstring.lower(), \
+            "AgentState docstring should clarify diff_head_sha is not the live/current head"
