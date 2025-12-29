@@ -18,6 +18,7 @@ This test file covers E2E integration scenarios that verify:
 - State transitions through the full workflow
 - Error handling and fallback to AutoFixer
 """
+import logging
 from typing import Optional, Dict, Any
 
 from coder.autofix_gate import is_autofix_allowed, is_path_excluded
@@ -108,6 +109,32 @@ def create_fix_suggestion(
         confidence=confidence,
         category=category,
     )
+
+
+def create_eligible_review_outcome(**overrides) -> Dict[str, Any]:
+    """Create an eligible review_outcome dict for autofix.
+
+    Default values satisfy all autofix gate conditions:
+    - severity="low"
+    - diff_truncated=False
+    - schema_validated=True
+
+    Use overrides to customize specific fields for testing rejection cases.
+
+    Example:
+        # Eligible outcome
+        outcome = create_eligible_review_outcome()
+
+        # Rejected due to high severity
+        outcome = create_eligible_review_outcome(severity="high")
+    """
+    base = {
+        "severity": "low",
+        "diff_truncated": False,
+        "schema_validated": True,
+    }
+    base.update(overrides)
+    return base
 
 
 class TestRouterToSimpleCoderRouting:
@@ -566,7 +593,6 @@ class TestWorkflowEventCodes:
 
     def test_route_to_fixer_event_code(self, caplog):
         """Test that [ROUTE_TO_FIXER] event code is logged."""
-        import logging
         caplog.set_level(logging.INFO)
 
         review_outcome = {
@@ -589,7 +615,6 @@ class TestWorkflowEventCodes:
 
     def test_skip_fixer_event_code(self, caplog):
         """Test that [SKIP_FIXER] event code is logged."""
-        import logging
         caplog.set_level(logging.INFO)
 
         review_outcome = {
@@ -612,7 +637,6 @@ class TestWorkflowEventCodes:
 
     def test_autofix_gate_pass_event_code(self, caplog):
         """Test that [AUTOFIX_GATE_PASS] event code is logged."""
-        import logging
         caplog.set_level(logging.INFO)
 
         review_outcome = {
@@ -630,7 +654,6 @@ class TestWorkflowEventCodes:
 
     def test_autofix_gate_fail_event_code(self, caplog):
         """Test that [AUTOFIX_GATE_FAIL] event code is logged."""
-        import logging
         caplog.set_level(logging.INFO)
 
         review_outcome = {
