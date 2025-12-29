@@ -66,7 +66,18 @@ def _check_review_already_posted(
         - dedup_key: The Redis key used for deduplication (for logging)
     """
     if not head_sha:
-        # Can't deduplicate without SHA, allow posting
+        # Can't deduplicate without SHA, allow posting (fail-open)
+        # Issue #3260: Add observability for skipped dedup
+        logger.warning(
+            "[GitHub] Dedup skipped: no valid commit_id (head_sha is None)",
+            extra={
+                "operation": "review_dedup_skipped_no_commit_id",
+                "repo": repo,
+                "pr_number": pr_number,
+                "reason": "head_sha_none",
+                "fail_open": True,
+            }
+        )
         return False, None
 
     try:
@@ -129,13 +140,16 @@ def _check_review_already_posted(
 
     except redis.exceptions.RedisError as e:
         # Redis error, allow posting (graceful degradation / fail-open)
+        # Issue #3260: Add observability for Redis dedup failures
         logger.warning(
-            f"[GitHub] Redis error during review dedup check, allowing post (fail-open): {e}",
+            f"[GitHub] Dedup skipped: Redis error during dedup check (fail-open): {e}",
             extra={
-                "operation": "review_dedup_error",
+                "operation": "review_dedup_skipped_redis_error",
                 "repo": repo,
                 "pr_number": pr_number,
                 "error": str(e),
+                "error_type": type(e).__name__,
+                "reason": "redis_error",
                 "fail_open": True,
             }
         )
