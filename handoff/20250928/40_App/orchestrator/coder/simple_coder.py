@@ -411,14 +411,13 @@ def get_simple_coder() -> SimpleCoder:
     """Factory function to get SimpleCoder instance.
 
     Returns cached instance to avoid repeated initialization.
-    Uses double-checked locking pattern for thread-safe singleton.
+    Thread-safe via module-level lock.
 
     Returns:
         SimpleCoder instance
     """
     global _CACHED_CODER
-    if _CACHED_CODER is None:
-        with _CACHED_CODER_LOCK:
-            if _CACHED_CODER is None:
-                _CACHED_CODER = SimpleCoder()
+    with _CACHED_CODER_LOCK:
+        if _CACHED_CODER is None:
+            _CACHED_CODER = SimpleCoder()
     return _CACHED_CODER
