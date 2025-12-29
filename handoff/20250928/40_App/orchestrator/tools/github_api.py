@@ -1,6 +1,7 @@
 import os
 import logging
 import sys
+import time
 from typing import Optional
 from github import Github, GithubException, RateLimitExceededException, UnknownObjectException, BadCredentialsException
 
@@ -261,21 +262,166 @@ def create_branch(repo, base="main", new_branch="orchestrator/demo-branch"):
         print(f"[GitHub] Failed to create branch: {e}")
         return "demo-branch"
 
-def commit_file(repo, branch, path, content, message):
-    try:
-        if repo is None:
-            print("[GitHub] Repository not available")
-            return
-        file = repo.get_contents(path, ref=branch)
-        repo.update_file(path, message, content, file.sha, branch=branch)
-    except Exception as e:
-        if repo is None:
-            print("[GitHub] Repository not available")
-        else:
+class CommitResult:
+    """Result of a commit_file operation with detailed status information."""
+
+    SUCCESS = "success"
+    CONFLICT = "conflict"
+    PERMISSION_DENIED = "permission_denied"
+    NOT_FOUND = "not_found"
+    TRANSIENT_ERROR = "transient_error"
+    UNKNOWN_ERROR = "unknown_error"
+
+    def __init__(self, status: str, message: str = "", sha: str = ""):
+        self.status = status
+        self.message = message
+        self.sha = sha
+
+    @property
+    def success(self) -> bool:
+        return self.status == self.SUCCESS
+
+    def __repr__(self):
+        return f"CommitResult(status={self.status}, message={self.message})"
+
+
+def _is_transient_error(status_code: int) -> bool:
+    """Check if HTTP status code indicates a transient error worth retrying."""
+    return status_code >= 500 or status_code == 429
+
+
+def _classify_github_error(e: Exception) -> tuple[str, str]:
+    """Classify a GitHub exception into error type and message.
+
+    Returns:
+        tuple: (error_type, error_message)
+    """
+    if isinstance(e, GithubException):
+        status = getattr(e, 'status', 0)
+        data = getattr(e, 'data', {}) or {}
+        error_msg = data.get('message', str(e)) if isinstance(data, dict) else str(e)
+
+        if status == 409:
+            return CommitResult.CONFLICT, f"SHA conflict - file was modified externally: {error_msg}"
+        elif status == 403:
+            if "protected branch" in str(error_msg).lower():
+                return CommitResult.PERMISSION_DENIED, f"Branch protection prevents commit: {error_msg}"
+            return CommitResult.PERMISSION_DENIED, f"Permission denied: {error_msg}"
+        elif status == 404:
+            return CommitResult.NOT_FOUND, f"Resource not found: {error_msg}"
+        elif _is_transient_error(status):
+            return CommitResult.TRANSIENT_ERROR, f"Transient error (HTTP {status}): {error_msg}"
+
+    return CommitResult.UNKNOWN_ERROR, str(e)
+
+
+def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> CommitResult:
+    """Commit a file to a GitHub repository branch.
+
+    This function handles file updates with SHA-based concurrency protection.
+    If the file doesn't exist, it creates a new file.
+
+    Error handling:
+    - 409 Conflict: File was modified externally (SHA mismatch). Fails fast, no retry.
+    - 403 Forbidden: Permission denied or branch protection. Fails fast, no retry.
+    - 5xx/429: Transient errors. Retries with exponential backoff.
+
+    Args:
+        repo: GitHub repository object
+        branch: Target branch name
+        path: File path within the repository
+        content: New file content
+        message: Commit message
+        max_retries: Maximum retries for transient errors (default: 3)
+
+    Returns:
+        CommitResult: Object with status, message, and optional SHA
+    """
+    if repo is None:
+        logger.warning("[COMMIT_FILE_SKIP] Repository not available")
+        return CommitResult(CommitResult.NOT_FOUND, "Repository not available")
+
+    repo_name = getattr(repo, 'full_name', 'unknown')
+    log_context = {"repo": repo_name, "branch": branch, "path": path}
+
+    delay = 2.0
+    last_error = None
+
+    for attempt in range(max_retries + 1):
+        try:
             try:
-                repo.create_file(path, message, content, branch=branch)
-            except Exception as create_error:
-                print(f"[GitHub] Failed to commit file: {create_error}")
+                file = repo.get_contents(path, ref=branch)
+                result = repo.update_file(path, message, content, file.sha, branch=branch)
+                new_sha = result.get('commit', {}).sha if result else ""
+                logger.info(
+                    f"[COMMIT_FILE_SUCCESS] Updated {path} on {branch}",
+                    extra={**log_context, "sha": new_sha, "attempt": attempt + 1}
+                )
+                return CommitResult(CommitResult.SUCCESS, f"Updated {path}", new_sha)
+            except GithubException as e:
+                if getattr(e, 'status', 0) == 404:
+                    result = repo.create_file(path, message, content, branch=branch)
+                    new_sha = result.get('commit', {}).sha if result else ""
+                    logger.info(
+                        f"[COMMIT_FILE_SUCCESS] Created {path} on {branch}",
+                        extra={**log_context, "sha": new_sha, "attempt": attempt + 1}
+                    )
+                    return CommitResult(CommitResult.SUCCESS, f"Created {path}", new_sha)
+                raise
+
+        except GithubException as e:
+            error_type, error_msg = _classify_github_error(e)
+            last_error = e
+
+            if error_type == CommitResult.CONFLICT:
+                logger.error(
+                    f"[COMMIT_FILE_CONFLICT] SHA conflict for {path} on {branch} - "
+                    "file was modified externally. Not retrying.",
+                    extra={**log_context, "error": error_msg, "status": 409}
+                )
+                return CommitResult(CommitResult.CONFLICT, error_msg)
+
+            elif error_type == CommitResult.PERMISSION_DENIED:
+                logger.error(
+                    f"[COMMIT_FILE_PERMISSION_DENIED] Cannot commit to {path} on {branch}. "
+                    "Check branch protection rules and token permissions. Not retrying.",
+                    extra={**log_context, "error": error_msg, "status": 403}
+                )
+                return CommitResult(CommitResult.PERMISSION_DENIED, error_msg)
+
+            elif error_type == CommitResult.TRANSIENT_ERROR:
+                if attempt < max_retries:
+                    logger.warning(
+                        f"[COMMIT_FILE_RETRY] Transient error for {path} on {branch}, "
+                        f"attempt {attempt + 1}/{max_retries + 1}, retrying in {delay}s",
+                        extra={**log_context, "error": error_msg, "attempt": attempt + 1, "delay": delay}
+                    )
+                    time.sleep(delay)
+                    delay *= 2
+                    continue
+                else:
+                    logger.error(
+                        f"[COMMIT_FILE_FAILED] Transient error for {path} on {branch} "
+                        f"after {max_retries + 1} attempts",
+                        extra={**log_context, "error": error_msg, "attempts": max_retries + 1}
+                    )
+                    return CommitResult(CommitResult.TRANSIENT_ERROR, error_msg)
+
+            else:
+                logger.error(
+                    f"[COMMIT_FILE_ERROR] Unexpected error committing {path} on {branch}",
+                    extra={**log_context, "error": error_msg, "exception_type": type(e).__name__}
+                )
+                return CommitResult(CommitResult.UNKNOWN_ERROR, error_msg)
+
+        except Exception as e:
+            logger.error(
+                f"[COMMIT_FILE_ERROR] Unexpected exception committing {path} on {branch}: {e}",
+                extra={**log_context, "error": str(e), "exception_type": type(e).__name__}
+            )
+            return CommitResult(CommitResult.UNKNOWN_ERROR, str(e))
+
+    return CommitResult(CommitResult.UNKNOWN_ERROR, f"Failed after {max_retries + 1} attempts: {last_error}")
 
 def open_pr(repo, branch, title, body="", base="main", draft=False, labels=None):
     """

@@ -4240,20 +4240,21 @@ def _attempt_simple_coder_fix(
         )
         return False, "Patch failed syntax validation"
 
-    try:
-        commit_message = f"fix: SimpleCoder auto-fix for {file_path}"
-        commit_file(repo, branch, file_path, patch_content, commit_message)
+    commit_message = f"fix: SimpleCoder auto-fix for {file_path}"
+    result = commit_file(repo, branch, file_path, patch_content, commit_message)
+
+    if result.success:
         logger.info(
             f"[SIMPLE_CODER_PATCH_APPLIED] Successfully applied patch. "
-            f"file_path={file_path}, branch={branch}, trace_id={trace_id}"
+            f"file_path={file_path}, branch={branch}, sha={result.sha}, trace_id={trace_id}"
         )
         return True, f"SimpleCoder successfully fixed {file_path}"
-    except Exception as e:
+    else:
         logger.error(
-            f"[SIMPLE_CODER_PATCH_FAILED] Failed to apply patch: {e}. "
+            f"[SIMPLE_CODER_PATCH_FAILED] Failed to apply patch: {result.status} - {result.message}. "
             f"file_path={file_path}, trace_id={trace_id}"
         )
-        return False, f"Failed to apply patch: {e}"
+        return False, f"Failed to apply patch: {result.message}"
 
 
 def fixer_node(state: AgentState) -> AgentState:
