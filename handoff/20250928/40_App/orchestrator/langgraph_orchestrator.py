@@ -5627,12 +5627,15 @@ def publisher_node(state: AgentState) -> AgentState:
 """
 
             repo = get_repo()
+            # Issue #3253: Get commit_id for Redis dedup idempotency
+            stored_head_sha = state.get("diff_head_sha")
             if repo:
                 result = post_pr_review(
                     repo=repo,
                     pr_number=pr_number,
                     comments=[],
-                    summary=summary_body
+                    summary=summary_body,
+                    commit_id=stored_head_sha  # Enable Redis dedup
                 )
 
                 state["publish_result"]["success"] = result.get("success", False)
@@ -5914,11 +5917,13 @@ def publisher_node(state: AgentState) -> AgentState:
                 )
 
                 repo = get_repo()
+                # Issue #3253: Pass commit_id for Redis dedup idempotency
                 result = post_pr_review(
                     repo=repo,
                     pr_number=pr_number,
                     comments=[],
-                    summary=file_level_body
+                    summary=file_level_body,
+                    commit_id=stored_head_sha  # Enable Redis dedup
                 )
 
                 state["publish_result"]["success"] = result.get("success", False)

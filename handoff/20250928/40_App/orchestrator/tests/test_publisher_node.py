@@ -744,6 +744,44 @@ class TestPublisherNodeNoOp:
                         # Summary Report uses "MorningAI Review Summary" as the header
                         assert "MorningAI Review Summary" in call_args.kwargs.get("summary", "")
 
+    def test_summary_report_passes_commit_id_for_dedup(self):
+        """Issue #3253: Summary Report should pass commit_id to enable Redis dedup idempotency"""
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+        state = {
+            "trace_id": "test-trace",
+            "pr_number": 123,
+            "review_comments": [],
+            "messages": [],
+            "diff_head_sha": test_commit_id
+        }
+
+        with patch("langgraph_orchestrator.settings", mock_settings):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
+
+                        result = publisher_node(state)
+
+                        # Issue #3253: Verify commit_id is passed for Redis dedup
+                        mock_post.assert_called_once()
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("commit_id") == test_commit_id
+
 
 @pytest.mark.skipif(not LANGGRAPH_AVAILABLE, reason="langgraph not installed")
 class TestPublisherNodeIntegration:
