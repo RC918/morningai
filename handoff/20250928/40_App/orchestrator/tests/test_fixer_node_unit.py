@@ -278,7 +278,7 @@ class TestCommitFileResultHandling:
             mock_coder.return_value.execute.return_value = mock_output
 
             mock_commit.return_value = CommitResult(
-                CommitResult.ERROR,
+                CommitResult.UNKNOWN_ERROR,
                 "Network error: connection timeout"
             )
 
