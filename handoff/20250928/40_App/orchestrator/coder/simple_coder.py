@@ -411,7 +411,8 @@ def get_simple_coder() -> SimpleCoder:
     """Factory function to get SimpleCoder instance.
 
     Returns cached instance to avoid repeated initialization.
-    Thread-safe via module-level lock.
+    Thread-safe via module-level lock (per-process singleton;
+    multiprocessing environments will have one instance per process).
 
     Returns:
         SimpleCoder instance
