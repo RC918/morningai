@@ -16,7 +16,6 @@ The tests verify:
 - schema_version is present and valid in all outputs
 """
 import json
-import re
 
 from typing import Set
 
@@ -24,6 +23,7 @@ from coder.simple_coder import (
     CoderOutput,
     CoderStatus,
     CODER_OUTPUT_SCHEMA_VERSION,
+    CODER_PROMPT_TEMPLATE,
     CODER_SYSTEM_PROMPT,
 )
 
@@ -69,17 +69,26 @@ class TestLLMResponseSchemaConsistency:
         The LLM should only output {status, reason, patch}.
         System-added fields (schema_version, file_path, syntax_valid)
         should NOT be in the prompt's JSON schema.
+
+        Uses anchor-based extraction to find the JSON schema section
+        in the prompt, which is more robust than regex matching braces.
         """
-        json_block_match = re.search(
-            r'\{[^}]*"status"[^}]*\}',
-            CODER_SYSTEM_PROMPT,
-            re.DOTALL
+        anchor = "You MUST respond with ONLY a JSON object"
+        anchor_pos = CODER_SYSTEM_PROMPT.find(anchor)
+        assert anchor_pos != -1, (
+            f"Anchor text '{anchor}' not found in CODER_SYSTEM_PROMPT. "
+            "Update this test if the prompt structure changed."
         )
-        if json_block_match:
-            json_block = json_block_match.group()
-            assert "schema_version" not in json_block
-            assert "file_path" not in json_block
-            assert "syntax_valid" not in json_block
+        json_section = CODER_SYSTEM_PROMPT[anchor_pos:]
+        assert "schema_version" not in json_section, (
+            "CODER_SYSTEM_PROMPT should not ask LLM to output schema_version"
+        )
+        assert "file_path" not in json_section, (
+            "CODER_SYSTEM_PROMPT should not ask LLM to output file_path"
+        )
+        assert "syntax_valid" not in json_section, (
+            "CODER_SYSTEM_PROMPT should not ask LLM to output syntax_valid"
+        )
 
 
 class TestFinalOutputSchemaConsistency:
@@ -270,14 +279,11 @@ class TestPromptTemplateConsistency:
 
     def test_prompt_template_exists(self):
         """Verify CODER_PROMPT_TEMPLATE is defined."""
-        from coder.simple_coder import CODER_PROMPT_TEMPLATE
         assert CODER_PROMPT_TEMPLATE is not None
         assert len(CODER_PROMPT_TEMPLATE) > 0
 
     def test_prompt_template_has_placeholders(self):
         """Verify prompt template has required placeholders."""
-        from coder.simple_coder import CODER_PROMPT_TEMPLATE
-
         assert "{file_path}" in CODER_PROMPT_TEMPLATE
         assert "{file_content}" in CODER_PROMPT_TEMPLATE
         assert "{review_comment}" in CODER_PROMPT_TEMPLATE
@@ -285,8 +291,6 @@ class TestPromptTemplateConsistency:
 
     def test_prompt_template_mentions_status_values(self):
         """Verify prompt template mentions valid status values."""
-        from coder.simple_coder import CODER_PROMPT_TEMPLATE
-
         template_lower = CODER_PROMPT_TEMPLATE.lower()
         assert "skipped" in template_lower
         assert "patch" in template_lower
