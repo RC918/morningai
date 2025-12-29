@@ -340,7 +340,7 @@ def _extract_commit_sha(result) -> str:
     return ""
 
 
-def _is_rate_limit_error(error_msg: str, headers: dict) -> bool:
+def _is_rate_limit_error(error_msg: str, headers: dict | None) -> bool:
     """Check if a 403 error is actually a rate limit error (Issue #3230).
 
     GitHub rate limiting can manifest as 403 with specific messages or headers.
@@ -348,7 +348,7 @@ def _is_rate_limit_error(error_msg: str, headers: dict) -> bool:
 
     Args:
         error_msg: Error message from the exception
-        headers: Response headers from the exception
+        headers: Response headers from the exception (can be None)
 
     Returns:
         bool: True if this is a rate limit error that should be retried
