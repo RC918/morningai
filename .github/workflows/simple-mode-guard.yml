@@ -129,18 +129,21 @@ jobs:
             
             [View detailed check results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-      - name: Comment on PR (no violations)
-        if: success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: peter-evans/create-or-update-comment@v4
+      - name: Delete old comment if check passes
+        if: success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false && steps.find-comment.outputs.comment-id != ''
+        continue-on-error: true
+        uses: actions/github-script@v7
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
-          edit-mode: replace
-          body: |
-            ## Simple Mode Guard
-            
-            **Status**: No violations
-            
-            No deprecated Simple Mode symbols detected in this PR.
-            
-            [View detailed check results](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          script: |
+            // Delete old violation comment to reduce PR noise
+            // Fail-safe: deletion failure should not fail the workflow
+            try {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: ${{ steps.find-comment.outputs.comment-id }}
+              });
+              console.log('Deleted old Simple Mode Guard comment to reduce PR noise');
+            } catch (error) {
+              core.warning(`Failed to delete old comment (non-blocking): ${error.message}`);
+            }
