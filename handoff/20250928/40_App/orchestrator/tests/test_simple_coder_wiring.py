@@ -545,7 +545,8 @@ class TestProtectedBranchSafety:
             success, message = _attempt_simple_coder_fix(state, "test-trace")
 
             assert success is False
-            assert "failed to apply patch" in message.lower() or "permission" in message.lower()
+            assert "failed to apply patch" in message.lower()
+            assert "branch protection" in message.lower()
             mock_commit.assert_called_once()
 
     @patch("coder.autofix_gate.is_autofix_allowed", return_value=True)

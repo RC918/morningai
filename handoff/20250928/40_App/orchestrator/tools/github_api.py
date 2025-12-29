@@ -359,7 +359,10 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
     - SimpleCoder is designed to only operate on PR branches, not main/protected branches
     - If a commit is attempted on a protected branch, GitHub returns 403 with
       "protected branch" in the error message
-    - This function detects protected branch errors and returns PERMISSION_DENIED status
+    - This function detects protected branch errors via substring matching on the
+      GitHub error message (case-insensitive). If GitHub changes their error wording,
+      the detection may need to be updated in _classify_github_error()
+    - Returns PERMISSION_DENIED status for protected branch errors
     - The caller (SimpleCoder wiring in fixer_node) handles this gracefully by
       falling back to AutoFixer when commit_file returns a non-success status
     - Log event: [COMMIT_FILE_PERMISSION_DENIED] with branch protection context
