@@ -4080,6 +4080,182 @@ def ci_monitor_node(state: AgentState) -> AgentState:
     return state
 
 
+def _attempt_simple_coder_fix(
+    state: AgentState,
+    trace_id: str
+) -> tuple[bool, Optional[str]]:
+    """Attempt to fix using SimpleCoder before falling back to AutoFixer.
+
+    This implements D-1 Phase 1: SimpleCoder wiring into LangGraph workflow.
+    SimpleCoder is a minimal coder agent with Three Don'ts safety guardrails:
+    1. Low Confidence = Abort (structured output)
+    2. Side-effect Gate (is_autofix_allowed check)
+    3. Verification Gate (Python syntax validation)
+
+    Args:
+        state: Current AgentState with review_outcome and file context
+        trace_id: Trace ID for logging
+
+    Returns:
+        Tuple of (success, message):
+        - (True, message) if SimpleCoder successfully applied a fix
+        - (False, message) if SimpleCoder skipped or failed (fallback to AutoFixer)
+
+    Event Codes (greppable):
+        [SIMPLE_CODER_ATTEMPT] - SimpleCoder fix attempt started
+        [SIMPLE_CODER_GATE_FAIL] - Gate check failed, skipping SimpleCoder
+        [SIMPLE_CODER_SKIP] - SimpleCoder decided to skip (low confidence)
+        [SIMPLE_CODER_PATCH_APPLIED] - Patch successfully applied via GitHub API
+        [SIMPLE_CODER_PATCH_FAILED] - Patch application failed
+        [SIMPLE_CODER_DISABLED] - Feature flag disabled
+    """
+    try:
+        from coder.autofix_gate import is_autofix_allowed, is_path_excluded
+        from coder.simple_coder import get_simple_coder, CoderStatus
+        from common.agents.base_agent import AgentInput
+        from tools.github_api import get_repo, commit_file
+    except ImportError as e:
+        logger.debug(f"[SIMPLE_CODER_DISABLED] Import failed: {e}")
+        return False, f"SimpleCoder not available: {e}"
+
+    if not settings.enable_simple_coder:
+        logger.debug("[SIMPLE_CODER_DISABLED] Feature flag disabled")
+        return False, "SimpleCoder feature flag disabled"
+
+    review_outcome = state.get("review_outcome")
+    if not is_autofix_allowed(review_outcome):
+        logger.info(
+            f"[SIMPLE_CODER_GATE_FAIL] Autofix not allowed for review_outcome. "
+            f"trace_id={trace_id}"
+        )
+        return False, "Autofix gate check failed"
+
+    file_path = state.get("review_file_path", "")
+    if not file_path:
+        logger.info(f"[SIMPLE_CODER_GATE_FAIL] No file path in state. trace_id={trace_id}")
+        return False, "No file path available"
+
+    if is_path_excluded(file_path):
+        logger.info(
+            f"[SIMPLE_CODER_GATE_FAIL] File path excluded: {file_path}. "
+            f"trace_id={trace_id}"
+        )
+        return False, f"File path excluded: {file_path}"
+
+    review_comment = state.get("comment_body", "")
+    if not review_comment:
+        review_comments = state.get("review_comments", [])
+        if review_comments and isinstance(review_comments[0], dict):
+            review_comment = review_comments[0].get("body", "")
+        elif review_comments and isinstance(review_comments[0], str):
+            review_comment = review_comments[0]
+
+    if not review_comment:
+        logger.info(f"[SIMPLE_CODER_GATE_FAIL] No review comment. trace_id={trace_id}")
+        return False, "No review comment available"
+
+    repo_name = state.get("repo", "")
+    branch = state.get("branch", "")
+    diff_head_sha = state.get("diff_head_sha", "")
+
+    if not repo_name or not branch:
+        logger.info(
+            f"[SIMPLE_CODER_GATE_FAIL] Missing repo or branch. "
+            f"repo={repo_name}, branch={branch}, trace_id={trace_id}"
+        )
+        return False, "Missing repo or branch"
+
+    try:
+        repo = get_repo(repo_name)
+        if repo is None:
+            logger.warning(f"[SIMPLE_CODER_GATE_FAIL] Could not get repo. trace_id={trace_id}")
+            return False, "Could not access repository"
+
+        ref = diff_head_sha if diff_head_sha else branch
+        file_obj = repo.get_contents(file_path, ref=ref)
+        if hasattr(file_obj, 'decoded_content'):
+            file_content = file_obj.decoded_content.decode('utf-8')
+        else:
+            logger.warning(
+                f"[SIMPLE_CODER_GATE_FAIL] Could not decode file content. "
+                f"file_path={file_path}, trace_id={trace_id}"
+            )
+            return False, "Could not decode file content"
+    except Exception as e:
+        logger.warning(
+            f"[SIMPLE_CODER_GATE_FAIL] Failed to fetch file: {e}. "
+            f"file_path={file_path}, trace_id={trace_id}"
+        )
+        return False, f"Failed to fetch file: {e}"
+
+    logger.info(
+        f"[SIMPLE_CODER_ATTEMPT] Attempting fix. "
+        f"file_path={file_path}, trace_id={trace_id}"
+    )
+
+    severity = "low"
+    if review_outcome and isinstance(review_outcome, dict):
+        severity = review_outcome.get("severity", "low")
+
+    simple_coder = get_simple_coder()
+    agent_input = AgentInput(
+        task_id=trace_id,
+        prompt=f"Fix the issue in {file_path}",
+        context={
+            "file_path": file_path,
+            "file_content": file_content,
+            "review_comment": review_comment,
+            "severity": severity
+        }
+    )
+
+    try:
+        output = simple_coder.execute(agent_input)
+    except Exception as e:
+        logger.warning(f"[SIMPLE_CODER_SKIP] Execution failed: {e}. trace_id={trace_id}")
+        return False, f"SimpleCoder execution failed: {e}"
+
+    if not output.success:
+        reason = output.data.get("reason", "Unknown") if output.data else "Unknown"
+        logger.info(f"[SIMPLE_CODER_SKIP] {reason}. trace_id={trace_id}")
+        return False, f"SimpleCoder skipped: {reason}"
+
+    coder_data = output.data or {}
+    status = coder_data.get("status", "")
+    if status != CoderStatus.PATCH.value:
+        reason = coder_data.get("reason", "Unknown")
+        logger.info(f"[SIMPLE_CODER_SKIP] Status={status}, reason={reason}. trace_id={trace_id}")
+        return False, f"SimpleCoder skipped: {reason}"
+
+    patch_content = coder_data.get("patch", "")
+    if not patch_content:
+        logger.warning(f"[SIMPLE_CODER_SKIP] No patch content. trace_id={trace_id}")
+        return False, "SimpleCoder returned empty patch"
+
+    syntax_valid = coder_data.get("syntax_valid")
+    if file_path.endswith(".py") and syntax_valid is False:
+        logger.warning(
+            f"[SIMPLE_CODER_SKIP] Syntax validation failed. "
+            f"file_path={file_path}, trace_id={trace_id}"
+        )
+        return False, "Patch failed syntax validation"
+
+    try:
+        commit_message = f"fix: SimpleCoder auto-fix for {file_path}"
+        commit_file(repo, branch, file_path, patch_content, commit_message)
+        logger.info(
+            f"[SIMPLE_CODER_PATCH_APPLIED] Successfully applied patch. "
+            f"file_path={file_path}, branch={branch}, trace_id={trace_id}"
+        )
+        return True, f"SimpleCoder successfully fixed {file_path}"
+    except Exception as e:
+        logger.error(
+            f"[SIMPLE_CODER_PATCH_FAILED] Failed to apply patch: {e}. "
+            f"file_path={file_path}, trace_id={trace_id}"
+        )
+        return False, f"Failed to apply patch: {e}"
+
+
 def fixer_node(state: AgentState) -> AgentState:
     """
     Fixer node: Attempts to fix CI failures
@@ -4089,6 +4265,11 @@ def fixer_node(state: AgentState) -> AgentState:
     - Uses ReviewerAgent to analyze code issues
     - Uses ProjectEngineerAgent to generate fixes
     - Supports canary rollout via PROJECT_ENGINEER_FIXER_PERCENT
+
+    D-1 Phase 1 Enhancement:
+    - Attempts SimpleCoder fix first (if enabled and gate passes)
+    - Falls back to AutoFixer if SimpleCoder skips or fails
+    - SimpleCoder uses Three Don'ts safety guardrails
     """
     from common.config.settings import settings
 
@@ -4099,6 +4280,36 @@ def fixer_node(state: AgentState) -> AgentState:
     retry_count = state.get("retry_count", 0)
 
     metrics.record_node_start("fixer", trace_id)
+
+    simple_coder_success, simple_coder_msg = _attempt_simple_coder_fix(state, trace_id)
+    if simple_coder_success:
+        logger.info(
+            f"[Fixer] SimpleCoder fix succeeded, skipping AutoFixer. "
+            f"message={simple_coder_msg}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "simple_coder_success": True
+            }
+        )
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"SimpleCoder fix applied: {simple_coder_msg}")
+        ]
+        state["retry_count"] = retry_count + 1
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_fixer_attempt(trace_id, retry_count, success=True)
+        metrics.record_node_complete("fixer", trace_id, success=True, latency_ms=latency_ms)
+        metrics.record_transition("fixer", "executor", trace_id)
+
+        agent_eval = _get_agent_eval()
+        agent_eval.record_node_latency(trace_id, "fixer", latency_ms)
+        agent_eval.record_fixer_iteration(trace_id, retry_count + 1, True)
+        return state
+
+    logger.debug(
+        f"[Fixer] SimpleCoder did not apply fix, falling back to AutoFixer. "
+        f"reason={simple_coder_msg}, trace_id={trace_id}"
+    )
 
     AutoFixer = None
     max_retries = MAX_FIXER_RETRIES

@@ -2118,6 +2118,22 @@ class Settings(BaseSettings):
         )
     )
 
+    # =========================================================================
+    # EPIC D - SimpleCoder Feature Flags (D-1 Phase 1)
+    # Issue #2760: SimpleCoder wiring into LangGraph workflow
+    # =========================================================================
+
+    enable_simple_coder: bool = Field(
+        default=False,
+        alias="ENABLE_SIMPLE_CODER",
+        description=(
+            "Enable SimpleCoder auto-fix in fixer_node (EPIC D Phase 1). "
+            "Default False = SimpleCoder disabled, only AutoFixer runs. "
+            "When True, SimpleCoder attempts fix first with Three Don'ts guardrails, "
+            "falling back to AutoFixer if SimpleCoder skips or fails."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""
