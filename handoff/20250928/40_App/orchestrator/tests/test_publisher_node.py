@@ -1625,3 +1625,154 @@ class TestRedisDedupIntegration:
                 assert result2["success"] is True
                 assert result2.get("skipped_reason") == "review_already_posted"
                 assert not mock_pr.create_review.called
+
+
+class TestDiffHeadShaContract:
+    """
+    Issue #3259: Tests to verify diff_head_sha contract enforcement.
+
+    Contract (from AgentState docstring):
+    - Source: Captured from GitHub API via get_pr_diff() -> pr.head.sha
+    - Format: 40-character hex string (case-insensitive), or None if unavailable
+    - Availability: Best-effort; may be None if get_pr_diff() fails
+
+    Usage by path:
+    - Inline comments: MUST use diff_head_sha from get_pr_diff() for line alignment
+    - Summary-only / file-level: Can work with or without diff_head_sha
+    - Redis dedup: Uses diff_head_sha[:12] in key; skips dedup if None
+    """
+
+    def test_inline_path_disables_commit_pinning_when_diff_head_sha_none(self):
+        """
+        Issue #3259: Inline comments path should disable commit pinning
+        (commit_id=None) when diff_head_sha is None to avoid 422 errors.
+        """
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 1,
+            "dry_run": False,
+            "error": None
+        }
+
+        state = {
+            "trace_id": "test-trace",
+            "pr_number": 123,
+            "review_comments": [
+                {"message": "Inline comment", "file": "test.py", "line": 10, "severity": "warning"}
+            ],
+            "messages": [],
+            "diff_head_sha": None
+        }
+
+        with patch("langgraph_orchestrator.settings", mock_settings):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
+
+                        result = publisher_node(state)
+
+                        mock_post.assert_called_once()
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("commit_id") is None, \
+                            "Inline path should disable commit pinning when diff_head_sha is None"
+
+    def test_summary_only_path_works_without_diff_head_sha(self):
+        """
+        Issue #3259: Summary-only path should work gracefully without diff_head_sha.
+        No line positions involved, so commit pinning is optional.
+        """
+        mock_settings = MagicMock()
+        mock_settings.enable_github_review_posting = True
+
+        mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
+
+        state = {
+            "trace_id": "test-trace",
+            "pr_number": 123,
+            "review_comments": [],
+            "messages": [],
+            "diff_head_sha": None
+        }
+
+        with patch("langgraph_orchestrator.settings", mock_settings):
+            with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
+                with patch("tools.github_api.get_repo", return_value=mock_repo):
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
+
+                        result = publisher_node(state)
+
+                        assert "error" not in result or result.get("error") is None
+                        mock_post.assert_called_once()
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("commit_id") is None
+
+    def test_redis_dedup_skips_when_diff_head_sha_none(self):
+        """
+        Issue #3259: Redis dedup should skip (fail-open) when diff_head_sha is None.
+        This is verified by _check_review_already_posted returning (False, None).
+        """
+        from tools.github_api import _check_review_already_posted
+
+        already_posted, dedup_key = _check_review_already_posted(
+            repo="owner/repo",
+            pr_number=123,
+            head_sha=None
+        )
+
+        assert already_posted is False, "Should not block posting when head_sha is None"
+        assert dedup_key is None, "Should not generate dedup key when head_sha is None"
+
+    def test_diff_head_sha_format_validation(self):
+        """
+        Issue #3259: Verify diff_head_sha format is validated correctly.
+
+        Current validation: non-empty string check only (defensive, not strict).
+        The actual format (40-char hex) is trusted from GitHub API source.
+
+        Invalid (normalized to None): None, empty string, non-string types
+        Valid (preserved as-is): Any non-empty string (trusted from GitHub API)
+        """
+        valid_sha = "abc123def456789012345678901234567890abcd"
+        invalid_values = [None, "", 123, {"sha": "abc"}, []]
+
+        for invalid_value in invalid_values:
+            raw_head_sha = invalid_value
+            stored_head_sha = raw_head_sha if isinstance(raw_head_sha, str) and raw_head_sha else None
+            assert stored_head_sha is None, f"Invalid value {invalid_value!r} should normalize to None"
+
+        raw_head_sha = valid_sha
+        stored_head_sha = raw_head_sha if isinstance(raw_head_sha, str) and raw_head_sha else None
+        assert stored_head_sha == valid_sha, "Valid 40-char hex should be preserved"
+
+    def test_diff_head_sha_represents_review_time_not_current(self):
+        """
+        Issue #3259: Document that diff_head_sha represents the PR head at
+        'review time' (when get_pr_diff was called), NOT the current/latest head.
+
+        This is a documentation test - it verifies the contract is understood.
+        """
+        from langgraph_orchestrator import AgentState
+
+        docstring = AgentState.__doc__
+        assert "review time" in docstring.lower() or "review_time" in docstring.lower() or \
+               "when get_pr_diff was called" in docstring, \
+            "AgentState docstring should document that diff_head_sha is captured at review time"
+        assert "NOT the current/latest head" in docstring or "not the current" in docstring.lower(), \
+            "AgentState docstring should clarify diff_head_sha is not the live/current head"

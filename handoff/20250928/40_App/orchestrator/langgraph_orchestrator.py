@@ -2320,6 +2320,25 @@ class AgentState(TypedDict):
         diff_head_sha: Optional[str] - PR head commit SHA (40-char hex, case-insensitive)
         diff_content: Optional[str] - Sanitized diff content (max 100KB per DIFF_MAX_SIZE_BYTES)
         diff_truncated: Optional[bool] - Whether diff was truncated due to size limits
+
+    Issue #3259: diff_head_sha Contract Definition
+    -----------------------------------------------
+    Source: Captured from GitHub API via get_pr_diff() -> pr.head.sha
+    Format: 40-character hex string (case-insensitive), or None if unavailable
+    Availability: Best-effort; may be None if get_pr_diff() fails or PR fetch fails
+
+    Usage by path:
+    - Inline comments path: MUST use diff_head_sha from get_pr_diff() to ensure
+      line positions align with the diff. If None, commit pinning is disabled
+      (commit_id=None) to avoid 422 errors from line drift.
+    - Summary-only / file-level fallback path: Can use any valid PR head SHA
+      since no line positions are involved. Safe to use fallback if available.
+    - Redis dedup: Uses diff_head_sha[:12] as part of dedup key. If None,
+      dedup is skipped (fail-open) per _check_review_already_posted().
+
+    Important: diff_head_sha represents the PR head at "review time" (when
+    get_pr_diff was called), NOT the current/latest head. Do not confuse with
+    a "live" head SHA which may have changed due to new commits.
     """
     messages: Annotated[list[BaseMessage], prune_messages_reducer]
     goal: str
