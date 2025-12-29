@@ -21,6 +21,7 @@ from tools.github_api import (
     CommitResult,
     _classify_github_error,
     _is_transient_error,
+    _is_rate_limit_error,
     _extract_commit_sha,
 )
 from github import GithubException
@@ -89,6 +90,52 @@ class TestIsTransientError:
 
     def test_200_is_not_transient(self):
         assert _is_transient_error(200) is False
+
+    def test_408_is_transient(self):
+        """Test 408 Request Timeout is transient (Issue #3230)"""
+        assert _is_transient_error(408) is True
+
+    def test_401_is_not_transient(self):
+        """Test 401 Unauthorized is not transient (Issue #3230)"""
+        assert _is_transient_error(401) is False
+
+    def test_422_is_not_transient(self):
+        """Test 422 Unprocessable Entity is not transient (Issue #3230)"""
+        assert _is_transient_error(422) is False
+
+
+class TestIsRateLimitError:
+    """Tests for _is_rate_limit_error helper (Issue #3230)"""
+
+    def test_rate_limit_in_message(self):
+        """Test detection of rate limit in error message"""
+        assert _is_rate_limit_error("API rate limit exceeded", {}) is True
+
+    def test_secondary_rate_limit_in_message(self):
+        """Test detection of secondary rate limit in error message"""
+        assert _is_rate_limit_error("You have exceeded a secondary rate limit", {}) is True
+
+    def test_rate_limit_case_insensitive(self):
+        """Test rate limit detection is case insensitive"""
+        assert _is_rate_limit_error("RATE LIMIT exceeded", {}) is True
+
+    def test_rate_limit_from_headers(self):
+        """Test detection of rate limit from x-ratelimit-remaining header"""
+        headers = {"x-ratelimit-remaining": "0"}
+        assert _is_rate_limit_error("Some error", headers) is True
+
+    def test_not_rate_limit_with_remaining_quota(self):
+        """Test non-rate-limit error with remaining quota"""
+        headers = {"x-ratelimit-remaining": "100"}
+        assert _is_rate_limit_error("Permission denied", headers) is False
+
+    def test_not_rate_limit_no_headers(self):
+        """Test non-rate-limit error without headers"""
+        assert _is_rate_limit_error("Permission denied", {}) is False
+
+    def test_not_rate_limit_none_headers(self):
+        """Test non-rate-limit error with None headers"""
+        assert _is_rate_limit_error("Permission denied", None) is False
 
 
 class TestExtractCommitSha:
@@ -194,6 +241,54 @@ class TestClassifyGithubError:
         exc = Exception("Unknown error")
         error_type, error_msg = _classify_github_error(exc)
         assert error_type == CommitResult.UNKNOWN_ERROR
+
+    def test_classify_401_unauthorized(self):
+        """Test classification of 401 Unauthorized error (Issue #3230)"""
+        exc = GithubException(401, {"message": "Bad credentials"}, None)
+        error_type, error_msg = _classify_github_error(exc)
+        assert error_type == CommitResult.PERMISSION_DENIED
+        assert "unauthorized" in error_msg.lower() or "credentials" in error_msg.lower()
+
+    def test_classify_422_validation_error(self):
+        """Test classification of 422 Unprocessable Entity error (Issue #3230)"""
+        exc = GithubException(422, {"message": "Invalid request"}, None)
+        error_type, error_msg = _classify_github_error(exc)
+        assert error_type == CommitResult.UNKNOWN_ERROR
+        assert "422" in error_msg or "validation" in error_msg.lower()
+
+    def test_classify_408_request_timeout(self):
+        """Test classification of 408 Request Timeout error (Issue #3230)"""
+        exc = GithubException(408, {"message": "Request Timeout"}, None)
+        error_type, error_msg = _classify_github_error(exc)
+        assert error_type == CommitResult.TRANSIENT_ERROR
+        assert "408" in error_msg
+
+    def test_classify_403_rate_limit_message(self):
+        """Test classification of 403 with rate limit message (Issue #3230)"""
+        exc = GithubException(403, {"message": "API rate limit exceeded"}, None)
+        error_type, error_msg = _classify_github_error(exc)
+        assert error_type == CommitResult.TRANSIENT_ERROR
+        assert "rate limit" in error_msg.lower()
+
+    def test_classify_403_secondary_rate_limit(self):
+        """Test classification of 403 with secondary rate limit (Issue #3230)"""
+        exc = GithubException(
+            403,
+            {"message": "You have exceeded a secondary rate limit"},
+            None
+        )
+        error_type, error_msg = _classify_github_error(exc)
+        assert error_type == CommitResult.TRANSIENT_ERROR
+
+    def test_classify_403_rate_limit_headers(self):
+        """Test classification of 403 with rate limit headers (Issue #3230)"""
+        exc = GithubException(
+            403,
+            {"message": "Forbidden"},
+            {"x-ratelimit-remaining": "0"}
+        )
+        error_type, error_msg = _classify_github_error(exc)
+        assert error_type == CommitResult.TRANSIENT_ERROR
 
 
 class TestCommitFileSuccess:
@@ -376,7 +471,12 @@ class TestCommitFileTransientErrors:
 
     @patch("tools.github_api.time.sleep")
     def test_exponential_backoff(self, mock_sleep):
-        """Test that retry uses exponential backoff"""
+        """Test that retry uses exponential backoff with jitter (Issue #3229)
+
+        Jitter adds ±25% randomization to delays, so we check ranges:
+        - Base delay 2.0s with jitter: 1.5s to 2.5s
+        - Base delay 4.0s with jitter: 3.0s to 5.0s
+        """
         mock_repo = MagicMock()
         mock_repo.full_name = "test/repo"
         mock_file = MagicMock()
@@ -388,8 +488,9 @@ class TestCommitFileTransientErrors:
 
         assert mock_sleep.call_count == 2
         delays = [call[0][0] for call in mock_sleep.call_args_list]
-        assert delays[0] == 2.0
-        assert delays[1] == 4.0
+        # With 25% jitter: base * (1 - 0.25) to base * (1 + 0.25)
+        assert 1.5 <= delays[0] <= 2.5, f"First delay {delays[0]} not in range [1.5, 2.5]"
+        assert 3.0 <= delays[1] <= 5.0, f"Second delay {delays[1]} not in range [3.0, 5.0]"
 
 
 class TestCommitFileLogging:
