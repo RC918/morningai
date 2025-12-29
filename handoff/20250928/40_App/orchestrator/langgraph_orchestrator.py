@@ -5627,12 +5627,17 @@ def publisher_node(state: AgentState) -> AgentState:
 """
 
             repo = get_repo()
+            # Issue #3253: Get commit_id for Redis dedup idempotency
+            # Normalize to None if not a valid non-empty string (defensive)
+            raw_head_sha = state.get("diff_head_sha")
+            stored_head_sha = raw_head_sha if isinstance(raw_head_sha, str) and raw_head_sha else None
             if repo:
                 result = post_pr_review(
                     repo=repo,
                     pr_number=pr_number,
                     comments=[],
-                    summary=summary_body
+                    summary=summary_body,
+                    commit_id=stored_head_sha  # Enable Redis dedup
                 )
 
                 state["publish_result"]["success"] = result.get("success", False)
@@ -5723,7 +5728,9 @@ def publisher_node(state: AgentState) -> AgentState:
     diff_truncated = state.get("diff_truncated", False)
     # Phase 2: Get stored head_sha for commit pinning
     # Fix: This should now always be set by reviewer_node (moved outside if diff_content: block)
-    stored_head_sha = state.get("diff_head_sha")
+    # Issue #3253: Normalize to None if not a valid non-empty string (defensive)
+    _raw_head_sha = state.get("diff_head_sha")
+    stored_head_sha = _raw_head_sha if isinstance(_raw_head_sha, str) and _raw_head_sha else None
     downgraded_count = 0
     line_drift_detected = False
 
@@ -5914,11 +5921,13 @@ def publisher_node(state: AgentState) -> AgentState:
                 )
 
                 repo = get_repo()
+                # Issue #3253: Pass commit_id for Redis dedup idempotency
                 result = post_pr_review(
                     repo=repo,
                     pr_number=pr_number,
                     comments=[],
-                    summary=file_level_body
+                    summary=file_level_body,
+                    commit_id=stored_head_sha  # Enable Redis dedup
                 )
 
                 state["publish_result"]["success"] = result.get("success", False)
