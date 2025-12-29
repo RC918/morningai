@@ -55,6 +55,7 @@ Usage:
 import ast
 import json
 import logging
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Dict, Any
@@ -403,17 +404,21 @@ class SimpleCoder(BaseAgent):
 
 
 _CACHED_CODER: Optional[SimpleCoder] = None
+_CACHED_CODER_LOCK = threading.Lock()
 
 
 def get_simple_coder() -> SimpleCoder:
     """Factory function to get SimpleCoder instance.
 
     Returns cached instance to avoid repeated initialization.
+    Uses double-checked locking pattern for thread-safe singleton.
 
     Returns:
         SimpleCoder instance
     """
     global _CACHED_CODER
     if _CACHED_CODER is None:
-        _CACHED_CODER = SimpleCoder()
+        with _CACHED_CODER_LOCK:
+            if _CACHED_CODER is None:
+                _CACHED_CODER = SimpleCoder()
     return _CACHED_CODER
