@@ -368,18 +368,27 @@ def build_fix_handoff(
     pr_number: int,
     suggestions: List[FixSuggestion],
     review_outcome: Optional[Dict[str, Any]] = None,
-    review_id: Optional[str] = None
+    review_id: Optional[str] = None,
+    requires_human_review: bool = True
 ) -> ReviewToFixHandoff:
     """Build ReviewToFixHandoff from suggestions and review outcome.
 
     This is the primary entry point for constructing ReviewToFixHandoff.
-    It handles all the computation logic for derived fields.
+    It handles data assembly and derived metrics computation.
+
+    Note: `requires_human_review` is passed as a parameter rather than computed
+    here. The decision of whether human review is required should be made by
+    the Router or upstream producer, not by this schema builder. This avoids
+    the contract anti-pattern of duplicating decision-making logic across
+    components.
 
     Args:
         pr_number: Pull request number
         suggestions: List of fix suggestions
         review_outcome: Optional ReviewOutcome dict for eligibility checks
         review_id: Optional review ID (auto-generated if not provided)
+        requires_human_review: Whether human review is required (default True
+            for safety). The caller (Router/producer) should determine this.
 
     Returns:
         ReviewToFixHandoff instance ready to be stored in state
@@ -399,7 +408,8 @@ def build_fix_handoff(
                     category="style"
                 )
             ],
-            review_outcome=state.get("review_outcome")
+            review_outcome=state.get("review_outcome"),
+            requires_human_review=False  # Router determined this
         )
         state["fix_handoff"] = handoff.model_dump()
     """
@@ -407,52 +417,41 @@ def build_fix_handoff(
     if not review_id:
         review_id = f"review-{uuid.uuid4().hex[:8]}"
 
-    # Compute derived fields
+    # Compute derived fields (data assembly only, no policy decisions)
     total_lines = _compute_total_lines(suggestions)
     max_severity = _determine_max_severity(suggestions, review_outcome)
     auto_fix_eligible = _is_auto_fix_eligible(
         review_outcome, suggestions, max_severity
     )
 
-    # Determine if human review is required
-    # Human review is NOT required only if:
-    # 1. auto_fix_eligible is True
-    # 2. max_severity is "low"
-    # 3. All suggestions are style/refactor (not bug_fix/security/performance)
-    requires_human = True
-    if auto_fix_eligible and max_severity == "low":
-        safe_categories = {"style", "refactor"}
-        all_safe = all(s.category in safe_categories for s in suggestions)
-        if all_safe:
-            requires_human = False
-
     return ReviewToFixHandoff(
         review_id=review_id,
         pr_number=pr_number,
         suggestions=suggestions,
         auto_fix_eligible=auto_fix_eligible,
-        requires_human_review=requires_human,
+        requires_human_review=requires_human_review,
         total_lines_affected=total_lines,
         max_severity=max_severity
     )
 
 
-def should_route_to_fixer(
-    review_outcome: Optional[Dict[str, Any]],
-    handoff: ReviewToFixHandoff
-) -> bool:
+def should_route_to_fixer(handoff: ReviewToFixHandoff) -> bool:
     """Decide whether to route to fixer_node.
 
     This function is used by the Router to decide if the PR should be
-    routed to fixer_node for auto-fix.
+    routed to fixer_node for auto-fix. It trusts the `auto_fix_eligible`
+    flag computed by `build_fix_handoff()` and only adds a hard safety
+    check for max_severity.
+
+    Note: High-confidence suggestion check is already part of auto_fix_eligible
+    computation in `_is_auto_fix_eligible()`. We don't duplicate it here to
+    avoid maintenance cost and risk of divergence.
 
     Conditions:
     1. handoff.auto_fix_eligible must be True
-    2. handoff.max_severity must NOT be "high" or "critical"
-    3. At least one high-confidence suggestion (>= 0.8)
+    2. handoff.max_severity must NOT be "high" or "critical" (hard safety check)
 
     Args:
-        review_outcome: ReviewOutcome dict (for additional context)
         handoff: ReviewToFixHandoff instance
 
     Returns:
@@ -462,28 +461,21 @@ def should_route_to_fixer(
         [ROUTE_TO_FIXER] - Routing to fixer_node
         [SKIP_FIXER] - Not routing to fixer_node
     """
-    # Check auto_fix_eligible
+    # Check auto_fix_eligible (trusts the eligibility computation)
     if not handoff.auto_fix_eligible:
         logger.info("[SKIP_FIXER] auto_fix_eligible=False")
         return False
 
-    # Check max_severity
+    # Hard safety check for max_severity (defensive, even if auto_fix_eligible)
     if handoff.max_severity in ("high", "critical"):
         logger.info(
-            f"[SKIP_FIXER] max_severity={handoff.max_severity}"
+            f"[SKIP_FIXER] max_severity={handoff.max_severity} (hard safety check)"
         )
-        return False
-
-    # Check for high-confidence suggestions
-    high_confidence = handoff.get_high_confidence_suggestions(threshold=0.8)
-    if not high_confidence:
-        logger.info("[SKIP_FIXER] no high-confidence suggestions")
         return False
 
     logger.info(
         f"[ROUTE_TO_FIXER] pr_number={handoff.pr_number}, "
-        f"suggestions={len(handoff.suggestions)}, "
-        f"high_confidence={len(high_confidence)}"
+        f"suggestions={len(handoff.suggestions)}"
     )
     return True
 

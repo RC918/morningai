@@ -387,8 +387,8 @@ class TestBuildFixHandoff:
         )
         assert handoff.auto_fix_eligible is False
 
-    def test_requires_human_review_for_bug_fix(self):
-        """Test that bug_fix category requires human review."""
+    def test_requires_human_review_default_true(self):
+        """Test that requires_human_review defaults to True for safety."""
         suggestions = [
             FixSuggestion(
                 file_path="a.py", line_start=1, line_end=1,
@@ -406,10 +406,11 @@ class TestBuildFixHandoff:
             suggestions=suggestions,
             review_outcome=review_outcome
         )
+        # Default is True for safety - caller must explicitly set False
         assert handoff.requires_human_review is True
 
-    def test_no_human_review_for_style_only(self):
-        """Test that style-only suggestions don't require human review."""
+    def test_requires_human_review_can_be_set_false(self):
+        """Test that requires_human_review can be explicitly set to False."""
         suggestions = [
             FixSuggestion(
                 file_path="a.py", line_start=1, line_end=1,
@@ -422,16 +423,23 @@ class TestBuildFixHandoff:
             "diff_truncated": False,
             "schema_validated": True
         }
+        # Caller (Router) explicitly sets requires_human_review=False
         handoff = build_fix_handoff(
             pr_number=123,
             suggestions=suggestions,
-            review_outcome=review_outcome
+            review_outcome=review_outcome,
+            requires_human_review=False
         )
         assert handoff.requires_human_review is False
 
 
 class TestShouldRouteToFixer:
-    """Tests for should_route_to_fixer routing logic."""
+    """Tests for should_route_to_fixer routing logic.
+
+    Note: should_route_to_fixer trusts the auto_fix_eligible flag and only
+    adds a hard safety check for max_severity. High-confidence suggestion
+    check is already part of auto_fix_eligible computation.
+    """
 
     def test_route_when_eligible(self):
         """Test routing when all conditions are met."""
@@ -449,7 +457,7 @@ class TestShouldRouteToFixer:
             auto_fix_eligible=True,
             max_severity="low"
         )
-        assert should_route_to_fixer(None, handoff) is True
+        assert should_route_to_fixer(handoff) is True
 
     def test_skip_when_not_eligible(self):
         """Test skipping when auto_fix_eligible is False."""
@@ -459,10 +467,10 @@ class TestShouldRouteToFixer:
             suggestions=[],
             auto_fix_eligible=False
         )
-        assert should_route_to_fixer(None, handoff) is False
+        assert should_route_to_fixer(handoff) is False
 
     def test_skip_when_high_severity(self):
-        """Test skipping when max_severity is high."""
+        """Test skipping when max_severity is high (hard safety check)."""
         suggestions = [
             FixSuggestion(
                 file_path="a.py", line_start=1, line_end=1,
@@ -477,10 +485,27 @@ class TestShouldRouteToFixer:
             auto_fix_eligible=True,
             max_severity="high"
         )
-        assert should_route_to_fixer(None, handoff) is False
+        assert should_route_to_fixer(handoff) is False
 
-    def test_skip_when_no_high_confidence(self):
-        """Test skipping when no high-confidence suggestions."""
+    def test_skip_when_critical_severity(self):
+        """Test skipping when max_severity is critical (hard safety check)."""
+        handoff = ReviewToFixHandoff(
+            review_id="review-abc123",
+            pr_number=123,
+            suggestions=[],
+            auto_fix_eligible=True,
+            max_severity="critical"
+        )
+        assert should_route_to_fixer(handoff) is False
+
+    def test_route_trusts_auto_fix_eligible(self):
+        """Test that should_route_to_fixer trusts auto_fix_eligible flag.
+
+        High-confidence check is already part of auto_fix_eligible computation
+        in _is_auto_fix_eligible(), so we don't duplicate it here.
+        """
+        # Even with low-confidence suggestions, if auto_fix_eligible is True,
+        # we trust it (the eligibility check already validated confidence)
         suggestions = [
             FixSuggestion(
                 file_path="a.py", line_start=1, line_end=1,
@@ -492,10 +517,11 @@ class TestShouldRouteToFixer:
             review_id="review-abc123",
             pr_number=123,
             suggestions=suggestions,
-            auto_fix_eligible=True,
+            auto_fix_eligible=True,  # Trusted - already validated
             max_severity="low"
         )
-        assert should_route_to_fixer(None, handoff) is False
+        # Routes because we trust auto_fix_eligible
+        assert should_route_to_fixer(handoff) is True
 
 
 class TestBuildEmptyHandoff:
