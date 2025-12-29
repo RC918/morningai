@@ -471,7 +471,12 @@ class TestCommitFileTransientErrors:
 
     @patch("tools.github_api.time.sleep")
     def test_exponential_backoff(self, mock_sleep):
-        """Test that retry uses exponential backoff"""
+        """Test that retry uses exponential backoff with jitter (Issue #3229)
+
+        Jitter adds ±25% randomization to delays, so we check ranges:
+        - Base delay 2.0s with jitter: 1.5s to 2.5s
+        - Base delay 4.0s with jitter: 3.0s to 5.0s
+        """
         mock_repo = MagicMock()
         mock_repo.full_name = "test/repo"
         mock_file = MagicMock()
@@ -483,8 +488,9 @@ class TestCommitFileTransientErrors:
 
         assert mock_sleep.call_count == 2
         delays = [call[0][0] for call in mock_sleep.call_args_list]
-        assert delays[0] == 2.0
-        assert delays[1] == 4.0
+        # With 25% jitter: base * (1 - 0.25) to base * (1 + 0.25)
+        assert 1.5 <= delays[0] <= 2.5, f"First delay {delays[0]} not in range [1.5, 2.5]"
+        assert 3.0 <= delays[1] <= 5.0, f"Second delay {delays[1]} not in range [3.0, 5.0]"
 
 
 class TestCommitFileLogging:
