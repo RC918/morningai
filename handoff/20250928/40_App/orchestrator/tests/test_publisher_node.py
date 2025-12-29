@@ -1304,3 +1304,307 @@ class TestReviewDedupFunctions:
 
                 # Should not raise any exception
                 _mark_review_posted(dedup_key="review_posted:test/repo:123:abc123:v1")
+
+
+class TestRedisDedupIntegration:
+    """
+    Issue #3258: Integration tests for Redis dedup verification.
+
+    These tests verify the full dedup flow from post_pr_review through to
+    Redis dedup functions, ensuring that:
+    1. First call claims and posts successfully
+    2. Second call with same commit_id is deduplicated
+    3. The dedup key format is correct and consistent
+    """
+
+    def test_full_dedup_flow_first_call_posts_second_call_skipped(self):
+        """
+        Issue #3258: Verify full dedup flow - first call posts, second call is deduplicated.
+
+        This integration test simulates:
+        1. First call: claim succeeds, review is posted, mark as posted
+        2. Second call: claim fails (key exists), review is skipped
+        """
+        import redis as real_redis
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        redis_store = {}
+        call_count = {"set": 0}
+
+        def mock_set(key, value, nx=False, ex=None):
+            call_count["set"] += 1
+            if nx and key in redis_store:
+                return None
+            redis_store[key] = value
+            return True
+
+        def mock_get(key):
+            return redis_store.get(key)
+
+        def mock_setex(key, ttl, value):
+            redis_store[key] = value
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance.setex.side_effect = mock_setex
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+        comments = [{"file": "test.py", "end_line": 10, "message": "Test comment"}]
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                result1 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=test_commit_id
+                )
+
+                assert result1["success"] is True
+                assert result1.get("skipped_reason") is None
+                assert mock_pr.create_review.called
+
+                mock_pr.create_review.reset_mock()
+
+                result2 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=test_commit_id
+                )
+
+                assert result2["success"] is True
+                assert result2.get("skipped_reason") == "review_already_posted"
+                assert not mock_pr.create_review.called
+
+    def test_dedup_key_includes_commit_id_and_version(self):
+        """
+        Issue #3258: Verify dedup key format includes commit_id and reviewer version.
+
+        The dedup key should be: review_posted:{repo}:{pr}:{head_sha[:12]}:{version}
+        """
+        import redis as real_redis
+        from utils.constants import REVIEWER_VERSION
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        captured_keys = []
+
+        def mock_set(key, value, nx=False, ex=None):
+            captured_keys.append(key)
+            return True
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+        comments = [{"file": "test.py", "end_line": 10, "message": "Test comment"}]
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=test_commit_id
+                )
+
+                assert len(captured_keys) == 1
+                dedup_key = captured_keys[0]
+
+                expected_key = f"review_posted:RC918/morningai:123:abc123def456:{REVIEWER_VERSION}"
+                assert dedup_key == expected_key
+
+    def test_different_commit_ids_are_not_deduplicated(self):
+        """
+        Issue #3258: Verify that different commit_ids result in separate reviews.
+
+        When a new commit is pushed, the review should be posted again because
+        the commit_id is different.
+        """
+        import redis as real_redis
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_commit = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.get_commit.return_value = mock_commit
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        redis_store = {}
+
+        def mock_set(key, value, nx=False, ex=None):
+            if nx and key in redis_store:
+                return None
+            redis_store[key] = value
+            return True
+
+        def mock_get(key):
+            return redis_store.get(key)
+
+        def mock_setex(key, ttl, value):
+            redis_store[key] = value
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance.setex.side_effect = mock_setex
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        commit_id_1 = "abc123def456789012345678901234567890abcd"
+        commit_id_2 = "def456abc789012345678901234567890abcdef"
+        comments = [{"file": "test.py", "end_line": 10, "message": "Test comment"}]
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                result1 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=commit_id_1
+                )
+
+                assert result1["success"] is True
+                assert result1.get("skipped_reason") is None
+                assert mock_pr.create_review.call_count == 1
+
+                result2 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=comments,
+                    commit_id=commit_id_2
+                )
+
+                assert result2["success"] is True
+                assert result2.get("skipped_reason") is None
+                assert mock_pr.create_review.call_count == 2
+
+    def test_summary_report_dedup_integration(self):
+        """
+        Issue #3258: Verify Summary Report (empty comments) uses dedup correctly.
+
+        When posting a Summary Report (no inline comments), the dedup mechanism
+        should still work correctly using the commit_id.
+        """
+        import redis as real_redis
+
+        mock_settings = MockSettings(
+            enable_github_review_posting=True,
+            github_review_posting_dry_run=False,
+            github_review_posting_max_comments=10
+        )
+        mock_settings.redis_url = "redis://localhost:6379"
+
+        mock_repo = MagicMock()
+        mock_pr = create_mock_pr()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_repo.owner.login = "RC918"
+        mock_repo.name = "morningai"
+
+        redis_store = {}
+
+        def mock_set(key, value, nx=False, ex=None):
+            if nx and key in redis_store:
+                return None
+            redis_store[key] = value
+            return True
+
+        def mock_get(key):
+            return redis_store.get(key)
+
+        def mock_setex(key, ttl, value):
+            redis_store[key] = value
+
+        mock_redis_instance = MagicMock()
+        mock_redis_instance.set.side_effect = mock_set
+        mock_redis_instance.get.side_effect = mock_get
+        mock_redis_instance.setex.side_effect = mock_setex
+
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.from_url.return_value = mock_redis_instance
+        mock_redis_module.exceptions = real_redis.exceptions
+
+        test_commit_id = "abc123def456789012345678901234567890abcd"
+
+        with patch("common.config.settings.settings", mock_settings):
+            with patch.dict("sys.modules", {"redis": mock_redis_module}):
+                from tools.github_api import post_pr_review
+
+                result1 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=[],
+                    summary="Summary Report: No issues found",
+                    commit_id=test_commit_id
+                )
+
+                assert result1["success"] is True
+                assert result1.get("skipped_reason") is None
+                assert mock_pr.create_review.called
+
+                mock_pr.create_review.reset_mock()
+
+                result2 = post_pr_review(
+                    repo=mock_repo,
+                    pr_number=123,
+                    comments=[],
+                    summary="Summary Report: No issues found",
+                    commit_id=test_commit_id
+                )
+
+                assert result2["success"] is True
+                assert result2.get("skipped_reason") == "review_already_posted"
+                assert not mock_pr.create_review.called
