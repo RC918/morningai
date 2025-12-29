@@ -620,29 +620,46 @@ class TestPublisherNodeNoOp:
                     mock_get_repo.assert_not_called()
                     assert "No PR available" in result["messages"][-1].content
 
-    def test_empty_review_comments_skips_publish(self):
-        """When review_comments is empty, should skip publish"""
+    def test_empty_review_comments_posts_summary_report(self):
+        """Issue #3220: When review_comments is empty, should post Summary Report for visibility"""
         mock_settings = MagicMock()
         mock_settings.enable_github_review_posting = True
 
         mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
 
         state = {
             "trace_id": "test-trace",
             "pr_number": 123,
             "review_comments": [],
-            "messages": []
+            "messages": [],
+            "diff_head_sha": "abc123def456"
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
             with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
-                with patch("tools.github_api.get_repo") as mock_get_repo:
-                    from langgraph_orchestrator import publisher_node
+                with patch("tools.github_api.get_repo", return_value=mock_repo) as mock_get_repo:
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
 
-                    result = publisher_node(state)
+                        result = publisher_node(state)
 
-                    mock_get_repo.assert_not_called()
-                    assert "No review comments" in result["messages"][-1].content
+                        # Issue #3220: Summary Report should be posted even with no inline comments
+                        mock_get_repo.assert_called_once()
+                        mock_post.assert_called_once()
+                        # Verify post_pr_review was called with empty comments and Summary Report body
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("comments") == []
+                        # Summary Report uses "MorningAI Review Summary" as the header
+                        assert "MorningAI Review Summary" in call_args.kwargs.get("summary", "")
 
     def test_file_level_comments_published_in_review_body(self):
         """When no inline-eligible comments but file-level exist, should publish in review body"""
@@ -686,29 +703,46 @@ class TestPublisherNodeNoOp:
                             assert result["publish_result"]["file_level_in_body"] == 1
                             assert "file-level comments in review body" in result["messages"][-1].content
 
-    def test_no_comments_at_all_skips_publish(self):
-        """When no inline-eligible comments and no file-level comments, should skip publish"""
+    def test_no_comments_at_all_posts_summary_report(self):
+        """Issue #3220: When no inline-eligible comments and no file-level comments, should post Summary Report"""
         mock_settings = MagicMock()
         mock_settings.enable_github_review_posting = True
 
         mock_metrics = MagicMock()
+        mock_repo = MagicMock()
+
+        mock_post_result = {
+            "success": True,
+            "posted_count": 0,
+            "dry_run": False,
+            "error": None,
+            "summary_only": True
+        }
 
         state = {
             "trace_id": "test-trace",
             "pr_number": 123,
             "review_comments": [],
-            "messages": []
+            "messages": [],
+            "diff_head_sha": "abc123def456"
         }
 
         with patch("langgraph_orchestrator.settings", mock_settings):
             with patch("langgraph_orchestrator._get_metrics", return_value=mock_metrics):
-                with patch("tools.github_api.get_repo") as mock_get_repo:
-                    from langgraph_orchestrator import publisher_node
+                with patch("tools.github_api.get_repo", return_value=mock_repo) as mock_get_repo:
+                    with patch("tools.github_api.post_pr_review", return_value=mock_post_result) as mock_post:
+                        from langgraph_orchestrator import publisher_node
 
-                    result = publisher_node(state)
+                        result = publisher_node(state)
 
-                    mock_get_repo.assert_not_called()
-                    assert "No review comments" in result["messages"][-1].content
+                        # Issue #3220: Summary Report should be posted even with no comments
+                        mock_get_repo.assert_called_once()
+                        mock_post.assert_called_once()
+                        # Verify post_pr_review was called with empty comments and Summary Report body
+                        call_args = mock_post.call_args
+                        assert call_args.kwargs.get("comments") == []
+                        # Summary Report uses "MorningAI Review Summary" as the header
+                        assert "MorningAI Review Summary" in call_args.kwargs.get("summary", "")
 
 
 @pytest.mark.skipif(not LANGGRAPH_AVAILABLE, reason="langgraph not installed")

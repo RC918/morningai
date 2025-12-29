@@ -1055,10 +1055,10 @@ def post_pr_review(
         result["error"] = "Feature disabled"
         return result
 
-    if not comments:
-        logger.info("[GitHub] No comments to post")
-        result["success"] = True
-        return result
+    # Issue #3220: Allow posting summary-only reviews (no inline comments)
+    # When comments is empty but summary is provided, we still want to post
+    # the review body to provide visibility (e.g., Summary Report feature)
+    summary_only_mode = not comments
 
     try:
         if repo is None:
@@ -1154,7 +1154,9 @@ def post_pr_review(
 
             gh_comments.append(item)
 
-        if not gh_comments:
+        # Issue #3220: Allow summary-only reviews (no inline comments)
+        # When summary_only_mode is True, we still want to post the review body
+        if not gh_comments and not summary_only_mode:
             logger.info("[GitHub] No valid comments to post after filtering")
             result["success"] = True
             return result
@@ -1187,18 +1189,24 @@ def post_pr_review(
 
         # Check dry-run mode
         if settings.github_review_posting_dry_run:
-            logger.info(
-                f"[GitHub][DRY-RUN] Would post review to PR #{pr_number} "
-                f"with {len(gh_comments)} comments"
-            )
-            for i, c in enumerate(gh_comments):
+            if summary_only_mode:
                 logger.info(
-                    f"[GitHub][DRY-RUN] Comment {i + 1}: "
-                    f"{c['path']}:{c.get('start_line', c['line'])}-{c['line']}"
+                    f"[GitHub][DRY-RUN] Would post summary-only review to PR #{pr_number}"
                 )
+            else:
+                logger.info(
+                    f"[GitHub][DRY-RUN] Would post review to PR #{pr_number} "
+                    f"with {len(gh_comments)} comments"
+                )
+                for i, c in enumerate(gh_comments):
+                    logger.info(
+                        f"[GitHub][DRY-RUN] Comment {i + 1}: "
+                        f"{c['path']}:{c.get('start_line', c['line'])}-{c['line']}"
+                    )
             result["success"] = True
             result["posted_count"] = len(gh_comments)
             result["dry_run"] = True
+            result["summary_only"] = summary_only_mode
             return result
 
         # Phase B-B: Fault injection for 422 fallback verification (Staging only)
@@ -1285,25 +1293,43 @@ def post_pr_review(
         result["posted_count"] = len(gh_comments)
         result["commit_pinning_attempted"] = commit_pinning_attempted
         result["commit_pinning_success"] = commit_pinning_success
+        result["summary_only"] = summary_only_mode
 
         # P2: Mark review as posted for artifact idempotency
         _mark_review_posted(dedup_key)
 
-        logger.info(
-            f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments "
-            f"(commit_pinning_attempted={commit_pinning_attempted}, "
-            f"commit_pinning_success={commit_pinning_success})",
-            extra={
-                "operation": "post_pr_review",
-                "pr_number": pr_number,
-                "comment_count": len(gh_comments),
-                "skipped_count": result["skipped_count"],
-                "truncated_count": result["truncated_count"],
-                "commit_id": commit_id[:8] if commit_id else None,
-                "commit_pinning_attempted": commit_pinning_attempted,
-                "commit_pinning_success": commit_pinning_success
-            }
-        )
+        # Issue #3220: Log summary-only mode for visibility
+        if summary_only_mode:
+            logger.info(
+                f"[GitHub] Posted summary-only review to PR #{pr_number} "
+                f"(commit_pinning_attempted={commit_pinning_attempted}, "
+                f"commit_pinning_success={commit_pinning_success})",
+                extra={
+                    "operation": "post_pr_review",
+                    "pr_number": pr_number,
+                    "comment_count": 0,
+                    "summary_only": True,
+                    "commit_id": commit_id[:8] if commit_id else None,
+                    "commit_pinning_attempted": commit_pinning_attempted,
+                    "commit_pinning_success": commit_pinning_success
+                }
+            )
+        else:
+            logger.info(
+                f"[GitHub] Posted review to PR #{pr_number} with {len(gh_comments)} comments "
+                f"(commit_pinning_attempted={commit_pinning_attempted}, "
+                f"commit_pinning_success={commit_pinning_success})",
+                extra={
+                    "operation": "post_pr_review",
+                    "pr_number": pr_number,
+                    "comment_count": len(gh_comments),
+                    "skipped_count": result["skipped_count"],
+                    "truncated_count": result["truncated_count"],
+                    "commit_id": commit_id[:8] if commit_id else None,
+                    "commit_pinning_attempted": commit_pinning_attempted,
+                    "commit_pinning_success": commit_pinning_success
+                }
+            )
 
         return result
 

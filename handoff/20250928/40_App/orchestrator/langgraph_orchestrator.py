@@ -5580,14 +5580,111 @@ def publisher_node(state: AgentState) -> AgentState:
         return state
 
     if not review_comments:
-        logger.info("[Publisher] No review comments to publish", extra={
+        logger.info("[Publisher] No review comments to publish, posting summary report", extra={
             "operation": "publisher",
             "trace_id": trace_id,
             "pr_number": pr_number
         })
-        state["messages"] = state.get("messages", []) + [
-            AIMessage(content="No review comments to publish")
-        ]
+
+        # Issue #3220: Post Summary Report when no inline comments
+        # This provides visibility that the Reviewer Agent ran and what it found
+        try:
+            from tools.github_api import get_repo, post_pr_review
+
+            # Build Summary Report from review_outcome or review_result
+            review_outcome = state.get("review_outcome", {})
+            review_result = state.get("review_result", {})
+            code_quality_score = state.get("code_quality_score", 0)
+
+            # Determine verdict and emoji
+            verdict = review_outcome.get("verdict", "unknown")
+            llm_decision = review_result.get("llm_decision", verdict)
+            llm_summary = review_result.get("llm_summary", "")
+
+            if llm_decision == "approve":
+                verdict_emoji = "Approve"
+                verdict_icon = "white_check_mark"
+            elif llm_decision == "needs_changes":
+                verdict_emoji = "Needs Changes"
+                verdict_icon = "warning"
+            elif llm_decision == "block":
+                verdict_emoji = "Block"
+                verdict_icon = "x"
+            else:
+                verdict_emoji = "Reviewed"
+                verdict_icon = "mag"
+
+            # Build the summary report body
+            summary_body = f"""## :robot: MorningAI Review Summary
+
+**Verdict:** :{verdict_icon}: {verdict_emoji} (Score: {code_quality_score})
+
+**Analysis:**
+{llm_summary if llm_summary else "No significant issues found."}
+
+---
+*Note: This review follows the Senior Architect policy - style, formatting, and naming convention issues are intentionally filtered out to reduce noise. The reviewer focuses on logic errors, security vulnerabilities, performance problems, and API contract changes.*
+"""
+
+            repo = get_repo()
+            if repo:
+                result = post_pr_review(
+                    repo=repo,
+                    pr_number=pr_number,
+                    comments=[],
+                    summary=summary_body
+                )
+
+                state["publish_result"]["success"] = result.get("success", False)
+                state["publish_result"]["summary_report_posted"] = result.get("success", False)
+                state["publish_result"]["dry_run"] = result.get("dry_run", False)
+
+                if result.get("success"):
+                    mode = "[DRY-RUN]" if result.get("dry_run") else ""
+                    logger.info(f"[Publisher] Summary report posted {mode}", extra={
+                        "operation": "publisher",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "verdict": llm_decision,
+                        "score": code_quality_score,
+                        "dry_run": result.get("dry_run", False)
+                    })
+                    state["messages"] = state.get("messages", []) + [
+                        AIMessage(content=f"Summary report posted {mode}: {verdict_emoji} (Score: {code_quality_score})")
+                    ]
+                else:
+                    logger.warning("[Publisher] Failed to post summary report", extra={
+                        "operation": "publisher",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "error": result.get("error")
+                    })
+                    state["publish_result"]["error"] = result.get("error")
+                    state["messages"] = state.get("messages", []) + [
+                        AIMessage(content="Failed to post summary report")
+                    ]
+            else:
+                logger.warning("[Publisher] Repository not available for summary report", extra={
+                    "operation": "publisher",
+                    "trace_id": trace_id,
+                    "pr_number": pr_number
+                })
+                state["messages"] = state.get("messages", []) + [
+                    AIMessage(content="Repository not available for summary report")
+                ]
+
+        except Exception as e:
+            logger.warning(f"[Publisher] Failed to post summary report: {e}", extra={
+                "operation": "publisher",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "error": str(e)
+            })
+            state["publish_result"]["error"] = str(e)
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"Failed to post summary report: {e}")
+            ]
+
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_node_complete("publisher", trace_id, success=True, latency_ms=latency_ms)
         return state
