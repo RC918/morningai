@@ -16,6 +16,7 @@ import json
 import pytest
 from unittest.mock import patch
 
+import coder.simple_coder as sc_module
 from coder.simple_coder import (
     SimpleCoder,
     CoderOutput,
@@ -517,20 +518,20 @@ def handle(command):
 class TestSingletonInitializationFailure:
     """Tests for singleton initialization failure handling."""
 
-    def setup_method(self):
-        """Reset the cached coder before each test."""
-        import coder.simple_coder as sc_module
-        sc_module._CACHED_CODER = None
+    @pytest.fixture(autouse=True)
+    def reset_singleton_cache(self):
+        """Reset the cached coder before and after each test.
 
-    def teardown_method(self):
-        """Clean up after each test."""
-        import coder.simple_coder as sc_module
+        Uses autouse=True to ensure proper isolation without explicit calls.
+        Saves and restores original value to avoid affecting other tests.
+        """
+        original_cached_coder = sc_module._CACHED_CODER
         sc_module._CACHED_CODER = None
+        yield
+        sc_module._CACHED_CODER = original_cached_coder
 
     def test_singleton_init_exception_not_cached(self):
         """Test that failed initialization doesn't cache a broken instance."""
-        import coder.simple_coder as sc_module
-
         original_init = SimpleCoder.__init__
         call_count = [0]
 
@@ -552,8 +553,6 @@ class TestSingletonInitializationFailure:
 
     def test_singleton_recovers_after_failure(self):
         """Test that singleton can recover after initialization failure."""
-        import coder.simple_coder as sc_module
-
         original_init = SimpleCoder.__init__
         should_fail = [True]
 
