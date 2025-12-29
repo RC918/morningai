@@ -8,6 +8,7 @@ This module provides:
 3. Helper functions for constructing handoff from ReviewOutcome
 
 Issue #3225: Review to Fix Handoff Schema - EPIC D Interface Definition
+Issue #3234: Make HIGH_CONFIDENCE_THRESHOLD configurable
 Related: EPIC D - Coder Agent Family
 Related: #3130 (B-6 Router Interface)
 
@@ -17,7 +18,7 @@ Usage:
         ReviewToFixHandoff,
         build_fix_handoff,
         should_route_to_fixer,
-        HIGH_CONFIDENCE_THRESHOLD
+        get_confidence_threshold
     )
 
     # Build from ReviewOutcome and suggestions
@@ -67,6 +68,8 @@ from typing import Literal, List, Dict, Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from common.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 # Category types for fix suggestions
@@ -75,9 +78,24 @@ FixCategoryType = Literal["bug_fix", "style", "refactor", "security", "performan
 # Severity levels (aligned with ReviewOutcome)
 SeverityType = Literal["low", "medium", "high", "critical"]
 
-# Confidence threshold for auto-fix eligibility (single source of truth)
-# Suggestions with confidence >= this threshold are considered "high confidence"
-HIGH_CONFIDENCE_THRESHOLD = 0.8
+# Default confidence threshold (used as fallback if settings unavailable)
+# Issue #3234: Now configurable via AUTOFIX_CONFIDENCE_THRESHOLD env var
+_DEFAULT_CONFIDENCE_THRESHOLD = 0.8
+
+
+def get_confidence_threshold() -> float:
+    """Get the confidence threshold for auto-fix eligibility.
+
+    Issue #3234: Made configurable via AUTOFIX_CONFIDENCE_THRESHOLD env var.
+
+    Returns:
+        float: Confidence threshold (0.0-1.0). Default: 0.8
+    """
+    return settings.autofix_confidence_threshold
+
+
+# Backward compatibility alias (deprecated, use get_confidence_threshold())
+HIGH_CONFIDENCE_THRESHOLD = _DEFAULT_CONFIDENCE_THRESHOLD
 
 
 class FixSuggestion(BaseModel):
@@ -218,16 +236,19 @@ class ReviewToFixHandoff(BaseModel):
 
     def get_high_confidence_suggestions(
         self,
-        threshold: float = HIGH_CONFIDENCE_THRESHOLD
+        threshold: Optional[float] = None
     ) -> List[FixSuggestion]:
         """Get suggestions with confidence >= threshold.
 
         Args:
-            threshold: Minimum confidence score (default HIGH_CONFIDENCE_THRESHOLD)
+            threshold: Minimum confidence score. If None, uses the configured
+                AUTOFIX_CONFIDENCE_THRESHOLD (default 0.8).
 
         Returns:
             List of high-confidence suggestions
         """
+        if threshold is None:
+            threshold = get_confidence_threshold()
         return [s for s in self.suggestions if s.confidence >= threshold]
 
     def get_suggestions_by_category(
@@ -359,9 +380,12 @@ def _is_auto_fix_eligible(
         return False
 
     # Check for high-confidence suggestions (use any() for efficiency)
-    if not any(s.confidence >= HIGH_CONFIDENCE_THRESHOLD for s in suggestions):
+    # Issue #3234: Use configurable threshold from settings
+    threshold = get_confidence_threshold()
+    if not any(s.confidence >= threshold for s in suggestions):
         logger.debug(
-            "[FIX_HANDOFF] auto_fix_eligible=False: no high-confidence suggestions"
+            "[FIX_HANDOFF] auto_fix_eligible=False: no high-confidence suggestions "
+            f"(threshold={threshold})"
         )
         return False
 

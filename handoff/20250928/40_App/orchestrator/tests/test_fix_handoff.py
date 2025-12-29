@@ -779,3 +779,163 @@ class TestConfidenceThresholdBoundary:
         )
         # At least one high-confidence suggestion, should be eligible
         assert handoff.auto_fix_eligible is True
+
+
+class TestConfigurableConfidenceThreshold:
+    """Tests for Issue #3234: Configurable confidence threshold.
+
+    These tests verify that the confidence threshold can be configured
+    via the AUTOFIX_CONFIDENCE_THRESHOLD environment variable.
+    """
+
+    def test_get_confidence_threshold_returns_default(self):
+        """Test that get_confidence_threshold returns default 0.8."""
+        from core.routing.fix_handoff import get_confidence_threshold
+        threshold = get_confidence_threshold()
+        assert threshold == 0.8
+
+    def test_get_confidence_threshold_reads_from_settings(self, monkeypatch):
+        """Test that get_confidence_threshold reads from settings."""
+        from common.config.settings import reload_settings
+        monkeypatch.setenv("AUTOFIX_CONFIDENCE_THRESHOLD", "0.9")
+        reload_settings()
+
+        from core.routing.fix_handoff import get_confidence_threshold
+        threshold = get_confidence_threshold()
+        assert threshold == 0.9
+
+        # Cleanup
+        monkeypatch.delenv("AUTOFIX_CONFIDENCE_THRESHOLD", raising=False)
+        reload_settings()
+
+    def test_custom_threshold_affects_auto_fix_eligibility(self, monkeypatch):
+        """Test that custom threshold affects auto_fix_eligible computation."""
+        from common.config.settings import reload_settings
+        # Set threshold to 0.95 - higher than default 0.8
+        monkeypatch.setenv("AUTOFIX_CONFIDENCE_THRESHOLD", "0.95")
+        reload_settings()
+
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.9,  # below 0.95 threshold
+                category="style"
+            )
+        ]
+        review_outcome = {
+            "severity": "low",
+            "diff_truncated": False,
+            "schema_validated": True
+        }
+        handoff = build_fix_handoff(
+            pr_number=123,
+            suggestions=suggestions,
+            review_outcome=review_outcome
+        )
+        # 0.9 confidence is below 0.95 threshold, should NOT be eligible
+        assert handoff.auto_fix_eligible is False
+
+        # Cleanup
+        monkeypatch.delenv("AUTOFIX_CONFIDENCE_THRESHOLD", raising=False)
+        reload_settings()
+
+    def test_lower_threshold_makes_more_eligible(self, monkeypatch):
+        """Test that lower threshold makes more suggestions eligible."""
+        from common.config.settings import reload_settings
+        # Set threshold to 0.5 - lower than default 0.8
+        monkeypatch.setenv("AUTOFIX_CONFIDENCE_THRESHOLD", "0.5")
+        reload_settings()
+
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.6,  # above 0.5 threshold
+                category="style"
+            )
+        ]
+        review_outcome = {
+            "severity": "low",
+            "diff_truncated": False,
+            "schema_validated": True
+        }
+        handoff = build_fix_handoff(
+            pr_number=123,
+            suggestions=suggestions,
+            review_outcome=review_outcome
+        )
+        # 0.6 confidence is above 0.5 threshold, should be eligible
+        assert handoff.auto_fix_eligible is True
+
+        # Cleanup
+        monkeypatch.delenv("AUTOFIX_CONFIDENCE_THRESHOLD", raising=False)
+        reload_settings()
+
+    def test_get_high_confidence_suggestions_uses_configured_threshold(
+        self, monkeypatch
+    ):
+        """Test get_high_confidence_suggestions uses configured threshold."""
+        from common.config.settings import reload_settings
+        monkeypatch.setenv("AUTOFIX_CONFIDENCE_THRESHOLD", "0.7")
+        reload_settings()
+
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.75,  # above 0.7
+                category="style"
+            ),
+            FixSuggestion(
+                file_path="b.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.65,  # below 0.7
+                category="style"
+            ),
+        ]
+        handoff = ReviewToFixHandoff(
+            review_id="review-abc123",
+            pr_number=123,
+            suggestions=suggestions
+        )
+        # With threshold=0.7, only 0.75 confidence should be included
+        high_conf = handoff.get_high_confidence_suggestions()
+        assert len(high_conf) == 1
+        assert high_conf[0].confidence == 0.75
+
+        # Cleanup
+        monkeypatch.delenv("AUTOFIX_CONFIDENCE_THRESHOLD", raising=False)
+        reload_settings()
+
+    def test_explicit_threshold_overrides_configured(self, monkeypatch):
+        """Test explicit threshold parameter overrides configured value."""
+        from common.config.settings import reload_settings
+        monkeypatch.setenv("AUTOFIX_CONFIDENCE_THRESHOLD", "0.9")
+        reload_settings()
+
+        suggestions = [
+            FixSuggestion(
+                file_path="a.py", line_start=1, line_end=1,
+                original_code="x", suggested_code="y",
+                reason="test", confidence=0.75,
+                category="style"
+            ),
+        ]
+        handoff = ReviewToFixHandoff(
+            review_id="review-abc123",
+            pr_number=123,
+            suggestions=suggestions
+        )
+        # Explicit threshold=0.7 should override configured 0.9
+        high_conf = handoff.get_high_confidence_suggestions(threshold=0.7)
+        assert len(high_conf) == 1
+
+        # Cleanup
+        monkeypatch.delenv("AUTOFIX_CONFIDENCE_THRESHOLD", raising=False)
+        reload_settings()
+
+    def test_backward_compatibility_constant_exists(self):
+        """Test HIGH_CONFIDENCE_THRESHOLD constant still exists for backward compat."""
+        from core.routing.fix_handoff import HIGH_CONFIDENCE_THRESHOLD
+        assert HIGH_CONFIDENCE_THRESHOLD == 0.8

@@ -957,6 +957,15 @@ class Settings(BaseSettings):
         description="Weight for provider preference in model selection (0-1). Higher values prefer configured provider order."
     )
 
+    # Issue #3234: Configurable auto-fix confidence threshold (EPIC D)
+    autofix_confidence_threshold: float = Field(
+        default=0.8,
+        ge=0.0,
+        le=1.0,
+        alias="AUTOFIX_CONFIDENCE_THRESHOLD",
+        description="Minimum confidence score (0.0-1.0) for auto-fix eligibility. Suggestions with confidence >= this threshold are considered 'high confidence' and eligible for auto-fix. Default: 0.8"
+    )
+
     use_redis_checkpointer: bool = Field(
         default=False,
         alias="USE_REDIS_CHECKPOINTER",
