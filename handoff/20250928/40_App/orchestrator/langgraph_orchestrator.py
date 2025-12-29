@@ -5728,7 +5728,9 @@ def publisher_node(state: AgentState) -> AgentState:
     diff_truncated = state.get("diff_truncated", False)
     # Phase 2: Get stored head_sha for commit pinning
     # Fix: This should now always be set by reviewer_node (moved outside if diff_content: block)
-    stored_head_sha = state.get("diff_head_sha")
+    # Issue #3253: Normalize to None if not a valid non-empty string (defensive)
+    _raw_head_sha = state.get("diff_head_sha")
+    stored_head_sha = _raw_head_sha if isinstance(_raw_head_sha, str) and _raw_head_sha else None
     downgraded_count = 0
     line_drift_detected = False
 
