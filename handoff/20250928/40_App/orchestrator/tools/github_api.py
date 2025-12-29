@@ -290,6 +290,35 @@ def _is_transient_error(status_code: int) -> bool:
     return status_code >= 500 or status_code == 429
 
 
+def _extract_commit_sha(result) -> str:
+    """Safely extract commit SHA from GitHub API response.
+
+    Handles both PyGithub Commit objects (with .sha attribute) and
+    dict responses (with ['sha'] key) for robustness.
+
+    Args:
+        result: Response from update_file() or create_file()
+
+    Returns:
+        str: Commit SHA or empty string if not found
+    """
+    if not result or not isinstance(result, dict):
+        return ""
+
+    commit_obj = result.get("commit")
+    if commit_obj is None:
+        return ""
+
+    sha = getattr(commit_obj, "sha", None)
+    if sha:
+        return sha
+
+    if isinstance(commit_obj, dict):
+        return commit_obj.get("sha", "")
+
+    return ""
+
+
 def _classify_github_error(e: Exception) -> tuple[str, str]:
     """Classify a GitHub exception into error type and message.
 
@@ -352,7 +381,7 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
             try:
                 file = repo.get_contents(path, ref=branch)
                 result = repo.update_file(path, message, content, file.sha, branch=branch)
-                new_sha = result.get('commit', {}).sha if result else ""
+                new_sha = _extract_commit_sha(result)
                 logger.info(
                     f"[COMMIT_FILE_SUCCESS] Updated {path} on {branch}",
                     extra={**log_context, "sha": new_sha, "attempt": attempt + 1}
@@ -361,7 +390,7 @@ def commit_file(repo, branch, path, content, message, max_retries: int = 3) -> C
             except GithubException as e:
                 if getattr(e, 'status', 0) == 404:
                     result = repo.create_file(path, message, content, branch=branch)
-                    new_sha = result.get('commit', {}).sha if result else ""
+                    new_sha = _extract_commit_sha(result)
                     logger.info(
                         f"[COMMIT_FILE_SUCCESS] Created {path} on {branch}",
                         extra={**log_context, "sha": new_sha, "attempt": attempt + 1}

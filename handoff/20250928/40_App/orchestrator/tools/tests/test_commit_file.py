@@ -21,6 +21,7 @@ from tools.github_api import (
     CommitResult,
     _classify_github_error,
     _is_transient_error,
+    _extract_commit_sha,
 )
 from github import GithubException
 
@@ -88,6 +89,55 @@ class TestIsTransientError:
 
     def test_200_is_not_transient(self):
         assert _is_transient_error(200) is False
+
+
+class TestExtractCommitSha:
+    """Tests for _extract_commit_sha helper - handles both PyGithub objects and dicts"""
+
+    def test_extract_sha_from_pygithub_commit_object(self):
+        """Test extracting SHA from PyGithub Commit object (has .sha attribute)"""
+        mock_commit = MagicMock()
+        mock_commit.sha = "abc123def456"
+        result = {"commit": mock_commit}
+        assert _extract_commit_sha(result) == "abc123def456"
+
+    def test_extract_sha_from_dict_commit(self):
+        """Test extracting SHA from dict-based commit (has ['sha'] key)"""
+        result = {"commit": {"sha": "xyz789"}}
+        assert _extract_commit_sha(result) == "xyz789"
+
+    def test_extract_sha_returns_empty_for_none_result(self):
+        """Test that None result returns empty string"""
+        assert _extract_commit_sha(None) == ""
+
+    def test_extract_sha_returns_empty_for_non_dict_result(self):
+        """Test that non-dict result returns empty string"""
+        assert _extract_commit_sha("not a dict") == ""
+        assert _extract_commit_sha(123) == ""
+        assert _extract_commit_sha([]) == ""
+
+    def test_extract_sha_returns_empty_for_missing_commit_key(self):
+        """Test that missing 'commit' key returns empty string"""
+        assert _extract_commit_sha({}) == ""
+        assert _extract_commit_sha({"other": "value"}) == ""
+
+    def test_extract_sha_returns_empty_for_none_commit(self):
+        """Test that None commit value returns empty string"""
+        assert _extract_commit_sha({"commit": None}) == ""
+
+    def test_extract_sha_prefers_attribute_over_dict(self):
+        """Test that .sha attribute is preferred over dict access"""
+        mock_commit = MagicMock()
+        mock_commit.sha = "from_attribute"
+        # Even if it has dict-like behavior, attribute should be used
+        result = {"commit": mock_commit}
+        assert _extract_commit_sha(result) == "from_attribute"
+
+    def test_extract_sha_fallback_to_dict_when_no_attribute(self):
+        """Test fallback to dict access when no .sha attribute"""
+        # Create a dict that doesn't have .sha attribute
+        result = {"commit": {"sha": "from_dict_key"}}
+        assert _extract_commit_sha(result) == "from_dict_key"
 
 
 class TestClassifyGithubError:
