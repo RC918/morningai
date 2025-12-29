@@ -5628,7 +5628,9 @@ def publisher_node(state: AgentState) -> AgentState:
 
             repo = get_repo()
             # Issue #3253: Get commit_id for Redis dedup idempotency
-            stored_head_sha = state.get("diff_head_sha")
+            # Normalize to None if not a valid non-empty string (defensive)
+            raw_head_sha = state.get("diff_head_sha")
+            stored_head_sha = raw_head_sha if isinstance(raw_head_sha, str) and raw_head_sha else None
             if repo:
                 result = post_pr_review(
                     repo=repo,
