@@ -79,7 +79,7 @@ class TestLLMResponseParsingErrors:
         )
 
         assert result.status == CoderStatus.SKIPPED
-        assert "whitespace" in result.reason.lower()
+        assert "only whitespace content" in result.reason.lower()
 
     @patch.object(SimpleCoder, 'call_llm')
     def test_unknown_status_value(self, mock_call_llm, coder):
