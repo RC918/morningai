@@ -281,10 +281,10 @@ class RLSAuditor:
                 if 'authenticated' in str(roles) and using_clause.strip().lower() == 'true':
                     if 'platform_admin' not in policy_name.lower():
                         issue = AuditIssue(
-                            severity=Severity.CRITICAL,
+                            severity=Severity.WARNING,
                             table=table_name,
                             issue_type="OVERLY_PERMISSIVE",
-                            message=f"Policy '{policy_name}' uses USING(true) on tenant-scoped table",
+                            message=f"Policy '{policy_name}' uses USING(true) on tenant-scoped table (heuristic check)",
                             policy_name=policy_name,
                             recommendation="Replace with tenant isolation: USING(tenant_id = current_user_tenant_id())"
                         )

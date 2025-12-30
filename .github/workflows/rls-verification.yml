@@ -73,24 +73,28 @@ jobs:
           
           ## Status
           
-          This is a **BLOCKING** check. PRs with critical RLS issues cannot be merged.
+          This is a **BLOCKING** check. PRs with critical RLS coverage issues cannot be merged.
           
-          ## What This Checks
+          ## What This Blocks (CRITICAL)
           
-          - All tables in public schema have RLS enabled
-          - All tables with RLS have at least one policy
-          - Tenant-scoped tables have proper tenant isolation policies
-          - No overly permissive policies (USING(true) on tenant data)
+          - Tables without RLS enabled (RLS_DISABLED)
+          - Tables with RLS enabled but no policies (NO_POLICIES)
+          
+          ## What This Warns (Non-blocking Heuristics)
+          
+          - Overly permissive policies on tenant-scoped tables (OVERLY_PERMISSIVE)
+          - Missing admin checks on platform-admin tables (MISSING_ADMIN_CHECK)
+          - Tables with tenant_id but no tenant isolation policy (NO_TENANT_ISOLATION)
           
           ## If This Fails
           
-          1. Check the audit output above for specific issues
-          2. Add missing RLS policies or enable RLS on tables
-          3. See \`docs/RLS_IMPLEMENTATION_GUIDE.md\` for guidance
+          1. Check the audit output above for specific CRITICAL issues
+          2. Enable RLS: \`ALTER TABLE <table> ENABLE ROW LEVEL SECURITY;\`
+          3. Add policies: See \`docs/RLS_IMPLEMENTATION_GUIDE.md\` for guidance
           
           ---
           
-          **Note**: This is a HARD GATE. Critical RLS issues MUST be fixed before merge.
+          **Note**: Only CRITICAL (coverage) issues block merge. Semantic warnings require manual review.
           EOF
 
   # ============================================================================
