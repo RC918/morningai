@@ -642,11 +642,22 @@ def commit_files(
         )
 
     # Validate file paths (no path traversal)
+    # Use os.path.normpath to handle edge cases like foo/../bar
     for f in files:
         path = f.get("path", "")
-        if not path or ".." in path or path.startswith("/"):
+        if not path:
             logger.warning(
-                f"[COMMIT_FILES_VALIDATION_ERROR] Invalid path: {path}"
+                "[COMMIT_FILES_VALIDATION_ERROR] Empty path"
+            )
+            return CommitResult(
+                CommitResult.UNKNOWN_ERROR,
+                "Invalid file path: empty"
+            )
+        # Normalize path and check for traversal
+        normalized_path = os.path.normpath(path)
+        if ".." in normalized_path or normalized_path.startswith("/"):
+            logger.warning(
+                f"[COMMIT_FILES_VALIDATION_ERROR] Invalid path: {path} (normalized: {normalized_path})"
             )
             return CommitResult(
                 CommitResult.UNKNOWN_ERROR,

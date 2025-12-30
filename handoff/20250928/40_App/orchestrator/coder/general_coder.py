@@ -66,6 +66,7 @@ Usage:
 import ast
 import json
 import logging
+import os
 import threading
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
@@ -240,7 +241,6 @@ def resolve_local_import(
     ]
 
     # Also try relative to the base file's directory
-    import os
     base_dir = os.path.dirname(base_file_path)
     if base_dir:
         potential_paths.extend([
@@ -516,7 +516,6 @@ class GeneralCoder(BaseAgent):
 
                 # Path validation (no traversal)
                 # Use os.path.normpath to handle edge cases like foo/../bar
-                import os
                 normalized_path = os.path.normpath(file_path)
                 if (
                     ".." in normalized_path
