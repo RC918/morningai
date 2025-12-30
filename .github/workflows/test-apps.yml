@@ -87,10 +87,13 @@ jobs:
           ENABLE_MOCK_USERS: 'false'  # Mock users disabled in production
           RATE_LIMIT_REQUESTS: 60
   
-  test-orchestrator:
-    name: Orchestrator Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    test-orchestrator:
+      name: Orchestrator Tests
+      runs-on: ubuntu-latest
+      # Increased from 15 to 45 minutes to accommodate slow async executor tests
+      # in meta_agent/tests/test_autonomous_executor.py which can take up to 5 minutes each.
+      # These tests were previously not run due to pytest discovery gap (#3251).
+      timeout-minutes: 45
     services:
       redis:
         image: redis:alpine
