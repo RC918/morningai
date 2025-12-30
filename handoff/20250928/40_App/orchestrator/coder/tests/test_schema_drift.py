@@ -163,11 +163,17 @@ class TestFinalOutputSchemaConsistency:
         output = CoderOutput.create_skipped("test reason", file_path="test.py")
         result = output.to_dict()
 
+        assert "status" in result, (
+            f'Required field "status" missing from skipped output. Got keys: {list(result.keys())}'
+        )
         assert result["status"] == "skipped", (
-            f'Expected status="skipped", got: "{result.get("status")}"'
+            f'Expected status="skipped", got: "{result["status"]}"'
+        )
+        assert "reason" in result, (
+            f'Required field "reason" missing from skipped output. Got keys: {list(result.keys())}'
         )
         assert result["reason"] == "test reason", (
-            f'Expected reason="test reason", got: "{result.get("reason")}"'
+            f'Expected reason="test reason", got: "{result["reason"]}"'
         )
         assert "patch" not in result, (
             f'Skipped output should not contain "patch" field. Got: {result}'
@@ -182,11 +188,17 @@ class TestFinalOutputSchemaConsistency:
         )
         result = output.to_dict()
 
+        assert "status" in result, (
+            f'Required field "status" missing from patch output. Got keys: {list(result.keys())}'
+        )
         assert result["status"] == "patch", (
-            f'Expected status="patch", got: "{result.get("status")}"'
+            f'Expected status="patch", got: "{result["status"]}"'
+        )
+        assert "patch" in result, (
+            f'Required field "patch" missing from patch output. Got keys: {list(result.keys())}'
         )
         assert result["patch"] == "fixed code", (
-            f'Expected patch="fixed code", got: "{result.get("patch")}"'
+            f'Expected patch="fixed code", got: "{result["patch"]}"'
         )
         assert "reason" not in result, (
             f'Patch output should not contain "reason" field. Got: {result}'
@@ -197,8 +209,11 @@ class TestFinalOutputSchemaConsistency:
         output = CoderOutput.create_skipped("test", file_path="src/utils.py")
         result = output.to_dict()
 
+        assert "file_path" in result, (
+            f'Field "file_path" missing when provided. Got keys: {list(result.keys())}'
+        )
         assert result["file_path"] == "src/utils.py", (
-            f'Expected file_path="src/utils.py", got: "{result.get("file_path")}"'
+            f'Expected file_path="src/utils.py", got: "{result["file_path"]}"'
         )
 
     def test_syntax_valid_included_when_provided(self):
@@ -236,12 +251,18 @@ class TestFinalOutputSchemaConsistency:
         json_str = json.dumps(output.to_dict())
         parsed = json.loads(json_str)
 
+        assert "schema_version" in parsed, (
+            f'JSON parsed output missing "schema_version". Got keys: {list(parsed.keys())}'
+        )
         assert parsed["schema_version"] == CODER_OUTPUT_SCHEMA_VERSION, (
             f'JSON parsed schema_version mismatch. '
-            f'Expected: {CODER_OUTPUT_SCHEMA_VERSION}, got: {parsed.get("schema_version")}'
+            f'Expected: {CODER_OUTPUT_SCHEMA_VERSION}, got: {parsed["schema_version"]}'
+        )
+        assert "status" in parsed, (
+            f'JSON parsed output missing "status". Got keys: {list(parsed.keys())}'
         )
         assert parsed["status"] == "patch", (
-            f'JSON parsed status mismatch. Expected: "patch", got: "{parsed.get("status")}"'
+            f'JSON parsed status mismatch. Expected: "patch", got: "{parsed["status"]}"'
         )
 
 
