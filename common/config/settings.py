@@ -534,10 +534,10 @@ class Settings(BaseSettings):
         description="Dev agent API endpoint"
     )
 
-    llm_provider: Literal["openai", "gemini", "auto"] = Field(
+    llm_provider: Literal["openai", "gemini", "alicloud", "siliconflow", "auto"] = Field(
         default="openai",
         alias="LLM_PROVIDER",
-        description="LLM provider for text generation (openai, gemini, auto)"
+        description="LLM provider for text generation (openai, gemini, alicloud, siliconflow, auto)"
     )
 
     gemini_api_key_secret: Optional[SecretStr] = Field(
