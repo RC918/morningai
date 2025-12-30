@@ -654,6 +654,45 @@ class Settings(BaseSettings):
         description="Weight for drift rate in health score calculation (EPIC I-2)"
     )
 
+    # EPIC I-3a: Health Alerting (Blueprint 4.3 - Model Governance Framework v2)
+    health_alerting_enabled: bool = Field(
+        default=False,
+        alias="HEALTH_ALERTING_ENABLED",
+        description="Enable provider health alerting (EPIC I-3a)"
+    )
+
+    health_alert_threshold: float = Field(
+        default=70.0,
+        ge=0.0,
+        le=100.0,
+        alias="HEALTH_ALERT_THRESHOLD",
+        description="Health score threshold below which alerts are triggered (EPIC I-3a)"
+    )
+
+    health_alert_cooldown_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=1440,
+        alias="HEALTH_ALERT_COOLDOWN_MINUTES",
+        description="Cooldown period between alerts for the same provider (EPIC I-3a)"
+    )
+
+    health_alert_min_requests: int = Field(
+        default=10,
+        ge=1,
+        le=1000,
+        alias="HEALTH_ALERT_MIN_REQUESTS",
+        description="Minimum requests in window before alerting (prevents noise) (EPIC I-3a)"
+    )
+
+    health_alert_error_rate_threshold: float = Field(
+        default=10.0,
+        ge=0.0,
+        le=100.0,
+        alias="HEALTH_ALERT_ERROR_RATE_THRESHOLD",
+        description="Error rate threshold (%) that triggers immediate alert (EPIC I-3a)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",
