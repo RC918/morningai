@@ -245,7 +245,7 @@ class LLMClient:
                 f"Check API key configuration."
             )
 
-        return self._provider.generate(
+        response = self._provider.generate(
             prompt=prompt,
             system_prompt=system_prompt,
             temperature=temperature,
@@ -253,6 +253,31 @@ class LLMClient:
             json_mode=json_mode,
             **kwargs
         )
+
+        # EPIC I-1: Runtime Drift Detection (observe-only by default)
+        # This hook validates LLM responses without blocking requests
+        # unless DRIFT_DETECTION_BLOCK_ON_FAIL=true
+        try:
+            from governance.drift_detector import observe_response
+            observe_response(
+                response=response,
+                json_mode=json_mode,
+                provider=self._provider_name,
+                model=self.model
+            )
+        except ImportError:
+            pass  # Drift detection not available, continue normally
+        except Exception as e:
+            # Log but don't block on drift detection errors
+            # unless it's a DriftDetectedError with block_on_fail=True
+            if e.__class__.__name__ == "DriftDetectedError":
+                raise  # Re-raise if blocking is enabled
+            logger.warning(
+                f"[LLMClient] Drift detection error (non-blocking): {e}",
+                extra={"provider": self._provider_name, "model": self.model}
+            )
+
+        return response
 
     def is_available(self) -> bool:
         """Check if the configured provider is available"""

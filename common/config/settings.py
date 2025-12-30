@@ -594,6 +594,27 @@ class Settings(BaseSettings):
         description="Comma-separated allowlist of providers for LLM routing (governance control)"
     )
 
+    # EPIC I-1: Runtime Drift Detection (Blueprint 4.3 - Model Governance Framework v2)
+    drift_detection_enabled: bool = Field(
+        default=False,
+        alias="DRIFT_DETECTION_ENABLED",
+        description="Enable runtime drift detection for LLM responses (EPIC I-1)"
+    )
+
+    drift_detection_block_on_fail: bool = Field(
+        default=False,
+        alias="DRIFT_DETECTION_BLOCK_ON_FAIL",
+        description="Block LLM requests when drift detection fails (EPIC I-1)"
+    )
+
+    drift_detection_sample_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        alias="DRIFT_DETECTION_SAMPLE_RATE",
+        description="Sample rate for drift detection (0.0-1.0) (EPIC I-1)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",
