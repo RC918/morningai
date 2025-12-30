@@ -12,8 +12,8 @@ These tests verify the health alerting functionality including:
 - Observe-only safety contract (failures don't propagate)
 """
 
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock, AsyncMock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch, MagicMock
 
 from governance.health_alerter import (
     HealthAlertService,
@@ -198,7 +198,7 @@ class TestHealthAlertService:
         assert result1 is not None
 
         # Manually expire cooldown
-        service._last_alert_time["openai"] = datetime.utcnow() - timedelta(minutes=20)
+        service._last_alert_time["openai"] = datetime.now(timezone.utc) - timedelta(minutes=20)
 
         # Second alert should now be sent
         result2 = service.check_and_alert("openai", health_data)

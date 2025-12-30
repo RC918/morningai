@@ -22,10 +22,20 @@ Safety Contract:
 
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger(__name__)
+
+
+def _get_utc_timestamp() -> str:
+    """
+    Get current UTC timestamp in RFC3339 format.
+
+    Returns ISO 8601 format with timezone designator (+00:00) for UTC.
+    This is RFC3339 compliant and preferred over deprecated datetime.utcnow().
+    """
+    return datetime.now(timezone.utc).isoformat()
 
 
 class HealthAlertService:
@@ -170,12 +180,12 @@ class HealthAlertService:
                 return False
 
             cooldown_end = last_alert + timedelta(minutes=self.cooldown_minutes)
-            return datetime.utcnow() < cooldown_end
+            return datetime.now(timezone.utc) < cooldown_end
 
     def _update_cooldown(self, provider: str) -> None:
         """Update last alert time for provider"""
         with self._lock:
-            self._last_alert_time[provider] = datetime.utcnow()
+            self._last_alert_time[provider] = datetime.now(timezone.utc)
 
     def _send_alert(
         self,
@@ -196,7 +206,7 @@ class HealthAlertService:
         results = {
             "provider": provider,
             "reason": reason,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": _get_utc_timestamp(),
             "channels": {}
         }
 
@@ -236,7 +246,7 @@ class HealthAlertService:
             "drift_rate": health_data.get("drift_rate", 0),
             "total_requests": health_data.get("total_requests", 0),
             "window_minutes": health_data.get("window_minutes", 15),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": _get_utc_timestamp(),
             "severity": "critical" if "error_rate_spike" in reason else "warning",
         }
 
@@ -356,7 +366,7 @@ class HealthAlertService:
 
             results = {
                 "enabled": True,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": _get_utc_timestamp(),
                 "providers_checked": [],
                 "alerts_sent": []
             }
@@ -378,7 +388,7 @@ class HealthAlertService:
     def get_cooldown_status(self) -> Dict[str, Any]:
         """Get current cooldown status for all providers"""
         with self._lock:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             status = {}
             for provider, last_alert in self._last_alert_time.items():
                 cooldown_end = last_alert + timedelta(minutes=self.cooldown_minutes)
