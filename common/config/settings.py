@@ -2344,36 +2344,40 @@ class Settings(BaseSettings):
 
         Fixes #3352
         """
-        weights_sum = (
-            self.provider_health_latency_weight +
-            self.provider_health_error_weight +
-            self.provider_health_drift_weight
-        )
+        weights = {
+            "latency": self.provider_health_latency_weight,
+            "error": self.provider_health_error_weight,
+            "drift": self.provider_health_drift_weight,
+        }
+        weights_sum = sum(weights.values())
 
         if abs(weights_sum - 1.0) > 0.001:
-            warnings.warn(
-                f"Provider health weights sum to {weights_sum:.3f} instead of 1.0. "
-                f"Weights will be normalized to preserve relative preferences. "
-                f"Current: latency={self.provider_health_latency_weight}, "
-                f"error={self.provider_health_error_weight}, "
-                f"drift={self.provider_health_drift_weight}",
-                UserWarning
-            )
             if weights_sum > 0:
-                object.__setattr__(
-                    self,
-                    "provider_health_latency_weight",
-                    self.provider_health_latency_weight / weights_sum
+                normalized = {k: v / weights_sum for k, v in weights.items()}
+                warnings.warn(
+                    f"Provider health weights sum to {weights_sum:.3f} instead of 1.0. "
+                    f"Weights will be normalized to preserve relative preferences. "
+                    f"Current: latency={weights['latency']}, error={weights['error']}, "
+                    f"drift={weights['drift']}. "
+                    f"Normalized: latency={normalized['latency']:.3f}, "
+                    f"error={normalized['error']:.3f}, drift={normalized['drift']:.3f}",
+                    UserWarning
                 )
                 object.__setattr__(
-                    self,
-                    "provider_health_error_weight",
-                    self.provider_health_error_weight / weights_sum
+                    self, "provider_health_latency_weight", normalized["latency"]
                 )
                 object.__setattr__(
-                    self,
-                    "provider_health_drift_weight",
-                    self.provider_health_drift_weight / weights_sum
+                    self, "provider_health_error_weight", normalized["error"]
+                )
+                object.__setattr__(
+                    self, "provider_health_drift_weight", normalized["drift"]
+                )
+            else:
+                warnings.warn(
+                    f"Provider health weights sum to {weights_sum:.3f} instead of 1.0. "
+                    f"All weights are zero - normalization skipped to avoid division by zero. "
+                    f"Health scoring will be ineffective until weights are configured.",
+                    UserWarning
                 )
 
         return self
