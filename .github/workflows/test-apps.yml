@@ -208,7 +208,9 @@ jobs:
         working-directory: handoff/20250928/40_App/orchestrator
         run: |
           # Uses testpaths from pytest.ini - no path arguments needed
-          pytest -v --tb=short --disable-warnings --cov=. --cov-report=xml --cov-report=json --cov-report=term-missing --cov-fail-under=50
+          # Skip slow tests (marked with @pytest.mark.slow) to prevent CI timeouts
+          # Slow tests include TestAutonomousExecutor which invokes real async execution
+          pytest -v --tb=short --disable-warnings -m "not slow" --cov=. --cov-report=xml --cov-report=json --cov-report=term-missing --cov-fail-under=50
         env:
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0

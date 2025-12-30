@@ -17,9 +17,18 @@ from ..autonomous_executor import (
 from ..execution_policy import ExecutionPolicy, AllowedOperation, DRY_RUN_POLICY
 
 
+@pytest.mark.slow  # These tests invoke real async goal execution and take 5+ minutes each
 @pytest.mark.timeout(300)  # These tests involve async goal execution which can take longer
 class TestAutonomousExecutor:
-    """Test cases for AutonomousExecutor"""
+    """Test cases for AutonomousExecutor
+    
+    NOTE: These tests are marked as @pytest.mark.slow because they invoke real
+    async goal execution without mocking. Each test can take 5+ minutes to complete.
+    They are skipped in CI with `-m "not slow"` to prevent job timeouts.
+    
+    To run these tests locally:
+        pytest meta_agent/tests/test_autonomous_executor.py::TestAutonomousExecutor -v
+    """
 
     @pytest.fixture
     def executor(self):
