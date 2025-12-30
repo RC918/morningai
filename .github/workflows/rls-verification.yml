@@ -6,13 +6,22 @@ on:
     paths:
       - 'migrations/**'
       - 'scripts/verify_rls_runtime.py'
+      - 'scripts/audit_rls_health.py'
+      - 'scripts/ci/bootstrap_rls_test_db.sql'
       - '.github/workflows/rls-verification.yml'
   workflow_dispatch:
 
 jobs:
-  verify-rls:
+  # ============================================================================
+  # Job 1: RLS Coverage Audit (BLOCKING)
+  # ============================================================================
+  # This job checks that all tables have RLS enabled and proper policies.
+  # It will FAIL the PR if critical issues are found.
+  # ============================================================================
+  rls-audit:
+    name: RLS Coverage Audit (Blocking)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     
     services:
       postgres:
@@ -41,12 +50,120 @@ jobs:
         run: |
           pip install psycopg2-binary
       
+      - name: Bootstrap test database (Supabase stubs)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+        run: |
+          echo "Bootstrapping test database with Supabase-compatible stubs..."
+          psql $DATABASE_URL -f scripts/ci/bootstrap_rls_test_db.sql
+      
+      - name: Apply RLS migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+          ON_ERROR_STOP: "1"
+        run: |
+          echo "Applying RLS-related migrations..."
+          # Apply migrations that affect RLS policies
+          for migration in migrations/*.sql; do
+            # Skip test files
+            if [[ "$migration" == *"/tests/"* ]]; then
+              continue
+            fi
+            echo "Applying $migration..."
+            psql $DATABASE_URL -v ON_ERROR_STOP=1 -f "$migration" 2>&1 || {
+              echo "::warning::Migration $migration failed (may be expected for non-RLS migrations)"
+            }
+          done
+      
+      - name: Run RLS Coverage Audit (BLOCKING)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+        run: |
+          echo "Running RLS coverage audit..."
+          python scripts/audit_rls_health.py --verbose --fail-on-critical
+      
+      - name: Create GitHub summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # RLS Coverage Audit Results
+          
+          ## Status
+          
+          This is a **BLOCKING** check. PRs with critical RLS issues cannot be merged.
+          
+          ## What This Checks
+          
+          - All tables in public schema have RLS enabled
+          - All tables with RLS have at least one policy
+          - Tenant-scoped tables have proper tenant isolation policies
+          - No overly permissive policies (USING(true) on tenant data)
+          
+          ## If This Fails
+          
+          1. Check the audit output above for specific issues
+          2. Add missing RLS policies or enable RLS on tables
+          3. See \`docs/RLS_IMPLEMENTATION_GUIDE.md\` for guidance
+          
+          ---
+          
+          **Note**: This is a HARD GATE. Critical RLS issues MUST be fixed before merge.
+          EOF
+
+  # ============================================================================
+  # Job 2: RLS Runtime Verification (Soft Gate)
+  # ============================================================================
+  # This job performs runtime verification of RLS policies.
+  # It is a soft gate - failures are warnings but don't block merge.
+  # ============================================================================
+  verify-rls:
+    name: RLS Runtime Verification (Soft Gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: rls-audit  # Only run if audit passes
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: morningai_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install psycopg2-binary
+      
+      - name: Bootstrap test database (Supabase stubs)
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+        run: |
+          psql $DATABASE_URL -f scripts/ci/bootstrap_rls_test_db.sql
+      
       - name: Apply migrations
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
         run: |
           # Apply migrations in order
           for migration in migrations/*.sql; do
+            if [[ "$migration" == *"/tests/"* ]]; then
+              continue
+            fi
             echo "Applying $migration..."
             psql $DATABASE_URL -f "$migration" || echo "Migration $migration failed (may be expected)"
           done
@@ -75,7 +192,7 @@ jobs:
         if: always()
         run: |
           cat >> $GITHUB_STEP_SUMMARY <<EOF
-          # RLS Verification Results
+          # RLS Runtime Verification Results
           
           ## Status
           
