@@ -2,6 +2,7 @@
 Schema/Prompt Drift Detection Tests - D-1.3
 
 Issue #3214: Automated Schema/Prompt Drift Detection
+Issue #3249: Refactor schema drift tests with helper abstractions
 Parent Issue #2760: D-1 General Coder Agent MVP
 Parent EPIC #2759: EPIC D - Autonomous Coder Agent Family
 
@@ -14,6 +15,10 @@ The tests verify:
 - Prompt schema matches documented LLM Response Schema
 - to_dict() output matches documented Final CoderOutput Schema
 - schema_version is present and valid in all outputs
+
+Helper functions are provided in schema_drift_helpers.py to reduce
+test/design over-binding and provide a single point of change when
+prompt structure changes.
 """
 import dataclasses
 import json
@@ -26,6 +31,12 @@ from coder.simple_coder import (
     CODER_SYSTEM_PROMPT,
     CODER_LLM_RESPONSE_FIELDS,
     CODER_SYSTEM_ADDED_FIELDS,
+)
+from coder.tests.schema_drift_helpers import (
+    extract_prompt_schema_section,
+    get_expected_output_keys,
+    validate_field_not_in_schema,
+    PROMPT_JSON_SCHEMA_ANCHOR,
 )
 
 
@@ -88,25 +99,21 @@ class TestLLMResponseSchemaConsistency:
         System-added fields (schema_version, file_path, syntax_valid)
         should NOT be in the prompt's JSON schema.
 
-        Uses anchor-based extraction to find the JSON schema section
-        in the prompt, which is more robust than regex matching braces.
+        Uses helper functions for anchor-based extraction to find the
+        JSON schema section in the prompt, which is more robust than
+        regex matching braces.
         """
-        anchor = "You MUST respond with ONLY a JSON object"
-        anchor_pos = CODER_SYSTEM_PROMPT.find(anchor)
-        assert anchor_pos != -1, (
-            f"Anchor text '{anchor}' not found in CODER_SYSTEM_PROMPT. "
-            "Update this test if the prompt structure changed."
+        json_section = extract_prompt_schema_section(CODER_SYSTEM_PROMPT)
+        assert json_section is not None, (
+            f"Anchor text '{PROMPT_JSON_SCHEMA_ANCHOR}' not found in CODER_SYSTEM_PROMPT. "
+            "Update PROMPT_JSON_SCHEMA_ANCHOR in schema_drift_helpers.py if the prompt structure changed."
         )
-        json_section = CODER_SYSTEM_PROMPT[anchor_pos:]
-        assert "schema_version" not in json_section, (
-            "CODER_SYSTEM_PROMPT should not ask LLM to output schema_version"
-        )
-        assert "file_path" not in json_section, (
-            "CODER_SYSTEM_PROMPT should not ask LLM to output file_path"
-        )
-        assert "syntax_valid" not in json_section, (
-            "CODER_SYSTEM_PROMPT should not ask LLM to output syntax_valid"
-        )
+
+        system_fields = get_expected_output_keys("system_added")
+        for field in system_fields:
+            assert validate_field_not_in_schema(field, json_section), (
+                f"CODER_SYSTEM_PROMPT should not ask LLM to output {field}"
+            )
 
 
 class TestFinalOutputSchemaConsistency:
@@ -355,7 +362,10 @@ class TestSchemaFieldCompleteness:
     """
 
     def test_no_undocumented_fields_in_to_dict(self):
-        """Verify to_dict() doesn't add undocumented fields."""
+        """Verify to_dict() doesn't add undocumented fields.
+
+        Uses get_expected_output_keys helper to get all documented fields.
+        """
         output = CoderOutput.create_patch(
             "code",
             file_path="test.py",
@@ -363,7 +373,7 @@ class TestSchemaFieldCompleteness:
         )
         result = output.to_dict()
 
-        all_documented = CODER_LLM_RESPONSE_FIELDS | CODER_SYSTEM_ADDED_FIELDS
+        all_documented = get_expected_output_keys("all")
         for field in result.keys():
             assert field in all_documented, (
                 f'to_dict() contains undocumented field "{field}". '
