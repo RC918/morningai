@@ -25,6 +25,7 @@ Environment Variables:
 """
 
 import os
+import re
 import sys
 import json
 import argparse
@@ -72,13 +73,14 @@ class TableAuditResult:
 @dataclass
 class AuditReport:
     """Complete audit report"""
-    database: str
-    total_tables: int
-    tables_with_rls: int
-    tables_without_rls: int
-    critical_count: int
-    warning_count: int
-    info_count: int
+    version: str = "1.0"
+    database: str = ""
+    total_tables: int = 0
+    tables_with_rls: int = 0
+    tables_without_rls: int = 0
+    critical_count: int = 0
+    warning_count: int = 0
+    info_count: int = 0
     table_results: list = field(default_factory=list)
     all_issues: list = field(default_factory=list)
 
@@ -235,6 +237,34 @@ class RLSAuditor:
 
         return result
 
+    def _has_tenant_isolation_pattern(self, policy: dict) -> bool:
+        """
+        Check if a policy contains tenant isolation logic using robust pattern matching.
+
+        This method uses regex patterns to detect tenant isolation in SQL clauses,
+        handling various SQL formatting styles (whitespace, newlines, aliases, etc.)
+        """
+        using_clause = (policy.get('using_clause') or '').lower()
+        policy_name = (policy.get('policyname') or '').lower()
+
+        if 'true_tenant_isolation' in policy_name:
+            return True
+
+        tenant_id_patterns = [
+            r'\btenant_id\s*=',
+            r'=\s*tenant_id\b',
+            r'\btenant_id\s+in\b',
+            r'\bcurrent_user_tenant_id\s*\(\s*\)',
+            r'\btenant_id\b.*\bcurrent_user_tenant_id\b',
+            r'\bcurrent_user_tenant_id\b.*\btenant_id\b',
+        ]
+
+        for pattern in tenant_id_patterns:
+            if re.search(pattern, using_clause, re.IGNORECASE | re.DOTALL):
+                return True
+
+        return False
+
     def _audit_semantic_patterns(self, result: TableAuditResult, policies: list[dict]):
         """Check for semantic anti-patterns in policies"""
         table_name = result.table_name
@@ -248,7 +278,7 @@ class RLSAuditor:
             roles = policy.get('roles') or []
 
             if is_tenant_scoped and not is_platform_admin_only:
-                if 'authenticated' in str(roles) and using_clause.strip() == 'true':
+                if 'authenticated' in str(roles) and using_clause.strip().lower() == 'true':
                     if 'platform_admin' not in policy_name.lower():
                         issue = AuditIssue(
                             severity=Severity.CRITICAL,
@@ -277,9 +307,7 @@ class RLSAuditor:
 
         if is_tenant_scoped and result.has_tenant_id and result.policy_count > 0:
             has_tenant_isolation = any(
-                'tenant_id' in (p.get('using_clause') or '') or
-                'current_user_tenant_id' in (p.get('using_clause') or '') or
-                'true_tenant_isolation' in (p.get('policyname') or '').lower()
+                self._has_tenant_isolation_pattern(p)
                 for p in policies
             )
 
@@ -408,7 +436,12 @@ def main():
         if args.json:
             report_dict = asdict(report)
             for issue in report_dict['all_issues']:
-                issue['severity'] = issue['severity']
+                if isinstance(issue['severity'], Severity):
+                    issue['severity'] = issue['severity'].value
+            for table_result in report_dict['table_results']:
+                for issue in table_result.get('issues', []):
+                    if isinstance(issue.get('severity'), Severity):
+                        issue['severity'] = issue['severity'].value
             print(json.dumps(report_dict, indent=2, default=str))
         else:
             auditor.print_report(report)
