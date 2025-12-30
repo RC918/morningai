@@ -7,11 +7,12 @@ Tests:
 - OpenAIProvider functionality
 - GeminiProvider functionality (stub)
 - LLMResponse dataclass
+- Provider governance allowlist (ROUTING_ALLOWED_PROVIDERS)
 """
 import pytest
 from unittest.mock import patch, MagicMock
 
-from llm.client import LLMClient
+from llm.client import LLMClient, _get_available_providers
 from llm.providers.base import LLMResponse
 from llm.providers.openai_provider import OpenAIProvider
 from llm.providers.gemini_provider import GeminiProvider
@@ -413,3 +414,134 @@ class TestLLMClient:
         assert client1 is not client2
 
         LLMClient.reset_default_client()
+
+
+class TestProviderGovernanceAllowlist:
+    """Tests for ROUTING_ALLOWED_PROVIDERS governance control.
+
+    Blueprint Alignment: Model Governance Framework v2 - policy-driven routing
+    """
+
+    def _create_mock_provider(self, is_available: bool):
+        """Helper to create a mock provider class"""
+        mock_class = MagicMock()
+        mock_class.return_value.is_available.return_value = is_available
+        return mock_class
+
+    def test_no_allowlist_returns_all_available(self):
+        """Test that empty allowlist returns all providers with valid API keys"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(False)),
+            ("siliconflow", self._create_mock_provider(False)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                available = _get_available_providers()
+                assert "openai" in available
+                assert "gemini" in available
+                assert "alicloud" not in available
+                assert "siliconflow" not in available
+
+    def test_allowlist_filters_to_allowed_only(self):
+        """Test that allowlist filters providers to only allowed ones"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+            ("siliconflow", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = "alicloud"
+                available = _get_available_providers()
+                assert available == ["alicloud"]
+
+    def test_allowlist_multiple_providers(self):
+        """Test allowlist with multiple providers"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+            ("siliconflow", self._create_mock_provider(False)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = "alicloud,openai"
+                available = _get_available_providers()
+                assert "alicloud" in available
+                assert "openai" in available
+                assert "gemini" not in available
+                assert "siliconflow" not in available
+
+    def test_allowlist_requires_api_key(self):
+        """Test that allowlist still requires valid API key"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(False)),
+            ("alicloud", self._create_mock_provider(False)),
+            ("siliconflow", self._create_mock_provider(False)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = "alicloud,gemini"
+                available = _get_available_providers()
+                assert available == []
+
+    def test_allowlist_case_insensitive(self):
+        """Test that allowlist matching is case-insensitive"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(False)),
+            ("alicloud", self._create_mock_provider(True)),
+            ("siliconflow", self._create_mock_provider(False)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = "AliCloud,OPENAI"
+                available = _get_available_providers()
+                assert "alicloud" in available
+                assert "openai" in available
+
+    def test_allowlist_with_whitespace(self):
+        """Test that allowlist handles whitespace correctly"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(False)),
+            ("alicloud", self._create_mock_provider(True)),
+            ("siliconflow", self._create_mock_provider(False)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = " alicloud , openai "
+                available = _get_available_providers()
+                assert "alicloud" in available
+                assert "openai" in available
+
+    def test_allowlist_blocks_siliconflow_when_only_alicloud_allowed(self):
+        """Test governance: SiliconFlow blocked even with API key when only AliCloud allowed.
+
+        This is the key governance scenario: user wants to lock down to AliCloud only,
+        even if SiliconFlow API key is accidentally configured.
+        """
+        mock_registry = [
+            ("openai", self._create_mock_provider(False)),
+            ("gemini", self._create_mock_provider(False)),
+            ("alicloud", self._create_mock_provider(True)),
+            ("siliconflow", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = "alicloud"
+                available = _get_available_providers()
+                assert available == ["alicloud"]
+                assert "siliconflow" not in available

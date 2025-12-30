@@ -69,11 +69,38 @@ _PROVIDER_REGISTRY = [
 
 
 def _get_available_providers() -> list[str]:
-    """Get list of available provider names based on configuration"""
+    """Get list of available provider names based on configuration and governance allowlist.
+
+    The provider selection follows this logic:
+    1. Check which providers have valid API keys configured
+    2. If ROUTING_ALLOWED_PROVIDERS is set (non-empty), filter to only allowed providers
+    3. Return the intersection of available and allowed providers
+
+    Governance Control (Blueprint: Model Governance Framework v2):
+    - Empty allowlist (default): Use all providers with valid API keys
+    - Non-empty allowlist: Only use providers in the allowlist that also have valid API keys
+    - If allowlist is set but no allowed providers have valid API keys, return empty list
+      (caller should handle this as an error condition)
+    """
     available = []
     for name, provider_class in _PROVIDER_REGISTRY:
         if provider_class().is_available():
             available.append(name)
+
+    try:
+        allowlist_str = getattr(settings, 'routing_allowed_providers', '')
+        if allowlist_str:
+            allowed = [p.strip().lower() for p in allowlist_str.split(',') if p.strip()]
+            filtered = [p for p in available if p.lower() in allowed]
+            logger.info(
+                f"[LLMClient] Applied provider governance allowlist: "
+                f"allowlist={allowed}, available_with_keys={available}, "
+                f"filtered_result={filtered}"
+            )
+            return filtered
+    except Exception as e:
+        logger.warning(f"[LLMClient] Failed to apply provider allowlist: {e}")
+
     return available
 
 
