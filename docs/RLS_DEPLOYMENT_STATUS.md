@@ -51,7 +51,7 @@ This document tracks the deployment status of RLS (Row Level Security) Phase 2 m
 | Migration 004 | [x] Applied | Ryan | 2025-12-10 | Temporary policies |
 | Migration 005 | [x] Applied | Ryan | 2025-12-10 | user_profiles table |
 | Migration 006 | [x] Applied | Ryan | 2025-12-10 | TRUE isolation policies |
-| Migration 039 | [x] Applied | Ryan | 2025-12-30 | Phase 2 hardening (hotfix - memory table skipped) |
+| Migration 039 | [x] Applied | Ryan + Devin | 2025-12-30 | Phase 2 hardening (hotfix - memory table skipped) |
 | RLS Test Suite | [x] Verified | Ryan | 2025-12-10 | 4 policies, 2 functions |
 | Health Check Workflow | [x] Passing | - | 2025-12-10 | rls-supabase-health.yml |
 
