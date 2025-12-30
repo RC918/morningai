@@ -409,6 +409,9 @@ class CanaryMetrics:
         Record provider latency in histogram buckets
 
         EPIC I-2: Provider Health Scoring metrics
+
+        Performance optimization: Uses a single Redis pipeline for both bucket
+        and sum recording to reduce round-trips (gemini-code-assist suggestion).
         """
         try:
             # Find the appropriate bucket
@@ -419,16 +422,17 @@ class CanaryMetrics:
                     break
 
             bucket_label = str(target_bucket) if target_bucket else "inf"
-            key = self._get_minute_key(f"provider.{provider}.latency.bucket_{bucket_label}")
-
-            with self.redis.pipeline(transaction=True) as pipe:
-                pipe.set(key, 0, ex=self.ttl_seconds, nx=True)
-                pipe.incr(key)
-                pipe.execute()
-
-            # Also record sum for average calculation
+            bucket_key = self._get_minute_key(
+                f"provider.{provider}.latency.bucket_{bucket_label}"
+            )
             sum_key = self._get_minute_key(f"provider.{provider}.latency.sum")
+
+            # Single pipeline for both bucket and sum recording (reduces Redis round-trips)
             with self.redis.pipeline(transaction=True) as pipe:
+                # Bucket key: initialize if not exists, then increment
+                pipe.set(bucket_key, 0, ex=self.ttl_seconds, nx=True)
+                pipe.incr(bucket_key)
+                # Sum key: initialize if not exists, then add latency
                 pipe.set(sum_key, 0, ex=self.ttl_seconds, nx=True)
                 pipe.incrbyfloat(sum_key, latency_ms)
                 pipe.execute()
