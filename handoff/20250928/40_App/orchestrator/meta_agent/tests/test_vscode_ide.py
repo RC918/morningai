@@ -1533,7 +1533,6 @@ class TestInitializeSession:
         assert healthz_call_count >= 1, f"Expected at least 1 healthz call, got {healthz_call_count}"
 
 
-@pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
 class TestCorsConfig:
     """Tests for CORS / iframe configuration (#2353)"""
 
@@ -1570,6 +1569,7 @@ class TestCorsConfig:
         assert config["public_url"] is None
         assert config["iframe_enabled"] is False
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_cors_config_with_origins(self, service, monkeypatch):
         """Test get_cors_config parses comma-separated origins"""
         monkeypatch.setattr(
@@ -1604,6 +1604,7 @@ class TestCorsConfig:
         assert headers["X-Frame-Options"] == "DENY"
         assert "Content-Security-Policy" not in headers
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_cors_headers_single_origin(self, service, monkeypatch):
         """Test get_cors_headers with single origin sets both headers"""
         monkeypatch.setattr(
@@ -1620,6 +1621,7 @@ class TestCorsConfig:
         assert headers["Content-Security-Policy"] == expected_csp
         assert headers["X-Frame-Options"] == "ALLOW-FROM https://app.morningai.com"
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_cors_headers_multiple_origins(self, service, monkeypatch):
         """Test get_cors_headers with multiple origins only sets CSP"""
         monkeypatch.setattr(
@@ -1649,6 +1651,7 @@ class TestCorsConfig:
 
         assert config["default_extensions"] == []
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_extension_config_with_extensions(self, service, monkeypatch):
         """Test get_extension_config parses comma-separated extension IDs"""
         monkeypatch.setattr(
@@ -1664,6 +1667,7 @@ class TestCorsConfig:
             "dbaeumer.vscode-eslint"
         ]
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_extension_config_trims_whitespace(self, service, monkeypatch):
         """Test get_extension_config trims whitespace from extension IDs"""
         monkeypatch.setattr(
@@ -1678,6 +1682,7 @@ class TestCorsConfig:
             "esbenp.prettier-vscode"
         ]
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_desired_extensions_defaults_only(self, service, mock_session, monkeypatch):
         """Test _get_desired_extensions returns only defaults when no extras"""
         monkeypatch.setattr(
@@ -1689,6 +1694,7 @@ class TestCorsConfig:
 
         assert desired == ["ms-python.python", "esbenp.prettier-vscode"]
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_desired_extensions_with_extras(self, service, mock_session, monkeypatch):
         """Test _get_desired_extensions combines defaults with per-task extras"""
         monkeypatch.setattr(
@@ -1701,6 +1707,7 @@ class TestCorsConfig:
 
         assert desired == ["ms-python.python", "dbaeumer.vscode-eslint"]
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     def test_get_desired_extensions_deduplicates(self, service, mock_session, monkeypatch):
         """Test _get_desired_extensions removes duplicates preserving order"""
         monkeypatch.setattr(
@@ -1733,6 +1740,7 @@ class TestCorsConfig:
 
         assert "extensions_desired" not in mock_session.metadata
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     @pytest.mark.asyncio
     async def test_ensure_extensions_installed_all_already_installed(
         self, service, mock_session, monkeypatch
@@ -1766,6 +1774,7 @@ class TestCorsConfig:
         }
         assert mock_session.metadata["extensions_failed"] == []
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     @pytest.mark.asyncio
     async def test_ensure_extensions_installed_installs_missing(
         self, service, mock_session, monkeypatch
@@ -1804,6 +1813,7 @@ class TestCorsConfig:
         ]
         assert mock_session.metadata["extensions_failed"] == []
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     @pytest.mark.asyncio
     async def test_ensure_extensions_installed_handles_failures(
         self, service, mock_session, monkeypatch
@@ -1834,6 +1844,7 @@ class TestCorsConfig:
         assert mock_session.metadata["extensions_installed"] == ["ms-python.python"]
         assert mock_session.metadata["extensions_failed"] == ["invalid.extension"]
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - CORS/extension config env var mismatch")
     @pytest.mark.asyncio
     async def test_ensure_extensions_installed_list_failure(
         self, service, mock_session, monkeypatch
@@ -1861,7 +1872,6 @@ class TestCorsConfig:
         assert "extensions_installed" not in mock_session.metadata
 
 
-@pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - resource monitoring env var mismatch")
 class TestResourceMonitoring:
     """Tests for resource monitoring functionality (#2353)"""
 
@@ -1909,6 +1919,7 @@ class TestResourceMonitoring:
         assert limits["memory_limit_percent"] == 85
         assert limits["max_sessions"] == 10
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - resource monitoring env var mismatch")
     def test_get_resource_limits_custom_values(self, service, monkeypatch):
         """Test get_resource_limits with custom configuration"""
         monkeypatch.setattr(
@@ -2086,6 +2097,7 @@ class TestResourceMonitoring:
         assert result["can_create_session"] is False
         assert any("Memory overloaded" in r for r in result["reasons"])
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - resource monitoring env var mismatch")
     @pytest.mark.asyncio
     async def test_check_resource_overload_session_limit(
         self, service, monkeypatch
@@ -2122,6 +2134,7 @@ class TestResourceMonitoring:
         assert result["can_create_session"] is False
         assert any("Session limit reached" in r for r in result["reasons"])
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - resource monitoring env var mismatch")
     @pytest.mark.asyncio
     async def test_get_idle_sessions_returns_idle(self, service, monkeypatch):
         """Test get_idle_sessions returns sessions that exceeded idle timeout"""
@@ -2187,6 +2200,7 @@ class TestResourceMonitoring:
 
         assert len(idle_sessions) == 0
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - resource monitoring env var mismatch")
     @pytest.mark.asyncio
     async def test_get_idle_sessions_disabled(self, service, monkeypatch):
         """Test get_idle_sessions returns empty when timeout is disabled"""

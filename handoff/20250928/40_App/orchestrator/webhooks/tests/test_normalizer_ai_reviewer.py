@@ -70,10 +70,10 @@ class TestEventNormalizerAIReviewerKeywords:
         assert "nitpick:" in keywords
 
 
-@pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
 class TestEventNormalizerIsActionable:
     """Tests for EventNormalizer.is_actionable with AI reviewers"""
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_ai_reviewer_event(self, event_normalizer):
         """Test that AI reviewer events are always actionable"""
         event = create_mock_event(
@@ -82,6 +82,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_ai_reviewer_with_empty_description(
         self, event_normalizer
     ):
@@ -92,6 +93,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_suggestion_keyword(self, event_normalizer):
         """Test that 'suggestion:' keyword triggers actionable"""
         event = create_mock_event(
@@ -99,6 +101,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_consider_keyword(self, event_normalizer):
         """Test that 'consider:' keyword triggers actionable"""
         event = create_mock_event(
@@ -106,6 +109,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_security_concern_keyword(self, event_normalizer):
         """Test that 'security concern' keyword triggers actionable"""
         event = create_mock_event(
@@ -113,6 +117,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_code_review_keyword(self, event_normalizer):
         """Test that 'code review' keyword triggers actionable"""
         event = create_mock_event(
@@ -120,6 +125,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_refactor_keyword(self, event_normalizer):
         """Test that 'refactor' keyword triggers actionable"""
         event = create_mock_event(
@@ -127,6 +133,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_vulnerability_keyword(self, event_normalizer):
         """Test that 'vulnerability' keyword triggers actionable"""
         event = create_mock_event(
@@ -134,6 +141,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is True
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_for_deprecated_keyword(self, event_normalizer):
         """Test that 'deprecated' keyword triggers actionable"""
         event = create_mock_event(
@@ -149,6 +157,7 @@ class TestEventNormalizerIsActionable:
         )
         assert event_normalizer.is_actionable(event) is False
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_is_actionable_case_insensitive(self, event_normalizer):
         """Test that keyword detection is case insensitive"""
         event = create_mock_event(
@@ -157,10 +166,10 @@ class TestEventNormalizerIsActionable:
         assert event_normalizer.is_actionable(event) is True
 
 
-@pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - extract_task returns None")
 class TestEventNormalizerExtractTask:
     """Tests for EventNormalizer.extract_task with AI reviewers"""
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - extract_task returns None")
     def test_extract_task_from_ai_reviewer_event(self, event_normalizer):
         """Test that tasks are extracted from AI reviewer events"""
         event = create_mock_event(
@@ -189,10 +198,10 @@ class TestEventNormalizerExtractTask:
         assert task.source_event.metadata.get("review_source") == "copilot"
 
 
-@pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
 class TestAIReviewerIntegration:
     """Integration tests for AI reviewer workflow in normalizer"""
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - is_actionable() logic mismatch")
     def test_full_ai_reviewer_workflow(self, event_normalizer):
         """Test complete workflow: is_actionable -> extract_task"""
         # Simulate a Gemini Code Assist review comment
