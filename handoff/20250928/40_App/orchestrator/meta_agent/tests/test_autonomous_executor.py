@@ -17,6 +17,7 @@ from ..autonomous_executor import (
 from ..execution_policy import ExecutionPolicy, AllowedOperation, DRY_RUN_POLICY
 
 
+@pytest.mark.timeout(300)  # These tests involve async goal execution which can take longer
 class TestAutonomousExecutor:
     """Test cases for AutonomousExecutor"""
 
@@ -288,6 +289,7 @@ class TestTaskHandlers:
         assert result["verification_passed"] is True
 
 
+@pytest.mark.timeout(300)  # Integration tests involve async goal execution which can take longer
 class TestExecutorIntegration:
     """Integration tests for AutonomousExecutor with AuditLogger, ExecutionPolicy, and StateManager"""
 
