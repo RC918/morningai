@@ -50,33 +50,16 @@ jobs:
         run: |
           pip install psycopg2-binary
       
-      - name: Bootstrap test database (Supabase stubs)
+      - name: Bootstrap test database (RLS audit test schema)
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+          PGPASSWORD: postgres
         run: |
-          echo "Bootstrapping test database with Supabase-compatible stubs..."
-          psql $DATABASE_URL -f scripts/ci/bootstrap_rls_test_db.sql
-      
-      - name: Apply RLS migrations
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
-        run: |
-          echo "Applying RLS-related migrations..."
-          # Apply migrations in order - continue on error for non-critical migrations
-          for migration in migrations/*.sql; do
-            # Skip test files
-            if [[ "$migration" == *"/tests/"* ]]; then
-              continue
-            fi
-            echo "Applying $migration..."
-            # Use || true to continue even if migration fails (some may have Supabase-specific deps)
-            psql $DATABASE_URL -f "$migration" 2>&1 || {
-              echo "::warning::Migration $migration failed (may be expected for non-RLS migrations)"
-            }
-          done
+          echo "Bootstrapping test database with RLS audit test schema..."
+          psql -h localhost -U postgres -d morningai_test -f scripts/ci/bootstrap_rls_test_db.sql
       
       - name: Run RLS Coverage Audit (BLOCKING)
         env:
+          PGPASSWORD: postgres
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
         run: |
           echo "Running RLS coverage audit..."
@@ -149,24 +132,11 @@ jobs:
         run: |
           pip install psycopg2-binary
       
-      - name: Bootstrap test database (Supabase stubs)
+      - name: Bootstrap test database (RLS audit test schema)
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
+          PGPASSWORD: postgres
         run: |
-          psql $DATABASE_URL -f scripts/ci/bootstrap_rls_test_db.sql
-      
-      - name: Apply migrations
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/morningai_test
-        run: |
-          # Apply migrations in order
-          for migration in migrations/*.sql; do
-            if [[ "$migration" == *"/tests/"* ]]; then
-              continue
-            fi
-            echo "Applying $migration..."
-            psql $DATABASE_URL -f "$migration" || echo "Migration $migration failed (may be expected)"
-          done
+          psql -h localhost -U postgres -d morningai_test -f scripts/ci/bootstrap_rls_test_db.sql
       
       - name: Run RLS verification (ephemeral mode)
         id: rls_verify

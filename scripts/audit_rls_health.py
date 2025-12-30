@@ -139,8 +139,8 @@ class RLSAuditor:
             if self.verbose:
                 print(f"Connected to database: {self.current_database}")
             return True
-        except Exception as e:
-            print(f"ERROR: Failed to connect to database: {e}")
+        except Exception:
+            print("ERROR: Failed to connect to database. Check DATABASE_URL and connectivity.")
             return False
 
     def disconnect(self):
