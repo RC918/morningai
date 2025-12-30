@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 232
+- **Total Variables**: 233
 - **Required**: 21
-- **Optional**: 211
+- **Optional**: 212
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -29,7 +29,7 @@
 - [Cloud Services](#cloud-services) (14 variables)
 - [Infrastructure](#infrastructure) (21 variables)
 - [Monitoring](#monitoring) (16 variables)
-- [Integration](#integration) (19 variables)
+- [Integration](#integration) (20 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
 - [Feature Flags](#feature-flags) (63 variables)
@@ -1042,6 +1042,7 @@ Time window in minutes for counting fail-open events (Issue
 | `DASHSCOPE_API_KEY` | secret | No | - | CRITICAL |
 | `DASHSCOPE_BASE_URL` | url | No | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | PUBLIC |
 | `SILICONFLOW_API_KEY` | secret | No | - | CRITICAL |
+| `ROUTING_ALLOWED_PROVIDERS` | string | No |  | MEDIUM |
 | `SILICONFLOW_BASE_URL` | url | No | https://api.siliconflow.cn/v1 | PUBLIC |
 | `SLACK_WEBHOOK_URL` | url | No | - | SECRET |
 | `TELEGRAM_BOT_TOKEN` | secret | No | - | SECRET |
@@ -1159,6 +1160,22 @@ SiliconFlow API key for Qwen models (EPIC
 > Required for SiliconFlow provider (Qwen models).
 > Get your API key from: https://cloud.siliconflow.cn/
 > Supports models: Qwen/Qwen2.5-72B/32B/14B/7B-Instruct
+
+#### `ROUTING_ALLOWED_PROVIDERS`
+
+Comma-separated allowlist of providers for LLM routing (governance control)
+
+- **Type**: string
+- **Required**: No
+- **Default**: ``
+- **Security Level**: MEDIUM
+
+**Notes**:
+> Governance control for LLM provider selection.
+> When set, only listed providers will be used for task-based routing, regardless of API key availability. This provides explicit control over which providers are allowed in production.
+> Examples: - "" (empty, default): No restriction, use all providers with valid API keys - "alicloud": Only use AliCloud DashScope (recommended for China compliance) - "alicloud,openai": Allow both AliCloud and OpenAI - "openai,gemini": Allow OpenAI and Gemini only
+> Blueprint Alignment: Model Governance Framework v2 - policy-driven routing
+> IMPORTANT: If set to a non-empty value and no listed providers have valid API keys configured, routing will fail with an explicit error rather than silently falling back to other providers.
 
 #### `SILICONFLOW_BASE_URL`
 
