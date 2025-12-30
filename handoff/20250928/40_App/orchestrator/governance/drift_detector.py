@@ -27,6 +27,7 @@ Usage:
 import json
 import logging
 import random
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -312,31 +313,36 @@ class DriftDetectedError(Exception):
         super().__init__(message)
 
 
-# Global singleton instance
+# Global singleton instance with thread-safe initialization
 _drift_detector: Optional[DriftDetector] = None
+_drift_detector_lock = threading.Lock()
 
 
 def get_drift_detector() -> DriftDetector:
     """
-    Get or create the global DriftDetector instance
+    Get or create the global DriftDetector instance (thread-safe)
 
     Reads configuration from settings on first call.
+    Uses double-checked locking for thread-safe singleton initialization.
     """
     global _drift_detector
 
+    # Double-checked locking pattern for thread-safe singleton
     if _drift_detector is None:
-        try:
-            from common.config.settings import settings
-            _drift_detector = DriftDetector(
-                enabled=settings.drift_detection_enabled,
-                block_on_fail=settings.drift_detection_block_on_fail,
-                sample_rate=settings.drift_detection_sample_rate
-            )
-        except ImportError:
-            logger.warning(
-                "[DriftDetector] Could not import settings, using defaults (disabled)"
-            )
-            _drift_detector = DriftDetector(enabled=False)
+        with _drift_detector_lock:
+            if _drift_detector is None:
+                try:
+                    from common.config.settings import settings
+                    _drift_detector = DriftDetector(
+                        enabled=settings.drift_detection_enabled,
+                        block_on_fail=settings.drift_detection_block_on_fail,
+                        sample_rate=settings.drift_detection_sample_rate
+                    )
+                except ImportError:
+                    logger.warning(
+                        "[DriftDetector] Could not import settings, using defaults (disabled)"
+                    )
+                    _drift_detector = DriftDetector(enabled=False)
 
     return _drift_detector
 
