@@ -615,6 +615,45 @@ class Settings(BaseSettings):
         description="Sample rate for drift detection (0.0-1.0) (EPIC I-1)"
     )
 
+    # EPIC I-2: Provider Health Scoring (Blueprint 4.3 - Model Governance Framework v2)
+    provider_health_enabled: bool = Field(
+        default=True,
+        alias="PROVIDER_HEALTH_ENABLED",
+        description="Enable provider health scoring metrics collection (EPIC I-2)"
+    )
+
+    provider_health_window_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=60,
+        alias="PROVIDER_HEALTH_WINDOW_MINUTES",
+        description="Time window in minutes for health score calculation (EPIC I-2)"
+    )
+
+    provider_health_latency_weight: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        alias="PROVIDER_HEALTH_LATENCY_WEIGHT",
+        description="Weight for latency in health score calculation (EPIC I-2)"
+    )
+
+    provider_health_error_weight: float = Field(
+        default=0.4,
+        ge=0.0,
+        le=1.0,
+        alias="PROVIDER_HEALTH_ERROR_WEIGHT",
+        description="Weight for error rate in health score calculation (EPIC I-2)"
+    )
+
+    provider_health_drift_weight: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        alias="PROVIDER_HEALTH_DRIFT_WEIGHT",
+        description="Weight for drift rate in health score calculation (EPIC I-2)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",

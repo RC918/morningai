@@ -11,8 +11,8 @@ All metrics operations are wrapped in try/except to never break the job path.
 """
 
 import logging
-import time
-from typing import Dict, List, Optional, Tuple
+import threading
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import redis
 
@@ -20,13 +20,14 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BUCKETS_MS = [50, 100, 200, 400, 800, 1600, 3200]
 
+
 class CanaryMetrics:
     """Lightweight canary metrics using Redis minute-bucket keys"""
-    
+
     def __init__(self, redis_client: redis.Redis, enabled: bool = True, ttl_seconds: int = 7200):
         """
         Initialize canary metrics
-        
+
         Args:
             redis_client: Redis client instance
             enabled: Whether metrics collection is enabled
@@ -36,15 +37,15 @@ class CanaryMetrics:
         self.enabled = enabled
         self.ttl_seconds = ttl_seconds
         self.buckets_ms = DEFAULT_BUCKETS_MS
-        
+
     def _get_minute_key(self, metric_name: str, timestamp: Optional[datetime] = None) -> str:
         """
         Generate minute-bucket key for a metric
-        
+
         Args:
             metric_name: Name of the metric (e.g., 'decisions.simple')
             timestamp: Timestamp for the bucket (default: now)
-            
+
         Returns:
             Redis key in format: metrics:canary:{metric}:{YYYYMMDDHHMM}
         """
@@ -52,18 +53,18 @@ class CanaryMetrics:
             timestamp = datetime.utcnow()
         minute_str = timestamp.strftime("%Y%m%d%H%M")
         return f"metrics:canary:{metric_name}:{minute_str}"
-    
+
     def incr_counter(self, metric_name: str, value: int = 1) -> None:
         """
         Increment a counter metric
-        
+
         Args:
             metric_name: Name of the counter (e.g., 'decisions.simple', 'planner.success')
             value: Increment value (default: 1)
         """
         if not self.enabled:
             return
-            
+
         try:
             key = self._get_minute_key(metric_name)
             with self.redis.pipeline(transaction=True) as pipe:
@@ -72,104 +73,104 @@ class CanaryMetrics:
                 pipe.execute()
         except Exception as e:
             logger.warning(f"Failed to increment counter {metric_name}: {e}")
-    
+
     def observe_latency_ms(self, latency_ms: float) -> None:
         """
         Record a latency observation in histogram buckets
-        
+
         Increments exactly one bucket: the first bucket where latency_ms <= bucket,
         or the 'inf' bucket if latency exceeds all finite buckets.
-        
+
         Args:
             latency_ms: Latency in milliseconds
         """
         if not self.enabled:
             return
-            
+
         try:
             target_bucket = None
             for bucket in self.buckets_ms:
                 if latency_ms <= bucket:
                     target_bucket = bucket
                     break
-            
+
             if target_bucket is not None:
                 bucket_label = str(target_bucket)
             else:
                 bucket_label = "inf"
-            
+
             key = self._get_minute_key(f"latency.bucket_{bucket_label}")
-            
+
             with self.redis.pipeline(transaction=True) as pipe:
                 pipe.set(key, 0, ex=self.ttl_seconds, nx=True)
                 pipe.incr(key)
                 pipe.execute()
         except Exception as e:
             logger.warning(f"Failed to observe latency {latency_ms}ms: {e}")
-    
+
     def get_window_counts(self, metric_name: str, window_minutes: int = 15) -> int:
         """
         Get total count for a metric over a time window
-        
+
         Args:
             metric_name: Name of the metric
             window_minutes: Time window in minutes (default: 15)
-            
+
         Returns:
             Total count across all minute buckets in the window
         """
         if not self.enabled:
             return 0
-            
+
         try:
             now = datetime.utcnow()
             total = 0
-            
+
             for i in range(window_minutes):
                 timestamp = now - timedelta(minutes=i)
                 key = self._get_minute_key(metric_name, timestamp)
                 value = self.redis.get(key)
                 if value:
                     total += int(value)
-            
+
             return total
         except Exception as e:
             logger.warning(f"Failed to get window counts for {metric_name}: {e}")
             return 0
-    
+
     def get_latency_percentiles(self, window_minutes: int = 15) -> Dict[str, Optional[float]]:
         """
         Calculate approximate latency percentiles from histogram buckets
-        
+
         Uses cumulative distribution: walks buckets from smallest to largest,
         accumulating counts until reaching the target percentile threshold.
-        
+
         Args:
             window_minutes: Time window in minutes (default: 15)
-            
+
         Returns:
             Dict with p50, p90, p95, p99 in milliseconds (None if no data or unbounded tail)
         """
         if not self.enabled:
             return {"p50": None, "p90": None, "p95": None, "p99": None}
-            
+
         try:
             now = datetime.utcnow()
             minute_keys = [now - timedelta(minutes=i) for i in range(window_minutes)]
-            
+
             bucket_counts = {}
             with self.redis.pipeline(transaction=False) as pipe:
                 for bucket in self.buckets_ms:
                     for mk in minute_keys:
                         key = self._get_minute_key(f"latency.bucket_{bucket}", mk)
                         pipe.get(key)
-                
+
                 for mk in minute_keys:
                     key = self._get_minute_key("latency.bucket_inf", mk)
                     pipe.get(key)
-                
+
                 results = pipe.execute()
-            
+
             idx = 0
             for bucket in self.buckets_ms:
                 count = 0
@@ -178,49 +179,48 @@ class CanaryMetrics:
                     idx += 1
                     count += int(val) if val is not None else 0
                 bucket_counts[bucket] = count
-            
+
             inf_count = 0
             for _ in minute_keys:
                 val = results[idx]
                 idx += 1
                 inf_count += int(val) if val is not None else 0
-            
+
             # Calculate total observations
             total = sum(bucket_counts.values()) + inf_count
             if total == 0:
                 return {"p50": None, "p90": None, "p95": None, "p99": None}
-            
+
             # Calculate percentiles by walking cumulative distribution
             percentiles = {"p50": None, "p90": None, "p95": None, "p99": None}
             targets = [50, 90, 95, 99]
             target_idx = 0
             cumulative = 0
-            
+
             for bucket in sorted(self.buckets_ms):
                 cumulative += bucket_counts[bucket]
                 cumulative_pct = (cumulative / total) * 100.0
-                
+
                 # Check if we've reached any target percentiles
                 while target_idx < len(targets) and cumulative_pct >= targets[target_idx]:
                     percentiles[f"p{targets[target_idx]}"] = float(bucket)
                     target_idx += 1
-                
+
                 if target_idx >= len(targets):
                     break
-            
-            
+
             return percentiles
         except Exception as e:
             logger.warning(f"Failed to calculate latency percentiles: {e}")
             return {"p50": None, "p90": None, "p95": None, "p99": None}
-    
+
     def get_canary_summary(self, window_minutes: int = 15) -> Dict:
         """
         Get comprehensive canary metrics summary
-        
+
         Args:
             window_minutes: Time window in minutes (default: 15)
-            
+
         Returns:
             Dict with counts, rates, latency percentiles, and SLO compliance
         """
@@ -230,22 +230,22 @@ class CanaryMetrics:
                 "window_minutes": window_minutes,
                 "message": "Canary metrics disabled"
             }
-        
+
         try:
             decisions_simple = self.get_window_counts("decisions.simple", window_minutes)
             decisions_langgraph = self.get_window_counts("decisions.langgraph", window_minutes)
             total_decisions = decisions_simple + decisions_langgraph
-            
+
             planner_success = self.get_window_counts("planner.success", window_minutes)
             planner_failure = self.get_window_counts("planner.failure", window_minutes)
             planner_error_5xx = self.get_window_counts("planner.error_5xx", window_minutes)
             total_planner = planner_success + planner_failure + planner_error_5xx
-            
+
             failure_rate = (planner_failure / total_planner * 100) if total_planner > 0 else 0
             error_5xx_rate = (planner_error_5xx / total_planner * 100) if total_planner > 0 else 0
-            
+
             latency = self.get_latency_percentiles(window_minutes)
-            
+
             return {
                 "enabled": True,
                 "window_minutes": window_minutes,
@@ -364,16 +364,394 @@ class CanaryMetrics:
             logger.warning(f"Failed to get drift summary: {e}")
             return {"enabled": True, "error": str(e)}
 
+    # EPIC I-2: Provider Health Scoring
+    def record_provider_request(
+        self,
+        provider: str,
+        latency_ms: float,
+        success: bool,
+        error_type: Optional[str] = None
+    ) -> None:
+        """
+        Record a provider request for health scoring
+
+        EPIC I-2: Provider Health Scoring metrics
+
+        Args:
+            provider: LLM provider name (openai, gemini, alicloud, siliconflow)
+            latency_ms: Request latency in milliseconds
+            success: Whether the request succeeded
+            error_type: Type of error if failed (e.g., "timeout", "rate_limit", "api_error")
+        """
+        if not self.enabled:
+            return
+
+        try:
+            # Total requests counter
+            self.incr_counter(f"provider.{provider}.requests")
+
+            # Success/error counters
+            if success:
+                self.incr_counter(f"provider.{provider}.success")
+            else:
+                self.incr_counter(f"provider.{provider}.errors")
+                if error_type:
+                    self.incr_counter(f"provider.{provider}.error.{error_type}")
+
+            # Latency recording (using histogram buckets)
+            self._record_provider_latency(provider, latency_ms)
+
+        except Exception as e:
+            logger.warning(f"Failed to record provider request for {provider}: {e}")
+
+    def _record_provider_latency(self, provider: str, latency_ms: float) -> None:
+        """
+        Record provider latency in histogram buckets
+
+        EPIC I-2: Provider Health Scoring metrics
+        """
+        try:
+            # Find the appropriate bucket
+            target_bucket = None
+            for bucket in self.buckets_ms:
+                if latency_ms <= bucket:
+                    target_bucket = bucket
+                    break
+
+            bucket_label = str(target_bucket) if target_bucket else "inf"
+            key = self._get_minute_key(f"provider.{provider}.latency.bucket_{bucket_label}")
+
+            with self.redis.pipeline(transaction=True) as pipe:
+                pipe.set(key, 0, ex=self.ttl_seconds, nx=True)
+                pipe.incr(key)
+                pipe.execute()
+
+            # Also record sum for average calculation
+            sum_key = self._get_minute_key(f"provider.{provider}.latency.sum")
+            with self.redis.pipeline(transaction=True) as pipe:
+                pipe.set(sum_key, 0, ex=self.ttl_seconds, nx=True)
+                pipe.incrbyfloat(sum_key, latency_ms)
+                pipe.execute()
+
+        except Exception as e:
+            logger.warning(f"Failed to record provider latency for {provider}: {e}")
+
+    def get_provider_health(
+        self,
+        provider: str,
+        window_minutes: int = 15,
+        latency_weight: float = 0.3,
+        error_weight: float = 0.4,
+        drift_weight: float = 0.3
+    ) -> dict:
+        """
+        Calculate provider health score
+
+        EPIC I-2: Provider Health Scoring
+
+        Health score formula:
+        health = 100 - (latency_penalty * latency_weight +
+                        error_rate * error_weight +
+                        drift_rate * drift_weight)
+
+        Where:
+        - latency_penalty: Normalized latency score (0-100, based on p95 vs target)
+        - error_rate: Percentage of failed requests (0-100)
+        - drift_rate: Percentage of drift events (0-100)
+
+        Args:
+            provider: LLM provider name
+            window_minutes: Time window in minutes (default: 15)
+            latency_weight: Weight for latency in health calculation (default: 0.3)
+            error_weight: Weight for error rate in health calculation (default: 0.4)
+            drift_weight: Weight for drift rate in health calculation (default: 0.3)
+
+        Returns:
+            Dict with health score and component metrics
+        """
+        if not self.enabled:
+            return {"enabled": False, "provider": provider}
+
+        try:
+            # Get request counts
+            total_requests = self.get_window_counts(
+                f"provider.{provider}.requests", window_minutes
+            )
+            success_count = self.get_window_counts(
+                f"provider.{provider}.success", window_minutes
+            )
+            error_count = self.get_window_counts(
+                f"provider.{provider}.errors", window_minutes
+            )
+
+            # Calculate error rate
+            error_rate = (error_count / total_requests * 100) if total_requests > 0 else 0
+
+            # Get latency metrics
+            latency_stats = self._get_provider_latency_stats(provider, window_minutes)
+
+            # Get drift rate for this provider
+            drift_checks = self.get_window_counts("drift.checks", window_minutes)
+            drift_events = self.get_window_counts(
+                f"drift.provider.{provider}", window_minutes
+            )
+            drift_rate = (drift_events / drift_checks * 100) if drift_checks > 0 else 0
+
+            # Calculate latency penalty (0-100)
+            # Target: p95 < 2000ms = 0 penalty, p95 > 10000ms = 100 penalty
+            p95 = latency_stats.get("p95_ms") or 0
+            latency_penalty = min(100, max(0, (p95 - 2000) / 80))  # Linear scale
+
+            # Calculate health score
+            health_score = max(0, min(100, 100 - (
+                latency_penalty * latency_weight +
+                error_rate * error_weight +
+                drift_rate * drift_weight
+            )))
+
+            return {
+                "enabled": True,
+                "provider": provider,
+                "window_minutes": window_minutes,
+                "timestamp": datetime.utcnow().isoformat(),
+                "health_score": round(health_score, 2),
+                "metrics": {
+                    "total_requests": total_requests,
+                    "success_count": success_count,
+                    "error_count": error_count,
+                    "error_rate": round(error_rate, 2),
+                    "drift_rate": round(drift_rate, 2),
+                    "latency": latency_stats
+                },
+                "weights": {
+                    "latency": latency_weight,
+                    "error": error_weight,
+                    "drift": drift_weight
+                }
+            }
+
+        except Exception as e:
+            logger.warning(f"Failed to get provider health for {provider}: {e}")
+            return {"enabled": True, "provider": provider, "error": str(e)}
+
+    def _get_provider_latency_stats(
+        self,
+        provider: str,
+        window_minutes: int = 15
+    ) -> dict:
+        """
+        Get provider latency statistics
+
+        EPIC I-2: Provider Health Scoring metrics
+        """
+        try:
+            now = datetime.utcnow()
+            minute_keys = [now - timedelta(minutes=i) for i in range(window_minutes)]
+
+            # Get bucket counts
+            bucket_counts = {}
+            with self.redis.pipeline(transaction=False) as pipe:
+                for bucket in self.buckets_ms:
+                    for mk in minute_keys:
+                        key = self._get_minute_key(
+                            f"provider.{provider}.latency.bucket_{bucket}", mk
+                        )
+                        pipe.get(key)
+
+                for mk in minute_keys:
+                    key = self._get_minute_key(
+                        f"provider.{provider}.latency.bucket_inf", mk
+                    )
+                    pipe.get(key)
+
+                # Get sum for average
+                for mk in minute_keys:
+                    key = self._get_minute_key(
+                        f"provider.{provider}.latency.sum", mk
+                    )
+                    pipe.get(key)
+
+                results = pipe.execute()
+
+            # Parse bucket counts
+            idx = 0
+            for bucket in self.buckets_ms:
+                count = 0
+                for _ in minute_keys:
+                    val = results[idx]
+                    idx += 1
+                    count += int(val) if val is not None else 0
+                bucket_counts[bucket] = count
+
+            # Parse inf bucket
+            inf_count = 0
+            for _ in minute_keys:
+                val = results[idx]
+                idx += 1
+                inf_count += int(val) if val is not None else 0
+
+            # Parse sum
+            total_sum = 0.0
+            for _ in minute_keys:
+                val = results[idx]
+                idx += 1
+                total_sum += float(val) if val is not None else 0.0
+
+            # Calculate total and percentiles
+            total = sum(bucket_counts.values()) + inf_count
+            if total == 0:
+                return {
+                    "p50_ms": None,
+                    "p90_ms": None,
+                    "p95_ms": None,
+                    "p99_ms": None,
+                    "avg_ms": None,
+                    "total_observations": 0
+                }
+
+            avg_ms = total_sum / total if total > 0 else None
+
+            # Calculate percentiles
+            percentiles = {"p50": None, "p90": None, "p95": None, "p99": None}
+            targets = [50, 90, 95, 99]
+            target_idx = 0
+            cumulative = 0
+
+            for bucket in sorted(self.buckets_ms):
+                cumulative += bucket_counts[bucket]
+                cumulative_pct = (cumulative / total) * 100.0
+
+                while target_idx < len(targets) and cumulative_pct >= targets[target_idx]:
+                    percentiles[f"p{targets[target_idx]}"] = float(bucket)
+                    target_idx += 1
+
+                if target_idx >= len(targets):
+                    break
+
+            return {
+                "p50_ms": percentiles["p50"],
+                "p90_ms": percentiles["p90"],
+                "p95_ms": percentiles["p95"],
+                "p99_ms": percentiles["p99"],
+                "avg_ms": round(avg_ms, 2) if avg_ms else None,
+                "total_observations": total
+            }
+
+        except Exception as e:
+            logger.warning(f"Failed to get provider latency stats for {provider}: {e}")
+            return {"error": str(e)}
+
+    def get_all_providers_health(
+        self,
+        providers: Optional[List[str]] = None,
+        window_minutes: int = 15
+    ) -> dict:
+        """
+        Get health scores for all providers
+
+        EPIC I-2: Provider Health Scoring
+
+        Args:
+            providers: List of provider names (default: all known providers)
+            window_minutes: Time window in minutes (default: 15)
+
+        Returns:
+            Dict with health scores for all providers
+        """
+        if not self.enabled:
+            return {"enabled": False}
+
+        if providers is None:
+            providers = ["openai", "gemini", "alicloud", "siliconflow"]
+
+        try:
+            results = {}
+            for provider in providers:
+                results[provider] = self.get_provider_health(provider, window_minutes)
+
+            # Sort by health score (descending)
+            sorted_providers = sorted(
+                results.items(),
+                key=lambda x: x[1].get("health_score", 0) if isinstance(x[1], dict) else 0,
+                reverse=True
+            )
+
+            return {
+                "enabled": True,
+                "window_minutes": window_minutes,
+                "timestamp": datetime.utcnow().isoformat(),
+                "providers": dict(sorted_providers),
+                "ranking": [p[0] for p in sorted_providers]
+            }
+
+        except Exception as e:
+            logger.warning(f"Failed to get all providers health: {e}")
+            return {"enabled": True, "error": str(e)}
+
 
 def create_canary_metrics(redis_client: redis.Redis, enabled: bool = True) -> CanaryMetrics:
     """
     Factory function to create CanaryMetrics instance
-    
+
     Args:
         redis_client: Redis client instance
         enabled: Whether metrics collection is enabled
-        
+
     Returns:
         CanaryMetrics instance
     """
     return CanaryMetrics(redis_client, enabled=enabled)
+
+
+# Global singleton for canary metrics (EPIC I-2)
+_canary_metrics: Optional[CanaryMetrics] = None
+_canary_metrics_lock = threading.Lock()
+
+
+def get_canary_metrics() -> Optional[CanaryMetrics]:
+    """
+    Get the global CanaryMetrics singleton instance
+
+    EPIC I-2: Provider Health Scoring
+
+    This function provides thread-safe access to the global metrics instance.
+    Returns None if Redis is not configured or metrics are disabled.
+
+    Returns:
+        CanaryMetrics instance or None if not available
+    """
+    global _canary_metrics
+
+    if _canary_metrics is not None:
+        return _canary_metrics
+
+    with _canary_metrics_lock:
+        if _canary_metrics is not None:
+            return _canary_metrics
+
+        try:
+            import os
+            redis_url = os.environ.get("REDIS_URL")
+            if not redis_url:
+                logger.debug("[CanaryMetrics] REDIS_URL not configured, metrics disabled")
+                return None
+
+            redis_client = redis.from_url(redis_url)
+            _canary_metrics = CanaryMetrics(redis_client, enabled=True)
+            logger.info("[CanaryMetrics] Initialized global metrics instance")
+            return _canary_metrics
+
+        except Exception as e:
+            logger.warning(f"[CanaryMetrics] Failed to initialize: {e}")
+            return None
+
+
+def reset_canary_metrics() -> None:
+    """
+    Reset the global CanaryMetrics singleton (useful for testing)
+
+    EPIC I-2: Provider Health Scoring
+    """
+    global _canary_metrics
+    with _canary_metrics_lock:
+        _canary_metrics = None
