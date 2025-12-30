@@ -545,3 +545,51 @@ class TestProviderGovernanceAllowlist:
                 available = _get_available_providers()
                 assert available == ["alicloud"]
                 assert "siliconflow" not in available
+
+    def test_governance_fail_closed_on_exception(self):
+        """Test CRITICAL: Governance mode fails closed on exception.
+
+        Security Policy (Blueprint: Model Governance Framework v2):
+        When governance is enabled (allowlist is non-empty), any exception during
+        allowlist processing MUST block ALL providers to prevent accidental bypass.
+        """
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                # Simulate an exception during allowlist processing
+                # by making the allowlist value raise an exception when split() is called
+                mock_allowlist = MagicMock()
+                mock_allowlist.split.side_effect = Exception("Simulated config error")
+                mock_settings.routing_allowed_providers = mock_allowlist
+
+                available = _get_available_providers()
+
+                # CRITICAL: Must return empty list (fail-closed), not all providers
+                assert available == [], (
+                    "Governance mode must fail-closed on exception. "
+                    "Returning providers would bypass governance controls."
+                )
+
+    def test_no_governance_returns_providers_normally(self):
+        """Test that without governance (empty allowlist), providers are returned normally.
+
+        This ensures the fail-closed behavior only applies when governance is enabled.
+        """
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                # Empty string = governance NOT enabled
+                mock_settings.routing_allowed_providers = ""
+                available = _get_available_providers()
+
+                # Should return all available providers
+                assert "openai" in available
+                assert "alicloud" in available
