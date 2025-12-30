@@ -2334,6 +2334,50 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def validate_provider_health_weights(self) -> "Settings":
+        """Validate and normalize provider health scoring weights (EPIC I-2).
+
+        Soft validation: If weights don't sum to 1.0, log a warning and normalize
+        them to preserve relative preferences. This follows the observe-only safety
+        contract - we never block service startup on misconfiguration.
+
+        Fixes #3352
+        """
+        weights_sum = (
+            self.provider_health_latency_weight +
+            self.provider_health_error_weight +
+            self.provider_health_drift_weight
+        )
+
+        if abs(weights_sum - 1.0) > 0.001:
+            warnings.warn(
+                f"Provider health weights sum to {weights_sum:.3f} instead of 1.0. "
+                f"Weights will be normalized to preserve relative preferences. "
+                f"Current: latency={self.provider_health_latency_weight}, "
+                f"error={self.provider_health_error_weight}, "
+                f"drift={self.provider_health_drift_weight}",
+                UserWarning
+            )
+            if weights_sum > 0:
+                object.__setattr__(
+                    self,
+                    "provider_health_latency_weight",
+                    self.provider_health_latency_weight / weights_sum
+                )
+                object.__setattr__(
+                    self,
+                    "provider_health_error_weight",
+                    self.provider_health_error_weight / weights_sum
+                )
+                object.__setattr__(
+                    self,
+                    "provider_health_drift_weight",
+                    self.provider_health_drift_weight / weights_sum
+                )
+
+        return self
+
     def log_deprecation_warnings(self):
         """Log warnings for deprecated variable usage.
 
