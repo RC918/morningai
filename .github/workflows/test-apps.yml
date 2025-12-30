@@ -86,11 +86,14 @@ jobs:
           ENVIRONMENT: production  # Production mode for production-specific test
           ENABLE_MOCK_USERS: 'false'  # Mock users disabled in production
           RATE_LIMIT_REQUESTS: 60
-  
+
   test-orchestrator:
     name: Orchestrator Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Increased from 15 to 45 minutes to accommodate slow async executor tests
+    # in meta_agent/tests/test_autonomous_executor.py which can take up to 5 minutes each.
+    # These tests were previously not run due to pytest discovery gap (#3251).
+    timeout-minutes: 45
     services:
       redis:
         image: redis:alpine
@@ -105,6 +108,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # Fetch full history for proper git diff in schema validation
+          fetch-depth: 0
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -122,10 +128,89 @@ jobs:
           # Install orchestrator package with all dependencies (including langgraph)
           pip install -e .
       
+      - name: Validate schema version bump on schema changes
+        if: github.event_name == 'pull_request'
+        working-directory: handoff/20250928/40_App/orchestrator
+        run: |
+          # Check if CoderOutput or CODER_SYSTEM_PROMPT changed without version bump
+          SIMPLE_CODER="coder/simple_coder.py"
+          
+          # Get the diff using PR base SHA (more reliable than origin/main in GitHub Actions)
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.sha }}"
+          DIFF=$(git diff "$BASE_SHA"..."$HEAD_SHA" -- "$SIMPLE_CODER" 2>/dev/null || echo "")
+          
+          if [ -z "$DIFF" ]; then
+            echo "No changes to $SIMPLE_CODER - skipping schema version check"
+            exit 0
+          fi
+          
+          # Check if schema-related code changed (CoderOutput class or CODER_SYSTEM_PROMPT)
+          SCHEMA_CHANGED=false
+          if echo "$DIFF" | grep -E '^[+-].*class CoderOutput|^[+-].*CODER_SYSTEM_PROMPT|^[+-].*"status"|^[+-].*"reason"|^[+-].*"patch"|^[+-].*schema_version|^[+-].*file_path|^[+-].*syntax_valid' | grep -v '^[+-]{3}' > /dev/null; then
+            SCHEMA_CHANGED=true
+          fi
+          
+          # Check if version was bumped
+          VERSION_BUMPED=false
+          if echo "$DIFF" | grep -E '^[+-].*CODER_OUTPUT_SCHEMA_VERSION' | grep -v '^[+-]{3}' > /dev/null; then
+            VERSION_BUMPED=true
+          fi
+          
+          if [ "$SCHEMA_CHANGED" = true ] && [ "$VERSION_BUMPED" = false ]; then
+            echo "::warning::Schema-related changes detected in $SIMPLE_CODER but CODER_OUTPUT_SCHEMA_VERSION was not updated."
+            echo "::warning::If you modified CoderOutput fields or CODER_SYSTEM_PROMPT, consider bumping the schema version."
+            echo ""
+            echo "Schema changes detected:"
+            echo "$DIFF" | grep -E '^[+-].*class CoderOutput|^[+-].*CODER_SYSTEM_PROMPT|^[+-].*"status"|^[+-].*"reason"|^[+-].*"patch"|^[+-].*schema_version|^[+-].*file_path|^[+-].*syntax_valid' | grep -v '^[+-]{3}' || true
+          else
+            echo "Schema version validation passed"
+          fi
+      
+      - name: Validate test discovery (minimum test count)
+        working-directory: handoff/20250928/40_App/orchestrator
+        run: |
+          # Collect tests without running them to verify discovery
+          pytest --collect-only -q 2>&1 | tee /tmp/collect.txt
+          
+          # Extract test count from output
+          TEST_COUNT=$(grep -E "^[0-9]+ tests? collected" /tmp/collect.txt | awk '{print $1}' || echo "0")
+          
+          # Minimum threshold: Set to 4000 based on current baseline of ~4800 tests.
+          # This catches major discovery failures (e.g., only running tests/ instead of all 15 directories)
+          # while allowing some fluctuation for normal test additions/removals.
+          # If test count drops significantly, check pytest.ini testpaths configuration.
+          MIN_TESTS=4000
+          
+          echo "Discovered $TEST_COUNT tests (minimum required: $MIN_TESTS)"
+          
+          if [ "$TEST_COUNT" -lt "$MIN_TESTS" ]; then
+            echo "::error::Test discovery seems broken. Only $TEST_COUNT tests found (expected at least $MIN_TESTS)."
+            echo "::error::Check pytest.ini testpaths configuration."
+            exit 1
+          fi
+          
+          # Verify critical test directories are discovered
+          CRITICAL_DIRS="tests coder/tests"
+          for dir in $CRITICAL_DIRS; do
+            if ! grep -q "$dir" /tmp/collect.txt; then
+              echo "::warning::Critical test directory '$dir' may not be fully discovered"
+            fi
+          done
+          
+          echo "Test discovery validation passed: $TEST_COUNT tests found"
+        env:
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
+      
       - name: Run Orchestrator tests with coverage
         working-directory: handoff/20250928/40_App/orchestrator
         run: |
-          pytest tests/ -v --tb=short --disable-warnings --cov=. --cov-report=xml --cov-report=json --cov-report=term-missing --cov-fail-under=50
+          # Uses testpaths from pytest.ini - no path arguments needed
+          # Skip slow tests (marked with @pytest.mark.slow) to prevent CI timeouts
+          # Slow tests include TestAutonomousExecutor which invokes real async execution
+          pytest -v --tb=short --disable-warnings -m "not slow" --cov=. --cov-report=xml --cov-report=json --cov-report=term-missing --cov-fail-under=50
         env:
           PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
