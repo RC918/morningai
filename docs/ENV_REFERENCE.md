@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 233
+- **Total Variables**: 236
 - **Required**: 21
-- **Optional**: 212
+- **Optional**: 215
 - **Last Updated**: 2025-12-18
 
 ## Security Levels

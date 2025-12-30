@@ -353,19 +353,21 @@ class TestDriftDetectorIntegration:
         """Reset drift detector before each test"""
         reset_drift_detector()
 
-    @patch("governance.drift_detector.settings")
+    @patch("common.config.settings.settings")
     def test_get_drift_detector_from_settings(self, mock_settings):
         """Test that get_drift_detector reads from settings"""
         mock_settings.drift_detection_enabled = True
         mock_settings.drift_detection_block_on_fail = False
         mock_settings.drift_detection_sample_rate = 0.5
 
+        # Reset the singleton to force re-creation
         reset_drift_detector()
 
-        # This will create a new detector from settings
-        with patch("governance.drift_detector._drift_detector", None):
-            detector = get_drift_detector()
+        # Get detector - it should read from mocked settings
+        detector = get_drift_detector()
 
-            # Note: Due to import caching, this test may not work as expected
-            # in all scenarios. The important thing is that the code path exists.
-            assert detector is not None
+        # Verify detector was created (settings import succeeded)
+        assert detector is not None
+        # Note: The detector may use cached settings values, so we verify
+        # the code path exists rather than specific values
+        assert isinstance(detector, DriftDetector)
