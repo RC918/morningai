@@ -82,8 +82,8 @@ def get_expected_output_keys(output_type: str) -> Set[str]:
 def validate_schema_field(field: str, schema_section: str) -> bool:
     """Check if a field is mentioned in a schema section.
 
-    This performs a case-insensitive search for the field name,
-    looking for it as a quoted JSON key.
+    This performs a case-sensitive search for the field name,
+    looking for it as a quoted JSON key (JSON keys are case-sensitive).
 
     Args:
         field: The field name to search for.
@@ -104,39 +104,23 @@ def validate_schema_field(field: str, schema_section: str) -> bool:
 
 
 def validate_field_not_in_schema(field: str, schema_section: str) -> bool:
-    """Check that a field is NOT mentioned in a schema section.
+    """Check that a field is NOT mentioned as a JSON key in a schema section.
 
     This is the inverse of validate_schema_field, useful for verifying
-    that system-added fields are not requested from the LLM.
+    that system-added fields are not requested from the LLM. Checks for
+    the quoted field name to avoid false positives from field names
+    appearing in descriptions or values.
 
     Args:
-        field: The field name that should NOT be present.
+        field: The field name that should NOT be present as a JSON key.
         schema_section: The schema section string to search in.
 
     Returns:
-        True if the field is NOT found in the schema section, False otherwise.
+        True if the field is NOT found as a JSON key, False otherwise.
 
     Example:
         >>> section = '{"status": "skipped"}'
         >>> validate_field_not_in_schema("schema_version", section)
         True
     """
-    return field not in schema_section
-
-
-def get_llm_response_fields() -> frozenset:
-    """Get the set of fields expected in LLM responses.
-
-    Returns:
-        A frozenset of field names that the LLM should output.
-    """
-    return CODER_LLM_RESPONSE_FIELDS
-
-
-def get_system_added_fields() -> frozenset:
-    """Get the set of fields added by the system (not from LLM).
-
-    Returns:
-        A frozenset of field names added by the system.
-    """
-    return CODER_SYSTEM_ADDED_FIELDS
+    return not validate_schema_field(field, schema_section)
