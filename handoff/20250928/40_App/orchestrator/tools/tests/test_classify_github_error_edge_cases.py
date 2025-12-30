@@ -65,6 +65,7 @@ class TestClassifyGithubError403EdgeCases:
         error_type, error_msg = _classify_github_error(exc)
 
         assert error_type == CommitResult.PERMISSION_DENIED
+        assert "permission" in error_msg.lower()
 
     def test_403_data_dict_without_message_key(self):
         """Test 403 error when e.data dict has other keys but no 'message'.
@@ -80,6 +81,7 @@ class TestClassifyGithubError403EdgeCases:
         error_type, error_msg = _classify_github_error(exc)
 
         assert error_type == CommitResult.PERMISSION_DENIED
+        assert "permission" in error_msg.lower()
 
     def test_403_data_is_list(self):
         """Test 403 error when e.data is a list instead of dict.
@@ -91,6 +93,7 @@ class TestClassifyGithubError403EdgeCases:
         error_type, error_msg = _classify_github_error(exc)
 
         assert error_type == CommitResult.PERMISSION_DENIED
+        assert "permission" in error_msg.lower()
 
     def test_403_data_is_integer(self):
         """Test 403 error when e.data is an unexpected type (integer).
@@ -101,6 +104,7 @@ class TestClassifyGithubError403EdgeCases:
         error_type, error_msg = _classify_github_error(exc)
 
         assert error_type == CommitResult.PERMISSION_DENIED
+        assert "permission" in error_msg.lower()
 
 
 class TestProtectedBranchMessageVariants:
@@ -289,6 +293,7 @@ class TestProtectedBranchInStringData:
         error_type, error_msg = _classify_github_error(exc)
 
         assert error_type == CommitResult.PERMISSION_DENIED
+        assert "branch protection" in error_msg.lower()
 
     def test_no_protected_branch_in_string_data(self):
         """Test that string data without protected branch is handled correctly.
