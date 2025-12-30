@@ -515,9 +515,16 @@ class GeneralCoder(BaseAgent):
                     )
 
                 # Path validation (no traversal)
-                if ".." in file_path or file_path.startswith("/"):
+                # Use os.path.normpath to handle edge cases like foo/../bar
+                import os
+                normalized_path = os.path.normpath(file_path)
+                if (
+                    ".." in normalized_path
+                    or normalized_path.startswith("/")
+                    or not file_path  # empty path
+                ):
                     logger.warning(
-                        f"[GeneralCoder] Invalid path: {file_path}"
+                        f"[GeneralCoder] Invalid path: {file_path} (normalized: {normalized_path})"
                     )
                     return MultiFileCoderOutput.create_skipped(
                         f"Invalid file path: {file_path}"

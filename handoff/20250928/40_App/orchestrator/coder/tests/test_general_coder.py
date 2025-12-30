@@ -310,6 +310,29 @@ class TestGeneralCoder:
         assert "Invalid file path" in result.reason
 
     @patch.object(GeneralCoder, 'call_llm')
+    def test_generate_multi_file_fix_normalized_path_traversal(self, mock_call_llm, coder):
+        """Test generate_multi_file_fix with normalized path traversal (foo/../bar)."""
+        mock_call_llm.return_value = {
+            "content": json.dumps({
+                "status": "patch",
+                "patches": [
+                    {"file_path": "src/foo/../../../etc/passwd", "patch": "malicious"},
+                ]
+            })
+        }
+
+        files = [{"path": "file1.py", "content": "pass"}]
+
+        result = coder.generate_multi_file_fix(
+            files=files,
+            review_comment="Fix it",
+            severity="low"
+        )
+
+        assert result.status == CoderStatus.SKIPPED
+        assert "Invalid file path" in result.reason
+
+    @patch.object(GeneralCoder, 'call_llm')
     def test_generate_multi_file_fix_whitespace_only(self, mock_call_llm, coder):
         """Test generate_multi_file_fix rejects whitespace-only patches (Issue #3288)."""
         mock_call_llm.return_value = {
