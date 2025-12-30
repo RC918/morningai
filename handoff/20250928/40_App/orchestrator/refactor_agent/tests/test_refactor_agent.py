@@ -1,6 +1,7 @@
 """
 Tests for Refactor Agent - Phase 4 (#1818, #1888, #1889)
 """
+import pytest
 import tempfile
 import time
 from unittest.mock import patch, MagicMock
