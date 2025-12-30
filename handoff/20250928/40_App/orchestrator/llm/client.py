@@ -43,6 +43,7 @@ Usage:
 """
 import logging
 import threading
+import time
 from typing import Optional, Literal
 
 from common.config.settings import settings
@@ -245,14 +246,29 @@ class LLMClient:
                 f"Check API key configuration."
             )
 
-        response = self._provider.generate(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            json_mode=json_mode,
-            **kwargs
-        )
+        # EPIC I-2: Record request timing for health scoring
+        start_time = time.time()
+        success = False
+        error_type = None
+
+        try:
+            response = self._provider.generate(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                json_mode=json_mode,
+                **kwargs
+            )
+            success = True
+        except Exception as e:
+            # Classify error type for health scoring
+            error_type = self._classify_error(e)
+            raise
+        finally:
+            # EPIC I-2: Record provider metrics for health scoring
+            latency_ms = (time.time() - start_time) * 1000
+            self._record_provider_metrics(latency_ms, success, error_type)
 
         # EPIC I-1: Runtime Drift Detection (observe-only by default)
         # This hook validates LLM responses without blocking requests
@@ -277,6 +293,64 @@ class LLMClient:
             )
 
         return response
+
+    def _classify_error(self, error: Exception) -> str:
+        """
+        Classify error type for health scoring metrics
+
+        EPIC I-2: Provider Health Scoring
+        """
+        error_str = str(error).lower()
+
+        if "timeout" in error_str or "timed out" in error_str:
+            return "timeout"
+        elif "rate" in error_str and "limit" in error_str:
+            return "rate_limit"
+        elif "401" in error_str or "unauthorized" in error_str:
+            return "auth_error"
+        elif "429" in error_str:
+            return "rate_limit"
+        elif "500" in error_str or "502" in error_str or "503" in error_str:
+            return "server_error"
+        elif "connection" in error_str or "network" in error_str:
+            return "connection_error"
+        else:
+            return "api_error"
+
+    def _record_provider_metrics(
+        self,
+        latency_ms: float,
+        success: bool,
+        error_type: Optional[str] = None
+    ) -> None:
+        """
+        Record provider metrics for health scoring
+
+        EPIC I-2: Provider Health Scoring
+
+        This method is designed to never block or raise exceptions.
+        """
+        if not getattr(settings, 'provider_health_enabled', True):
+            return
+
+        try:
+            from metrics import get_canary_metrics
+            metrics = get_canary_metrics()
+            if metrics:
+                metrics.record_provider_request(
+                    provider=self._provider_name,
+                    latency_ms=latency_ms,
+                    success=success,
+                    error_type=error_type
+                )
+        except ImportError:
+            pass  # Metrics not available
+        except Exception as e:
+            # Never block on metrics errors
+            logger.debug(
+                f"[LLMClient] Failed to record provider metrics: {e}",
+                extra={"provider": self._provider_name}
+            )
 
     def is_available(self) -> bool:
         """Check if the configured provider is available"""
