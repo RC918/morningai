@@ -60,9 +60,9 @@ class TestLLMResponseParsingErrors:
     def test_whitespace_only_patch_content(self, mock_call_llm, coder):
         """Test handling when LLM returns patch with only whitespace.
 
-        Note: Current implementation accepts whitespace-only patches and
-        lets syntax validation handle them. For Python files, whitespace-only
-        content is valid Python (empty module), so it passes syntax check.
+        Issue #3288: Whitespace-only patches are now rejected as a safety measure.
+        A whitespace-only patch would effectively replace actual code with an
+        empty file, which is almost certainly not the intended behavior.
         """
         mock_call_llm.return_value = {
             "content": json.dumps({
@@ -78,8 +78,8 @@ class TestLLMResponseParsingErrors:
             severity="low"
         )
 
-        assert result.status == CoderStatus.PATCH
-        assert result.syntax_valid is True
+        assert result.status == CoderStatus.SKIPPED
+        assert "whitespace" in result.reason.lower()
 
     @patch.object(SimpleCoder, 'call_llm')
     def test_unknown_status_value(self, mock_call_llm, coder):
