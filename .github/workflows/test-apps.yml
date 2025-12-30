@@ -105,6 +105,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          # Fetch full history for proper git diff in schema validation
+          fetch-depth: 0
       
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -129,8 +132,10 @@ jobs:
           # Check if CoderOutput or CODER_SYSTEM_PROMPT changed without version bump
           SIMPLE_CODER="coder/simple_coder.py"
           
-          # Get the diff for simple_coder.py
-          DIFF=$(git diff origin/main...HEAD -- "$SIMPLE_CODER" 2>/dev/null || echo "")
+          # Get the diff using PR base SHA (more reliable than origin/main in GitHub Actions)
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.sha }}"
+          DIFF=$(git diff "$BASE_SHA"..."$HEAD_SHA" -- "$SIMPLE_CODER" 2>/dev/null || echo "")
           
           if [ -z "$DIFF" ]; then
             echo "No changes to $SIMPLE_CODER - skipping schema version check"
@@ -168,8 +173,11 @@ jobs:
           # Extract test count from output
           TEST_COUNT=$(grep -E "^[0-9]+ tests? collected" /tmp/collect.txt | awk '{print $1}' || echo "0")
           
-          # Minimum threshold based on current test count (~200 tests expected)
-          MIN_TESTS=150
+          # Minimum threshold: Set to 4000 based on current baseline of ~4800 tests.
+          # This catches major discovery failures (e.g., only running tests/ instead of all 15 directories)
+          # while allowing some fluctuation for normal test additions/removals.
+          # If test count drops significantly, check pytest.ini testpaths configuration.
+          MIN_TESTS=4000
           
           echo "Discovered $TEST_COUNT tests (minimum required: $MIN_TESTS)"
           
@@ -188,6 +196,10 @@ jobs:
           done
           
           echo "Test discovery validation passed: $TEST_COUNT tests found"
+        env:
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
       
       - name: Run Orchestrator tests with coverage
         working-directory: handoff/20250928/40_App/orchestrator
