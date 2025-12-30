@@ -74,6 +74,11 @@ class CoderStatus(str, Enum):
 # Schema version for backward-compatible evolution (consistent with ReviewOutcome)
 CODER_OUTPUT_SCHEMA_VERSION = 1
 
+# Schema field definitions - Single Source of Truth for drift detection tests
+# These sets define which fields belong to each schema layer
+CODER_LLM_RESPONSE_FIELDS = frozenset({"status", "reason", "patch"})
+CODER_SYSTEM_ADDED_FIELDS = frozenset({"schema_version", "file_path", "syntax_valid"})
+
 
 @dataclass
 class CoderOutput:
