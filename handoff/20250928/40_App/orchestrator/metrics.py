@@ -439,10 +439,10 @@ class CanaryMetrics:
     def get_provider_health(
         self,
         provider: str,
-        window_minutes: int = 15,
-        latency_weight: float = 0.3,
-        error_weight: float = 0.4,
-        drift_weight: float = 0.3
+        window_minutes: Optional[int] = None,
+        latency_weight: Optional[float] = None,
+        error_weight: Optional[float] = None,
+        drift_weight: Optional[float] = None
     ) -> dict:
         """
         Calculate provider health score
@@ -461,10 +461,10 @@ class CanaryMetrics:
 
         Args:
             provider: LLM provider name
-            window_minutes: Time window in minutes (default: 15)
-            latency_weight: Weight for latency in health calculation (default: 0.3)
-            error_weight: Weight for error rate in health calculation (default: 0.4)
-            drift_weight: Weight for drift rate in health calculation (default: 0.3)
+            window_minutes: Time window in minutes (default: from settings or 15)
+            latency_weight: Weight for latency (default: from settings or 0.3)
+            error_weight: Weight for error rate (default: from settings or 0.4)
+            drift_weight: Weight for drift rate (default: from settings or 0.3)
 
         Returns:
             Dict with health score and component metrics
@@ -473,6 +473,31 @@ class CanaryMetrics:
             return {"enabled": False, "provider": provider}
 
         try:
+            # Fallback to settings if parameters not provided
+            try:
+                from common.config.settings import settings
+                if window_minutes is None:
+                    window_minutes = getattr(
+                        settings, "provider_health_window_minutes", 15
+                    )
+                if latency_weight is None:
+                    latency_weight = getattr(
+                        settings, "provider_health_latency_weight", 0.3
+                    )
+                if error_weight is None:
+                    error_weight = getattr(
+                        settings, "provider_health_error_weight", 0.4
+                    )
+                if drift_weight is None:
+                    drift_weight = getattr(
+                        settings, "provider_health_drift_weight", 0.3
+                    )
+            except ImportError:
+                # Fallback to defaults if settings not available
+                window_minutes = window_minutes or 15
+                latency_weight = latency_weight if latency_weight is not None else 0.3
+                error_weight = error_weight if error_weight is not None else 0.4
+                drift_weight = drift_weight if drift_weight is not None else 0.3
             # Get request counts
             total_requests = self.get_window_counts(
                 f"provider.{provider}.requests", window_minutes
@@ -491,11 +516,12 @@ class CanaryMetrics:
             latency_stats = self._get_provider_latency_stats(provider, window_minutes)
 
             # Get drift rate for this provider
-            drift_checks = self.get_window_counts("drift.checks", window_minutes)
+            # Use per-provider drift events divided by total requests for accurate per-provider drift rate
+            # (EPIC I-1 records drift.provider.{provider} for each drift event)
             drift_events = self.get_window_counts(
                 f"drift.provider.{provider}", window_minutes
             )
-            drift_rate = (drift_events / drift_checks * 100) if drift_checks > 0 else 0
+            drift_rate = (drift_events / total_requests * 100) if total_requests > 0 else 0
 
             # Calculate latency penalty (0-100)
             # Target: p95 < 2000ms = 0 penalty, p95 > 10000ms = 100 penalty
