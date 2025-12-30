@@ -380,6 +380,15 @@ class SimpleCoder(BaseAgent):
                     file_path=file_path
                 )
 
+            # Safety check: reject whitespace-only patches (Issue #3288)
+            # A whitespace-only patch would effectively replace code with empty content
+            if not patch_content.strip():
+                logger.warning(f"[CODER_WHITESPACE_ABORT] {file_path}: whitespace-only content")
+                return CoderOutput.create_skipped(
+                    "LLM returned patch with only whitespace content",
+                    file_path=file_path
+                )
+
             syntax_valid = None
             if is_python_file(file_path):
                 is_valid, error_msg = validate_python_syntax(patch_content, file_path)
