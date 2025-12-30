@@ -1,6 +1,6 @@
 # RLS Phase 2 Deployment Status
 
-**Last Updated**: 2025-12-12  
+**Last Updated**: 2025-12-30  
 **Document Owner**: Engineering Team  
 **Related Documents**:
 - [RLS_IMPLEMENTATION_GUIDE.md](./RLS_IMPLEMENTATION_GUIDE.md) - Implementation details
@@ -23,6 +23,7 @@ This document tracks the deployment status of RLS (Row Level Security) Phase 2 m
 | **004_update_rls_policies_with_tenant_isolation.sql** | Temporary tenant policies | **Phase 2** |
 | 005_create_user_profiles_table.sql | Create user_profiles table | Prerequisite for 006 |
 | **006_update_rls_policies_true_tenant_isolation.sql** | TRUE tenant isolation policies | **Phase 2 Final** |
+| **039_rls_phase2_complete_tenant_isolation.sql** | Tenant isolation for planner_events, platform_admin for memory/error_fix_pairs/failure_memory | **Phase 2 Hardening** |
 
 ---
 
@@ -37,6 +38,7 @@ This document tracks the deployment status of RLS (Row Level Security) Phase 2 m
 | Migration 004 | [x] Applied | Ryan | 2025-12-10 | Temporary policies |
 | Migration 005 | [x] Applied | Ryan | 2025-12-10 | user_profiles table |
 | Migration 006 | [x] Applied | Ryan | 2025-12-10 | TRUE isolation policies |
+| Migration 039 | [x] Applied | Ryan | 2025-12-21 | Phase 2 hardening (full migration) |
 | RLS Test Suite | [x] Verified | Ryan | 2025-12-10 | 4 policies, 2 functions |
 | Health Check Workflow | [x] Passing | - | 2025-12-10 | rls-supabase-health.yml |
 
@@ -49,6 +51,7 @@ This document tracks the deployment status of RLS (Row Level Security) Phase 2 m
 | Migration 004 | [x] Applied | Ryan | 2025-12-10 | Temporary policies |
 | Migration 005 | [x] Applied | Ryan | 2025-12-10 | user_profiles table |
 | Migration 006 | [x] Applied | Ryan | 2025-12-10 | TRUE isolation policies |
+| Migration 039 | [x] Applied | Ryan + Devin | 2025-12-30 | Phase 2 hardening (hotfix - memory table skipped) |
 | RLS Test Suite | [x] Verified | Ryan | 2025-12-10 | 4 policies, 2 functions |
 | Health Check Workflow | [x] Passing | - | 2025-12-10 | rls-supabase-health.yml |
 
@@ -168,6 +171,7 @@ All deployment and verification logs are maintained here as the single source of
 | 2025-12-12 | Policy Cleanup | Ryan + Devin | Success | Removed old `tenant_*` policies with `qual=true` |
 | 2025-12-12 | Code Deploy | Ryan | Success | 467 commits deployed via Render |
 | 2025-12-12 | Verification | Ryan + Devin | Success | 5 policies verified (4 true_tenant_isolation + service_role) |
+| 2025-12-21 | Migration 039 | Ryan | Success | Full migration applied (PR #2819) |
 
 ### Production Deployment Log
 
@@ -176,6 +180,7 @@ All deployment and verification logs are maintained here as the single source of
 | 2025-12-12 | Policy Cleanup | Ryan + Devin | Success | Removed old permissive policies (~12 policies dropped) |
 | 2025-12-12 | Code Deploy | Ryan | Success | 467 commits deployed via Render (commit 26c16705) |
 | 2025-12-12 | Verification | Ryan + Devin | Success | 6 policies verified (4 true_tenant_isolation + service_role + anon_no_access) |
+| 2025-12-30 | Migration 039 | Ryan + Devin | Success | Hotfix applied (memory table skipped - does not exist in prod) |
 
 ### Health Check Results Log
 
@@ -198,6 +203,7 @@ All deployment and verification logs are maintained here as the single source of
 
 | Date | Change | Author |
 |------|--------|--------|
+| 2025-12-30 | Add Migration 039 deployment status (Staging: full, Production: hotfix due to missing memory table) | Ryan + Devin |
 | 2025-12-12 | Add deployment logs for Staging and Production policy cleanup and code deploy | Ryan + Devin |
 | 2025-12-10 | Improve emergency rollback link text readability (Gemini suggestion) | Engineering Team |
 | 2025-12-10 | Fix anchor link to PRE_DEPLOYMENT_CHECKLIST.md emergency rollback section | Engineering Team |
