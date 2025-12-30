@@ -306,11 +306,17 @@ class HealthAlertService:
         error_rate = payload.get("error_rate", 0)
         latency = payload.get("latency_p95_ms", "N/A")
 
+        # Format health score with proper handling
+        if isinstance(health, (int, float)):
+            health_str = f"{health:.1f}"
+        else:
+            health_str = str(health)
+
         return (
             f"{severity_emoji} *Provider Health Alert*\n"
             f"*Provider:* `{provider}`\n"
             f"*Reason:* {reason}\n"
-            f"*Health Score:* {health:.1f if isinstance(health, (int, float)) else health}\n"
+            f"*Health Score:* {health_str}\n"
             f"*Error Rate:* {error_rate:.1f}%\n"
             f"*Latency (p95):* {latency}ms\n"
             f"*Time:* {payload['timestamp']}"
