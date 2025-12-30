@@ -43,6 +43,7 @@
 | **Intelligence Layer** | Reviewer Agent + Diff-Aware | [EPIC B: Diff-Aware Review Plumbing (#2595)](https://github.com/RC918/morningai/issues/2595) | **Phase 1-3 Completed**, Phase 6 In Progress |
 | **Intelligence Layer** | Flow Controller v3 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | **Stage 0 + C-6 Completed**; Pilot Pending (default: disabled) |
 | **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **In Progress** |
+| **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | Planning (after #3249) |
 
 ### EPIC Dependencies
 
@@ -57,6 +58,9 @@ EPIC C (Flow Controller) ---+
     |
     v
 EPIC D (Coder Agent Family)
+    |
+    v
+EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C/D
 ```
 
 ### Model Tier Strategy (from Wish Pool v2)
@@ -117,7 +121,7 @@ EPIC D (Coder Agent Family)
 - Stage 2: D-3 Spec-Driven Development, D-4 Self-Correction Loop
 - Stage 3: Future capabilities
 
-### 5. Governance & Safety Layer (Future EPICs)
+### 5. Governance & Safety Layer (EPIC I)
 
 **Wish Pool v2 Vision**:
 - Safety Governor v2: Risk scan, prompt injection protection, jailbreak protection
@@ -125,7 +129,20 @@ EPIC D (Coder Agent Family)
 - Model Governance Framework v2: Drift monitoring, provider health, cost governance
 - Autonomous Provisioning v2: Self-healing model management
 
-**Status**: Not yet started. Will be addressed after EPIC D completion.
+**Current Implementation (EPIC I #3342)**:
+EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Provisioning v2) 的落地實作。
+
+- Phase I-1: Runtime Drift Detection (格式/Schema 驗證)
+- Phase I-2: Provider Health Scoring (延遲、錯誤率、drift 頻率)
+- Phase I-3: Alerting & Dashboard (Grafana/Sentry 整合)
+- Phase I-4: Auto-Degradation (自動路由調整，對齊 PR #3316)
+
+**現有基礎設施**:
+- `LLMClient.generate()` - 統一 LLM 呼叫入口（Interceptor 插入點）
+- `CanaryMetrics` - Redis-based 分鐘級指標系統
+- `ROUTING_ALLOWED_PROVIDERS` (PR #3316) - Provider 治理 allowlist
+
+**Status**: Planning. Will start after #3249 completion.
 
 ### 6. Infrastructure Layer (Future EPICs)
 
@@ -148,8 +165,8 @@ EPIC D (Coder Agent Family)
 | 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 Completed**, EPIC D In Progress | Complete B-6, continue D |
 | 4.1 Safety Governor v2 | Not started | Future EPIC E |
 | 4.2 Compliance Radar v2 | Not started | Future EPIC E |
-| 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | Future EPIC F |
-| 4.4 Autonomous Provisioning v2 | Not started | Future EPIC F |
+| 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) |
+| 4.4 Autonomous Provisioning v2 | Planning | **EPIC I** (#3342) |
 | 5.1 Memory v2 | Not started | Future EPIC G |
 | 5.2 Telemetry v2 | Partial (EPIC B) | Expand in EPIC C |
 | 5.3 Simulation Suite v1 | Not started | Future EPIC H |
@@ -192,3 +209,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 1.0 | 2025-12-21 | Ryan Chen (@RC918) | Initial version with EPIC A/B/C/D mapping |
 | 1.1 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Updated EPIC status: A Completed, B Phase 1-3 Completed, D In Progress. Added Model Governance PR #3316. |
 | 1.2 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Updated EPIC C status based on code evidence: Stage 0 (C-1/C-2/C-3/C-4) + C-6 Graph Wiring Completed; Pilot Pending (ENABLE_DYNAMIC_ROUTING=false by default). |
+| 1.3 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Added EPIC I: Runtime Governance & Immune System (#3342) - Blueprint 4.3/4.4 implementation. Updated EPIC table, dependency graph, and cross-reference. |
