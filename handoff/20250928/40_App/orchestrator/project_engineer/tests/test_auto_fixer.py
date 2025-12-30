@@ -368,7 +368,6 @@ except ImportError:
 class TestFixerNodeIntegration:
     """Integration tests for fixer_node with AutoFixer"""
 
-    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - langgraph_orchestrator import fails")
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_increments_retry_count(self):
         """Test that fixer_node increments retry_count"""
@@ -384,6 +383,8 @@ class TestFixerNodeIntegration:
             mock_fixer = MagicMock()
             mock_fixer.should_run_for_task.return_value = False
             MockAutoFixer.return_value = mock_fixer
+            # Set MAX_FIX_RETRIES to avoid MagicMock comparison error
+            MockAutoFixer.MAX_FIX_RETRIES = 3
 
             result = fixer_node(state)
 
@@ -404,7 +405,6 @@ class TestFixerNodeIntegration:
 
         assert "Max retries" in (result.get("error") or "")
 
-    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - langgraph_orchestrator import fails")
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_calls_auto_fixer_when_enabled(self):
         """Test that fixer_node calls AutoFixer when enabled"""
@@ -421,6 +421,8 @@ class TestFixerNodeIntegration:
             mock_fixer.should_run_for_task.return_value = True
             mock_fixer.run_auto_fix_sync.return_value = state
             MockAutoFixer.return_value = mock_fixer
+            # Set MAX_FIX_RETRIES to avoid MagicMock comparison error
+            MockAutoFixer.MAX_FIX_RETRIES = 3
 
             fixer_node(state)
 

@@ -32,6 +32,21 @@ from ..bot_protocol import (
 logger = logging.getLogger(__name__)
 
 
+def _get_header_case_insensitive(
+    headers: Dict[str, str], key: str, default: Optional[str] = None
+) -> Optional[str]:
+    """Get a header value with case-insensitive key lookup."""
+    # Try exact match first
+    if key in headers:
+        return headers[key]
+    # Try lowercase match
+    key_lower = key.lower()
+    for k, v in headers.items():
+        if k.lower() == key_lower:
+            return v
+    return default
+
+
 # Linear action to normalized event type mapping
 LINEAR_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
     "Issue": {
@@ -179,9 +194,10 @@ class LinearWebhookHandler(BaseWebhookHandler):
         Returns:
             Normalized WebhookEvent
         """
-        # Get event metadata
-        # Fix: Phase B-B - Use lowercase key for consistent access
-        event_id = headers.get(self.DELIVERY_HEADER.lower(), str(uuid.uuid4()))
+        # Get event metadata with case-insensitive header lookup
+        event_id = _get_header_case_insensitive(
+            headers, self.DELIVERY_HEADER, str(uuid.uuid4())
+        )
         event_type = self.get_event_type(headers, payload)
         linear_type = payload.get("type", "")
         linear_action = payload.get("action", "")
@@ -310,9 +326,8 @@ class LinearWebhookHandler(BaseWebhookHandler):
         return event
 
     def _get_signature_header(self, headers: Dict[str, str]) -> Optional[str]:
-        """Get the Linear signature header"""
-        # Fix: Phase B-B - Use lowercase key for consistent access
-        return headers.get(self.SIGNATURE_HEADER.lower())
+        """Get the Linear signature header with case-insensitive lookup"""
+        return _get_header_case_insensitive(headers, self.SIGNATURE_HEADER)
 
     def should_process(
         self,
