@@ -4099,6 +4099,228 @@ def ci_monitor_node(state: AgentState) -> AgentState:
     return state
 
 
+def _attempt_general_coder_fix(
+    state: AgentState,
+    trace_id: str
+) -> tuple[bool, Optional[str]]:
+    """Attempt to fix using GeneralCoder for multi-file issues.
+
+    This implements D-1b: GeneralCoder multi-file support (<=5 files).
+    GeneralCoder extends SimpleCoder with:
+    1. Multi-file editing support (<=5 files)
+    2. Import relationship understanding
+    3. Atomic commits via commit_files()
+    4. Per-file syntax validation
+
+    Args:
+        state: Current AgentState with review_outcome and file context
+        trace_id: Trace ID for logging
+
+    Returns:
+        Tuple of (success, message):
+        - (True, message) if GeneralCoder successfully applied fixes
+        - (False, message) if GeneralCoder skipped or failed (fallback to SimpleCoder)
+
+    Event Codes (greppable):
+        [GENERAL_CODER_ATTEMPT] - GeneralCoder fix attempt started
+        [GENERAL_CODER_GATE_FAIL] - Gate check failed, skipping GeneralCoder
+        [GENERAL_CODER_SKIP] - GeneralCoder decided to skip (low confidence)
+        [GENERAL_CODER_PATCH_APPLIED] - Patches successfully applied via GitHub API
+        [GENERAL_CODER_PATCH_FAILED] - Patch application failed
+        [GENERAL_CODER_DISABLED] - Feature flag disabled
+    """
+    try:
+        from coder.autofix_gate import is_autofix_allowed
+        from coder.general_coder import get_general_coder, CoderStatus
+        from common.agents.base_agent import AgentInput
+        from tools.github_api import get_repo, commit_files
+    except ImportError as e:
+        logger.debug(f"[GENERAL_CODER_DISABLED] Import failed: {e}")
+        return False, f"GeneralCoder not available: {e}"
+
+    if not settings.enable_general_coder:
+        logger.debug("[GENERAL_CODER_DISABLED] Feature flag disabled")
+        return False, "GeneralCoder feature flag disabled"
+
+    review_outcome = state.get("review_outcome")
+    if not is_autofix_allowed(review_outcome):
+        logger.info(
+            f"[GENERAL_CODER_GATE_FAIL] Autofix not allowed for review_outcome. "
+            f"trace_id={trace_id}"
+        )
+        return False, "Autofix gate check failed"
+
+    # Get review files - GeneralCoder needs multiple files
+    review_files = state.get("review_files", [])
+    file_path = state.get("review_file_path", "")
+
+    # If only single file, let SimpleCoder handle it
+    if len(review_files) <= 1 and file_path:
+        logger.debug(
+            f"[GENERAL_CODER_GATE_FAIL] Single file detected, deferring to SimpleCoder. "
+            f"trace_id={trace_id}"
+        )
+        return False, "Single file - deferring to SimpleCoder"
+
+    # Build files list from review_files or single file
+    files_to_fix = []
+    if review_files:
+        files_to_fix = review_files[:5]  # D-1b limit: max 5 files
+    elif file_path:
+        files_to_fix = [{"path": file_path}]
+
+    if not files_to_fix:
+        logger.info(f"[GENERAL_CODER_GATE_FAIL] No files to fix. trace_id={trace_id}")
+        return False, "No files available"
+
+    review_comment = state.get("comment_body", "")
+    if not review_comment:
+        review_comments = state.get("review_comments", [])
+        if review_comments and isinstance(review_comments[0], dict):
+            review_comment = review_comments[0].get("body", "")
+        elif review_comments and isinstance(review_comments[0], str):
+            review_comment = review_comments[0]
+
+    if not review_comment:
+        logger.info(f"[GENERAL_CODER_GATE_FAIL] No review comment. trace_id={trace_id}")
+        return False, "No review comment available"
+
+    repo_name = state.get("repo", "")
+    branch = state.get("branch", "")
+    diff_head_sha = state.get("diff_head_sha", "")
+
+    if not repo_name or not branch:
+        logger.info(
+            f"[GENERAL_CODER_GATE_FAIL] Missing repo or branch. "
+            f"repo={repo_name}, branch={branch}, trace_id={trace_id}"
+        )
+        return False, "Missing repo or branch"
+
+    try:
+        repo = get_repo(repo_name)
+        if repo is None:
+            logger.warning(f"[GENERAL_CODER_GATE_FAIL] Could not get repo. trace_id={trace_id}")
+            return False, "Could not access repository"
+
+        # Fetch content for all files
+        ref = diff_head_sha if diff_head_sha else branch
+        files_with_content = []
+        for f in files_to_fix:
+            f_path = f.get("path", "") if isinstance(f, dict) else f
+            if not f_path:
+                continue
+            try:
+                file_obj = repo.get_contents(f_path, ref=ref)
+                if hasattr(file_obj, 'decoded_content'):
+                    content = file_obj.decoded_content.decode('utf-8')
+                    files_with_content.append({"path": f_path, "content": content})
+            except Exception as e:
+                logger.warning(
+                    f"[GENERAL_CODER_GATE_FAIL] Failed to fetch file {f_path}: {e}. "
+                    f"trace_id={trace_id}"
+                )
+                # Continue with other files
+
+        if not files_with_content:
+            logger.warning(
+                f"[GENERAL_CODER_GATE_FAIL] Could not fetch any file content. "
+                f"trace_id={trace_id}"
+            )
+            return False, "Could not fetch file content"
+
+    except Exception as e:
+        logger.warning(
+            f"[GENERAL_CODER_GATE_FAIL] Failed to fetch files: {e}. "
+            f"trace_id={trace_id}"
+        )
+        return False, f"Failed to fetch files: {e}"
+
+    logger.info(
+        f"[GENERAL_CODER_ATTEMPT] Attempting multi-file fix. "
+        f"file_count={len(files_with_content)}, trace_id={trace_id}"
+    )
+
+    severity = "low"
+    if review_outcome and isinstance(review_outcome, dict):
+        severity = review_outcome.get("severity", "low")
+
+    general_coder = get_general_coder()
+    agent_input = AgentInput(
+        task_id=trace_id,
+        prompt="Fix the multi-file issue",
+        context={
+            "files": files_with_content,
+            "review_comment": review_comment,
+            "severity": severity
+        }
+    )
+
+    try:
+        output = general_coder.execute(agent_input)
+    except Exception as e:
+        logger.warning(f"[GENERAL_CODER_SKIP] Execution failed: {e}. trace_id={trace_id}")
+        return False, f"GeneralCoder execution failed: {e}"
+
+    if not output.success:
+        reason = output.data.get("reason", "Unknown") if output.data else "Unknown"
+        logger.info(f"[GENERAL_CODER_SKIP] {reason}. trace_id={trace_id}")
+        return False, f"GeneralCoder skipped: {reason}"
+
+    coder_data = output.data or {}
+    status = coder_data.get("status", "")
+    if status != CoderStatus.PATCH.value:
+        reason = coder_data.get("reason", "Unknown")
+        logger.info(f"[GENERAL_CODER_SKIP] Status={status}, reason={reason}. trace_id={trace_id}")
+        return False, f"GeneralCoder skipped: {reason}"
+
+    patches = coder_data.get("patches", [])
+    if not patches:
+        logger.warning(f"[GENERAL_CODER_SKIP] No patches returned. trace_id={trace_id}")
+        return False, "GeneralCoder returned no patches"
+
+    # Build files list for atomic commit
+    commit_files_list = []
+    for patch in patches:
+        p_path = patch.get("file_path", "")
+        p_content = patch.get("patch", "")
+        syntax_valid = patch.get("syntax_valid")
+
+        if not p_path or not p_content:
+            continue
+
+        # Check syntax validation result
+        if p_path.endswith(".py") and syntax_valid is False:
+            logger.warning(
+                f"[GENERAL_CODER_SKIP] Syntax validation failed for {p_path}. "
+                f"trace_id={trace_id}"
+            )
+            return False, f"Syntax validation failed for {p_path}"
+
+        commit_files_list.append({"path": p_path, "content": p_content})
+
+    if not commit_files_list:
+        logger.warning(f"[GENERAL_CODER_SKIP] No valid patches to commit. trace_id={trace_id}")
+        return False, "No valid patches to commit"
+
+    # Atomic commit via commit_files()
+    file_paths_str = ", ".join([f["path"] for f in commit_files_list])
+    commit_message = f"fix: GeneralCoder auto-fix for {len(commit_files_list)} files"
+    result = commit_files(repo, branch, commit_files_list, commit_message)
+
+    if result.success:
+        logger.info(
+            f"[GENERAL_CODER_PATCH_APPLIED] Successfully applied {len(commit_files_list)} patches. "
+            f"files={file_paths_str}, branch={branch}, sha={result.sha}, trace_id={trace_id}"
+        )
+        return True, f"GeneralCoder successfully fixed {len(commit_files_list)} files"
+    else:
+        logger.error(
+            f"[GENERAL_CODER_PATCH_FAILED] Failed to apply patches: {result.status} - {result.message}. "
+            f"trace_id={trace_id}"
+        )
+        return False, f"Failed to apply patches: {result.message}"
+
+
 def _attempt_simple_coder_fix(
     state: AgentState,
     trace_id: str
@@ -4290,6 +4512,11 @@ def fixer_node(state: AgentState) -> AgentState:
     - Attempts SimpleCoder fix first (if enabled and gate passes)
     - Falls back to AutoFixer if SimpleCoder skips or fails
     - SimpleCoder uses Three Don'ts safety guardrails
+
+    D-1b Enhancement:
+    - Attempts GeneralCoder multi-file fix first (if enabled)
+    - Falls back to SimpleCoder for single-file issues
+    - Falls back to AutoFixer if both coders skip or fail
     """
     from common.config.settings import settings
 
@@ -4301,6 +4528,38 @@ def fixer_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("fixer", trace_id)
 
+    # D-1b: Try GeneralCoder first for multi-file issues
+    general_coder_success, general_coder_msg = _attempt_general_coder_fix(state, trace_id)
+    if general_coder_success:
+        logger.info(
+            f"[Fixer] GeneralCoder fix succeeded, skipping SimpleCoder/AutoFixer. "
+            f"message={general_coder_msg}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "general_coder_success": True
+            }
+        )
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"GeneralCoder fix applied: {general_coder_msg}")
+        ]
+        state["retry_count"] = retry_count + 1
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_fixer_attempt(trace_id, retry_count, success=True)
+        metrics.record_node_complete("fixer", trace_id, success=True, latency_ms=latency_ms)
+        metrics.record_transition("fixer", "executor", trace_id)
+
+        agent_eval = _get_agent_eval()
+        agent_eval.record_node_latency(trace_id, "fixer", latency_ms)
+        agent_eval.record_fixer_iteration(trace_id, retry_count + 1, True)
+        return state
+
+    logger.debug(
+        f"[Fixer] GeneralCoder did not apply fix, trying SimpleCoder. "
+        f"reason={general_coder_msg}, trace_id={trace_id}"
+    )
+
+    # D-1: Try SimpleCoder for single-file issues
     simple_coder_success, simple_coder_msg = _attempt_simple_coder_fix(state, trace_id)
     if simple_coder_success:
         logger.info(

@@ -2180,6 +2180,18 @@ class Settings(BaseSettings):
         )
     )
 
+    enable_general_coder: bool = Field(
+        default=False,
+        alias="ENABLE_GENERAL_CODER",
+        description=(
+            "Enable GeneralCoder multi-file auto-fix in fixer_node (EPIC D Phase 1b). "
+            "Default False = GeneralCoder disabled, only SimpleCoder/AutoFixer runs. "
+            "When True, GeneralCoder attempts multi-file fix (<=5 files) with atomic commits, "
+            "falling back to SimpleCoder if GeneralCoder skips or fails. "
+            "Requires ENABLE_SIMPLE_CODER=True for fallback chain."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""

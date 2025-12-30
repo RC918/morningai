@@ -11,13 +11,13 @@ Tests cover:
 """
 import sys
 import os
-from unittest.mock import MagicMock, patch, PropertyMock
-import pytest
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from tools.github_api import (
     commit_file,
+    commit_files,
     CommitResult,
     _classify_github_error,
     _is_transient_error,
@@ -543,3 +543,205 @@ class TestCommitFileLogging:
 
         assert result.success is False
         assert any("COMMIT_FILE_PERMISSION_DENIED" in record.message for record in caplog.records)
+
+
+class TestCommitFilesSuccess:
+    """Tests for successful commit_files operations (D-1b multi-file support)"""
+
+    def test_commit_multiple_files(self):
+        """Test successful commit of multiple files atomically"""
+        mock_repo = MagicMock()
+        mock_repo.full_name = "test/repo"
+
+        # Mock the Git Data API flow
+        mock_ref = MagicMock()
+        mock_ref.object.sha = "base_commit_sha"
+        mock_repo.get_git_ref.return_value = mock_ref
+
+        mock_base_commit = MagicMock()
+        mock_base_commit.tree.sha = "base_tree_sha"
+        mock_repo.get_git_commit.return_value = mock_base_commit
+
+        mock_new_tree = MagicMock()
+        mock_new_tree.sha = "new_tree_sha"
+        mock_repo.create_git_tree.return_value = mock_new_tree
+
+        mock_new_commit = MagicMock()
+        mock_new_commit.sha = "new_commit_sha"
+        mock_repo.create_git_commit.return_value = mock_new_commit
+
+        files = [
+            {"path": "file1.py", "content": "content1"},
+            {"path": "file2.py", "content": "content2"},
+        ]
+
+        result = commit_files(mock_repo, "main", files, "commit message")
+
+        assert result.success is True
+        assert result.status == CommitResult.SUCCESS
+        assert result.sha == "new_commit_sha"
+        mock_repo.create_git_tree.assert_called_once()
+        mock_repo.create_git_commit.assert_called_once()
+        mock_ref.edit.assert_called_once_with(sha="new_commit_sha")
+
+    def test_commit_single_file(self):
+        """Test commit_files works with single file"""
+        mock_repo = MagicMock()
+        mock_repo.full_name = "test/repo"
+
+        mock_ref = MagicMock()
+        mock_ref.object.sha = "base_sha"
+        mock_repo.get_git_ref.return_value = mock_ref
+
+        mock_base_commit = MagicMock()
+        mock_base_commit.tree.sha = "tree_sha"
+        mock_repo.get_git_commit.return_value = mock_base_commit
+
+        mock_new_tree = MagicMock()
+        mock_repo.create_git_tree.return_value = mock_new_tree
+
+        mock_new_commit = MagicMock()
+        mock_new_commit.sha = "commit_sha"
+        mock_repo.create_git_commit.return_value = mock_new_commit
+
+        files = [{"path": "single.py", "content": "code"}]
+
+        result = commit_files(mock_repo, "main", files, "message")
+
+        assert result.success is True
+
+    def test_repo_none_returns_not_found(self):
+        """Test that None repo returns NOT_FOUND result"""
+        files = [{"path": "test.py", "content": "code"}]
+        result = commit_files(None, "main", files, "message")
+
+        assert result.success is False
+        assert result.status == CommitResult.NOT_FOUND
+
+
+class TestCommitFilesValidation:
+    """Tests for commit_files input validation (D-1b guardrails)"""
+
+    def test_empty_files_list(self):
+        """Test that empty files list returns error"""
+        mock_repo = MagicMock()
+        result = commit_files(mock_repo, "main", [], "message")
+
+        assert result.success is False
+        assert "No files" in result.message
+
+    def test_too_many_files(self):
+        """Test that >5 files returns error (D-1b limit)"""
+        mock_repo = MagicMock()
+        files = [{"path": f"file{i}.py", "content": "code"} for i in range(6)]
+
+        result = commit_files(mock_repo, "main", files, "message")
+
+        assert result.success is False
+        assert "Too many files" in result.message
+        assert "5" in result.message
+
+    def test_path_traversal_blocked(self):
+        """Test that path traversal attempts are blocked"""
+        mock_repo = MagicMock()
+        files = [{"path": "../../../etc/passwd", "content": "malicious"}]
+
+        result = commit_files(mock_repo, "main", files, "message")
+
+        assert result.success is False
+        assert "Invalid" in result.message
+
+    def test_absolute_path_blocked(self):
+        """Test that absolute paths are blocked"""
+        mock_repo = MagicMock()
+        files = [{"path": "/etc/passwd", "content": "malicious"}]
+
+        result = commit_files(mock_repo, "main", files, "message")
+
+        assert result.success is False
+        assert "Invalid" in result.message
+
+    def test_empty_path_blocked(self):
+        """Test that empty paths are blocked"""
+        mock_repo = MagicMock()
+        files = [{"path": "", "content": "code"}]
+
+        result = commit_files(mock_repo, "main", files, "message")
+
+        assert result.success is False
+        assert "Invalid" in result.message
+
+
+class TestCommitFilesErrors:
+    """Tests for commit_files error handling"""
+
+    def test_conflict_error_fails_fast(self):
+        """Test that conflict errors fail immediately"""
+        mock_repo = MagicMock()
+        mock_repo.full_name = "test/repo"
+        mock_repo.get_git_ref.side_effect = GithubException(409, {"message": "Conflict"}, None)
+
+        files = [{"path": "test.py", "content": "code"}]
+        result = commit_files(mock_repo, "main", files, "message", max_retries=3)
+
+        assert result.success is False
+        assert result.status == CommitResult.CONFLICT
+        assert mock_repo.get_git_ref.call_count == 1
+
+    def test_permission_denied_fails_fast(self):
+        """Test that permission denied errors fail immediately"""
+        mock_repo = MagicMock()
+        mock_repo.full_name = "test/repo"
+        mock_repo.get_git_ref.side_effect = GithubException(403, {"message": "Forbidden"}, None)
+
+        files = [{"path": "test.py", "content": "code"}]
+        result = commit_files(mock_repo, "main", files, "message", max_retries=3)
+
+        assert result.success is False
+        assert result.status == CommitResult.PERMISSION_DENIED
+        assert mock_repo.get_git_ref.call_count == 1
+
+    @patch("tools.github_api.time.sleep")
+    def test_transient_error_retries(self, mock_sleep):
+        """Test that transient errors trigger retry"""
+        mock_repo = MagicMock()
+        mock_repo.full_name = "test/repo"
+        mock_repo.get_git_ref.side_effect = GithubException(500, {"message": "Server Error"}, None)
+
+        files = [{"path": "test.py", "content": "code"}]
+        result = commit_files(mock_repo, "main", files, "message", max_retries=2)
+
+        assert result.success is False
+        assert result.status == CommitResult.TRANSIENT_ERROR
+        assert mock_repo.get_git_ref.call_count == 3  # Initial + 2 retries
+
+    @patch("tools.github_api.time.sleep")
+    def test_transient_error_succeeds_on_retry(self, mock_sleep):
+        """Test that transient error can succeed on retry"""
+        mock_repo = MagicMock()
+        mock_repo.full_name = "test/repo"
+
+        # First call fails, second succeeds
+        mock_ref = MagicMock()
+        mock_ref.object.sha = "sha"
+        mock_repo.get_git_ref.side_effect = [
+            GithubException(500, {"message": "Error"}, None),
+            mock_ref
+        ]
+
+        mock_base_commit = MagicMock()
+        mock_base_commit.tree.sha = "tree_sha"
+        mock_repo.get_git_commit.return_value = mock_base_commit
+
+        mock_new_tree = MagicMock()
+        mock_repo.create_git_tree.return_value = mock_new_tree
+
+        mock_new_commit = MagicMock()
+        mock_new_commit.sha = "new_sha"
+        mock_repo.create_git_commit.return_value = mock_new_commit
+
+        files = [{"path": "test.py", "content": "code"}]
+        result = commit_files(mock_repo, "main", files, "message", max_retries=2)
+
+        assert result.success is True
+        assert mock_repo.get_git_ref.call_count == 2
