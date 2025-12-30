@@ -15,6 +15,7 @@ The tests verify:
 - to_dict() output matches documented Final CoderOutput Schema
 - schema_version is present and valid in all outputs
 """
+import dataclasses
 import json
 
 from coder.simple_coder import (
@@ -347,36 +348,11 @@ class TestSchemaFieldCompleteness:
 
     Field definitions are imported from simple_coder.py (Single Source of Truth)
     to prevent drift between implementation and tests.
+
+    Note: test_all_llm_fields_are_coder_output_attributes and
+    test_all_system_fields_in_to_dict were removed as they are now covered
+    by TestSchemaFieldConstantsConsistency with more robust implementations.
     """
-
-    def test_all_llm_fields_are_coder_output_attributes(self):
-        """Verify all LLM response fields map to CoderOutput attributes."""
-        output = CoderOutput(
-            status=CoderStatus.PATCH,
-            reason="test",
-            patch="code"
-        )
-
-        for field in CODER_LLM_RESPONSE_FIELDS:
-            assert hasattr(output, field), (
-                f'CoderOutput missing documented LLM field "{field}". '
-                f'Expected fields: {CODER_LLM_RESPONSE_FIELDS}'
-            )
-
-    def test_all_system_fields_in_to_dict(self):
-        """Verify all system fields can appear in to_dict() output."""
-        output = CoderOutput.create_patch(
-            "code",
-            file_path="test.py",
-            syntax_valid=True
-        )
-        result = output.to_dict()
-
-        for field in CODER_SYSTEM_ADDED_FIELDS:
-            assert field in result, (
-                f'to_dict() missing documented system field "{field}". '
-                f'Expected fields: {CODER_SYSTEM_ADDED_FIELDS}, got keys: {list(result.keys())}'
-            )
 
     def test_no_undocumented_fields_in_to_dict(self):
         """Verify to_dict() doesn't add undocumented fields."""
@@ -404,7 +380,6 @@ class TestSchemaFieldConstantsConsistency:
 
     def test_llm_fields_are_subset_of_coder_output_attributes(self):
         """Verify all LLM response fields exist as CoderOutput attributes."""
-        import dataclasses
         coder_output_fields = {f.name for f in dataclasses.fields(CoderOutput)}
 
         for field in CODER_LLM_RESPONSE_FIELDS:
