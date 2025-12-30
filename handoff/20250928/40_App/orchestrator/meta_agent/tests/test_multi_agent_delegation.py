@@ -280,6 +280,7 @@ class TestTaskDelegationExecution:
         assert task.status == SubTaskStatus.COMPLETED
 
 
+@pytest.mark.slow  # These tests invoke real async goal execution and can take 5+ minutes
 class TestTaskAggregation:
     """Tests for aggregating results from multiple agents"""
 
@@ -337,6 +338,7 @@ class TestTaskAggregation:
         assert result.tasks_failed >= 0
 
 
+@pytest.mark.slow  # These tests invoke real async goal execution and can take 5+ minutes
 class TestAgentCallbacks:
     """Tests for agent-related callbacks during execution"""
 
@@ -381,6 +383,7 @@ class TestAgentCallbacks:
         assert len(completed_tasks) > 0
 
 
+@pytest.mark.slow  # These tests invoke real async goal execution and can take 5+ minutes
 class TestMixedAgentExecution:
     """Tests for execution with mixed agent types"""
 

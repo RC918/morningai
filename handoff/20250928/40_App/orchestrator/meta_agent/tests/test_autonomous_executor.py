@@ -298,6 +298,7 @@ class TestTaskHandlers:
         assert result["verification_passed"] is True
 
 
+@pytest.mark.slow  # These tests invoke real async goal execution and take 5+ minutes each
 @pytest.mark.timeout(300)  # Integration tests involve async goal execution which can take longer
 class TestExecutorIntegration:
     """Integration tests for AutonomousExecutor with AuditLogger, ExecutionPolicy, and StateManager"""
@@ -1285,6 +1286,7 @@ class TestVMAndIDEIntegration:
         assert "VM destruction failed" in str(result["cleanup_failures"])
 
 
+@pytest.mark.slow  # These tests invoke real async goal execution and can take 5+ minutes
 class TestDeepWikiIntegration:
     """Tests for DeepWiki integration in AutonomousExecutor (#2154)"""
 
