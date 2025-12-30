@@ -588,6 +588,12 @@ class Settings(BaseSettings):
         description="SiliconFlow API base URL (EPIC #2594)"
     )
 
+    routing_allowed_providers: str = Field(
+        default="",
+        alias="ROUTING_ALLOWED_PROVIDERS",
+        description="Comma-separated allowlist of providers for LLM routing (governance control)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",

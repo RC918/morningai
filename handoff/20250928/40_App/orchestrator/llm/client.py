@@ -69,12 +69,58 @@ _PROVIDER_REGISTRY = [
 
 
 def _get_available_providers() -> list[str]:
-    """Get list of available provider names based on configuration"""
+    """Get list of available provider names based on configuration and governance allowlist.
+
+    The provider selection follows this logic:
+    1. Check which providers have valid API keys configured
+    2. If ROUTING_ALLOWED_PROVIDERS is set (non-empty), filter to only allowed providers
+    3. Return the intersection of available and allowed providers
+
+    Governance Control (Blueprint: Model Governance Framework v2):
+    - Empty allowlist (default): Use all providers with valid API keys
+    - Non-empty allowlist: Only use providers in the allowlist that also have valid API keys
+    - If allowlist is set but no allowed providers have valid API keys, return empty list
+      (caller should handle this as an error condition)
+
+    Security Policy (Fail-Closed):
+    - When governance mode is enabled (allowlist is non-empty), any exception during
+      allowlist processing will block ALL providers and log a critical error
+    - This prevents accidental bypass of governance controls due to configuration errors
+    - When governance mode is NOT enabled (empty allowlist), exceptions are not expected
+      as no allowlist processing occurs
+    """
     available = []
     for name, provider_class in _PROVIDER_REGISTRY:
         if provider_class().is_available():
             available.append(name)
-    return available
+
+    # Check if governance mode is enabled (allowlist is set)
+    allowlist_str = getattr(settings, 'routing_allowed_providers', '')
+
+    if not allowlist_str:
+        # Governance mode NOT enabled - return all available providers
+        return available
+
+    # Governance mode IS enabled - apply strict fail-closed policy
+    try:
+        allowed = [p.strip().lower() for p in allowlist_str.split(',') if p.strip()]
+        filtered = [p for p in available if p.lower() in allowed]
+        logger.info(
+            f"[LLMClient] Applied provider governance allowlist: "
+            f"allowlist={allowed}, available_with_keys={available}, "
+            f"filtered_result={filtered}"
+        )
+        return filtered
+    except Exception as e:
+        # FAIL-CLOSED: When governance is enabled, any error blocks all providers
+        # This prevents accidental bypass of governance controls
+        logger.error(
+            f"[LLMClient] CRITICAL: Failed to apply provider governance allowlist. "
+            f"Blocking all providers for security. "
+            f"ROUTING_ALLOWED_PROVIDERS='{allowlist_str}', Error: {e}. "
+            f"Please check your configuration."
+        )
+        return []
 
 
 class LLMClient:
