@@ -580,6 +580,238 @@ def commit_file(repo, branch, path, content, message, max_retries: int = None) -
 
     return CommitResult(CommitResult.UNKNOWN_ERROR, f"Failed after {effective_max_retries + 1} attempts: {last_error}")
 
+
+def commit_files(
+    repo,
+    branch: str,
+    files: list[dict],
+    message: str,
+    max_retries: int = None
+) -> CommitResult:
+    """Commit multiple files atomically to a GitHub repository branch.
+
+    This function uses the GitHub Git Data API to create a single commit
+    affecting multiple files. This is atomic - either all files are committed
+    or none are (no partial state).
+
+    Issue #2760: D-1b Multi-file GeneralCoder support
+
+    API Flow:
+    1. Get current branch ref to find base commit SHA
+    2. Get base tree SHA from base commit
+    3. Create new tree with all file changes
+    4. Create new commit pointing to new tree
+    5. Update branch ref to point to new commit
+
+    Args:
+        repo: GitHub repository object
+        branch: Target branch name
+        files: List of file changes, each dict has:
+            - path: str - File path within the repository
+            - content: str - New file content
+        message: Commit message
+        max_retries: Maximum retries for transient errors (default: from settings)
+
+    Returns:
+        CommitResult: Object with status, message, and optional SHA
+
+    Event Codes (greppable):
+        [COMMIT_FILES_SUCCESS] - All files committed successfully
+        [COMMIT_FILES_CONFLICT] - SHA conflict during commit
+        [COMMIT_FILES_PERMISSION_DENIED] - Permission denied
+        [COMMIT_FILES_TRANSIENT_ERROR] - Transient error, retrying
+        [COMMIT_FILES_FAILED] - Commit failed after retries
+        [COMMIT_FILES_VALIDATION_ERROR] - Invalid input (e.g., >5 files)
+    """
+    if repo is None:
+        logger.warning("[COMMIT_FILES_SKIP] Repository not available")
+        return CommitResult(CommitResult.NOT_FOUND, "Repository not available")
+
+    if not files:
+        logger.warning("[COMMIT_FILES_VALIDATION_ERROR] No files provided")
+        return CommitResult(CommitResult.UNKNOWN_ERROR, "No files provided")
+
+    # D-1b guardrail: max 5 files
+    if len(files) > 5:
+        logger.warning(
+            f"[COMMIT_FILES_VALIDATION_ERROR] Too many files: {len(files)} > 5"
+        )
+        return CommitResult(
+            CommitResult.UNKNOWN_ERROR,
+            f"Too many files: {len(files)} > 5 (D-1b limit)"
+        )
+
+    # Validate file paths (no path traversal)
+    # Use os.path.normpath to handle edge cases like foo/../bar
+    for f in files:
+        path = f.get("path", "")
+        if not path:
+            logger.warning(
+                "[COMMIT_FILES_VALIDATION_ERROR] Empty path"
+            )
+            return CommitResult(
+                CommitResult.UNKNOWN_ERROR,
+                "Invalid file path: empty"
+            )
+        # Normalize path and check for traversal
+        normalized_path = os.path.normpath(path)
+        if ".." in normalized_path or normalized_path.startswith("/"):
+            logger.warning(
+                f"[COMMIT_FILES_VALIDATION_ERROR] Invalid path: {path} (normalized: {normalized_path})"
+            )
+            return CommitResult(
+                CommitResult.UNKNOWN_ERROR,
+                f"Invalid file path: {path}"
+            )
+
+    # Load retry configuration from settings
+    cfg_max_retries = getattr(settings, 'commit_file_max_retries', 3)
+    cfg_initial_delay = getattr(settings, 'commit_file_initial_delay', 2.0)
+    cfg_backoff_factor = getattr(settings, 'commit_file_backoff_factor', 2.0)
+    cfg_max_total_time = getattr(settings, 'commit_file_max_total_time', 30.0)
+    cfg_jitter_factor = getattr(settings, 'commit_file_jitter_factor', 0.25)
+
+    effective_max_retries = max_retries if max_retries is not None else cfg_max_retries
+
+    repo_name = getattr(repo, 'full_name', 'unknown')
+    file_paths = [f.get("path", "") for f in files]
+    log_context = {
+        "repo": repo_name,
+        "branch": branch,
+        "file_count": len(files),
+        "file_paths": file_paths,
+        "max_retries": effective_max_retries,
+    }
+
+    delay = cfg_initial_delay
+    last_error = None
+    start_time = time.time()
+
+    for attempt in range(effective_max_retries + 1):
+        try:
+            # Step 1: Get current branch ref
+            ref = repo.get_git_ref(f"heads/{branch}")
+            base_commit_sha = ref.object.sha
+
+            # Step 2: Get base tree SHA
+            base_commit = repo.get_git_commit(base_commit_sha)
+            base_tree_sha = base_commit.tree.sha
+
+            # Step 3: Create tree elements for all files
+            tree_elements = []
+            for f in files:
+                tree_elements.append({
+                    "path": f["path"],
+                    "mode": "100644",  # Regular file
+                    "type": "blob",
+                    "content": f["content"]
+                })
+
+            # Step 4: Create new tree
+            new_tree = repo.create_git_tree(tree_elements, base_tree=base_tree_sha)
+
+            # Step 5: Create new commit
+            new_commit = repo.create_git_commit(
+                message=message,
+                tree=new_tree,
+                parents=[base_commit]
+            )
+
+            # Step 6: Update branch ref
+            ref.edit(sha=new_commit.sha)
+
+            logger.info(
+                f"[COMMIT_FILES_SUCCESS] Committed {len(files)} files on {branch}",
+                extra={
+                    **log_context,
+                    "sha": new_commit.sha,
+                    "attempt": attempt + 1
+                }
+            )
+            return CommitResult(
+                CommitResult.SUCCESS,
+                f"Committed {len(files)} files",
+                new_commit.sha
+            )
+
+        except GithubException as e:
+            error_type, error_msg = _classify_github_error(e)
+            last_error = e
+
+            if error_type == CommitResult.CONFLICT:
+                logger.error(
+                    f"[COMMIT_FILES_CONFLICT] SHA conflict on {branch}. Not retrying.",
+                    extra={**log_context, "error": error_msg}
+                )
+                return CommitResult(CommitResult.CONFLICT, error_msg)
+
+            elif error_type == CommitResult.PERMISSION_DENIED:
+                logger.error(
+                    f"[COMMIT_FILES_PERMISSION_DENIED] Cannot commit to {branch}. Not retrying.",
+                    extra={**log_context, "error": error_msg}
+                )
+                return CommitResult(CommitResult.PERMISSION_DENIED, error_msg)
+
+            elif error_type == CommitResult.TRANSIENT_ERROR:
+                if attempt < effective_max_retries:
+                    jitter = delay * cfg_jitter_factor * (2 * random.random() - 1)
+                    jittered_delay = max(0.1, delay + jitter)
+
+                    total_elapsed = time.time() - start_time
+                    if total_elapsed + jittered_delay > cfg_max_total_time:
+                        logger.error(
+                            f"[COMMIT_FILES_BUDGET_EXCEEDED] Retry budget exceeded on {branch}.",
+                            extra={
+                                **log_context,
+                                "error": error_msg,
+                                "elapsed": total_elapsed,
+                                "budget": cfg_max_total_time,
+                            }
+                        )
+                        return CommitResult(
+                            CommitResult.TRANSIENT_ERROR,
+                            f"Retry budget exceeded: {error_msg}"
+                        )
+
+                    logger.warning(
+                        f"[COMMIT_FILES_TRANSIENT_ERROR] Retrying in {jittered_delay:.2f}s",
+                        extra={
+                            **log_context,
+                            "error": error_msg,
+                            "attempt": attempt + 1,
+                            "delay": jittered_delay,
+                        }
+                    )
+                    time.sleep(jittered_delay)
+                    delay *= cfg_backoff_factor
+                    continue
+                else:
+                    logger.error(
+                        f"[COMMIT_FILES_FAILED] Failed after {effective_max_retries + 1} attempts",
+                        extra={**log_context, "error": error_msg}
+                    )
+                    return CommitResult(CommitResult.TRANSIENT_ERROR, error_msg)
+
+            else:
+                logger.error(
+                    f"[COMMIT_FILES_ERROR] Unexpected error on {branch}",
+                    extra={**log_context, "error": error_msg}
+                )
+                return CommitResult(CommitResult.UNKNOWN_ERROR, error_msg)
+
+        except Exception as e:
+            logger.error(
+                f"[COMMIT_FILES_ERROR] Unexpected exception on {branch}: {e}",
+                extra={**log_context, "error": str(e)}
+            )
+            return CommitResult(CommitResult.UNKNOWN_ERROR, str(e))
+
+    return CommitResult(
+        CommitResult.UNKNOWN_ERROR,
+        f"Failed after {effective_max_retries + 1} attempts: {last_error}"
+    )
+
+
 def open_pr(repo, branch, title, body="", base="main", draft=False, labels=None):
     """
     Create a pull request
