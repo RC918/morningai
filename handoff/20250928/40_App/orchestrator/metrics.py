@@ -269,7 +269,8 @@ class CanaryMetrics:
                     "p95_ms": latency["p95"],
                     "p99_ms": latency["p99"],
                     "max_bucket_ms": float(max(self.buckets_ms))
-                }
+                },
+                "drift": self.get_drift_summary(window_minutes)
             }
         except Exception as e:
             logger.error(f"Failed to get canary summary: {e}")
@@ -278,6 +279,90 @@ class CanaryMetrics:
                 "window_minutes": window_minutes,
                 "error": str(e)
             }
+
+    # EPIC I-1: Drift Detection Metrics
+    def incr_drift_event(self, drift_type: str, provider: str = "unknown") -> None:
+        """
+        Increment drift event counter
+
+        EPIC I-1: Runtime Drift Detection metrics
+
+        Args:
+            drift_type: Type of drift (json_parse_error, schema_violation, etc.)
+            provider: LLM provider name
+        """
+        if not self.enabled:
+            return
+
+        try:
+            # Global drift counter
+            self.incr_counter("drift.total")
+            # Per-type counter
+            self.incr_counter(f"drift.type.{drift_type}")
+            # Per-provider counter
+            self.incr_counter(f"drift.provider.{provider}")
+        except Exception as e:
+            logger.warning(f"Failed to increment drift event: {e}")
+
+    def incr_drift_check(self) -> None:
+        """
+        Increment drift check counter (total validations performed)
+
+        EPIC I-1: Runtime Drift Detection metrics
+        """
+        if not self.enabled:
+            return
+
+        try:
+            self.incr_counter("drift.checks")
+        except Exception as e:
+            logger.warning(f"Failed to increment drift check: {e}")
+
+    def get_drift_summary(self, window_minutes: int = 15) -> dict:
+        """
+        Get drift detection metrics summary
+
+        EPIC I-1: Runtime Drift Detection metrics
+
+        Args:
+            window_minutes: Time window in minutes (default: 15)
+
+        Returns:
+            Dict with drift counts and rates
+        """
+        if not self.enabled:
+            return {"enabled": False}
+
+        try:
+            total_checks = self.get_window_counts("drift.checks", window_minutes)
+            total_drift = self.get_window_counts("drift.total", window_minutes)
+
+            # Per-type breakdown
+            drift_types = [
+                "json_parse_error",
+                "schema_violation",
+                "empty_response",
+                "unexpected_format",
+                "missing_required_field"
+            ]
+            type_counts = {}
+            for dt in drift_types:
+                count = self.get_window_counts(f"drift.type.{dt}", window_minutes)
+                if count > 0:
+                    type_counts[dt] = count
+
+            drift_rate = (total_drift / total_checks * 100) if total_checks > 0 else 0
+
+            return {
+                "enabled": True,
+                "total_checks": total_checks,
+                "total_drift": total_drift,
+                "drift_rate": round(drift_rate, 2),
+                "by_type": type_counts
+            }
+        except Exception as e:
+            logger.warning(f"Failed to get drift summary: {e}")
+            return {"enabled": True, "error": str(e)}
 
 
 def create_canary_metrics(redis_client: redis.Redis, enabled: bool = True) -> CanaryMetrics:
