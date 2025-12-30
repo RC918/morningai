@@ -41,7 +41,7 @@
 |-------|------------------------|--------------|--------|
 | **Model Layer** | Qwen3 Multi-Tier + Multi-Provider | [EPIC A: Qwen Provider & LLM Infrastructure (#2594)](https://github.com/RC918/morningai/issues/2594) | **Completed** |
 | **Intelligence Layer** | Reviewer Agent + Diff-Aware | [EPIC B: Diff-Aware Review Plumbing (#2595)](https://github.com/RC918/morningai/issues/2595) | **Phase 1-3 Completed**, Phase 6 In Progress |
-| **Intelligence Layer** | Flow Controller v3 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | Planning |
+| **Intelligence Layer** | Flow Controller v3 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | **Stage 0 + C-6 Completed**; Pilot Pending (default: disabled) |
 | **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **In Progress** |
 
 ### EPIC Dependencies
@@ -144,7 +144,7 @@ EPIC D (Coder Agent Family)
 |---------------------|----------------|-------------|
 | 2. Model Layer | **EPIC A Completed** | Maintenance mode |
 | 3.1 Planner v3 | Not started | After EPIC D |
-| 3.2 Flow Controller v3 | EPIC C planned | Start C-1 Schema |
+| 3.2 Flow Controller v3 | **EPIC C Stage 0 + C-6 Completed** (default: disabled) | Enable Pilot rollout |
 | 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 Completed**, EPIC D In Progress | Complete B-6, continue D |
 | 4.1 Safety Governor v2 | Not started | Future EPIC E |
 | 4.2 Compliance Radar v2 | Not started | Future EPIC E |
@@ -191,3 +191,4 @@ This North Star document is a living summary that maps the vision to current imp
 |---------|------|--------|---------|
 | 1.0 | 2025-12-21 | Ryan Chen (@RC918) | Initial version with EPIC A/B/C/D mapping |
 | 1.1 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Updated EPIC status: A Completed, B Phase 1-3 Completed, D In Progress. Added Model Governance PR #3316. |
+| 1.2 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Updated EPIC C status based on code evidence: Stage 0 (C-1/C-2/C-3/C-4) + C-6 Graph Wiring Completed; Pilot Pending (ENABLE_DYNAMIC_ROUTING=false by default). |
