@@ -8,10 +8,10 @@
 >
 > | Current EPIC | Target | Status |
 > |--------------|--------|--------|
-> | [EPIC A: Qwen Provider (#2594)](https://github.com/RC918/morningai/issues/2594) | Model Layer | In Progress |
-> | [EPIC B: Diff-Aware Review (#2595)](https://github.com/RC918/morningai/issues/2595) | Reviewer Agent | In Progress |
-> | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | Intelligence Layer | Planning |
-> | [EPIC D: Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | Coding Agent | Planning |
+> | [EPIC A: Qwen Provider (#2594)](https://github.com/RC918/morningai/issues/2594) | Model Layer | **Completed** |
+> | [EPIC B: Diff-Aware Review (#2595)](https://github.com/RC918/morningai/issues/2595) | Reviewer Agent | **Phase 1-3 Completed** |
+> | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | Intelligence Layer | **Stage 0 + C-6 Completed** |
+> | [EPIC D: Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | Coding Agent | **In Progress** |
 >
 > See [Ecosystem Wish Pool v2](docs/north_star/ECOSYSTEM_WISHPOOL_V2.md) for the complete roadmap and [Full Blueprint](docs/north_star/MorningAI_Ecosystem_Blueprint_2025_Final.md) for the detailed architecture vision.
 
