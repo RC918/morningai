@@ -324,6 +324,11 @@ def get_drift_detector() -> DriftDetector:
 
     Reads configuration from settings on first call.
     Uses double-checked locking for thread-safe singleton initialization.
+
+    Safety guarantees:
+    - Falls back to disabled detector on ANY initialization error
+    - Only logs warning once (not on every request)
+    - Never blocks service operation due to configuration issues
     """
     global _drift_detector
 
@@ -341,6 +346,14 @@ def get_drift_detector() -> DriftDetector:
                 except ImportError:
                     logger.warning(
                         "[DriftDetector] Could not import settings, using defaults (disabled)"
+                    )
+                    _drift_detector = DriftDetector(enabled=False)
+                except Exception as e:
+                    # Catch ALL initialization errors (ValidationError, etc.)
+                    # to prevent repeated initialization attempts and log spam
+                    logger.warning(
+                        f"[DriftDetector] Initialization error, using defaults (disabled): "
+                        f"{type(e).__name__}"  # Only log exception type, not value (may contain secrets)
                     )
                     _drift_detector = DriftDetector(enabled=False)
 
@@ -394,13 +407,21 @@ def observe_response(
     if not detector.should_check():
         return DriftValidationResult(is_valid=True)
 
-    # Extract content from response
+    # Extract content from response and normalize to string
+    # This handles various response types without raising AttributeError
     if hasattr(response, 'content'):
         content = response.content
     elif isinstance(response, str):
         content = response
     else:
         content = str(response)
+
+    # Normalize content to string (some providers may return dict/list in json_mode)
+    if not isinstance(content, str):
+        try:
+            content = json.dumps(content) if isinstance(content, (dict, list)) else str(content)
+        except (TypeError, ValueError):
+            content = str(content)
 
     # Validate
     result = detector.validate_response(
@@ -419,6 +440,10 @@ def observe_response(
 
 
 def reset_drift_detector() -> None:
-    """Reset the global drift detector (useful for testing)"""
+    """Reset the global drift detector (useful for testing)
+
+    Thread-safe reset using the same lock as initialization.
+    """
     global _drift_detector
-    _drift_detector = None
+    with _drift_detector_lock:
+        _drift_detector = None
