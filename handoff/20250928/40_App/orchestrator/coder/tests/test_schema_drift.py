@@ -15,9 +15,8 @@ The tests verify:
 - to_dict() output matches documented Final CoderOutput Schema
 - schema_version is present and valid in all outputs
 """
+import dataclasses
 import json
-
-from typing import Set
 
 from coder.simple_coder import (
     CoderOutput,
@@ -25,6 +24,8 @@ from coder.simple_coder import (
     CODER_OUTPUT_SCHEMA_VERSION,
     CODER_PROMPT_TEMPLATE,
     CODER_SYSTEM_PROMPT,
+    CODER_LLM_RESPONSE_FIELDS,
+    CODER_SYSTEM_ADDED_FIELDS,
 )
 
 
@@ -343,39 +344,15 @@ class TestDocstringSchemaAlignment:
 
 
 class TestSchemaFieldCompleteness:
-    """Verify all documented fields are actually implemented."""
+    """Verify all documented fields are actually implemented.
 
-    DOCUMENTED_LLM_FIELDS: Set[str] = {"status", "reason", "patch"}
-    DOCUMENTED_SYSTEM_FIELDS: Set[str] = {"schema_version", "file_path", "syntax_valid"}
+    Field definitions are imported from simple_coder.py (Single Source of Truth)
+    to prevent drift between implementation and tests.
 
-    def test_all_llm_fields_are_coder_output_attributes(self):
-        """Verify all LLM response fields map to CoderOutput attributes."""
-        output = CoderOutput(
-            status=CoderStatus.PATCH,
-            reason="test",
-            patch="code"
-        )
-
-        for field in self.DOCUMENTED_LLM_FIELDS:
-            assert hasattr(output, field), (
-                f'CoderOutput missing documented LLM field "{field}". '
-                f'Expected fields: {self.DOCUMENTED_LLM_FIELDS}'
-            )
-
-    def test_all_system_fields_in_to_dict(self):
-        """Verify all system fields can appear in to_dict() output."""
-        output = CoderOutput.create_patch(
-            "code",
-            file_path="test.py",
-            syntax_valid=True
-        )
-        result = output.to_dict()
-
-        for field in self.DOCUMENTED_SYSTEM_FIELDS:
-            assert field in result, (
-                f'to_dict() missing documented system field "{field}". '
-                f'Expected fields: {self.DOCUMENTED_SYSTEM_FIELDS}, got keys: {list(result.keys())}'
-            )
+    Note: test_all_llm_fields_are_coder_output_attributes and
+    test_all_system_fields_in_to_dict were removed as they are now covered
+    by TestSchemaFieldConstantsConsistency with more robust implementations.
+    """
 
     def test_no_undocumented_fields_in_to_dict(self):
         """Verify to_dict() doesn't add undocumented fields."""
@@ -386,12 +363,62 @@ class TestSchemaFieldCompleteness:
         )
         result = output.to_dict()
 
-        all_documented = self.DOCUMENTED_LLM_FIELDS | self.DOCUMENTED_SYSTEM_FIELDS
+        all_documented = CODER_LLM_RESPONSE_FIELDS | CODER_SYSTEM_ADDED_FIELDS
         for field in result.keys():
             assert field in all_documented, (
                 f'to_dict() contains undocumented field "{field}". '
                 f'Documented fields: {all_documented}, got keys: {list(result.keys())}'
             )
+
+
+class TestSchemaFieldConstantsConsistency:
+    """Verify CODER_LLM_RESPONSE_FIELDS and CODER_SYSTEM_ADDED_FIELDS match CoderOutput.
+
+    These tests ensure the field constants (Single Source of Truth) stay in sync
+    with the actual CoderOutput dataclass implementation.
+    """
+
+    def test_llm_fields_are_subset_of_coder_output_attributes(self):
+        """Verify all LLM response fields exist as CoderOutput attributes."""
+        coder_output_fields = {f.name for f in dataclasses.fields(CoderOutput)}
+
+        for field in CODER_LLM_RESPONSE_FIELDS:
+            assert field in coder_output_fields, (
+                f'CODER_LLM_RESPONSE_FIELDS contains "{field}" but CoderOutput '
+                f'has no such attribute. CoderOutput fields: {coder_output_fields}'
+            )
+
+    def test_system_fields_match_to_dict_output(self):
+        """Verify system fields can all appear in to_dict() output."""
+        output = CoderOutput.create_patch(
+            "code",
+            file_path="test.py",
+            syntax_valid=True
+        )
+        result = output.to_dict()
+
+        for field in CODER_SYSTEM_ADDED_FIELDS:
+            assert field in result, (
+                f'CODER_SYSTEM_ADDED_FIELDS contains "{field}" but to_dict() '
+                f'does not include it. to_dict() keys: {list(result.keys())}'
+            )
+
+    def test_field_sets_are_disjoint(self):
+        """Verify LLM and system field sets don't overlap."""
+        overlap = CODER_LLM_RESPONSE_FIELDS & CODER_SYSTEM_ADDED_FIELDS
+        assert len(overlap) == 0, (
+            f'CODER_LLM_RESPONSE_FIELDS and CODER_SYSTEM_ADDED_FIELDS overlap: {overlap}. '
+            'Each field should belong to exactly one set.'
+        )
+
+    def test_field_sets_are_immutable(self):
+        """Verify field sets are frozensets (immutable)."""
+        assert isinstance(CODER_LLM_RESPONSE_FIELDS, frozenset), (
+            f'CODER_LLM_RESPONSE_FIELDS should be frozenset, got {type(CODER_LLM_RESPONSE_FIELDS)}'
+        )
+        assert isinstance(CODER_SYSTEM_ADDED_FIELDS, frozenset), (
+            f'CODER_SYSTEM_ADDED_FIELDS should be frozenset, got {type(CODER_SYSTEM_ADDED_FIELDS)}'
+        )
 
 
 class TestPromptTemplateConsistency:
