@@ -365,10 +365,10 @@ except ImportError:
     HAS_LANGGRAPH = False
 
 
-@pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - langgraph_orchestrator import fails")
 class TestFixerNodeIntegration:
     """Integration tests for fixer_node with AutoFixer"""
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - langgraph_orchestrator import fails")
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_increments_retry_count(self):
         """Test that fixer_node increments retry_count"""
@@ -404,6 +404,7 @@ class TestFixerNodeIntegration:
 
         assert "Max retries" in (result.get("error") or "")
 
+    @pytest.mark.xfail(reason="Pre-existing legacy debt #3251 - langgraph_orchestrator import fails")
     @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
     def test_fixer_node_calls_auto_fixer_when_enabled(self):
         """Test that fixer_node calls AutoFixer when enabled"""
