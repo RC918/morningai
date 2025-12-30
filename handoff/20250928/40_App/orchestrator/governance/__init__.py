@@ -141,3 +141,38 @@ except ImportError as e:
     get_recent_pr_count = None
     DeduplicationResult = None
     PRRecord = None
+
+try:
+    from .drift_detector import (
+        DriftDetector,
+        DriftDetectedError,
+        DriftEvent,
+        DriftType,
+        DriftSeverity,
+        DriftValidationResult,
+        get_drift_detector,
+        observe_response,
+        reset_drift_detector,
+    )
+    __all__.extend([
+        'DriftDetector',
+        'DriftDetectedError',
+        'DriftEvent',
+        'DriftType',
+        'DriftSeverity',
+        'DriftValidationResult',
+        'get_drift_detector',
+        'observe_response',
+        'reset_drift_detector',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import drift_detector: {e}")
+    DriftDetector = None
+    DriftDetectedError = None
+    DriftEvent = None
+    DriftType = None
+    DriftSeverity = None
+    DriftValidationResult = None
+    get_drift_detector = None
+    observe_response = None
+    reset_drift_detector = None
