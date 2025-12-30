@@ -1037,7 +1037,7 @@ Time window in minutes for counting fail-open events (Issue
 | `GITHUB_TOKEN` | secret | Yes | - | CRITICAL |
 | `GITHUB_REPO` | string | Yes | RC918/morningai | PUBLIC |
 | `OPENAI_API_KEY` | secret | Yes | - | CRITICAL |
-| `LLM_PROVIDER` | string (openai, gemini, auto) | No | openai | PUBLIC |
+| `LLM_PROVIDER` | string (openai, gemini, alicloud, siliconflow, auto) | No | openai | PUBLIC |
 | `GEMINI_API_KEY` | secret | No | - | CRITICAL |
 | `DASHSCOPE_API_KEY` | secret | No | - | CRITICAL |
 | `DASHSCOPE_BASE_URL` | url | No | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | PUBLIC |
@@ -1086,9 +1086,9 @@ OpenAI API key for embeddings and LLM operations
 
 #### `LLM_PROVIDER`
 
-LLM provider for text generation (openai, gemini, auto)
+LLM provider for text generation (openai, gemini, alicloud, siliconflow, auto)
 
-- **Type**: string (openai, gemini, auto)
+- **Type**: string (openai, gemini, alicloud, siliconflow, auto)
 - **Required**: No
 - **Default**: `openai`
 - **Security Level**: PUBLIC
@@ -1097,8 +1097,15 @@ LLM provider for text generation (openai, gemini, auto)
 > Controls which LLM provider is used for text generation:
 > - openai (default): Use OpenAI GPT-4 for text generation
 > - gemini: Use Google Gemini Pro for text generation
-> - auto: Automatically select available provider (OpenAI first, then Gemini)
-> Requires corresponding API key (OPENAI_API_KEY or GEMINI_API_KEY) to be set.
+> - alicloud: Use AliCloud DashScope Qwen models (EPIC #2594)
+> - siliconflow: Use SiliconFlow Qwen models (EPIC #2594)
+> - auto: Automatically select available provider based on API key availability
+> Requires corresponding API key to be set:
+> - openai: OPENAI_API_KEY
+> - gemini: GEMINI_API_KEY
+> - alicloud: DASHSCOPE_API_KEY
+> - siliconflow: SILICONFLOW_API_KEY
+> Note: Use ROUTING_ALLOWED_PROVIDERS for governance control over which providers can be used in task-based routing, regardless of LLM_PROVIDER setting.
 
 #### `GEMINI_API_KEY`
 
