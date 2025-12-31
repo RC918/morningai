@@ -192,6 +192,47 @@ graph TB
 
 ---
 
+## MorningAI Reviewer Agent
+
+MorningAI Reviewer Agent 是符合 Blueprint 架構的 AI 代碼審查系統，透過 **Webhook → Orchestrator → GitHub Comment** 流程運作。
+
+### 架構概覽
+
+```
+GitHub PR Event → Webhook → GitHubWebhookHandler → EventNormalizer
+                                                          ↓
+                                                   Redis Queue
+                                                          ↓
+                                              LangGraph Orchestrator
+                                                          ↓
+                                                   reviewer_node
+                                                          ↓
+                                              LLMReviewerAdapter
+                                                          ↓
+                                                   publisher_node
+                                                          ↓
+                                              GitHub PR Comment
+```
+
+### 關鍵特性
+
+- **Diff-Aware Review**: 基於實際代碼變更的精準審查（EPIC B）
+- **Secrets Redaction**: 自動遮蔽敏感資訊（API keys、tokens 等）
+- **Prompt Injection Protection**: 防止惡意 prompt 注入攻擊
+- **Discovery Audit**: 交叉比對 PR diff 與 CI logs 檢測靜默測試失敗
+- **Multi-Provider Support**: 支援 OpenAI、Gemini、Qwen 等多種 LLM 提供者
+
+### 核心模組
+
+- `orchestrator/llm_reviewer_adapter.py` - LLM 審查適配器
+- `orchestrator/webhooks/handlers/github_handler.py` - GitHub Webhook 處理器
+- `orchestrator/langgraph_orchestrator.py` - reviewer_node 與 publisher_node
+
+> **Note**: 舊版 `qwen-pr-review.yml` GitHub Actions workflow 已於 2025-12-24 停用並移除。
+> MorningAI Reviewer Agent 現已完全遷移至 Orchestrator Webhook 架構。
+
+---
+
 ## 環境架構
 
 MorningAI 採用多環境部署架構，確保開發、測試和生產環境的隔離：
