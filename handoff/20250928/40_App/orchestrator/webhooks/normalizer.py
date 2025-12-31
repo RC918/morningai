@@ -12,6 +12,7 @@ Flow:
 """
 
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -1531,8 +1532,6 @@ class EventNormalizer:
 
         Issue: #3366 - CI Failure Reflex Integration
         """
-        import time
-
         # Ensure metadata is a dict (defensive, in case it's None)
         if event.metadata is None:
             event.metadata = {}
