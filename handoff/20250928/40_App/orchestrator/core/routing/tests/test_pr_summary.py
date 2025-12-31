@@ -11,6 +11,7 @@ Tests cover:
 """
 import pytest
 from datetime import datetime
+from pydantic import ValidationError
 
 from core.routing.pr_summary import (
     PRSummary,
@@ -96,12 +97,12 @@ class TestPRSummaryModel:
             score=80,
             analysis="Test"
         )
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             summary.score = 90
 
     def test_no_extra_fields_allowed(self):
         """Extra fields should be rejected"""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             PRSummary(
                 verdict="approve",
                 display_decision="approve",
@@ -282,6 +283,25 @@ class TestBuildPrSummary:
         assert summary.verdict == "comment"
         # display_decision is from llm_decision
         assert summary.display_decision == "approve"
+
+    def test_build_from_blocked_outcome(self):
+        """Build PRSummary from blocked outcome without llm_decision
+
+        This test verifies that 'blocked' verdict maps to 'block' display_decision
+        when no llm_decision is provided (regression test for verdict mapping fix).
+        """
+        review_outcome = {"verdict": "blocked"}
+        review_result = {"llm_summary": "Critical issue found"}
+
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=10
+        )
+
+        assert summary.verdict == "blocked"
+        assert summary.display_decision == "block"
+        assert summary.score == 10
 
 
 class TestBuildUnknownPrSummary:

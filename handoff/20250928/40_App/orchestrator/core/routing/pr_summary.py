@@ -164,6 +164,16 @@ class PRSummary(BaseModel):
         }
         return label_map.get(self.display_decision, "Reviewed")
 
+    @property
+    def verdict_label(self) -> str:
+        """Public property for human-readable verdict label."""
+        return self._get_verdict_label()
+
+    @property
+    def verdict_icon(self) -> str:
+        """Public property for GitHub emoji icon."""
+        return self._get_verdict_icon()
+
     def to_github_markdown(self, include_policy_note: bool = True) -> str:
         """
         Render PR summary to GitHub-flavored markdown.
@@ -271,8 +281,10 @@ def _map_verdict_to_display_decision(
     verdict_lower = verdict.lower() if verdict else "unknown"
     if verdict_lower == "approve":
         return "approve"
-    elif verdict_lower in ("request_changes", "blocked"):
+    elif verdict_lower == "request_changes":
         return "needs_changes"
+    elif verdict_lower == "blocked":
+        return "block"
     elif verdict_lower == "comment":
         return "reviewed"
     return "reviewed"

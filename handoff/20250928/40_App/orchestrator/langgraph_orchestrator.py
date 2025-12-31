@@ -6011,7 +6011,7 @@ def publisher_node(state: AgentState) -> AgentState:
             summary_body = pr_summary.to_github_markdown()
 
             # Extract display values for logging
-            verdict_emoji = pr_summary._get_verdict_label()
+            verdict_emoji = pr_summary.verdict_label
             llm_decision = pr_summary.display_decision
 
             repo = get_repo()
