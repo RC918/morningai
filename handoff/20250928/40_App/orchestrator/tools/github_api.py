@@ -2022,25 +2022,33 @@ def get_ci_test_logs(
                     return pattern.lower() in job_name_lower
 
             # Find best job match using priority-ordered patterns
-            test_job = None
+            # Single-pass optimization: stream jobs from API without materializing full list
+            # Track best match by pattern priority index (lower = higher priority)
+            best_job = None
+            best_priority = len(job_patterns)  # Start with lowest priority (no match)
             first_job = None
-            jobs_list = list(jobs)  # Convert to list for multiple iterations
 
-            # Try each pattern in priority order (first match wins)
-            for pattern in job_patterns:
-                for job in jobs_list:
-                    if first_job is None:
-                        first_job = job  # Capture first job as ultimate fallback
-                    job_name_lower = job.name.lower() if job.name else ""
+            for job in jobs:
+                if first_job is None:
+                    first_job = job  # Capture first job as ultimate fallback
+
+                job_name_lower = job.name.lower() if job.name else ""
+
+                # Find the highest-priority (lowest index) pattern that matches this job
+                for idx, pattern in enumerate(job_patterns):
+                    if idx >= best_priority:
+                        break  # Can't improve on current best, skip remaining patterns
                     if matches_pattern(job_name_lower, pattern):
-                        test_job = job
-                        break
-                if test_job:
+                        best_job = job
+                        best_priority = idx
+                        break  # This job matched at idx, no need to check lower-priority patterns
+
+                # Early exit if we matched the highest-priority pattern
+                if best_priority == 0:
                     break
 
-            # Use first job as fallback if no pattern matched
-            if test_job is None:
-                test_job = first_job
+            # Use best match or first job as fallback
+            test_job = best_job if best_job is not None else first_job
 
             if not test_job:
                 result["error"] = "No jobs found in workflow run"
