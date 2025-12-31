@@ -1033,6 +1033,13 @@ class EventNormalizer:
         if should_skip_orchestrator_pr_event(event):
             return False
 
+        # Issue: #3366 - CI Failure Reflex Integration
+        # Handle CI_CHECK_COMPLETED events with dedicated logic (early branch)
+        # This MUST be processed BEFORE Smart PR Filtering to avoid false skips
+        # CI events have different actionability criteria than PR events
+        if event.event_type == WebhookEventType.CI_CHECK_COMPLETED:
+            return self._handle_ci_check_completed(event)
+
         # Smart PR Filtering - Skip PRs that don't warrant documentation
         # Smart PR Filtering (Dec 2025)
         # This filter reduces noise by skipping PRs that only modify:
@@ -1044,12 +1051,6 @@ class EventNormalizer:
         should_skip, _, _ = should_skip_pr_by_smart_filters(event)
         if should_skip:
             return False
-
-        # Issue: #3366 - CI Failure Reflex Integration
-        # Handle CI_CHECK_COMPLETED events with dedicated logic (early branch)
-        # This is processed BEFORE Smart PR Filtering to avoid false skips
-        if event.event_type == WebhookEventType.CI_CHECK_COMPLETED:
-            return self._handle_ci_check_completed(event)
 
         # P0: Disable PR_COMMENTED events entirely (CTO decision 2025-12-22)
         # This is a hard block that cannot be bypassed by is_ai_reviewer or other logic.
@@ -1532,7 +1533,10 @@ class EventNormalizer:
         """
         import time
 
-        metadata = event.metadata or {}
+        # Ensure metadata is a dict (defensive, in case it's None)
+        if event.metadata is None:
+            event.metadata = {}
+        metadata = event.metadata
         repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
 
         # Extract CI-specific metadata
