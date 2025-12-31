@@ -5129,6 +5129,72 @@ def reviewer_node(state: AgentState) -> AgentState:
             AIMessage(content=f"Code review completed ({review_method}). Quality score: {state['code_quality_score']}, Severity: {state['review_severity']}")
         ]
 
+        # Issue #3222: Deterministic Signals Ingestion - CI/Linters integration
+        # Fetch deterministic signals from check runs and workflow annotations
+        # This runs AFTER the LLM review to augment review_comments with factual data
+        if pr_number and state.get("diff_head_sha"):
+            try:
+                from tools.signal_ingestion import (
+                    fetch_signals,
+                    signals_to_review_comments,
+                    SignalSeverity
+                )
+
+                # Get repo object for signal ingestion
+                signal_repo = None
+                try:
+                    signal_repo = github_repo
+                except NameError:
+                    signal_repo = get_repo()
+
+                if signal_repo:
+                    # Fetch deterministic signals from CI/linters
+                    signals = fetch_signals(
+                        repo=signal_repo,
+                        pr_number=pr_number,
+                        head_sha=state["diff_head_sha"],
+                        trace_id=trace_id
+                    )
+
+                    if signals:
+                        # Store signals in state for downstream use
+                        state["deterministic_signals_v1"] = [s.to_dict() for s in signals]
+
+                        # Convert high-severity signals to review comments
+                        signal_comments = signals_to_review_comments(signals, include_info=False)
+                        if signal_comments:
+                            state["review_comments"] = state.get("review_comments", []) + signal_comments
+
+                            # Escalate severity if error-level signals found
+                            error_count = sum(1 for s in signals if s.severity == SignalSeverity.ERROR)
+                            if error_count > 0:
+                                current_severity = state.get("review_severity", "none")
+                                if current_severity in ("none", "low", "medium"):
+                                    state["review_severity"] = "high"
+
+                        logger.info(
+                            f"[Reviewer] Deterministic signals ingested: {len(signals)} signals",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "signal_count": len(signals),
+                                "error_count": sum(1 for s in signals if s.severity == SignalSeverity.ERROR),
+                                "warning_count": sum(1 for s in signals if s.severity == SignalSeverity.WARNING),
+                                "comment_count": len(signal_comments) if signal_comments else 0
+                            }
+                        )
+
+            except Exception as signal_error:
+                # Fail-open: signal ingestion failure should not block review
+                logger.warning(
+                    f"[Reviewer] Signal ingestion failed (non-blocking): {signal_error}",
+                    extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id,
+                        "error": str(signal_error)
+                    }
+                )
+
         # Issue #3369: Discovery Audit - Layer 2 of Discovery 全鏈路治理
         # Cross-reference PR diff with CI logs to detect silent test failures
         # This runs AFTER the LLM review but BEFORE building ReviewOutcome
