@@ -1507,11 +1507,16 @@ class EventNormalizer:
         return self.command_router.is_command_comment(event)
 
     # Issue: #3366 - CI Failure Reflex Integration
-    # In-memory dedup set for CI failure events (repo#pr#sha -> timestamp)
-    # This prevents duplicate auto-fix triggers from re-runs or webhook retries
-    _ci_failure_dedup: Dict[str, float] = {}
+    # Issue: #3399 - Redis-backed dedup for cross-worker idempotency
+    # Redis key prefix for CI failure dedup
+    _CI_FAILURE_DEDUP_KEY_PREFIX = "orchestrator:ci_failure_dedup"
     _CI_FAILURE_DEDUP_TTL_SECONDS = 3600  # 1 hour TTL
-    _CI_FAILURE_DEDUP_MAX_SIZE = 1000  # Max entries to prevent memory bloat
+
+    # Fallback in-memory dedup (used when Redis is unavailable)
+    # This is process-local and won't work across workers, but provides
+    # at-least-once semantics when Redis is down
+    _ci_failure_dedup_fallback: Dict[str, float] = {}
+    _CI_FAILURE_DEDUP_FALLBACK_MAX_SIZE = 1000  # Max entries for fallback
 
     def _handle_ci_check_completed(self, event: WebhookEvent) -> bool:
         """
@@ -1595,20 +1600,16 @@ class EventNormalizer:
 
         # P3: Dedup - same PR + same head SHA only triggers once
         # This prevents duplicate triggers from webhook retries or re-runs
+        # Issue: #3399 - Redis-backed dedup for cross-worker idempotency
         pr_number = pr_numbers[0]  # Use first PR for dedup key
-        dedup_key = f"{repo}#{pr_number}#{head_sha}"
+        dedup_key = f"{repo}:{pr_number}:{head_sha}"
 
-        # Clean up expired entries (simple TTL cleanup)
-        current_time = time.time()
-        expired_keys = [
-            k for k, v in self._ci_failure_dedup.items()
-            if current_time - v > self._CI_FAILURE_DEDUP_TTL_SECONDS
-        ]
-        for k in expired_keys:
-            del self._ci_failure_dedup[k]
+        # Try Redis-backed dedup first (cross-worker idempotency)
+        is_duplicate, dedup_source = self._check_ci_failure_dedup_redis(
+            dedup_key, event.event_id, repo, pr_number, head_sha
+        )
 
-        # Check if already processed
-        if dedup_key in self._ci_failure_dedup:
+        if is_duplicate:
             logger.info(
                 "[EventNormalizer] CI failure skipped - already processed (dedup)",
                 extra={
@@ -1618,22 +1619,10 @@ class EventNormalizer:
                     "pr_number": pr_number,
                     "head_sha": head_sha[:8] if head_sha else "unknown",
                     "dedup_key": dedup_key,
+                    "dedup_source": dedup_source,
                 }
             )
             return False
-
-        # Enforce max size to prevent memory bloat
-        if len(self._ci_failure_dedup) >= self._CI_FAILURE_DEDUP_MAX_SIZE:
-            # Remove oldest entries (FIFO)
-            oldest_keys = sorted(
-                self._ci_failure_dedup.keys(),
-                key=lambda k: self._ci_failure_dedup[k]
-            )[:100]  # Remove 100 oldest
-            for k in oldest_keys:
-                del self._ci_failure_dedup[k]
-
-        # Mark as processed
-        self._ci_failure_dedup[dedup_key] = current_time
 
         # Mark event metadata for downstream processing
         event.metadata["ci_failure_trigger"] = True
@@ -1654,3 +1643,172 @@ class EventNormalizer:
         )
 
         return True
+
+    def _check_ci_failure_dedup_redis(
+        self,
+        dedup_key: str,
+        event_id: str,
+        repo: str,
+        pr_number: int,
+        head_sha: str
+    ) -> tuple:
+        """
+        Check if CI failure event is a duplicate using Redis-backed dedup.
+
+        Uses atomic SET NX EX for race-safe deduplication across workers.
+        Falls back to in-memory dedup if Redis is unavailable.
+
+        Args:
+            dedup_key: Unique key for dedup (repo:pr:sha)
+            event_id: Event ID for logging
+            repo: Repository name
+            pr_number: PR number
+            head_sha: Head SHA
+
+        Returns:
+            Tuple of (is_duplicate: bool, source: str)
+            - is_duplicate: True if this event was already processed
+            - source: "redis" or "fallback" indicating which dedup was used
+
+        Issue: #3399 - Redis-backed dedup for cross-worker idempotency
+        """
+        redis_key = f"{self._CI_FAILURE_DEDUP_KEY_PREFIX}:{dedup_key}"
+
+        # Try Redis first
+        try:
+            redis_client = self._get_redis_client_for_dedup()
+            if redis_client:
+                # Atomic SET NX EX - returns True if key was set (first time)
+                # Returns False if key already exists (duplicate)
+                is_new = redis_client.set(
+                    redis_key,
+                    "1",
+                    nx=True,  # Only set if not exists
+                    ex=self._CI_FAILURE_DEDUP_TTL_SECONDS  # TTL in seconds
+                )
+
+                if is_new:
+                    # First time seeing this event - not a duplicate
+                    logger.debug(
+                        "[EventNormalizer] CI failure dedup - new event (Redis)",
+                        extra={
+                            "operation": "ci_failure_dedup_new",
+                            "event_id": event_id,
+                            "dedup_key": dedup_key,
+                            "source": "redis",
+                        }
+                    )
+                    return (False, "redis")
+                else:
+                    # Key already exists - duplicate
+                    return (True, "redis")
+
+        except Exception as e:
+            # Redis error - log and fall back to in-memory
+            logger.warning(
+                "[EventNormalizer] CI failure dedup Redis error - falling back to in-memory",
+                extra={
+                    "operation": "ci_failure_dedup_redis_error",
+                    "event_id": event_id,
+                    "dedup_key": dedup_key,
+                    "error": str(e),
+                }
+            )
+
+        # Fallback to in-memory dedup (process-local)
+        return self._check_ci_failure_dedup_fallback(
+            dedup_key, event_id, repo, pr_number, head_sha
+        )
+
+    def _check_ci_failure_dedup_fallback(
+        self,
+        dedup_key: str,
+        event_id: str,
+        repo: str,
+        pr_number: int,
+        head_sha: str
+    ) -> tuple:
+        """
+        Fallback in-memory dedup when Redis is unavailable.
+
+        This is process-local and won't work across workers, but provides
+        at-least-once semantics when Redis is down.
+
+        Args:
+            dedup_key: Unique key for dedup
+            event_id: Event ID for logging
+            repo: Repository name
+            pr_number: PR number
+            head_sha: Head SHA
+
+        Returns:
+            Tuple of (is_duplicate: bool, source: str)
+
+        Issue: #3399 - Fallback for Redis unavailable
+        """
+        current_time = time.time()
+
+        # Clean up expired entries (simple TTL cleanup)
+        expired_keys = [
+            k for k, v in self._ci_failure_dedup_fallback.items()
+            if current_time - v > self._CI_FAILURE_DEDUP_TTL_SECONDS
+        ]
+        for k in expired_keys:
+            del self._ci_failure_dedup_fallback[k]
+
+        # Check if already processed
+        if dedup_key in self._ci_failure_dedup_fallback:
+            return (True, "fallback")
+
+        # Enforce max size to prevent memory bloat
+        if len(self._ci_failure_dedup_fallback) >= self._CI_FAILURE_DEDUP_FALLBACK_MAX_SIZE:
+            # Remove oldest entries (FIFO)
+            oldest_keys = sorted(
+                self._ci_failure_dedup_fallback.keys(),
+                key=lambda k: self._ci_failure_dedup_fallback[k]
+            )[:100]  # Remove 100 oldest
+            for k in oldest_keys:
+                del self._ci_failure_dedup_fallback[k]
+
+        # Mark as processed
+        self._ci_failure_dedup_fallback[dedup_key] = current_time
+
+        logger.debug(
+            "[EventNormalizer] CI failure dedup - new event (fallback)",
+            extra={
+                "operation": "ci_failure_dedup_new",
+                "event_id": event_id,
+                "dedup_key": dedup_key,
+                "source": "fallback",
+            }
+        )
+
+        return (False, "fallback")
+
+    def _get_redis_client_for_dedup(self):
+        """
+        Get Redis client for CI failure deduplication.
+
+        Returns:
+            Redis client instance or None if unavailable
+
+        Issue: #3399 - Redis-backed dedup for cross-worker idempotency
+        """
+        try:
+            import redis
+
+            try:
+                from common.config.settings import settings
+                url = getattr(settings, 'redis_url', None)
+            except ImportError:
+                import os
+                url = os.environ.get('REDIS_URL')
+
+            if url:
+                return redis.Redis.from_url(url, decode_responses=True)
+            else:
+                logger.debug("[EventNormalizer] No Redis URL configured for CI dedup")
+                return None
+        except Exception as e:
+            logger.warning(f"[EventNormalizer] Failed to connect to Redis for CI dedup: {e}")
+            return None
