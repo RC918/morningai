@@ -1929,15 +1929,30 @@ def get_ci_test_logs(
 
             # Find the most recent completed test workflow run
             # Single-pass optimization: capture fallback while searching for preferred match
+            # Issue #3377: Use configurable workflow patterns instead of hardcoded values
+            # Settings is imported at module level (line 18) for proper test patching
+            workflow_patterns_str = getattr(settings, 'ci_workflow_patterns', 'test,ci')
+            workflow_patterns = [p.strip().lower() for p in workflow_patterns_str.split(',') if p.strip()]
+            if not workflow_patterns:
+                workflow_patterns = ['test', 'ci']  # Fallback to defaults if empty
+                logger.warning(
+                    "[GitHub] get_ci_test_logs: CI_WORKFLOW_PATTERNS is empty, using defaults",
+                    extra={
+                        "operation": "get_ci_test_logs",
+                        "trace_id": trace_id,
+                        "default_patterns": workflow_patterns
+                    }
+                )
+
             test_run = None
             fallback_run = None
             for run in workflow_runs:
                 if fallback_run is None:
                     fallback_run = run  # Capture the first (most recent) run as fallback
 
-                # Look for test-apps workflow or any workflow with "test" in the name
+                # Look for workflows matching configurable patterns
                 workflow_name = run.name.lower() if run.name else ""
-                if "test" in workflow_name or "ci" in workflow_name:
+                if any(pattern in workflow_name for pattern in workflow_patterns):
                     test_run = run
                     break  # Found preferred test run, stop searching
 
