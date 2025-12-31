@@ -72,24 +72,25 @@ const mockHealthyResponse = {
       openai: {
         health_score: 95.0,
         latency_ms: 150,
-        error_rate: 0.01,
-        drift_rate: 0.02,
+        // Note: error_rate and drift_rate are in 0-100 scale (percentage)
+        error_rate: 1.0,  // 1.0%
+        drift_rate: 2.0,  // 2.0%
         request_count: 1000,
         last_updated: '2025-01-01T12:00:00Z',
       },
       gemini: {
         health_score: 90.0,
         latency_ms: 200,
-        error_rate: 0.02,
-        drift_rate: 0.03,
+        error_rate: 2.0,  // 2.0%
+        drift_rate: 3.0,  // 3.0%
         request_count: 500,
         last_updated: '2025-01-01T12:00:00Z',
       },
       alicloud: {
         health_score: 75.0,
         latency_ms: 300,
-        error_rate: 0.05,
-        drift_rate: 0.08,
+        error_rate: 5.0,  // 5.0%
+        drift_rate: 8.0,  // 8.0%
         request_count: 200,
         last_updated: '2025-01-01T12:00:00Z',
       },

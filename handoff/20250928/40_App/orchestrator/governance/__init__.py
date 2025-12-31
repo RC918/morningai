@@ -193,3 +193,40 @@ except ImportError as e:
     HealthAlertService = None
     get_health_alert_service = None
     reset_health_alert_service = None
+
+try:
+    from .degradation_types import (
+        DegradationSeverity,
+        DegradationRecommendation,
+        SEVERITY_MULTIPLIERS,
+    )
+    __all__.extend([
+        'DegradationSeverity',
+        'DegradationRecommendation',
+        'SEVERITY_MULTIPLIERS',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import degradation_types: {e}")
+    DegradationSeverity = None
+    DegradationRecommendation = None
+    SEVERITY_MULTIPLIERS = None
+
+try:
+    from .degradation_advisor import (
+        DegradationPolicy,
+        DegradationAdvisor,
+        get_degradation_advisor,
+        reset_degradation_advisor,
+    )
+    __all__.extend([
+        'DegradationPolicy',
+        'DegradationAdvisor',
+        'get_degradation_advisor',
+        'reset_degradation_advisor',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import degradation_advisor: {e}")
+    DegradationPolicy = None
+    DegradationAdvisor = None
+    get_degradation_advisor = None
+    reset_degradation_advisor = None
