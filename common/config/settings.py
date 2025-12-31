@@ -2330,6 +2330,18 @@ class Settings(BaseSettings):
         )
     )
 
+    enable_senior_coder: bool = Field(
+        default=False,
+        alias="ENABLE_SENIOR_CODER",
+        description=(
+            "Enable SeniorCoder reasoning-first architecture (EPIC D Phase 2). "
+            "Default False = SeniorCoder disabled, direct GeneralCoder/SimpleCoder execution. "
+            "When True, SeniorCoder analyzes task complexity and creates architecture spec "
+            "before delegating to GeneralCoder/SimpleCoder for implementation. "
+            "Requires ENABLE_GENERAL_CODER=True for full pipeline."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""
