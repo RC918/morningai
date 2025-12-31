@@ -1995,26 +1995,52 @@ def get_ci_test_logs(
             # Get jobs from the workflow run
             jobs = test_run.jobs()
 
-            # Single-pass optimization: find best job match with fallbacks
+            # Issue #3378: Use configurable job patterns instead of hardcoded values
+            # Settings is imported at module level for proper test patching
+            job_patterns_str = getattr(settings, 'ci_job_patterns', 'orchestrator&test,test')
+            job_patterns = [p.strip() for p in job_patterns_str.split(',') if p.strip()]
+            if not job_patterns:
+                job_patterns = ['orchestrator&test', 'test']  # Fallback to defaults if empty
+                logger.warning(
+                    "[GitHub] get_ci_test_logs: CI_JOB_PATTERNS is empty, using defaults",
+                    extra={
+                        "operation": "get_ci_test_logs",
+                        "trace_id": trace_id,
+                        "default_patterns": job_patterns
+                    }
+                )
+
+            # Helper function to check if a job name matches a pattern
+            # Patterns support AND with '&' (e.g., "orchestrator&test" matches if both are substrings)
+            def matches_pattern(job_name_lower: str, pattern: str) -> bool:
+                if '&' in pattern:
+                    # AND pattern: all parts must be present
+                    parts = [p.strip().lower() for p in pattern.split('&') if p.strip()]
+                    return all(part in job_name_lower for part in parts)
+                else:
+                    # Simple substring match
+                    return pattern.lower() in job_name_lower
+
+            # Find best job match using priority-ordered patterns
             test_job = None
-            generic_test_job = None
             first_job = None
+            jobs_list = list(jobs)  # Convert to list for multiple iterations
 
-            # Find the test job (look for "Orchestrator Tests" or similar)
-            for job in jobs:
-                if first_job is None:
-                    first_job = job  # Capture first job as ultimate fallback
+            # Try each pattern in priority order (first match wins)
+            for pattern in job_patterns:
+                for job in jobs_list:
+                    if first_job is None:
+                        first_job = job  # Capture first job as ultimate fallback
+                    job_name_lower = job.name.lower() if job.name else ""
+                    if matches_pattern(job_name_lower, pattern):
+                        test_job = job
+                        break
+                if test_job:
+                    break
 
-                job_name_lower = job.name.lower() if job.name else ""
-                if "orchestrator" in job_name_lower and "test" in job_name_lower:
-                    test_job = job
-                    break  # Most specific match found, exit loop
-                elif "test" in job_name_lower:
-                    generic_test_job = job  # Store generic test job, keep searching
-
-            # Use best available match
+            # Use first job as fallback if no pattern matched
             if test_job is None:
-                test_job = generic_test_job or first_job
+                test_job = first_job
 
             if not test_job:
                 result["error"] = "No jobs found in workflow run"

@@ -626,6 +626,13 @@ class Settings(BaseSettings):
         description="Comma-separated patterns to match CI workflow names for log fetching (Issue #3377)"
     )
 
+    # Issue #3378: Configurable job patterns for CI log fetching
+    ci_job_patterns: str = Field(
+        default="orchestrator&test,test",
+        alias="CI_JOB_PATTERNS",
+        description="Comma-separated patterns to match CI job names for log fetching. Use & for AND (Issue #3378)"
+    )
+
     # EPIC I-1: Runtime Drift Detection(Blueprint 4.3 - Model Governance Framework v2)
     drift_detection_enabled: bool = Field(
         default=False,
