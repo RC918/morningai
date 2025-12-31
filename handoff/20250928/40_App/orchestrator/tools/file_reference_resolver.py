@@ -515,11 +515,12 @@ def fetch_file_content(
         if hasattr(file_obj, 'decoded_content'):
             content = file_obj.decoded_content.decode('utf-8')
             lines = content.split('\n')
-            truncated = len(lines) > max_lines
+            num_lines = len(lines)
+            truncated = num_lines > max_lines
 
             if truncated:
                 lines = lines[:max_lines]
-                lines.append(f"... (truncated {len(content.split(chr(10))) - max_lines} more lines)")
+                lines.append(f"... (truncated {num_lines - max_lines} more lines)")
 
             return ReferenceContext(
                 file_path=file_path,
@@ -592,6 +593,10 @@ def resolve_file_references(
         seen_paths: Set[str] = set()
         resolved_paths: List[str] = []
 
+        # Pre-compute set of changed files for exact match comparison
+        # (avoids false positives from substring matching, e.g., a/b.py in x/y/a/b.py)
+        changed_files: Set[str] = {ref.source_file for ref in references}
+
         for ref in references:
             resolved = resolve_import_path(
                 ref.import_path,
@@ -614,8 +619,7 @@ def resolve_file_references(
 
                 # Skip if the resolved path is the same as a changed file
                 # (we already have that content in the diff)
-                if not any(sanitized in r.source_file or r.source_file in sanitized
-                           for r in references):
+                if sanitized not in changed_files:
                     seen_paths.add(sanitized)
                     resolved_paths.append(sanitized)
 
