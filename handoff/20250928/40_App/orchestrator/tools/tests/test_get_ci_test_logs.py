@@ -116,8 +116,8 @@ class TestGetCiTestLogs:
         assert "No jobs found" in result["error"]
 
     @patch('requests.get')
-    def test_successfully_fetches_logs(self, mock_requests_get):
-        """Test that function successfully fetches logs when everything works."""
+    def test_successfully_fetches_logs_plaintext(self, mock_requests_get):
+        """Test that function successfully fetches plaintext logs."""
         from tools.github_api import get_ci_test_logs
 
         mock_repo = MagicMock()
@@ -141,6 +141,9 @@ class TestGetCiTestLogs:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.text = "collected 100 items\ntest_foo.py::test_bar PASSED"
+        # Issue #3369: Mock content for zip detection (plaintext has no zip signature)
+        mock_response.content = b"collected 100 items\ntest_foo.py::test_bar PASSED"
+        mock_response.headers = {"Content-Type": "text/plain"}
         mock_requests_get.return_value = mock_response
 
         result = get_ci_test_logs(
@@ -155,6 +158,96 @@ class TestGetCiTestLogs:
         assert result["workflow_run_id"] == 12345
         assert result["job_name"] == "Orchestrator Tests"
         assert "collected 100 items" in result["logs"]
+        assert result["format"] == "plaintext"
+
+    @patch('requests.get')
+    def test_successfully_fetches_logs_from_zip(self, mock_requests_get):
+        """Test that function successfully extracts logs from zip response."""
+        from tools.github_api import get_ci_test_logs
+        import zipfile
+        import io
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_pr.head.sha = "abc123def456"
+        mock_repo.get_pull.return_value = mock_pr
+
+        mock_job = MagicMock()
+        mock_job.name = "Orchestrator Tests"
+        mock_job.logs_url = "https://api.github.com/logs/12345"
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 12345
+        mock_run.jobs.return_value = iter([mock_job])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        # Create a real zip file in memory with test logs
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("job_logs.txt", "collected 50 items\ntest_bar.py::test_baz PASSED")
+        zip_content = zip_buffer.getvalue()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = zip_content  # Has PK\x03\x04 signature
+        mock_response.headers = {"Content-Type": "application/zip"}
+        mock_requests_get.return_value = mock_response
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123def456",
+            trace_id="test-trace"
+        )
+
+        assert result["success"] is True
+        assert result["format"] == "zip"
+        assert "collected 50 items" in result["logs"]
+        assert "test_bar.py::test_baz PASSED" in result["logs"]
+
+    @patch('requests.get')
+    def test_handles_zip_extraction_failure(self, mock_requests_get):
+        """Test that function handles zip extraction failure gracefully (fail-open)."""
+        from tools.github_api import get_ci_test_logs
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_pr.head.sha = "abc123def456"
+        mock_repo.get_pull.return_value = mock_pr
+
+        mock_job = MagicMock()
+        mock_job.name = "Orchestrator Tests"
+        mock_job.logs_url = "https://api.github.com/logs/12345"
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 12345
+        mock_run.jobs.return_value = iter([mock_job])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        # Create invalid zip content (has signature but corrupted)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = b'PK\x03\x04corrupted_zip_data'
+        mock_response.headers = {"Content-Type": "application/zip"}
+        mock_requests_get.return_value = mock_response
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123def456",
+            trace_id="test-trace"
+        )
+
+        # Fail-open: extraction failure should not crash, but return error
+        assert result["success"] is False
+        assert "zip" in result["error"].lower() or "extract" in result["error"].lower()
+        assert result["format"] == "zip_extraction_failed"
 
     @patch('requests.get')
     def test_returns_error_when_log_download_fails(self, mock_requests_get):

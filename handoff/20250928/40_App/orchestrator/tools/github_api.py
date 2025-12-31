@@ -2028,19 +2028,78 @@ def get_ci_test_logs(
                 response = requests.get(logs_url, headers=headers, timeout=30)
 
                 if response.status_code == 200:
-                    result["logs"] = response.text
-                    result["success"] = True
-                    logger.info(
-                        "[GitHub] get_ci_test_logs: Successfully fetched CI logs",
-                        extra={
-                            "operation": "get_ci_test_logs",
-                            "trace_id": trace_id,
-                            "pr_number": pr_number,
-                            "workflow_run_id": test_run.id,
-                            "job_name": test_job.name,
-                            "logs_length": len(response.text)
-                        }
-                    )
+                    # Issue #3369: Handle both plaintext and zip responses
+                    # GitHub Actions logs_url may return zip files in some cases
+                    # Check Content-Type header and signature bytes to detect format
+                    content_type = response.headers.get("Content-Type", "")
+                    is_zip = False
+                    logs_text = None
+
+                    # Check for zip signature (PK\x03\x04) in first 4 bytes
+                    if response.content[:4] == b'PK\x03\x04':
+                        is_zip = True
+                    elif "application/zip" in content_type.lower():
+                        is_zip = True
+
+                    if is_zip:
+                        # Extract text from zip file
+                        try:
+                            import zipfile
+                            import io
+                            zip_buffer = io.BytesIO(response.content)
+                            with zipfile.ZipFile(zip_buffer, 'r') as zf:
+                                # Concatenate all text files in stable order
+                                text_parts = []
+                                for name in sorted(zf.namelist()):
+                                    try:
+                                        content = zf.read(name).decode('utf-8', errors='replace')
+                                        text_parts.append(content)
+                                    except Exception:
+                                        pass  # Skip non-text files
+                                logs_text = "\n".join(text_parts)
+                            logger.info(
+                                "[GitHub] get_ci_test_logs: Extracted logs from zip",
+                                extra={
+                                    "operation": "get_ci_test_logs",
+                                    "trace_id": trace_id,
+                                    "pr_number": pr_number,
+                                    "format": "zip",
+                                    "logs_length": len(logs_text) if logs_text else 0
+                                }
+                            )
+                        except Exception as zip_error:
+                            # Fail-open: if zip extraction fails, skip audit
+                            result["error"] = f"Failed to extract zip logs: {zip_error}"
+                            result["format"] = "zip_extraction_failed"
+                            logger.warning(
+                                "[GitHub] get_ci_test_logs: Zip extraction failed",
+                                extra={
+                                    "operation": "get_ci_test_logs",
+                                    "trace_id": trace_id,
+                                    "pr_number": pr_number,
+                                    "error": str(zip_error)
+                                }
+                            )
+                    else:
+                        # Plaintext response
+                        logs_text = response.text
+
+                    if logs_text:
+                        result["logs"] = logs_text
+                        result["success"] = True
+                        result["format"] = "zip" if is_zip else "plaintext"
+                        logger.info(
+                            "[GitHub] get_ci_test_logs: Successfully fetched CI logs",
+                            extra={
+                                "operation": "get_ci_test_logs",
+                                "trace_id": trace_id,
+                                "pr_number": pr_number,
+                                "workflow_run_id": test_run.id,
+                                "job_name": test_job.name,
+                                "logs_length": len(logs_text),
+                                "format": result["format"]
+                            }
+                        )
                 else:
                     result["error"] = f"Failed to download logs: HTTP {response.status_code}"
                     logger.warning(
