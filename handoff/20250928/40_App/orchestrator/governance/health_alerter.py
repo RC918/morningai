@@ -266,7 +266,35 @@ class HealthAlertService:
                     ) as response:
                         return response.status == 200
 
-            # Run async in sync context
+            # Check if we're already in an async context
+            try:
+                running_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                running_loop = None
+
+            if running_loop is not None:
+                # Already in async context - schedule task and return immediately
+                # This is fire-and-forget to maintain observe-only contract
+                logger.debug(
+                    "[HealthAlertService] Detected running event loop, "
+                    "scheduling Slack alert as background task"
+                )
+
+                def handle_task_exception(task):
+                    try:
+                        exc = task.exception()
+                        if exc:
+                            logger.warning(
+                                f"[HealthAlertService] Slack alert task failed: {exc}"
+                            )
+                    except asyncio.CancelledError:
+                        pass
+
+                task = running_loop.create_task(send())
+                task.add_done_callback(handle_task_exception)
+                return {"success": True, "scheduled": True}
+
+            # No running loop - create new one (sync context)
             loop = asyncio.new_event_loop()
             try:
                 success = loop.run_until_complete(send())
@@ -294,7 +322,35 @@ class HealthAlertService:
                     ) as response:
                         return response.status < 400
 
-            # Run async in sync context
+            # Check if we're already in an async context
+            try:
+                running_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                running_loop = None
+
+            if running_loop is not None:
+                # Already in async context - schedule task and return immediately
+                # This is fire-and-forget to maintain observe-only contract
+                logger.debug(
+                    "[HealthAlertService] Detected running event loop, "
+                    "scheduling webhook alert as background task"
+                )
+
+                def handle_task_exception(task):
+                    try:
+                        exc = task.exception()
+                        if exc:
+                            logger.warning(
+                                f"[HealthAlertService] Webhook alert task failed: {exc}"
+                            )
+                    except asyncio.CancelledError:
+                        pass
+
+                task = running_loop.create_task(send())
+                task.add_done_callback(handle_task_exception)
+                return {"success": True, "scheduled": True}
+
+            # No running loop - create new one (sync context)
             loop = asyncio.new_event_loop()
             try:
                 success = loop.run_until_complete(send())

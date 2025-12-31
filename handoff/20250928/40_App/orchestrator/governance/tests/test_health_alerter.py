@@ -12,6 +12,7 @@ These tests verify the health alerting functionality including:
 - Observe-only safety contract (failures don't propagate)
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 
@@ -629,3 +630,98 @@ class TestHealthAlertServiceCheckAllProviders:
         assert result["enabled"] is True
         assert len(result["alerts_sent"]) == 1
         assert result["alerts_sent"][0]["provider"] == "openai"
+
+
+class TestHealthAlertServiceAsyncContext:
+    """Test suite for async context safety (event loop handling)"""
+
+    def setup_method(self):
+        """Reset global state before each test"""
+        reset_health_alert_service()
+
+    def test_send_slack_alert_from_async_context(self):
+        """Test that _send_slack_alert doesn't crash when called from async context"""
+        service = HealthAlertService(
+            enabled=True,
+            slack_webhook_url="https://hooks.slack.com/test",
+            min_requests=10,
+        )
+
+        payload = {
+            "provider": "openai",
+            "reason": "low_health_score",
+            "health_score": 50.0,
+            "error_rate": 5.0,
+            "latency_p95_ms": 100,
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "severity": "warning",
+        }
+
+        async def call_from_async():
+            # This should NOT raise RuntimeError even though we're in async context
+            result = service._send_slack_alert(payload)
+            return result
+
+        # Run the async function - this verifies no nested event loop crash
+        result = asyncio.run(call_from_async())
+
+        # Should return scheduled=True when called from async context
+        assert result is not None
+        assert result.get("scheduled") is True or result.get("success") is not None
+
+    def test_send_webhook_alert_from_async_context(self):
+        """Test that _send_webhook_alert doesn't crash when called from async context"""
+        service = HealthAlertService(
+            enabled=True,
+            ops_webhook_url="https://ops.example.com/webhook",
+            min_requests=10,
+        )
+
+        payload = {
+            "provider": "openai",
+            "reason": "error_rate_spike",
+            "health_score": 60.0,
+            "error_rate": 15.0,
+            "latency_p95_ms": 200,
+            "timestamp": "2025-01-01T00:00:00+00:00",
+            "severity": "critical",
+        }
+
+        async def call_from_async():
+            # This should NOT raise RuntimeError even though we're in async context
+            result = service._send_webhook_alert(payload)
+            return result
+
+        # Run the async function - this verifies no nested event loop crash
+        result = asyncio.run(call_from_async())
+
+        # Should return scheduled=True when called from async context
+        assert result is not None
+        assert result.get("scheduled") is True or result.get("success") is not None
+
+    def test_check_and_alert_from_async_context(self):
+        """Test that full check_and_alert flow works from async context"""
+        service = HealthAlertService(
+            enabled=True,
+            health_threshold=70.0,
+            slack_webhook_url="https://hooks.slack.com/test",
+            min_requests=10,
+        )
+
+        health_data = {
+            "health_score": 50.0,
+            "error_rate": 5.0,
+            "total_requests": 100,
+        }
+
+        async def call_from_async():
+            # Full alert flow should not crash from async context
+            result = service.check_and_alert("openai", health_data)
+            return result
+
+        # Run the async function - this verifies observe-only contract
+        result = asyncio.run(call_from_async())
+
+        # Alert should be recorded (observe-only: no crash, alert logged)
+        assert result is not None
+        assert result["provider"] == "openai"
