@@ -1045,6 +1045,12 @@ class EventNormalizer:
         if should_skip:
             return False
 
+        # Issue: #3366 - CI Failure Reflex Integration
+        # Handle CI_CHECK_COMPLETED events with dedicated logic (early branch)
+        # This is processed BEFORE Smart PR Filtering to avoid false skips
+        if event.event_type == WebhookEventType.CI_CHECK_COMPLETED:
+            return self._handle_ci_check_completed(event)
+
         # P0: Disable PR_COMMENTED events entirely (CTO decision 2025-12-22)
         # This is a hard block that cannot be bypassed by is_ai_reviewer or other logic.
         # MorningAI is a "one-way reviewer", not a "conversational chatbot".
@@ -1497,3 +1503,151 @@ class EventNormalizer:
         Issue: #3224 - PR Comment Command Router
         """
         return self.command_router.is_command_comment(event)
+
+    # Issue: #3366 - CI Failure Reflex Integration
+    # In-memory dedup set for CI failure events (repo#pr#sha -> timestamp)
+    # This prevents duplicate auto-fix triggers from re-runs or webhook retries
+    _ci_failure_dedup: Dict[str, float] = {}
+    _CI_FAILURE_DEDUP_TTL_SECONDS = 3600  # 1 hour TTL
+    _CI_FAILURE_DEDUP_MAX_SIZE = 1000  # Max entries to prevent memory bloat
+
+    def _handle_ci_check_completed(self, event: WebhookEvent) -> bool:
+        """
+        Handle CI_CHECK_COMPLETED events for CI failure reflex.
+
+        This method implements the CI failure reflex logic:
+        1. Skip if conclusion is not "failure"
+        2. Skip if no PR is associated (non-PR CI)
+        3. Skip orchestrator/* and devin/* branches
+        4. Dedup: same PR + same head SHA only triggers once
+        5. Mark event metadata for downstream processing
+
+        Args:
+            event: WebhookEvent with CI_CHECK_COMPLETED type
+
+        Returns:
+            True if CI failure should trigger auto-fix, False otherwise
+
+        Issue: #3366 - CI Failure Reflex Integration
+        """
+        import time
+
+        metadata = event.metadata or {}
+        repo = f"{event.repo_owner}/{event.repo_name}" if event.repo_owner and event.repo_name else "unknown"
+
+        # Extract CI-specific metadata
+        conclusion = metadata.get("ci_conclusion", "")
+        head_branch = metadata.get("ci_head_branch", "")
+        head_sha = metadata.get("ci_head_sha", "")
+        pr_numbers = metadata.get("ci_pr_numbers", [])
+
+        # P0: Skip if conclusion is not "failure"
+        # Only trigger auto-fix for actual failures, not success/cancelled/etc.
+        if conclusion != "failure":
+            logger.info(
+                "[EventNormalizer] CI check skipped - not a failure",
+                extra={
+                    "operation": "ci_check_skip_non_failure",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "conclusion": conclusion,
+                    "head_branch": head_branch,
+                    "head_sha": head_sha[:8] if head_sha else "unknown",
+                }
+            )
+            return False
+
+        # P1: Skip if no PR is associated (non-PR CI, e.g., push to main)
+        if not pr_numbers:
+            logger.info(
+                "[EventNormalizer] CI failure skipped - no associated PR",
+                extra={
+                    "operation": "ci_failure_skip_no_pr",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "conclusion": conclusion,
+                    "head_branch": head_branch,
+                    "head_sha": head_sha[:8] if head_sha else "unknown",
+                }
+            )
+            return False
+
+        # P2: Skip orchestrator/* and devin/* branches to prevent self-trigger loops
+        # These are branches created by the orchestrator for auto-fix PRs
+        if head_branch:
+            branch_lower = head_branch.lower()
+            if branch_lower.startswith("orchestrator/") or branch_lower.startswith("devin/"):
+                logger.info(
+                    "[EventNormalizer] CI failure skipped - orchestrator/devin branch",
+                    extra={
+                        "operation": "ci_failure_skip_orchestrator_branch",
+                        "event_id": event.event_id,
+                        "repo": repo,
+                        "head_branch": head_branch,
+                        "pr_numbers": pr_numbers,
+                        "reason": "self_trigger_prevention",
+                    }
+                )
+                return False
+
+        # P3: Dedup - same PR + same head SHA only triggers once
+        # This prevents duplicate triggers from webhook retries or re-runs
+        pr_number = pr_numbers[0]  # Use first PR for dedup key
+        dedup_key = f"{repo}#{pr_number}#{head_sha}"
+
+        # Clean up expired entries (simple TTL cleanup)
+        current_time = time.time()
+        expired_keys = [
+            k for k, v in self._ci_failure_dedup.items()
+            if current_time - v > self._CI_FAILURE_DEDUP_TTL_SECONDS
+        ]
+        for k in expired_keys:
+            del self._ci_failure_dedup[k]
+
+        # Check if already processed
+        if dedup_key in self._ci_failure_dedup:
+            logger.info(
+                "[EventNormalizer] CI failure skipped - already processed (dedup)",
+                extra={
+                    "operation": "ci_failure_skip_dedup",
+                    "event_id": event.event_id,
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "head_sha": head_sha[:8] if head_sha else "unknown",
+                    "dedup_key": dedup_key,
+                }
+            )
+            return False
+
+        # Enforce max size to prevent memory bloat
+        if len(self._ci_failure_dedup) >= self._CI_FAILURE_DEDUP_MAX_SIZE:
+            # Remove oldest entries (FIFO)
+            oldest_keys = sorted(
+                self._ci_failure_dedup.keys(),
+                key=lambda k: self._ci_failure_dedup[k]
+            )[:100]  # Remove 100 oldest
+            for k in oldest_keys:
+                del self._ci_failure_dedup[k]
+
+        # Mark as processed
+        self._ci_failure_dedup[dedup_key] = current_time
+
+        # Mark event metadata for downstream processing
+        event.metadata["ci_failure_trigger"] = True
+        event.metadata["ci_failure_pr_number"] = pr_number
+        event.metadata["ci_failure_dedup_key"] = dedup_key
+
+        logger.info(
+            "[EventNormalizer] CI failure is actionable - triggering auto-fix",
+            extra={
+                "operation": "ci_failure_actionable",
+                "event_id": event.event_id,
+                "repo": repo,
+                "pr_number": pr_number,
+                "head_branch": head_branch,
+                "head_sha": head_sha[:8] if head_sha else "unknown",
+                "conclusion": conclusion,
+            }
+        )
+
+        return True

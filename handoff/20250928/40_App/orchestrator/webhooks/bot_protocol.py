@@ -49,6 +49,10 @@ class WebhookEventType(Enum):
     BRANCH_CREATED = "branch_created"
     BRANCH_DELETED = "branch_deleted"
 
+    # CI events
+    # Issue: #3366 - CI Failure Reflex Integration
+    CI_CHECK_COMPLETED = "ci_check_completed"
+
     # Message events (Slack)
     MESSAGE_RECEIVED = "message_received"
     COMMAND_RECEIVED = "command_received"
