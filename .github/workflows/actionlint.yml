@@ -37,7 +37,9 @@ jobs:
             BASE_SHA="${{ github.event.before }}"
             HEAD_SHA="${{ github.sha }}"
           fi
-          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '.github/workflows/*.yml' | tr '\n' ' ')
+          # Use --diff-filter=d to exclude deleted files (lowercase 'd' = exclude deletions)
+          # This prevents actionlint from trying to lint files that no longer exist
+          CHANGED=$(git diff --name-only --diff-filter=d "$BASE_SHA" "$HEAD_SHA" -- '.github/workflows/*.yml' | tr '\n' ' ')
           echo "files=$CHANGED" >> $GITHUB_OUTPUT
           echo "Changed workflow files: $CHANGED"
       
