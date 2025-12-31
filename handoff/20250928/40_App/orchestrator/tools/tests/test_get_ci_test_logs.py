@@ -335,3 +335,104 @@ class TestGetCiTestLogs:
         )
 
         assert result["workflow_run_id"] == 22222
+
+    @patch('tools.github_api.settings')
+    def test_uses_configurable_workflow_patterns(self, mock_settings):
+        """Test that function uses configurable CI_WORKFLOW_PATTERNS (Issue #3377)."""
+        from tools.github_api import get_ci_test_logs
+
+        # Configure custom patterns
+        mock_settings.ci_workflow_patterns = "build,lint"
+
+        mock_repo = MagicMock()
+
+        mock_deploy_run = MagicMock()
+        mock_deploy_run.name = "Deploy"
+        mock_deploy_run.status = "completed"
+        mock_deploy_run.conclusion = "success"
+        mock_deploy_run.id = 11111
+
+        mock_test_run = MagicMock()
+        mock_test_run.name = "Test Apps"  # Contains "test" but not in custom patterns
+        mock_test_run.status = "completed"
+        mock_test_run.conclusion = "success"
+        mock_test_run.id = 22222
+
+        mock_build_run = MagicMock()
+        mock_build_run.name = "Build and Verify"  # Contains "build" - matches custom pattern
+        mock_build_run.status = "completed"
+        mock_build_run.conclusion = "success"
+        mock_build_run.id = 33333
+        mock_build_run.jobs.return_value = iter([])
+
+        mock_repo.get_workflow_runs.return_value = iter([
+            mock_deploy_run, mock_test_run, mock_build_run
+        ])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123",
+            trace_id="test-trace"
+        )
+
+        # Should match "Build and Verify" because it contains "build"
+        assert result["workflow_run_id"] == 33333
+
+    @patch('tools.github_api.settings')
+    def test_uses_default_patterns_when_empty(self, mock_settings):
+        """Test that function falls back to default patterns when empty (Issue #3377)."""
+        from tools.github_api import get_ci_test_logs
+
+        # Configure empty patterns - should fall back to defaults
+        mock_settings.ci_workflow_patterns = ""
+
+        mock_repo = MagicMock()
+
+        mock_test_run = MagicMock()
+        mock_test_run.name = "CI Tests"  # Contains "ci" - default pattern
+        mock_test_run.status = "completed"
+        mock_test_run.conclusion = "success"
+        mock_test_run.id = 44444
+        mock_test_run.jobs.return_value = iter([])
+
+        mock_repo.get_workflow_runs.return_value = iter([mock_test_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123",
+            trace_id="test-trace"
+        )
+
+        # Should match "CI Tests" using default pattern "ci"
+        assert result["workflow_run_id"] == 44444
+
+    @patch('tools.github_api.settings')
+    def test_pattern_matching_is_case_insensitive(self, mock_settings):
+        """Test that workflow pattern matching is case-insensitive (Issue #3377)."""
+        from tools.github_api import get_ci_test_logs
+
+        # Configure patterns in lowercase
+        mock_settings.ci_workflow_patterns = "test,ci"
+
+        mock_repo = MagicMock()
+
+        mock_run = MagicMock()
+        mock_run.name = "UNIT TESTS"  # Uppercase - should still match
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 55555
+        mock_run.jobs.return_value = iter([])
+
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123",
+            trace_id="test-trace"
+        )
+
+        # Should match "UNIT TESTS" because pattern matching is case-insensitive
+        assert result["workflow_run_id"] == 55555

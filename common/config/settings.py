@@ -619,7 +619,14 @@ class Settings(BaseSettings):
         description="Comma-separated allowlist of providers for LLM routing (governance control)"
     )
 
-    # EPIC I-1: Runtime Drift Detection (Blueprint 4.3 - Model Governance Framework v2)
+    # Issue #3377: Configurable workflow patterns for CI log fetching
+    ci_workflow_patterns: str = Field(
+        default="test,ci",
+        alias="CI_WORKFLOW_PATTERNS",
+        description="Comma-separated patterns to match CI workflow names for log fetching (Issue #3377)"
+    )
+
+    # EPIC I-1: Runtime Drift Detection(Blueprint 4.3 - Model Governance Framework v2)
     drift_detection_enabled: bool = Field(
         default=False,
         alias="DRIFT_DETECTION_ENABLED",
