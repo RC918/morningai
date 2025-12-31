@@ -2,7 +2,7 @@
 
 **Version**: 2025-Q4 Final
 **Status**: Active North Star Document
-**Last Updated**: 2025-12-30
+**Last Updated**: 2025-12-31
 
 ---
 
@@ -93,12 +93,19 @@ EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C
 **Wish Pool v2 Vision**: Reviewer Agent with diff-aware capabilities, integrated with Safety/Compliance layer.
 
 **Current Implementation (EPIC B #2595)**:
-- Phase B-1: PR Diff Fetcher
-- Phase B-2: Diff-Aware Prompt Builder
-- Phase B-3: LLM Reviewer Adapter
-- Phase B-4: Telemetry v2 Integration
-- Phase B-5: Rollout & Monitoring
-- Phase B-6: Reviewer -> Router Interface Definition
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| B-1 | PR Diff Fetcher (`get_pr_diff()` with truncation/ignore list) | **Completed** |
+| B-2 | Diff-Aware Prompt Builder (review comment schema, secrets redaction) | **Completed** |
+| B-3 | LLM Reviewer Adapter (GitHub inline comment posting, line validation) | **Completed** |
+| Phase 1 | Quick Wins (max_tokens, timeout, fallback_reason) | **Completed** |
+| Phase 2 | Publishing Correctness (head_sha capture, line drift detection) | **Completed** |
+| Phase 3 | Security & Reliability (secrets sanitization, commit_id validation) | **Completed** |
+| Phase 4 | Checks API (GitHub App, branch protection) | Planned (2026) |
+| **B-6** | Reviewer -> Router Interface (`ReviewOutcome` schema) | **In Progress** ([#3130](https://github.com/RC918/morningai/issues/3130)) |
+
+**Telemetry 說明**: EPIC B 實作了 Reviewer 相關的 telemetry 欄位（trace_id, fallback_reason, drift metrics），這是 Blueprint 5.2 Telemetry v2 願景的一部分。完整的 Telemetry v2（執行軌跡重建、多代理回放）屬於 Infrastructure Layer，跨越多個 EPIC。
 
 ### 3. Intelligence Layer - Flow Controller (EPIC C)
 
@@ -151,7 +158,9 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 - Telemetry v2: Full execution trace reconstruction
 - Multi-Agent Simulation Suite v1: End-to-end testing
 
-**Status**: Telemetry v2 partially implemented in EPIC B. Full implementation pending.
+**Telemetry v2 實作狀態**:
+- **EPIC B 貢獻**: Reviewer telemetry 欄位（trace_id, fallback_reason, drift_downgrade_count）- **Completed**
+- **完整願景**: 執行軌跡重建、多代理推理回放、Simulation Suite 整合 - **Pending** (Future EPIC)
 
 ---
 
@@ -168,7 +177,7 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 | 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) |
 | 4.4 Autonomous Provisioning v2 | Planning | **EPIC I** (#3342) |
 | 5.1 Memory v2 | Not started | Future EPIC G |
-| 5.2 Telemetry v2 | Partial (EPIC B) | Expand in EPIC C |
+| 5.2 Telemetry v2 | **EPIC B Reviewer telemetry Completed**; Full trace reconstruction Pending | Future EPIC |
 | 5.3 Simulation Suite v1 | Not started | Future EPIC H |
 
 ---
@@ -210,3 +219,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 1.1 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Updated EPIC status: A Completed, B Phase 1-3 Completed, D In Progress. Added Model Governance PR #3316. |
 | 1.2 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Updated EPIC C status based on code evidence: Stage 0 (C-1/C-2/C-3/C-4) + C-6 Graph Wiring Completed; Pilot Pending (ENABLE_DYNAMIC_ROUTING=false by default). |
 | 1.3 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Added EPIC I: Runtime Governance & Immune System (#3342) - Blueprint 4.3/4.4 implementation. Updated EPIC table, dependency graph, and cross-reference. |
+| 1.4 | 2025-12-31 | Ryan Chen (@RC918) with Devin AI | Refined EPIC B status: Added detailed phase table (B-1 to B-6, Phase 1-4). Clarified Telemetry v2 scope: EPIC B contributes Reviewer telemetry fields; full trace reconstruction is a separate future EPIC. |
