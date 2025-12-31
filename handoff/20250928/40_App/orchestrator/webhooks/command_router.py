@@ -5,12 +5,14 @@ This module provides command routing for `/morningai <command>` comments on PRs,
 enabling external triggering of MorningAI flows via PR comments.
 
 Issue: #3224 - PR Comment Command Router
+Issue: #3388 - Add authorization/permission gating for /morningai commands
 Blueprint Alignment:
     - Self-Governed: Command routing is part of the governance mechanism
     - Modular: Aligns with EPIC C Flow Controller dynamic routing design
+    - Security: Authorization gating prevents unauthorized command execution
 
 Flow:
-    WebhookEvent (issue_comment/PR_comment) → CommandRouter → CommandTrigger → Flow
+    WebhookEvent (issue_comment/PR_comment) → CommandRouter → Authorization → CommandTrigger → Flow
 
 MVP Commands:
     - /morningai review - Trigger reviewer_node
@@ -18,15 +20,22 @@ MVP Commands:
 Future Commands (stub):
     - /morningai explain <file:line> - Explain specific code
     - /morningai fix - Trigger auto-fix (depends on EPIC D)
+
+Authorization:
+    - Users must have write permission or higher on the repository
+    - Bots are always ignored (prevent automation loops)
+    - Explicit allowlist for break-glass scenarios
+    - Fail-closed on API errors (deny if can't verify)
 """
 
 import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from .bot_protocol import WebhookEvent, WebhookEventType
+from .command_authorizer import CommandAuthorizer
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +117,37 @@ class CommandRouter:
         WebhookEventType.PR_COMMENTED,
     }
 
-    def __init__(self):
-        """Initialize the Command Router"""
-        logger.info("[CommandRouter] Initialized")
+    def __init__(
+        self,
+        authorizer: Optional[CommandAuthorizer] = None,
+        enable_authorization: bool = True,
+        allowlist: Optional[Set[str]] = None,
+    ):
+        """
+        Initialize the Command Router.
+
+        Args:
+            authorizer: Optional CommandAuthorizer instance (creates default if None)
+            enable_authorization: If True, check user permissions before routing
+            allowlist: Optional set of usernames that bypass authorization checks
+
+        Issue: #3388 - Add authorization/permission gating for /morningai commands
+        """
+        self._enable_authorization = enable_authorization
+        self._authorizer = authorizer
+
+        # Lazy initialization of authorizer (only when needed)
+        if enable_authorization and authorizer is None:
+            self._authorizer = CommandAuthorizer(allowlist=allowlist)
+
+        logger.info(
+            "[CommandRouter] Initialized",
+            extra={
+                "operation": "router_init",
+                "authorization_enabled": enable_authorization,
+                "has_authorizer": self._authorizer is not None,
+            }
+        )
 
     def route(self, event: WebhookEvent) -> Optional[CommandTrigger]:
         """
@@ -164,7 +201,26 @@ class CommandRouter:
             )
             return None
 
-        # P6: Build CommandTrigger
+        # P6: Authorization check (Issue #3388)
+        if self._enable_authorization and self._authorizer:
+            auth_result = self._authorizer.authorize(repo, actor_name)
+            if not auth_result.authorized:
+                logger.warning(
+                    "[CommandRouter] Command rejected: unauthorized user",
+                    extra={
+                        "operation": "command_unauthorized",
+                        "repo": repo,
+                        "pr_number": pr_number,
+                        "actor": actor_name,
+                        "command": command_name,
+                        "reason": auth_result.reason,
+                        "permission_level": auth_result.permission_level.value if auth_result.permission_level else None,
+                        "event_id": event.event_id,
+                    }
+                )
+                return None
+
+        # P7: Build CommandTrigger
         trigger = CommandTrigger(
             command_type=command_type,
             repo=repo,
