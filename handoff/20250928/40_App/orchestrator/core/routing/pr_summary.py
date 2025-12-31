@@ -348,6 +348,10 @@ def build_pr_summary(
                 reason=c.get("downgrade_reason")
             ))
 
+    # Normalize head_sha: only accept non-empty strings, convert invalid types to None
+    # This ensures graceful degradation when diff_head_sha is missing or invalid
+    normalized_head_sha = head_sha if isinstance(head_sha, str) and head_sha.strip() else None
+
     return PRSummary(
         verdict=verdict if verdict in ("approve", "request_changes", "comment", "blocked", "unknown") else "unknown",
         display_decision=display_decision,
@@ -357,7 +361,7 @@ def build_pr_summary(
         trace_id=trace_id,
         pr_number=pr_number,
         repo=repo,
-        head_sha=head_sha
+        head_sha=normalized_head_sha
     )
 
 

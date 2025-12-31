@@ -303,6 +303,61 @@ class TestBuildPrSummary:
         assert summary.display_decision == "block"
         assert summary.score == 10
 
+    def test_build_normalizes_invalid_head_sha(self):
+        """Invalid head_sha types should be normalized to None
+
+        This test verifies graceful degradation when diff_head_sha is invalid.
+        The system should still build a valid PRSummary with head_sha=None
+        rather than raising a ValidationError.
+        """
+        review_outcome = {"verdict": "approve"}
+        review_result = {"llm_summary": "Good"}
+
+        # Test integer (common case from state.get("diff_head_sha"))
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=80,
+            head_sha=123
+        )
+        assert summary.head_sha is None
+
+        # Test empty string
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=80,
+            head_sha=""
+        )
+        assert summary.head_sha is None
+
+        # Test whitespace-only string
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=80,
+            head_sha="   "
+        )
+        assert summary.head_sha is None
+
+        # Test None (explicit)
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=80,
+            head_sha=None
+        )
+        assert summary.head_sha is None
+
+        # Test valid string is preserved
+        summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=80,
+            head_sha="abc123def456"
+        )
+        assert summary.head_sha == "abc123def456"
+
 
 class TestBuildUnknownPrSummary:
     """Tests for build_unknown_pr_summary() helper function"""
