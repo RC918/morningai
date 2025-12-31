@@ -1919,23 +1919,30 @@ def get_ci_test_logs(
 
         # Get workflow runs for the head SHA
         # Look for the test workflow (test-apps.yml)
+        # Filter by event='pull_request' to ensure we get PR-triggered workflows
+        # (not push-triggered ones that may have different test coverage)
         try:
-            workflow_runs = repo.get_workflow_runs(head_sha=head_sha)
+            workflow_runs = repo.get_workflow_runs(
+                head_sha=head_sha,
+                event='pull_request'
+            )
 
             # Find the most recent completed test workflow run
+            # Single-pass optimization: capture fallback while searching for preferred match
             test_run = None
+            fallback_run = None
             for run in workflow_runs:
+                if fallback_run is None:
+                    fallback_run = run  # Capture the first (most recent) run as fallback
+
                 # Look for test-apps workflow or any workflow with "test" in the name
                 workflow_name = run.name.lower() if run.name else ""
                 if "test" in workflow_name or "ci" in workflow_name:
                     test_run = run
-                    break
+                    break  # Found preferred test run, stop searching
 
             if not test_run:
-                # No test workflow found, try to get any workflow run
-                for run in workflow_runs:
-                    test_run = run
-                    break
+                test_run = fallback_run  # Use fallback if no preferred match found
 
             if not test_run:
                 result["error"] = "No workflow runs found for this commit"
@@ -1972,23 +1979,27 @@ def get_ci_test_logs(
 
             # Get jobs from the workflow run
             jobs = test_run.jobs()
+
+            # Single-pass optimization: find best job match with fallbacks
             test_job = None
+            generic_test_job = None
+            first_job = None
 
             # Find the test job (look for "Orchestrator Tests" or similar)
             for job in jobs:
+                if first_job is None:
+                    first_job = job  # Capture first job as ultimate fallback
+
                 job_name_lower = job.name.lower() if job.name else ""
                 if "orchestrator" in job_name_lower and "test" in job_name_lower:
                     test_job = job
-                    break
+                    break  # Most specific match found, exit loop
                 elif "test" in job_name_lower:
-                    test_job = job
-                    # Don't break, keep looking for more specific match
+                    generic_test_job = job  # Store generic test job, keep searching
 
-            if not test_job:
-                # Fall back to first job
-                for job in jobs:
-                    test_job = job
-                    break
+            # Use best available match
+            if test_job is None:
+                test_job = generic_test_job or first_job
 
             if not test_job:
                 result["error"] = "No jobs found in workflow run"
@@ -2006,11 +2017,11 @@ def get_ci_test_logs(
             result["job_name"] = test_job.name
 
             # Get logs URL and download
-            # PyGithub doesn't have a direct method to get job logs,
-            # so we use the logs_url and download via requests
+            # PyGithub provides logs_url as a property (not a method)
+            # The URL points to the GitHub API endpoint for downloading job logs
             import requests
 
-            logs_url = test_job.logs_url()
+            logs_url = test_job.logs_url
             if logs_url:
                 # Download logs using GitHub token
                 headers = {"Authorization": f"token {GITHUB_TOKEN}"}

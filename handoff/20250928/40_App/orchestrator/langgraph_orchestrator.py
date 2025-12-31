@@ -5176,17 +5176,26 @@ def reviewer_node(state: AgentState) -> AgentState:
         # Issue #3369: Discovery Audit - Layer 2 of Discovery 全鏈路治理
         # Cross-reference PR diff with CI logs to detect silent test failures
         # This runs AFTER the LLM review but BEFORE building ReviewOutcome
+        # State versioning: Use discovery_audit_v1 sub-object for forward compatibility
         if pr_number and state.get("diff_content"):
             try:
                 from core.routing.discovery_auditor import (
                     DiscoveryAuditor,
                     AuditStatus
                 )
-                from tools.github_api import get_ci_test_logs
+                from tools.github_api import get_ci_test_logs, get_repo
+
+                # Get repo object deterministically (avoid fragile dir() check)
+                # Reuse github_repo if available in local scope, otherwise fetch fresh
+                discovery_repo = None
+                try:
+                    discovery_repo = github_repo
+                except NameError:
+                    discovery_repo = get_repo()
 
                 # Fetch CI test logs
                 ci_logs_result = get_ci_test_logs(
-                    repo=github_repo if 'github_repo' in dir() else get_repo(),
+                    repo=discovery_repo,
                     pr_number=pr_number,
                     head_sha=state.get("diff_head_sha"),
                     trace_id=trace_id
@@ -5200,8 +5209,14 @@ def reviewer_node(state: AgentState) -> AgentState:
                         ci_logs=ci_logs_result["logs"]
                     )
 
-                    state["discovery_audit_status"] = audit_result.status.value
-                    state["discovery_audit_missing_tests"] = audit_result.missing_tests
+                    # Store results in versioned sub-object for forward compatibility
+                    state["discovery_audit_v1"] = {
+                        "status": audit_result.status.value,
+                        "missing_tests": audit_result.missing_tests,
+                        "new_test_files": audit_result.new_test_files,
+                        "executed_tests": list(audit_result.executed_tests),
+                        "message": audit_result.message
+                    }
 
                     logger.info(
                         f"[Reviewer] Discovery audit completed: {audit_result.status.value}",
@@ -5257,8 +5272,11 @@ def reviewer_node(state: AgentState) -> AgentState:
                             "skip_reason": ci_logs_result.get("error")
                         }
                     )
-                    state["discovery_audit_status"] = "skipped"
-                    state["discovery_audit_skip_reason"] = ci_logs_result.get("error")
+                    state["discovery_audit_v1"] = {
+                        "status": "skipped",
+                        "skip_reason": ci_logs_result.get("error"),
+                        "ci_status": ci_logs_result.get("ci_status")
+                    }
 
             except Exception as discovery_error:
                 # Discovery audit failed - fail-open, don't block the review
@@ -5270,8 +5288,10 @@ def reviewer_node(state: AgentState) -> AgentState:
                         "error": str(discovery_error)
                     }
                 )
-                state["discovery_audit_status"] = "error"
-                state["discovery_audit_error"] = str(discovery_error)
+                state["discovery_audit_v1"] = {
+                    "status": "error",
+                    "error": str(discovery_error)
+                }
 
         # EPIC B-6: Build ReviewOutcome for Router interface (Issue #3130)
         # This provides a stable interface for Router to make routing decisions

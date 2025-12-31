@@ -127,7 +127,8 @@ class TestGetCiTestLogs:
 
         mock_job = MagicMock()
         mock_job.name = "Orchestrator Tests"
-        mock_job.logs_url.return_value = "https://api.github.com/logs/12345"
+        # logs_url is a property, not a method (Issue #3369 fix)
+        mock_job.logs_url = "https://api.github.com/logs/12345"
 
         mock_run = MagicMock()
         mock_run.name = "Test Apps"
@@ -167,7 +168,8 @@ class TestGetCiTestLogs:
 
         mock_job = MagicMock()
         mock_job.name = "Orchestrator Tests"
-        mock_job.logs_url.return_value = "https://api.github.com/logs/12345"
+        # logs_url is a property, not a method (Issue #3369 fix)
+        mock_job.logs_url = "https://api.github.com/logs/12345"
 
         mock_run = MagicMock()
         mock_run.name = "Test Apps"
@@ -205,7 +207,11 @@ class TestGetCiTestLogs:
         )
 
         mock_repo.get_pull.assert_not_called()
-        mock_repo.get_workflow_runs.assert_called_once_with(head_sha="provided_sha_123")
+        # Verify event='pull_request' filter is applied (Issue #3369 fix)
+        mock_repo.get_workflow_runs.assert_called_once_with(
+            head_sha="provided_sha_123",
+            event='pull_request'
+        )
 
     def test_prefers_test_workflow_over_other_workflows(self):
         """Test that function prefers workflow with 'test' in name."""
