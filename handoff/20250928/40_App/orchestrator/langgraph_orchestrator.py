@@ -5246,13 +5246,8 @@ def reviewer_node(state: AgentState) -> AgentState:
                 )
                 from tools.github_api import get_ci_test_logs, get_repo as get_repo_for_discovery
 
-                # Get repo object deterministically (avoid fragile dir() check)
-                # Reuse github_repo if available in local scope, otherwise fetch fresh
-                discovery_repo = None
-                try:
-                    discovery_repo = github_repo
-                except NameError:
-                    discovery_repo = get_repo_for_discovery()
+                # Reuse github_repo if available, otherwise fetch fresh
+                discovery_repo = github_repo or get_repo_for_discovery()
 
                 # Fetch CI test logs
                 ci_logs_result = get_ci_test_logs(
