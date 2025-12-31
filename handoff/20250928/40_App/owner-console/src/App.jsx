@@ -19,6 +19,7 @@ const AIPolicies = lazy(() => import('@/pages/AIPolicies'))
 const PlatformSettings = lazy(() => import('@/pages/PlatformSettings'))
 const Settings2FA = lazy(() => import('@/pages/Settings2FA'))
 const UXMetrics = lazy(() => import('@/pages/UXMetrics'))
+const ProviderHealthDashboard = lazy(() => import('@/pages/ProviderHealthDashboard'))
 
 function AppContent() {
   const { isAuthenticated, isLoading, user, login, logout, refreshUser } = useAuth()
@@ -51,8 +52,9 @@ function AppContent() {
             <Route path="/monitoring" element={<SystemMonitoring />} />
             <Route path="/agent-evaluation" element={<AgentEvaluationDashboard />} />
             <Route path="/failure-experiments" element={<FailureExperimentDashboard />} />
-            <Route path="/ux-metrics" element={<UXMetrics />} />
-            <Route path="/settings" element={<PlatformSettings />} />
+                        <Route path="/ux-metrics" element={<UXMetrics />} />
+                        <Route path="/provider-health" element={<ProviderHealthDashboard />} />
+                        <Route path="/settings" element={<PlatformSettings />} />
             <Route path="/settings/2fa" element={<Settings2FA />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
