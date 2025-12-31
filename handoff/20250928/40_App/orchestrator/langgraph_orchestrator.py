@@ -4900,6 +4900,44 @@ def reviewer_node(state: AgentState) -> AgentState:
                                 })
                             state["diff_content"] = sanitized_diff
                             state["diff_truncated"] = diff_truncated
+
+                        # Issue #3223: File Reference Resolution - Cross-file context gathering
+                        # Extract import statements from diff and fetch referenced file content
+                        # This provides additional context for more accurate code reviews
+                        if diff_content and diff_head_sha and github_repo:
+                            try:
+                                from tools.file_reference_resolver import resolve_file_references
+
+                                ref_result = resolve_file_references(
+                                    repo=github_repo,
+                                    diff_content=diff_content,
+                                    head_sha=diff_head_sha,
+                                    trace_id=trace_id,
+                                )
+
+                                if ref_result.total_contexts_fetched > 0:
+                                    state["reference_context_v1"] = ref_result.to_dict()
+                                    logger.info(
+                                        f"[Reviewer] File references resolved: {ref_result.total_contexts_fetched} files",
+                                        extra={
+                                            "operation": "reviewer",
+                                            "trace_id": trace_id,
+                                            "total_references": ref_result.total_references_found,
+                                            "contexts_fetched": ref_result.total_contexts_fetched,
+                                            "total_bytes": ref_result.total_bytes,
+                                            "truncated": ref_result.truncated,
+                                        }
+                                    )
+
+                            except Exception as ref_error:
+                                logger.warning(
+                                    f"[Reviewer] File reference resolution failed (non-blocking): {ref_error}",
+                                    extra={
+                                        "operation": "reviewer",
+                                        "trace_id": trace_id,
+                                        "error": str(ref_error)
+                                    }
+                                )
                     else:
                         metrics.record_diff_fetch(trace_id=trace_id, success=False)
                         logger.warning(
