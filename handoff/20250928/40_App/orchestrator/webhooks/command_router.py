@@ -6,6 +6,7 @@ enabling external triggering of MorningAI flows via PR comments.
 
 Issue: #3224 - PR Comment Command Router
 Issue: #3388 - Add authorization/permission gating for /morningai commands
+Issue: #3390 - Improve command detection to ignore fenced code blocks
 Blueprint Alignment:
     - Self-Governed: Command routing is part of the governance mechanism
     - Modular: Aligns with EPIC C Flow Controller dynamic routing design
@@ -26,6 +27,10 @@ Authorization:
     - Bots are always ignored (prevent automation loops)
     - Explicit allowlist for break-glass scenarios
     - Fail-closed on API errors (deny if can't verify)
+
+Code Block Handling (Issue #3390):
+    - Commands inside fenced code blocks (```) are ignored
+    - This prevents false positives when users paste example commands
 """
 
 import logging
@@ -92,8 +97,10 @@ class CommandRouter:
     2. Ignore bot-generated comments to prevent automation loops
     3. Only process on valid event types (issue_comment on PR)
     4. Return None for non-command comments (pass through to existing triage)
+    5. Strip fenced code blocks before matching (Issue #3390)
 
     Issue: #3224 - PR Comment Command Router
+    Issue: #3390 - Improve command detection to ignore fenced code blocks
     """
 
     # Command prefix pattern - must be at start of line
@@ -101,6 +108,14 @@ class CommandRouter:
     COMMAND_PATTERN = re.compile(
         r"^\s*/morningai\s+(\w+)(?:\s+(.*))?$",
         re.MULTILINE | re.IGNORECASE
+    )
+
+    # Fenced code block pattern - matches ``` with optional language tag
+    # Issue #3390: Strip these before command matching to avoid false positives
+    # Supports both single-line (```code```) and multi-line fenced blocks
+    FENCED_CODE_BLOCK_PATTERN = re.compile(
+        r"```.*?```",
+        re.DOTALL
     )
 
     # Supported commands for MVP
@@ -178,8 +193,12 @@ class CommandRouter:
         if not comment_text:
             return None
 
-        # P3: Parse command from comment
-        command_match = self.COMMAND_PATTERN.search(comment_text)
+        # P2.5: Strip fenced code blocks before matching (Issue #3390)
+        # This prevents false positives when users paste example commands
+        comment_text_stripped = self._strip_code_blocks(comment_text)
+
+        # P3: Parse command from comment (using stripped text)
+        command_match = self.COMMAND_PATTERN.search(comment_text_stripped)
         if not command_match:
             return None
 
@@ -264,6 +283,31 @@ class CommandRouter:
             return raw["comment"]["body"]
 
         return ""
+
+    def _strip_code_blocks(self, text: str) -> str:
+        """
+        Strip fenced code blocks from text before command matching.
+
+        This prevents false positives when users paste example commands
+        inside code blocks in their comments.
+
+        Issue: #3390 - Improve command detection to ignore fenced code blocks
+
+        Args:
+            text: Raw comment text
+
+        Returns:
+            Text with fenced code blocks removed
+
+        Examples:
+            >>> router._strip_code_blocks("```\\n/morningai review\\n```")
+            ''
+            >>> router._strip_code_blocks("Hello\\n```python\\n/morningai review\\n```\\nWorld")
+            'Hello\\n\\nWorld'
+        """
+        # Remove fenced code blocks (``` ... ```)
+        # This handles both simple ``` and language-tagged ```python blocks
+        return self.FENCED_CODE_BLOCK_PATTERN.sub("", text)
 
     def _extract_repo(self, event: WebhookEvent) -> Optional[str]:
         """Extract repository in owner/repo format"""
