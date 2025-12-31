@@ -442,7 +442,7 @@ const ProviderHealthDashboard = () => {
       {/* Empty State */}
       {healthData && Object.keys(healthData.providers).length === 0 && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-card">
-          <div className="py-12 text-center">
+          <div className="py-8 text-center">
             <Activity className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4" />
             <p className="text-[var(--text-secondary)]">{t('providerHealth.noProviders')}</p>
             <p className="text-sm text-[var(--text-secondary)] mt-2">
