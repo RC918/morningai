@@ -593,12 +593,6 @@
   [
     "/api/governance/statistics",
     [
-      "POST"
-    ]
-  ],
-  [
-    "/api/governance/statistics",
-    [
       "GET"
     ]
   ],
