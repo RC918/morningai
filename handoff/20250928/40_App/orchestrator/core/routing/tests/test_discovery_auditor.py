@@ -199,6 +199,29 @@ diff --git a/tests/conftest.py b/tests/conftest.py
 
         assert len(test_files) == 0
 
+    def test_extract_test_files_ignores_deleted_files(self, auditor: DiscoveryAuditor):
+        """Test that deleted test files are correctly ignored.
+
+        This is a critical test case from Gemini Code Assist:
+        Deleted files have --- a/path and +++ /dev/null, so they should NOT
+        be flagged as "silent failures" since they no longer exist.
+        """
+        pr_diff = """
+diff --git a/tests/test_to_be_deleted.py b/tests/test_to_be_deleted.py
+deleted file mode 100644
+--- a/tests/test_to_be_deleted.py
++++ /dev/null
+@@ -1,3 +0,0 @@
+-def test_old():
+-    pass
+-
+"""
+
+        test_files = auditor._extract_test_files_from_diff(pr_diff)
+
+        # Deleted files should NOT be extracted (they have +++ /dev/null, not +++ b/path)
+        assert len(test_files) == 0
+
     def test_extract_executed_tests_collection_format(self, auditor: DiscoveryAuditor):
         """Test extraction from pytest collection output."""
         ci_logs = """

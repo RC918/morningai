@@ -104,17 +104,10 @@ class DiscoveryAuditor:
     """
 
     # Pattern to match test file paths in git diff
-    # Matches: +++ b/path/to/test_something.py or --- a/path/to/test_something.py
-    DIFF_FILE_PATTERN = re.compile(r'^[+-]{3} [ab]/(.+/test_[^/]+\.py)$', re.MULTILINE)
-
-    # Pattern to match new files in git diff (files that didn't exist before)
-    NEW_FILE_PATTERN = re.compile(r'^--- /dev/null\n\+\+\+ b/(.+/test_[^/]+\.py)$', re.MULTILINE)
-
-    # Pattern to match modified test files (both --- and +++ have paths)
-    MODIFIED_FILE_PATTERN = re.compile(
-        r'^--- a/(.+/test_[^/]+\.py)\n\+\+\+ b/\1$',
-        re.MULTILINE
-    )
+    # Only matches +++ b/ lines to correctly identify new/modified files
+    # (not --- a/ lines which would incorrectly flag deleted files)
+    # Fix: Gemini Code Assist CRITICAL - avoid false positives on deleted files
+    DIFF_FILE_PATTERN = re.compile(r'^\+\+\+ b/(.+/test_[^/]+\.py)$', re.MULTILINE)
 
     # Patterns to extract executed tests from CI logs
     # pytest collection output: <Module path/to/test_file.py>
@@ -182,8 +175,8 @@ class DiscoveryAuditor:
     def _extract_test_files_from_diff(self, pr_diff: str) -> Set[str]:
         """Extract test file paths from git diff.
 
-        Extracts both new files (--- /dev/null) and modified files.
-        Only includes files matching test_*.py pattern.
+        Extracts new and modified test files from +++ b/ lines.
+        Deleted files (--- a/ with +++ /dev/null) are correctly ignored.
 
         Args:
             pr_diff: Git diff in unified format
@@ -194,11 +187,9 @@ class DiscoveryAuditor:
         test_files: Set[str] = set()
 
         # Find all +++ b/path lines for test files
+        # The regex already ensures this matches test_*.py pattern
         for match in self.DIFF_FILE_PATTERN.finditer(pr_diff):
-            file_path = match.group(1)
-            # Only include if it's a test file (test_*.py)
-            if '/test_' in file_path and file_path.endswith('.py'):
-                test_files.add(file_path)
+            test_files.add(match.group(1))
 
         return test_files
 
