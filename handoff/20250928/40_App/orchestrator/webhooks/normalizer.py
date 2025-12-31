@@ -29,6 +29,7 @@ from .handlers.jira_handler import JiraWebhookHandler
 from .handlers.linear_handler import LinearWebhookHandler
 from .handlers.slack_handler import SlackWebhookHandler
 from .comment_triage import CommentTriageAgent, CommentTriageResult
+from .command_router import CommandRouter, CommandTrigger
 
 try:
     from ..utils.rate_limit import check_ai_reviewer_rate_limit, check_pr_updated_debounce
@@ -889,6 +890,10 @@ class EventNormalizer:
         # Issue: #2210 - Comment Triage Agent 設計與實作
         self.comment_triage_agent = CommentTriageAgent()
 
+        # Initialize Command Router for /morningai command handling
+        # Issue: #3224 - PR Comment Command Router
+        self.command_router = CommandRouter()
+
         logger.info(
             "[EventNormalizer] Initialized with handlers: %s",
             list(self.handlers.keys()),
@@ -1455,3 +1460,40 @@ class EventNormalizer:
             if result:
                 results.append(result)
         return results
+
+    def route_command(self, event: WebhookEvent) -> Optional[CommandTrigger]:
+        """
+        Route a /morningai command from a PR comment event.
+
+        This method checks if a comment event contains a /morningai command
+        and returns a CommandTrigger that can be used to trigger the appropriate
+        flow (e.g., reviewer_node for /morningai review).
+
+        Args:
+            event: WebhookEvent from a comment (ISSUE_COMMENTED or PR_COMMENTED)
+
+        Returns:
+            CommandTrigger if event contains a valid /morningai command,
+            None otherwise (event should continue to normal processing)
+
+        Issue: #3224 - PR Comment Command Router
+        Blueprint: Track C interface standardization
+        """
+        return self.command_router.route(event)
+
+    def is_command_comment(self, event: WebhookEvent) -> bool:
+        """
+        Quick check if an event might contain a /morningai command.
+
+        This is a lightweight check that can be used before full routing
+        to avoid unnecessary processing.
+
+        Args:
+            event: WebhookEvent to check
+
+        Returns:
+            True if event might contain a /morningai command
+
+        Issue: #3224 - PR Comment Command Router
+        """
+        return self.command_router.is_command_comment(event)
