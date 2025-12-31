@@ -148,7 +148,7 @@ class CommandRouter:
 
         command_name = command_match.group(1).lower()
         command_args_str = command_match.group(2) or ""
-        command_args = command_args_str.split() if command_args_str.strip() else []
+        command_args = command_args_str.split()
 
         # P4: Validate command is supported
         command_type = self.SUPPORTED_COMMANDS.get(command_name, CommandType.UNKNOWN)
@@ -173,6 +173,7 @@ class CommandRouter:
             comment_url=event.url or "",
             args=command_args,
             metadata={
+                "contract_version": "v1",
                 "event_id": event.event_id,
                 "event_type": event.event_type.value,
                 "source": event.source.value,

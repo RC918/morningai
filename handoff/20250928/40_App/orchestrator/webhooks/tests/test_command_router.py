@@ -409,9 +409,11 @@ class TestCommandRouterMetadata:
         trigger = command_router.route(event)
 
         assert trigger is not None
+        assert "contract_version" in trigger.metadata
         assert "event_id" in trigger.metadata
         assert "event_type" in trigger.metadata
         assert "source" in trigger.metadata
+        assert trigger.metadata["contract_version"] == "v1"
         assert trigger.metadata["event_id"] == "test-event-123"
         assert trigger.metadata["source"] == "github"
 
