@@ -1,7 +1,40 @@
 """Governance API - Agent reputation, cost tracking, and policy management"""
 from flask import Blueprint, jsonify, request
-from datetime import datetime
+from datetime import datetime, timezone
 from common.config.settings import settings
+
+
+def _utc_now_iso():
+    """Return current UTC time in ISO format with 'Z' suffix for consistency."""
+    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def _get_canary_metrics():
+    """
+    Get CanaryMetrics instance with graceful ImportError handling.
+    
+    Returns None if metrics module is not available or Redis is unavailable.
+    This wrapper enables clean mocking in tests.
+    """
+    try:
+        from metrics import get_canary_metrics
+        return get_canary_metrics()
+    except ImportError:
+        return None
+
+
+def _get_health_alert_service():
+    """
+    Get HealthAlertService instance with graceful ImportError handling.
+    
+    Returns None if health_alerter module is not available.
+    This wrapper enables clean mocking in tests.
+    """
+    try:
+        from governance.health_alerter import get_health_alert_service
+        return get_health_alert_service()
+    except ImportError:
+        return None
 
 try:
     from governance import (
@@ -234,6 +267,240 @@ def health_check():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@bp.route('/providers/health', methods=['GET'])
+@jwt_required
+def get_provider_health_snapshot():
+    """
+    Get provider health snapshot for dashboard display
+
+    EPIC I-3b: Health Snapshot API
+
+    This endpoint provides real-time health scores for all LLM providers,
+    designed for dashboard visualization and monitoring.
+
+    Query Parameters:
+        window: Time window in minutes (default: 15, range: 1-60)
+        providers: Comma-separated list of providers (default: all)
+
+    Returns:
+        JSON with provider health scores, rankings, and alert status
+
+    Requires: JWT authentication
+    """
+    try:
+        # Parse query parameters
+        window_minutes = request.args.get('window', 15, type=int)
+        window_minutes = max(1, min(60, window_minutes))
+
+        providers_param = request.args.get('providers', '')
+        if providers_param:
+            providers = [p.strip() for p in providers_param.split(',') if p.strip()]
+        else:
+            providers = None
+
+        # Get metrics using helper function (enables clean mocking in tests)
+        metrics = _get_canary_metrics()
+
+        if metrics is None:
+            logger.warning("[ProviderHealth] metrics module not available")
+            return jsonify({
+                'available': False,
+                'error': 'metrics_unavailable',
+                'message': 'CanaryMetrics not configured or Redis unavailable',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        # Get health data for all providers
+        health_data = metrics.get_all_providers_health(
+            providers=providers,
+            window_minutes=window_minutes
+        )
+
+        if not health_data.get('enabled', False):
+            return jsonify({
+                'available': False,
+                'error': 'metrics_disabled',
+                'message': 'Provider health metrics are disabled',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        # Get alert service status using helper function
+        alert_service = _get_health_alert_service()
+        alerting_enabled = alert_service is not None and alert_service.enabled
+        cooldown_status = (
+            alert_service.get_cooldown_status() if alert_service else {}
+        )
+
+        # Build response with dashboard-friendly structure
+        providers_health = health_data.get('providers', {})
+        ranking = health_data.get('ranking', [])
+
+        # Determine overall system health status
+        health_scores = [
+            p.get('health_score', 100)
+            for p in providers_health.values()
+            if isinstance(p, dict) and 'health_score' in p
+        ]
+        avg_health = sum(health_scores) / len(health_scores) if health_scores else 100
+
+        if avg_health >= 80:
+            system_status = 'healthy'
+        elif avg_health >= 60:
+            system_status = 'degraded'
+        else:
+            system_status = 'critical'
+
+        # Count providers by health status
+        healthy_count = sum(1 for s in health_scores if s >= 80)
+        degraded_count = sum(1 for s in health_scores if 60 <= s < 80)
+        critical_count = sum(1 for s in health_scores if s < 60)
+
+        response = {
+            'available': True,
+            'timestamp': _utc_now_iso(),
+            'window_minutes': window_minutes,
+            'system_status': system_status,
+            'summary': {
+                'average_health': round(avg_health, 1),
+                'total_providers': len(providers_health),
+                'healthy': healthy_count,
+                'degraded': degraded_count,
+                'critical': critical_count,
+            },
+            'providers': providers_health,
+            'ranking': ranking,
+            'alerting': {
+                'enabled': alerting_enabled,
+                'cooldown_status': cooldown_status,
+            },
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        logger.error(f"[ProviderHealth] Error getting health snapshot: {e}")
+        return jsonify({
+            'available': False,
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
+
+
+@bp.route('/providers/<provider>/health', methods=['GET'])
+@jwt_required
+def get_single_provider_health(provider):
+    """
+    Get health details for a single provider
+
+    EPIC I-3b: Health Snapshot API
+
+    This endpoint provides detailed health metrics for a specific provider,
+    including historical trends and component breakdowns.
+
+    Path Parameters:
+        provider: Provider name (openai, gemini, alicloud, siliconflow)
+
+    Query Parameters:
+        window: Time window in minutes (default: 15, range: 1-60)
+
+    Returns:
+        JSON with detailed provider health metrics
+
+    Requires: JWT authentication
+    """
+    try:
+        # Validate provider name
+        valid_providers = ['openai', 'gemini', 'alicloud', 'siliconflow']
+        if provider not in valid_providers:
+            return jsonify({
+                'error': 'invalid_provider',
+                'message': f'Provider must be one of: {", ".join(valid_providers)}',
+                'valid_providers': valid_providers
+            }), 400
+
+        # Parse query parameters
+        window_minutes = request.args.get('window', 15, type=int)
+        window_minutes = max(1, min(60, window_minutes))
+
+        # Get metrics using helper function (enables clean mocking in tests)
+        metrics = _get_canary_metrics()
+
+        if metrics is None:
+            logger.warning("[ProviderHealth] metrics module not available")
+            return jsonify({
+                'available': False,
+                'provider': provider,
+                'error': 'metrics_unavailable',
+                'message': 'CanaryMetrics not configured or Redis unavailable',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        # Get health data for the specific provider
+        health_data = metrics.get_provider_health(
+            provider=provider,
+            window_minutes=window_minutes
+        )
+
+        if not health_data.get('enabled', True):
+            return jsonify({
+                'available': False,
+                'provider': provider,
+                'error': 'metrics_disabled',
+                'message': 'Provider health metrics are disabled',
+                'timestamp': _utc_now_iso()
+            }), 503
+
+        # Get alert status for this provider using helper function
+        alert_service = _get_health_alert_service()
+        if alert_service:
+            cooldown_status = alert_service.get_cooldown_status()
+            provider_cooldown = cooldown_status.get(provider, {})
+        else:
+            provider_cooldown = {}
+
+        # Determine health status
+        health_score = health_data.get('health_score', 100)
+        if health_score >= 80:
+            status = 'healthy'
+        elif health_score >= 60:
+            status = 'degraded'
+        else:
+            status = 'critical'
+
+        response = {
+            'available': True,
+            'provider': provider,
+            'timestamp': _utc_now_iso(),
+            'window_minutes': window_minutes,
+            'status': status,
+            'health_score': health_score,
+            'metrics': {
+                'total_requests': health_data.get('total_requests', 0),
+                'error_rate': health_data.get('error_rate', 0),
+                'drift_rate': health_data.get('drift_rate', 0),
+                'latency': health_data.get('latency', {}),
+            },
+            'weights': {
+                'latency': health_data.get('latency_weight', 0.3),
+                'error': health_data.get('error_weight', 0.4),
+                'drift': health_data.get('drift_weight', 0.3),
+            },
+            'alert_cooldown': provider_cooldown,
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        logger.error(f"[ProviderHealth] Error getting health for {provider}: {e}")
+        return jsonify({
+            'available': False,
+            'provider': provider,
+            'error': 'internal_error',
+            'message': str(e),
+            'timestamp': _utc_now_iso()
+        }), 500
 
 
 @admin_bp.route('/agents', methods=['GET'])
