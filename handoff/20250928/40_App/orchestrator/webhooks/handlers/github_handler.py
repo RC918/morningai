@@ -86,11 +86,13 @@ ALLOWED_AUTOMATION_BOTS: Dict[str, str] = {
 
 # Event types that automation bots are allowed to trigger
 # Only allow PR-related events to avoid infinite loops
+# Issue: #3366 - Added CI_CHECK_COMPLETED for CI failure reflex
 AUTOMATION_BOT_ALLOWED_EVENTS = {
     WebhookEventType.PR_OPENED,
     WebhookEventType.PR_UPDATED,
     WebhookEventType.PR_CLOSED,
     WebhookEventType.PR_MERGED,
+    WebhookEventType.CI_CHECK_COMPLETED,
 }
 
 
@@ -128,6 +130,11 @@ GITHUB_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
     },
     "delete": {
         "branch": WebhookEventType.BRANCH_DELETED,
+    },
+    # Issue: #3366 - CI Failure Reflex Integration
+    # check_suite events are sent when CI checks complete on a PR
+    "check_suite": {
+        "completed": WebhookEventType.CI_CHECK_COMPLETED,
     },
 }
 
@@ -345,6 +352,28 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             resource_id = ref
             resource_type = ref_type
 
+        # Issue: #3366 - CI Failure Reflex Integration
+        # Handle check_suite events to extract PR information for CI failure triggering
+        elif github_event == "check_suite":
+            check_suite = payload.get("check_suite", {})
+            conclusion = check_suite.get("conclusion", "")
+            head_branch = check_suite.get("head_branch", "")
+            # head_sha is extracted in metadata section below
+
+            # Extract PR number from check_suite.pull_requests array
+            pull_requests = check_suite.get("pull_requests", [])
+            if pull_requests and isinstance(pull_requests, list) and len(pull_requests) > 0:
+                first_pr = pull_requests[0]
+                if isinstance(first_pr, dict):
+                    pr_number = first_pr.get("number")
+                    resource_id = str(pr_number) if pr_number is not None else None
+                    resource_url = first_pr.get("url", "")
+
+            resource_type = "check_suite"
+            title = f"CI Check Suite: {conclusion} on {head_branch}"
+            description = f"Check suite completed with conclusion: {conclusion}"
+            url = check_suite.get("url", "")
+
         # Build metadata
         metadata: Dict[str, Any] = {
             "github_event": github_event,
@@ -362,6 +391,21 @@ class GitHubWebhookHandler(BaseWebhookHandler):
                 actor_name,
                 review_source,
             )
+
+        # Issue: #3366 - CI Failure Reflex Integration
+        # Add CI-specific metadata for check_suite events
+        if github_event == "check_suite":
+            check_suite = payload.get("check_suite", {})
+            metadata["ci_conclusion"] = check_suite.get("conclusion", "")
+            metadata["ci_head_branch"] = check_suite.get("head_branch", "")
+            metadata["ci_head_sha"] = check_suite.get("head_sha", "")
+            metadata["ci_app_name"] = check_suite.get("app", {}).get("name", "")
+            # Store PR numbers for dedup and multi-PR handling
+            pull_requests = check_suite.get("pull_requests", [])
+            metadata["ci_pr_numbers"] = [
+                pr.get("number") for pr in pull_requests
+                if isinstance(pr, dict) and pr.get("number") is not None
+            ]
 
         # Create normalized event
         event = WebhookEvent(
