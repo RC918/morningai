@@ -23,9 +23,34 @@ Features:
 import os
 import sys
 import warnings
-from typing import Optional, Literal
+from typing import Optional, Literal, Tuple
 from pydantic import Field, field_validator, model_validator, ConfigDict, SecretStr
 from pydantic_settings import BaseSettings
+
+
+# =============================================================================
+# Provider Configuration - Single Source of Truth
+# =============================================================================
+# This is the authoritative list of valid LLM providers in MorningAI.
+# All provider validation should reference this constant.
+#
+# To add a new provider:
+# 1. Add to VALID_PROVIDERS tuple below
+# 2. Add corresponding API key field in Settings class
+# 3. Update env.schema.yaml LLM_PROVIDER choices
+# 4. Update ROUTING_ALLOWED_PROVIDERS documentation
+# =============================================================================
+
+VALID_PROVIDERS: Tuple[str, ...] = ("openai", "gemini", "alicloud", "siliconflow")
+"""
+Tuple of valid LLM provider names.
+
+Used for:
+- LLM_PROVIDER validation (with 'auto' option)
+- ROUTING_ALLOWED_PROVIDERS parsing
+- Provider health endpoint validation
+- Routing engine provider filtering
+"""
 
 
 class Settings(BaseSettings):
