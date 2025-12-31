@@ -167,6 +167,46 @@ jobs:
             echo "Schema version validation passed"
           fi
       
+      - name: Audit pytest.ini testpaths (Discovery Gatekeeper)
+        working-directory: handoff/20250928/40_App/orchestrator
+        run: |
+          # Issue #3310: Discovery 全鏈路治理 - Layer 1 (CI Gatekeeper)
+          # Ensures all */tests/ directories are explicitly listed in pytest.ini testpaths
+          # This prevents "directory omission" - catching configuration gaps at CI level
+          
+          echo "=== Discovery Gatekeeper: Auditing pytest.ini testpaths ==="
+          
+          # Extract configured testpaths from pytest.ini
+          CONFIGURED_PATHS=$(grep -A 50 '^testpaths' pytest.ini | grep -E '^\s+\w' | tr -d ' ' | sort)
+          
+          # Find all actual test directories (excluding .git and __pycache__)
+          ACTUAL_PATHS=$(find . -type d -name 'tests' -not -path './.git/*' -not -path './__pycache__/*' -not -path './.pytest_cache/*' | sed 's|^\./||' | sort)
+          
+          echo "Configured testpaths in pytest.ini:"
+          echo "$CONFIGURED_PATHS"
+          echo ""
+          echo "Actual test directories found:"
+          echo "$ACTUAL_PATHS"
+          echo ""
+          
+          # Check for missing directories
+          MISSING=""
+          for path in $ACTUAL_PATHS; do
+            if ! echo "$CONFIGURED_PATHS" | grep -q "^${path}$"; then
+              MISSING="$MISSING $path"
+            fi
+          done
+          
+          if [ -n "$MISSING" ]; then
+            echo "::error::Discovery Gatekeeper FAILED: Test directories not in pytest.ini testpaths:$MISSING"
+            echo ""
+            echo "To fix: Add the missing directories to pytest.ini under [pytest] testpaths section."
+            echo "See: handoff/20250928/40_App/orchestrator/pytest.ini"
+            exit 1
+          fi
+          
+          echo "✓ Discovery Gatekeeper PASSED: All test directories are configured in pytest.ini"
+      
       - name: Validate test discovery (minimum test count)
         working-directory: handoff/20250928/40_App/orchestrator
         run: |
