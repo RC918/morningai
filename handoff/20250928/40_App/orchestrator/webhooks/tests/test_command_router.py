@@ -238,6 +238,14 @@ class TestCommandRouterNonCommandComments:
 
         assert trigger is None
 
+    def test_ignore_command_in_single_line_code_block(self, command_router):
+        """Test that commands in single-line fenced code blocks are ignored (Issue #3390)"""
+        event = create_comment_event("Here is a command: ```/morningai review```")
+        trigger = command_router.route(event)
+
+        # Single-line code blocks should also be stripped
+        assert trigger is None
+
     def test_command_outside_code_block_detected(self, command_router):
         """Test that commands outside code blocks are still detected (Issue #3390)"""
         event = create_comment_event(

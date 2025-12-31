@@ -30,7 +30,6 @@ Authorization:
 
 Code Block Handling (Issue #3390):
     - Commands inside fenced code blocks (```) are ignored
-    - Commands inside indented code blocks (4+ spaces) are ignored
     - This prevents false positives when users paste example commands
 """
 
@@ -113,8 +112,9 @@ class CommandRouter:
 
     # Fenced code block pattern - matches ``` with optional language tag
     # Issue #3390: Strip these before command matching to avoid false positives
+    # Supports both single-line (```code```) and multi-line fenced blocks
     FENCED_CODE_BLOCK_PATTERN = re.compile(
-        r"```[^\n]*\n.*?```",
+        r"```.*?```",
         re.DOTALL
     )
 
