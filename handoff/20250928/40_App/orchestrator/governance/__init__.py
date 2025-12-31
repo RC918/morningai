@@ -176,3 +176,20 @@ except ImportError as e:
     get_drift_detector = None
     observe_response = None
     reset_drift_detector = None
+
+try:
+    from .health_alerter import (
+        HealthAlertService,
+        get_health_alert_service,
+        reset_health_alert_service,
+    )
+    __all__.extend([
+        'HealthAlertService',
+        'get_health_alert_service',
+        'reset_health_alert_service',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import health_alerter: {e}")
+    HealthAlertService = None
+    get_health_alert_service = None
+    reset_health_alert_service = None
