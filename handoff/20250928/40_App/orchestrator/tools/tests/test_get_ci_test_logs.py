@@ -436,3 +436,159 @@ class TestGetCiTestLogs:
 
         # Should match "UNIT TESTS" because pattern matching is case-insensitive
         assert result["workflow_run_id"] == 55555
+
+    @patch('tools.github_api.settings')
+    def test_uses_configurable_job_patterns(self, mock_settings):
+        """Test that function uses configurable CI_JOB_PATTERNS (Issue #3378)."""
+        from tools.github_api import get_ci_test_logs
+
+        # Configure custom job patterns
+        mock_settings.ci_workflow_patterns = "test,ci"
+        mock_settings.ci_job_patterns = "backend&test,frontend"
+
+        mock_repo = MagicMock()
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 66666
+
+        # Create mock jobs
+        mock_job1 = MagicMock()
+        mock_job1.name = "Frontend Tests"  # Contains "frontend" - matches second pattern
+        mock_job1.logs_url = None
+
+        mock_job2 = MagicMock()
+        mock_job2.name = "Backend Test Suite"  # Contains "backend" AND "test" - matches first pattern
+        mock_job2.logs_url = None
+
+        mock_run.jobs.return_value = iter([mock_job1, mock_job2])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123",
+            trace_id="test-trace"
+        )
+
+        # Should match "Backend Test Suite" because it matches first pattern (backend&test)
+        assert result["job_name"] == "Backend Test Suite"
+
+    @patch('tools.github_api.settings')
+    def test_job_pattern_and_logic(self, mock_settings):
+        """Test that & in job patterns requires all parts to match (Issue #3378)."""
+        from tools.github_api import get_ci_test_logs
+
+        # Configure patterns with AND logic
+        mock_settings.ci_workflow_patterns = "test"
+        mock_settings.ci_job_patterns = "orchestrator&test"
+
+        mock_repo = MagicMock()
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 77777
+
+        # Create mock jobs
+        mock_job1 = MagicMock()
+        mock_job1.name = "API Tests"  # Contains "test" but not "orchestrator"
+        mock_job1.logs_url = None
+
+        mock_job2 = MagicMock()
+        mock_job2.name = "Orchestrator Tests"  # Contains both "orchestrator" AND "test"
+        mock_job2.logs_url = None
+
+        mock_run.jobs.return_value = iter([mock_job1, mock_job2])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123",
+            trace_id="test-trace"
+        )
+
+        # Should match "Orchestrator Tests" because it contains both "orchestrator" AND "test"
+        assert result["job_name"] == "Orchestrator Tests"
+
+    @patch('tools.github_api.settings')
+    def test_job_pattern_priority_order(self, mock_settings):
+        """Test that job patterns are tried in priority order (Issue #3378)."""
+        from tools.github_api import get_ci_test_logs
+
+        # Configure patterns with priority order
+        mock_settings.ci_workflow_patterns = "test"
+        mock_settings.ci_job_patterns = "orchestrator&test,test"
+
+        mock_repo = MagicMock()
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 88888
+
+        # Create mock jobs - note: generic test job comes first
+        mock_job1 = MagicMock()
+        mock_job1.name = "API Backend Tests"  # Contains "test" - matches second pattern
+        mock_job1.logs_url = None
+
+        mock_job2 = MagicMock()
+        mock_job2.name = "Orchestrator Tests"  # Contains "orchestrator" AND "test" - matches first pattern
+        mock_job2.logs_url = None
+
+        mock_run.jobs.return_value = iter([mock_job1, mock_job2])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123",
+            trace_id="test-trace"
+        )
+
+        # Should match "Orchestrator Tests" because first pattern has higher priority
+        assert result["job_name"] == "Orchestrator Tests"
+
+    @patch('tools.github_api.settings')
+    def test_job_pattern_fallback_to_defaults(self, mock_settings):
+        """Test that empty job patterns fall back to defaults (Issue #3378)."""
+        from tools.github_api import get_ci_test_logs
+
+        # Configure empty job patterns
+        mock_settings.ci_workflow_patterns = "test"
+        mock_settings.ci_job_patterns = ""
+
+        mock_repo = MagicMock()
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 99999
+
+        # Create mock jobs
+        mock_job1 = MagicMock()
+        mock_job1.name = "Lint Check"  # No match
+        mock_job1.logs_url = None
+
+        mock_job2 = MagicMock()
+        mock_job2.name = "Orchestrator Tests"  # Matches default "orchestrator&test"
+        mock_job2.logs_url = None
+
+        mock_run.jobs.return_value = iter([mock_job1, mock_job2])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123",
+            trace_id="test-trace"
+        )
+
+        # Should match "Orchestrator Tests" using default pattern
+        assert result["job_name"] == "Orchestrator Tests"
