@@ -13,6 +13,7 @@ from tools.file_reference_resolver import (
     ReferenceContext,
     ResolverResult,
     detect_language,
+    sanitize_path,
     extract_python_imports,
     extract_typescript_imports,
     extract_references_from_diff,
@@ -22,6 +23,7 @@ from tools.file_reference_resolver import (
     format_reference_context_for_prompt,
     DEFAULT_MAX_FILES,
     DEFAULT_MAX_LINES_PER_FILE,
+    ALLOWED_EXTENSIONS,
 )
 
 
@@ -470,3 +472,140 @@ class TestFileReferenceDataclasses:
         assert d["total_references_found"] == 1
         assert d["total_contexts_fetched"] == 1
         assert d["total_bytes"] == 100
+
+
+class TestPathSanitization:
+    """Tests for path sanitization security measures."""
+
+    def test_valid_python_path(self):
+        """Valid Python file paths should pass."""
+        assert sanitize_path("src/utils.py") == "src/utils.py"
+        assert sanitize_path("tests/test_main.py") == "tests/test_main.py"
+        assert sanitize_path("module/__init__.py") == "module/__init__.py"
+
+    def test_valid_typescript_path(self):
+        """Valid TypeScript/JavaScript file paths should pass."""
+        assert sanitize_path("src/App.tsx") == "src/App.tsx"
+        assert sanitize_path("components/Button.ts") == "components/Button.ts"
+        assert sanitize_path("utils/helpers.js") == "utils/helpers.js"
+
+    def test_reject_null_bytes(self):
+        """Paths with null bytes should be rejected (security)."""
+        assert sanitize_path("src/utils\x00.py") is None
+        assert sanitize_path("src\x00/utils.py") is None
+
+    def test_reject_backslashes(self):
+        """Paths with backslashes should be rejected (Windows-style bypass)."""
+        assert sanitize_path("src\\utils.py") is None
+        assert sanitize_path("..\\..\\etc\\passwd") is None
+
+    def test_reject_absolute_paths(self):
+        """Absolute paths should be rejected."""
+        assert sanitize_path("/etc/passwd") is None
+        assert sanitize_path("/home/user/.ssh/id_rsa") is None
+        assert sanitize_path("/src/utils.py") is None
+
+    def test_reject_path_traversal(self):
+        """Paths with .. traversal should be rejected."""
+        assert sanitize_path("../utils.py") is None
+        assert sanitize_path("../../etc/passwd") is None
+        assert sanitize_path("src/../../../etc/passwd") is None
+        assert sanitize_path("..") is None
+
+    def test_reject_hidden_files(self):
+        """Hidden files/directories should be rejected (except allowlisted)."""
+        assert sanitize_path(".env") is None
+        assert sanitize_path(".secrets/api_key") is None
+        assert sanitize_path("src/.hidden/file.py") is None
+
+    def test_allow_github_directory(self):
+        """Allow .github directory (common config)."""
+        assert sanitize_path(".github/workflows/ci.yml") == ".github/workflows/ci.yml"
+
+    def test_reject_disallowed_extensions(self):
+        """Files with disallowed extensions should be rejected."""
+        assert sanitize_path("secrets.key") is None
+        assert sanitize_path("database.sqlite") is None
+        assert sanitize_path("image.png") is None
+        assert sanitize_path("archive.zip") is None
+
+    def test_allowed_extensions_comprehensive(self):
+        """Verify all allowed extensions work."""
+        allowed_samples = [
+            "file.py", "file.pyi", "file.ts", "file.tsx",
+            "file.js", "file.jsx", "file.mjs", "file.cjs",
+            "file.json", "file.yaml", "file.yml", "file.toml",
+            "file.md", "file.txt", "file.rst",
+            "file.html", "file.css", "file.scss", "file.less",
+            "file.go", "file.rs", "file.java", "file.kt", "file.swift",
+            "file.c", "file.cpp", "file.h", "file.hpp",
+            "file.rb", "file.php", "file.sh", "file.bash",
+        ]
+        for path in allowed_samples:
+            result = sanitize_path(path)
+            assert result == path, f"Expected {path} to be allowed, got {result}"
+
+    def test_empty_path(self):
+        """Empty paths should be rejected."""
+        assert sanitize_path("") is None
+        assert sanitize_path(None) is None
+
+    def test_whitespace_handling(self):
+        """Whitespace should be stripped."""
+        assert sanitize_path("  src/utils.py  ") == "src/utils.py"
+
+
+class TestPathSanitizationIntegration:
+    """Tests for path sanitization integration in resolve_file_references."""
+
+    def test_unsafe_import_path_rejected(self):
+        """Unsafe import paths should be rejected during resolution."""
+        mock_repo = Mock()
+        mock_repo.get_contents.return_value = Mock(
+            decoded_content=b"# content"
+        )
+
+        # Diff with a malicious import trying path traversal
+        diff_content = '''diff --git a/src/main.py b/src/main.py
+--- a/src/main.py
++++ b/src/main.py
+@@ -1,3 +1,4 @@
++from ....secrets import api_key
+ def main():
+     pass
+'''
+
+        result = resolve_file_references(
+            repo=mock_repo,
+            diff_content=diff_content,
+            head_sha="abc123",
+        )
+
+        # The malicious import should be extracted but not fetched
+        # (sanitization should reject it)
+        assert result.total_contexts_fetched == 0
+
+    def test_safe_import_path_allowed(self):
+        """Safe import paths should be allowed during resolution."""
+        mock_repo = Mock()
+        mock_file = Mock()
+        mock_file.decoded_content = b"# Safe content\ndef helper():\n    pass"
+        mock_repo.get_contents.return_value = mock_file
+
+        diff_content = '''diff --git a/src/main.py b/src/main.py
+--- a/src/main.py
++++ b/src/main.py
+@@ -1,3 +1,4 @@
++from utils.helpers import helper
+ def main():
+     pass
+'''
+
+        result = resolve_file_references(
+            repo=mock_repo,
+            diff_content=diff_content,
+            head_sha="abc123",
+        )
+
+        # The safe import should be fetched
+        assert result.total_references_found == 1

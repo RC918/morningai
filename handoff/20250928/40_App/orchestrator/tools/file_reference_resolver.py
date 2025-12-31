@@ -104,6 +104,78 @@ DEFAULT_MAX_FILES = 5
 DEFAULT_MAX_LINES_PER_FILE = 100
 DEFAULT_MAX_TOTAL_BYTES = 50000  # 50KB total context budget
 
+# Allowed file extensions for fetching (security: limit to source code files)
+ALLOWED_EXTENSIONS = {
+    '.py', '.pyi',  # Python
+    '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',  # TypeScript/JavaScript
+    '.json', '.yaml', '.yml', '.toml',  # Config files
+    '.md', '.txt', '.rst',  # Documentation
+    '.html', '.css', '.scss', '.less',  # Web
+    '.go', '.rs', '.java', '.kt', '.swift',  # Other languages
+    '.c', '.cpp', '.h', '.hpp',  # C/C++
+    '.rb', '.php', '.sh', '.bash',  # Scripting
+}
+
+
+def sanitize_path(path: str) -> Optional[str]:
+    """
+    Sanitize a file path to prevent path traversal and unintended file access.
+
+    Security measures:
+    - Reject absolute paths
+    - Reject paths with .. traversal
+    - Reject paths with null bytes or backslashes
+    - Normalize path separators
+    - Validate file extension is in allowlist
+
+    Args:
+        path: File path to sanitize
+
+    Returns:
+        Sanitized path or None if path is rejected
+    """
+    if not path:
+        return None
+
+    # Reject null bytes (security)
+    if '\x00' in path:
+        logger.debug(f"[FileReferenceResolver] Rejected path with null byte: {repr(path)}")
+        return None
+
+    # Reject backslashes (Windows-style paths, potential bypass)
+    if '\\' in path:
+        logger.debug(f"[FileReferenceResolver] Rejected path with backslash: {path}")
+        return None
+
+    # Normalize the path
+    normalized = path.strip()
+
+    # Reject absolute paths
+    if normalized.startswith('/'):
+        logger.debug(f"[FileReferenceResolver] Rejected absolute path: {path}")
+        return None
+
+    # Reject paths that start with or contain .. traversal
+    parts = normalized.split('/')
+    if '..' in parts or any(p.startswith('..') for p in parts):
+        logger.debug(f"[FileReferenceResolver] Rejected path with traversal: {path}")
+        return None
+
+    # Reject hidden files/directories (starting with .)
+    if any(p.startswith('.') and p not in ('.', '..') for p in parts):
+        # Allow common config files like .github but reject others
+        if not any(p in ('.github', '.vscode', '.circleci') for p in parts):
+            logger.debug(f"[FileReferenceResolver] Rejected hidden path: {path}")
+            return None
+
+    # Validate file extension
+    ext = '.' + normalized.rsplit('.', 1)[-1].lower() if '.' in normalized else ''
+    if ext and ext not in ALLOWED_EXTENSIONS:
+        logger.debug(f"[FileReferenceResolver] Rejected disallowed extension: {path} (ext={ext})")
+        return None
+
+    return normalized
+
 
 def detect_language(filename: str) -> Language:
     """
@@ -341,6 +413,17 @@ def resolve_import_path(
             dots = len(import_path) - len(import_path.lstrip('.'))
             module_part = import_path.lstrip('.')
 
+            # Security: Reject imports that would traverse outside repo root
+            # dots-1 is how many directories we go up (1 dot = current dir, 2 dots = parent, etc.)
+            source_depth = len(source_dir.split('/')) if source_dir else 0
+            traversal_depth = dots - 1
+            if traversal_depth > source_depth:
+                logger.debug(
+                    f"[FileReferenceResolver] Rejected import traversing outside repo: {import_path}",
+                    extra={"source_file": source_file, "dots": dots, "source_depth": source_depth}
+                )
+                return None
+
             # Go up directories based on number of dots
             parts = source_dir.split('/')
             if dots > 1:
@@ -376,6 +459,16 @@ def resolve_import_path(
             elif import_path.startswith('../'):
                 parts = source_dir.split('/')
                 up_count = import_path.count('../')
+
+                # Security: Reject imports that would traverse outside repo root
+                source_depth = len(parts) if source_dir else 0
+                if up_count > source_depth:
+                    logger.debug(
+                        f"[FileReferenceResolver] Rejected import traversing outside repo: {import_path}",
+                        extra={"source_file": source_file, "up_count": up_count, "source_depth": source_depth}
+                    )
+                    return None
+
                 remaining = import_path.replace('../', '')
                 parts = parts[:-up_count] if len(parts) >= up_count else []
                 resolved = '/'.join(parts + [remaining]) if parts else remaining
@@ -506,12 +599,25 @@ def resolve_file_references(
                 ref.language,
             )
             if resolved and resolved not in seen_paths:
+                # Security: Sanitize the resolved path before fetching
+                sanitized = sanitize_path(resolved)
+                if not sanitized:
+                    logger.debug(
+                        f"[FileReferenceResolver] Skipped unsafe path: {resolved}",
+                        extra={
+                            "trace_id": trace_id,
+                            "import_path": ref.import_path,
+                            "source_file": ref.source_file,
+                        }
+                    )
+                    continue
+
                 # Skip if the resolved path is the same as a changed file
                 # (we already have that content in the diff)
-                if not any(resolved in r.source_file or r.source_file in resolved
+                if not any(sanitized in r.source_file or r.source_file in sanitized
                            for r in references):
-                    seen_paths.add(resolved)
-                    resolved_paths.append(resolved)
+                    seen_paths.add(sanitized)
+                    resolved_paths.append(sanitized)
 
         if not resolved_paths:
             logger.debug(
