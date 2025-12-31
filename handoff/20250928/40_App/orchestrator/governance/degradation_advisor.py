@@ -201,6 +201,11 @@ class DegradationAdvisor:
     It integrates with CanaryMetrics for health data and outputs
     [I-4-ADVISORY] log messages.
 
+    Floor Strategy (Hybrid):
+    - fixed: Always use fixed_floor_provider
+    - dynamic: Select healthiest provider as floor
+    - hybrid: Dynamic with stickiness and fallback (recommended)
+
     Safety Contract:
     - Phase A: dry_run=True always, no routing modifications
     - Notification failures are logged but never block
@@ -217,6 +222,10 @@ class DegradationAdvisor:
         degraded_threshold: float = 50.0,
         critical_threshold: float = 25.0,
         recovery_buffer: float = 10.0,
+        floor_strategy: str = "hybrid",
+        fixed_floor_provider: str = "openai",
+        floor_switch_margin: float = 10.0,
+        floor_min_requests: int = 10,
     ):
         """
         Initialize Degradation Advisor
@@ -230,11 +239,19 @@ class DegradationAdvisor:
             degraded_threshold: Health score threshold for DEGRADED
             critical_threshold: Health score threshold for CRITICAL
             recovery_buffer: Additional score required for recovery (hysteresis)
+            floor_strategy: Floor selection strategy ('fixed', 'dynamic', 'hybrid')
+            fixed_floor_provider: Provider to use for 'fixed' strategy or fallback
+            floor_switch_margin: Score margin required to switch floor in 'hybrid'
+            floor_min_requests: Minimum requests for floor candidate eligibility
         """
         self.enabled = enabled
         self.cooldown_minutes = cooldown_minutes
         self.min_requests = min_requests
         self.floor_provider_count = floor_provider_count
+        self.floor_strategy = floor_strategy
+        self.fixed_floor_provider = fixed_floor_provider
+        self.floor_switch_margin = floor_switch_margin
+        self.floor_min_requests = floor_min_requests
 
         self._policy = DegradationPolicy(
             healthy_threshold=healthy_threshold,
@@ -246,12 +263,13 @@ class DegradationAdvisor:
         # State tracking
         self._provider_states: Dict[str, DegradationSeverity] = {}
         self._last_advisory_time: Dict[str, datetime] = {}
+        self._current_floor_provider: Optional[str] = None
         self._lock = threading.Lock()
 
         logger.info(
             f"[DegradationAdvisor] Initialized: enabled={enabled}, "
             f"cooldown={cooldown_minutes}min, min_requests={min_requests}, "
-            f"floor_providers={floor_provider_count}"
+            f"floor_providers={floor_provider_count}, floor_strategy={floor_strategy}"
         )
 
     def compute_advisory(
@@ -419,6 +437,139 @@ class DegradationAdvisor:
             logger.warning(f"[DegradationAdvisor] Error computing all advisories: {e}")
             return {"enabled": True, "error": str(e)}
 
+    def _select_floor_provider(
+        self,
+        providers_health: Dict[str, Any],
+        allowed_providers: Optional[List[str]] = None
+    ) -> str:
+        """
+        Select floor provider based on configured strategy
+
+        EPIC I-4 Phase A: Hybrid Floor Strategy
+
+        Strategies:
+        - fixed: Always return fixed_floor_provider
+        - dynamic: Return healthiest provider with sufficient requests
+        - hybrid: Dynamic with stickiness and fallback
+
+        Args:
+            providers_health: Health data for all providers
+            allowed_providers: List of allowed providers (from ROUTING_ALLOWED_PROVIDERS)
+
+        Returns:
+            Selected floor provider name
+        """
+        # Fixed strategy: always use configured provider
+        if self.floor_strategy == "fixed":
+            logger.debug(
+                f"[I-4-ADVISORY] Floor strategy=fixed, using {self.fixed_floor_provider}"
+            )
+            return self.fixed_floor_provider
+
+        # Build list of eligible candidates
+        candidates: List[tuple] = []  # (provider, health_score, total_requests)
+        for provider, health_data in providers_health.items():
+            if not isinstance(health_data, dict):
+                continue
+
+            # Filter by allowed providers if specified
+            if allowed_providers and provider not in allowed_providers:
+                continue
+
+            health_score = health_data.get("health_score", 0)
+            metrics = health_data.get("metrics", {})
+            total_requests = metrics.get("total_requests", 0)
+
+            # Filter by minimum requests
+            if total_requests < self.floor_min_requests:
+                logger.debug(
+                    f"[I-4-ADVISORY] {provider} excluded from floor candidates: "
+                    f"requests={total_requests} < min={self.floor_min_requests}"
+                )
+                continue
+
+            candidates.append((provider, health_score, total_requests))
+
+        # No valid candidates: fallback to fixed provider
+        if not candidates:
+            logger.info(
+                f"[I-4-ADVISORY] No valid floor candidates, "
+                f"falling back to {self.fixed_floor_provider}"
+            )
+            return self.fixed_floor_provider
+
+        # Sort by health score (descending)
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        best_candidate, best_score, _ = candidates[0]
+
+        # Dynamic strategy: always pick healthiest
+        if self.floor_strategy == "dynamic":
+            with self._lock:
+                self._current_floor_provider = best_candidate
+            logger.debug(
+                f"[I-4-ADVISORY] Floor strategy=dynamic, "
+                f"selected {best_candidate} (score={best_score:.1f})"
+            )
+            return best_candidate
+
+        # Hybrid strategy: apply stickiness
+        with self._lock:
+            current_floor = self._current_floor_provider
+
+        # If no current floor, use best candidate
+        if current_floor is None:
+            with self._lock:
+                self._current_floor_provider = best_candidate
+            logger.info(
+                f"[I-4-ADVISORY] Floor strategy=hybrid, "
+                f"initial floor={best_candidate} (score={best_score:.1f})"
+            )
+            return best_candidate
+
+        # Find current floor's score
+        current_score = 0.0
+        for provider, score, _ in candidates:
+            if provider == current_floor:
+                current_score = score
+                break
+
+        # Check if current floor is still valid (in candidates)
+        current_in_candidates = any(p == current_floor for p, _, _ in candidates)
+
+        if not current_in_candidates:
+            # Current floor no longer valid, switch to best
+            with self._lock:
+                self._current_floor_provider = best_candidate
+            logger.info(
+                f"[I-4-ADVISORY] Floor strategy=hybrid, "
+                f"current floor {current_floor} no longer valid, "
+                f"switching to {best_candidate} (score={best_score:.1f})"
+            )
+            return best_candidate
+
+        # Apply stickiness: only switch if best exceeds current by margin
+        if best_candidate != current_floor:
+            if best_score > current_score + self.floor_switch_margin:
+                with self._lock:
+                    self._current_floor_provider = best_candidate
+                logger.info(
+                    f"[I-4-ADVISORY] Floor strategy=hybrid, "
+                    f"switching floor from {current_floor} (score={current_score:.1f}) "
+                    f"to {best_candidate} (score={best_score:.1f}, "
+                    f"margin={best_score - current_score:.1f} > {self.floor_switch_margin})"
+                )
+                return best_candidate
+            else:
+                logger.debug(
+                    f"[I-4-ADVISORY] Floor strategy=hybrid, "
+                    f"keeping {current_floor} (score={current_score:.1f}), "
+                    f"candidate {best_candidate} (score={best_score:.1f}) "
+                    f"margin={best_score - current_score:.1f} <= {self.floor_switch_margin}"
+                )
+                return current_floor
+
+        return current_floor
+
     def _apply_floor_protection(
         self,
         advisories: Dict[str, DegradationRecommendation],
@@ -427,10 +578,10 @@ class DegradationAdvisor:
         """
         Apply floor protection to ensure minimum usable providers
 
-        EPIC I-4 Phase A: Floor Provider Protection
+        EPIC I-4 Phase A: Floor Provider Protection with Hybrid Strategy
 
         This ensures at least floor_provider_count providers are not set to AVOID.
-        If all providers would be AVOID, the healthiest ones are capped at CRITICAL.
+        Uses the configured floor_strategy to select which providers to protect.
 
         Args:
             advisories: Computed advisories
@@ -441,6 +592,19 @@ class DegradationAdvisor:
         """
         if self.floor_provider_count <= 0:
             return advisories
+
+        # Get allowed providers from settings
+        allowed_providers: Optional[List[str]] = None
+        try:
+            from common.config.settings import settings
+            allowed_str = getattr(settings, "routing_allowed_providers", None)
+            if allowed_str:
+                allowed_providers = [p.strip() for p in allowed_str.split(",") if p.strip()]
+        except Exception:
+            pass
+
+        # Select floor provider using configured strategy
+        floor_provider = self._select_floor_provider(providers_health, allowed_providers)
 
         # Count providers that would be AVOID
         avoid_providers = [
@@ -454,7 +618,7 @@ class DegradationAdvisor:
             return advisories
 
         # Need to protect some providers
-        # Sort AVOID providers by health score (descending) to pick healthiest
+        # Prioritize the selected floor provider, then sort by health score
         avoid_with_health = []
         for provider in avoid_providers:
             health_data = providers_health.get(provider, {})
@@ -462,13 +626,15 @@ class DegradationAdvisor:
                 health_data.get("health_score", 0)
                 if isinstance(health_data, dict) else 0
             )
-            avoid_with_health.append((provider, health_score))
+            # Give floor provider priority by adding a large bonus
+            priority_score = health_score + (1000 if provider == floor_provider else 0)
+            avoid_with_health.append((provider, health_score, priority_score))
 
-        avoid_with_health.sort(key=lambda x: x[1], reverse=True)
+        avoid_with_health.sort(key=lambda x: x[2], reverse=True)
 
-        # Protect the healthiest AVOID providers
+        # Protect the prioritized AVOID providers
         protect_count = self.floor_provider_count - non_avoid_count
-        for i, (provider, health_score) in enumerate(avoid_with_health):
+        for i, (provider, health_score, _) in enumerate(avoid_with_health):
             if i >= protect_count:
                 break
 
@@ -486,10 +652,12 @@ class DegradationAdvisor:
                 previous_severity=original.previous_severity,
             )
 
+            is_selected_floor = provider == floor_provider
             logger.info(
                 f"[I-4-ADVISORY] Floor protection applied for {provider}. "
                 f"Health score {health_score:.1f} would trigger AVOID, "
-                f"but provider is protected as floor provider. "
+                f"but provider is protected as floor provider "
+                f"(strategy={self.floor_strategy}, selected={is_selected_floor}). "
                 f"Capped at CRITICAL (multiplier=0.25)."
             )
 
@@ -521,9 +689,17 @@ class DegradationAdvisor:
             if provider:
                 self._provider_states.pop(provider, None)
                 self._last_advisory_time.pop(provider, None)
+                if self._current_floor_provider == provider:
+                    self._current_floor_provider = None
             else:
                 self._provider_states.clear()
                 self._last_advisory_time.clear()
+                self._current_floor_provider = None
+
+    def get_current_floor_provider(self) -> Optional[str]:
+        """Get the current floor provider (for testing/debugging)"""
+        with self._lock:
+            return self._current_floor_provider
 
 
 # Global singleton for degradation advisor (EPIC I-4)
@@ -581,6 +757,18 @@ def get_degradation_advisor() -> Optional[DegradationAdvisor]:
                 ),
                 recovery_buffer=getattr(
                     settings, "degradation_recovery_buffer", 10.0
+                ),
+                floor_strategy=getattr(
+                    settings, "degradation_floor_strategy", "hybrid"
+                ),
+                fixed_floor_provider=getattr(
+                    settings, "degradation_fixed_floor_provider", "openai"
+                ),
+                floor_switch_margin=getattr(
+                    settings, "degradation_floor_switch_margin", 10.0
+                ),
+                floor_min_requests=getattr(
+                    settings, "degradation_floor_min_requests", 10
                 ),
             )
 

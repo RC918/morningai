@@ -795,6 +795,34 @@ class Settings(BaseSettings):
         description="Minimum providers to keep at non-AVOID status (floor protection) (EPIC I-4)"
     )
 
+    degradation_floor_strategy: str = Field(
+        default="hybrid",
+        alias="DEGRADATION_FLOOR_STRATEGY",
+        description="Floor provider selection strategy: 'fixed' (always use fixed provider), 'dynamic' (select healthiest), 'hybrid' (dynamic with stickiness and fallback) (EPIC I-4)"
+    )
+
+    degradation_fixed_floor_provider: str = Field(
+        default="openai",
+        alias="DEGRADATION_FIXED_FLOOR_PROVIDER",
+        description="Fixed floor provider for 'fixed' strategy or fallback for 'hybrid' strategy (EPIC I-4)"
+    )
+
+    degradation_floor_switch_margin: float = Field(
+        default=10.0,
+        ge=0.0,
+        le=50.0,
+        alias="DEGRADATION_FLOOR_SWITCH_MARGIN",
+        description="Score margin required to switch floor provider in 'hybrid' strategy (stickiness) (EPIC I-4)"
+    )
+
+    degradation_floor_min_requests: int = Field(
+        default=10,
+        ge=1,
+        le=1000,
+        alias="DEGRADATION_FLOOR_MIN_REQUESTS",
+        description="Minimum requests required for a provider to be considered as floor candidate (EPIC I-4)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",

@@ -407,7 +407,15 @@ class TestDegradationAdvisor:
         assert self.advisor.get_all_states() == {}
 
     def test_floor_protection(self):
-        """Test floor provider protection"""
+        """Test floor provider protection with dynamic strategy"""
+        # Use dynamic strategy to test health-score-based floor selection
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_provider_count=1,
+            floor_strategy="dynamic",
+            floor_min_requests=1,
+        )
+
         # Create advisories that would all be AVOID
         advisories = {}
         providers_health = {}
@@ -422,12 +430,15 @@ class TestDegradationAdvisor:
                 reason="test",
             )
             advisories[provider] = rec
-            providers_health[provider] = {"health_score": 10.0 if provider == "openai" else 15.0}
+            providers_health[provider] = {
+                "health_score": 10.0 if provider == "openai" else 15.0,
+                "metrics": {"total_requests": 100},
+            }
 
         # Apply floor protection
-        protected = self.advisor._apply_floor_protection(advisories, providers_health)
+        protected = advisor._apply_floor_protection(advisories, providers_health)
 
-        # gemini has higher health score, should be protected
+        # gemini has higher health score, should be protected (dynamic strategy)
         assert protected["gemini"].severity == DegradationSeverity.CRITICAL
         assert protected["gemini"].floor_protected is True
         assert protected["openai"].severity == DegradationSeverity.AVOID
@@ -513,3 +524,241 @@ class TestDegradationAdvisorIntegration:
         assert "gemini" in result["advisories"]
         assert result["advisories"]["openai"]["severity"] == "healthy"
         assert result["advisories"]["gemini"]["severity"] == "degraded"
+
+
+class TestHybridFloorStrategy:
+    """Tests for Hybrid Floor Strategy (EPIC I-4)"""
+
+    def setup_method(self):
+        """Set up test fixtures"""
+        reset_degradation_advisor()
+
+    def teardown_method(self):
+        """Clean up after tests"""
+        reset_degradation_advisor()
+
+    def test_fixed_strategy_always_returns_fixed_provider(self):
+        """Test fixed strategy always returns the configured provider"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="fixed",
+            fixed_floor_provider="openai",
+        )
+
+        providers_health = {
+            "openai": {"health_score": 50.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 90.0, "metrics": {"total_requests": 100}},
+        }
+
+        floor = advisor._select_floor_provider(providers_health)
+        assert floor == "openai"
+
+    def test_dynamic_strategy_selects_healthiest(self):
+        """Test dynamic strategy selects healthiest provider"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="dynamic",
+            floor_min_requests=10,
+        )
+
+        providers_health = {
+            "openai": {"health_score": 70.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 90.0, "metrics": {"total_requests": 100}},
+        }
+
+        floor = advisor._select_floor_provider(providers_health)
+        assert floor == "gemini"
+
+    def test_dynamic_strategy_excludes_low_request_providers(self):
+        """Test dynamic strategy excludes providers with insufficient requests"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="dynamic",
+            floor_min_requests=50,
+        )
+
+        providers_health = {
+            "openai": {"health_score": 70.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 90.0, "metrics": {"total_requests": 10}},
+        }
+
+        floor = advisor._select_floor_provider(providers_health)
+        assert floor == "openai"
+
+    def test_hybrid_strategy_initial_selection(self):
+        """Test hybrid strategy initial floor selection"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="hybrid",
+            floor_min_requests=10,
+            floor_switch_margin=10.0,
+        )
+
+        providers_health = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 85.0, "metrics": {"total_requests": 100}},
+        }
+
+        floor = advisor._select_floor_provider(providers_health)
+        assert floor == "gemini"
+        assert advisor.get_current_floor_provider() == "gemini"
+
+    def test_hybrid_strategy_stickiness(self):
+        """Test hybrid strategy stickiness (doesn't switch without margin)"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="hybrid",
+            floor_min_requests=10,
+            floor_switch_margin=10.0,
+        )
+
+        providers_health_initial = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 70.0, "metrics": {"total_requests": 100}},
+        }
+        floor1 = advisor._select_floor_provider(providers_health_initial)
+        assert floor1 == "openai"
+
+        providers_health_later = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 85.0, "metrics": {"total_requests": 100}},
+        }
+        floor2 = advisor._select_floor_provider(providers_health_later)
+        assert floor2 == "openai"
+
+    def test_hybrid_strategy_switches_with_margin(self):
+        """Test hybrid strategy switches when margin exceeded"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="hybrid",
+            floor_min_requests=10,
+            floor_switch_margin=10.0,
+        )
+
+        providers_health_initial = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 70.0, "metrics": {"total_requests": 100}},
+        }
+        floor1 = advisor._select_floor_provider(providers_health_initial)
+        assert floor1 == "openai"
+
+        providers_health_later = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 95.0, "metrics": {"total_requests": 100}},
+        }
+        floor2 = advisor._select_floor_provider(providers_health_later)
+        assert floor2 == "gemini"
+
+    def test_hybrid_strategy_fallback_when_no_candidates(self):
+        """Test hybrid strategy falls back when no valid candidates"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="hybrid",
+            fixed_floor_provider="openai",
+            floor_min_requests=100,
+        )
+
+        providers_health = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 10}},
+            "gemini": {"health_score": 90.0, "metrics": {"total_requests": 10}},
+        }
+
+        floor = advisor._select_floor_provider(providers_health)
+        assert floor == "openai"
+
+    def test_hybrid_strategy_respects_allowed_providers(self):
+        """Test hybrid strategy respects allowed providers filter"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="hybrid",
+            floor_min_requests=10,
+        )
+
+        providers_health = {
+            "openai": {"health_score": 70.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 90.0, "metrics": {"total_requests": 100}},
+            "alicloud": {"health_score": 95.0, "metrics": {"total_requests": 100}},
+        }
+
+        floor = advisor._select_floor_provider(
+            providers_health,
+            allowed_providers=["openai", "gemini"]
+        )
+        assert floor == "gemini"
+
+    def test_hybrid_strategy_current_floor_becomes_invalid(self):
+        """Test hybrid strategy switches when current floor becomes invalid"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="hybrid",
+            floor_min_requests=10,
+            floor_switch_margin=10.0,
+        )
+
+        providers_health_initial = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 70.0, "metrics": {"total_requests": 100}},
+        }
+        floor1 = advisor._select_floor_provider(providers_health_initial)
+        assert floor1 == "openai"
+
+        providers_health_later = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 5}},
+            "gemini": {"health_score": 70.0, "metrics": {"total_requests": 100}},
+        }
+        floor2 = advisor._select_floor_provider(providers_health_later)
+        assert floor2 == "gemini"
+
+    def test_floor_protection_prioritizes_selected_floor(self):
+        """Test floor protection prioritizes the selected floor provider"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="fixed",
+            fixed_floor_provider="openai",
+            floor_provider_count=1,
+        )
+
+        advisories = {
+            "openai": DegradationRecommendation(
+                provider="openai",
+                severity=DegradationSeverity.AVOID,
+                score_multiplier=0.0,
+                health_score=10.0,
+                health_score_normalized=0.1,
+                reason="test",
+            ),
+            "gemini": DegradationRecommendation(
+                provider="gemini",
+                severity=DegradationSeverity.AVOID,
+                score_multiplier=0.0,
+                health_score=15.0,
+                health_score_normalized=0.15,
+                reason="test",
+            ),
+        }
+
+        providers_health = {
+            "openai": {"health_score": 10.0, "metrics": {"total_requests": 100}},
+            "gemini": {"health_score": 15.0, "metrics": {"total_requests": 100}},
+        }
+
+        protected = advisor._apply_floor_protection(advisories, providers_health)
+        assert protected["openai"].severity == DegradationSeverity.CRITICAL
+        assert protected["openai"].floor_protected is True
+        assert protected["gemini"].severity == DegradationSeverity.AVOID
+
+    def test_clear_state_clears_floor_provider(self):
+        """Test clear_state also clears floor provider"""
+        advisor = DegradationAdvisor(
+            enabled=True,
+            floor_strategy="hybrid",
+        )
+
+        providers_health = {
+            "openai": {"health_score": 80.0, "metrics": {"total_requests": 100}},
+        }
+        advisor._select_floor_provider(providers_health)
+        assert advisor.get_current_floor_provider() == "openai"
+
+        advisor.clear_state()
+        assert advisor.get_current_floor_provider() is None
