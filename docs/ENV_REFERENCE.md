@@ -1179,6 +1179,7 @@ Comma-separated allowlist of providers for LLM routing (governance control)
 
 **Notes**:
 > Governance control for LLM provider selection.
+> Valid providers (defined in common/config/settings.py:VALID_PROVIDERS): openai, gemini, alicloud, siliconflow
 > When set, only listed providers will be used for task-based routing, regardless of API key availability. This provides explicit control over which providers are allowed in production.
 > Examples: - "" (empty, default): No restriction, use all providers with valid API keys - "alicloud": Only use AliCloud DashScope (recommended for China compliance) - "alicloud,openai": Allow both AliCloud and OpenAI - "openai,gemini": Allow OpenAI and Gemini only
 > Blueprint Alignment: Model Governance Framework v2 - policy-driven routing

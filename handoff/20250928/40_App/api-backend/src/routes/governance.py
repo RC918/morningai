@@ -1,7 +1,7 @@
 """Governance API - Agent reputation, cost tracking, and policy management"""
 from flask import Blueprint, jsonify, request
 from datetime import datetime, timezone
-from common.config.settings import settings
+from common.config.settings import settings, VALID_PROVIDERS
 
 
 def _utc_now_iso():
@@ -411,13 +411,15 @@ def get_single_provider_health(provider):
     Requires: JWT authentication
     """
     try:
-        # Validate provider name
-        valid_providers = ['openai', 'gemini', 'alicloud', 'siliconflow']
-        if provider not in valid_providers:
+        # Validate provider name using single source of truth
+        if provider not in VALID_PROVIDERS:
+            # Log only invalid provider name to minimize sensitive context in logs
+            # (valid providers are returned in API response for client guidance)
+            logger.warning("[ProviderHealth] Unknown provider requested: %s", provider)
             return jsonify({
                 'error': 'invalid_provider',
-                'message': f'Provider must be one of: {", ".join(valid_providers)}',
-                'valid_providers': valid_providers
+                'message': f'Provider must be one of: {", ".join(VALID_PROVIDERS)}',
+                'valid_providers': list(VALID_PROVIDERS)
             }), 400
 
         # Parse query parameters
