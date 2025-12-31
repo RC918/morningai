@@ -119,7 +119,8 @@ from agent_eval_integration import (
     AgentEvalIntegration
 )
 from common.config.settings import settings
-from llm_reviewer_adapter import generate_llm_review
+from llm_reviewer_adapter import generate_llm_review, sanitize_diff_content
+import hashlib
 from webhooks.review_follow_up import determine_hitl_requirement
 from tools.github_api import get_repo, get_pr_diff
 from exceptions import DatabaseException
@@ -4863,7 +4864,6 @@ def reviewer_node(state: AgentState) -> AgentState:
                             lockfile_only=lockfile_only
                         )
 
-                        import hashlib
                         diff_hash = hashlib.sha256(diff_content.encode()).hexdigest()[:16] if diff_content else "empty"
                         logger.info(
                             "[Reviewer] Retrieved PR diff for review",
@@ -4891,7 +4891,6 @@ def reviewer_node(state: AgentState) -> AgentState:
                         if diff_head_sha:
                             state["diff_head_sha"] = diff_head_sha
                         if diff_content:
-                            from llm_reviewer_adapter import sanitize_diff_content
                             sanitized_diff, redaction_count = sanitize_diff_content(diff_content)
                             if redaction_count > 0:
                                 logger.info("[Reviewer] Sanitized diff before state storage", extra={
