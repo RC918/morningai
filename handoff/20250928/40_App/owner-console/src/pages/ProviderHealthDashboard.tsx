@@ -272,55 +272,51 @@ const ProviderHealthDashboard = () => {
       {/* Summary Cards */}
       {healthData && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <SectionCard data-testid="avg-health-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--text-secondary)]">{t('providerHealth.averageHealth')}</p>
-                <p className={`text-2xl font-bold ${getHealthColor(healthData.summary.average_health)}`}>
-                  {healthData.summary.average_health.toFixed(1)}
-                </p>
-              </div>
-              <div className={`p-3 rounded-full ${getHealthBgColor(healthData.summary.average_health)} bg-opacity-10`}>
-                <Zap className={`w-6 h-6 ${getHealthColor(healthData.summary.average_health)}`} />
-              </div>
-            </div>
-          </SectionCard>
+                    <SectionCard title={t('providerHealth.averageHealth')} data-testid="avg-health-card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className={`text-2xl font-bold ${getHealthColor(healthData.summary.average_health)}`}>
+                            {healthData.summary.average_health.toFixed(1)}
+                          </p>
+                        </div>
+                        <div className={`p-3 rounded-full ${getHealthBgColor(healthData.summary.average_health)} bg-opacity-10`}>
+                          <Zap className={`w-6 h-6 ${getHealthColor(healthData.summary.average_health)}`} />
+                        </div>
+                      </div>
+                    </SectionCard>
 
-          <SectionCard data-testid="healthy-count-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--text-secondary)]">{t('providerHealth.healthyProviders')}</p>
-                <p className="text-2xl font-bold text-growth">{healthData.summary.healthy}</p>
-              </div>
-              <div className="p-3 rounded-full bg-growth bg-opacity-10">
-                <CheckCircle className="w-6 h-6 text-growth" />
-              </div>
-            </div>
-          </SectionCard>
+                    <SectionCard title={t('providerHealth.healthyProviders')} data-testid="healthy-count-card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-bold text-growth">{healthData.summary.healthy}</p>
+                        </div>
+                        <div className="p-3 rounded-full bg-growth bg-opacity-10">
+                          <CheckCircle className="w-6 h-6 text-growth" />
+                        </div>
+                      </div>
+                    </SectionCard>
 
-          <SectionCard data-testid="degraded-count-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--text-secondary)]">{t('providerHealth.degradedProviders')}</p>
-                <p className="text-2xl font-bold text-joy">{healthData.summary.degraded}</p>
-              </div>
-              <div className="p-3 rounded-full bg-joy bg-opacity-10">
-                <AlertTriangle className="w-6 h-6 text-joy" />
-              </div>
-            </div>
-          </SectionCard>
+                    <SectionCard title={t('providerHealth.degradedProviders')} data-testid="degraded-count-card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-bold text-joy">{healthData.summary.degraded}</p>
+                        </div>
+                        <div className="p-3 rounded-full bg-joy bg-opacity-10">
+                          <AlertTriangle className="w-6 h-6 text-joy" />
+                        </div>
+                      </div>
+                    </SectionCard>
 
-          <SectionCard data-testid="critical-count-card">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--text-secondary)]">{t('providerHealth.criticalProviders')}</p>
-                <p className="text-2xl font-bold text-energy">{healthData.summary.critical}</p>
-              </div>
-              <div className="p-3 rounded-full bg-energy bg-opacity-10">
-                <XCircle className="w-6 h-6 text-energy" />
-              </div>
-            </div>
-          </SectionCard>
+                    <SectionCard title={t('providerHealth.criticalProviders')} data-testid="critical-count-card">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-bold text-energy">{healthData.summary.critical}</p>
+                        </div>
+                        <div className="p-3 rounded-full bg-energy bg-opacity-10">
+                          <XCircle className="w-6 h-6 text-energy" />
+                        </div>
+                      </div>
+                    </SectionCard>
         </div>
       )}
 
@@ -350,19 +346,17 @@ const ProviderHealthDashboard = () => {
               if (!provider) return null
 
               return (
-                <SectionCard 
-                  key={providerName}
-                  data-testid={`provider-card-${providerName}`}
-                >
-                  <div className="space-y-4">
-                    {/* Provider Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {getHealthIcon(provider.health_score)}
-                        <h3 className="font-medium text-[var(--text-primary)] capitalize">
-                          {providerName}
-                        </h3>
-                      </div>
+                                <SectionCard 
+                                  key={providerName}
+                                  title={providerName}
+                                  data-testid={`provider-card-${providerName}`}
+                                >
+                                  <div className="space-y-4">
+                                    {/* Provider Header */}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-2">
+                                        {getHealthIcon(provider.health_score)}
+                                      </div>
                       <Badge className={getStatusColor(
                         provider.health_score >= 80 ? 'healthy' : 
                         provider.health_score >= 60 ? 'degraded' : 'critical'
