@@ -154,3 +154,103 @@ class TestSettingsIntegration:
         for key in ['LOG_LEVEL', 'GUNICORN_LOG_LEVEL']:
             if key in os.environ:
                 del os.environ[key]
+
+
+class TestProviderHealthWeightsValidator:
+    """Test soft validation for provider health scoring weights (EPIC I-2, #3352)."""
+
+    def teardown_method(self):
+        """Clean up environment variables after each test."""
+        for key in [
+            'PROVIDER_HEALTH_LATENCY_WEIGHT',
+            'PROVIDER_HEALTH_ERROR_WEIGHT',
+            'PROVIDER_HEALTH_DRIFT_WEIGHT'
+        ]:
+            if key in os.environ:
+                del os.environ[key]
+
+    def test_default_weights_sum_to_one(self):
+        """Test that default weights (0.3, 0.4, 0.3) sum to 1.0."""
+        settings = reload_settings()
+        weights_sum = (
+            settings.provider_health_latency_weight +
+            settings.provider_health_error_weight +
+            settings.provider_health_drift_weight
+        )
+        assert abs(weights_sum - 1.0) < 0.001
+
+    def test_valid_weights_no_normalization(self):
+        """Test that valid weights summing to 1.0 are not modified."""
+        os.environ['PROVIDER_HEALTH_LATENCY_WEIGHT'] = '0.2'
+        os.environ['PROVIDER_HEALTH_ERROR_WEIGHT'] = '0.5'
+        os.environ['PROVIDER_HEALTH_DRIFT_WEIGHT'] = '0.3'
+        settings = reload_settings()
+
+        assert abs(settings.provider_health_latency_weight - 0.2) < 0.001
+        assert abs(settings.provider_health_error_weight - 0.5) < 0.001
+        assert abs(settings.provider_health_drift_weight - 0.3) < 0.001
+
+    def test_weights_exceeding_one_normalized(self):
+        """Test that weights summing to >1.0 are normalized with warning."""
+        os.environ['PROVIDER_HEALTH_LATENCY_WEIGHT'] = '0.5'
+        os.environ['PROVIDER_HEALTH_ERROR_WEIGHT'] = '0.5'
+        os.environ['PROVIDER_HEALTH_DRIFT_WEIGHT'] = '0.5'
+
+        with pytest.warns(UserWarning, match="weights sum to 1.500"):
+            settings = reload_settings()
+
+        weights_sum = (
+            settings.provider_health_latency_weight +
+            settings.provider_health_error_weight +
+            settings.provider_health_drift_weight
+        )
+        assert abs(weights_sum - 1.0) < 0.001
+        assert abs(settings.provider_health_latency_weight - 1 / 3) < 0.001
+
+    def test_weights_below_one_normalized(self):
+        """Test that weights summing to <1.0 are normalized with warning."""
+        os.environ['PROVIDER_HEALTH_LATENCY_WEIGHT'] = '0.1'
+        os.environ['PROVIDER_HEALTH_ERROR_WEIGHT'] = '0.2'
+        os.environ['PROVIDER_HEALTH_DRIFT_WEIGHT'] = '0.2'
+
+        with pytest.warns(UserWarning, match="weights sum to 0.500"):
+            settings = reload_settings()
+
+        weights_sum = (
+            settings.provider_health_latency_weight +
+            settings.provider_health_error_weight +
+            settings.provider_health_drift_weight
+        )
+        assert abs(weights_sum - 1.0) < 0.001
+        assert abs(settings.provider_health_latency_weight - 0.2) < 0.001
+        assert abs(settings.provider_health_error_weight - 0.4) < 0.001
+        assert abs(settings.provider_health_drift_weight - 0.4) < 0.001
+
+    def test_normalization_preserves_relative_weights(self):
+        """Test that normalization preserves relative weight proportions."""
+        os.environ['PROVIDER_HEALTH_LATENCY_WEIGHT'] = '0.4'
+        os.environ['PROVIDER_HEALTH_ERROR_WEIGHT'] = '0.8'
+        os.environ['PROVIDER_HEALTH_DRIFT_WEIGHT'] = '0.8'
+
+        with pytest.warns(UserWarning, match="weights sum to 2.000"):
+            settings = reload_settings()
+
+        latency = settings.provider_health_latency_weight
+        error = settings.provider_health_error_weight
+        drift = settings.provider_health_drift_weight
+
+        assert abs(error / latency - 2.0) < 0.001
+        assert abs(drift / latency - 2.0) < 0.001
+
+    def test_zero_weights_no_division_error(self):
+        """Test that all-zero weights don't cause division by zero."""
+        os.environ['PROVIDER_HEALTH_LATENCY_WEIGHT'] = '0.0'
+        os.environ['PROVIDER_HEALTH_ERROR_WEIGHT'] = '0.0'
+        os.environ['PROVIDER_HEALTH_DRIFT_WEIGHT'] = '0.0'
+
+        with pytest.warns(UserWarning, match="weights sum to 0.000"):
+            settings = reload_settings()
+
+        assert settings.provider_health_latency_weight == 0.0
+        assert settings.provider_health_error_weight == 0.0
+        assert settings.provider_health_drift_weight == 0.0
