@@ -29,7 +29,7 @@ import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, Tuple
 
 from github import Github, GithubException
 
@@ -110,7 +110,9 @@ class CommandAuthorizer:
         self._github_token = github_token or _get_github_token()
         self._allowlist = allowlist or set()
         # Cache: {(repo, username): (permission_level, timestamp)}
-        self._permission_cache: Dict[tuple, tuple] = {}
+        self._permission_cache: Dict[Tuple[str, str], Tuple[PermissionLevel, float]] = {}
+        # Reuse Github client for performance (avoid creating new client per API call)
+        self._gh: Optional[Github] = Github(self._github_token) if self._github_token else None
 
         logger.info(
             "[CommandAuthorizer] Initialized",
@@ -243,9 +245,9 @@ class CommandAuthorizer:
         Returns:
             PermissionLevel (UNKNOWN on API error)
         """
-        if not self._github_token:
+        if not self._gh:
             logger.error(
-                "[CommandAuthorizer] No GitHub token configured",
+                "[CommandAuthorizer] No GitHub client configured (missing token)",
                 extra={
                     "operation": "auth_no_token",
                     "repo": repo,
@@ -255,8 +257,7 @@ class CommandAuthorizer:
             return PermissionLevel.UNKNOWN
 
         try:
-            gh = Github(self._github_token)
-            repository = gh.get_repo(repo)
+            repository = self._gh.get_repo(repo)
 
             # Get collaborator permission level
             # This returns: admin, maintain, write, triage, read, or none
@@ -304,7 +305,7 @@ class CommandAuthorizer:
         self,
         repo: str,
         username: str,
-    ) -> Optional[tuple]:
+    ) -> Optional[Tuple[PermissionLevel, float]]:
         """Get cached permission if not expired"""
         cache_key = (repo, username)
         cached = self._permission_cache.get(cache_key)
