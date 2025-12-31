@@ -812,6 +812,133 @@ class TestParseDiffAllowedLines:
         assert 3 in file_info["allowed_lines"]
         assert not file_info["patch_truncated"]
 
+    # === Characterization Tests for #3083 Refactoring ===
+    # These tests capture current behavior before refactoring to reduce complexity
+
+    def test_addition_lines_tracking_strict_mode(self):
+        """Strict Mode: addition_lines should only contain '+' lines, not context"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,3 +1,5 @@
+ context_line1
++added_line2
++added_line3
+ context_line4
+ context_line5
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        file_info = result["test.py"]
+        # allowed_lines includes both context and additions
+        assert file_info["allowed_lines"] == {1, 2, 3, 4, 5}
+        # addition_lines only includes '+' lines (Strict Mode)
+        assert file_info["addition_lines"] == {2, 3}
+
+    def test_addition_lines_empty_for_context_only(self):
+        """Strict Mode: addition_lines should be empty if diff has only context"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,3 +1,3 @@
+ line1
+ line2
+ line3
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        file_info = result["test.py"]
+        assert file_info["allowed_lines"] == {1, 2, 3}
+        assert file_info["addition_lines"] == set()
+
+    def test_dev_null_variant_slash_prefix(self):
+        """/dev/null variant with leading slash should also be handled"""
+        diff = """--- a/deleted.py
++++ /dev/null
+@@ -1,3 +0,0 @@
+-line1
+-line2
+-line3
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        # Deleted file should not be in result
+        assert "deleted.py" not in result
+        assert "/dev/null" not in result
+
+    def test_multiple_files_with_mixed_truncation(self):
+        """Multiple files where only some are truncated"""
+        diff = """--- a/file1.py
++++ b/file1.py
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+ line3
+--- a/file2.py
++++ b/file2.py
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+... (truncated 50 more lines)
+--- a/file3.py
++++ b/file3.py
+@@ -1,2 +1,3 @@
+ line1
++new_line2
+ line3
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "file1.py" in result
+        assert "file2.py" in result
+        assert "file3.py" in result
+        assert result["file1.py"]["patch_truncated"] is False
+        assert result["file2.py"]["patch_truncated"] is True
+        assert result["file3.py"]["patch_truncated"] is False
+
+    def test_hunk_with_only_deletions(self):
+        """Hunk with only deletions should have empty addition_lines"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,5 +1,2 @@
+ line1
+-deleted2
+-deleted3
+-deleted4
+ line5
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        file_info = result["test.py"]
+        # Only context lines remain (line1 and line5 become lines 1 and 2)
+        assert file_info["allowed_lines"] == {1, 2}
+        assert file_info["addition_lines"] == set()
+
+    def test_mixed_additions_deletions_context(self):
+        """Complex diff with mixed additions, deletions, and context"""
+        diff = """--- a/test.py
++++ b/test.py
+@@ -1,6 +1,7 @@
+ context1
+-deleted2
++added2
++added3
+ context4
+-deleted5
+ context6
++added7
+"""
+        result = parse_diff_allowed_lines(diff)
+
+        assert "test.py" in result
+        file_info = result["test.py"]
+        # New file lines: context1(1), added2(2), added3(3), context4(4), context6(5), added7(6)
+        # Note: deleted lines don't appear in new file
+        assert file_info["allowed_lines"] == {1, 2, 3, 4, 5, 6}
+        # Only '+' lines are additions
+        assert file_info["addition_lines"] == {2, 3, 6}
+
 
 class TestIsLineInDiff:
     """Tests for is_line_in_diff function (Phase B-3.1)"""
