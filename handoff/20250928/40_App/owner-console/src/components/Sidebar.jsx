@@ -9,7 +9,8 @@ import {
   Users,
   Activity,
   BarChart3,
-  Beaker
+  Beaker,
+  HeartPulse
 } from 'lucide-react'
 import { Tooltip, TooltipTrigger } from '@morningai/shared-ui'
 import { OwnerTooltipContent } from './OwnerTooltipContent'
@@ -63,16 +64,21 @@ const Sidebar = ({ user, collapsed = false, isMobileDrawer = false }) => {
       icon: Users,
       labelKey: 'nav.tenants'
     },
-    {
-      path: '/monitoring',
-      icon: Activity,
-      labelKey: 'nav.monitoring'
-    },
-    {
-      path: '/ux-metrics',
-      icon: BarChart3,
-      labelKey: 'nav.uxMetrics'
-    },
+        {
+          path: '/monitoring',
+          icon: Activity,
+          labelKey: 'nav.monitoring'
+        },
+        {
+          path: '/provider-health',
+          icon: HeartPulse,
+          labelKey: 'nav.providerHealth'
+        },
+        {
+          path: '/ux-metrics',
+          icon: BarChart3,
+          labelKey: 'nav.uxMetrics'
+        },
     {
       path: '/failure-experiments',
       icon: Beaker,
