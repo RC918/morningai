@@ -119,7 +119,8 @@ from agent_eval_integration import (
     AgentEvalIntegration
 )
 from common.config.settings import settings
-from llm_reviewer_adapter import generate_llm_review
+from llm_reviewer_adapter import generate_llm_review, sanitize_diff_content
+import hashlib
 from webhooks.review_follow_up import determine_hitl_requirement
 from tools.github_api import get_repo, get_pr_diff
 from exceptions import DatabaseException
@@ -4819,6 +4820,107 @@ def reviewer_node(state: AgentState) -> AgentState:
         state["review_severity"] = ci_review["review_severity"]
         state["review_comments"] = ci_review["review_comments"]
 
+        # Issue #3379: Fetch PR diff BEFORE LLM check to support CI-only mode discovery audit
+        # Previously, diff was only fetched inside `if use_llm:` block, causing discovery audit
+        # to be skipped in CI-only mode (governance blind spot).
+        # Now diff is fetched independently, enabling discovery audit for both modes.
+        diff_data = None
+        diff_content = None
+        diff_truncated = False
+        diff_files = None
+        diff_head_sha = None
+        github_repo = None
+
+        if pr_number:
+            try:
+                github_repo = get_repo()
+                if github_repo:
+                    diff_data = get_pr_diff(github_repo, pr_number, trace_id=trace_id)
+                    if diff_data and not diff_data.get("error"):
+                        diff_content = diff_data.get("diff", "")
+                        diff_truncated = diff_data.get("truncated", False)
+                        diff_files = diff_data.get("files", [])
+                        diff_head_sha = diff_data.get("head_sha")
+                        truncation_info = diff_data.get("truncation_info", {})
+                        github_total_files = truncation_info.get("original_file_count", 0)
+                        included_file_count = truncation_info.get("included_file_count", 0)
+                        original_line_count = truncation_info.get("original_line_count", 0)
+                        included_line_count = truncation_info.get("included_line_count", 0)
+                        ignored_file_count = truncation_info.get("ignored_file_count", 0)
+                        lockfile_only = (
+                            included_file_count == 0 and
+                            ignored_file_count > 0 and
+                            github_total_files == ignored_file_count
+                        )
+
+                        metrics.record_diff_fetch(
+                            trace_id=trace_id,
+                            success=True,
+                            truncated=diff_truncated,
+                            original_files=github_total_files,
+                            included_files=included_file_count,
+                            original_lines=original_line_count,
+                            included_lines=included_line_count,
+                            lockfile_only=lockfile_only
+                        )
+
+                        diff_hash = hashlib.sha256(diff_content.encode()).hexdigest()[:16] if diff_content else "empty"
+                        logger.info(
+                            "[Reviewer] Retrieved PR diff for review",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "pr_number": pr_number,
+                                "diff_file_count": len(diff_files) if diff_files else 0,
+                                "diff_truncated": diff_truncated,
+                                "github_total_files": github_total_files,
+                                "diff_content_hash": diff_hash,
+                                "diff_content_length": len(diff_content) if diff_content else 0,
+                                "diff_head_sha": diff_head_sha[:8] if diff_head_sha else None,
+                                "truncation_info": {
+                                    "original_file_count": github_total_files,
+                                    "included_file_count": included_file_count,
+                                    "original_line_count": original_line_count,
+                                    "included_line_count": included_line_count,
+                                    "ignored_file_count": ignored_file_count
+                                }
+                            }
+                        )
+
+                        # Store diff in state for discovery audit (both LLM and CI-only modes)
+                        if diff_head_sha:
+                            state["diff_head_sha"] = diff_head_sha
+                        if diff_content:
+                            sanitized_diff, redaction_count = sanitize_diff_content(diff_content)
+                            if redaction_count > 0:
+                                logger.info("[Reviewer] Sanitized diff before state storage", extra={
+                                    "operation": "reviewer",
+                                    "trace_id": trace_id,
+                                    "redaction_count": redaction_count
+                                })
+                            state["diff_content"] = sanitized_diff
+                            state["diff_truncated"] = diff_truncated
+                    else:
+                        metrics.record_diff_fetch(trace_id=trace_id, success=False)
+                        logger.warning(
+                            f"[Reviewer] Failed to get PR diff: {diff_data.get('error', 'unknown') if diff_data else 'no data'}",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "pr_number": pr_number
+                            }
+                        )
+            except Exception as diff_error:
+                metrics.record_diff_fetch(trace_id=trace_id, success=False)
+                logger.warning(
+                    f"[Reviewer] Error fetching PR diff: {diff_error}",
+                    extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id,
+                        "error": str(diff_error)
+                    }
+                )
+
         use_llm = getattr(settings, 'use_llm_reviewer', False)
 
         if use_llm:
@@ -4831,159 +4933,50 @@ def reviewer_node(state: AgentState) -> AgentState:
                 goal = state.get("goal", "")
                 repo = state.get("repo", "")
 
-                # EPIC B Phase B-1: Fetch PR diff for diff-aware review
-                diff_data = None
-                diff_content = None
-                diff_truncated = False
-                diff_files = None
-                # Phase 2: Capture head_sha for line drift protection
-                diff_head_sha = None
-
-                if pr_number:
+                # Early PR state check (best-effort optimization for LLM mode)
+                # Skip LLM review for closed/merged PRs to avoid posting reviews
+                if pr_number and github_repo:
                     try:
-                        github_repo = get_repo()
-                        if github_repo:
-                            # Early PR state check (best-effort optimization)
-                            # Isolated try/except to avoid affecting diff fetch on API errors
-                            try:
-                                pr_obj = github_repo.get_pull(pr_number)
-                                pr_state = getattr(pr_obj, 'state', None)
-                                pr_merged = getattr(pr_obj, 'merged', None)
-                                if pr_state != "open" or pr_merged is True:
-                                    logger.info(
-                                        "[Reviewer] Skipping LLM review for non-open/merged PR",
-                                        extra={
-                                            "operation": "reviewer",
-                                            "trace_id": trace_id,
-                                            "pr_number": pr_number,
-                                            "pr_state": pr_state,
-                                            "pr_merged": pr_merged,
-                                            "reason": "pr_not_open_or_merged",
-                                            "outcome": "skipped"
-                                        }
-                                    )
-                                    state["review_skipped_reason"] = "pr_closed_or_merged"
-                                    state["messages"] = state.get("messages", []) + [
-                                        AIMessage(content=f"Review skipped: PR #{pr_number} is {pr_state} (merged={pr_merged})")
-                                    ]
-                                    latency_ms = (time.time() - start_time) * 1000
-                                    metrics.record_node_complete("reviewer", trace_id, success=True, latency_ms=latency_ms)
-                                    return state
-                            except Exception as pr_state_error:
-                                # Fail open: if PR state check fails, continue with LLM review
-                                # Publisher node's PR state guard will still catch merged/closed PRs
-                                logger.warning(
-                                    "[Reviewer] PR state check failed, continuing with review",
-                                    extra={
-                                        "operation": "reviewer",
-                                        "trace_id": trace_id,
-                                        "pr_number": pr_number,
-                                        "error": str(pr_state_error),
-                                        "pr_state_check": "error",
-                                        "outcome": "continue"
-                                    }
-                                )
-                            diff_data = get_pr_diff(github_repo, pr_number, trace_id=trace_id)
-                            if diff_data and not diff_data.get("error"):
-                                diff_content = diff_data.get("diff", "")
-                                diff_truncated = diff_data.get("truncated", False)
-                                diff_files = diff_data.get("files", [])
-                                # Phase 2: Capture head_sha for line drift protection
-                                diff_head_sha = diff_data.get("head_sha")
-                                # Phase B-B: Extract truncation_info for metrics
-                                truncation_info = diff_data.get("truncation_info", {})
-                                github_total_files = truncation_info.get(
-                                    "original_file_count", 0
-                                )
-                                included_file_count = truncation_info.get(
-                                    "included_file_count", 0
-                                )
-                                original_line_count = truncation_info.get(
-                                    "original_line_count", 0
-                                )
-                                included_line_count = truncation_info.get(
-                                    "included_line_count", 0
-                                )
-                                # Phase B-B C-lite: Check if lockfile-only PR
-                                # Fix: More robust detection to avoid false positives
-                                # when included_file_count == 0 due to truncation
-                                ignored_file_count = truncation_info.get(
-                                    "ignored_file_count", 0
-                                )
-                                lockfile_only = (
-                                    included_file_count == 0 and
-                                    ignored_file_count > 0 and
-                                    github_total_files == ignored_file_count
-                                )
-
-                                # Phase B-B C-lite: Record diff fetch metrics
-                                metrics.record_diff_fetch(
-                                    trace_id=trace_id,
-                                    success=True,
-                                    truncated=diff_truncated,
-                                    original_files=github_total_files,
-                                    included_files=included_file_count,
-                                    original_lines=original_line_count,
-                                    included_lines=included_line_count,
-                                    lockfile_only=lockfile_only
-                                )
-
-                                # DIAGNOSTIC: Log diff_content hash and truncation_info for 422 debugging
-                                import hashlib
-                                diff_hash = hashlib.sha256(diff_content.encode()).hexdigest()[:16] if diff_content else "empty"
-                                logger.info(
-                                    "[Reviewer] Retrieved PR diff for review",
-                                    extra={
-                                        "operation": "reviewer",
-                                        "trace_id": trace_id,
-                                        "pr_number": pr_number,
-                                        "diff_file_count": len(diff_files) if diff_files else 0,
-                                        "diff_truncated": diff_truncated,
-                                        # Phase B-B Telemetry: GitHub's total changed files
-                                        "github_total_files": github_total_files,
-                                        # DIAGNOSTIC: diff_content hash for 422 debugging
-                                        "diff_content_hash": diff_hash,
-                                        "diff_content_length": len(diff_content) if diff_content else 0,
-                                        "diff_head_sha": diff_head_sha[:8] if diff_head_sha else None,
-                                        # DIAGNOSTIC: truncation_info for 422 debugging
-                                        "truncation_info": {
-                                            "original_file_count": github_total_files,
-                                            "included_file_count": included_file_count,
-                                            "original_line_count": original_line_count,
-                                            "included_line_count": included_line_count,
-                                            "ignored_file_count": ignored_file_count
-                                        }
-                                    }
-                                )
-                            else:
-                                # Phase B-B C-lite: Record diff fetch failure
-                                metrics.record_diff_fetch(
-                                    trace_id=trace_id,
-                                    success=False
-                                )
-                                logger.warning(
-                                    f"[Reviewer] Failed to get PR diff: {diff_data.get('error', 'unknown')}",
-                                    extra={
-                                        "operation": "reviewer",
-                                        "trace_id": trace_id,
-                                        "pr_number": pr_number
-                                    }
-                                )
-                    except Exception as diff_error:
-                        # Phase B-B C-lite: Record diff fetch failure on exception
-                        metrics.record_diff_fetch(
-                            trace_id=trace_id,
-                            success=False
-                        )
+                        pr_obj = github_repo.get_pull(pr_number)
+                        pr_state = getattr(pr_obj, 'state', None)
+                        pr_merged = getattr(pr_obj, 'merged', None)
+                        if pr_state != "open" or pr_merged is True:
+                            logger.info(
+                                "[Reviewer] Skipping LLM review for non-open/merged PR",
+                                extra={
+                                    "operation": "reviewer",
+                                    "trace_id": trace_id,
+                                    "pr_number": pr_number,
+                                    "pr_state": pr_state,
+                                    "pr_merged": pr_merged,
+                                    "reason": "pr_not_open_or_merged",
+                                    "outcome": "skipped"
+                                }
+                            )
+                            state["review_skipped_reason"] = "pr_closed_or_merged"
+                            state["messages"] = state.get("messages", []) + [
+                                AIMessage(content=f"Review skipped: PR #{pr_number} is {pr_state} (merged={pr_merged})")
+                            ]
+                            latency_ms = (time.time() - start_time) * 1000
+                            metrics.record_node_complete("reviewer", trace_id, success=True, latency_ms=latency_ms)
+                            return state
+                    except Exception as pr_state_error:
+                        # Fail open: if PR state check fails, continue with LLM review
+                        # Publisher node's PR state guard will still catch merged/closed PRs
                         logger.warning(
-                            f"[Reviewer] Error fetching PR diff: {diff_error}",
+                            "[Reviewer] PR state check failed, continuing with review",
                             extra={
                                 "operation": "reviewer",
                                 "trace_id": trace_id,
-                                "error": str(diff_error)
+                                "pr_number": pr_number,
+                                "error": str(pr_state_error),
+                                "pr_state_check": "error",
+                                "outcome": "continue"
                             }
                         )
 
+                # Issue #3379: diff_content is now fetched BEFORE this block
+                # and stored in state, so LLM review can use it directly
                 llm_review = generate_llm_review(
                     pr_number=pr_number,
                     pr_url=pr_url,
@@ -5076,46 +5069,9 @@ def reviewer_node(state: AgentState) -> AgentState:
                             llm_api_failed=False
                         )
 
-                    # Phase 2: Store head_sha for commit pinning (UNCONDITIONALLY)
-                    # This is critical for preventing 422 errors from race conditions
-                    # where new commits are pushed between diff generation and review posting.
-                    # Previously this was inside `if diff_content:` which caused commit_id: null
-                    # when diff_content was empty (e.g., lockfile-only PRs, truncation edge cases).
-                    # Fix: Store head_sha regardless of diff_content to ensure commit pinning works.
-                    # TRUST: diff_head_sha originates from GitHub API (pr.head.sha via get_pr_diff)
-                    if diff_head_sha:
-                        state["diff_head_sha"] = diff_head_sha
-                        logger.info("[Reviewer] Stored diff_head_sha for commit pinning", extra={
-                            "operation": "reviewer",
-                            "trace_id": trace_id,
-                            "diff_head_sha": diff_head_sha[:8] if diff_head_sha else None
-                        })
-                    else:
-                        # Warning: commit pinning will be disabled without diff_head_sha
-                        # This can happen if GitHub API returns null or get_pr_diff fails
-                        logger.warning("[Reviewer] diff_head_sha is null - commit pinning disabled", extra={
-                            "operation": "reviewer",
-                            "trace_id": trace_id,
-                            "pr_number": pr_number,
-                            "has_diff_content": bool(diff_content)
-                        })
-
-                    # Phase B-3.1: Store diff content in state for publisher validation
-                    # This allows publisher_node to validate inline comments against
-                    # the actual diff that was shown to the LLM
-                    # Phase 3: Sanitize diff before storing to prevent secrets exposure
-                    # via LangGraph checkpointer persistence (PostgreSQL/Redis)
-                    if diff_content:
-                        from llm_reviewer_adapter import sanitize_diff_content
-                        sanitized_diff, redaction_count = sanitize_diff_content(diff_content)
-                        if redaction_count > 0:
-                            logger.info("[Reviewer] Sanitized diff before state storage", extra={
-                                "operation": "reviewer",
-                                "trace_id": trace_id,
-                                "redaction_count": redaction_count
-                            })
-                        state["diff_content"] = sanitized_diff
-                        state["diff_truncated"] = diff_truncated
+                    # Issue #3379: diff_head_sha and diff_content are now stored BEFORE
+                    # the LLM block (outside `if use_llm:`), enabling discovery audit
+                    # for both LLM and CI-only modes. No need to store them again here.
 
                     llm_decision = llm_review.get("decision", "needs_changes")
                     llm_summary = llm_review.get("summary", "")
