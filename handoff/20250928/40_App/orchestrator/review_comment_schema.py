@@ -54,8 +54,17 @@ CISeverity = Literal["low", "medium", "high", "critical"]
 # Comment categories
 # Major Brain Upgrade (2025-12): Added "contract" for API/schema/timestamp changes
 # Removed "style" from prompt (but kept here for backward compatibility)
+#
+# DEPRECATION NOTICE (Issue #3081):
+# The "style" category is DEPRECATED and will be removed in a future version.
+# - Deprecated since: 2025-12 (Major Brain Upgrade)
+# - Reason: Senior Architect policy prohibits style nitpicks to reduce noise
+# - Migration: Use "maintainability" for code quality issues, or "other" for misc
+# - Timeline: Will be removed after 2026-Q1 (3-month deprecation window)
+# When "style" is used, a deprecation warning will be logged.
 CommentCategory = Literal[
-    "style", "bug", "performance", "security",
+    "style",  # DEPRECATED - see notice above
+    "bug", "performance", "security",
     "maintainability", "documentation", "contract", "other"
 ]
 
@@ -157,6 +166,10 @@ def _normalize_category(category: Optional[str]) -> CommentCategory:
 
     Returns:
         Valid category or "other"
+
+    Note:
+        The "style" category is DEPRECATED (Issue #3081). A warning will be
+        logged when it is used. Migrate to "maintainability" or "other".
     """
     if not category:
         return DEFAULT_CATEGORY
@@ -165,9 +178,18 @@ def _normalize_category(category: Optional[str]) -> CommentCategory:
 
     # Use module-level VALID_CATEGORIES frozenset for efficient lookup
     if category_lower in VALID_CATEGORIES:
+        # Issue #3081: Log deprecation warning for 'style' category
+        if category_lower == "style":
+            logger.warning(
+                "[ReviewCommentSchema] DEPRECATION WARNING: 'style' category is "
+                "deprecated and will be removed after 2026-Q1. "
+                "Use 'maintainability' for code quality issues or 'other' for misc. "
+                "See Issue #3081 for migration guidance."
+            )
         return category_lower  # type: ignore
 
     # Map common variations
+    # Note: Aliases that map to "style" will also trigger deprecation warning
     category_aliases = {
         "formatting": "style",
         "code style": "style",
@@ -184,7 +206,19 @@ def _normalize_category(category: Optional[str]) -> CommentCategory:
         "comment": "documentation",
     }
 
-    return category_aliases.get(category_lower, DEFAULT_CATEGORY)
+    result = category_aliases.get(category_lower, DEFAULT_CATEGORY)
+
+    # Issue #3081: Log deprecation warning for aliases that map to 'style'
+    if result == "style":
+        logger.warning(
+            "[ReviewCommentSchema] DEPRECATION WARNING: '%s' maps to 'style' category "
+            "which is deprecated and will be removed after 2026-Q1. "
+            "Use 'maintainability' for code quality issues or 'other' for misc. "
+            "See Issue #3081 for migration guidance.",
+            category_lower
+        )
+
+    return result
 
 
 def _parse_line_number(value: Any) -> Optional[int]:

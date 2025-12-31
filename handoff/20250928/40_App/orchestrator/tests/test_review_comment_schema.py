@@ -129,6 +129,27 @@ class TestNormalizeCategory:
     def test_none_defaults_to_other(self):
         assert _normalize_category(None) == "other"
 
+    def test_style_category_logs_deprecation_warning(self, caplog):
+        """Issue #3081: 'style' category should log deprecation warning"""
+        import logging
+        with caplog.at_level(logging.WARNING):
+            result = _normalize_category("style")
+        assert result == "style"
+        assert "DEPRECATION WARNING" in caplog.text
+        assert "style" in caplog.text
+        assert "#3081" in caplog.text
+
+    def test_style_alias_logs_deprecation_warning(self, caplog):
+        """Issue #3081: Aliases mapping to 'style' should log deprecation warning"""
+        import logging
+        for alias in ["formatting", "code style", "lint"]:
+            caplog.clear()
+            with caplog.at_level(logging.WARNING):
+                result = _normalize_category(alias)
+            assert result == "style"
+            assert "DEPRECATION WARNING" in caplog.text
+            assert "#3081" in caplog.text
+
 
 class TestValidateLineRange:
     """Tests for line range validation"""
