@@ -1850,3 +1850,302 @@ def cleanup_stale_orchestrator_branches(max_age_days: int = 7, dry_run: bool = T
         print(f"[Cleanup] Error during cleanup: {e}")
 
     return results
+
+
+def get_ci_test_logs(
+    repo,
+    pr_number: int,
+    head_sha: Optional[str] = None,
+    trace_id: str = "unknown"
+) -> dict:
+    """
+    Fetch CI test collection logs from GitHub Actions for a PR.
+
+    Issue #3369: Wire DiscoveryAuditor into Reviewer Agent workflow
+    This function fetches the test job logs from the latest workflow run
+    for the PR's head commit, enabling DiscoveryAuditor to cross-reference
+    PR diff with CI logs to detect silent test failures.
+
+    Args:
+        repo: GitHub repository object
+        pr_number: Pull request number
+        head_sha: Head commit SHA (optional, will fetch from PR if not provided)
+        trace_id: Trace ID for logging
+
+    Returns:
+        dict with keys:
+        - logs: str - The CI test logs content
+        - success: bool - Whether logs were successfully fetched
+        - error: str - Error message if failed
+        - workflow_run_id: int - The workflow run ID (if found)
+        - job_name: str - The job name that was fetched
+        - ci_status: str - The CI status (success, failure, pending, etc.)
+    """
+    result = {
+        "logs": "",
+        "success": False,
+        "error": "",
+        "workflow_run_id": None,
+        "job_name": "",
+        "ci_status": "unknown"
+    }
+
+    if repo is None:
+        result["error"] = "Repository not available"
+        logger.warning(
+            "[GitHub] get_ci_test_logs: Repository not available",
+            extra={"operation": "get_ci_test_logs", "trace_id": trace_id}
+        )
+        return result
+
+    try:
+        # Get PR to find head SHA if not provided
+        if not head_sha:
+            try:
+                pr = repo.get_pull(pr_number)
+                head_sha = pr.head.sha
+            except Exception as pr_error:
+                result["error"] = f"Failed to get PR: {pr_error}"
+                logger.warning(
+                    f"[GitHub] get_ci_test_logs: Failed to get PR #{pr_number}",
+                    extra={
+                        "operation": "get_ci_test_logs",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "error": str(pr_error)
+                    }
+                )
+                return result
+
+        # Get workflow runs for the head SHA
+        # Look for the test workflow (test-apps.yml)
+        # Filter by event='pull_request' to ensure we get PR-triggered workflows
+        # (not push-triggered ones that may have different test coverage)
+        try:
+            workflow_runs = repo.get_workflow_runs(
+                head_sha=head_sha,
+                event='pull_request'
+            )
+
+            # Find the most recent completed test workflow run
+            # Single-pass optimization: capture fallback while searching for preferred match
+            test_run = None
+            fallback_run = None
+            for run in workflow_runs:
+                if fallback_run is None:
+                    fallback_run = run  # Capture the first (most recent) run as fallback
+
+                # Look for test-apps workflow or any workflow with "test" in the name
+                workflow_name = run.name.lower() if run.name else ""
+                if "test" in workflow_name or "ci" in workflow_name:
+                    test_run = run
+                    break  # Found preferred test run, stop searching
+
+            if not test_run:
+                test_run = fallback_run  # Use fallback if no preferred match found
+
+            if not test_run:
+                result["error"] = "No workflow runs found for this commit"
+                result["ci_status"] = "pending"
+                logger.info(
+                    "[GitHub] get_ci_test_logs: No workflow runs found",
+                    extra={
+                        "operation": "get_ci_test_logs",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "head_sha": head_sha[:12] if head_sha else None
+                    }
+                )
+                return result
+
+            result["workflow_run_id"] = test_run.id
+            result["ci_status"] = test_run.conclusion or test_run.status
+
+            # Check if workflow is still running
+            if test_run.status != "completed":
+                result["error"] = f"Workflow still {test_run.status}"
+                result["ci_status"] = test_run.status
+                logger.info(
+                    f"[GitHub] get_ci_test_logs: Workflow still {test_run.status}",
+                    extra={
+                        "operation": "get_ci_test_logs",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "workflow_run_id": test_run.id,
+                        "workflow_status": test_run.status
+                    }
+                )
+                return result
+
+            # Get jobs from the workflow run
+            jobs = test_run.jobs()
+
+            # Single-pass optimization: find best job match with fallbacks
+            test_job = None
+            generic_test_job = None
+            first_job = None
+
+            # Find the test job (look for "Orchestrator Tests" or similar)
+            for job in jobs:
+                if first_job is None:
+                    first_job = job  # Capture first job as ultimate fallback
+
+                job_name_lower = job.name.lower() if job.name else ""
+                if "orchestrator" in job_name_lower and "test" in job_name_lower:
+                    test_job = job
+                    break  # Most specific match found, exit loop
+                elif "test" in job_name_lower:
+                    generic_test_job = job  # Store generic test job, keep searching
+
+            # Use best available match
+            if test_job is None:
+                test_job = generic_test_job or first_job
+
+            if not test_job:
+                result["error"] = "No jobs found in workflow run"
+                logger.warning(
+                    "[GitHub] get_ci_test_logs: No jobs found in workflow run",
+                    extra={
+                        "operation": "get_ci_test_logs",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "workflow_run_id": test_run.id
+                    }
+                )
+                return result
+
+            result["job_name"] = test_job.name
+
+            # Get logs URL and download
+            # PyGithub provides logs_url as a property (not a method)
+            # The URL points to the GitHub API endpoint for downloading job logs
+            import requests
+
+            logs_url = test_job.logs_url
+            if logs_url:
+                # Download logs using GitHub token
+                headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+                response = requests.get(logs_url, headers=headers, timeout=30)
+
+                if response.status_code == 200:
+                    # Issue #3369: Handle both plaintext and zip responses
+                    # GitHub Actions logs_url may return zip files in some cases
+                    # Check Content-Type header and signature bytes to detect format
+                    content_type = response.headers.get("Content-Type", "")
+                    is_zip = False
+                    logs_text = None
+
+                    # Check for zip signature (PK\x03\x04) in first 4 bytes
+                    if response.content[:4] == b'PK\x03\x04':
+                        is_zip = True
+                    elif "application/zip" in content_type.lower():
+                        is_zip = True
+
+                    if is_zip:
+                        # Extract text from zip file
+                        try:
+                            import zipfile
+                            import io
+                            zip_buffer = io.BytesIO(response.content)
+                            with zipfile.ZipFile(zip_buffer, 'r') as zf:
+                                # Concatenate all text files in stable order
+                                text_parts = []
+                                for name in sorted(zf.namelist()):
+                                    try:
+                                        content = zf.read(name).decode('utf-8', errors='replace')
+                                        text_parts.append(content)
+                                    except Exception:
+                                        pass  # Skip non-text files
+                                logs_text = "\n".join(text_parts)
+                            logger.info(
+                                "[GitHub] get_ci_test_logs: Extracted logs from zip",
+                                extra={
+                                    "operation": "get_ci_test_logs",
+                                    "trace_id": trace_id,
+                                    "pr_number": pr_number,
+                                    "format": "zip",
+                                    "logs_length": len(logs_text) if logs_text else 0
+                                }
+                            )
+                        except Exception as zip_error:
+                            # Fail-open: if zip extraction fails, skip audit
+                            result["error"] = f"Failed to extract zip logs: {zip_error}"
+                            result["format"] = "zip_extraction_failed"
+                            logger.warning(
+                                "[GitHub] get_ci_test_logs: Zip extraction failed",
+                                extra={
+                                    "operation": "get_ci_test_logs",
+                                    "trace_id": trace_id,
+                                    "pr_number": pr_number,
+                                    "error": str(zip_error)
+                                }
+                            )
+                    else:
+                        # Plaintext response
+                        logs_text = response.text
+
+                    if logs_text:
+                        result["logs"] = logs_text
+                        result["success"] = True
+                        result["format"] = "zip" if is_zip else "plaintext"
+                        logger.info(
+                            "[GitHub] get_ci_test_logs: Successfully fetched CI logs",
+                            extra={
+                                "operation": "get_ci_test_logs",
+                                "trace_id": trace_id,
+                                "pr_number": pr_number,
+                                "workflow_run_id": test_run.id,
+                                "job_name": test_job.name,
+                                "logs_length": len(logs_text),
+                                "format": result["format"]
+                            }
+                        )
+                else:
+                    result["error"] = f"Failed to download logs: HTTP {response.status_code}"
+                    logger.warning(
+                        "[GitHub] get_ci_test_logs: Failed to download logs",
+                        extra={
+                            "operation": "get_ci_test_logs",
+                            "trace_id": trace_id,
+                            "pr_number": pr_number,
+                            "http_status": response.status_code
+                        }
+                    )
+            else:
+                result["error"] = "No logs URL available"
+                logger.warning(
+                    "[GitHub] get_ci_test_logs: No logs URL available",
+                    extra={
+                        "operation": "get_ci_test_logs",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "job_name": test_job.name
+                    }
+                )
+
+        except Exception as workflow_error:
+            result["error"] = f"Failed to get workflow runs: {workflow_error}"
+            logger.warning(
+                "[GitHub] get_ci_test_logs: Failed to get workflow runs",
+                extra={
+                    "operation": "get_ci_test_logs",
+                    "trace_id": trace_id,
+                    "pr_number": pr_number,
+                    "error": str(workflow_error)
+                }
+            )
+
+    except Exception as e:
+        result["error"] = f"Unexpected error: {e}"
+        logger.error(
+            "[GitHub] get_ci_test_logs: Unexpected error",
+            extra={
+                "operation": "get_ci_test_logs",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "error": str(e)
+            },
+            exc_info=True
+        )
+
+    return result

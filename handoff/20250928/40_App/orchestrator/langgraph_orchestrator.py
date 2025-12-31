@@ -5173,6 +5173,126 @@ def reviewer_node(state: AgentState) -> AgentState:
             AIMessage(content=f"Code review completed ({review_method}). Quality score: {state['code_quality_score']}, Severity: {state['review_severity']}")
         ]
 
+        # Issue #3369: Discovery Audit - Layer 2 of Discovery 全鏈路治理
+        # Cross-reference PR diff with CI logs to detect silent test failures
+        # This runs AFTER the LLM review but BEFORE building ReviewOutcome
+        # State versioning: Use discovery_audit_v1 sub-object for forward compatibility
+        if pr_number and state.get("diff_content"):
+            try:
+                from core.routing.discovery_auditor import (
+                    DiscoveryAuditor,
+                    AuditStatus
+                )
+                from tools.github_api import get_ci_test_logs, get_repo
+
+                # Get repo object deterministically (avoid fragile dir() check)
+                # Reuse github_repo if available in local scope, otherwise fetch fresh
+                discovery_repo = None
+                try:
+                    discovery_repo = github_repo
+                except NameError:
+                    discovery_repo = get_repo()
+
+                # Fetch CI test logs
+                ci_logs_result = get_ci_test_logs(
+                    repo=discovery_repo,
+                    pr_number=pr_number,
+                    head_sha=state.get("diff_head_sha"),
+                    trace_id=trace_id
+                )
+
+                if ci_logs_result.get("success"):
+                    # Run discovery audit
+                    auditor = DiscoveryAuditor()
+                    audit_result = auditor.audit_test_execution(
+                        pr_diff=state["diff_content"],
+                        ci_logs=ci_logs_result["logs"]
+                    )
+
+                    # Store results in versioned sub-object for forward compatibility
+                    state["discovery_audit_v1"] = {
+                        "status": audit_result.status.value,
+                        "missing_tests": audit_result.missing_tests,
+                        "new_test_files": audit_result.new_test_files,
+                        "executed_tests": list(audit_result.executed_tests),
+                        "message": audit_result.message
+                    }
+
+                    logger.info(
+                        f"[Reviewer] Discovery audit completed: {audit_result.status.value}",
+                        extra={
+                            "operation": "reviewer",
+                            "trace_id": trace_id,
+                            "discovery_audit_status": audit_result.status.value,
+                            "missing_tests_count": len(audit_result.missing_tests),
+                            "new_test_files_count": len(audit_result.new_test_files)
+                        }
+                    )
+
+                    # If silent failures detected, add to review comments and escalate severity
+                    if audit_result.status == AuditStatus.REQUEST_CHANGES:
+                        # Add discovery audit comment to review_comments
+                        discovery_comment = {
+                            "severity": "high",
+                            "message": audit_result.to_review_comment() or audit_result.message,
+                            "source": "discovery_auditor",
+                            "missing_tests": audit_result.missing_tests
+                        }
+                        state["review_comments"] = state.get("review_comments", []) + [discovery_comment]
+
+                        # Escalate severity to at least "high" if silent failures detected
+                        current_severity = state.get("review_severity", "none")
+                        if current_severity in ("none", "low", "medium"):
+                            state["review_severity"] = "high"
+
+                        # Update review_result to indicate discovery audit failure
+                        if state.get("review_result"):
+                            state["review_result"]["discovery_audit"] = "request_changes"
+                            state["review_result"]["discovery_audit_message"] = audit_result.message
+
+                        logger.warning(
+                            "[Reviewer] Discovery audit detected silent test failures",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "missing_tests": audit_result.missing_tests,
+                                "severity_escalated_to": "high"
+                            }
+                        )
+
+                else:
+                    # CI logs not available (workflow still running or error)
+                    # Fail-open: skip discovery audit but log the reason
+                    logger.info(
+                        f"[Reviewer] Discovery audit skipped: {ci_logs_result.get('error', 'unknown')}",
+                        extra={
+                            "operation": "reviewer",
+                            "trace_id": trace_id,
+                            "ci_status": ci_logs_result.get("ci_status"),
+                            "skip_reason": ci_logs_result.get("error")
+                        }
+                    )
+                    state["discovery_audit_v1"] = {
+                        "status": "skipped",
+                        "skip_reason": ci_logs_result.get("error"),
+                        "ci_status": ci_logs_result.get("ci_status")
+                    }
+
+            except Exception as discovery_error:
+                # Discovery audit failed - fail-open, don't block the review
+                logger.warning(
+                    f"[Reviewer] Discovery audit failed (fail-open): {discovery_error}",
+                    extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id,
+                        "error": str(discovery_error)
+                    }
+                )
+                state["discovery_audit_v1"] = {
+                    "status": "error",
+                    "error": str(discovery_error)
+                }
+
         # EPIC B-6: Build ReviewOutcome for Router interface (Issue #3130)
         # This provides a stable interface for Router to make routing decisions
         try:
