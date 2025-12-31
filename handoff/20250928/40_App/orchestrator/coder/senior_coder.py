@@ -119,6 +119,9 @@ REVIEW_RESULT_SCHEMA_VERSION = 1
 # Maximum files SeniorCoder can plan for (aligned with GeneralCoder limit)
 MAX_FILES_IN_PLAN = 5
 
+# Maximum characters to include from a file in the context prompt
+MAX_FILE_CONTEXT_LENGTH = 2000
+
 
 @dataclass
 class TaskAnalysis:
@@ -533,8 +536,8 @@ class SeniorCoder(BaseAgent):
             path = f.get("path", "unknown")
             content = f.get("content", "")
             # Truncate very long files
-            if len(content) > 2000:
-                content = content[:2000] + "\n... (truncated)"
+            if len(content) > MAX_FILE_CONTEXT_LENGTH:
+                content = content[:MAX_FILE_CONTEXT_LENGTH] + "\n... (truncated)"
             context_parts.append(f"--- File: {path} ---\n```\n{content}\n```\n")
         return "\n".join(context_parts)
 
@@ -566,9 +569,9 @@ class SeniorCoder(BaseAgent):
         abort_reason = data.get("abort_reason")
         if complexity == TaskComplexity.COMPLEX:
             logger.info(f"[SENIOR_CODER_PLAN_COMPLEX] {abort_reason or task_analysis.reasoning}")
-            return ArchitectureSpec(
-                task_analysis=task_analysis,
-                abort_reason=abort_reason or "Task complexity too high"
+            return ArchitectureSpec.create_abort(
+                reason=abort_reason or "Task complexity too high",
+                reasoning=task_analysis.reasoning
             )
 
         # Parse architecture
