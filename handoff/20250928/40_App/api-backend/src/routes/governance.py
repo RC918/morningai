@@ -413,11 +413,9 @@ def get_single_provider_health(provider):
     try:
         # Validate provider name using single source of truth
         if provider not in VALID_PROVIDERS:
-            logger.warning(
-                "[ProviderHealth] Unknown provider requested: %s (valid: %s)",
-                provider,
-                ", ".join(VALID_PROVIDERS)
-            )
+            # Log only invalid provider name to minimize sensitive context in logs
+            # (valid providers are returned in API response for client guidance)
+            logger.warning("[ProviderHealth] Unknown provider requested: %s", provider)
             return jsonify({
                 'error': 'invalid_provider',
                 'message': f'Provider must be one of: {", ".join(VALID_PROVIDERS)}',
