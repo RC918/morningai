@@ -1,4 +1,12 @@
 {
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "unauthorized": "Unauthorized access"
+  },
+  "nav": {
+    "providerHealth": "Provider Health"
+  },
   "dashboard": {
     "2fa": {
       "prompt": {
@@ -18,6 +26,35 @@
   "monitoring": {
     "noHealthData": "No system health data available",
     "noMetricsData": "No metrics available yet"
+  },
+  "providerHealth": {
+    "title": "Provider Health Dashboard",
+    "subtitle": "Monitor real-time health status of LLM providers",
+    "metricsUnavailable": "Provider health metrics are not available",
+    "serviceUnavailable": "Health monitoring service is temporarily unavailable",
+    "loadError": "Failed to load provider health data",
+    "windowSelect": "Select time window",
+    "minutes": "min",
+    "autoRefreshOn": "Auto-refresh: ON",
+    "autoRefreshOff": "Auto-refresh: OFF",
+    "averageHealth": "Average Health",
+    "healthyProviders": "Healthy",
+    "degradedProviders": "Degraded",
+    "criticalProviders": "Critical",
+    "providerDetails": "Provider Details",
+    "viewInGrafana": "View in Grafana",
+    "healthScore": "Health Score",
+    "latency": "Latency",
+    "errorRate": "Error Rate",
+    "driftRate": "Drift Rate",
+    "requests": "Requests",
+    "lastUpdated": "Last updated",
+    "noProviders": "No provider data available",
+    "noProvidersHint": "Provider metrics will appear once LLM requests are made",
+    "alertingStatus": "Alerting Status",
+    "alertingEnabled": "Alerting",
+    "windowLabel": "Window",
+    "lastRefresh": "Last refresh"
   },
   "settings": {
     "2fa": {
