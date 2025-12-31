@@ -2,11 +2,13 @@
 Tests for CommandRouter - PR Comment Command Router
 
 Issue: #3224 - PR Comment Command Router
+Issue: #3388 - Add authorization/permission gating for /morningai commands
 Blueprint: Track C interface standardization
 """
 
 import pytest
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 from ..bot_protocol import WebhookEvent, WebhookEventType, WebhookSource
 from ..command_router import (
@@ -14,12 +16,31 @@ from ..command_router import (
     CommandTrigger,
     CommandType,
 )
+from ..command_authorizer import (
+    CommandAuthorizer,
+    AuthorizationResult,
+    PermissionLevel,
+    AUTHORIZED_PERMISSION_LEVELS,
+)
 
 
 @pytest.fixture
 def command_router():
-    """Create a CommandRouter instance for testing"""
-    return CommandRouter()
+    """Create a CommandRouter instance for testing (authorization disabled)"""
+    return CommandRouter(enable_authorization=False)
+
+
+@pytest.fixture
+def command_router_with_auth():
+    """Create a CommandRouter instance with authorization enabled"""
+    # Use a mock authorizer for testing
+    mock_authorizer = MagicMock(spec=CommandAuthorizer)
+    mock_authorizer.authorize.return_value = AuthorizationResult(
+        authorized=True,
+        reason="Test authorized",
+        permission_level=PermissionLevel.WRITE,
+    )
+    return CommandRouter(authorizer=mock_authorizer, enable_authorization=True)
 
 
 def create_comment_event(
@@ -491,3 +512,263 @@ class TestCommandRouterEdgeCases:
 
         assert trigger is not None
         assert trigger.command_type == CommandType.REVIEW
+
+# === Authorization Tests (Issue #3388) ===
+
+
+class TestCommandAuthorizer:
+    """Tests for CommandAuthorizer - permission gating for commands"""
+
+    def test_authorizer_allowlist_bypass(self):
+        """Test that allowlisted users bypass permission checks"""
+        authorizer = CommandAuthorizer(allowlist={"admin-user"})
+        result = authorizer.authorize("test-owner/test-repo", "admin-user")
+
+        assert result.authorized is True
+        assert "allowlist" in result.reason.lower()
+
+    def test_authorizer_permission_levels(self):
+        """Test that only admin/maintain/write are authorized"""
+        assert PermissionLevel.ADMIN in AUTHORIZED_PERMISSION_LEVELS
+        assert PermissionLevel.MAINTAIN in AUTHORIZED_PERMISSION_LEVELS
+        assert PermissionLevel.WRITE in AUTHORIZED_PERMISSION_LEVELS
+        assert PermissionLevel.TRIAGE not in AUTHORIZED_PERMISSION_LEVELS
+        assert PermissionLevel.READ not in AUTHORIZED_PERMISSION_LEVELS
+        assert PermissionLevel.NONE not in AUTHORIZED_PERMISSION_LEVELS
+
+    def test_authorizer_caching(self):
+        """Test that permission results are cached"""
+        authorizer = CommandAuthorizer()
+        # Manually cache a permission
+        authorizer._cache_permission("test/repo", "test-user", PermissionLevel.WRITE)
+
+        # Get cached result
+        cached = authorizer._get_cached_permission("test/repo", "test-user")
+        assert cached is not None
+        permission_level, _ = cached
+        assert permission_level == PermissionLevel.WRITE
+
+    def test_authorizer_cache_clear(self):
+        """Test that cache can be cleared"""
+        authorizer = CommandAuthorizer()
+        authorizer._cache_permission("test/repo", "test-user", PermissionLevel.WRITE)
+        authorizer.clear_cache()
+
+        cached = authorizer._get_cached_permission("test/repo", "test-user")
+        assert cached is None
+
+    def test_authorizer_add_to_allowlist(self):
+        """Test adding users to allowlist"""
+        authorizer = CommandAuthorizer()
+        authorizer.add_to_allowlist("new-admin")
+
+        result = authorizer.authorize("test/repo", "new-admin")
+        assert result.authorized is True
+
+    def test_authorizer_remove_from_allowlist(self):
+        """Test removing users from allowlist"""
+        authorizer = CommandAuthorizer(allowlist={"temp-admin"})
+        authorizer.remove_from_allowlist("temp-admin")
+
+        # Without API, this will fail-closed
+        result = authorizer.authorize("test/repo", "temp-admin", skip_cache=True)
+        # Should not be authorized via allowlist anymore
+        assert "allowlist" not in result.reason.lower()
+
+    def test_authorization_result_to_dict(self):
+        """Test AuthorizationResult serialization"""
+        result = AuthorizationResult(
+            authorized=True,
+            reason="Test reason",
+            permission_level=PermissionLevel.WRITE,
+            cached=True,
+        )
+        d = result.to_dict()
+
+        assert d["authorized"] is True
+        assert d["reason"] == "Test reason"
+        assert d["permission_level"] == "write"
+        assert d["cached"] is True
+
+
+class TestCommandRouterAuthorization:
+    """Tests for CommandRouter authorization integration"""
+
+    def test_router_with_authorization_enabled(self, command_router_with_auth):
+        """Test that router with authorization enabled calls authorizer"""
+        event = create_comment_event("/morningai review")
+        trigger = command_router_with_auth.route(event)
+
+        # Should succeed because mock authorizer returns authorized=True
+        assert trigger is not None
+        assert trigger.command_type == CommandType.REVIEW
+
+    def test_router_rejects_unauthorized_user(self):
+        """Test that router rejects unauthorized users"""
+        mock_authorizer = MagicMock(spec=CommandAuthorizer)
+        mock_authorizer.authorize.return_value = AuthorizationResult(
+            authorized=False,
+            reason="Insufficient permission: read",
+            permission_level=PermissionLevel.READ,
+        )
+        router = CommandRouter(authorizer=mock_authorizer, enable_authorization=True)
+
+        event = create_comment_event("/morningai review")
+        trigger = router.route(event)
+
+        assert trigger is None
+        mock_authorizer.authorize.assert_called_once()
+
+    def test_router_authorization_disabled(self):
+        """Test that router without authorization skips permission check"""
+        mock_authorizer = MagicMock(spec=CommandAuthorizer)
+        router = CommandRouter(authorizer=mock_authorizer, enable_authorization=False)
+
+        event = create_comment_event("/morningai review")
+        trigger = router.route(event)
+
+        # Should succeed without calling authorizer
+        assert trigger is not None
+        mock_authorizer.authorize.assert_not_called()
+
+    def test_router_authorization_with_allowlist(self):
+        """Test router with allowlist configuration"""
+        router = CommandRouter(
+            enable_authorization=True,
+            allowlist={"allowed-user"},
+        )
+
+        # The allowlist is passed to the authorizer
+        assert router._authorizer is not None
+        assert "allowed-user" in router._authorizer._allowlist
+
+    def test_router_passes_correct_params_to_authorizer(self):
+        """Test that router passes correct repo and actor to authorizer"""
+        mock_authorizer = MagicMock(spec=CommandAuthorizer)
+        mock_authorizer.authorize.return_value = AuthorizationResult(
+            authorized=True,
+            reason="Authorized",
+            permission_level=PermissionLevel.WRITE,
+        )
+        router = CommandRouter(authorizer=mock_authorizer, enable_authorization=True)
+
+        event = create_comment_event(
+            "/morningai review",
+            actor_name="test-developer",
+            repo_owner="my-org",
+            repo_name="my-repo",
+        )
+        router.route(event)
+
+        mock_authorizer.authorize.assert_called_once_with(
+            "my-org/my-repo",
+            "test-developer",
+        )
+
+    def test_router_api_error_denies_command(self):
+        """Test that API errors result in command denial (fail-closed)"""
+        mock_authorizer = MagicMock(spec=CommandAuthorizer)
+        mock_authorizer.authorize.return_value = AuthorizationResult(
+            authorized=False,
+            reason="Failed to verify permission (API error)",
+            permission_level=PermissionLevel.UNKNOWN,
+        )
+        router = CommandRouter(authorizer=mock_authorizer, enable_authorization=True)
+
+        event = create_comment_event("/morningai review")
+        trigger = router.route(event)
+
+        assert trigger is None
+
+
+class TestCommandAuthorizerWithMockedGitHub:
+    """Tests for CommandAuthorizer with mocked GitHub API (using _fetch_permission_level mock)"""
+
+    @patch.object(CommandAuthorizer, '_fetch_permission_level')
+    def test_authorize_write_permission(self, mock_fetch):
+        """Test authorization with write permission"""
+        mock_fetch.return_value = PermissionLevel.WRITE
+
+        authorizer = CommandAuthorizer(github_token="test-token")
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is True
+        assert result.permission_level == PermissionLevel.WRITE
+        mock_fetch.assert_called_once_with("test/repo", "test-user")
+
+    @patch.object(CommandAuthorizer, '_fetch_permission_level')
+    def test_authorize_admin_permission(self, mock_fetch):
+        """Test authorization with admin permission"""
+        mock_fetch.return_value = PermissionLevel.ADMIN
+
+        authorizer = CommandAuthorizer(github_token="test-token")
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is True
+        assert result.permission_level == PermissionLevel.ADMIN
+
+    @patch.object(CommandAuthorizer, '_fetch_permission_level')
+    def test_authorize_maintain_permission(self, mock_fetch):
+        """Test authorization with maintain permission"""
+        mock_fetch.return_value = PermissionLevel.MAINTAIN
+
+        authorizer = CommandAuthorizer(github_token="test-token")
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is True
+        assert result.permission_level == PermissionLevel.MAINTAIN
+
+    @patch.object(CommandAuthorizer, '_fetch_permission_level')
+    def test_deny_read_permission(self, mock_fetch):
+        """Test denial with read-only permission"""
+        mock_fetch.return_value = PermissionLevel.READ
+
+        authorizer = CommandAuthorizer(github_token="test-token")
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is False
+        assert result.permission_level == PermissionLevel.READ
+
+    @patch.object(CommandAuthorizer, '_fetch_permission_level')
+    def test_deny_triage_permission(self, mock_fetch):
+        """Test denial with triage permission"""
+        mock_fetch.return_value = PermissionLevel.TRIAGE
+
+        authorizer = CommandAuthorizer(github_token="test-token")
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is False
+        assert result.permission_level == PermissionLevel.TRIAGE
+
+    @patch.object(CommandAuthorizer, '_fetch_permission_level')
+    def test_deny_none_permission(self, mock_fetch):
+        """Test denial with no permission"""
+        mock_fetch.return_value = PermissionLevel.NONE
+
+        authorizer = CommandAuthorizer(github_token="test-token")
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is False
+        assert result.permission_level == PermissionLevel.NONE
+
+    @patch.object(CommandAuthorizer, '_fetch_permission_level')
+    def test_github_api_error_fails_closed(self, mock_fetch):
+        """Test that GitHub API errors result in denial (fail-closed)"""
+        mock_fetch.return_value = PermissionLevel.UNKNOWN
+
+        authorizer = CommandAuthorizer(github_token="test-token")
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is False
+        assert result.permission_level == PermissionLevel.UNKNOWN
+
+    def test_no_token_fails_closed(self):
+        """Test that missing token results in denial"""
+        authorizer = CommandAuthorizer(github_token=None)
+        # Clear any token from settings
+        authorizer._github_token = None
+
+        result = authorizer.authorize("test/repo", "test-user", skip_cache=True)
+
+        assert result.authorized is False
+        assert result.permission_level == PermissionLevel.UNKNOWN
