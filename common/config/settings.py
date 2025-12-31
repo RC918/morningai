@@ -732,6 +732,69 @@ class Settings(BaseSettings):
         description="Error rate threshold (%) that triggers immediate alert (EPIC I-3a)"
     )
 
+    # EPIC I-4: Auto-Degradation Advisory (Blueprint 4.3 - Model Governance Framework v2)
+    degradation_advisory_enabled: bool = Field(
+        default=False,
+        alias="DEGRADATION_ADVISORY_ENABLED",
+        description="Enable degradation advisory system (EPIC I-4 Phase A, observe-only)"
+    )
+
+    degradation_healthy_threshold: float = Field(
+        default=75.0,
+        ge=0.0,
+        le=100.0,
+        alias="DEGRADATION_HEALTHY_THRESHOLD",
+        description="Health score threshold for HEALTHY status (EPIC I-4)"
+    )
+
+    degradation_degraded_threshold: float = Field(
+        default=50.0,
+        ge=0.0,
+        le=100.0,
+        alias="DEGRADATION_DEGRADED_THRESHOLD",
+        description="Health score threshold for DEGRADED status (EPIC I-4)"
+    )
+
+    degradation_critical_threshold: float = Field(
+        default=25.0,
+        ge=0.0,
+        le=100.0,
+        alias="DEGRADATION_CRITICAL_THRESHOLD",
+        description="Health score threshold for CRITICAL status (EPIC I-4)"
+    )
+
+    degradation_recovery_buffer: float = Field(
+        default=10.0,
+        ge=0.0,
+        le=50.0,
+        alias="DEGRADATION_RECOVERY_BUFFER",
+        description="Additional score required for recovery (hysteresis) (EPIC I-4)"
+    )
+
+    degradation_cooldown_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=1440,
+        alias="DEGRADATION_COOLDOWN_MINUTES",
+        description="Cooldown period between advisories for the same provider (EPIC I-4)"
+    )
+
+    degradation_min_requests: int = Field(
+        default=10,
+        ge=1,
+        le=1000,
+        alias="DEGRADATION_MIN_REQUESTS",
+        description="Minimum requests in window before advisory (EPIC I-4)"
+    )
+
+    degradation_floor_provider_count: int = Field(
+        default=1,
+        ge=0,
+        le=10,
+        alias="DEGRADATION_FLOOR_PROVIDER_COUNT",
+        description="Minimum providers to keep at non-AVOID status (floor protection) (EPIC I-4)"
+    )
+
     slack_webhook_url: Optional[str] = Field(
         None,
         alias="SLACK_WEBHOOK_URL",

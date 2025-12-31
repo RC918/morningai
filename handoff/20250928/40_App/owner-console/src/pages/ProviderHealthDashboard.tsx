@@ -156,7 +156,9 @@ const ProviderHealthDashboard = () => {
   }
 
   const formatPercentage = (rate: number) => {
-    return `${(rate * 100).toFixed(1)}%`
+    // Note: error_rate and drift_rate from API are already in 0-100 scale (percentage)
+    // No need to multiply by 100
+    return `${rate.toFixed(1)}%`
   }
 
   const formatTimestamp = (timestamp: string) => {
@@ -396,7 +398,7 @@ const ProviderHealthDashboard = () => {
                           <TrendingDown className="w-3 h-3 mr-1" />
                           {t('providerHealth.errorRate')}
                         </span>
-                        <span className={`font-medium ${provider.error_rate > 0.05 ? 'text-energy' : 'text-[var(--text-primary)]'}`}>
+                        <span className={`font-medium ${provider.error_rate > 5 ? 'text-energy' : 'text-[var(--text-primary)]'}`}>
                           {formatPercentage(provider.error_rate)}
                         </span>
                       </div>
@@ -406,7 +408,7 @@ const ProviderHealthDashboard = () => {
                           <TrendingUp className="w-3 h-3 mr-1" />
                           {t('providerHealth.driftRate')}
                         </span>
-                        <span className={`font-medium ${provider.drift_rate > 0.1 ? 'text-joy' : 'text-[var(--text-primary)]'}`}>
+                        <span className={`font-medium ${provider.drift_rate > 10 ? 'text-joy' : 'text-[var(--text-primary)]'}`}>
                           {formatPercentage(provider.drift_rate)}
                         </span>
                       </div>
