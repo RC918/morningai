@@ -198,20 +198,21 @@ MorningAI Reviewer Agent 是符合 Blueprint 架構的 AI 代碼審查系統，�
 
 ### 架構概覽
 
-```
-GitHub PR Event → Webhook → GitHubWebhookHandler → EventNormalizer
-                                                          ↓
-                                                   Redis Queue
-                                                          ↓
-                                              LangGraph Orchestrator
-                                                          ↓
-                                                   reviewer_node
-                                                          ↓
-                                              LLMReviewerAdapter
-                                                          ↓
-                                                   publisher_node
-                                                          ↓
-                                              GitHub PR Comment
+```mermaid
+graph TD
+    A[GitHub PR Event] --> B[Webhook]
+    B --> C[GitHubWebhookHandler]
+    C --> D[EventNormalizer]
+    D --> E[Redis Queue]
+    E --> F[LangGraph Orchestrator]
+
+    subgraph F [LangGraph Orchestrator]
+        direction TB
+        G[reviewer_node] --> H[LLMReviewerAdapter]
+        H --> I[publisher_node]
+    end
+
+    I --> J[GitHub PR Comment]
 ```
 
 ### 關鍵特性
@@ -224,9 +225,9 @@ GitHub PR Event → Webhook → GitHubWebhookHandler → EventNormalizer
 
 ### 核心模組
 
-- `orchestrator/llm_reviewer_adapter.py` - LLM 審查適配器
-- `orchestrator/webhooks/handlers/github_handler.py` - GitHub Webhook 處理器
-- `orchestrator/langgraph_orchestrator.py` - reviewer_node 與 publisher_node
+- `orchestrator/webhooks/handlers/github_handler.py` - GitHub Webhook 處理器 (API Layer)
+- `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` - reviewer_node 與 publisher_node (Worker Layer)
+- `handoff/20250928/40_App/orchestrator/llm_reviewer_adapter.py` - LLM 審查適配器 (Worker Layer)
 
 > **Note**: 舊版 `qwen-pr-review.yml` GitHub Actions workflow 已於 2025-12-24 停用並移除。
 > MorningAI Reviewer Agent 現已完全遷移至 Orchestrator Webhook 架構。
