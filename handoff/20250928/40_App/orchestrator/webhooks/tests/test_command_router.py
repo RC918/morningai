@@ -215,14 +215,69 @@ class TestCommandRouterNonCommandComments:
         assert trigger is None
 
     def test_ignore_command_in_code_block(self, command_router):
-        """Test that commands in code blocks are ignored (not at line start)"""
+        """Test that commands in fenced code blocks are ignored (Issue #3390)"""
         event = create_comment_event("```\n/morningai review\n```")
         trigger = command_router.route(event)
 
-        # The regex matches at line start, so this should still match
-        # because /morningai is at the start of a line within the code block
-        # This is a known limitation - we may want to improve this later
-        assert trigger is not None  # Current behavior
+        # Issue #3390: Commands inside fenced code blocks should be ignored
+        # The code block is stripped before regex matching
+        assert trigger is None
+
+    def test_ignore_command_in_language_tagged_code_block(self, command_router):
+        """Test that commands in language-tagged code blocks are ignored (Issue #3390)"""
+        event = create_comment_event("```bash\n/morningai review\n```")
+        trigger = command_router.route(event)
+
+        # Issue #3390: Language-tagged code blocks should also be stripped
+        assert trigger is None
+
+    def test_ignore_command_in_python_code_block(self, command_router):
+        """Test that commands in python code blocks are ignored (Issue #3390)"""
+        event = create_comment_event("```python\n# Example:\n/morningai review\n```")
+        trigger = command_router.route(event)
+
+        assert trigger is None
+
+    def test_command_outside_code_block_detected(self, command_router):
+        """Test that commands outside code blocks are still detected (Issue #3390)"""
+        event = create_comment_event(
+            "Here's an example:\n```\n/morningai review\n```\n\n/morningai review"
+        )
+        trigger = command_router.route(event)
+
+        # The command outside the code block should be detected
+        assert trigger is not None
+        assert trigger.command_type == CommandType.REVIEW
+
+    def test_multiple_code_blocks_stripped(self, command_router):
+        """Test that multiple code blocks are all stripped (Issue #3390)"""
+        event = create_comment_event(
+            "```\n/morningai review\n```\nSome text\n```\n/morningai fix\n```"
+        )
+        trigger = command_router.route(event)
+
+        # Both code blocks should be stripped, no command detected
+        assert trigger is None
+
+    def test_command_before_code_block_detected(self, command_router):
+        """Test that command before code block is detected (Issue #3390)"""
+        event = create_comment_event(
+            "/morningai review\n\nHere's the code:\n```\nsome code\n```"
+        )
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.REVIEW
+
+    def test_command_after_code_block_detected(self, command_router):
+        """Test that command after code block is detected (Issue #3390)"""
+        event = create_comment_event(
+            "```\nsome code\n```\n\n/morningai review"
+        )
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.REVIEW
 
     def test_ignore_command_in_quote(self, command_router):
         """Test that commands in quotes are ignored (quote prefix blocks match)"""
