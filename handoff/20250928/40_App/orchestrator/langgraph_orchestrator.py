@@ -5986,43 +5986,33 @@ def publisher_node(state: AgentState) -> AgentState:
 
         # Issue #3220: Post Summary Report when no inline comments
         # This provides visibility that the Reviewer Agent ran and what it found
+        # Issue #3221: Use standardized PRSummary schema for consistent output
         try:
             from tools.github_api import get_repo, post_pr_review
+            from core.routing.pr_summary import build_pr_summary
 
-            # Build Summary Report from review_outcome or review_result
+            # Build Summary Report using standardized PRSummary schema (Issue #3221)
             review_outcome = state.get("review_outcome", {})
             review_result = state.get("review_result", {})
             code_quality_score = state.get("code_quality_score", 0)
 
-            # Determine verdict and emoji
-            verdict = review_outcome.get("verdict", "unknown")
-            llm_decision = review_result.get("llm_decision", verdict)
-            llm_summary = review_result.get("llm_summary", "")
+            # Build PRSummary artifact
+            pr_summary = build_pr_summary(
+                review_outcome=review_outcome,
+                review_result=review_result,
+                code_quality_score=code_quality_score,
+                trace_id=trace_id,
+                pr_number=pr_number,
+                repo=state.get("repo"),
+                head_sha=state.get("diff_head_sha")
+            )
 
-            if llm_decision == "approve":
-                verdict_emoji = "Approve"
-                verdict_icon = "white_check_mark"
-            elif llm_decision == "needs_changes":
-                verdict_emoji = "Needs Changes"
-                verdict_icon = "warning"
-            elif llm_decision == "block":
-                verdict_emoji = "Block"
-                verdict_icon = "x"
-            else:
-                verdict_emoji = "Reviewed"
-                verdict_icon = "mag"
+            # Render to GitHub markdown
+            summary_body = pr_summary.to_github_markdown()
 
-            # Build the summary report body
-            summary_body = f"""## :robot: MorningAI Review Summary
-
-**Verdict:** :{verdict_icon}: {verdict_emoji} (Score: {code_quality_score})
-
-**Analysis:**
-{llm_summary if llm_summary else "No significant issues found."}
-
----
-*Note: This review follows the Senior Architect policy - style, formatting, and naming convention issues are intentionally filtered out to reduce noise. The reviewer focuses on logic errors, security vulnerabilities, performance problems, and API contract changes.*
-"""
+            # Extract display values for logging
+            verdict_emoji = pr_summary._get_verdict_label()
+            llm_decision = pr_summary.display_decision
 
             repo = get_repo()
             # Issue #3253: Get commit_id for Redis dedup idempotency
@@ -6374,14 +6364,41 @@ def publisher_node(state: AgentState) -> AgentState:
 
     try:
         from tools.github_api import get_repo, post_pr_review
+        from core.routing.pr_summary import build_pr_summary
 
         repo = get_repo()
 
+        # Issue #3221: Use standardized PRSummary schema for consistent output
         # EPIC B Phase 3 P2: Build summary with file-level comments appendix
         # This ensures file-level comments are delivered even when inline comments exist
-        review_summary = "## MorningAI Code Review"
-        if file_level_comments:
-            review_summary += _build_file_level_appendix(file_level_comments)
+        review_outcome = state.get("review_outcome", {})
+        review_result = state.get("review_result", {})
+        code_quality_score = state.get("code_quality_score", 0)
+
+        # Convert file_level_comments to format expected by PRSummary
+        file_level_comment_dicts = [
+            {
+                "file": c.get("file", c.get("path", "unknown")),
+                "message": c.get("body", c.get("message", "")),
+                "downgrade_reason": c.get("downgrade_reason")
+            }
+            for c in file_level_comments
+        ] if file_level_comments else []
+
+        # Build PRSummary artifact with file-level comments
+        pr_summary = build_pr_summary(
+            review_outcome=review_outcome,
+            review_result=review_result,
+            code_quality_score=code_quality_score,
+            file_level_comments=file_level_comment_dicts,
+            trace_id=trace_id,
+            pr_number=pr_number,
+            repo=state.get("repo"),
+            head_sha=stored_head_sha
+        )
+
+        # Render simple markdown (header + file-level appendix) for inline comment reviews
+        review_summary = pr_summary.to_simple_markdown()
 
         # Phase 3 P2: Pass commit_id to pin review to specific commit
         # This prevents 422 errors from race conditions where new commits
