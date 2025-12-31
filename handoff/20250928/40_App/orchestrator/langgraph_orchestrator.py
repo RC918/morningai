@@ -5139,13 +5139,14 @@ def reviewer_node(state: AgentState) -> AgentState:
                     signals_to_review_comments,
                     SignalSeverity
                 )
+                from tools.github_api import get_repo as get_repo_for_signals
 
                 # Get repo object for signal ingestion
                 signal_repo = None
                 try:
                     signal_repo = github_repo
                 except NameError:
-                    signal_repo = get_repo()
+                    signal_repo = get_repo_for_signals()
 
                 if signal_repo:
                     # Fetch deterministic signals from CI/linters
