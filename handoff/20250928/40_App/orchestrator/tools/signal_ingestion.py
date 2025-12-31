@@ -95,20 +95,38 @@ class Signal:
         }
 
     def to_review_comment(self) -> dict:
-        """Convert signal to review comment format for Reviewer integration"""
+        """
+        Convert signal to review comment format for Reviewer integration.
+
+        Uses canonical schema fields (start_line/end_line) instead of legacy 'line'
+        to ensure compatibility with downstream post_pr_review function.
+
+        Returns:
+            dict with keys: severity, message, file, start_line, end_line, rule_id, deterministic
+        """
         severity_map = {
             SignalSeverity.ERROR: "high",
             SignalSeverity.WARNING: "medium",
             SignalSeverity.INFO: "low",
         }
-        return {
+        comment: dict = {
             "severity": severity_map.get(self.severity, "medium"),
             "message": f"[{self.source}] {self.message}",
             "file": self.file_path,
-            "line": self.line,
             "rule_id": self.rule_id,
             "deterministic": True,  # Mark as deterministic signal
         }
+
+        # Use canonical start_line/end_line format (not legacy 'line')
+        # This ensures compatibility with review_comment_schema and post_pr_review
+        if self.line is not None:
+            comment["start_line"] = self.line
+            comment["end_line"] = self.end_line if self.end_line is not None else self.line
+        elif self.end_line is not None:
+            comment["start_line"] = self.end_line
+            comment["end_line"] = self.end_line
+
+        return comment
 
 
 @runtime_checkable
@@ -516,16 +534,29 @@ def signals_to_review_comments(
     """
     Convert signals to review comment format for Reviewer integration.
 
+    Filters out:
+    - Info-level signals (unless include_info=True)
+    - Signals without file_path (job-level signals can't be posted as inline comments)
+
     Args:
         signals: List of Signal objects
         include_info: Whether to include info-level signals (default: False)
 
     Returns:
-        List of review comment dictionaries
+        List of review comment dictionaries suitable for inline posting
     """
     comments = []
     for signal in signals:
+        # Skip info-level signals unless explicitly requested
         if not include_info and signal.severity == SignalSeverity.INFO:
+            continue
+        # Skip signals without file_path - they can't be posted as inline comments
+        # (e.g., job-level workflow failure signals)
+        if not signal.file_path:
+            logger.debug(
+                f"[SignalIngestion] Skipping signal without file_path: {signal.source}",
+                extra={"source": signal.source, "message": signal.message[:100]}
+            )
             continue
         comments.append(signal.to_review_comment())
     return comments

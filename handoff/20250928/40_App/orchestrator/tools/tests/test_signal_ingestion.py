@@ -60,7 +60,7 @@ class TestSignal:
         assert result["end_line"] == 105
 
     def test_signal_to_review_comment(self):
-        """Test signal conversion to review comment format"""
+        """Test signal conversion to review comment format with canonical schema"""
         signal = Signal(
             source="eslint",
             severity=SignalSeverity.ERROR,
@@ -75,8 +75,28 @@ class TestSignal:
         assert comment["severity"] == "high"  # ERROR -> high
         assert "[eslint]" in comment["message"]
         assert comment["file"] == "src/index.ts"
-        assert comment["line"] == 42
+        # Uses canonical start_line/end_line format (not legacy 'line')
+        assert comment["start_line"] == 42
+        assert comment["end_line"] == 42
+        assert "line" not in comment  # Legacy field should not be present
         assert comment["deterministic"] is True
+
+    def test_signal_to_review_comment_multiline(self):
+        """Test signal conversion for multi-line annotations"""
+        signal = Signal(
+            source="codeql",
+            severity=SignalSeverity.WARNING,
+            file_path="src/utils.py",
+            message="Potential SQL injection",
+            line=100,
+            end_line=105,
+        )
+
+        comment = signal.to_review_comment()
+
+        assert comment["start_line"] == 100
+        assert comment["end_line"] == 105
+        assert "line" not in comment
 
     def test_signal_severity_mapping(self):
         """Test severity mapping in to_review_comment"""
@@ -456,6 +476,25 @@ class TestSignalsToReviewComments:
         comments = signals_to_review_comments(signals, include_info=True)
 
         assert len(comments) == 2
+
+    def test_filters_signals_without_file_path(self):
+        """Test that signals without file_path are filtered out (can't be inline comments)"""
+        signals = [
+            Signal(source="eslint", severity=SignalSeverity.ERROR,
+                   file_path="src/index.ts", message="Error with file", line=10),
+            Signal(source="workflow:test", severity=SignalSeverity.ERROR,
+                   file_path="", message="Job-level failure without file"),  # Empty file_path
+            Signal(source="codeql", severity=SignalSeverity.WARNING,
+                   file_path="src/utils.py", message="Warning with file", line=20),
+        ]
+
+        comments = signals_to_review_comments(signals)
+
+        # Only signals with file_path should be included
+        assert len(comments) == 2
+        assert all(c["file"] for c in comments)
+        assert "eslint" in comments[0]["message"]
+        assert "codeql" in comments[1]["message"]
 
 
 class TestSignalSourceProtocol:
