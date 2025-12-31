@@ -549,6 +549,141 @@ class DiffFileInfo(TypedDict):
     patch_truncated: bool  # Whether the patch was truncated mid-file
 
 
+def _extract_file_path_from_header(line: str) -> Optional[str]:
+    """
+    Extract file path from a +++ header line.
+
+    Handles:
+    - Normal paths: +++ b/path/to/file.py
+    - Deleted files: +++ b/dev/null or +++ /dev/null
+    - Quoted paths: +++ b/"path with spaces.txt"
+
+    Returns:
+        File path string, or None for deleted files (/dev/null)
+    """
+    # Handle deleted files
+    if line == '+++ b/dev/null' or line.startswith('+++ /dev/null'):
+        return None
+
+    # Remove "+++ b/" prefix
+    raw_path = line[6:]
+
+    # Handle quoted paths (Git quotes paths with spaces or special chars)
+    if raw_path.startswith('"') and raw_path.endswith('"'):
+        raw_path = raw_path[1:-1]
+
+    return raw_path
+
+
+def _process_hunk_body_line(
+    line: str,
+    new_line_counter: int,
+    current_allowed: Set[int],
+    current_additions: Set[int]
+) -> int:
+    """
+    Process a single line in a hunk body and update line sets.
+
+    Args:
+        line: The full line from the diff (may be empty)
+        new_line_counter: Current line number in the new file
+        current_allowed: Set of allowed line numbers (modified in place)
+        current_additions: Set of addition line numbers (modified in place)
+
+    Returns:
+        Updated new_line_counter
+    """
+    if not line:
+        return new_line_counter
+
+    first_char = line[0]
+    if first_char == ' ':
+        # Context line: appears on both sides
+        current_allowed.add(new_line_counter)
+        return new_line_counter + 1
+    elif first_char == '+':
+        # Addition: only on RIGHT side
+        current_allowed.add(new_line_counter)
+        current_additions.add(new_line_counter)
+        return new_line_counter + 1
+    # '-' (deletion) and '\\' (no newline marker) don't increment counter
+    return new_line_counter
+
+
+def _save_file_info(
+    result: Dict[str, DiffFileInfo],
+    filename: str,
+    allowed_lines: Set[int],
+    addition_lines: Set[int],
+    patch_truncated: bool
+) -> None:
+    """Save file info to the result dictionary."""
+    result[filename] = {
+        "filename": filename,
+        "allowed_lines": allowed_lines,
+        "addition_lines": addition_lines,
+        "patch_truncated": patch_truncated
+    }
+
+
+def _is_file_header_line(line: str) -> bool:
+    """Check if line is a file header (+++ line)."""
+    return line.startswith('+++ b/') or line.startswith('+++ /dev/null')
+
+
+def _parse_hunk_header(line: str) -> Optional[int]:
+    """
+    Parse hunk header and return new file start line number.
+
+    Args:
+        line: A line that might be a hunk header (@@ -old,len +new,len @@)
+
+    Returns:
+        New file start line number if this is a hunk header, None otherwise
+    """
+    hunk_match = DIFF_HUNK_HEADER_PATTERN.match(line)
+    if hunk_match:
+        return int(hunk_match.group(3))
+    return None
+
+
+def _is_truncation_line(line: str) -> bool:
+    """Check if line contains the truncation sentinel."""
+    return TRUNCATION_SENTINEL in line
+
+
+class _DiffParserState:
+    """Mutable state for diff parsing to reduce function complexity."""
+
+    __slots__ = ('current_file', 'current_allowed', 'current_additions',
+                 'current_truncated', 'new_line_counter', 'in_hunk')
+
+    def __init__(self) -> None:
+        self.current_file: Optional[str] = None
+        self.current_allowed: Set[int] = set()
+        self.current_additions: Set[int] = set()
+        self.current_truncated: bool = False
+        self.new_line_counter: int = 0
+        self.in_hunk: bool = False
+
+    def save_current_file(self, result: Dict[str, DiffFileInfo]) -> None:
+        """Save current file info to result if a file is being tracked."""
+        if self.current_file is not None:
+            _save_file_info(
+                result, self.current_file, self.current_allowed,
+                self.current_additions, self.current_truncated
+            )
+
+    def start_new_file(self, filename: Optional[str]) -> None:
+        """Start tracking a new file (or None for deleted files)."""
+        self.current_file = filename
+        if filename is not None:
+            self.current_allowed = set()
+            self.current_additions = set()
+            self.current_truncated = False
+        self.in_hunk = False
+
+
 def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
     """
     Parse unified diff to extract valid RIGHT-side line numbers per file.
@@ -583,103 +718,41 @@ def parse_diff_allowed_lines(diff_content: str) -> Dict[str, DiffFileInfo]:
         return {}
 
     result: Dict[str, DiffFileInfo] = {}
-
-    # Split by file sections
-    # Each file section starts with "--- a/filename" and "+++ b/filename"
     lines = diff_content.split('\n')
-    current_file: Optional[str] = None
-    current_allowed: Set[int] = set()
-    current_additions: Set[int] = set()  # Strict Mode: track + lines separately
-    current_truncated = False
-    new_line_counter = 0
-    in_hunk = False
+    state = _DiffParserState()
 
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-
+    for line in lines:
         # Check for new file header
-        if line.startswith('+++ b/'):
-            # Save previous file if exists
-            if current_file is not None:
-                result[current_file] = {
-                    "filename": current_file,
-                    "allowed_lines": current_allowed,
-                    "addition_lines": current_additions,  # Strict Mode
-                    "patch_truncated": current_truncated
-                }
+        if _is_file_header_line(line):
+            state.save_current_file(result)
+            state.start_new_file(_extract_file_path_from_header(line))
+            continue
 
-            # Extract filename (handle +++ b/dev/null for deleted files)
-            if line == '+++ b/dev/null' or line.startswith('+++ /dev/null'):
-                # Deleted file - no RIGHT-side lines allowed
-                current_file = None
-            else:
-                # Remove "+++ b/" prefix and handle quoted paths
-                # Git may quote paths with spaces or special chars: +++ b/"path with spaces.txt"
-                raw_path = line[6:]
-                if raw_path.startswith('"') and raw_path.endswith('"'):
-                    raw_path = raw_path[1:-1]  # Strip surrounding quotes
-                current_file = raw_path
-                current_allowed = set()
-                current_additions = set()  # Strict Mode: reset additions for new file
-                current_truncated = False
-            in_hunk = False
-            i += 1
+        # Skip processing if no current file
+        if state.current_file is None:
             continue
 
         # Check for hunk header
-        hunk_match = DIFF_HUNK_HEADER_PATTERN.match(line)
-        if hunk_match and current_file is not None:
-            # Parse hunk header: @@ -old_start,old_len +new_start,new_len @@
-            new_start = int(hunk_match.group(3))
-            new_line_counter = new_start
-            in_hunk = True
-            i += 1
+        hunk_start = _parse_hunk_header(line)
+        if hunk_start is not None:
+            state.new_line_counter = hunk_start
+            state.in_hunk = True
             continue
 
         # Check for truncation sentinel
-        if TRUNCATION_SENTINEL in line:
-            if current_file is not None:
-                current_truncated = True
-            in_hunk = False
-            i += 1
+        if _is_truncation_line(line):
+            state.current_truncated = True
+            state.in_hunk = False
             continue
 
         # Process hunk body lines
-        if in_hunk and current_file is not None and line:
-            first_char = line[0] if line else ''
-
-            if first_char == ' ':
-                # Context line: appears on both sides
-                current_allowed.add(new_line_counter)
-                # Note: context lines are NOT added to current_additions (Strict Mode)
-                new_line_counter += 1
-            elif first_char == '+':
-                # Addition: only on RIGHT side
-                current_allowed.add(new_line_counter)
-                current_additions.add(new_line_counter)  # Strict Mode: track + lines
-                new_line_counter += 1
-            elif first_char == '-':
-                # Deletion: only on LEFT side, don't add to allowed
-                pass
-            elif first_char == '\\':
-                # "\ No newline at end of file" - ignore
-                pass
-            else:
-                # Unknown line or end of hunk
-                # Could be start of new hunk or file
-                pass
-
-        i += 1
+        if state.in_hunk:
+            state.new_line_counter = _process_hunk_body_line(
+                line, state.new_line_counter, state.current_allowed, state.current_additions
+            )
 
     # Save last file
-    if current_file is not None:
-        result[current_file] = {
-            "filename": current_file,
-            "allowed_lines": current_allowed,
-            "addition_lines": current_additions,  # Strict Mode
-            "patch_truncated": current_truncated
-        }
+    state.save_current_file(result)
 
     logger.debug(
         f"[ReviewCommentSchema] Parsed diff: {len(result)} files, "
