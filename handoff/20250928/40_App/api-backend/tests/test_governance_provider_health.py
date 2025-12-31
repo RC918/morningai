@@ -34,7 +34,7 @@ class TestProviderHealthSnapshot:
         response = client.get('/api/governance/providers/health')
         assert response.status_code == 401
 
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_metrics_unavailable(
         self, mock_get_metrics, client, user_token
     ):
@@ -50,7 +50,7 @@ class TestProviderHealthSnapshot:
         assert data['available'] is False
         assert data['error'] == 'metrics_unavailable'
 
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_metrics_disabled(
         self, mock_get_metrics, client, user_token
     ):
@@ -68,8 +68,8 @@ class TestProviderHealthSnapshot:
         assert data['available'] is False
         assert data['error'] == 'metrics_disabled'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_success(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -118,8 +118,8 @@ class TestProviderHealthSnapshot:
         assert 'degraded' in summary
         assert 'critical' in summary
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_system_status_healthy(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -144,8 +144,8 @@ class TestProviderHealthSnapshot:
         data = json.loads(response.data)
         assert data['system_status'] == 'healthy'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_system_status_degraded(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -170,8 +170,8 @@ class TestProviderHealthSnapshot:
         data = json.loads(response.data)
         assert data['system_status'] == 'degraded'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_system_status_critical(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -196,8 +196,8 @@ class TestProviderHealthSnapshot:
         data = json.loads(response.data)
         assert data['system_status'] == 'critical'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_with_window_param(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -224,8 +224,8 @@ class TestProviderHealthSnapshot:
         call_args = mock_metrics.get_all_providers_health.call_args
         assert call_args[1]['window_minutes'] == 30
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_with_providers_filter(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -253,7 +253,7 @@ class TestProviderHealthSnapshot:
         call_args = mock_metrics.get_all_providers_health.call_args
         assert call_args[1]['providers'] == ['openai', 'gemini']
 
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_provider_health_error_handling(
         self, mock_get_metrics, client, user_token
     ):
@@ -291,7 +291,7 @@ class TestSingleProviderHealth:
         assert data['error'] == 'invalid_provider'
         assert 'valid_providers' in data
 
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_single_provider_health_metrics_unavailable(
         self, mock_get_metrics, client, user_token
     ):
@@ -308,8 +308,8 @@ class TestSingleProviderHealth:
         assert data['provider'] == 'openai'
         assert data['error'] == 'metrics_unavailable'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_single_provider_health_success(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -350,8 +350,8 @@ class TestSingleProviderHealth:
         assert 'weights' in data
         assert 'alert_cooldown' in data
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_single_provider_health_status_healthy(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -372,8 +372,8 @@ class TestSingleProviderHealth:
         data = json.loads(response.data)
         assert data['status'] == 'healthy'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_single_provider_health_status_degraded(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -394,8 +394,8 @@ class TestSingleProviderHealth:
         data = json.loads(response.data)
         assert data['status'] == 'degraded'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_single_provider_health_status_critical(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -416,8 +416,8 @@ class TestSingleProviderHealth:
         data = json.loads(response.data)
         assert data['status'] == 'critical'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_single_provider_health_with_window_param(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):
@@ -443,7 +443,7 @@ class TestSingleProviderHealth:
         call_args = mock_metrics.get_provider_health.call_args
         assert call_args[1]['window_minutes'] == 45
 
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_single_provider_health_error_handling(
         self, mock_get_metrics, client, user_token
     ):
@@ -462,8 +462,8 @@ class TestSingleProviderHealth:
         assert data['provider'] == 'openai'
         assert data['error'] == 'internal_error'
 
-    @patch('src.routes.governance.get_health_alert_service')
-    @patch('src.routes.governance.get_canary_metrics')
+    @patch('src.routes.governance._get_health_alert_service')
+    @patch('src.routes.governance._get_canary_metrics')
     def test_all_valid_providers(
         self, mock_get_metrics, mock_get_alert_service, client, user_token
     ):

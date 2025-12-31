@@ -1,7 +1,40 @@
 """Governance API - Agent reputation, cost tracking, and policy management"""
 from flask import Blueprint, jsonify, request
-from datetime import datetime
+from datetime import datetime, timezone
 from common.config.settings import settings
+
+
+def _utc_now_iso():
+    """Return current UTC time in ISO format with 'Z' suffix for consistency."""
+    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def _get_canary_metrics():
+    """
+    Get CanaryMetrics instance with graceful ImportError handling.
+    
+    Returns None if metrics module is not available or Redis is unavailable.
+    This wrapper enables clean mocking in tests.
+    """
+    try:
+        from metrics import get_canary_metrics
+        return get_canary_metrics()
+    except ImportError:
+        return None
+
+
+def _get_health_alert_service():
+    """
+    Get HealthAlertService instance with graceful ImportError handling.
+    
+    Returns None if health_alerter module is not available.
+    This wrapper enables clean mocking in tests.
+    """
+    try:
+        from governance.health_alerter import get_health_alert_service
+        return get_health_alert_service()
+    except ImportError:
+        return None
 
 try:
     from governance import (
@@ -266,20 +299,16 @@ def get_provider_health_snapshot():
         else:
             providers = None
 
-        # Try to get metrics from CanaryMetrics
-        try:
-            from metrics import get_canary_metrics
-            metrics = get_canary_metrics()
-        except ImportError:
-            logger.warning("[ProviderHealth] metrics module not available")
-            metrics = None
+        # Get metrics using helper function (enables clean mocking in tests)
+        metrics = _get_canary_metrics()
 
         if metrics is None:
+            logger.warning("[ProviderHealth] metrics module not available")
             return jsonify({
                 'available': False,
                 'error': 'metrics_unavailable',
                 'message': 'CanaryMetrics not configured or Redis unavailable',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now_iso()
             }), 503
 
         # Get health data for all providers
@@ -293,20 +322,15 @@ def get_provider_health_snapshot():
                 'available': False,
                 'error': 'metrics_disabled',
                 'message': 'Provider health metrics are disabled',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now_iso()
             }), 503
 
-        # Get alert service status
-        try:
-            from governance.health_alerter import get_health_alert_service
-            alert_service = get_health_alert_service()
-            alerting_enabled = alert_service is not None and alert_service.enabled
-            cooldown_status = (
-                alert_service.get_cooldown_status() if alert_service else {}
-            )
-        except ImportError:
-            alerting_enabled = False
-            cooldown_status = {}
+        # Get alert service status using helper function
+        alert_service = _get_health_alert_service()
+        alerting_enabled = alert_service is not None and alert_service.enabled
+        cooldown_status = (
+            alert_service.get_cooldown_status() if alert_service else {}
+        )
 
         # Build response with dashboard-friendly structure
         providers_health = health_data.get('providers', {})
@@ -334,7 +358,7 @@ def get_provider_health_snapshot():
 
         response = {
             'available': True,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': _utc_now_iso(),
             'window_minutes': window_minutes,
             'system_status': system_status,
             'summary': {
@@ -360,7 +384,7 @@ def get_provider_health_snapshot():
             'available': False,
             'error': 'internal_error',
             'message': str(e),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': _utc_now_iso()
         }), 500
 
 
@@ -400,21 +424,17 @@ def get_single_provider_health(provider):
         window_minutes = request.args.get('window', 15, type=int)
         window_minutes = max(1, min(60, window_minutes))
 
-        # Try to get metrics from CanaryMetrics
-        try:
-            from metrics import get_canary_metrics
-            metrics = get_canary_metrics()
-        except ImportError:
-            logger.warning("[ProviderHealth] metrics module not available")
-            metrics = None
+        # Get metrics using helper function (enables clean mocking in tests)
+        metrics = _get_canary_metrics()
 
         if metrics is None:
+            logger.warning("[ProviderHealth] metrics module not available")
             return jsonify({
                 'available': False,
                 'provider': provider,
                 'error': 'metrics_unavailable',
                 'message': 'CanaryMetrics not configured or Redis unavailable',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now_iso()
             }), 503
 
         # Get health data for the specific provider
@@ -429,19 +449,15 @@ def get_single_provider_health(provider):
                 'provider': provider,
                 'error': 'metrics_disabled',
                 'message': 'Provider health metrics are disabled',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now_iso()
             }), 503
 
-        # Get alert status for this provider
-        try:
-            from governance.health_alerter import get_health_alert_service
-            alert_service = get_health_alert_service()
-            if alert_service:
-                cooldown_status = alert_service.get_cooldown_status()
-                provider_cooldown = cooldown_status.get(provider, {})
-            else:
-                provider_cooldown = {}
-        except ImportError:
+        # Get alert status for this provider using helper function
+        alert_service = _get_health_alert_service()
+        if alert_service:
+            cooldown_status = alert_service.get_cooldown_status()
+            provider_cooldown = cooldown_status.get(provider, {})
+        else:
             provider_cooldown = {}
 
         # Determine health status
@@ -456,7 +472,7 @@ def get_single_provider_health(provider):
         response = {
             'available': True,
             'provider': provider,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': _utc_now_iso(),
             'window_minutes': window_minutes,
             'status': status,
             'health_score': health_score,
@@ -483,7 +499,7 @@ def get_single_provider_health(provider):
             'provider': provider,
             'error': 'internal_error',
             'message': str(e),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': _utc_now_iso()
         }), 500
 
 
