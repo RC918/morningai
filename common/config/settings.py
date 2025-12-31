@@ -2334,6 +2334,54 @@ class Settings(BaseSettings):
             )
         return self
 
+    @model_validator(mode="after")
+    def validate_provider_health_weights(self) -> "Settings":
+        """Validate and normalize provider health scoring weights (EPIC I-2).
+
+        Soft validation: If weights don't sum to 1.0, log a warning and normalize
+        them to preserve relative preferences. This follows the observe-only safety
+        contract - we never block service startup on misconfiguration.
+
+        Fixes #3352
+        """
+        weights = {
+            "latency": self.provider_health_latency_weight,
+            "error": self.provider_health_error_weight,
+            "drift": self.provider_health_drift_weight,
+        }
+        weights_sum = sum(weights.values())
+
+        if abs(weights_sum - 1.0) > 0.001:
+            if weights_sum > 0:
+                normalized = {k: v / weights_sum for k, v in weights.items()}
+                warnings.warn(
+                    f"Provider health weights sum to {weights_sum:.3f} instead of 1.0. "
+                    f"Weights will be normalized to preserve relative preferences. "
+                    f"Current: latency={weights['latency']}, error={weights['error']}, "
+                    f"drift={weights['drift']}. "
+                    f"Normalized: latency={normalized['latency']:.3f}, "
+                    f"error={normalized['error']:.3f}, drift={normalized['drift']:.3f}",
+                    UserWarning
+                )
+                object.__setattr__(
+                    self, "provider_health_latency_weight", normalized["latency"]
+                )
+                object.__setattr__(
+                    self, "provider_health_error_weight", normalized["error"]
+                )
+                object.__setattr__(
+                    self, "provider_health_drift_weight", normalized["drift"]
+                )
+            else:
+                warnings.warn(
+                    f"Provider health weights sum to {weights_sum:.3f} instead of 1.0. "
+                    f"All weights are zero - normalization skipped to avoid division by zero. "
+                    f"Health scoring will be ineffective until weights are configured.",
+                    UserWarning
+                )
+
+        return self
+
     def log_deprecation_warnings(self):
         """Log warnings for deprecated variable usage.
 
