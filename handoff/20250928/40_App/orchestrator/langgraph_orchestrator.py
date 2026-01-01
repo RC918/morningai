@@ -7736,8 +7736,13 @@ def run_orchestrator(
     # Issue: #3366 - CI Failure Reflex Integration
     # Pass CI failure trigger flag to workflow for auto-fix routing
     # Layer 2: Router Short-circuit uses this flag to bypass LLM routing
+    # Fix: Also set ci_state="failure" so router_node's fast path condition
+    # (ci_failure_trigger and ci_state != "success") evaluates correctly.
+    # Without this, ci_state would be determined by ci_monitor_node which may
+    # return "success" if other CI checks pass, breaking the fast path.
     if ci_failure_trigger:
         initial_state["ci_failure_trigger"] = True
+        initial_state["ci_state"] = "failure"
 
     config = _get_workflow_config(trace_id)
 
