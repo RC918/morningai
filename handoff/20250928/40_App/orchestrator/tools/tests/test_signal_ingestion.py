@@ -5,7 +5,7 @@ Issue #3222: Deterministic Signals Ingestion - CI/Linters integration
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from tools.signal_ingestion import (
     Signal,
@@ -151,7 +151,8 @@ class TestCheckRunSignalSource:
 
         mock_check_run.name = "TypeScript Check"
         mock_check_run.output = MagicMock()
-        mock_check_run.output.annotations = [mock_annotation]
+        mock_check_run.output.annotations_count = 1
+        mock_check_run.get_annotations.return_value = [mock_annotation]
 
         mock_commit.get_check_runs.return_value = [mock_check_run]
         mock_repo.get_commit.return_value = mock_commit
@@ -174,7 +175,7 @@ class TestCheckRunSignalSource:
 
         mock_check_run.name = "Build"
         mock_check_run.output = MagicMock()
-        mock_check_run.output.annotations = []
+        mock_check_run.output.annotations_count = 0
 
         mock_commit.get_check_runs.return_value = [mock_check_run]
         mock_repo.get_commit.return_value = mock_commit
@@ -223,7 +224,8 @@ class TestCheckRunSignalSource:
 
         mock_check_run.name = "Lint"
         mock_check_run.output = MagicMock()
-        mock_check_run.output.annotations = annotations
+        mock_check_run.output.annotations_count = 100
+        mock_check_run.get_annotations.return_value = annotations
 
         mock_commit.get_check_runs.return_value = [mock_check_run]
         mock_repo.get_commit.return_value = mock_commit
@@ -273,7 +275,8 @@ class TestCheckRunSignalSource:
 
             mock_check_run.name = f"Check_{level}"
             mock_check_run.output = MagicMock()
-            mock_check_run.output.annotations = [mock_annotation]
+            mock_check_run.output.annotations_count = 1
+            mock_check_run.get_annotations.return_value = [mock_annotation]
             check_runs.append(mock_check_run)
 
         mock_commit.get_check_runs.return_value = check_runs
