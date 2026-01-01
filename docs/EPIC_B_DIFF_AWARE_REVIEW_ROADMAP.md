@@ -318,11 +318,11 @@ This schema follows **additive-only evolution**:
 | Item | Description | Status | Evidence |
 |------|-------------|--------|----------|
 | B-6.1 Schema Definition | Add `ReviewOutcome` to `core/routing/review_outcome.py` | **Done** | `core/routing/review_outcome.py` (325 lines) |
-| B-6.2 reviewer_node Integration | Wrap review result in `ReviewOutcome` before return | **Done** | `langgraph_orchestrator.py:5355-5362` |
+| B-6.2 reviewer_node Integration | Wrap review result in `ReviewOutcome` before return | **Done** | `langgraph_orchestrator.py:5567-5574` |
 | B-6.3 State Update | Add `review_outcome: dict` to `AgentState` | **Done** | `langgraph_orchestrator.py:2421` |
 | B-6.4 Unit Tests | Test all verdict scenarios | **Done** | `tests/test_review_outcome.py` (50 tests, 100% pass) |
 
-> **Note**: Implementation location changed from `core/flow/schema.py` to `core/routing/review_outcome.py` for better module organization. The schema is consumed by `router_node` (lines 5613-5617) and `fixer_node` gate (lines 4146-4150).
+> **Note**: Implementation location changed from `core/flow/schema.py` to `core/routing/review_outcome.py` for better module organization. The schema is consumed by `router_node` (lines 5825-5829) and `fixer_node` gate (lines 4324-4325).
 
 ### Blueprint Alignment
 
