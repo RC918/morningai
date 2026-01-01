@@ -50,6 +50,18 @@ from .canary_gating import (
     is_in_sample,
     get_canary_status,
 )
+from .candidate_registry import (
+    CandidateRegistry,
+    get_candidate_registry,
+    reset_candidate_registry,
+    validate_routing_decision,
+    get_candidates_for_router,
+    is_valid_router_candidate,
+    InvalidCandidateError,
+    DeprecatedNodeError,
+    DEPRECATED_NODES,
+    SAFETY_CRITICAL_NODES,
+)
 
 __all__ = [
     # C-1: Schema definitions
@@ -79,4 +91,15 @@ __all__ = [
     'compute_bucket',
     'is_in_sample',
     'get_canary_status',
+    # C-8: Candidate Registry (Stage 2)
+    'CandidateRegistry',
+    'get_candidate_registry',
+    'reset_candidate_registry',
+    'validate_routing_decision',
+    'get_candidates_for_router',
+    'is_valid_router_candidate',
+    'InvalidCandidateError',
+    'DeprecatedNodeError',
+    'DEPRECATED_NODES',
+    'SAFETY_CRITICAL_NODES',
 ]

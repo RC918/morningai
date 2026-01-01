@@ -42,11 +42,14 @@ from typing import Optional, Dict, Callable, FrozenSet
 
 from .llm_safety import (
     parse_json_safely,
-    JSONSafetyError,
 )
 from .schema import (
     RoutingContext,
     RoutingDecision,
+)
+from .candidate_registry import (
+    validate_routing_decision,
+    InvalidCandidateError,
 )
 
 logger = logging.getLogger(__name__)
@@ -353,10 +356,22 @@ Your response (JSON only):"""
             )
             return self._deterministic_fallback(severity, blocker_count)
 
+        # C-8: Validate against CandidateRegistry
+        # This prevents LLM hallucination from selecting invalid paths
+        try:
+            validate_routing_decision("router", next_node)
+        except InvalidCandidateError as e:
+            logger.warning(
+                f"[HybridRouter] LLM returned invalid candidate: {e}, "
+                f"using deterministic fallback"
+            )
+            return self._deterministic_fallback(severity, blocker_count)
+
+        # Additional check: slow path should only return fixer or executor
         if next_node not in ("fixer", "executor"):
             logger.warning(
-                f"[HybridRouter] LLM returned unexpected node '{next_node}', "
-                f"using deterministic fallback"
+                f"[HybridRouter] LLM returned unexpected node '{next_node}' "
+                f"(valid but not expected for slow path), using deterministic fallback"
             )
             return self._deterministic_fallback(severity, blocker_count)
 

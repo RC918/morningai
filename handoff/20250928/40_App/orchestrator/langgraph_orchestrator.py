@@ -4313,7 +4313,7 @@ def _attempt_general_coder_fix(
         [GENERAL_CODER_DISABLED] - Feature flag disabled
     """
     try:
-        from coder.autofix_gate import is_autofix_allowed
+        from coder.autofix_gate import is_autofix_allowed, is_senior_coder_required
         from coder.general_coder import get_general_coder, CoderStatus
         from common.agents.base_agent import AgentInput
         from tools.github_api import get_repo, commit_files
@@ -4325,13 +4325,28 @@ def _attempt_general_coder_fix(
         logger.debug("[GENERAL_CODER_DISABLED] Feature flag disabled")
         return False, "GeneralCoder feature flag disabled"
 
+    # Issue #3366: Use smart gate logic for CI failure scenarios
+    # is_senior_coder_required() bypasses severity check when ci_failure_trigger=True
+    # This allows SeniorCoder to handle high-severity CI failures (lint errors, etc.)
     review_outcome = state.get("review_outcome")
-    if not is_autofix_allowed(review_outcome):
-        logger.info(
-            f"[GENERAL_CODER_GATE_FAIL] Autofix not allowed for review_outcome. "
-            f"trace_id={trace_id}"
-        )
-        return False, "Autofix gate check failed"
+    ci_failure_trigger = state.get("ci_failure_trigger", False)
+
+    if ci_failure_trigger:
+        # CI failure scenario: use relaxed gate (only requires schema_validated)
+        if not is_senior_coder_required(state, review_outcome):
+            logger.info(
+                f"[GENERAL_CODER_GATE_FAIL] SeniorCoder gate failed for CI failure. "
+                f"trace_id={trace_id}"
+            )
+            return False, "SeniorCoder gate check failed for CI failure"
+    else:
+        # Non-CI failure scenario: use strict gate (requires severity=low)
+        if not is_autofix_allowed(review_outcome):
+            logger.info(
+                f"[GENERAL_CODER_GATE_FAIL] Autofix not allowed for review_outcome. "
+                f"trace_id={trace_id}"
+            )
+            return False, "Autofix gate check failed"
 
     # Get review files - GeneralCoder needs multiple files
     review_files = state.get("review_files", [])

@@ -1031,13 +1031,14 @@ class Settings(BaseSettings):
     )
 
     orchestrator_recursion_limit: int = Field(
-        default=30,
+        default=100,
         ge=5,
         le=200,
         alias="ORCHESTRATOR_RECURSION_LIMIT",
         description="Maximum number of LangGraph workflow steps before forced termination. "
                     "Prevents runaway workflows from infinite loops or excessive checkpoint writes. "
-                    "Default: 30 (sufficient for typical PR review workflows). "
+                    "Default: 100 (sufficient for SeniorCoder three-stage supervisor pattern). "
+                    "Issue #3366: Increased from 30 to 100 for D-2b SeniorCoder integration. "
                     "Blueprint: Flow Controller v3 Fail-Fast Recovery."
     )
 
