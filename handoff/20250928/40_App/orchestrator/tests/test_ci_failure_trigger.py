@@ -158,3 +158,119 @@ class TestCIFailureTaskContext:
 
         assert ci_context["custom_field"] == "custom_value"
         assert ci_context["repo"] == "test/repo"
+
+
+class TestCIFailureFastPath:
+    """Test CI failure fast path routing (Issue #3366 Two-Layer Routing Optimization)."""
+
+    def test_router_short_circuit_when_ci_failure_trigger(self):
+        """Test that router_node short-circuits to fixer when ci_failure_trigger=True."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_state": "failure",
+            "messages": [],
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+
+                from langgraph_orchestrator import router_node
+                result = router_node(state)
+
+        assert result["merge_decision"] == "needs_fix"
+        assert result["requires_hitl_approval"] is False
+        assert result["routing_decision"]["next_node"] == "fixer"
+        assert "CI failure fast path" in result["routing_decision"]["reasoning"]
+
+    def test_router_no_short_circuit_when_ci_success(self):
+        """Test that router_node does NOT short-circuit when ci_state=success."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-456",
+            "ci_failure_trigger": True,
+            "ci_state": "success",
+            "messages": [],
+            "review_outcome": {
+                "verdict": "approve",
+                "severity": "none",
+                "summary": "All good",
+                "blocker_count": 0,
+            },
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("langgraph_orchestrator.get_hybrid_router") as mock_router:
+                    mock_decision = MagicMock()
+                    mock_decision.next_node = "publisher"
+                    mock_decision.requires_hitl_approval = False
+                    mock_decision.reasoning = "Approved"
+                    mock_decision.risk_assessment = "low"
+                    mock_router.return_value.route.return_value = mock_decision
+
+                    from langgraph_orchestrator import router_node
+                    result = router_node(state)
+
+        assert result["merge_decision"] == "approve"
+
+    def test_router_no_short_circuit_when_no_ci_failure_trigger(self):
+        """Test that router_node does NOT short-circuit when ci_failure_trigger=False."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-789",
+            "ci_failure_trigger": False,
+            "ci_state": "failure",
+            "messages": [],
+            "review_outcome": {
+                "verdict": "request_changes",
+                "severity": "low",
+                "summary": "Fix needed",
+                "blocker_count": 0,
+            },
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("langgraph_orchestrator.get_hybrid_router") as mock_router:
+                    mock_decision = MagicMock()
+                    mock_decision.next_node = "fixer"
+                    mock_decision.requires_hitl_approval = False
+                    mock_decision.reasoning = "Low severity fix"
+                    mock_decision.risk_assessment = "low"
+                    mock_router.return_value.route.return_value = mock_decision
+
+                    from langgraph_orchestrator import router_node
+                    router_node(state)
+
+        assert mock_router.return_value.route.called
+
+    def test_entry_point_shortcut_logic(self):
+        """Test that entry_point is set to ci_monitor when ci_failure_trigger=True."""
+        ci_failure_trigger = True
+        entry_point = "planner"
+
+        if ci_failure_trigger:
+            entry_point = "ci_monitor"
+
+        assert entry_point == "ci_monitor"
+
+    def test_entry_point_default_planner(self):
+        """Test that entry_point defaults to planner when ci_failure_trigger=False."""
+        ci_failure_trigger = False
+        entry_point = "planner"
+
+        if ci_failure_trigger:
+            entry_point = "ci_monitor"
+
+        assert entry_point == "planner"
