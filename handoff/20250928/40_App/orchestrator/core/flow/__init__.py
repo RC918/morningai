@@ -44,6 +44,12 @@ from .hybrid_router import (
     CANONICAL_NODES,
     SEVERITY_ORDER,
 )
+from .canary_gating import (
+    should_enable_dynamic_routing,
+    compute_bucket,
+    is_in_sample,
+    get_canary_status,
+)
 from .candidate_registry import (
     CandidateRegistry,
     get_candidate_registry,
@@ -80,6 +86,11 @@ __all__ = [
     'SEVERITY_ORDER',
     # C-4: Metrics
     'RouterMetrics',
+    # #3431: Deterministic Canary Gating
+    'should_enable_dynamic_routing',
+    'compute_bucket',
+    'is_in_sample',
+    'get_canary_status',
     # C-8: Candidate Registry (Stage 2)
     'CandidateRegistry',
     'get_candidate_registry',

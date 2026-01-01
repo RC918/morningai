@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 261
+- **Total Variables**: 262
 - **Required**: 21
-- **Optional**: 240
+- **Optional**: 241
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -32,7 +32,7 @@
 - [Integration](#integration) (20 variables)
 - [Worker](#worker) (6 variables)
 - [Application](#application) (28 variables)
-- [Feature Flags](#feature-flags) (63 variables)
+- [Feature Flags](#feature-flags) (64 variables)
 - [Orchestrator](#orchestrator) (6 variables)
 - [Frontend](#frontend) (6 variables)
 - [Testing](#testing) (17 variables)
@@ -1803,6 +1803,7 @@ Application logging level
 | `PHASE3_TIMEOUT_RATE_THRESHOLD` | number | No | 2.0 | PUBLIC |
 | `FEATURE_COOKIE_AUTH` | boolean | No | true | PUBLIC |
 | `ENABLE_DYNAMIC_ROUTING` | boolean | No | false | PUBLIC |
+| `DYNAMIC_ROUTING_SAMPLE_RATE` | integer | No | 0 | PUBLIC |
 | `ROUTER_MODEL_TIER` | string (tier1, tier2) | No | tier1 | PUBLIC |
 | `ROUTER_TIMEOUT_SECONDS` | integer | No | 10 | PUBLIC |
 | `ROUTER_MAX_RETRIES` | integer | No | 2 | PUBLIC |
@@ -2562,6 +2563,29 @@ Enable LLM-driven dynamic routing (Flow Controller v3)
 > When false (default): 100% of traffic uses existing conditional_edges routing.
 > When true: Enables Router v3 with fail-safe fallback to deterministic routing.
 > MUST default to false per Blueprint guarantee - no impact on existing behavior.
+> Note: When DYNAMIC_ROUTING_SAMPLE_RATE > 0, this flag is ignored.
+
+#### `DYNAMIC_ROUTING_SAMPLE_RATE`
+
+Percentage of workflows to route through Flow Controller v3 (0-100)
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `0`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Issue #3431: Deterministic Canary Gating for Flow Router v3.
+> Uses hash-based bucketing for sticky assignment:
+> - Same workflow always routes to same path (deterministic)
+> - No random flipping mid-workflow
+> - Decision made once at workflow start
+> Values:
+> - 0 (default): Disabled, uses ENABLE_DYNAMIC_ROUTING flag
+> - 5: 5% canary rollout
+> - 25: 25% rollout
+> - 100: Full rollout (100% dynamic routing)
+> Rollout strategy: 0% → 5% → 25% → 50% → 100%
 
 #### `ROUTER_MODEL_TIER`
 
