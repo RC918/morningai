@@ -5903,8 +5903,7 @@ def router_node(state: AgentState) -> AgentState:
     # Issue #3366: Observability log for CI failure fast path debugging
     # This log helps diagnose if ci_failure_trigger is being lost in state transitions
     logger.info(
-        f"[ROUTER_STATE_DEBUG] Router entry state: "
-        f"ci_failure_trigger={ci_failure_trigger} ci_state={ci_state} trace_id={trace_id}",
+        f"[ROUTER_STATE_DEBUG] Router entry state: ci_failure_trigger={ci_failure_trigger} ci_state={ci_state}",
         extra={
             "operation": "router",
             "trace_id": trace_id,
