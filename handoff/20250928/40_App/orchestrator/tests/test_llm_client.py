@@ -867,3 +867,42 @@ class TestHardGatingEnforcement:
                         assert len(error_calls) > 0, (
                             "Expected [I-4-ENFORCEMENT] ERROR log for Hard Gating"
                         )
+
+    def test_floor_protection_priority_dynamic_over_fixed(self):
+        """Test that dynamic floor_provider takes priority over fixed_floor.
+
+        Floor Protection Priority (consistent throughout function):
+        1. Dynamic floor_provider (from DegradationAdvisor) if available and in providers
+        2. Fixed floor_provider (from settings) if in providers
+        3. First provider as emergency fallback
+        """
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        from governance.degradation_types import DegradationSeverity
+
+        mock_advisor = MagicMock()
+        # Dynamic floor is gemini, fixed floor is openai
+        mock_advisor.get_current_floor_provider.return_value = "gemini"
+        # All providers are AVOID - only effective_floor should be kept
+        mock_advisor.get_provider_state.side_effect = lambda p: DegradationSeverity.AVOID
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = True
+                mock_settings.degradation_fixed_floor_provider = "openai"
+
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    return_value=mock_advisor
+                ):
+                    available = _get_available_providers()
+
+                    # Dynamic floor (gemini) should take priority over fixed (openai)
+                    assert "gemini" in available
+                    # Only one provider should be kept (the effective floor)
+                    assert len(available) == 1

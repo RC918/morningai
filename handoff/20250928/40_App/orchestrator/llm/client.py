@@ -160,6 +160,11 @@ def _apply_hard_gating(providers: list[str]) -> list[str]:
     - Floor protection: At least 1 provider always remains available
     - Fail-open: If DegradationAdvisor is unavailable, all providers remain available
     - Governance telemetry: ERROR-level logging when Hard Gating occurs
+
+    Floor Protection Strategy (consistent priority):
+    - Priority 1: Dynamic floor_provider (from DegradationAdvisor) if available and in providers
+    - Priority 2: Fixed floor_provider (from settings) if available and in providers
+    - Priority 3: First provider in list as emergency fallback
     """
     if not providers:
         return providers
@@ -176,9 +181,27 @@ def _apply_hard_gating(providers: list[str]) -> list[str]:
             )
             return providers
 
-        # Get floor provider for protection
-        floor_provider = advisor.get_current_floor_provider()
+        # Get floor provider candidates
+        dynamic_floor = advisor.get_current_floor_provider()
         fixed_floor = getattr(settings, 'degradation_fixed_floor_provider', 'openai')
+
+        # Determine effective floor provider using consistent priority:
+        # 1. Dynamic floor (if available and in providers)
+        # 2. Fixed floor (if in providers)
+        # 3. First provider (emergency fallback)
+        effective_floor = None
+        if dynamic_floor and dynamic_floor in providers:
+            effective_floor = dynamic_floor
+        elif fixed_floor in providers:
+            effective_floor = fixed_floor
+        elif providers:
+            effective_floor = providers[0]
+
+        logger.debug(
+            f"[I-4-ENFORCEMENT] Floor provider selection: "
+            f"dynamic={dynamic_floor}, fixed={fixed_floor}, "
+            f"effective={effective_floor}"
+        )
 
         # Filter out AVOID providers (except floor protected)
         filtered = []
@@ -189,18 +212,15 @@ def _apply_hard_gating(providers: list[str]) -> list[str]:
 
             # Check if provider should be gated
             if state == DegradationSeverity.AVOID:
-                # Check floor protection
-                is_floor_protected = (
-                    provider == floor_provider or
-                    provider == fixed_floor
-                )
+                # Check floor protection (only effective_floor is protected)
+                is_floor_protected = (provider == effective_floor)
 
                 if is_floor_protected:
                     # Floor protected - keep this provider
                     filtered.append(provider)
                     logger.warning(
                         f"[I-4-ENFORCEMENT] Provider {provider} has AVOID state but is "
-                        f"floor-protected. Keeping in available list."
+                        f"floor-protected (effective_floor). Keeping in available list."
                     )
                 else:
                     # Not floor protected - gate this provider
@@ -215,13 +235,8 @@ def _apply_hard_gating(providers: list[str]) -> list[str]:
 
         # Absolute floor protection: Never return empty list
         if not filtered and providers:
-            # All providers were gated - keep the first one as emergency fallback
-            fallback = providers[0]
-            if fixed_floor in providers:
-                fallback = fixed_floor
-            elif floor_provider and floor_provider in providers:
-                fallback = floor_provider
-
+            # All providers were gated - use effective_floor as fallback
+            fallback = effective_floor if effective_floor else providers[0]
             filtered = [fallback]
             logger.error(
                 f"[I-4-ENFORCEMENT] FLOOR PROTECTION ACTIVATED: All providers would be "
@@ -233,7 +248,7 @@ def _apply_hard_gating(providers: list[str]) -> list[str]:
             logger.info(
                 f"[I-4-ENFORCEMENT] Hard Gating summary: "
                 f"original={providers}, gated={gated_providers}, "
-                f"remaining={filtered}"
+                f"remaining={filtered}, effective_floor={effective_floor}"
             )
 
         return filtered
