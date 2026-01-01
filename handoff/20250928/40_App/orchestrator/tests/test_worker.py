@@ -335,9 +335,7 @@ class TestMetricsLatencyConsistency:
         # monotonic_ns is called twice: once for start_time_ns, once for elapsed_ms calculation
         mock_monotonic_ns.side_effect = [start_ns, end_ns]
 
-        # Enable LangGraph mode to trigger both metrics blocks
-        mock_settings.use_langgraph = False
-        mock_settings.use_langgraph_percent = 100
+        # LangGraph is now the only orchestrator mode (Issue #2651)
         mock_settings.canary_alerting_enabled = False
 
         # Setup mock orchestrator response
@@ -400,8 +398,7 @@ class TestMetricsLatencyConsistency:
 
         mock_monotonic_ns.side_effect = [start_ns, end_ns]
 
-        mock_settings.use_langgraph = False
-        mock_settings.use_langgraph_percent = 100
+        # LangGraph is now the only orchestrator mode (Issue #2651)
         mock_settings.canary_alerting_enabled = False
 
         mock_run_orch.return_value = {
