@@ -69,13 +69,14 @@ _PROVIDER_REGISTRY = [
 ]
 
 
-def _get_available_providers() -> list[str]:
-    """Get list of available provider names based on configuration and governance allowlist.
+def _get_available_providers(bypass_governance: bool = False) -> list[str]:
+    """Get list of available provider names based on configuration and governance.
 
     The provider selection follows this logic:
     1. Check which providers have valid API keys configured
     2. If ROUTING_ALLOWED_PROVIDERS is set (non-empty), filter to only allowed providers
-    3. Return the intersection of available and allowed providers
+    3. If DEGRADATION_ENFORCEMENT_ENABLED is true, filter out AVOID providers (Hard Gating)
+    4. Return the intersection of available and allowed providers
 
     Governance Control (Blueprint: Model Governance Framework v2):
     - Empty allowlist (default): Use all providers with valid API keys
@@ -83,45 +84,188 @@ def _get_available_providers() -> list[str]:
     - If allowlist is set but no allowed providers have valid API keys, return empty list
       (caller should handle this as an error condition)
 
-    Security Policy (Fail-Closed):
+    EPIC I-4 Phase B: Hard Gating (Degradation Enforcement):
+    - When DEGRADATION_ENFORCEMENT_ENABLED is true, AVOID providers are filtered out
+    - Floor protection ensures at least 1 provider remains available (absolute red line)
+    - Fail-open: If DegradationAdvisor is unavailable, all providers remain available
+
+    Security Policy (Fail-Closed for allowlist, Fail-Open for degradation):
     - When governance mode is enabled (allowlist is non-empty), any exception during
       allowlist processing will block ALL providers and log a critical error
-    - This prevents accidental bypass of governance controls due to configuration errors
-    - When governance mode is NOT enabled (empty allowlist), exceptions are not expected
-      as no allowlist processing occurs
+    - When degradation enforcement is enabled, any exception will NOT block providers
+      (fail-open to prevent cascading failures)
+
+    Args:
+        bypass_governance: If True, skip all governance filtering (emergency/diagnostic only)
     """
     available = []
     for name, provider_class in _PROVIDER_REGISTRY:
         if provider_class().is_available():
             available.append(name)
 
+    # Emergency bypass for diagnostic/staging use
+    if bypass_governance:
+        logger.warning(
+            "[LLMClient] BYPASS_GOVERNANCE enabled - skipping all governance filtering. "
+            "This should only be used for emergency/diagnostic purposes."
+        )
+        return available
+
     # Check if governance mode is enabled (allowlist is set)
     allowlist_str = getattr(settings, 'routing_allowed_providers', '')
 
-    if not allowlist_str:
-        # Governance mode NOT enabled - return all available providers
-        return available
+    if allowlist_str:
+        # Governance mode IS enabled - apply strict fail-closed policy
+        try:
+            allowed = [p.strip().lower() for p in allowlist_str.split(',') if p.strip()]
+            available = [p for p in available if p.lower() in allowed]
+            logger.info(
+                f"[LLMClient] Applied provider governance allowlist: "
+                f"allowlist={allowed}, filtered_result={available}"
+            )
+        except Exception as e:
+            # FAIL-CLOSED: When governance is enabled, any error blocks all providers
+            # This prevents accidental bypass of governance controls
+            logger.error(
+                f"[LLMClient] CRITICAL: Failed to apply provider governance allowlist. "
+                f"Blocking all providers for security. "
+                f"ROUTING_ALLOWED_PROVIDERS='{allowlist_str}', Error: {e}. "
+                f"Please check your configuration."
+            )
+            return []
 
-    # Governance mode IS enabled - apply strict fail-closed policy
+    # EPIC I-4 Phase B: Hard Gating (Degradation Enforcement)
+    if getattr(settings, 'degradation_enforcement_enabled', False):
+        available = _apply_hard_gating(available)
+
+    return available
+
+
+def _apply_hard_gating(providers: list[str]) -> list[str]:
+    """
+    Apply Hard Gating logic to filter AVOID providers.
+
+    EPIC I-4 Phase B-1: Degradation Enforcement
+
+    This function filters out providers with AVOID severity from the available list,
+    while ensuring floor protection (at least 1 provider remains available).
+
+    Args:
+        providers: List of available provider names
+
+    Returns:
+        Filtered list of providers with AVOID providers removed (floor protected)
+
+    Safety Features:
+    - Floor protection: At least 1 provider always remains available
+    - Fail-open: If DegradationAdvisor is unavailable, all providers remain available
+    - Governance telemetry: ERROR-level logging when Hard Gating occurs
+
+    Floor Protection Strategy (consistent priority):
+    - Priority 1: Dynamic floor_provider (from DegradationAdvisor) if available and in providers
+    - Priority 2: Fixed floor_provider (from settings) if available and in providers
+    - Priority 3: First provider in list as emergency fallback
+    """
+    if not providers:
+        return providers
+
     try:
-        allowed = [p.strip().lower() for p in allowlist_str.split(',') if p.strip()]
-        filtered = [p for p in available if p.lower() in allowed]
-        logger.info(
-            f"[LLMClient] Applied provider governance allowlist: "
-            f"allowlist={allowed}, available_with_keys={available}, "
-            f"filtered_result={filtered}"
+        from governance.degradation_advisor import get_degradation_advisor
+        from governance.degradation_types import DegradationSeverity
+
+        advisor = get_degradation_advisor()
+        if advisor is None:
+            # Fail-open: Advisory not available, return all providers
+            logger.debug(
+                "[LLMClient] DegradationAdvisor not available, skipping Hard Gating"
+            )
+            return providers
+
+        # Get floor provider candidates
+        dynamic_floor = advisor.get_current_floor_provider()
+        fixed_floor = getattr(settings, 'degradation_fixed_floor_provider', 'openai')
+
+        # Determine effective floor provider using consistent priority:
+        # 1. Dynamic floor (if available and in providers)
+        # 2. Fixed floor (if in providers)
+        # 3. First provider (emergency fallback)
+        effective_floor = None
+        if dynamic_floor and dynamic_floor in providers:
+            effective_floor = dynamic_floor
+        elif fixed_floor in providers:
+            effective_floor = fixed_floor
+        elif providers:
+            effective_floor = providers[0]
+
+        logger.debug(
+            f"[I-4-ENFORCEMENT] Floor provider selection: "
+            f"dynamic={dynamic_floor}, fixed={fixed_floor}, "
+            f"effective={effective_floor}"
         )
+
+        # Filter out AVOID providers (except floor protected)
+        filtered = []
+        gated_providers = []
+
+        for provider in providers:
+            state = advisor.get_provider_state(provider)
+
+            # Check if provider should be gated
+            if state == DegradationSeverity.AVOID:
+                # Check floor protection (only effective_floor is protected)
+                is_floor_protected = (provider == effective_floor)
+
+                if is_floor_protected:
+                    # Floor protected - keep this provider
+                    filtered.append(provider)
+                    logger.warning(
+                        f"[I-4-ENFORCEMENT] Provider {provider} has AVOID state but is "
+                        f"floor-protected (effective_floor). Keeping in available list."
+                    )
+                else:
+                    # Not floor protected - gate this provider
+                    gated_providers.append(provider)
+                    logger.error(
+                        f"[I-4-ENFORCEMENT] Hard-gating provider {provider} due to "
+                        f"AVOID state."
+                    )
+            else:
+                # Not AVOID - keep this provider
+                filtered.append(provider)
+
+        # Absolute floor protection: Never return empty list
+        if not filtered and providers:
+            # All providers were gated - use effective_floor as fallback
+            fallback = effective_floor if effective_floor else providers[0]
+            filtered = [fallback]
+            logger.error(
+                f"[I-4-ENFORCEMENT] FLOOR PROTECTION ACTIVATED: All providers would be "
+                f"gated. Keeping {fallback} as emergency fallback. "
+                f"Original providers: {providers}, Gated: {gated_providers}"
+            )
+
+        if gated_providers:
+            logger.info(
+                f"[I-4-ENFORCEMENT] Hard Gating summary: "
+                f"original={providers}, gated={gated_providers}, "
+                f"remaining={filtered}, effective_floor={effective_floor}"
+            )
+
         return filtered
-    except Exception as e:
-        # FAIL-CLOSED: When governance is enabled, any error blocks all providers
-        # This prevents accidental bypass of governance controls
-        logger.error(
-            f"[LLMClient] CRITICAL: Failed to apply provider governance allowlist. "
-            f"Blocking all providers for security. "
-            f"ROUTING_ALLOWED_PROVIDERS='{allowlist_str}', Error: {e}. "
-            f"Please check your configuration."
+
+    except ImportError:
+        # Fail-open: Governance module not available
+        logger.debug(
+            "[LLMClient] Governance module not available, skipping Hard Gating"
         )
-        return []
+        return providers
+    except Exception as e:
+        # Fail-open: Any error during Hard Gating should not block providers
+        logger.warning(
+            f"[LLMClient] Hard Gating error (fail-open): {e}. "
+            f"Returning all providers to prevent service disruption."
+        )
+        return providers
 
 
 class LLMClient:

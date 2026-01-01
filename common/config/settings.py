@@ -739,6 +739,13 @@ class Settings(BaseSettings):
         description="Enable degradation advisory system (EPIC I-4 Phase A, observe-only)"
     )
 
+    # EPIC I-4 Phase B: Degradation Enforcement (Hard Gating)
+    degradation_enforcement_enabled: bool = Field(
+        default=False,
+        alias="DEGRADATION_ENFORCEMENT_ENABLED",
+        description="Enable degradation enforcement (EPIC I-4 Phase B). When enabled, AVOID providers are filtered from available providers. Requires DEGRADATION_ADVISORY_ENABLED=true."
+    )
+
     degradation_healthy_threshold: float = Field(
         default=75.0,
         ge=0.0,
