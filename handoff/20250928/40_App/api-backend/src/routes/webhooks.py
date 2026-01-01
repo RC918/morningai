@@ -242,6 +242,12 @@ def _enqueue_task(task):
     if use_meta_agent:
         return _enqueue_meta_agent_task(task)
 
+    # Issue: #3366 - CI Failure Reflex Integration
+    # Route CI failure events to dedicated auto-fix flow
+    ci_failure_trigger = task.context.get("ci_failure_trigger", False)
+    if ci_failure_trigger:
+        return _enqueue_ci_failure_task(task)
+
     # Phase B-B: Check if this is a PR_UPDATED event that needs delayed job
     pr_updated_should_schedule = task.context.get("pr_updated_should_schedule_job", False)
     if pr_updated_should_schedule:
@@ -410,6 +416,109 @@ def _enqueue_pr_updated_delayed_task(task):
 
     except Exception as e:
         logger.exception("[Webhooks] Failed to enqueue PR_UPDATED delayed task: %s", e)
+        return None
+
+
+def _enqueue_ci_failure_task(task):
+    """
+    Enqueue a CI failure task for auto-fix processing.
+
+    This implements the CI failure reflex flow:
+    Webhook (check_suite.completed) → EventNormalizer → _enqueue_ci_failure_task
+    → run_orchestrator_task → LangGraph orchestrator → GeneralCoder/SeniorCoder
+
+    The task is routed to the standard orchestrator with CI failure context,
+    which triggers the auto-fix flow when the orchestrator detects:
+    - ci_failure_trigger=True in context
+    - ci_failure_pr_number for the target PR
+
+    Issue: #3366 - CI Failure Reflex Integration
+
+    Args:
+        task: NormalizedTask from EventNormalizer with CI failure metadata
+
+    Returns:
+        Job ID if enqueued successfully, None otherwise
+    """
+    try:
+        from redis import Redis
+        from rq import Queue
+        from rq.serializers import JSONSerializer
+
+        redis_url = settings.redis_url
+        if not redis_url:
+            logger.warning("[Webhooks] Redis URL not configured, skipping CI failure task enqueue")
+            return None
+
+        redis_client = Redis.from_url(redis_url, decode_responses=False)
+        queue_name = settings.rq_queue_name or "orchestrator"
+        queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
+
+        # Import the worker function
+        from redis_queue.worker import run_orchestrator_task
+
+        # Get repository from task context or settings
+        repo = task.context.get("repo") or settings.github_repo
+        if not repo:
+            logger.error(
+                "[Webhooks] No repository specified for CI failure task %s",
+                task.task_id,
+            )
+            return None
+
+        # Extract CI failure metadata
+        pr_number = task.context.get("ci_failure_pr_number")
+        if not pr_number:
+            logger.error(
+                "[Webhooks] No PR number specified for CI failure task %s",
+                task.task_id,
+            )
+            return None
+
+        # Build context for orchestrator with CI failure info
+        # The orchestrator will detect ci_failure_trigger and route to auto-fix flow
+        ci_context = {
+            **task.context,
+            "resource_type": "pull_request",
+            "resource_id": str(pr_number),
+            "pr_number": pr_number,
+            "ci_failure_trigger": True,
+            "source": "ci_failure_webhook",
+        }
+
+        # Enqueue the task
+        job = queue.enqueue(
+            run_orchestrator_task,
+            task.task_id,
+            task.goal_text,
+            repo,
+            "ci_failure",  # task_type for metrics/logging
+            ci_context,
+            job_id=task.task_id,
+            ttl=600,
+            job_timeout=settings.rq_job_timeout,
+            result_ttl=86400,
+            failure_ttl=3600,
+        )
+
+        logger.info(
+            "[Webhooks] Enqueued CI failure task %s as job %s for repo %s PR #%s",
+            task.task_id,
+            job.id,
+            repo,
+            pr_number,
+            extra={
+                "operation": "enqueue_ci_failure_task",
+                "task_id": task.task_id,
+                "job_id": job.id,
+                "repo": repo,
+                "pr_number": pr_number,
+            }
+        )
+        return job.id
+
+    except Exception as e:
+        logger.exception("[Webhooks] Failed to enqueue CI failure task: %s", e)
         return None
 
 
