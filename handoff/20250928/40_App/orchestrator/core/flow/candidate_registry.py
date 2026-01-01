@@ -327,7 +327,9 @@ class CandidateRegistry:
                 valid_nodes=valid_nodes
             )
 
-        if not self.is_valid_candidate(transition_point, node_name):
+        # Check directly against valid_nodes to avoid redundant deprecated check
+        # (is_valid_candidate also checks deprecated, which we already did above)
+        if node_name not in valid_nodes:
             logger.warning(
                 f"[CANDIDATE_INVALID] Invalid node '{node_name}' "
                 f"selected at '{transition_point}'. Valid: {valid_nodes}"
