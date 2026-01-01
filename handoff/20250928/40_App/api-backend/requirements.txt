@@ -40,6 +40,6 @@ argon2-cffi==25.1.0
 # See requirements-dev.txt for: fakeredis, playwright, pytest-playwright
 
 # System monitoring dependencies
-psutil==6.1.0
+psutil==7.2.1
 
 PyGithub>=2.1.1
