@@ -90,6 +90,110 @@ def is_path_excluded(file_path: Optional[str]) -> bool:
     return False
 
 
+def is_senior_coder_required(
+    state: Dict[str, Any],
+    review_outcome: Optional[Dict[str, Any]] = None
+) -> bool:
+    """Check if SeniorCoder should be invoked for this fix attempt.
+
+    Issue #3366: Smart gate logic for CI failure auto-fix scenarios.
+    CTO Directive: "方案 A + B 混合體"
+
+    This function implements smarter gate logic that distinguishes between:
+    1. Review comment auto-fix (D-1): Uses strict is_autofix_allowed() rules
+    2. CI failure auto-fix (D-3): Bypasses severity check, only requires schema_validated
+
+    Logic:
+    - If ci_failure_trigger=True: Only require schema_validated=True (ignore severity)
+    - If ci_failure_trigger=False: Fall back to is_autofix_allowed() logic
+    - For diff_truncated: Pass through to SeniorCoder decision (don't block)
+
+    Args:
+        state: AgentState dict containing ci_failure_trigger flag
+        review_outcome: Optional ReviewOutcome dict (will be fetched from state if not provided)
+
+    Returns:
+        True if SeniorCoder should be invoked, False otherwise
+
+    Event Codes (greppable):
+        [SENIOR_CODER_GATE_PASS] - SeniorCoder gate passed
+        [SENIOR_CODER_GATE_FAIL] - SeniorCoder gate failed
+        [SENIOR_CODER_GATE_CI_FAILURE] - CI failure trigger detected, using relaxed rules
+    """
+    if not state:
+        logger.info("[SENIOR_CODER_GATE_FAIL] state is None or empty")
+        return False
+
+    # Get review_outcome from state if not provided
+    if review_outcome is None:
+        review_outcome = state.get("review_outcome", {})
+
+    if not review_outcome:
+        logger.info("[SENIOR_CODER_GATE_FAIL] review_outcome is None or empty")
+        return False
+
+    # Check if this is a CI failure trigger scenario
+    ci_failure_trigger = state.get("ci_failure_trigger", False)
+
+    # Extract review_outcome fields
+    schema_validated = review_outcome.get("schema_validated", False)
+    severity = review_outcome.get("severity", "").lower()
+    diff_truncated = review_outcome.get("diff_truncated", True)
+
+    # P0: schema_validated is non-negotiable (data format must be valid)
+    # IMPORTANT: Use strict identity check (is True) not truthy check
+    # This prevents bypass via truthy values like 1, "true", etc.
+    if schema_validated is not True:
+        logger.info(
+            f"[SENIOR_CODER_GATE_FAIL] schema_validated={schema_validated} (required: True)"
+        )
+        return False
+
+    if ci_failure_trigger:
+        # CI failure scenario: bypass severity check
+        # CTO: "如果 ci_failure_trigger 為 True，無視 severity == 'low' 的限制"
+        logger.info(
+            f"[SENIOR_CODER_GATE_CI_FAILURE] CI failure trigger detected, "
+            f"bypassing severity check. severity={severity}, diff_truncated={diff_truncated}"
+        )
+
+        # For diff_truncated, let SeniorCoder decide instead of blocking
+        # CTO: "對於 diff_truncated，如果為 True，由 SeniorCoder 決定是否能處理"
+        if diff_truncated:
+            logger.info(
+                "[SENIOR_CODER_GATE_PASS] diff_truncated=True, "
+                "passing to SeniorCoder for decision"
+            )
+
+        logger.info(
+            "[SENIOR_CODER_GATE_PASS] CI failure trigger: "
+            f"schema_validated=True, severity={severity} (ignored)"
+        )
+        return True
+    else:
+        # Non-CI failure scenario: use standard is_autofix_allowed() logic
+        # This preserves the original D-1 review comment auto-fix behavior
+        severity_ok = severity == "low"
+        diff_ok = diff_truncated is False
+
+        if not severity_ok:
+            logger.info(
+                f"[SENIOR_CODER_GATE_FAIL] severity={severity} (expected: low)"
+            )
+            return False
+
+        if not diff_ok:
+            logger.info(
+                f"[SENIOR_CODER_GATE_FAIL] diff_truncated={diff_truncated} (expected: False)"
+            )
+            return False
+
+        logger.info(
+            "[SENIOR_CODER_GATE_PASS] severity=low, diff_truncated=False, schema_validated=True"
+        )
+        return True
+
+
 def is_autofix_allowed(
     review_outcome: Dict[str, Any],
     file_paths: Optional[List[str]] = None
