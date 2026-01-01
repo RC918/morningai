@@ -5,6 +5,7 @@ Issue #3211: D-1.1 Coder Three Don'ts Safety Guardrails
 """
 from coder.autofix_gate import (
     is_autofix_allowed,
+    is_senior_coder_required,
     is_path_excluded,
     EXCLUDED_PATHS,
 )
@@ -193,3 +194,184 @@ class TestExcludedPathsConstant:
         ]
         for path in critical_paths:
             assert path in EXCLUDED_PATHS, f"{path} should be in EXCLUDED_PATHS"
+
+
+class TestIsSeniorCoderRequired:
+    """Tests for is_senior_coder_required function.
+
+    Issue #3366: Smart gate logic for CI failure auto-fix scenarios.
+    CTO Directive: "方案 A + B 混合體"
+
+    This function distinguishes between:
+    1. CI failure auto-fix (D-3): Bypasses severity check, only requires schema_validated
+    2. Review comment auto-fix (D-1): Uses strict is_autofix_allowed() rules
+    """
+
+    def test_ci_failure_with_schema_validated_true_passes(self):
+        """CI failure with schema_validated=True should pass (ignore severity)."""
+        state = {
+            "ci_failure_trigger": True,
+            "review_outcome": {
+                "severity": "high",
+                "diff_truncated": True,
+                "schema_validated": True,
+            }
+        }
+        assert is_senior_coder_required(state) is True
+
+    def test_ci_failure_with_schema_validated_false_fails(self):
+        """CI failure with schema_validated=False should fail."""
+        state = {
+            "ci_failure_trigger": True,
+            "review_outcome": {
+                "severity": "high",
+                "diff_truncated": False,
+                "schema_validated": False,
+            }
+        }
+        assert is_senior_coder_required(state) is False
+
+    def test_ci_failure_schema_validated_strict_identity_check(self):
+        """schema_validated must be exactly True (identity check, not truthy).
+
+        This prevents bypass via truthy values like 1, "true", etc.
+        """
+        truthy_but_not_true = [1, "true", "True", "yes", [True], {"valid": True}]
+        for value in truthy_but_not_true:
+            state = {
+                "ci_failure_trigger": True,
+                "review_outcome": {
+                    "severity": "high",
+                    "diff_truncated": False,
+                    "schema_validated": value,
+                }
+            }
+            assert is_senior_coder_required(state) is False, (
+                f"schema_validated={value!r} should fail (not identity True)"
+            )
+
+    def test_ci_failure_schema_validated_none_fails(self):
+        """schema_validated=None should fail."""
+        state = {
+            "ci_failure_trigger": True,
+            "review_outcome": {
+                "severity": "high",
+                "diff_truncated": False,
+                "schema_validated": None,
+            }
+        }
+        assert is_senior_coder_required(state) is False
+
+    def test_ci_failure_ignores_severity(self):
+        """CI failure should ignore severity (high, medium, critical all pass)."""
+        for severity in ["high", "medium", "critical", "unknown"]:
+            state = {
+                "ci_failure_trigger": True,
+                "review_outcome": {
+                    "severity": severity,
+                    "diff_truncated": False,
+                    "schema_validated": True,
+                }
+            }
+            assert is_senior_coder_required(state) is True, (
+                f"CI failure with severity={severity} should pass"
+            )
+
+    def test_ci_failure_ignores_diff_truncated(self):
+        """CI failure should pass even when diff_truncated=True."""
+        state = {
+            "ci_failure_trigger": True,
+            "review_outcome": {
+                "severity": "high",
+                "diff_truncated": True,
+                "schema_validated": True,
+            }
+        }
+        assert is_senior_coder_required(state) is True
+
+    def test_non_ci_failure_requires_severity_low(self):
+        """Non-CI failure (D-1) requires severity=low."""
+        state = {
+            "ci_failure_trigger": False,
+            "review_outcome": {
+                "severity": "high",
+                "diff_truncated": False,
+                "schema_validated": True,
+            }
+        }
+        assert is_senior_coder_required(state) is False
+
+    def test_non_ci_failure_requires_diff_truncated_false(self):
+        """Non-CI failure (D-1) requires diff_truncated=False."""
+        state = {
+            "ci_failure_trigger": False,
+            "review_outcome": {
+                "severity": "low",
+                "diff_truncated": True,
+                "schema_validated": True,
+            }
+        }
+        assert is_senior_coder_required(state) is False
+
+    def test_non_ci_failure_all_conditions_met_passes(self):
+        """Non-CI failure (D-1) passes when all strict conditions are met."""
+        state = {
+            "ci_failure_trigger": False,
+            "review_outcome": {
+                "severity": "low",
+                "diff_truncated": False,
+                "schema_validated": True,
+            }
+        }
+        assert is_senior_coder_required(state) is True
+
+    def test_empty_state_fails(self):
+        """Empty state should fail."""
+        assert is_senior_coder_required({}) is False
+        assert is_senior_coder_required(None) is False
+
+    def test_empty_review_outcome_fails(self):
+        """Empty review_outcome should fail."""
+        state = {"ci_failure_trigger": True, "review_outcome": {}}
+        assert is_senior_coder_required(state) is False
+
+        state = {"ci_failure_trigger": True, "review_outcome": None}
+        assert is_senior_coder_required(state) is False
+
+    def test_missing_ci_failure_trigger_defaults_to_false(self):
+        """Missing ci_failure_trigger should default to False (strict D-1 rules)."""
+        state = {
+            "review_outcome": {
+                "severity": "high",
+                "diff_truncated": False,
+                "schema_validated": True,
+            }
+        }
+        assert is_senior_coder_required(state) is False
+
+    def test_review_outcome_passed_as_argument(self):
+        """review_outcome can be passed as argument instead of from state."""
+        state = {"ci_failure_trigger": True}
+        review_outcome = {
+            "severity": "high",
+            "diff_truncated": False,
+            "schema_validated": True,
+        }
+        assert is_senior_coder_required(state, review_outcome) is True
+
+    def test_argument_review_outcome_overrides_state(self):
+        """review_outcome argument should override state's review_outcome."""
+        state = {
+            "ci_failure_trigger": True,
+            "review_outcome": {
+                "severity": "high",
+                "diff_truncated": False,
+                "schema_validated": False,
+            }
+        }
+        override_outcome = {
+            "severity": "high",
+            "diff_truncated": False,
+            "schema_validated": True,
+        }
+        assert is_senior_coder_required(state, override_outcome) is True

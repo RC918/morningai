@@ -45,6 +45,7 @@ from .senior_coder import (
 )
 from .autofix_gate import (
     is_autofix_allowed,
+    is_senior_coder_required,
     is_path_excluded,
     EXCLUDED_PATHS,
 )
@@ -77,6 +78,7 @@ __all__ = [
     "ARCHITECTURE_SPEC_SCHEMA_VERSION",
     # Autofix gate
     "is_autofix_allowed",
+    "is_senior_coder_required",
     "is_path_excluded",
     "EXCLUDED_PATHS",
 ]
