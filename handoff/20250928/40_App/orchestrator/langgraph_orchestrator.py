@@ -5863,6 +5863,11 @@ def router_node(state: AgentState) -> AgentState:
     It uses the HybridRoutingPolicy to make routing decisions based on
     ReviewOutcome fields (verdict, severity, summary, blocker_count).
 
+    Issue #3366: CI Failure Fast Path (Two-Layer Routing Optimization)
+    When ci_failure_trigger=True and ci_state != "success", short-circuit
+    to fixer without LLM routing. This implements the "disaster recovery"
+    response level for self-healing systems.
+
     Routing Rules (from HybridRoutingPolicy):
     1. approve -> publisher (Fast Path)
     2. blocked/unknown -> decision + HITL (Fast Path)
@@ -5875,6 +5880,7 @@ def router_node(state: AgentState) -> AgentState:
     - [ROUTER_SLOW_PATH] - LLM-driven routing
     - [ROUTER_HITL] - Human-in-the-loop required
     - [ROUTER_LLM_FALLBACK] - LLM failed, using deterministic fallback
+    - [CI_FAILURE_ROUTER_SHORT_CIRCUIT] - CI failure fast path triggered
 
     Args:
         state: Current agent state with review_outcome fields
@@ -5890,6 +5896,39 @@ def router_node(state: AgentState) -> AgentState:
     trace_id = state.get("trace_id", "unknown")
 
     metrics.record_node_start("router", trace_id)
+
+    ci_failure_trigger = state.get("ci_failure_trigger", False)
+    ci_state = state.get("ci_state", "unknown")
+
+    if ci_failure_trigger and ci_state != "success":
+        # Issue #3366: CI failure fast path - use monotonic time for accurate latency
+        # (time.monotonic() is immune to system clock adjustments like NTP)
+        fast_path_start = time.monotonic()
+        logger.info(
+            f"[CI_FAILURE_ROUTER_SHORT_CIRCUIT] CI failure fast path triggered "
+            f"trace_id={trace_id} ci_state={ci_state}",
+            extra={
+                "operation": "router",
+                "trace_id": trace_id,
+                "ci_failure_trigger": True,
+                "ci_state": ci_state,
+            }
+        )
+        state["merge_decision"] = "needs_fix"
+        state["requires_hitl_approval"] = False
+        state["routing_decision"] = {
+            "version": 1,
+            "next_node": "fixer",
+            "reasoning": "CI failure fast path: bypassing LLM routing for auto-fix",
+            "risk_assessment": "low",
+            "requires_hitl_approval": False,
+        }
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content="Router: CI failure fast path -> fixer")
+        ]
+        latency_ms = (time.monotonic() - fast_path_start) * 1000
+        metrics.record_node_complete("router", trace_id, success=True, latency_ms=latency_ms)
+        return state
 
     # Extract ReviewOutcome fields from state
     # These are set by reviewer_node via ReviewOutcome schema
@@ -7208,6 +7247,12 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
         review_intake → planner → ... (same as above)
         Entry point can be "review_intake" for review follow-up tasks
 
+    Issue #3366: CI Failure Fast Path (Two-Layer Routing Optimization)
+        ci_monitor → reviewer → router → hitl_gate → fixer → ...
+        Entry point can be "ci_monitor" for CI failure auto-fix tasks.
+        This skips planner + 5 advisors for faster disaster recovery.
+        Combined with router_node short-circuit for defense-in-depth.
+
     5-Agent Advisory Pipeline Nodes:
         1. security_advisor: Security analysis (Phase 4 PR-2)
         2. governance_advisor: Governance compliance analysis (Phase 4 PR-3)
@@ -7250,7 +7295,7 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
         If checkpointer is None, falls back to get_checkpointer() for Redis/Memory.
 
     Args:
-        entry_point: Entry point node name ("planner", "review_intake", or "internal_review")
+        entry_point: Entry point node name ("planner", "review_intake", "internal_review", or "ci_monitor")
         checkpointer: Optional checkpointer instance. If None, uses get_checkpointer() fallback.
 
     Returns:
@@ -7640,7 +7685,25 @@ def run_orchestrator(
             extra={"operation": "run_orchestrator", "trace_id": trace_id, "checkpointer": "fallback"}
         )
 
-    app = create_orchestrator_graph(checkpointer=checkpointer)
+    # Issue #3366: CI Failure Fast Path (Two-Layer Routing Optimization)
+    # Layer 1: Entry Point Shortcut - use ci_monitor as entry point for CI failures
+    # This skips planner + 5 advisors for faster disaster recovery
+    entry_point = "planner"
+    if ci_failure_trigger:
+        entry_point = "ci_monitor"
+        logger.info(
+            f"[CI_FAILURE_FAST_PATH_ENTRY] Using ci_monitor entry point for CI failure "
+            f"trace_id={trace_id} pr_number={pr_number}",
+            extra={
+                "operation": "run_orchestrator",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "entry_point": "ci_monitor",
+                "ci_failure_trigger": True,
+            }
+        )
+
+    app = create_orchestrator_graph(entry_point=entry_point, checkpointer=checkpointer)
 
     # Issue #2260: Use helper to create base initial state
     initial_state = _create_base_initial_state(
@@ -7659,17 +7722,9 @@ def run_orchestrator(
 
     # Issue: #3366 - CI Failure Reflex Integration
     # Pass CI failure trigger flag to workflow for auto-fix routing
+    # Layer 2: Router Short-circuit uses this flag to bypass LLM routing
     if ci_failure_trigger:
         initial_state["ci_failure_trigger"] = True
-        logger.info(
-            f"CI failure trigger detected trace_id={trace_id} pr_number={pr_number}",
-            extra={
-                "operation": "run_orchestrator",
-                "trace_id": trace_id,
-                "pr_number": pr_number,
-                "ci_failure_trigger": True,
-            }
-        )
 
     config = _get_workflow_config(trace_id)
 

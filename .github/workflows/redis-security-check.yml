@@ -54,7 +54,7 @@ jobs:
       
       - name: Create issue on vulnerability
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const title = '🚨 CRITICAL: Redis CVE-2025-49844 Vulnerability Detected';
