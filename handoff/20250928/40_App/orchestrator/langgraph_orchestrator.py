@@ -5633,6 +5633,58 @@ def reviewer_node(state: AgentState) -> AgentState:
     return state
 
 
+def should_use_dynamic_routing(state: AgentState) -> str:
+    """
+    #3431: Deterministic Canary Gating - Runtime routing decision.
+
+    Determines whether to use dynamic routing (router) or legacy routing (decision)
+    based on deterministic hash-based bucketing of the trace_id.
+
+    This function is called at runtime for each workflow, enabling per-workflow
+    canary gating. The decision is deterministic: same trace_id always routes
+    to the same path.
+
+    Decision Logic:
+    1. If DYNAMIC_ROUTING_SAMPLE_RATE > 0: Use hash-based bucketing
+       - Compute bucket from trace_id hash (0-99)
+       - Route to "router" if bucket < sample_rate, else "decision"
+    2. If DYNAMIC_ROUTING_SAMPLE_RATE == 0: Use ENABLE_DYNAMIC_ROUTING flag
+       - Route to "router" if flag is True, else "decision"
+
+    Returns:
+        "router" for dynamic routing path, "decision" for legacy path
+    """
+    from core.flow.canary_gating import should_enable_dynamic_routing
+
+    trace_id = state.get("trace_id", "unknown")
+    metrics = _get_metrics()
+
+    try:
+        use_dynamic = should_enable_dynamic_routing(trace_id)
+
+        if use_dynamic:
+            logger.info(
+                f"[CANARY_ROUTING] trace_id={trace_id[:8]}... -> router (dynamic)"
+            )
+            metrics.record_transition("reviewer", "router", trace_id)
+            return "router"
+        else:
+            logger.info(
+                f"[CANARY_ROUTING] trace_id={trace_id[:8]}... -> decision (legacy)"
+            )
+            metrics.record_transition("reviewer", "decision", trace_id)
+            return "decision"
+
+    except Exception as e:
+        # Fail-safe: default to legacy routing on any error
+        logger.warning(
+            f"[CANARY_ROUTING] Error determining routing for trace_id={trace_id}: {e}, "
+            f"defaulting to legacy decision path"
+        )
+        metrics.record_transition("reviewer", "decision", trace_id)
+        return "decision"
+
+
 def decision_node(state: AgentState) -> AgentState:
     """
     Decision node: Makes merge/fix decision based on review results
@@ -7292,41 +7344,46 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
 
     # EPIC C Phase C-6: Graph Wiring for Hybrid Router (Issue #3182)
     # #3431: Deterministic Canary Gating for Flow Router v3
-    # Decision Logic:
-    # 1. If DYNAMIC_ROUTING_SAMPLE_RATE > 0: Use deterministic bucketing (graph-level)
-    # 2. If DYNAMIC_ROUTING_SAMPLE_RATE == 0: Fall back to ENABLE_DYNAMIC_ROUTING flag
     #
-    # Note: Graph structure is static at compile time. For per-workflow bucketing,
-    # we need both paths wired and use conditional routing at runtime.
-    # For simplicity in Phase 1, we use the sample_rate to decide graph structure.
+    # Per-workflow routing decision using conditional_edges:
+    # - Both paths (router and decision) are wired in the graph
+    # - Runtime decision based on should_use_dynamic_routing(state)
+    # - Uses hash-based bucketing of trace_id for deterministic assignment
+    # - Same trace_id always routes to same path (no random flipping)
+    #
+    # Decision Logic (in should_use_dynamic_routing):
+    # 1. If DYNAMIC_ROUTING_SAMPLE_RATE > 0: Use hash-based bucketing
+    #    - Compute bucket from trace_id hash (0-99)
+    #    - Route to "router" if bucket < sample_rate, else "decision"
+    # 2. If DYNAMIC_ROUTING_SAMPLE_RATE == 0: Use ENABLE_DYNAMIC_ROUTING flag
     sample_rate = getattr(settings, 'dynamic_routing_sample_rate', 0)
     enable_flag = getattr(settings, 'enable_dynamic_routing', False)
 
-    # Determine if dynamic routing should be enabled at graph level
-    # For sample_rate > 0, we enable the router path (bucketing happens at runtime)
-    # For sample_rate == 0, we use the enable_flag
-    enable_dynamic_routing = sample_rate > 0 or enable_flag
+    logger.info(
+        f"[Graph] Canary gating configured: "
+        f"DYNAMIC_ROUTING_SAMPLE_RATE={sample_rate}%, "
+        f"ENABLE_DYNAMIC_ROUTING={enable_flag}"
+    )
 
-    if enable_dynamic_routing:
-        # New flow: reviewer → router → hitl_gate
-        if sample_rate > 0:
-            logger.info(
-                f"[Graph] DYNAMIC_ROUTING_SAMPLE_RATE={sample_rate}%, "
-                f"using Hybrid Router with deterministic canary gating (#3431)"
-            )
-        else:
-            logger.info("[Graph] ENABLE_DYNAMIC_ROUTING=true, using Hybrid Router (C-6)")
-        workflow.add_edge("reviewer", "router")
-        workflow.add_edge("router", "hitl_gate")
-    else:
-        # Legacy flow: reviewer → decision → hitl_gate
-        logger.info("[Graph] ENABLE_DYNAMIC_ROUTING=false, using legacy decision node")
-        workflow.add_edge("reviewer", "decision")
-        # EPIC C Phase C-5: HITL Wiring (Issue #3155)
-        # decision → hitl_gate (always route through HITL gate for approval check)
-        # CTO Directive: "請將 HITL Gate Node 設計為一個獨立的節點，置於 router_node 下游。
-        # 這樣我們可以保持 Router 的純粹性（只做決策），將控制權交給 Gate。"
-        workflow.add_edge("decision", "hitl_gate")
+    # Wire both paths using conditional_edges for per-workflow routing
+    # The routing function should_use_dynamic_routing reads trace_id from state
+    # and returns "router" or "decision" based on deterministic bucketing
+    workflow.add_conditional_edges(
+        "reviewer",
+        should_use_dynamic_routing,
+        {
+            "router": "router",
+            "decision": "decision"
+        }
+    )
+
+    # Both router and decision lead to hitl_gate
+    workflow.add_edge("router", "hitl_gate")
+    # EPIC C Phase C-5: HITL Wiring (Issue #3155)
+    # decision → hitl_gate (always route through HITL gate for approval check)
+    # CTO Directive: "請將 HITL Gate Node 設計為一個獨立的節點，置於 router_node 下游。
+    # 這樣我們可以保持 Router 的純粹性（只做決策），將控制權交給 Gate。"
+    workflow.add_edge("decision", "hitl_gate")
 
     # hitl_gate → (fix | monitor_ci | publisher)
     # EPIC B Phase B-3: Route finalize through publisher for review posting

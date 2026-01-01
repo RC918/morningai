@@ -38,6 +38,13 @@ import hashlib
 import logging
 from typing import Optional
 
+# Import settings at module level to avoid repeated lookups in frequently-called functions
+# This is safe because settings is a singleton and won't change during runtime
+try:
+    from common.config.settings import settings as _settings
+except ImportError:
+    _settings = None  # Fallback for testing without full settings module
+
 logger = logging.getLogger(__name__)
 
 
@@ -108,15 +115,13 @@ def should_enable_dynamic_routing(
         True if dynamic routing should be enabled for this workflow
     """
     try:
-        from common.config.settings import settings
-
         sample_rate = sample_rate_override
         if sample_rate is None:
-            sample_rate = getattr(settings, 'dynamic_routing_sample_rate', 0)
+            sample_rate = getattr(_settings, 'dynamic_routing_sample_rate', 0) if _settings else 0
 
         enable_flag = enable_flag_override
         if enable_flag is None:
-            enable_flag = getattr(settings, 'enable_dynamic_routing', False)
+            enable_flag = getattr(_settings, 'enable_dynamic_routing', False) if _settings else False
 
         if sample_rate > 0:
             bucket = compute_bucket(trace_id)
@@ -159,10 +164,8 @@ def get_canary_status(trace_id: str) -> dict:
         Dict with canary status details
     """
     try:
-        from common.config.settings import settings
-
-        sample_rate = getattr(settings, 'dynamic_routing_sample_rate', 0)
-        enable_flag = getattr(settings, 'enable_dynamic_routing', False)
+        sample_rate = getattr(_settings, 'dynamic_routing_sample_rate', 0) if _settings else 0
+        enable_flag = getattr(_settings, 'enable_dynamic_routing', False) if _settings else False
         bucket = compute_bucket(trace_id)
         enabled = should_enable_dynamic_routing(trace_id)
 

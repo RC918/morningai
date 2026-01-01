@@ -2360,8 +2360,8 @@ class Settings(BaseSettings):
             "Enable LLM-driven dynamic routing (Flow Controller v3). "
             "Default False = 100% old behavior (conditional_edges). "
             "When True, enables Router v3 with fail-safe fallback to deterministic routing. "
-            "Note: When DYNAMIC_ROUTING_SAMPLE_RATE > 0, this flag is ignored and "
-            "deterministic bucketing is used instead."
+            "Note: This flag is only used when DYNAMIC_ROUTING_SAMPLE_RATE=0. "
+            "When sample_rate > 0, per-workflow hash-based bucketing takes precedence."
         )
     )
 
