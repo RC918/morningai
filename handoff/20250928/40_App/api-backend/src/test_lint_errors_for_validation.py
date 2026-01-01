@@ -7,6 +7,8 @@ Expected: Ruff lint check should fail, triggering SeniorCoder plan-execute-revie
 
 Branch: test/* (not devin/*) to bypass normalizer exclusion rule.
 Staging Webhook ID: 589262487
+
+Trigger: logs_url fix validation (PR #3439) - 2026-01-01T11:29
 """
 
 import os
