@@ -209,13 +209,27 @@ class CheckRunSignalSource:
                 check_run_count += 1
                 check_name = check_run.name or "unknown"
 
-                # Get annotations from check run output
+                # Get annotations from check run using PyGithub's get_annotations()
+                # Note: output.annotations doesn't exist in PyGithub; we must use
+                # check_run.get_annotations() which fetches from the annotations_url
                 output = check_run.output
-                if not output:
+                annotations_count = getattr(output, 'annotations_count', 0) if output else 0
+
+                if not annotations_count:
                     continue
 
-                annotations = output.annotations
-                if not annotations:
+                try:
+                    annotations = check_run.get_annotations()
+                except Exception as e:
+                    logger.debug(
+                        f"[SignalIngestion] Failed to fetch annotations for {check_name}: {e}",
+                        extra={
+                            "operation": "check_run_signals",
+                            "trace_id": trace_id,
+                            "check_name": check_name,
+                            "error": str(e),
+                        }
+                    )
                     continue
 
                 annotation_count = 0
