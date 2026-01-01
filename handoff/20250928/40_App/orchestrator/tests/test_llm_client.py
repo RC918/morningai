@@ -593,3 +593,277 @@ class TestProviderGovernanceAllowlist:
                 # Should return all available providers
                 assert "openai" in available
                 assert "alicloud" in available
+
+
+class TestHardGatingEnforcement:
+    """Tests for EPIC I-4 Phase B-1: Hard Gating (Degradation Enforcement).
+
+    Blueprint Alignment: Model Governance Framework v2 (4.3) - Auto-Degradation
+    """
+
+    def _create_mock_provider(self, is_available: bool):
+        """Helper to create a mock provider class"""
+        mock_class = MagicMock()
+        mock_class.return_value.is_available.return_value = is_available
+        return mock_class
+
+    def test_hard_gating_disabled_by_default(self):
+        """Test that Hard Gating is disabled when DEGRADATION_ENFORCEMENT_ENABLED=false"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = False
+
+                available = _get_available_providers()
+
+                # All providers should be available when enforcement is disabled
+                assert "openai" in available
+                assert "gemini" in available
+                assert "alicloud" in available
+
+    def test_hard_gating_filters_avoid_providers(self):
+        """Test that AVOID providers are filtered when enforcement is enabled"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        from governance.degradation_types import DegradationSeverity
+
+        mock_advisor = MagicMock()
+        mock_advisor.get_current_floor_provider.return_value = "openai"
+        mock_advisor.get_provider_state.side_effect = lambda p: {
+            "openai": DegradationSeverity.HEALTHY,
+            "gemini": DegradationSeverity.HEALTHY,
+            "alicloud": DegradationSeverity.AVOID,
+        }.get(p)
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = True
+                mock_settings.degradation_fixed_floor_provider = "openai"
+
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    return_value=mock_advisor
+                ):
+                    available = _get_available_providers()
+
+                    # alicloud should be filtered out due to AVOID state
+                    assert "openai" in available
+                    assert "gemini" in available
+                    assert "alicloud" not in available
+
+    def test_floor_protection_keeps_minimum_provider(self):
+        """Test that floor protection ensures at least 1 provider remains available"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        from governance.degradation_types import DegradationSeverity
+
+        mock_advisor = MagicMock()
+        mock_advisor.get_current_floor_provider.return_value = "openai"
+        # All providers are AVOID
+        mock_advisor.get_provider_state.side_effect = lambda p: DegradationSeverity.AVOID
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = True
+                mock_settings.degradation_fixed_floor_provider = "openai"
+
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    return_value=mock_advisor
+                ):
+                    available = _get_available_providers()
+
+                    # Floor protection: at least 1 provider must remain
+                    assert len(available) >= 1
+                    # Fixed floor provider should be kept
+                    assert "openai" in available
+
+    def test_floor_protected_provider_not_gated(self):
+        """Test that floor-protected provider is not gated even with AVOID state"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+        ]
+
+        from governance.degradation_types import DegradationSeverity
+
+        mock_advisor = MagicMock()
+        mock_advisor.get_current_floor_provider.return_value = "openai"
+        # openai is AVOID but floor protected
+        mock_advisor.get_provider_state.side_effect = lambda p: {
+            "openai": DegradationSeverity.AVOID,
+            "gemini": DegradationSeverity.HEALTHY,
+        }.get(p)
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = True
+                mock_settings.degradation_fixed_floor_provider = "openai"
+
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    return_value=mock_advisor
+                ):
+                    available = _get_available_providers()
+
+                    # openai should be kept due to floor protection
+                    assert "openai" in available
+                    assert "gemini" in available
+
+    def test_bypass_governance_skips_all_filtering(self):
+        """Test that BYPASS_GOVERNANCE skips all governance filtering"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                # Even with allowlist and enforcement enabled
+                mock_settings.routing_allowed_providers = "openai"
+                mock_settings.degradation_enforcement_enabled = True
+
+                # bypass_governance=True should skip all filtering
+                available = _get_available_providers(bypass_governance=True)
+
+                # All providers should be available
+                assert "openai" in available
+                assert "alicloud" in available
+
+    def test_hard_gating_fail_open_on_advisor_unavailable(self):
+        """Test that Hard Gating fails open when DegradationAdvisor is unavailable"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = True
+
+                # Advisor returns None (not available)
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    return_value=None
+                ):
+                    available = _get_available_providers()
+
+                    # Fail-open: all providers should remain available
+                    assert "openai" in available
+                    assert "alicloud" in available
+
+    def test_hard_gating_fail_open_on_exception(self):
+        """Test that Hard Gating fails open on any exception"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = True
+
+                # Advisor raises exception
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    side_effect=Exception("Simulated error")
+                ):
+                    available = _get_available_providers()
+
+                    # Fail-open: all providers should remain available
+                    assert "openai" in available
+                    assert "alicloud" in available
+
+    def test_hard_gating_with_allowlist_combined(self):
+        """Test that Hard Gating works correctly with allowlist governance"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("gemini", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        from governance.degradation_types import DegradationSeverity
+
+        mock_advisor = MagicMock()
+        mock_advisor.get_current_floor_provider.return_value = "openai"
+        mock_advisor.get_provider_state.side_effect = lambda p: {
+            "openai": DegradationSeverity.HEALTHY,
+            "gemini": DegradationSeverity.AVOID,  # Would be gated
+            "alicloud": DegradationSeverity.HEALTHY,
+        }.get(p)
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                # Allowlist only allows openai and gemini
+                mock_settings.routing_allowed_providers = "openai,gemini"
+                mock_settings.degradation_enforcement_enabled = True
+                mock_settings.degradation_fixed_floor_provider = "openai"
+
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    return_value=mock_advisor
+                ):
+                    available = _get_available_providers()
+
+                    # alicloud filtered by allowlist
+                    # gemini filtered by Hard Gating (AVOID)
+                    # openai remains
+                    assert "openai" in available
+                    assert "gemini" not in available
+                    assert "alicloud" not in available
+
+    def test_governance_telemetry_logging(self):
+        """Test that [I-4-ENFORCEMENT] logs are emitted when Hard Gating occurs"""
+        mock_registry = [
+            ("openai", self._create_mock_provider(True)),
+            ("alicloud", self._create_mock_provider(True)),
+        ]
+
+        from governance.degradation_types import DegradationSeverity
+
+        mock_advisor = MagicMock()
+        mock_advisor.get_current_floor_provider.return_value = "openai"
+        mock_advisor.get_provider_state.side_effect = lambda p: {
+            "openai": DegradationSeverity.HEALTHY,
+            "alicloud": DegradationSeverity.AVOID,
+        }.get(p)
+
+        with patch('llm.client._PROVIDER_REGISTRY', mock_registry):
+            with patch('llm.client.settings') as mock_settings:
+                mock_settings.routing_allowed_providers = ""
+                mock_settings.degradation_enforcement_enabled = True
+                mock_settings.degradation_fixed_floor_provider = "openai"
+
+                with patch(
+                    'governance.degradation_advisor.get_degradation_advisor',
+                    return_value=mock_advisor
+                ):
+                    with patch('llm.client.logger') as mock_logger:
+                        _get_available_providers()
+
+                        # Check that ERROR log was emitted for Hard Gating
+                        error_calls = [
+                            call for call in mock_logger.error.call_args_list
+                            if "[I-4-ENFORCEMENT]" in str(call)
+                        ]
+                        assert len(error_calls) > 0, (
+                            "Expected [I-4-ENFORCEMENT] ERROR log for Hard Gating"
+                        )
