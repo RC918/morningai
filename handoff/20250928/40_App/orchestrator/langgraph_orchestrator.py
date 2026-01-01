@@ -5900,6 +5900,20 @@ def router_node(state: AgentState) -> AgentState:
     ci_failure_trigger = state.get("ci_failure_trigger", False)
     ci_state = state.get("ci_state", "unknown")
 
+    # Issue #3366: Observability log for CI failure fast path debugging
+    # This log helps diagnose if ci_failure_trigger is being lost in state transitions
+    logger.info(
+        f"[ROUTER_STATE_DEBUG] Router entry state: "
+        f"ci_failure_trigger={ci_failure_trigger} ci_state={ci_state} trace_id={trace_id}",
+        extra={
+            "operation": "router",
+            "trace_id": trace_id,
+            "ci_failure_trigger": ci_failure_trigger,
+            "ci_failure_trigger_type": type(ci_failure_trigger).__name__,
+            "ci_state": ci_state,
+        }
+    )
+
     if ci_failure_trigger and ci_state != "success":
         # Issue #3366: CI failure fast path - use monotonic time for accurate latency
         # (time.monotonic() is immune to system clock adjustments like NTP)
