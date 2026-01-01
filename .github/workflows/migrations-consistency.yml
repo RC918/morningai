@@ -37,13 +37,16 @@ jobs:
 
       - name: Generate summary
         if: always()
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           cat >> $GITHUB_STEP_SUMMARY <<EOF
           # Migration Consistency Check
 
           **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          **Triggered by**: ${{ github.event_name }}
-          **Branch**: ${{ github.head_ref || github.ref_name }}
+          **Triggered by**: ${EVENT_NAME}
+          **Branch**: ${BRANCH_NAME}
 
           ## Checks Performed
 
