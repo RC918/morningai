@@ -469,23 +469,23 @@ class RoutingEngine:
         EPIC I-4 Phase B-2: Soft Weighting
 
         This method retrieves the provider's degradation state from DegradationAdvisor
-        and returns the appropriate score multiplier.
+        and returns the appropriate score multiplier from SEVERITY_MULTIPLIERS (SSOT).
 
         Args:
             provider: Provider name
 
         Returns:
-            Multiplier between 0.0 and 1.0:
-            - HEALTHY: 1.0 (no change)
-            - DEGRADED: 0.7 (30% reduction)
-            - CRITICAL: 0.3 (70% reduction)
-            - AVOID: 0.0 (handled by Hard Gating, but included for completeness)
+            Multiplier from governance.degradation_types.SEVERITY_MULTIPLIERS.
+            See that constant for current values (HEALTHY=1.0, DEGRADED=0.7, etc.)
 
         Fail-open: Returns 1.0 if DegradationAdvisor is unavailable.
         """
         try:
             from governance.degradation_advisor import get_degradation_advisor
-            from governance.degradation_types import DegradationSeverity
+            from governance.degradation_types import (
+                DegradationSeverity,
+                SEVERITY_MULTIPLIERS,
+            )
 
             advisor = get_degradation_advisor()
             if advisor is None:
@@ -493,15 +493,8 @@ class RoutingEngine:
 
             state = advisor.get_provider_state(provider)
 
-            # Soft Weighting multipliers (EPIC I-4 Phase B-2)
-            multipliers = {
-                DegradationSeverity.HEALTHY: 1.0,
-                DegradationSeverity.DEGRADED: 0.7,
-                DegradationSeverity.CRITICAL: 0.3,
-                DegradationSeverity.AVOID: 0.0,
-            }
-
-            multiplier = multipliers.get(state, 1.0)
+            # Use SEVERITY_MULTIPLIERS as single source of truth (EPIC I-4 Phase B-2)
+            multiplier = SEVERITY_MULTIPLIERS.get(state, 1.0)
 
             if state != DegradationSeverity.HEALTHY:
                 logger.info(
