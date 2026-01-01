@@ -2,7 +2,7 @@
 
 **EPIC C Issue #2750**: C-7 Rollout Design (Canary/Rollback Runbook)
 **Status**: Production Ready
-**Last Updated**: 2026-01-01
+**Last Updated**: See git history
 **Owner**: MorningAI Platform Team
 
 ---
@@ -71,7 +71,7 @@ Run 10 real PR review tasks covering all routing paths:
 | PR with clean code | `approve -> publisher` | Fast Path |
 | PR with minor issues | `request_changes (low) -> fixer` | Fast Path |
 | PR with medium issues | `request_changes (medium) -> LLM -> fixer/executor` | Slow Path |
-| PR with critical issues | `request_changes (critical) -> executor` | Slow Path |
+| PR with critical issues | `request_changes (critical) -> LLM -> fixer/executor` | Slow Path |
 | PR with blockers | `blocked -> decision + HITL` | Fast Path |
 | PR with unknown verdict | `unknown -> decision + HITL` | Fast Path |
 
@@ -410,4 +410,4 @@ ENABLE_DYNAMIC_ROUTING:
 
 | Date | Author | Changes |
 |------|--------|---------|
-| 2026-01-01 | Devin AI | Initial version for C-7 |
+| See git history | Devin AI | Initial version for C-7 |
