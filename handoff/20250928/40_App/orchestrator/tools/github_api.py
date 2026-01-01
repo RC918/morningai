@@ -2066,12 +2066,30 @@ def get_ci_test_logs(
             result["job_name"] = test_job.name
 
             # Get logs URL and download
-            # PyGithub provides logs_url as a property (not a method)
-            # The URL points to the GitHub API endpoint for downloading job logs
+            # Issue #3437: PyGithub logs_url may be a property OR a method depending on version
+            # Handle both cases defensively to avoid "No connection adapters" error
             import requests
 
             logs_url = test_job.logs_url
-            if logs_url:
+            # Defensive handling: logs_url may be a callable method in some PyGithub versions
+            if callable(logs_url):
+                try:
+                    logs_url = logs_url()
+                except Exception as url_error:
+                    logger.warning(
+                        "[GitHub] get_ci_test_logs: Failed to call logs_url method",
+                        extra={
+                            "operation": "get_ci_test_logs",
+                            "trace_id": trace_id,
+                            "pr_number": pr_number,
+                            "job_id": test_job.id,
+                            "error": str(url_error)
+                        }
+                    )
+                    logs_url = None
+
+            # Sanity check: ensure logs_url is a valid HTTP(S) URL string
+            if logs_url and isinstance(logs_url, str) and logs_url.startswith(("http://", "https://")):
                 # Download logs using GitHub token
                 headers = {"Authorization": f"token {GITHUB_TOKEN}"}
                 response = requests.get(logs_url, headers=headers, timeout=30)
@@ -2161,14 +2179,18 @@ def get_ci_test_logs(
                         }
                     )
             else:
-                result["error"] = "No logs URL available"
+                # Issue #3437: Provide more specific error for invalid URL types
+                url_type = type(test_job.logs_url).__name__ if hasattr(test_job, 'logs_url') else "unknown"
+                result["error"] = f"No valid logs URL available (type: {url_type})"
                 logger.warning(
-                    "[GitHub] get_ci_test_logs: No logs URL available",
+                    "[GitHub] get_ci_test_logs: No valid logs URL available",
                     extra={
                         "operation": "get_ci_test_logs",
                         "trace_id": trace_id,
                         "pr_number": pr_number,
-                        "job_name": test_job.name
+                        "job_id": test_job.id,
+                        "job_name": test_job.name,
+                        "logs_url_type": url_type
                     }
                 )
 
