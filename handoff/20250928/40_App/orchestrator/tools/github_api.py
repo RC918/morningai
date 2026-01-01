@@ -2180,8 +2180,9 @@ def get_ci_test_logs(
                     )
             else:
                 # Issue #3437: Provide more specific error for invalid URL types
-                url_type = type(test_job.logs_url).__name__ if hasattr(test_job, 'logs_url') else "unknown"
-                result["error"] = f"No valid logs URL available (type: {url_type})"
+                # Use resolved logs_url type (not test_job.logs_url) per gemini-code-assist review
+                resolved_url_type = type(logs_url).__name__
+                result["error"] = f"No valid logs URL available (type: {resolved_url_type})"
                 logger.warning(
                     "[GitHub] get_ci_test_logs: No valid logs URL available",
                     extra={
@@ -2190,7 +2191,7 @@ def get_ci_test_logs(
                         "pr_number": pr_number,
                         "job_id": test_job.id,
                         "job_name": test_job.name,
-                        "logs_url_type": url_type
+                        "resolved_logs_url_type": resolved_url_type
                     }
                 )
 
