@@ -4127,6 +4127,7 @@ def _attempt_senior_coder_plan(
         [SENIOR_CODER_PLAN_ABORTED] - Task too complex, aborting
         [SENIOR_CODER_PLAN_FAILED] - Planning failed due to error
         [SENIOR_CODER_DISABLED] - Feature flag disabled
+        [SENIOR_CODER_UNAVAILABLE] - Import/dependency failure
     """
     if not settings.enable_senior_coder:
         logger.debug("[SENIOR_CODER_DISABLED] Feature flag disabled")
@@ -4135,7 +4136,7 @@ def _attempt_senior_coder_plan(
     try:
         from coder.senior_coder import get_senior_coder
     except ImportError as e:
-        logger.debug(f"[SENIOR_CODER_DISABLED] Import failed: {e}")
+        logger.debug(f"[SENIOR_CODER_UNAVAILABLE] Import failed: {e}")
         return True, None, f"SeniorCoder not available: {e}"
 
     logger.info(
@@ -4204,6 +4205,7 @@ def _attempt_senior_coder_review(
         [SENIOR_CODER_REVIEW_REJECTED] - Implementation rejected
         [SENIOR_CODER_REVIEW_FAILED] - Review failed due to error
         [SENIOR_CODER_REVIEW_SKIPPED] - Review skipped (no spec or disabled)
+        [SENIOR_CODER_UNAVAILABLE] - Import/dependency failure
     """
     if not settings.enable_senior_coder:
         logger.debug("[SENIOR_CODER_REVIEW_SKIPPED] Feature flag disabled")
@@ -4216,7 +4218,7 @@ def _attempt_senior_coder_review(
     try:
         from coder.senior_coder import get_senior_coder
     except ImportError as e:
-        logger.debug(f"[SENIOR_CODER_REVIEW_SKIPPED] Import failed: {e}")
+        logger.debug(f"[SENIOR_CODER_UNAVAILABLE] Import failed: {e}")
         return True, f"SeniorCoder review skipped: {e}"
 
     logger.info(
@@ -4254,9 +4256,11 @@ def _attempt_senior_coder_review(
             return True, f"Review approved: {result.feedback}"
         else:
             changes_summary = ", ".join(result.required_changes[:3]) if result.required_changes else "None"
+            feedback_truncated = result.feedback[:100] if result.feedback else "None"
             logger.info(
                 f"[SENIOR_CODER_REVIEW_REJECTED] Implementation rejected. "
-                f"required_changes={changes_summary}, trace_id={trace_id}"
+                f"required_changes={changes_summary}, "
+                f"feedback={feedback_truncated}..., trace_id={trace_id}"
             )
             return False, f"Review rejected: {result.feedback}"
 
