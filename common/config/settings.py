@@ -2359,7 +2359,23 @@ class Settings(BaseSettings):
         description=(
             "Enable LLM-driven dynamic routing (Flow Controller v3). "
             "Default False = 100% old behavior (conditional_edges). "
-            "When True, enables Router v3 with fail-safe fallback to deterministic routing."
+            "When True, enables Router v3 with fail-safe fallback to deterministic routing. "
+            "Note: When DYNAMIC_ROUTING_SAMPLE_RATE > 0, this flag is ignored and "
+            "deterministic bucketing is used instead."
+        )
+    )
+
+    dynamic_routing_sample_rate: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+        alias="DYNAMIC_ROUTING_SAMPLE_RATE",
+        description=(
+            "Percentage of workflows to route through Flow Controller v3 (0-100). "
+            "Uses deterministic hash-based bucketing for sticky assignment. "
+            "0 = disabled (uses ENABLE_DYNAMIC_ROUTING flag), "
+            "5 = 5% canary, 25 = 25%, 100 = full rollout. "
+            "Same workflow always routes to same path (deterministic)."
         )
     )
 

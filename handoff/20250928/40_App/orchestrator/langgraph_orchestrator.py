@@ -7291,13 +7291,31 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     workflow.add_edge("ci_monitor", "reviewer")
 
     # EPIC C Phase C-6: Graph Wiring for Hybrid Router (Issue #3182)
-    # When ENABLE_DYNAMIC_ROUTING=true: reviewer → router → hitl_gate
-    # When ENABLE_DYNAMIC_ROUTING=false: reviewer → decision → hitl_gate (legacy)
-    enable_dynamic_routing = getattr(settings, 'enable_dynamic_routing', False)
+    # #3431: Deterministic Canary Gating for Flow Router v3
+    # Decision Logic:
+    # 1. If DYNAMIC_ROUTING_SAMPLE_RATE > 0: Use deterministic bucketing (graph-level)
+    # 2. If DYNAMIC_ROUTING_SAMPLE_RATE == 0: Fall back to ENABLE_DYNAMIC_ROUTING flag
+    #
+    # Note: Graph structure is static at compile time. For per-workflow bucketing,
+    # we need both paths wired and use conditional routing at runtime.
+    # For simplicity in Phase 1, we use the sample_rate to decide graph structure.
+    sample_rate = getattr(settings, 'dynamic_routing_sample_rate', 0)
+    enable_flag = getattr(settings, 'enable_dynamic_routing', False)
+
+    # Determine if dynamic routing should be enabled at graph level
+    # For sample_rate > 0, we enable the router path (bucketing happens at runtime)
+    # For sample_rate == 0, we use the enable_flag
+    enable_dynamic_routing = sample_rate > 0 or enable_flag
 
     if enable_dynamic_routing:
         # New flow: reviewer → router → hitl_gate
-        logger.info("[Graph] ENABLE_DYNAMIC_ROUTING=true, using Hybrid Router (C-6)")
+        if sample_rate > 0:
+            logger.info(
+                f"[Graph] DYNAMIC_ROUTING_SAMPLE_RATE={sample_rate}%, "
+                f"using Hybrid Router with deterministic canary gating (#3431)"
+            )
+        else:
+            logger.info("[Graph] ENABLE_DYNAMIC_ROUTING=true, using Hybrid Router (C-6)")
         workflow.add_edge("reviewer", "router")
         workflow.add_edge("router", "hitl_gate")
     else:

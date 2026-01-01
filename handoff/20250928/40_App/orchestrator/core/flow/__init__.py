@@ -44,6 +44,12 @@ from .hybrid_router import (
     CANONICAL_NODES,
     SEVERITY_ORDER,
 )
+from .canary_gating import (
+    should_enable_dynamic_routing,
+    compute_bucket,
+    is_in_sample,
+    get_canary_status,
+)
 
 __all__ = [
     # C-1: Schema definitions
@@ -68,4 +74,9 @@ __all__ = [
     'SEVERITY_ORDER',
     # C-4: Metrics
     'RouterMetrics',
+    # #3431: Deterministic Canary Gating
+    'should_enable_dynamic_routing',
+    'compute_bucket',
+    'is_in_sample',
+    'get_canary_status',
 ]
