@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2025-12-30
+> Last Updated: 2026-01-01
 
 ## Overview
 
@@ -14,7 +14,7 @@ EPIC B focuses on implementing intelligent PR review with inline comments, ensur
 | Phase 2: Publishing Correctness | Completed | [#2788](https://github.com/RC918/morningai/pull/2788), [#2803](https://github.com/RC918/morningai/pull/2803) |
 | Phase 3: Security & Reliability | Completed | [#2809](https://github.com/RC918/morningai/pull/2809), [#2829](https://github.com/RC918/morningai/pull/2829), [#2836](https://github.com/RC918/morningai/pull/2836) |
 | Phase 4: Checks API (P6) | Planned | - |
-| **Phase 6: Router Interface (B-6)** | **In Progress** | [#3130](https://github.com/RC918/morningai/issues/3130) |
+| **Phase 6: Router Interface (B-6)** | **Completed** | [#3130](https://github.com/RC918/morningai/issues/3130), [#3135](https://github.com/RC918/morningai/pull/3135) |
 
 ---
 
@@ -211,13 +211,13 @@ P6 is "Governance Interface for 2026 Full-Auto PR Lifecycle" - should be on road
 
 ---
 
-## Phase 6: Router Interface (B-6) - In Progress
+## Phase 6: Router Interface (B-6) - Completed
 
-> **Status**: In Progress
+> **Status**: Completed
 > **Issue**: [#3130](https://github.com/RC918/morningai/issues/3130)
 > **Target**: EPIC C Stage 1 (C-5 Review Routing Pilot)
 
-> **Note**: This is a **design document**. The actual schema and logic implementation will be delivered in the B-6 implementation PR. Until that PR is merged, this document defines the contract; the implementation PR will be the source of truth.
+> **Implementation Complete**: The `ReviewOutcome` schema is implemented in `core/routing/review_outcome.py` and integrated into `reviewer_node`, `router_node`, and `fixer_node`. See Implementation Items below for details.
 
 ### Overview
 
@@ -315,12 +315,14 @@ This schema follows **additive-only evolution**:
 
 ### Implementation Items
 
-| Item | Description | Status |
-|------|-------------|--------|
-| B-6.1 Schema Definition | Add `ReviewOutcome` to `core/flow/schema.py` | Pending |
-| B-6.2 reviewer_node Integration | Wrap review result in `ReviewOutcome` before return | Pending |
-| B-6.3 State Update | Add `review_outcome: dict` to `AgentState` | Pending |
-| B-6.4 Unit Tests | Test all verdict scenarios | Pending |
+| Item | Description | Status | Evidence |
+|------|-------------|--------|----------|
+| B-6.1 Schema Definition | Add `ReviewOutcome` to `core/routing/review_outcome.py` | **Done** | `core/routing/review_outcome.py` (325 lines) |
+| B-6.2 reviewer_node Integration | Wrap review result in `ReviewOutcome` before return | **Done** | `langgraph_orchestrator.py:5567-5574` |
+| B-6.3 State Update | Add `review_outcome: dict` to `AgentState` | **Done** | `langgraph_orchestrator.py:2421` |
+| B-6.4 Unit Tests | Test all verdict scenarios | **Done** | `tests/test_review_outcome.py` (50 tests, 100% pass) |
+
+> **Note**: Implementation location changed from `core/flow/schema.py` to `core/routing/review_outcome.py` for better module organization. The schema is consumed by `router_node` (lines 5825-5829) and `fixer_node` gate (lines 4324-4325).
 
 ### Blueprint Alignment
 
