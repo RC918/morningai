@@ -8,7 +8,7 @@
 # Testing dependencies (~150MB+ including browser binaries)
 fakeredis==2.24.1
 playwright==1.57.0
-pytest-playwright==0.5.2
+pytest-playwright==0.7.2
 
 # Additional test utilities (pinned for reproducibility)
 pytest==8.4.2
