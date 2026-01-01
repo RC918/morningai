@@ -2424,6 +2424,10 @@ class AgentState(TypedDict):
     # Reset to False by finalizer_node to prevent state leakage between executions.
     # CTO Directive: Router DECIDES (requires_hitl_approval=True), Orchestrator EXECUTES (interrupt).
     hitl_approved: bool
+    # Issue #3366: CI Failure Reflex Integration
+    # Set by run_orchestrator() when CI failure webhook triggers auto-fix flow.
+    # When True, workflow routes directly to fixer_node for auto-fix without planner.
+    ci_failure_trigger: Optional[bool]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -7430,6 +7434,8 @@ def _create_base_initial_state(
         "pr_context": {},
         "review_follow_up_action": "",
         "requires_hitl_approval": False,
+        # Issue #3366: CI Failure Reflex Integration
+        "ci_failure_trigger": None,
     }
 
 
@@ -7466,6 +7472,7 @@ def run_orchestrator(
     # Use positive validation: only extract PR info when resource_type == "pull_request"
     pr_number = 0
     pr_url = ""
+    ci_failure_trigger = False
     if context and context.get("resource_type") == "pull_request":
         # Handle pr_number: could be int or string from webhook
         raw_pr_number = context.get("pr_number") or context.get("resource_id")
@@ -7475,6 +7482,9 @@ def run_orchestrator(
             except (ValueError, TypeError):
                 pr_number = 0
         pr_url = context.get("pr_url") or context.get("url") or ""
+        # Issue: #3366 - CI Failure Reflex Integration
+        # Detect CI failure trigger from webhook context
+        ci_failure_trigger = context.get("ci_failure_trigger", False)
 
     # Observability log: always print pr_number, pr_url, trace_id in message
     # Issue: Phase B-B - Avoid black-box issues where upstream extracts but downstream doesn't receive
@@ -7556,6 +7566,20 @@ def run_orchestrator(
         initial_state["pr_number"] = pr_number
     if pr_url:
         initial_state["pr_url"] = pr_url
+
+    # Issue: #3366 - CI Failure Reflex Integration
+    # Pass CI failure trigger flag to workflow for auto-fix routing
+    if ci_failure_trigger:
+        initial_state["ci_failure_trigger"] = True
+        logger.info(
+            f"CI failure trigger detected trace_id={trace_id} pr_number={pr_number}",
+            extra={
+                "operation": "run_orchestrator",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "ci_failure_trigger": True,
+            }
+        )
 
     config = _get_workflow_config(trace_id)
 
