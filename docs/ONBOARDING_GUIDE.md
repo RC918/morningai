@@ -1351,12 +1351,11 @@ MorningAI uses a producer-consumer architecture with two orchestrator implementa
 | **API Orchestrator** | API Layer (FastAPI) | Beta | `morningai-orchestrator-api` | `orchestrator/` |
 | **Worker Orchestrator** | Task Execution (RQ) | Production | `morningai-agent-worker` | `handoff/20250928/40_App/orchestrator/` |
 
-**Dual Execution Modes**:
-- **Simple Mode** (Production): `handoff/20250928/40_App/orchestrator/graph.py` - Fast, stateless execution (currently enabled via `USE_LANGGRAPH=false` in `render.yaml:48-49`)
-- **LangGraph Mode** (Optional): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:1-422` - Full state machine with retry logic, CI monitoring (can be enabled via `USE_LANGGRAPH=true`)
-- **Runtime Selection**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:303-307` conditionally imports orchestrator based on environment flag
+**Execution Mode**:
+- **LangGraph Mode** (Production): `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` - Full state machine with retry logic, CI monitoring, PostgreSQL checkpointing
+- **Core Executor**: `handoff/20250928/40_App/orchestrator/graph.py` - Shared execution logic called by LangGraph nodes
 
-**See**: [ADR-005](adr/005-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md), [ADR-004](adr/004-shared-core-executor-pattern.md) • **Consolidation**: 2026 Q1
+**See**: [ADR-005](adr/005-deprecate-simple-orchestrator-mode.md), [ADR-002](adr/002-producer-consumer-architecture.md), [ADR-004](adr/004-shared-core-executor-pattern.md)
 
 **Infrastructure**:
 - **Database**: Supabase PostgreSQL (production)
@@ -1532,10 +1531,7 @@ The following features are fully implemented but disabled by default. Enable the
 - Enable in staging first to validate behavior
 - Gradual production rollout recommended (feature flags allow instant rollback)
 
-**Override Behavior**:
-- `USE_LANGGRAPH=true` → 100% LangGraph (overrides percent)
-- `USE_LANGGRAPH=false` + `USE_LANGGRAPH_PERCENT=0` → 100% Simple (Kill Switch)
-- `USE_LANGGRAPH=false` + `USE_LANGGRAPH_PERCENT=5` → 5% canary
+**Note**: `USE_LANGGRAPH`, `USE_LANGGRAPH_PERCENT`, and `USE_LANGGRAPH_FOR_FAQ` flags were removed in Issue #2651. LangGraph is now the only orchestration mode.
 
 ### Development Guidelines
 
@@ -1555,97 +1551,77 @@ workflow.add_node("new_feature", new_feature_node)
 workflow.add_edge("planner", "new_feature")
 ```
 
-**Why**: Simple mode is feature-frozen. All new orchestrator logic goes in LangGraph.
+**Why**: All orchestrator logic should be in LangGraph nodes for proper state management.
 
 #### ✅ DO: Modifying Shared Executor
 
 **When changing `graph.execute()`**:
-1. Test with **both** Simple and LangGraph modes
+1. Test thoroughly with LangGraph mode
 2. Add tests in `test_graph.py` AND `test_langgraph_ci.py`
-3. **Clearly state in PR description**: "This change affects both Simple and LangGraph modes"
+3. **Clearly state in PR description**: "This change affects the core executor"
 
 **Example PR description**:
 ```markdown
 ## Changes to Shared Executor
 
-This PR modifies `graph.execute()` which is used by both orchestrator modes:
-- Simple mode: Direct call from worker
-- LangGraph mode: Called by executor_node
+This PR modifies `graph.execute()` which is called by LangGraph executor_node.
 
-**Testing**: Verified with both modes in staging.
+**Testing**: Verified in staging.
 ```
 
-#### ❌ DON'T: Adding Features to Simple Mode
+#### ❌ DON'T: Bypass LangGraph State Management
 
-**Never do this**:
-```python
-# handoff/20250928/40_App/orchestrator/graph.py
+**Bad assumption**: "I'll just add logic directly to graph.execute()"
 
-def execute(goal, repo, trace_id):
-    # ❌ DON'T add new orchestrator features here
-    new_fancy_feature()  # This is wrong!
-```
-
-**Why**: Simple mode is frozen. New features belong in LangGraph.
-
-#### ❌ DON'T: Assume Only One Mode Exists
-
-**Bad assumption**: "I'll just modify the orchestrator" (which one?)
-
-**Good practice**: "I'll modify the LangGraph orchestrator's planner_node"
+**Good practice**: "I'll add a new LangGraph node for this feature"
 
 ### Monitoring & Observability
 
-**Canary Routing Logs** (search in Render Dashboard):
+**Orchestrator Logs** (search in Render Dashboard):
 ```
-"Canary deployment"           # Routing decision
 "Using LangGraph orchestrator" # LangGraph execution
-"Using simple orchestrator"    # Simple execution
 "Using LLM planner"           # LLM planner selection
+"node_complete"               # Node execution metrics
 ```
 
-**Metrics** (`worker.py:386-393`):
+**Metrics** (`worker.py`):
 ```python
-_canary_metrics.incr_counter("decisions.langgraph")  # LangGraph count
-_canary_metrics.incr_counter("decisions.simple")     # Simple count
-_canary_metrics.observe_latency_ms(elapsed_ms)       # Latency
+metrics.record_node_complete(node_name, trace_id, success, latency_ms)
 ```
 
 **Structured Logging**:
 ```json
 {
-  "operation": "canary_selection",
+  "operation": "langgraph_execution",
   "task_id": "...",
-  "task_percent": 42,
-  "use_langgraph_percent": 5,
-  "use_langgraph": false
+  "node_name": "planner_node",
+  "latency_ms": 1234
 }
 ```
 
-### Migration Roadmap
+### Current Architecture Status
 
-⚠️ **注意**：本文檔描述架構設計和政策。實際環境變數配置可能因運維需求調整。請以 Render Dashboard 的實際配置為準。
+**LangGraph 100% Rollout Complete** (Dec 2025):
+- LangGraph is now the only orchestration mode (Issue #2651)
+- Simple Mode code has been removed (PR #2767)
+- `USE_LANGGRAPH`, `USE_LANGGRAPH_PERCENT` flags removed from settings.py
+- CI Guard (`simple-mode-guard.yml`) prevents reintroduction of deprecated code
 
-**Phase 1 參考狀態** (Nov 2025):
-- ✅ Simple mode: ~95% traffic (stable baseline)
-- ✅ LangGraph mode: ~5% traffic (validation)
-- ✅ LLM Planner: Enabled for LangGraph tasks
-
-**實際配置查詢**:
-| 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER |
-|------|---------------|----------------------|-----------------|
-| Staging Worker | `false` | `5` | `true` |
-| Production Worker | `false` | `5` | `true` |
+**Current Configuration**:
+| 服務 | USE_POSTGRES_CHECKPOINTER | USE_LLM_PLANNER | USE_LLM_REVIEWER |
+|------|---------------------------|-----------------|------------------|
+| Production Worker | `true` | `false` | `false` |
+| Staging Worker | `true` | `false` | `false` |
 
 查看位置: Render Dashboard → Service → Environment Tab
 
-**Near-Term** (Phase 2 - Q1 2026):
-- 🎯 Gradually increase `USE_LANGGRAPH_PERCENT`: 5% → 25% → 50% → 100%
-- 🎯 Monitor success rates, costs, latency at each step
-- 🎯 Keep Simple mode as Kill Switch
+**Multi-Model Routing** (EPIC #2594):
+- Routing Policy v1.2 with Cross-Generation Fallback
+- See: [Routing Policy Documentation](./ROUTING_POLICY.md)
 
-**Long-Term** (Phase 3 - Q2 2026):
-- 🎯 100% LangGraph routing (`USE_LANGGRAPH=true`)
+**Future Roadmap** (Q1-Q2 2026):
+- 🎯 Enable `USE_LLM_PLANNER` for intelligent task planning
+- 🎯 Enable `USE_LLM_REVIEWER` for automated code review
 - 🎯 Refactor `graph.py`:
   - **Option A** (Recommended): Rename to `core_executor.py`, keep only `execute()` function
   - **Option B**: Integrate executor logic into `langgraph_orchestrator.py`, remove `graph.py`
@@ -1746,41 +1722,37 @@ ENABLE_PROJECT_ENGINEER_CODEGEN=true
 
 ### Common Pitfalls
 
-1. **❌ "I'll just update the orchestrator"**
-   - Which one? Be specific: Simple or LangGraph?
+1. **❌ Modifying `graph.py` without testing LangGraph**
+   - `graph.execute()` is called by LangGraph executor_node!
 
-2. **❌ Modifying `graph.py` without testing LangGraph**
-   - `graph.execute()` is used by both modes!
+2. **❌ Bypassing LangGraph state management**
+   - All orchestrator features should be implemented as LangGraph nodes.
 
-3. **❌ Adding features to Simple mode**
-   - Simple mode is frozen. Use LangGraph.
-
-4. **❌ Assuming 100% traffic uses one mode**
-   - Traffic split is configurable. Default is 100% Simple, but staging uses 15% LangGraph. Test both!
-
-5. **❌ Searching for wrong log keywords**
-   - Use "Canary deployment", not "canary_selection"
+3. **❌ Searching for wrong log keywords**
+   - Use "node_complete" for node execution metrics
 
 ### Quick Reference
 
 **Files to Know**:
 ```
 handoff/20250928/40_App/orchestrator/
-├── redis_queue/worker.py:366-400    # Routing logic
-├── graph.py:30-155                  # Shared executor (BOTH modes)
-├── langgraph_orchestrator.py        # LangGraph mode
+├── redis_queue/worker.py            # Worker entry point
+├── graph.py                         # Core executor (called by LangGraph)
+├── langgraph_orchestrator.py        # LangGraph state machine
+├── core/routing/routing_policy.json # Multi-model routing config
+├── core/routing/engine.py           # Routing engine
 └── tests/
-    ├── test_graph.py                # Simple mode tests
+    ├── test_graph.py                # Core executor tests
     ├── test_langgraph_ci.py         # LangGraph tests
-    └── test_worker.py               # Routing tests
+    └── test_worker.py               # Worker tests
 ```
 
-**When to Use Which Mode**:
-- **Simple Mode**: Production baseline, feature-frozen
-- **LangGraph Mode**: New features, active development
-- **Shared Executor**: Core execution logic (both modes)
+**Architecture**:
+- **LangGraph Mode**: Production orchestration with state machine
+- **Core Executor**: Shared execution logic called by LangGraph nodes
+- **Routing Engine**: Multi-model LLM selection based on task_type/risk_level
 
-**Questions?** See Orchestrator ADRs ([ADR-005](adr/005-dual-orchestrator-architecture.md), [ADR-002](adr/002-producer-consumer-architecture.md), [ADR-004](adr/004-shared-core-executor-pattern.md)) or ask in #engineering.
+**Questions?** See Orchestrator ADRs ([ADR-005](adr/005-deprecate-simple-orchestrator-mode.md), [ADR-002](adr/002-producer-consumer-architecture.md), [ADR-004](adr/004-shared-core-executor-pattern.md)) or ask in #engineering.
 
 ---
 
