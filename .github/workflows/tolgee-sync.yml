@@ -344,7 +344,7 @@ jobs:
       - name: Locate Tolgee PR and analyze changes
         id: analyze
         if: env.IS_MANUAL_BOOTSTRAP != 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -392,7 +392,7 @@ jobs:
       
       - name: Set i18n required status (commit status)
         if: env.IS_MANUAL_BOOTSTRAP != 'true' && steps.analyze.outputs.only_locales == 'true' && steps.analyze.outputs.head_sha != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -413,7 +413,7 @@ jobs:
       
       - name: Create check run (belt-and-suspenders)
         if: env.IS_MANUAL_BOOTSTRAP != 'true' && steps.analyze.outputs.only_locales == 'true' && steps.analyze.outputs.head_sha != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
