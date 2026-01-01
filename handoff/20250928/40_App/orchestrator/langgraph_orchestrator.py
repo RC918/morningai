@@ -4008,14 +4008,30 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 
     metrics.record_node_start("ci_monitor", trace_id)
 
-    # Handle dry_run mode - skip CI checks entirely
     ci_state = state.get("ci_state")
+    ci_failure_trigger = state.get("ci_failure_trigger")
+
     if ci_state == "dry_run":
         logger.info("[CI Monitor] Dry run mode - skipping CI checks", extra={
             "operation": "ci_monitor",
             "trace_id": trace_id,
             "ci_state": ci_state
         })
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
+        return state
+
+    if ci_failure_trigger and ci_state == "failure":
+        logger.info(
+            "[CI Monitor] CI failure trigger active with ci_state=failure, "
+            "preserving state and skipping API call for fast path",
+            extra={
+                "operation": "ci_monitor",
+                "trace_id": trace_id,
+                "ci_failure_trigger": ci_failure_trigger,
+                "ci_state": ci_state,
+            }
+        )
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
         return state
@@ -7736,8 +7752,13 @@ def run_orchestrator(
     # Issue: #3366 - CI Failure Reflex Integration
     # Pass CI failure trigger flag to workflow for auto-fix routing
     # Layer 2: Router Short-circuit uses this flag to bypass LLM routing
+    # Fix: Also set ci_state="failure" so router_node's fast path condition
+    # (ci_failure_trigger and ci_state != "success") evaluates correctly.
+    # Without this, ci_state would be determined by ci_monitor_node which may
+    # return "success" if other CI checks pass, breaking the fast path.
     if ci_failure_trigger:
         initial_state["ci_failure_trigger"] = True
+        initial_state["ci_state"] = "failure"
 
     config = _get_workflow_config(trace_id)
 
