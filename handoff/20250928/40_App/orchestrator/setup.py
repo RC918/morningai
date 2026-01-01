@@ -12,7 +12,7 @@ setup(
         "langgraph>=0.2.4",
         "langchain-core>=0.3.0",  # Added - actually imported in orchestrator
         "PyGithub==2.4.0",
-        "supabase==2.11.0",
+        "supabase==2.27.0",
         "openai>=1.55.0,<3.0.0",
         "google-genai==1.52.0",
         "requests==2.32.5",
