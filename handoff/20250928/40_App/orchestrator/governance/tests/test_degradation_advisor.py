@@ -44,10 +44,10 @@ class TestDegradationSeverity:
         assert DegradationSeverity.AVOID.value == "avoid"
 
     def test_severity_multipliers(self):
-        """Test severity multipliers are correct"""
+        """Test severity multipliers are correct (EPIC I-4 Phase B-2 values)"""
         assert SEVERITY_MULTIPLIERS[DegradationSeverity.HEALTHY] == 1.0
-        assert SEVERITY_MULTIPLIERS[DegradationSeverity.DEGRADED] == 0.5
-        assert SEVERITY_MULTIPLIERS[DegradationSeverity.CRITICAL] == 0.25
+        assert SEVERITY_MULTIPLIERS[DegradationSeverity.DEGRADED] == 0.7
+        assert SEVERITY_MULTIPLIERS[DegradationSeverity.CRITICAL] == 0.3
         assert SEVERITY_MULTIPLIERS[DegradationSeverity.AVOID] == 0.0
 
 
@@ -59,7 +59,7 @@ class TestDegradationRecommendation:
         rec = DegradationRecommendation(
             provider="openai",
             severity=DegradationSeverity.DEGRADED,
-            score_multiplier=0.5,
+            score_multiplier=0.7,
             health_score=60.0,
             health_score_normalized=0.6,
             reason="elevated_error_rate (7.5%)",
@@ -68,7 +68,7 @@ class TestDegradationRecommendation:
 
         assert rec.provider == "openai"
         assert rec.severity == DegradationSeverity.DEGRADED
-        assert rec.score_multiplier == 0.5
+        assert rec.score_multiplier == 0.7
         assert rec.health_score == 60.0
         assert rec.dry_run is True
         assert rec.floor_protected is False
@@ -78,7 +78,7 @@ class TestDegradationRecommendation:
         rec_no_change = DegradationRecommendation(
             provider="openai",
             severity=DegradationSeverity.DEGRADED,
-            score_multiplier=0.5,
+            score_multiplier=0.7,
             health_score=60.0,
             health_score_normalized=0.6,
             reason="test",
@@ -89,7 +89,7 @@ class TestDegradationRecommendation:
         rec_with_change = DegradationRecommendation(
             provider="openai",
             severity=DegradationSeverity.DEGRADED,
-            score_multiplier=0.5,
+            score_multiplier=0.7,
             health_score=60.0,
             health_score_normalized=0.6,
             reason="test",
@@ -114,7 +114,7 @@ class TestDegradationRecommendation:
         rec = DegradationRecommendation(
             provider="openai",
             severity=DegradationSeverity.DEGRADED,
-            score_multiplier=0.5,
+            score_multiplier=0.7,
             health_score=60.0,
             health_score_normalized=0.6,
             reason="elevated_error_rate",
@@ -123,7 +123,7 @@ class TestDegradationRecommendation:
         log = rec.format_log()
         assert "60.0" in log
         assert "DEGRADED" in log
-        assert "50%" in log
+        assert "30%" in log  # 1 - 0.7 = 0.3 = 30% reduction
         assert "Dry-run" in log
 
     def test_to_dict(self):
@@ -131,7 +131,7 @@ class TestDegradationRecommendation:
         rec = DegradationRecommendation(
             provider="gemini",
             severity=DegradationSeverity.CRITICAL,
-            score_multiplier=0.25,
+            score_multiplier=0.3,
             health_score=30.0,
             health_score_normalized=0.3,
             reason="error_rate_spike",
@@ -229,10 +229,10 @@ class TestDegradationPolicy:
         ) == DegradationSeverity.CRITICAL
 
     def test_get_multiplier(self):
-        """Test multiplier retrieval"""
+        """Test multiplier retrieval (EPIC I-4 Phase B-2 values)"""
         assert self.policy.get_multiplier(DegradationSeverity.HEALTHY) == 1.0
-        assert self.policy.get_multiplier(DegradationSeverity.DEGRADED) == 0.5
-        assert self.policy.get_multiplier(DegradationSeverity.CRITICAL) == 0.25
+        assert self.policy.get_multiplier(DegradationSeverity.DEGRADED) == 0.7
+        assert self.policy.get_multiplier(DegradationSeverity.CRITICAL) == 0.3
         assert self.policy.get_multiplier(DegradationSeverity.AVOID) == 0.0
 
     def test_determine_reason_healthy(self):
@@ -327,7 +327,7 @@ class TestDegradationAdvisor:
 
         assert result is not None
         assert result.severity == DegradationSeverity.DEGRADED
-        assert result.score_multiplier == 0.5
+        assert result.score_multiplier == 0.7
 
     def test_compute_advisory_critical(self):
         """Test advisory for critical provider"""
@@ -340,7 +340,7 @@ class TestDegradationAdvisor:
 
         assert result is not None
         assert result.severity == DegradationSeverity.CRITICAL
-        assert result.score_multiplier == 0.25
+        assert result.score_multiplier == 0.3
 
     def test_compute_advisory_avoid(self):
         """Test advisory for avoid provider"""
