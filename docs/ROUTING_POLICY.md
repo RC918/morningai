@@ -100,29 +100,31 @@ This strategy ensures service continuity even if the primary provider experience
 The routing engine (`engine.py:216-299`) implements the following selection logic:
 
 ```python
-def select_model(task_type: TaskType, risk_level: RiskLevel) -> ModelSelection:
-    # 1. Get base tier from task_type
-    base_tier = routing_policy["task_types"][task_type]["tier"]
+# Simplified illustration of select_model() logic
+# See engine.py for exact implementation
+
+def select_model(task_type: TaskType, risk_level: RiskLevel) -> ModelInfo:
+    # 1. Get base tier from task_type (from routing_policy.json)
+    routing_config = task_routing.get(task_type.value, {"tier": 2, "fallback": 3})
+    target_tier = routing_config["tier"]
     
-    # 2. Apply risk adjustment
-    adjustment = routing_policy["risk_adjustments"][risk_level]
-    effective_tier = max(0, min(3, base_tier + adjustment))
+    # 2. Apply risk adjustment (hardcoded logic, not from config)
+    if risk_level == RiskLevel.HIGH:
+        target_tier = max(0, target_tier - 1)  # Upgrade tier
+    elif risk_level == RiskLevel.LOW:
+        target_tier = min(3, target_tier + 1)  # Downgrade tier
     
-    # 3. Get models for effective tier
-    tier_config = routing_policy["tier_models"][str(effective_tier)]
+    # 3. Find available model in target tier
+    model_info = find_available_model(Tier(target_tier))
+    if model_info:
+        return model_info
     
-    # 4. Select first available model with valid API key
-    for model in tier_config["models"]:
-        if has_valid_api_key(model["provider"]):
-            return ModelSelection(
-                provider=model["provider"],
-                model=model["model"],
-                tier=effective_tier
-            )
-    
-    # 5. Fallback to next tier if no models available
-    return select_model_from_fallback_tier(task_type)
+    # 4. Fallback to fallback tier if no models available
+    fallback_tier = routing_config["fallback"]
+    return find_available_model(Tier(fallback_tier))
 ```
+
+Note: The risk adjustment values in `routing_policy.json` (`risk_adjustments` section) document the intended behavior but the actual implementation uses hardcoded if/else logic in `engine.py:246-251`.
 
 ## Supported Providers
 
@@ -156,13 +158,18 @@ All agents use the routing engine through `BaseAgent.call_llm()`:
 from core.agents.base import BaseAgent
 
 class MyAgent(BaseAgent):
-    async def execute(self, task):
-        response = await self.call_llm(
-            prompt=task.prompt,
+    def execute(self, input: AgentInput) -> AgentOutput:
+        # call_llm is synchronous (not async)
+        response = self.call_llm(
+            prompt=input.task_description,
             task_type="coding",
             risk_level="medium"
         )
-        return response
+        return AgentOutput(
+            task_id=input.task_id,
+            success=True,
+            result=response["content"]
+        )
 ```
 
 ### Direct RoutingEngine Usage
