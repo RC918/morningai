@@ -16,6 +16,7 @@ import pytest
 from unittest.mock import patch
 
 from core.routing import RoutingEngine, Tier, TaskType, ModelInfo
+from governance.degradation_types import DegradationSeverity
 
 
 class TestTierEnum:
@@ -636,3 +637,199 @@ class TestCrossGenerationFallback:
         model_info = engine.select_model(TaskType.CODING)
         assert model_info.provider in ["alicloud", "siliconflow"]
         assert model_info.provider not in ["openai", "gemini"]
+
+
+class TestSoftWeighting:
+    """
+    Tests for EPIC I-4 Phase B-2: Soft Weighting
+
+    Soft Weighting applies score multipliers based on provider degradation state:
+    - HEALTHY: 1.0x (no change)
+    - DEGRADED: 0.7x (30% reduction)
+    - CRITICAL: 0.3x (70% reduction)
+    - AVOID: 0.0x (handled by Hard Gating)
+
+    Fail-open: If DegradationAdvisor is unavailable, use original scores.
+    """
+
+    def test_soft_weighting_healthy_provider_no_change(self):
+        """Test that HEALTHY providers have no score reduction"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+            mock_advisor.get_provider_state.return_value = DegradationSeverity.HEALTHY
+
+            multiplier = engine._get_degradation_multiplier("alicloud")
+
+            assert multiplier == 1.0
+
+    def test_soft_weighting_degraded_provider_70_percent(self):
+        """Test that DEGRADED providers get 0.7x multiplier"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+            mock_advisor.get_provider_state.return_value = DegradationSeverity.DEGRADED
+
+            multiplier = engine._get_degradation_multiplier("alicloud")
+
+            assert multiplier == 0.7
+
+    def test_soft_weighting_critical_provider_30_percent(self):
+        """Test that CRITICAL providers get 0.3x multiplier"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+            mock_advisor.get_provider_state.return_value = DegradationSeverity.CRITICAL
+
+            multiplier = engine._get_degradation_multiplier("alicloud")
+
+            assert multiplier == 0.3
+
+    def test_soft_weighting_avoid_provider_zero(self):
+        """Test that AVOID providers get 0.0x multiplier (handled by Hard Gating)"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+            mock_advisor.get_provider_state.return_value = DegradationSeverity.AVOID
+
+            multiplier = engine._get_degradation_multiplier("alicloud")
+
+            assert multiplier == 0.0
+
+    def test_soft_weighting_fail_open_when_advisor_unavailable(self):
+        """Test fail-open behavior when DegradationAdvisor is unavailable"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_get_advisor.return_value = None
+
+            multiplier = engine._get_degradation_multiplier("alicloud")
+
+            # Should return 1.0 (no penalty) when advisor is unavailable
+            assert multiplier == 1.0
+
+    def test_soft_weighting_fail_open_on_exception(self):
+        """Test fail-open behavior when DegradationAdvisor raises exception"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_get_advisor.side_effect = RuntimeError("Advisor error")
+
+            multiplier = engine._get_degradation_multiplier("alicloud")
+
+            # Should return 1.0 (no penalty) on exception
+            assert multiplier == 1.0
+
+    def test_soft_weighting_affects_score_candidate(self):
+        """Test that Soft Weighting affects _score_candidate output"""
+        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+
+        # Get base score without degradation
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_get_advisor.return_value = None
+            base_score = engine._score_candidate("alicloud")
+
+        # Get score with DEGRADED state
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+            mock_advisor.get_provider_state.return_value = DegradationSeverity.DEGRADED
+            degraded_score = engine._score_candidate("alicloud")
+
+        # Degraded score should be 70% of base score
+        expected_degraded = base_score * 0.7
+        assert abs(degraded_score - expected_degraded) < 0.001
+
+    def test_soft_weighting_changes_provider_ranking(self):
+        """Test that Soft Weighting can change provider selection order"""
+        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+
+        # Normally alicloud has higher score than siliconflow
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_get_advisor.return_value = None
+            alicloud_base = engine._score_candidate("alicloud")
+            siliconflow_base = engine._score_candidate("siliconflow")
+
+        assert alicloud_base > siliconflow_base, "AliCloud should normally score higher"
+
+        # With alicloud CRITICAL and siliconflow HEALTHY, siliconflow should win
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+
+            def get_state(provider):
+                if provider == "alicloud":
+                    return DegradationSeverity.CRITICAL
+                return DegradationSeverity.HEALTHY
+
+            mock_advisor.get_provider_state.side_effect = get_state
+
+            alicloud_critical = engine._score_candidate("alicloud")
+            siliconflow_healthy = engine._score_candidate("siliconflow")
+
+        # AliCloud with CRITICAL (0.3x) should now score lower than healthy SiliconFlow
+        assert alicloud_critical < siliconflow_healthy, \
+            f"CRITICAL alicloud ({alicloud_critical}) should score lower than HEALTHY siliconflow ({siliconflow_healthy})"
+
+    def test_soft_weighting_logs_non_healthy_state(self, caplog):
+        """Test that non-HEALTHY states are logged"""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+            mock_advisor.get_provider_state.return_value = DegradationSeverity.DEGRADED
+
+            engine._get_degradation_multiplier("alicloud")
+
+        # Check that log contains soft weighting info
+        log_messages = [record.message for record in caplog.records]
+        soft_weight_logs = [msg for msg in log_messages if "I-4-SOFT-WEIGHTING" in msg]
+
+        assert len(soft_weight_logs) >= 1, f"Expected soft weighting log, got: {log_messages}"
+        assert "degraded" in soft_weight_logs[0].lower()
+        assert "0.7" in soft_weight_logs[0]
+
+    def test_soft_weighting_does_not_log_healthy_state(self, caplog):
+        """Test that HEALTHY state does not produce log spam"""
+        import logging
+        caplog.set_level(logging.INFO)
+
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+            mock_advisor.get_provider_state.return_value = DegradationSeverity.HEALTHY
+
+            engine._get_degradation_multiplier("alicloud")
+
+        # Should NOT have soft weighting log for HEALTHY state
+        log_messages = [record.message for record in caplog.records]
+        soft_weight_logs = [msg for msg in log_messages if "I-4-SOFT-WEIGHTING" in msg]
+
+        assert len(soft_weight_logs) == 0, f"Should not log for HEALTHY state: {soft_weight_logs}"
+
+    def test_soft_weighting_integration_with_select_model(self):
+        """Test that Soft Weighting integrates correctly with select_model"""
+        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+
+        # With alicloud CRITICAL, siliconflow should be selected for planning
+        with patch('governance.degradation_advisor.get_degradation_advisor') as mock_get_advisor:
+            mock_advisor = mock_get_advisor.return_value
+
+            def get_state(provider):
+                if provider == "alicloud":
+                    return DegradationSeverity.CRITICAL
+                return DegradationSeverity.HEALTHY
+
+            mock_advisor.get_provider_state.side_effect = get_state
+
+            model_info = engine.select_model(TaskType.PLANNING)
+
+        # SiliconFlow should be selected because alicloud has CRITICAL state
+        assert model_info.provider == "siliconflow", \
+            f"Expected siliconflow due to alicloud CRITICAL state, got {model_info.provider}"
