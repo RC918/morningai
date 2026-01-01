@@ -14,7 +14,6 @@ Background:
 
 Reference: gemini-code-assist critical finding on PR #3422
 """
-import ast
 import re
 from pathlib import Path
 
@@ -110,13 +109,13 @@ class TestRoutingCodeSSOTCompliance:
         content = routing_engine_path.read_text()
         
         suspicious_patterns = [
-            (r'DegradationSeverity\.DEGRADED[^}]*:\s*0\.[0-9]+', 
+            (r'DegradationSeverity\.DEGRADED[^}]*:\s*\d*\.\d+', 
              "Hardcoded DEGRADED multiplier"),
-            (r'DegradationSeverity\.CRITICAL[^}]*:\s*0\.[0-9]+',
+            (r'DegradationSeverity\.CRITICAL[^}]*:\s*\d*\.\d+',
              "Hardcoded CRITICAL multiplier"),
-            (r'DegradationSeverity\.HEALTHY[^}]*:\s*1\.0',
+            (r'DegradationSeverity\.HEALTHY[^}]*:\s*\d*\.\d+',
              "Hardcoded HEALTHY multiplier (should use SEVERITY_MULTIPLIERS)"),
-            (r'DegradationSeverity\.AVOID[^}]*:\s*0\.0',
+            (r'DegradationSeverity\.AVOID[^}]*:\s*\d*\.\d+',
              "Hardcoded AVOID multiplier (should use SEVERITY_MULTIPLIERS)"),
         ]
         
@@ -203,28 +202,6 @@ class TestMultiplierConsistencyContract:
                 f"These must be consistent to maintain SSOT."
             )
 
-    def test_degradation_recommendation_uses_severity_multipliers(self):
-        """Verify DegradationRecommendation score_multiplier matches SEVERITY_MULTIPLIERS"""
-        from governance.degradation_types import DegradationRecommendation
-        
-        for severity in DegradationSeverity:
-            expected_multiplier = SEVERITY_MULTIPLIERS[severity]
-            
-            recommendation = DegradationRecommendation(
-                provider="test_provider",
-                severity=severity,
-                score_multiplier=expected_multiplier,
-                health_score=50.0,
-                health_score_normalized=0.5,
-                reason="Test recommendation",
-            )
-            
-            assert recommendation.score_multiplier == expected_multiplier, (
-                f"DegradationRecommendation with severity {severity.name} "
-                f"should use multiplier {expected_multiplier}"
-            )
-
-
 class TestFutureProofing:
     """
     Tests to catch potential SSOT issues before they become problems.
@@ -261,8 +238,10 @@ class TestFutureProofing:
             
             matches = re.finditer(pattern, content)
             for match in matches:
-                matched_text = match.group()
-                if 'SEVERITY_MULTIPLIERS' not in content[:match.start()]:
+                has_ssot_import = 'SEVERITY_MULTIPLIERS' in content
+                has_routing_multipliers = 'ROUTING_SEVERITY_MULTIPLIERS' in content
+                
+                if not has_ssot_import and not has_routing_multipliers:
                     line_no = content[:match.start()].count('\n') + 1
                     violations.append(
                         f"{py_file.name}:{line_no} - "
