@@ -5901,6 +5901,9 @@ def router_node(state: AgentState) -> AgentState:
     ci_state = state.get("ci_state", "unknown")
 
     if ci_failure_trigger and ci_state != "success":
+        # Issue #3366: CI failure fast path - use monotonic time for accurate latency
+        # (time.monotonic() is immune to system clock adjustments like NTP)
+        fast_path_start = time.monotonic()
         logger.info(
             f"[CI_FAILURE_ROUTER_SHORT_CIRCUIT] CI failure fast path triggered "
             f"trace_id={trace_id} ci_state={ci_state}",
@@ -5923,7 +5926,7 @@ def router_node(state: AgentState) -> AgentState:
         state["messages"] = state.get("messages", []) + [
             AIMessage(content="Router: CI failure fast path -> fixer")
         ]
-        latency_ms = (time.time() - start_time) * 1000
+        latency_ms = (time.monotonic() - fast_path_start) * 1000
         metrics.record_node_complete("router", trace_id, success=True, latency_ms=latency_ms)
         return state
 
