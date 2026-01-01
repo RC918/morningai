@@ -208,7 +208,7 @@ class TestCIFailureFastPath:
             mock_time.time.return_value = 1000.0
             with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
                 mock_metrics.return_value = MagicMock()
-                with patch("langgraph_orchestrator.get_hybrid_router") as mock_router:
+                with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
                     mock_decision = MagicMock()
                     mock_decision.next_node = "publisher"
                     mock_decision.requires_hitl_approval = False
@@ -242,7 +242,7 @@ class TestCIFailureFastPath:
             mock_time.time.return_value = 1000.0
             with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
                 mock_metrics.return_value = MagicMock()
-                with patch("langgraph_orchestrator.get_hybrid_router") as mock_router:
+                with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
                     mock_decision = MagicMock()
                     mock_decision.next_node = "fixer"
                     mock_decision.requires_hitl_approval = False
