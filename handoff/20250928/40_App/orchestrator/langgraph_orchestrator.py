@@ -4100,6 +4100,178 @@ def ci_monitor_node(state: AgentState) -> AgentState:
     return state
 
 
+def _attempt_senior_coder_plan(
+    task_description: str,
+    files_with_content: list,
+    trace_id: str
+) -> tuple[bool, Optional[dict], Optional[str]]:
+    """Attempt to create an architecture plan using SeniorCoder.
+
+    This implements D-2b: SeniorCoder integration into LangGraph orchestrator.
+    SeniorCoder analyzes task complexity and creates an architecture spec
+    before delegating to GeneralCoder for implementation.
+
+    Args:
+        task_description: Description of the fix task
+        files_with_content: List of dicts with "path" and "content" keys
+        trace_id: Trace ID for logging
+
+    Returns:
+        Tuple of (should_proceed, spec_dict, message):
+        - (True, spec_dict, message) if SeniorCoder created a valid plan
+        - (False, None, message) if SeniorCoder aborted or failed
+
+    Event Codes (greppable):
+        [SENIOR_CODER_PLAN_ATTEMPT] - SeniorCoder planning started
+        [SENIOR_CODER_PLAN_CREATED] - Plan created successfully
+        [SENIOR_CODER_PLAN_ABORTED] - Task too complex, aborting
+        [SENIOR_CODER_PLAN_FAILED] - Planning failed due to error
+        [SENIOR_CODER_DISABLED] - Feature flag disabled
+        [SENIOR_CODER_UNAVAILABLE] - Import/dependency failure
+    """
+    if not settings.enable_senior_coder:
+        logger.debug("[SENIOR_CODER_DISABLED] Feature flag disabled")
+        return True, None, "SeniorCoder disabled, proceeding without plan"
+
+    try:
+        from coder.senior_coder import get_senior_coder
+    except ImportError as e:
+        logger.debug(f"[SENIOR_CODER_UNAVAILABLE] Import failed: {e}")
+        return True, None, f"SeniorCoder not available: {e}"
+
+    logger.info(
+        f"[SENIOR_CODER_PLAN_ATTEMPT] Starting architecture planning. "
+        f"file_count={len(files_with_content)}, trace_id={trace_id}"
+    )
+
+    try:
+        senior_coder = get_senior_coder()
+        spec = senior_coder.analyze_and_plan(
+            task_description=task_description,
+            files=files_with_content
+        )
+
+        if not spec.should_proceed:
+            abort_reason = spec.abort_reason or "Task complexity too high"
+            logger.info(
+                f"[SENIOR_CODER_PLAN_ABORTED] {abort_reason}. "
+                f"trace_id={trace_id}"
+            )
+            return False, None, f"SeniorCoder aborted: {abort_reason}"
+
+        spec_dict = spec.to_dict()
+        complexity = spec_dict.get("task_analysis", {}).get("complexity", "unknown")
+        step_count = len(spec_dict.get("implementation_plan", []))
+
+        logger.info(
+            f"[SENIOR_CODER_PLAN_CREATED] Plan created. "
+            f"complexity={complexity}, steps={step_count}, trace_id={trace_id}"
+        )
+        return True, spec_dict, f"Plan created with {step_count} steps"
+
+    except Exception as e:
+        logger.warning(
+            f"[SENIOR_CODER_PLAN_FAILED] Planning failed: {e}. "
+            f"trace_id={trace_id}"
+        )
+        return True, None, f"SeniorCoder planning failed: {e}"
+
+
+def _attempt_senior_coder_review(
+    task_description: str,
+    spec_dict: Optional[dict],
+    patches: list,
+    trace_id: str
+) -> tuple[bool, Optional[str]]:
+    """Attempt to review GeneralCoder's implementation using SeniorCoder.
+
+    This implements D-2b: SeniorCoder review step.
+    SeniorCoder reviews the patches before commit to ensure quality.
+
+    Args:
+        task_description: Original task description
+        spec_dict: Architecture spec from planning phase (may be None)
+        patches: List of patch dicts from GeneralCoder
+        trace_id: Trace ID for logging
+
+    Returns:
+        Tuple of (approved, message):
+        - (True, message) if review approved or skipped
+        - (False, message) if review rejected
+
+    Event Codes (greppable):
+        [SENIOR_CODER_REVIEW_ATTEMPT] - SeniorCoder review started
+        [SENIOR_CODER_REVIEW_APPROVED] - Implementation approved
+        [SENIOR_CODER_REVIEW_REJECTED] - Implementation rejected
+        [SENIOR_CODER_REVIEW_FAILED] - Review failed due to error
+        [SENIOR_CODER_REVIEW_SKIPPED] - Review skipped (no spec or disabled)
+        [SENIOR_CODER_UNAVAILABLE] - Import/dependency failure
+    """
+    if not settings.enable_senior_coder:
+        logger.debug("[SENIOR_CODER_REVIEW_SKIPPED] Feature flag disabled")
+        return True, "SeniorCoder review skipped (disabled)"
+
+    if spec_dict is None:
+        logger.debug("[SENIOR_CODER_REVIEW_SKIPPED] No spec available for review")
+        return True, "SeniorCoder review skipped (no spec)"
+
+    try:
+        from coder.senior_coder import get_senior_coder
+    except ImportError as e:
+        logger.debug(f"[SENIOR_CODER_UNAVAILABLE] Import failed: {e}")
+        return True, f"SeniorCoder review skipped: {e}"
+
+    logger.info(
+        f"[SENIOR_CODER_REVIEW_ATTEMPT] Starting implementation review. "
+        f"patch_count={len(patches)}, trace_id={trace_id}"
+    )
+
+    implementation = {
+        "patches": [
+            {
+                "file_path": p.get("file_path", ""),
+                "status": "patch_generated",
+                "syntax_valid": p.get("syntax_valid", True)
+            }
+            for p in patches
+        ],
+        "total_files": len(patches),
+        "all_syntax_valid": all(p.get("syntax_valid", True) for p in patches)
+    }
+
+    try:
+        senior_coder = get_senior_coder()
+        result = senior_coder.review_implementation(
+            task_description=task_description,
+            spec_dict=spec_dict,
+            implementation=implementation
+        )
+
+        if result.approved:
+            logger.info(
+                f"[SENIOR_CODER_REVIEW_APPROVED] Implementation approved. "
+                f"feedback={result.feedback[:100] if result.feedback else 'None'}... "
+                f"trace_id={trace_id}"
+            )
+            return True, f"Review approved: {result.feedback}"
+        else:
+            changes_summary = ", ".join(result.required_changes[:3]) if result.required_changes else "None"
+            feedback_truncated = result.feedback[:100] if result.feedback else "None"
+            logger.info(
+                f"[SENIOR_CODER_REVIEW_REJECTED] Implementation rejected. "
+                f"required_changes={changes_summary}, "
+                f"feedback={feedback_truncated}..., trace_id={trace_id}"
+            )
+            return False, f"Review rejected: {result.feedback}"
+
+    except Exception as e:
+        logger.warning(
+            f"[SENIOR_CODER_REVIEW_FAILED] Review failed: {e}. "
+            f"trace_id={trace_id}"
+        )
+        return True, f"SeniorCoder review failed: {e}"
+
+
 def _attempt_general_coder_fix(
     state: AgentState,
     trace_id: str
@@ -4107,6 +4279,12 @@ def _attempt_general_coder_fix(
     """Attempt to fix using GeneralCoder for multi-file issues.
 
     This implements D-1b: GeneralCoder multi-file support (<=5 files).
+    D-2b Enhancement: When ENABLE_SENIOR_CODER=True, SeniorCoder acts as
+    supervisor with plan-execute-review pattern:
+    1. SeniorCoder analyzes task and creates architecture spec
+    2. GeneralCoder executes the fix based on the spec
+    3. SeniorCoder reviews the implementation before commit
+
     GeneralCoder extends SimpleCoder with:
     1. Multi-file editing support (<=5 files)
     2. Import relationship understanding
@@ -4245,15 +4423,35 @@ def _attempt_general_coder_fix(
     if review_outcome and isinstance(review_outcome, dict):
         severity = review_outcome.get("severity", "low")
 
+    task_description = f"Fix the multi-file issue based on review comment: {review_comment}"
+
+    should_proceed, spec_dict, plan_msg = _attempt_senior_coder_plan(
+        task_description=task_description,
+        files_with_content=files_with_content,
+        trace_id=trace_id
+    )
+
+    if not should_proceed:
+        logger.info(
+            f"[GENERAL_CODER_SKIP] SeniorCoder aborted task. "
+            f"reason={plan_msg}, trace_id={trace_id}"
+        )
+        return False, f"SeniorCoder aborted: {plan_msg}"
+
     general_coder = get_general_coder()
+
+    context = {
+        "files": files_with_content,
+        "review_comment": review_comment,
+        "severity": severity
+    }
+    if spec_dict:
+        context["architecture_spec"] = spec_dict
+
     agent_input = AgentInput(
         task_id=trace_id,
-        prompt="Fix the multi-file issue",
-        context={
-            "files": files_with_content,
-            "review_comment": review_comment,
-            "severity": severity
-        }
+        prompt=task_description,
+        context=context
     )
 
     try:
@@ -4302,6 +4500,20 @@ def _attempt_general_coder_fix(
     if not commit_files_list:
         logger.warning(f"[GENERAL_CODER_SKIP] No valid patches to commit. trace_id={trace_id}")
         return False, "No valid patches to commit"
+
+    review_approved, review_msg = _attempt_senior_coder_review(
+        task_description=task_description,
+        spec_dict=spec_dict,
+        patches=patches,
+        trace_id=trace_id
+    )
+
+    if not review_approved:
+        logger.info(
+            f"[GENERAL_CODER_SKIP] SeniorCoder review rejected implementation. "
+            f"reason={review_msg}, trace_id={trace_id}"
+        )
+        return False, f"SeniorCoder review rejected: {review_msg}"
 
     # Atomic commit via commit_files()
     file_paths_str = ", ".join([f["path"] for f in commit_files_list])
