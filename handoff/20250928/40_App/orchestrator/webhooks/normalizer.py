@@ -1364,6 +1364,15 @@ class EventNormalizer:
             context["pr_updated_job_token"] = event.metadata.get("pr_updated_job_token")
             context["pr_updated_debounce_seconds"] = event.metadata.get("pr_updated_debounce_seconds")
 
+        # Issue: #3366 - Pass CI failure metadata to task context
+        # This enables the webhook handler to route CI failure events to auto-fix flow
+        # _handle_ci_check_completed() sets these in event.metadata, but they must be
+        # passed to task.context for _enqueue_task() to detect and route correctly
+        if event.metadata.get("ci_failure_trigger"):
+            context["ci_failure_trigger"] = event.metadata["ci_failure_trigger"]
+            context["ci_failure_pr_number"] = event.metadata.get("ci_failure_pr_number")
+            context["ci_failure_dedup_key"] = event.metadata.get("ci_failure_dedup_key")
+
         return context
 
     def batch_process(

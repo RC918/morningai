@@ -4,10 +4,71 @@ Tests for CI failure trigger flow (Issue #3366).
 This module tests the orchestrator-side logic for CI failure auto-fix:
 1. CI failure trigger context extraction logic
 2. CI failure task context building
+3. _build_context() CI failure metadata passing
 
 Note: Tests for _enqueue_ci_failure_task() in webhooks.py are located in
 the api-backend test suite (webhooks/tests/) since that module requires Flask.
 """
+
+import pytest
+from unittest.mock import MagicMock
+from datetime import datetime, timezone
+
+
+class TestBuildContextCIFailureMetadata:
+    """Test that _build_context() properly passes CI failure metadata to task context."""
+
+    def test_build_context_passes_ci_failure_trigger(self):
+        """Test that ci_failure_trigger is passed from event.metadata to context."""
+        from webhooks.normalizer import EventNormalizer
+        from webhooks.bot_protocol import WebhookEvent, WebhookSource, WebhookEventType
+
+        normalizer = EventNormalizer()
+
+        event = WebhookEvent(
+            event_id="test-event-123",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.CI_CHECK_COMPLETED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            repo_owner="test",
+            repo_name="repo",
+            metadata={
+                "ci_failure_trigger": True,
+                "ci_failure_pr_number": 123,
+                "ci_failure_dedup_key": "test/repo:123:abc123",
+            },
+        )
+
+        context = normalizer._build_context(event)
+
+        assert context.get("ci_failure_trigger") is True
+        assert context.get("ci_failure_pr_number") == 123
+        assert context.get("ci_failure_dedup_key") == "test/repo:123:abc123"
+
+    def test_build_context_no_ci_failure_metadata_when_not_set(self):
+        """Test that CI failure metadata is not added when not in event.metadata."""
+        from webhooks.normalizer import EventNormalizer
+        from webhooks.bot_protocol import WebhookEvent, WebhookSource, WebhookEventType
+
+        normalizer = EventNormalizer()
+
+        event = WebhookEvent(
+            event_id="test-event-456",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.PR_OPENED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            repo_owner="test",
+            repo_name="repo",
+            metadata={},
+        )
+
+        context = normalizer._build_context(event)
+
+        assert "ci_failure_trigger" not in context
+        assert "ci_failure_pr_number" not in context
+        assert "ci_failure_dedup_key" not in context
 
 
 class TestCIFailureTriggerContextExtraction:
