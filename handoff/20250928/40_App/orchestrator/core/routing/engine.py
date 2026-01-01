@@ -424,6 +424,7 @@ class RoutingEngine:
         Score a candidate provider for selection.
 
         Issue #2874: Improved best candidate selection scoring.
+        EPIC I-4 Phase B-2: Soft Weighting based on degradation state.
 
         Args:
             provider: Provider name
@@ -432,6 +433,14 @@ class RoutingEngine:
 
         Returns:
             Score between 0 and 1 (higher is better)
+
+        Soft Weighting (EPIC I-4 Phase B-2):
+        - HEALTHY: 1.0x multiplier (no change)
+        - DEGRADED: 0.7x multiplier (reduced likelihood)
+        - CRITICAL: 0.3x multiplier (significantly reduced)
+        - AVOID: Handled by Hard Gating (Phase B-1), not here
+
+        Fail-open: If DegradationAdvisor is unavailable, use original score.
         """
         # Get cost (lower is better, so we invert it)
         cost = DEFAULT_PROVIDER_COSTS.get(provider, 1.0)
@@ -443,10 +452,69 @@ class RoutingEngine:
         # Calculate weighted score
         total_weight = cost_weight + preference_weight
         if total_weight == 0:
-            return preference  # Fallback to preference only
+            base_score = preference  # Fallback to preference only
+        else:
+            base_score = (preference * preference_weight + cost_score * cost_weight) / total_weight
 
-        score = (preference * preference_weight + cost_score * cost_weight) / total_weight
-        return score
+        # EPIC I-4 Phase B-2: Apply Soft Weighting based on degradation state
+        degradation_multiplier = self._get_degradation_multiplier(provider)
+        final_score = base_score * degradation_multiplier
+
+        return final_score
+
+    def _get_degradation_multiplier(self, provider: str) -> float:
+        """
+        Get the degradation multiplier for a provider.
+
+        EPIC I-4 Phase B-2: Soft Weighting
+
+        This method retrieves the provider's degradation state from DegradationAdvisor
+        and returns the appropriate score multiplier from SEVERITY_MULTIPLIERS (SSOT).
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            Multiplier from governance.degradation_types.SEVERITY_MULTIPLIERS.
+            See that constant for current values (HEALTHY=1.0, DEGRADED=0.7, etc.)
+
+        Fail-open: Returns 1.0 if DegradationAdvisor is unavailable.
+        """
+        try:
+            from governance.degradation_advisor import get_degradation_advisor
+            from governance.degradation_types import (
+                DegradationSeverity,
+                SEVERITY_MULTIPLIERS,
+            )
+
+            advisor = get_degradation_advisor()
+            if advisor is None:
+                return 1.0
+
+            state = advisor.get_provider_state(provider)
+
+            # Use SEVERITY_MULTIPLIERS as single source of truth (EPIC I-4 Phase B-2)
+            multiplier = SEVERITY_MULTIPLIERS.get(state, 1.0)
+
+            if state != DegradationSeverity.HEALTHY:
+                logger.info(
+                    f"[I-4-SOFT-WEIGHTING] Provider {provider} has {state.value} state, "
+                    f"applying {multiplier}x score multiplier"
+                )
+
+            return multiplier
+
+        except ImportError:
+            logger.debug(
+                "[RoutingEngine] Governance module not available, skipping Soft Weighting"
+            )
+            return 1.0
+        except Exception as e:
+            logger.warning(
+                f"[RoutingEngine] Soft Weighting error (fail-open): {e}. "
+                f"Using default multiplier 1.0."
+            )
+            return 1.0
 
     def _is_provider_available(self, provider: str) -> bool:
         """Check if a provider is available"""

@@ -18,10 +18,10 @@ class DegradationSeverity(Enum):
     """
     Severity levels for provider degradation
 
-    Each severity level maps to a recommended score multiplier:
+    Each severity level maps to a score multiplier (see SEVERITY_MULTIPLIERS):
     - HEALTHY: Provider is operating normally (multiplier = 1.0)
-    - DEGRADED: Provider has reduced reliability (multiplier = 0.5)
-    - CRITICAL: Provider has significant issues (multiplier = 0.25)
+    - DEGRADED: Provider has reduced reliability (multiplier = 0.7)
+    - CRITICAL: Provider has significant issues (multiplier = 0.3)
     - AVOID: Provider should not be used (multiplier = 0.0)
     """
     HEALTHY = "healthy"
@@ -31,10 +31,13 @@ class DegradationSeverity(Enum):
 
 
 # Score multipliers for each severity level
+# EPIC I-4 Phase B-2: Updated to less aggressive values (0.7/0.3 vs 0.5/0.25)
+# These multipliers are used by both DegradationAdvisor (advisory) and
+# RoutingEngine (enforcement) to ensure SSOT consistency.
 SEVERITY_MULTIPLIERS = {
     DegradationSeverity.HEALTHY: 1.0,
-    DegradationSeverity.DEGRADED: 0.5,
-    DegradationSeverity.CRITICAL: 0.25,
+    DegradationSeverity.DEGRADED: 0.7,   # 30% reduction (was 0.5 / 50%)
+    DegradationSeverity.CRITICAL: 0.3,   # 70% reduction (was 0.25 / 75%)
     DegradationSeverity.AVOID: 0.0,
 }
 
