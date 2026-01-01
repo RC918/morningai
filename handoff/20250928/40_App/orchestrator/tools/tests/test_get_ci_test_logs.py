@@ -592,3 +592,121 @@ class TestGetCiTestLogs:
 
         # Should match "Orchestrator Tests" using default pattern
         assert result["job_name"] == "Orchestrator Tests"
+
+    @patch('requests.get')
+    def test_handles_callable_logs_url(self, mock_requests_get):
+        """Test that function handles logs_url as callable method (Issue #3437).
+
+        In some PyGithub versions, logs_url is a method instead of a property.
+        This caused "No connection adapters were found for '<bound method...>'" errors.
+        """
+        from tools.github_api import get_ci_test_logs
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_pr.head.sha = "abc123def456"
+        mock_repo.get_pull.return_value = mock_pr
+
+        mock_job = MagicMock()
+        mock_job.name = "Orchestrator Tests"
+        mock_job.id = 59261537734
+        # Issue #3437: logs_url is a callable method that returns the URL
+        mock_job.logs_url = MagicMock(return_value="https://api.github.com/logs/12345")
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 12345
+        mock_run.jobs.return_value = iter([mock_job])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "collected 100 items\ntest_foo.py::test_bar PASSED"
+        mock_response.content = b"collected 100 items\ntest_foo.py::test_bar PASSED"
+        mock_response.headers = {"Content-Type": "text/plain"}
+        mock_requests_get.return_value = mock_response
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123def456",
+            trace_id="test-trace"
+        )
+
+        # Should successfully fetch logs even when logs_url is callable
+        assert result["success"] is True
+        assert "collected 100 items" in result["logs"]
+        # Verify the callable was invoked
+        mock_job.logs_url.assert_called_once()
+
+    def test_handles_invalid_logs_url_type(self):
+        """Test that function handles non-string, non-callable logs_url gracefully (Issue #3437)."""
+        from tools.github_api import get_ci_test_logs
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_pr.head.sha = "abc123def456"
+        mock_repo.get_pull.return_value = mock_pr
+
+        mock_job = MagicMock()
+        mock_job.name = "Orchestrator Tests"
+        mock_job.id = 59261537734
+        # Issue #3437: logs_url is an invalid type (not string, not callable)
+        mock_job.logs_url = 12345  # Invalid: integer instead of URL
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 12345
+        mock_run.jobs.return_value = iter([mock_job])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123def456",
+            trace_id="test-trace"
+        )
+
+        # Should fail gracefully with informative error
+        assert result["success"] is False
+        assert "No valid logs URL available" in result["error"]
+        assert "int" in result["error"]  # Should mention the actual type
+
+    @patch('requests.get')
+    def test_handles_callable_logs_url_that_raises(self, mock_requests_get):
+        """Test that function handles logs_url method that raises exception (Issue #3437)."""
+        from tools.github_api import get_ci_test_logs
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_pr.head.sha = "abc123def456"
+        mock_repo.get_pull.return_value = mock_pr
+
+        mock_job = MagicMock()
+        mock_job.name = "Orchestrator Tests"
+        mock_job.id = 59261537734
+        # Issue #3437: logs_url is a callable that raises an exception
+        mock_job.logs_url = MagicMock(side_effect=RuntimeError("API rate limit exceeded"))
+
+        mock_run = MagicMock()
+        mock_run.name = "Test Apps"
+        mock_run.status = "completed"
+        mock_run.conclusion = "success"
+        mock_run.id = 12345
+        mock_run.jobs.return_value = iter([mock_job])
+        mock_repo.get_workflow_runs.return_value = iter([mock_run])
+
+        result = get_ci_test_logs(
+            repo=mock_repo,
+            pr_number=123,
+            head_sha="abc123def456",
+            trace_id="test-trace"
+        )
+
+        # Should fail gracefully when callable raises
+        assert result["success"] is False
+        assert "No valid logs URL available" in result["error"]
