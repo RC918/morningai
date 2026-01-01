@@ -10,8 +10,8 @@ MorningAI leverages a microservices-based architecture, utilizing a range of tec
 - **Backend**: Python and Flask serve as the backbone of the server-side application, with Gunicorn for multi-worker support ensuring scalability and efficiency.
 - **Database**: PostgreSQL with Row Level Security (RLS) is used for data storage, enhanced by Supabase for additional functionality including authentication and real-time subscriptions.
 - **Queue System**: Redis Queue (RQ) is utilized for managing background tasks and job queues, allowing for efficient task scheduling and execution.
-- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex autonomous operations within the system.
-- **AI Integration**: OpenAI's GPT-4 model powers content generation, including FAQ generation and code suggestions.
+- **Orchestration**: LangGraph orchestrates agent workflows, enabling complex autonomous operations within the system with PostgreSQL checkpointing for state persistence.
+- **AI Integration**: Multi-model routing architecture (EPIC #2594) with support for multiple LLM providers (AliCloud DashScope, SiliconFlow, OpenAI, Gemini). The routing engine dynamically selects models based on task type and risk level using a tiered approach (Tier 0-3) with cross-generation fallback for resilience. See [Routing Policy Documentation](./ROUTING_POLICY.md) for details.
 - **Deployment**: Render.com is used for hosting, benefiting from its CI/CD features for streamlined deployment processes.
 
 ### Detailed Component Interaction
