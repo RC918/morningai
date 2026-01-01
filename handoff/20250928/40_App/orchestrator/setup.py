@@ -14,7 +14,7 @@ setup(
         "PyGithub==2.8.1",
         "supabase==2.27.0",
         "openai>=1.55.0,<3.0.0",
-        "google-genai==1.52.0",
+        "google-genai==1.56.0",
         "requests==2.32.5",
         "sentry-sdk==2.48.0",
         "redis>=5.2.0,<6.0.0",
