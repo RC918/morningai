@@ -99,7 +99,7 @@ jobs:
       
       - name: Locate UX Metrics PR and analyze changes
         id: analyze
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -147,7 +147,7 @@ jobs:
       
       - name: Set i18n required status (commit status)
         if: steps.analyze.outputs.only_metrics == 'true' && steps.analyze.outputs.head_sha != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -168,7 +168,7 @@ jobs:
       
       - name: Create check run (belt-and-suspenders)
         if: steps.analyze.outputs.only_metrics == 'true' && steps.analyze.outputs.head_sha != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;

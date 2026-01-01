@@ -39,7 +39,7 @@ jobs:
         env:
           ALLOWED_HEARTBEAT_CREATORS: github-actions[bot]
           VERIFY: ${{ github.event_name == 'workflow_dispatch' && inputs.verify || 'false' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
