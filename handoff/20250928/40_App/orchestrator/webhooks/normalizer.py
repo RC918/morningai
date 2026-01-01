@@ -1369,7 +1369,7 @@ class EventNormalizer:
         # _handle_ci_check_completed() sets these in event.metadata, but they must be
         # passed to task.context for _enqueue_task() to detect and route correctly
         if event.metadata.get("ci_failure_trigger"):
-            context["ci_failure_trigger"] = event.metadata["ci_failure_trigger"]
+            context["ci_failure_trigger"] = event.metadata.get("ci_failure_trigger")
             context["ci_failure_pr_number"] = event.metadata.get("ci_failure_pr_number")
             context["ci_failure_dedup_key"] = event.metadata.get("ci_failure_dedup_key")
 

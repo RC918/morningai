@@ -10,9 +10,10 @@ Note: Tests for _enqueue_ci_failure_task() in webhooks.py are located in
 the api-backend test suite (webhooks/tests/) since that module requires Flask.
 """
 
-import pytest
-from unittest.mock import MagicMock
 from datetime import datetime, timezone
+
+from webhooks.normalizer import EventNormalizer
+from webhooks.bot_protocol import WebhookEvent, WebhookSource, WebhookEventType
 
 
 class TestBuildContextCIFailureMetadata:
@@ -20,9 +21,6 @@ class TestBuildContextCIFailureMetadata:
 
     def test_build_context_passes_ci_failure_trigger(self):
         """Test that ci_failure_trigger is passed from event.metadata to context."""
-        from webhooks.normalizer import EventNormalizer
-        from webhooks.bot_protocol import WebhookEvent, WebhookSource, WebhookEventType
-
         normalizer = EventNormalizer()
 
         event = WebhookEvent(
@@ -48,9 +46,6 @@ class TestBuildContextCIFailureMetadata:
 
     def test_build_context_no_ci_failure_metadata_when_not_set(self):
         """Test that CI failure metadata is not added when not in event.metadata."""
-        from webhooks.normalizer import EventNormalizer
-        from webhooks.bot_protocol import WebhookEvent, WebhookSource, WebhookEventType
-
         normalizer = EventNormalizer()
 
         event = WebhookEvent(
