@@ -1,54 +1,13 @@
 """
 Tests for CI failure trigger flow (Issue #3366).
 
-This module tests the webhook-to-orchestrator connection for CI failure auto-fix:
-1. _enqueue_ci_failure_task() in webhooks.py routes CI failure events
-2. run_orchestrator() detects ci_failure_trigger context
-3. AgentState includes ci_failure_trigger field
+This module tests the orchestrator-side logic for CI failure auto-fix:
+1. CI failure trigger context extraction logic
+2. CI failure task context building
+
+Note: Tests for _enqueue_ci_failure_task() in webhooks.py are located in
+the api-backend test suite (webhooks/tests/) since that module requires Flask.
 """
-
-import sys
-from unittest.mock import patch
-
-# Ensure api-backend/src is in path for webhook imports
-sys.path.insert(0, "/home/ubuntu/repos/morningai/handoff/20250928/40_App/api-backend/src")
-
-
-class TestEnqueueCIFailureTask:
-    """Test _enqueue_ci_failure_task in webhooks.py."""
-
-    def test_enqueue_ci_failure_task_requires_pr_number(self):
-        """Test that _enqueue_ci_failure_task requires pr_number in context."""
-        from routes.webhooks import _enqueue_ci_failure_task
-
-        class MockTask:
-            task_id = "test-task-123"
-            goal_text = "Fix CI failure"
-            context = {"ci_failure_trigger": True}
-
-        task = MockTask()
-        result = _enqueue_ci_failure_task(task)
-        assert result is None
-
-    def test_enqueue_ci_failure_task_with_valid_context(self):
-        """Test that _enqueue_ci_failure_task works with valid context."""
-        from routes.webhooks import _enqueue_ci_failure_task
-
-        class MockTask:
-            task_id = "test-task-456"
-            goal_text = "Fix CI failure"
-            context = {
-                "ci_failure_trigger": True,
-                "ci_failure_pr_number": 123,
-                "repo": "test/repo",
-            }
-
-        task = MockTask()
-
-        with patch("routes.webhooks.settings") as mock_settings:
-            mock_settings.redis_url = None
-            result = _enqueue_ci_failure_task(task)
-            assert result is None
 
 
 class TestCIFailureTriggerContextExtraction:
