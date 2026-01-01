@@ -141,7 +141,9 @@ def is_senior_coder_required(
     diff_truncated = review_outcome.get("diff_truncated", True)
 
     # P0: schema_validated is non-negotiable (data format must be valid)
-    if not schema_validated:
+    # IMPORTANT: Use strict identity check (is True) not truthy check
+    # This prevents bypass via truthy values like 1, "true", etc.
+    if schema_validated is not True:
         logger.info(
             f"[SENIOR_CODER_GATE_FAIL] schema_validated={schema_validated} (required: True)"
         )
