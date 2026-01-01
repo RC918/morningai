@@ -33,7 +33,7 @@ plotly
 
 # 2FA/TOTP dependencies
 pyotp==2.9.0
-qrcode[pil]==7.4.2
+qrcode[pil]==8.2
 argon2-cffi==25.1.0
 
 # Testing dependencies - moved to requirements-dev.txt to reduce production build size
