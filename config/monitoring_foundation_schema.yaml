@@ -92,6 +92,75 @@ metrics:
       description: "RLS policy violations detected"
       labels: [table, tenant_id]
 
+  router:
+    - name: router_decisions_total
+      type: counter
+      unit: count
+      description: "Total routing decisions made by Flow Controller v3"
+      labels: [decision_mode, next_node]
+      
+    - name: router_success_rate
+      type: gauge
+      unit: percentage
+      description: "Percentage of successful routing decisions"
+      labels: []
+      slo_target: 0.95
+      
+    - name: router_fallback_rate
+      type: gauge
+      unit: percentage
+      description: "Percentage of routing decisions that fell back to deterministic path"
+      labels: []
+      
+    - name: router_fallback_count
+      type: counter
+      unit: count
+      description: "Count of fallback routing decisions by reason"
+      labels: [fallback_reason]
+      
+    - name: router_latency_avg
+      type: gauge
+      unit: milliseconds
+      description: "Average routing decision latency"
+      labels: []
+      
+    - name: router_latency_p50
+      type: gauge
+      unit: milliseconds
+      description: "50th percentile routing decision latency"
+      labels: []
+      
+    - name: router_latency_p90
+      type: gauge
+      unit: milliseconds
+      description: "90th percentile routing decision latency"
+      labels: []
+      
+    - name: router_latency_p95
+      type: gauge
+      unit: milliseconds
+      description: "95th percentile routing decision latency"
+      labels: []
+      
+    - name: router_latency_p99
+      type: gauge
+      unit: milliseconds
+      description: "99th percentile routing decision latency"
+      labels: []
+      slo_target: 5000
+      
+    - name: router_decision_mode_distribution
+      type: gauge
+      unit: count
+      description: "Distribution of routing decisions by mode"
+      labels: [decision_mode]
+      
+    - name: router_node_distribution
+      type: gauge
+      unit: count
+      description: "Distribution of routing decisions by target node"
+      labels: [next_node]
+
   queue:
     - name: queue_depth
       type: gauge
@@ -212,6 +281,22 @@ slas:
     measurement_window: 24h
     metrics:
       - queue_processing_duration
+    
+  - name: router_success_rate
+    description: "Flow Controller v3 routing success rate"
+    target: 95.0
+    unit: percentage
+    measurement_window: 24h
+    metrics:
+      - router_success_rate
+    
+  - name: router_latency_p99
+    description: "Flow Controller v3 routing latency P99"
+    target: 5000.0
+    unit: milliseconds
+    measurement_window: 24h
+    metrics:
+      - router_latency_p99
 
 
 alerts:
@@ -280,6 +365,34 @@ alerts:
     severity: info
     description: "New agent registered"
     condition: "increase(agent_active_count[5m]) > 0"
+    notification_channels: [slack]
+    
+  - name: router_success_rate_low
+    severity: critical
+    description: "Flow Controller v3 routing success rate below 95%"
+    condition: "router_success_rate < 0.95"
+    duration: 5m
+    notification_channels: [pagerduty, slack]
+    
+  - name: router_latency_p99_high
+    severity: critical
+    description: "Flow Controller v3 routing P99 latency exceeds 5 seconds"
+    condition: "router_latency_p99 > 5000"
+    duration: 5m
+    notification_channels: [pagerduty, slack]
+    
+  - name: router_fallback_rate_high
+    severity: warning
+    description: "Flow Controller v3 fallback rate exceeds 20%"
+    condition: "router_fallback_rate > 0.20"
+    duration: 10m
+    notification_channels: [slack]
+    
+  - name: router_slow_path_dominant
+    severity: warning
+    description: "Flow Controller v3 slow path usage exceeds 50%"
+    condition: "sum(rate(router_decisions_total{decision_mode='slow_path'}[15m])) / sum(rate(router_decisions_total[15m])) > 0.50"
+    duration: 15m
     notification_channels: [slack]
 
 
@@ -371,6 +484,51 @@ dashboards:
       - title: "RLS Violations"
         metric: db_row_level_security_violations
         visualization: stat
+  
+  - name: router_metrics
+    description: "Flow Controller v3 routing metrics and performance (EPIC C)"
+    refresh_interval: 30s
+    api_endpoint: "/api/governance/router-metrics"
+    panels:
+      - title: "Total Routing Decisions"
+        metric: router_decisions_total
+        visualization: stat
+        time_range: 1h
+        
+      - title: "Success Rate"
+        metric: router_success_rate
+        visualization: gauge
+        thresholds: [0.90, 0.95, 0.99]
+        
+      - title: "Fallback Rate"
+        metric: router_fallback_rate
+        visualization: gauge
+        thresholds: [0.05, 0.10, 0.20]
+        
+      - title: "Latency Percentiles"
+        metrics: [router_latency_p50, router_latency_p90, router_latency_p95, router_latency_p99]
+        visualization: graph
+        time_range: 1h
+        
+      - title: "Decision Mode Distribution"
+        metric: router_decision_mode_distribution
+        visualization: pie_chart
+        labels: [fast_path, slow_path, ci_failure_fast_path, outer_fallback]
+        
+      - title: "Target Node Distribution"
+        metric: router_node_distribution
+        visualization: bar_chart
+        labels: [fixer, publisher, executor, decision]
+        
+      - title: "Fallback Reasons"
+        metric: router_fallback_count
+        visualization: table
+        labels: [llm_fallback, router_exception, llm_error, timeout]
+        
+      - title: "Latency Trend"
+        metric: router_latency_avg
+        visualization: graph
+        time_range: 6h
 
 
 sentry:
