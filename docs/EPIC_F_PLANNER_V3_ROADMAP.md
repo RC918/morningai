@@ -157,7 +157,8 @@ EPIC F transforms MorningAI's planning infrastructure from "task decomposition" 
     },
     "created_at": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "Creation timestamp in UTC with millisecond precision (ISO 8601)"
     }
   },
   "definitions": {
@@ -240,7 +241,11 @@ class PlanConsumer(Protocol):
     },
     "plan_id": { "type": "string" },
     "task_id": { "type": "string" },
-    "timestamp": { "type": "string", "format": "date-time" },
+    "timestamp": { 
+      "type": "string", 
+      "format": "date-time",
+      "description": "Timestamp in UTC with millisecond precision (ISO 8601)"
+    },
     "metadata": { "type": "object" }
   }
 }

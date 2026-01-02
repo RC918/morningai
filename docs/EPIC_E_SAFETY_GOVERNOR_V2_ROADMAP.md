@@ -77,6 +77,7 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
     },
     "decision_version": {
       "type": "string",
+      "default": "1.0.0",
       "description": "Version of decision schema (e.g., '1.0.0')"
     },
     "overrideable": {
@@ -99,7 +100,8 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "Timestamp in UTC with millisecond precision (ISO 8601)"
     }
   }
 }
@@ -120,8 +122,15 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
       "enum": ["decision_made", "override_requested", "override_approved", "override_denied"]
     },
     "trace_id": { "type": "string" },
-    "timestamp": { "type": "string", "format": "date-time" },
-    "decision": { "$ref": "#/definitions/SafetyDecision" },
+    "timestamp": { 
+      "type": "string", 
+      "format": "date-time",
+      "description": "Timestamp in UTC with millisecond precision (ISO 8601)"
+    },
+    "decision": { 
+      "type": "object",
+      "description": "Embedded SafetyDecision object (see SafetyDecision schema above)"
+    },
     "context": {
       "type": "object",
       "properties": {
@@ -134,6 +143,8 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
   }
 }
 ```
+
+**Note**: In implementation, the `decision` field will contain a full `SafetyDecision` object. The schema reference is simplified here for readability; the actual implementation will use proper JSON Schema `$ref` with a `definitions` block or separate schema files.
 
 3. **Enforcement Points Documentation**:
    - LLM boundary (input/output)
