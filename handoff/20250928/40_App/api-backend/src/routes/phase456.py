@@ -18,7 +18,6 @@ route behavior where functions were called directly from src.main.
 import asyncio
 import logging
 from functools import lru_cache
-from typing import Optional
 
 from flask import Blueprint, jsonify, request
 
