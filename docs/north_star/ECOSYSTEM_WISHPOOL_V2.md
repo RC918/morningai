@@ -45,6 +45,15 @@
 | **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **In Progress**; HITL Gate Pending ([#3487](https://github.com/RC918/morningai/issues/3487)) |
 | **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | Planning (after #3249) |
 
+### Future EPICs (Placeholder)
+
+| Layer | Wish Pool v2 Component | EPIC | Status |
+|-------|------------------------|------|--------|
+| **Governance Layer** | Safety Governor v2 + Compliance Radar v2 | [EPIC E: Safety Governor v2 + Compliance Radar v2 (#3489)](https://github.com/RC918/morningai/issues/3489) | Placeholder |
+| **Intelligence Layer** | Planner v3 | [EPIC F: Planner v3 (#3490)](https://github.com/RC918/morningai/issues/3490) | Placeholder (After EPIC D) |
+| **Infrastructure Layer** | Memory v2 | [EPIC G: Memory v2 (#3491)](https://github.com/RC918/morningai/issues/3491) | Placeholder |
+| **Infrastructure Layer** | Simulation Suite v1 | [EPIC H: Simulation Suite v1 (#3492)](https://github.com/RC918/morningai/issues/3492) | Placeholder |
+
 ### EPIC Dependencies
 
 ```
@@ -169,16 +178,16 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 | Wish Pool v2 Section | Current Status | Next Action |
 |---------------------|----------------|-------------|
 | 2. Model Layer | **EPIC A Completed** | Maintenance mode |
-| 3.1 Planner v3 | Not started | After EPIC D |
+| 3.1 Planner v3 | Not started | [EPIC F (#3490)](https://github.com/RC918/morningai/issues/3490) - Placeholder (After EPIC D) |
 | 3.2 Flow Controller v3 | **EPIC C Stage 0 + C-6 Completed** (default: disabled); Operationalization Pending ([#3486](https://github.com/RC918/morningai/issues/3486)) | Wire RouterMetrics; Enable Pilot rollout |
 | 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 + B-6 Completed**, EPIC D In Progress; HITL Gate Pending ([#3487](https://github.com/RC918/morningai/issues/3487)) | Continue D; Implement HITL gate for SeniorCoder |
-| 4.1 Safety Governor v2 | Not started | Future EPIC E |
-| 4.2 Compliance Radar v2 | Not started | Future EPIC E |
+| 4.1 Safety Governor v2 | Not started | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - Placeholder |
+| 4.2 Compliance Radar v2 | Not started | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - Placeholder |
 | 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) |
 | 4.4 Autonomous Provisioning v2 | Planning | **EPIC I** (#3342) |
-| 5.1 Memory v2 | Not started | Future EPIC G |
+| 5.1 Memory v2 | Not started | [EPIC G (#3491)](https://github.com/RC918/morningai/issues/3491) - Placeholder |
 | 5.2 Telemetry v2 | **EPIC B Reviewer telemetry Completed**; Full trace reconstruction Pending | Future EPIC |
-| 5.3 Simulation Suite v1 | Not started | Future EPIC H |
+| 5.3 Simulation Suite v1 | Not started | [EPIC H (#3492)](https://github.com/RC918/morningai/issues/3492) - Placeholder |
 
 ---
 
@@ -222,3 +231,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 1.4 | 2025-12-31 | Ryan Chen (@RC918) with Devin AI | Refined EPIC B status: Added detailed phase table (B-1 to B-6, Phase 1-4). Clarified Telemetry v2 scope: EPIC B contributes Reviewer telemetry fields; full trace reconstruction is a separate future EPIC. |
 | 1.5 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Updated EPIC B Phase 6 (B-6) status from "In Progress" to "Completed" based on EPIC_B_DIFF_AWARE_REVIEW_ROADMAP.md evidence. Synced all references in EPIC table, phase table, and cross-reference section. |
 | 1.6 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Added Operationalization Pending status for EPIC C ([#3486](https://github.com/RC918/morningai/issues/3486): RouterMetrics not wired) and EPIC D ([#3487](https://github.com/RC918/morningai/issues/3487): SeniorCoder HITL gate). Updated EPIC table and cross-reference section with Issue links. |
+| 1.7 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Added Future EPICs section with placeholder issues: EPIC E (#3489 - Safety Governor + Compliance Radar), EPIC F (#3490 - Planner v3), EPIC G (#3491 - Memory v2), EPIC H (#3492 - Simulation Suite). Created dedicated roadmap documents for EPIC C and EPIC D. Updated cross-reference section with Issue links. |
