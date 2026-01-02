@@ -42,7 +42,7 @@ EPIC F transforms MorningAI's planning infrastructure from "task decomposition" 
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "title": "PlannerOutput",
   "type": "object",
   "required": ["plan_id", "plan_type", "task_tree", "created_at"],

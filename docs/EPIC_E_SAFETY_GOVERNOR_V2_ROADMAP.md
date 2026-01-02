@@ -42,7 +42,7 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "title": "SafetyDecision",
   "type": "object",
   "required": ["action", "category", "policy_id", "reason", "trace_id", "decision_version"],
@@ -109,7 +109,7 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "title": "SafetyEvidenceEvent",
   "type": "object",
   "required": ["event_id", "event_type", "trace_id", "timestamp", "decision"],
