@@ -969,6 +969,12 @@ def _should_ignore_file(filename: str) -> bool:
     return False
 
 
+@retry_with_backoff(
+    max_retries=API_RETRY_CONFIG.max_retries,
+    initial_delay=API_RETRY_CONFIG.initial_delay,
+    backoff_factor=API_RETRY_CONFIG.backoff_factor,
+    exceptions=(RateLimitExceededException, ConnectionError, TimeoutError)
+)
 def get_pr_files(
     repo,
     pr_number: int,
@@ -990,16 +996,21 @@ def get_pr_files(
     Note: Unlike get_pr_diff(), this function does NOT filter out lockfiles
     or generated assets. The caller can apply their own filtering if needed.
 
+    Note: PyGithub's pr.get_files() returns a PaginatedList that automatically
+    handles pagination when iterated. The list comprehension fully iterates it,
+    ensuring all files are retrieved (not just the first page).
+
     Args:
         repo: GitHub repository object (from get_repo())
         pr_number: Pull request number
-        trace_id: Optional trace ID for telemetry correlation (keyword-only)
+        trace_id: Optional trace ID for logging/telemetry correlation only,
+                  has no effect on functionality (keyword-only)
 
     Returns:
         List[str]: List of file paths changed in the PR.
 
     Raises:
-        CustomGitHubException: If the GitHub API call fails.
+        CustomGitHubException: If the GitHub API call fails after retries.
     """
     try:
         pr = repo.get_pull(pr_number)
