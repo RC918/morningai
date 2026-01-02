@@ -624,23 +624,72 @@ def webhook_health():
     })
 
 
-def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
+def _sanitize_dedup_key_component(value: str, component_name: str) -> str:
+    """
+    Sanitize a component for use in Redis dedup key.
+
+    Issue: #3366 - Prevent malformed keys from entering Redis
+
+    Args:
+        value: The raw value to sanitize
+        component_name: Name of the component for logging (e.g., "delivery_id", "hook_id")
+
+    Returns:
+        Sanitized value safe for Redis key, or empty string if invalid
+    """
+    if not value:
+        return ""
+
+    # Strip whitespace
+    sanitized = value.strip()
+
+    # Check for empty after strip
+    if not sanitized:
+        return ""
+
+    # Reject values with characters that could cause Redis key issues
+    # Allow alphanumeric, hyphens, and underscores (covers UUID format and numeric IDs)
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+$', sanitized):
+        logger.warning(
+            "[Webhooks] Invalid %s format, skipping: %s",
+            component_name,
+            sanitized[:50],  # Truncate for safety in logs
+        )
+        return ""
+
+    return sanitized
+
+
+def _check_webhook_delivery_idempotency(delivery_id: str, hook_id: str = "") -> bool:
     """
     Check if a webhook delivery has already been processed (idempotency check).
 
     Issue: #2879 - Add idempotency to webhook handler
+    Issue: #3366 - Fix prod/stg webhook dedup key collision
+
     This prevents duplicate processing of the same webhook event, which can occur
     due to GitHub retries, network issues, or race conditions.
 
+    The dedup key now includes hook_id to prevent cross-environment collisions
+    when prod and stg share the same Redis instance. GitHub sends the same
+    delivery_id (guid) to different webhook subscriptions (prod/stg), so we
+    need to namespace the dedup key by hook_id.
+
     Args:
         delivery_id: The X-GitHub-Delivery header value (unique per delivery)
+        hook_id: The X-GitHub-Hook-ID header value (unique per webhook subscription)
 
     Returns:
         True if this delivery was already processed (should skip)
         False if this is a new delivery (should process)
     """
-    if not delivery_id or delivery_id == "unknown":
-        # No delivery ID, can't deduplicate - allow processing
+    # Sanitize inputs to prevent malformed Redis keys
+    sanitized_delivery_id = _sanitize_dedup_key_component(delivery_id, "delivery_id")
+    sanitized_hook_id = _sanitize_dedup_key_component(hook_id, "hook_id")
+
+    if not sanitized_delivery_id or sanitized_delivery_id == "unknown":
+        # No valid delivery ID, can't deduplicate - allow processing
         return False
 
     try:
@@ -651,9 +700,14 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
         from utils.redis_client import get_redis_client
         redis_client = get_redis_client()
 
-        # Key format: webhook:delivery:{delivery_id}
+        # Key format: webhook:delivery:{hook_id}:{delivery_id}
+        # Include hook_id to prevent cross-environment collisions (prod/stg sharing Redis)
+        # Fallback to delivery_id only if hook_id is not available (backward compatibility)
         # TTL: 7 days to handle delayed retries
-        dedup_key = f"webhook:delivery:{delivery_id}"
+        if sanitized_hook_id:
+            dedup_key = f"webhook:delivery:{sanitized_hook_id}:{sanitized_delivery_id}"
+        else:
+            dedup_key = f"webhook:delivery:{sanitized_delivery_id}"
         ttl_seconds = 7 * 24 * 60 * 60  # 7 days
 
         # Use SET with NX and EX for atomic check-and-set with TTL
@@ -665,8 +719,9 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
             return False  # New delivery, should process
         else:
             logger.info(
-                "[Webhooks] Duplicate webhook delivery detected, skipping: %s",
+                "[Webhooks] Duplicate webhook delivery detected, skipping: %s (hook_id=%s)",
                 delivery_id,
+                hook_id or "unknown",
             )
             return True  # Duplicate, should skip
 
@@ -678,6 +733,7 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
             "[Webhooks] Redis error during idempotency check, fail-open",
             extra={
                 "delivery_id": delivery_id,
+                "hook_id": hook_id,
                 "error_type": error_type,
                 "error_message": str(e),
                 "fail_open": True,
@@ -693,6 +749,7 @@ def _check_webhook_delivery_idempotency(delivery_id: str) -> bool:
                 level="warning",
                 data={
                     "delivery_id": delivery_id,
+                    "hook_id": hook_id,
                     "error_type": error_type,
                 }
             )
@@ -728,12 +785,15 @@ def github_webhook():
 
     # Layer 1: Webhook Delivery Idempotency
     # Issue: #2879 - Prevent duplicate processing of the same webhook event
+    # Issue: #3366 - Include hook_id to prevent cross-environment collisions (prod/stg)
     delivery_id = request.headers.get("X-GitHub-Delivery", "unknown")
-    if _check_webhook_delivery_idempotency(delivery_id):
+    hook_id = request.headers.get("X-GitHub-Hook-ID", "")
+    if _check_webhook_delivery_idempotency(delivery_id, hook_id):
         return jsonify({
             "status": "duplicate",
             "message": f"Webhook delivery {delivery_id} already processed",
             "delivery_id": delivery_id,
+            "hook_id": hook_id,
         }), 200
 
     try:
