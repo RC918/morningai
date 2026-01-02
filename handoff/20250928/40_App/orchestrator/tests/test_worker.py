@@ -191,9 +191,10 @@ class TestRunOrchestratorTask:
 class TestHeartbeat:
     """Test heartbeat monitoring functions"""
 
+    @patch('redis_queue.worker._run_governance_heartbeat')
     @patch('redis_queue.worker.redis')
     @patch('redis_queue.worker.shutdown_event')
-    def test_update_worker_heartbeat_running(self, mock_shutdown, mock_redis):
+    def test_update_worker_heartbeat_running(self, mock_shutdown, mock_redis, mock_governance):
         """Test heartbeat update in running state"""
         mock_shutdown.is_set.side_effect = [False, True]
         mock_shutdown.wait.return_value = None
@@ -213,9 +214,10 @@ class TestHeartbeat:
         assert "worker_id" in payload
         assert "timestamp" in payload
 
+    @patch('redis_queue.worker._run_governance_heartbeat')
     @patch('redis_queue.worker.redis')
     @patch('redis_queue.worker.shutdown_event')
-    def test_update_worker_heartbeat_handles_redis_errors(self, mock_shutdown, mock_redis):
+    def test_update_worker_heartbeat_handles_redis_errors(self, mock_shutdown, mock_redis, mock_governance):
         """Test heartbeat continues on Redis errors"""
         mock_shutdown.is_set.side_effect = [False, False, True]
         mock_shutdown.wait.return_value = None
