@@ -188,8 +188,8 @@ class TestGovernanceCycle:
         mock_redis.set.return_value = True  # Lock acquired
         mock_redis.get.return_value = None  # For lock release check
 
-        with patch('governance.heartbeat_handler.get_health_alert_service') as mock_alert:
-            with patch('governance.heartbeat_handler.get_degradation_advisor') as mock_advisor:
+        with patch('governance.health_alerter.get_health_alert_service') as mock_alert:
+            with patch('governance.degradation_advisor.get_degradation_advisor') as mock_advisor:
                 mock_alert.return_value = None  # Alerting disabled
                 mock_advisor.return_value = None  # Advisory disabled
 
@@ -241,9 +241,9 @@ class TestErrorIsolation:
         mock_redis.set.return_value = True
         mock_redis.get.return_value = None
 
-        with patch('governance.heartbeat_handler.get_health_alert_service') as mock_alert:
+        with patch('governance.health_alerter.get_health_alert_service') as mock_alert:
             mock_alert.side_effect = Exception("Health alerter crashed")
-            with patch('governance.heartbeat_handler.get_degradation_advisor') as mock_advisor:
+            with patch('governance.degradation_advisor.get_degradation_advisor') as mock_advisor:
                 mock_advisor.return_value = None
 
                 # Should not raise exception
@@ -262,9 +262,9 @@ class TestErrorIsolation:
         mock_redis.set.return_value = True
         mock_redis.get.return_value = None
 
-        with patch('governance.heartbeat_handler.get_health_alert_service') as mock_alert:
+        with patch('governance.health_alerter.get_health_alert_service') as mock_alert:
             mock_alert.return_value = None
-            with patch('governance.heartbeat_handler.get_degradation_advisor') as mock_advisor:
+            with patch('governance.degradation_advisor.get_degradation_advisor') as mock_advisor:
                 mock_advisor.side_effect = Exception("Advisor crashed")
 
                 # Should not raise exception
@@ -283,8 +283,8 @@ class TestErrorIsolation:
         mock_redis.get.return_value = None
         mock_redis.setex.side_effect = Exception("Snapshot update failed")
 
-        with patch('governance.heartbeat_handler.get_health_alert_service') as mock_alert:
-            with patch('governance.heartbeat_handler.get_degradation_advisor') as mock_advisor:
+        with patch('governance.health_alerter.get_health_alert_service') as mock_alert:
+            with patch('governance.degradation_advisor.get_degradation_advisor') as mock_advisor:
                 mock_alert.return_value = None
                 mock_advisor.return_value = None
 
@@ -307,8 +307,8 @@ class TestHealthSnapshot:
         mock_redis.set.return_value = True
         mock_redis.get.return_value = None
 
-        with patch('governance.heartbeat_handler.get_health_alert_service') as mock_alert:
-            with patch('governance.heartbeat_handler.get_degradation_advisor') as mock_advisor:
+        with patch('governance.health_alerter.get_health_alert_service') as mock_alert:
+            with patch('governance.degradation_advisor.get_degradation_advisor') as mock_advisor:
                 mock_alert.return_value = None
                 mock_advisor.return_value = None
 
