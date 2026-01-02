@@ -145,6 +145,19 @@ _postgres_pool = None
 # to avoid race condition in lazy initialization pattern
 _postgres_pool_lock = _threading.Lock()
 
+# EPIC D Issue #3487: System error indicators for SeniorCoder abort classification
+# These patterns distinguish system errors (LLM failures, parsing errors) from
+# genuine complexity aborts that should trigger HITL gate.
+# Note: Uses substring matching (case-insensitive). For structured error types,
+# see follow-up issue for ArchitectureSpec error taxonomy.
+_SENIOR_CODER_SYSTEM_ERROR_INDICATORS = (
+    "JSON parsing failed",
+    "LLM call failed",
+    "parsing error",
+    "timeout",
+    "connection error",
+)
+
 
 def _get_metrics() -> OrchestratorMetrics:
     """Get or initialize the global metrics instance"""
@@ -4123,7 +4136,8 @@ def ci_monitor_node(state: AgentState) -> AgentState:
 def _attempt_senior_coder_plan(
     task_description: str,
     files_with_content: list,
-    trace_id: str
+    trace_id: str,
+    state: Optional[AgentState] = None
 ) -> tuple[bool, Optional[dict], Optional[str]]:
     """Attempt to create an architecture plan using SeniorCoder.
 
@@ -4131,10 +4145,15 @@ def _attempt_senior_coder_plan(
     SeniorCoder analyzes task complexity and creates an architecture spec
     before delegating to GeneralCoder for implementation.
 
+    EPIC D Issue #3487: When SeniorCoder determines task complexity is too high
+    (complexity abort), this function sets HITL flags on state to trigger
+    human-in-the-loop approval gate.
+
     Args:
         task_description: Description of the fix task
         files_with_content: List of dicts with "path" and "content" keys
         trace_id: Trace ID for logging
+        state: Optional AgentState for setting HITL flags on complexity abort
 
     Returns:
         Tuple of (should_proceed, spec_dict, message):
@@ -4148,6 +4167,7 @@ def _attempt_senior_coder_plan(
         [SENIOR_CODER_PLAN_FAILED] - Planning failed due to error
         [SENIOR_CODER_DISABLED] - Feature flag disabled
         [SENIOR_CODER_UNAVAILABLE] - Import/dependency failure
+        [SENIOR_CODER_HITL_ESCALATION] - Complexity abort triggers HITL gate
     """
     if not settings.enable_senior_coder:
         logger.debug("[SENIOR_CODER_DISABLED] Feature flag disabled")
@@ -4177,6 +4197,41 @@ def _attempt_senior_coder_plan(
                 f"[SENIOR_CODER_PLAN_ABORTED] {abort_reason}. "
                 f"trace_id={trace_id}"
             )
+
+            # EPIC D Issue #3487: Set HITL flags for complexity abort
+            # Only trigger HITL for genuine complexity aborts, not system errors
+            # Complexity abort is identified by:
+            # 1. spec.should_proceed is False (checked above)
+            # 2. abort_reason does NOT indicate a system error
+            is_system_error = any(
+                indicator.lower() in abort_reason.lower()
+                for indicator in _SENIOR_CODER_SYSTEM_ERROR_INDICATORS
+            )
+
+            if state is not None and not is_system_error:
+                # Reset hitl_approved to ensure this new HITL request is processed
+                # (previous approval was for a different gate/reason)
+                state["requires_hitl_approval"] = True
+                state["hitl_approved"] = False
+                state["hitl_reason"] = "senior_coder_complexity_abort"
+                state["hitl_details"] = {
+                    "version": "1.0",
+                    "abort_reason": abort_reason,
+                    "task_description": task_description,
+                    "file_count": len(files_with_content),
+                    "escalation_source": "SeniorCoder",
+                }
+                logger.info(
+                    f"[SENIOR_CODER_HITL_ESCALATION] Complexity abort triggers HITL gate. "
+                    f"abort_reason={abort_reason}, trace_id={trace_id}",
+                    extra={
+                        "operation": "senior_coder_hitl_escalation",
+                        "trace_id": trace_id,
+                        "event_code": "SENIOR_CODER_HITL_ESCALATION",
+                        "abort_reason": abort_reason,
+                    }
+                )
+
             return False, None, f"SeniorCoder aborted: {abort_reason}"
 
         spec_dict = spec.to_dict()
@@ -4460,10 +4515,12 @@ def _attempt_general_coder_fix(
 
     task_description = f"Fix the multi-file issue based on review comment: {review_comment}"
 
+    # EPIC D Issue #3487: Pass state to _attempt_senior_coder_plan for HITL flag setting
     should_proceed, spec_dict, plan_msg = _attempt_senior_coder_plan(
         task_description=task_description,
         files_with_content=files_with_content,
-        trace_id=trace_id
+        trace_id=trace_id,
+        state=state
     )
 
     if not should_proceed:
@@ -6301,8 +6358,79 @@ def should_proceed_after_hitl_gate(state: AgentState) -> str:
     - finalize: If approved, request_changes, or max retries reached
 
     This function mirrors should_fix_or_finalize but is called after HITL gate.
+
+    EPIC D Issue #3487: Extended to handle SeniorCoder complexity abort flow.
+    When hitl_reason is "senior_coder_complexity_abort" and hitl_approved is True,
+    route to executor to continue the workflow (skip re-running fixer).
     """
+    trace_id = state.get("trace_id", "unknown")
+    hitl_reason = state.get("hitl_reason", "")
+    # Use strict boolean check to prevent truthy string values like "False"
+    hitl_approved = state.get("hitl_approved") is True
+    metrics = _get_metrics()
+
+    # EPIC D Issue #3487: After HITL approval for SeniorCoder complexity abort,
+    # route directly to executor instead of back to fixer
+    if hitl_reason == "senior_coder_complexity_abort" and hitl_approved:
+        logger.info(
+            f"[HITL_GATE_ROUTING] SeniorCoder complexity abort approved, routing to executor. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "hitl_gate_routing",
+                "trace_id": trace_id,
+                "event_code": "SENIOR_CODER_HITL_APPROVED",
+                "hitl_reason": hitl_reason,
+            }
+        )
+        metrics.record_transition("hitl_gate", "executor", trace_id)
+        return "executor"
+
     return should_fix_or_finalize(state)
+
+
+def should_proceed_after_fixer(state: AgentState) -> str:
+    """
+    Determines next step after fixer node.
+
+    EPIC D Issue #3487: SeniorCoder HITL Gate
+
+    Routes based on HITL requirement:
+    - hitl_gate: If requires_hitl_approval is True and hitl_approved is False
+      (SeniorCoder determined task complexity is too high)
+    - executor: Default path for normal fixer completion
+
+    CTO Directive (Separation of Concerns):
+    - Fixer's Job: DECIDE (set requires_hitl_approval=True in state)
+    - HITL Gate's Job: EXECUTE (implement interrupt logic in LangGraph)
+
+    This follows the Blueprint architecture where Router DECIDES and
+    Orchestrator EXECUTES, keeping HITL interrupt logic centralized.
+    """
+    trace_id = state.get("trace_id", "unknown")
+    # Use strict boolean checks to prevent truthy string values like "False"
+    requires_hitl = state.get("requires_hitl_approval") is True
+    hitl_approved = state.get("hitl_approved") is True
+    hitl_reason = state.get("hitl_reason", "")
+    metrics = _get_metrics()
+
+    # Route to HITL gate if approval is required and not yet approved
+    if requires_hitl and not hitl_approved:
+        logger.info(
+            f"[FIXER_ROUTING] HITL approval required, routing to hitl_gate. "
+            f"hitl_reason={hitl_reason}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer_routing",
+                "trace_id": trace_id,
+                "event_code": "FIXER_TO_HITL_GATE",
+                "hitl_reason": hitl_reason,
+            }
+        )
+        metrics.record_transition("fixer", "hitl_gate", trace_id)
+        return "hitl_gate"
+
+    # Default: proceed to executor
+    metrics.record_transition("fixer", "executor", trace_id)
+    return "executor"
 
 
 class FileLevelComment(TypedDict):
@@ -7542,21 +7670,33 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     # 這樣我們可以保持 Router 的純粹性（只做決策），將控制權交給 Gate。"
     workflow.add_edge("decision", "hitl_gate")
 
-    # hitl_gate → (fix | monitor_ci | publisher)
+    # hitl_gate → (fix | monitor_ci | publisher | executor)
     # EPIC B Phase B-3: Route finalize through publisher for review posting
     # EPIC C Phase C-5: HITL gate checks requires_hitl_approval before routing
+    # EPIC D Issue #3487: Added executor route for SeniorCoder complexity abort approval
     workflow.add_conditional_edges(
         "hitl_gate",
         should_proceed_after_hitl_gate,
         {
             "fix": "fixer",
             "monitor_ci": "ci_monitor",
-            "finalize": "publisher"
+            "finalize": "publisher",
+            "executor": "executor"
         }
     )
 
-    # fixer → executor (retry loop)
-    workflow.add_edge("fixer", "executor")
+    # fixer → (executor | hitl_gate)
+    # EPIC D Issue #3487: SeniorCoder HITL Gate
+    # Changed from direct edge to conditional edge to support HITL escalation
+    # when SeniorCoder determines task complexity is too high
+    workflow.add_conditional_edges(
+        "fixer",
+        should_proceed_after_fixer,
+        {
+            "executor": "executor",
+            "hitl_gate": "hitl_gate"
+        }
+    )
 
     # EPIC B Phase B-3: publisher → finalizer
     workflow.add_edge("publisher", "finalizer")
