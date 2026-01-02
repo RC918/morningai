@@ -47,12 +47,16 @@ METRICS_VERSION = "v2"
 
 
 class DecisionMode:
-    """Constants for decision mode (for metrics)."""
+    """Constants for decision mode (for metrics).
+
+    Issue #3496: Added LLM_FALLBACK to distinguish LLM failures from fast path.
+    """
 
     FAST_PATH = "fast_path"
     SLOW_PATH = "slow_path"
     CI_FAILURE_FAST_PATH = "ci_failure_fast_path"
     OUTER_FALLBACK = "outer_fallback"
+    LLM_FALLBACK = "llm_fallback"  # LLM call failed, fell back to deterministic
 
 
 @dataclass

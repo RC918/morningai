@@ -68,6 +68,7 @@ def _shutdown_autofixer_executor() -> None:
 # Register shutdown handler to clean up executor on exit
 atexit.register(_shutdown_autofixer_executor)
 
+
 class AutoFixer:
     """
     Orchestrates auto-fix attempts using ReviewerAgent and ProjectEngineerAgent.
@@ -354,33 +355,174 @@ class AutoFixer:
         Returns:
             List of file paths
         """
+        trace_id = state.get("trace_id", "unknown")
         pr_number = state.get("pr_number")
         repo = state.get("repo") or getattr(self.settings, "github_repo", None) or "RC918/morningai"
+
+        logger.info(
+            "[AutoFixer] _get_changed_files starting pr_number=%s repo=%s trace_id=%s",
+            pr_number, repo, trace_id,
+            extra={
+                "operation": "get_changed_files",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "repo": repo
+            }
+        )
 
         if pr_number:
             try:
                 from tools.github_api import get_repo, get_pr_files
+                logger.info(
+                    "[AutoFixer] github_api import succeeded, fetching PR files trace_id=%s",
+                    trace_id,
+                    extra={"trace_id": trace_id, "method": "github_api"}
+                )
                 gh_repo = get_repo(repo)
                 files = get_pr_files(gh_repo, pr_number)
-                return [f.filename for f in files] if files else []
-            except ImportError:
-                logger.warning("[AutoFixer] github_api not available, using git diff")
+                file_list = [f.filename for f in files] if files else []
+                logger.info(
+                    "[AutoFixer] github_api returned %d files trace_id=%s files=%s",
+                    len(file_list), trace_id, file_list[:5],
+                    extra={
+                        "trace_id": trace_id,
+                        "method": "github_api",
+                        "file_count": len(file_list)
+                    }
+                )
+                return file_list
+            except ImportError as e:
+                logger.warning(
+                    "[AutoFixer] github_api ImportError: %s trace_id=%s - falling back to git diff",
+                    str(e), trace_id,
+                    extra={
+                        "trace_id": trace_id,
+                        "method": "github_api",
+                        "error_type": "ImportError",
+                        "error": str(e)
+                    }
+                )
             except Exception as e:
-                logger.warning("[AutoFixer] Failed to get PR files: %s", e)
+                logger.warning(
+                    "[AutoFixer] github_api Exception: %s trace_id=%s - falling back to git diff",
+                    str(e), trace_id,
+                    extra={
+                        "trace_id": trace_id,
+                        "method": "github_api",
+                        "error_type": type(e).__name__,
+                        "error": str(e)
+                    }
+                )
 
+        # Fallback to git diff
+        logger.info(
+            "[AutoFixer] Using git diff fallback trace_id=%s",
+            trace_id,
+            extra={"trace_id": trace_id, "method": "git_diff"}
+        )
         try:
             import subprocess
+            import os
+            cwd = os.getcwd()
+            logger.info(
+                "[AutoFixer] git diff cwd=%s trace_id=%s",
+                cwd, trace_id,
+                extra={"trace_id": trace_id, "cwd": cwd}
+            )
+
+            # Try to get default branch dynamically, fallback to main
+            base_ref = "origin/main"
+            try:
+                head_result = subprocess.run(
+                    ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if head_result.returncode == 0 and head_result.stdout.strip():
+                    # refs/remotes/origin/HEAD -> refs/remotes/origin/main
+                    base_ref = head_result.stdout.strip().replace(
+                        "refs/remotes/", ""
+                    )
+                    logger.info(
+                        "[AutoFixer] Detected default branch: %s trace_id=%s",
+                        base_ref, trace_id,
+                        extra={"trace_id": trace_id, "base_ref": base_ref}
+                    )
+            except Exception as e:
+                logger.debug(
+                    "[AutoFixer] Could not detect default branch, using origin/main: %s",
+                    str(e)
+                )
+
             result = subprocess.run(
-                ["git", "diff", "--name-only", "origin/main", "HEAD"],
+                ["git", "diff", "--name-only", base_ref, "HEAD"],
                 capture_output=True,
                 text=True,
                 timeout=30
             )
-            if result.returncode == 0:
-                return [f for f in result.stdout.strip().split("\n") if f]
-        except Exception as e:
-            logger.warning("[AutoFixer] Failed to get git diff: %s", e)
 
+            # Handle stderr with truncation indicator
+            stderr_preview = ""
+            stderr_truncated = False
+            if result.stderr:
+                if len(result.stderr) > 500:
+                    stderr_preview = result.stderr[:500]
+                    stderr_truncated = True
+                else:
+                    stderr_preview = result.stderr
+
+            logger.info(
+                "[AutoFixer] git diff returncode=%d stdout_len=%d trace_id=%s",
+                result.returncode, len(result.stdout), trace_id,
+                extra={
+                    "trace_id": trace_id,
+                    "method": "git_diff",
+                    "base_ref": base_ref,
+                    "returncode": result.returncode,
+                    "stdout_len": len(result.stdout),
+                    "stderr_preview": stderr_preview,
+                    "stderr_truncated": stderr_truncated
+                }
+            )
+            if stderr_preview:
+                logger.warning(
+                    "[AutoFixer] git diff stderr%s: %s",
+                    " (truncated)" if stderr_truncated else "",
+                    stderr_preview,
+                    extra={"trace_id": trace_id, "stderr_truncated": stderr_truncated}
+                )
+
+            if result.returncode == 0:
+                files = [f for f in result.stdout.strip().split("\n") if f]
+                logger.info(
+                    "[AutoFixer] git diff returned %d files trace_id=%s",
+                    len(files), trace_id,
+                    extra={
+                        "trace_id": trace_id,
+                        "method": "git_diff",
+                        "file_count": len(files),
+                        "files_preview": files[:5]
+                    }
+                )
+                return files
+        except Exception as e:
+            logger.warning(
+                "[AutoFixer] git diff failed: %s trace_id=%s",
+                str(e), trace_id,
+                extra={
+                    "trace_id": trace_id,
+                    "method": "git_diff",
+                    "error_type": type(e).__name__,
+                    "error": str(e)
+                }
+            )
+
+        logger.warning(
+            "[AutoFixer] _get_changed_files returning empty list trace_id=%s",
+            trace_id,
+            extra={"trace_id": trace_id, "file_count": 0}
+        )
         return []
 
     async def _run_reviewer(
