@@ -85,3 +85,17 @@ def serialization_fix_validation_test():
     to_dict_test = "PR #3515 deployed"  # F841: unused variable
     from_dict_test = "JSON serializable"  # F841: unused variable
     return None
+
+# Test run 10 - 2026-01-02 20:24 UTC
+# Validating PR #3516 ci_monitor_node fast path fix
+# Expected: ci_monitor_node skips GitHub API call when ci_failure_trigger=True
+# Expected: Router sees ci_state="failure" and triggers [CI_FAILURE_ROUTER_SHORT_CIRCUIT]
+# Expected: AutoFixer executes with CI evidence
+import enum  # F401: unused import
+import weakref  # F401: unused import
+
+def ci_monitor_fast_path_validation_test():
+    fast_path_test = "PR #3516 deployed"  # F841: unused variable
+    ci_state_preserved = "failure"  # F841: unused variable
+    skip_api_call = True  # F841: unused variable
+    return None
