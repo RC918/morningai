@@ -30,7 +30,7 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from redis import Redis
@@ -92,19 +92,20 @@ class GovernanceHeartbeatResult:
 def _acquire_governance_lock(
     redis_client: "Redis",
     evaluator_node_id: str,
-) -> Optional[str]:
+) -> Optional[Tuple[str, str]]:
     """
     Acquire distributed lock for governance evaluation.
 
     Uses Redis SET NX EX for atomic non-blocking acquisition.
-    Returns lock token if acquired, None otherwise.
+    Returns (lock_token, lock_value) tuple if acquired, None otherwise.
 
     Args:
         redis_client: Redis client instance
         evaluator_node_id: Unique identifier for this evaluator
 
     Returns:
-        Lock token (UUID) if acquired, None if lock is held by another worker
+        Tuple of (lock_token, lock_value) if acquired, None if lock is held by another worker.
+        The lock_value is needed for atomic release via Lua script.
     """
     lock_token = uuid.uuid4().hex
 
@@ -132,7 +133,7 @@ def _acquire_governance_lock(
                     "lock_token": lock_token[:8],
                 }
             )
-            return lock_token
+            return (lock_token, lock_value)
         else:
             logger.debug(
                 "[Governance] Lock held by another worker, skipping",
@@ -157,60 +158,62 @@ def _acquire_governance_lock(
 
 def _release_governance_lock(
     redis_client: "Redis",
-    lock_token: str,
+    lock_value: str,
     evaluator_node_id: str,
 ) -> bool:
     """
-    Release distributed lock using compare-and-delete.
+    Release distributed lock using atomic compare-and-delete via Lua script.
 
-    Only releases if we still own the lock (token matches).
+    Only releases if we still own the lock (lock_value matches exactly).
     This prevents accidentally deleting a lock that expired and was
     re-acquired by another worker.
 
+    Uses Lua script for atomicity - the GET and conditional DELETE happen
+    in a single Redis operation, eliminating race conditions.
+
     Args:
         redis_client: Redis client instance
-        lock_token: Token returned from _acquire_governance_lock
+        lock_value: The exact lock value string that was stored (from _acquire_governance_lock)
         evaluator_node_id: Unique identifier for this evaluator
 
     Returns:
-        True if lock was released, False otherwise
+        True if lock was released or already expired, False if owned by another worker
     """
     try:
-        # Get current lock value to extract token
-        current_value = redis_client.get(GOVERNANCE_LOCK_KEY)
-        if current_value is None:
-            # Lock already expired
-            return True
+        # Use Lua script for atomic compare-and-delete
+        # This eliminates the race condition between GET and DELETE
+        release_script = redis_client.register_script(LOCK_RELEASE_SCRIPT)
+        result = release_script(keys=[GOVERNANCE_LOCK_KEY], args=[lock_value])
 
-        try:
-            lock_data = json.loads(current_value)
-            current_token = lock_data.get("token")
-        except (json.JSONDecodeError, TypeError):
-            # Invalid lock value, safe to delete
-            redis_client.delete(GOVERNANCE_LOCK_KEY)
-            return True
-
-        if current_token != lock_token:
-            # Lock was re-acquired by another worker
+        if result == 1:
             logger.debug(
-                "[Governance] Lock token mismatch, not releasing",
+                "[Governance] Lock released (atomic)",
+                extra={
+                    "operation": "governance_lock_release",
+                    "evaluator_node_id": evaluator_node_id,
+                }
+            )
+            return True
+        elif result == 0:
+            # Lock value didn't match - either expired and re-acquired, or never held
+            logger.debug(
+                "[Governance] Lock not released (value mismatch or expired)",
                 extra={
                     "operation": "governance_lock_release",
                     "evaluator_node_id": evaluator_node_id,
                 }
             )
             return False
-
-        # Safe to delete - we still own the lock
-        redis_client.delete(GOVERNANCE_LOCK_KEY)
-        logger.debug(
-            "[Governance] Lock released",
-            extra={
-                "operation": "governance_lock_release",
-                "evaluator_node_id": evaluator_node_id,
-            }
-        )
-        return True
+        else:
+            # Unexpected result
+            logger.warning(
+                f"[Governance] Unexpected lock release result: {result}",
+                extra={
+                    "operation": "governance_lock_release",
+                    "evaluator_node_id": evaluator_node_id,
+                }
+            )
+            return False
 
     except Exception as e:
         logger.warning(
@@ -329,15 +332,18 @@ def run_governance_cycle(
         )
 
     # Try to acquire distributed lock (non-blocking)
-    lock_token = _acquire_governance_lock(redis_client, evaluator_node_id)
+    lock_result = _acquire_governance_lock(redis_client, evaluator_node_id)
 
-    if lock_token is None:
+    if lock_result is None:
         # Lock held by another worker - skip this cycle
         return GovernanceHeartbeatResult(
             executed=False,
             lock_acquired=False,
             skipped_reason="lock_held_by_another_worker",
         )
+
+    # Unpack lock token and value (value needed for atomic release)
+    lock_token, lock_value = lock_result
 
     # Lock acquired - execute governance cycle
     try:
@@ -422,8 +428,8 @@ def run_governance_cycle(
 
         duration = time.monotonic() - start_time
 
-        # Warn if cycle duration approaches lock TTL
-        if duration > GOVERNANCE_LOCK_TTL * 0.8:
+        # Warn if cycle duration approaches lock TTL (90% threshold to reduce noise)
+        if duration > GOVERNANCE_LOCK_TTL * 0.9:
             logger.warning(
                 f"[Governance] Cycle duration ({duration:.1f}s) approaching lock TTL ({GOVERNANCE_LOCK_TTL}s)",
                 extra={
@@ -474,7 +480,8 @@ def run_governance_cycle(
 
     finally:
         # Always try to release lock (even on error)
-        _release_governance_lock(redis_client, lock_token, evaluator_node_id)
+        # Pass lock_value for atomic compare-and-delete via Lua script
+        _release_governance_lock(redis_client, lock_value, evaluator_node_id)
 
 
 def get_health_snapshot(redis_client: Optional["Redis"]) -> Optional[Dict[str, Any]]:

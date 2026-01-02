@@ -38,6 +38,10 @@ def mock_redis():
     redis.get.return_value = None
     redis.delete.return_value = 1
     redis.setex.return_value = True
+    # Mock register_script for Lua script-based lock release
+    # Returns a callable that returns 1 (success) by default
+    mock_script = MagicMock(return_value=1)
+    redis.register_script.return_value = mock_script
     return redis
 
 
@@ -48,13 +52,15 @@ class TestLockAcquisition:
         """First worker should successfully acquire the lock"""
         mock_redis.set.return_value = True  # SET NX succeeds
 
-        lock_token = _acquire_governance_lock(
+        lock_result = _acquire_governance_lock(
             redis_client=mock_redis,
             evaluator_node_id="worker-1",
         )
 
-        assert lock_token is not None
+        assert lock_result is not None
+        lock_token, lock_value = lock_result
         assert len(lock_token) == 32  # UUID hex length
+        assert lock_value is not None  # JSON string with token and metadata
         mock_redis.set.assert_called_once()
 
         # Verify SET was called with nx=True and ex=TTL
@@ -66,96 +72,120 @@ class TestLockAcquisition:
         """Second worker should be blocked when lock is held"""
         mock_redis.set.return_value = False  # SET NX fails (key exists)
 
-        lock_token = _acquire_governance_lock(
+        lock_result = _acquire_governance_lock(
             redis_client=mock_redis,
             evaluator_node_id="worker-2",
         )
 
-        assert lock_token is None
+        assert lock_result is None
 
     def test_lock_acquisition_non_blocking(self, mock_redis):
         """Lock acquisition should be non-blocking (no wait/retry)"""
         mock_redis.set.return_value = False
 
         start_time = time.monotonic()
-        lock_token = _acquire_governance_lock(
+        lock_result = _acquire_governance_lock(
             redis_client=mock_redis,
             evaluator_node_id="worker-1",
         )
         elapsed = time.monotonic() - start_time
 
-        assert lock_token is None
+        assert lock_result is None
         assert elapsed < 0.1  # Should return immediately
 
     def test_lock_acquisition_handles_redis_error(self, mock_redis):
         """Lock acquisition should handle Redis errors gracefully"""
         mock_redis.set.side_effect = Exception("Redis connection error")
 
-        lock_token = _acquire_governance_lock(
+        lock_result = _acquire_governance_lock(
             redis_client=mock_redis,
             evaluator_node_id="worker-1",
         )
 
-        assert lock_token is None
+        assert lock_result is None
 
 
 class TestLockRelease:
-    """Test distributed lock release behavior"""
+    """Test distributed lock release behavior using atomic Lua script"""
 
     def test_release_own_lock(self, mock_redis):
-        """Should release lock when token matches"""
-        lock_token = "abc123"
-        mock_redis.get.return_value = json.dumps({
-            "token": lock_token,
+        """Should release lock when lock_value matches (Lua script returns 1)"""
+        lock_value = json.dumps({
+            "token": "abc123",
             "evaluator_node_id": "worker-1",
             "acquired_at": "2025-01-01T00:00:00+00:00",
         })
 
+        # Mock the Lua script execution - returns 1 when lock is released
+        mock_script = MagicMock(return_value=1)
+        mock_redis.register_script.return_value = mock_script
+
         result = _release_governance_lock(
             redis_client=mock_redis,
-            lock_token=lock_token,
+            lock_value=lock_value,
             evaluator_node_id="worker-1",
         )
 
         assert result is True
-        mock_redis.delete.assert_called_once_with(GOVERNANCE_LOCK_KEY)
+        mock_redis.register_script.assert_called_once()
+        mock_script.assert_called_once_with(keys=[GOVERNANCE_LOCK_KEY], args=[lock_value])
 
     def test_release_expired_lock(self, mock_redis):
-        """Should return True when lock already expired"""
-        mock_redis.get.return_value = None  # Lock expired
-
-        result = _release_governance_lock(
-            redis_client=mock_redis,
-            lock_token="abc123",
-            evaluator_node_id="worker-1",
-        )
-
-        assert result is True
-
-    def test_release_different_token(self, mock_redis):
-        """Should not release lock when token doesn't match"""
-        mock_redis.get.return_value = json.dumps({
-            "token": "different-token",
-            "evaluator_node_id": "worker-2",
+        """Should return False when lock already expired (Lua script returns 0)"""
+        lock_value = json.dumps({
+            "token": "abc123",
+            "evaluator_node_id": "worker-1",
             "acquired_at": "2025-01-01T00:00:00+00:00",
         })
 
+        # Mock the Lua script execution - returns 0 when lock doesn't exist or doesn't match
+        mock_script = MagicMock(return_value=0)
+        mock_redis.register_script.return_value = mock_script
+
         result = _release_governance_lock(
             redis_client=mock_redis,
-            lock_token="my-token",
+            lock_value=lock_value,
+            evaluator_node_id="worker-1",
+        )
+
+        # Returns False because Lua script returns 0 (lock value didn't match)
+        assert result is False
+
+    def test_release_different_token(self, mock_redis):
+        """Should not release lock when lock_value doesn't match (Lua script returns 0)"""
+        lock_value = json.dumps({
+            "token": "my-token",
+            "evaluator_node_id": "worker-1",
+            "acquired_at": "2025-01-01T00:00:00+00:00",
+        })
+
+        # Mock the Lua script execution - returns 0 when value doesn't match
+        mock_script = MagicMock(return_value=0)
+        mock_redis.register_script.return_value = mock_script
+
+        result = _release_governance_lock(
+            redis_client=mock_redis,
+            lock_value=lock_value,
             evaluator_node_id="worker-1",
         )
 
         assert result is False
-        mock_redis.delete.assert_not_called()
 
     def test_release_handles_redis_error(self, mock_redis):
         """Should handle Redis errors gracefully during release"""
-        mock_redis.get.side_effect = Exception("Redis error")
+        lock_value = json.dumps({
+            "token": "abc123",
+            "evaluator_node_id": "worker-1",
+            "acquired_at": "2025-01-01T00:00:00+00:00",
+        })
+
+        # Mock the Lua script to raise an exception
+        mock_script = MagicMock(side_effect=Exception("Redis error"))
+        mock_redis.register_script.return_value = mock_script
 
         result = _release_governance_lock(
             redis_client=mock_redis,
-            lock_token="abc123",
+            lock_value=lock_value,
             evaluator_node_id="worker-1",
         )
 
@@ -172,12 +202,14 @@ class TestLockExpiry:
         mock_redis.set.side_effect = [False, True]
 
         # First attempt - blocked
-        token1 = _acquire_governance_lock(mock_redis, "worker-1")
-        assert token1 is None
+        result1 = _acquire_governance_lock(mock_redis, "worker-1")
+        assert result1 is None
 
         # Second attempt - succeeds (simulating after expiry)
-        token2 = _acquire_governance_lock(mock_redis, "worker-2")
-        assert token2 is not None
+        result2 = _acquire_governance_lock(mock_redis, "worker-2")
+        assert result2 is not None
+        token2, lock_value2 = result2
+        assert len(token2) == 32  # UUID hex length
 
 
 class TestGovernanceCycle:
