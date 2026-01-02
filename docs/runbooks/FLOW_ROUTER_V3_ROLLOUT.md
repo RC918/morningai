@@ -442,6 +442,9 @@ Before enabling Pilot rollout, complete the following:
    - Update this runbook to reference `average_latency` instead of `p99`
 3. Verify or implement the `/governance/router-metrics` API endpoint
 4. Configure Grafana dashboard with actual metric names
+5. Either:
+   - Implement `get_error_rate()` in `RouterMetrics`, OR
+   - Update this runbook to rely solely on Sentry's `router_error_count`
 
 ---
 
