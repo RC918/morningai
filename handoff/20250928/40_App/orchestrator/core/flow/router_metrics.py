@@ -42,7 +42,8 @@ logger = logging.getLogger(__name__)
 
 
 # Metrics schema version for safe evolution
-METRICS_VERSION = "v1"
+# v2: Added decision_mode field and decision_mode_distribution to summary (Issue #3486)
+METRICS_VERSION = "v2"
 
 
 class DecisionMode:
