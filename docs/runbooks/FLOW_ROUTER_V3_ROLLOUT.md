@@ -466,11 +466,11 @@ curl -s https://api.morning-ai.com/api/governance/router-metrics | jq
 | Total Routing Decisions | `router_decisions_total` | Stat |
 | Success Rate | `router_success_rate` | Gauge (thresholds: 90%, 95%, 99%) |
 | Fallback Rate | `router_fallback_rate` | Gauge (thresholds: 5%, 10%, 20%) |
-| Latency Percentiles | `router_latency` | Graph (p50, p90, p95, p99) |
+| Latency Percentiles | `router_latency_p50/p90/p95/p99` | Graph |
 | Decision Mode Distribution | `router_decision_mode_distribution` | Pie Chart |
 | Target Node Distribution | `router_node_distribution` | Bar Chart |
-| Fallback Reasons | `router_fallback_rate` | Table |
-| Latency Trend | `router_latency` | Graph (6h) |
+| Fallback Reasons | `router_fallback_count` | Table (by fallback_reason) |
+| Latency Trend | `router_latency_avg` | Graph (6h) |
 
 ### Alerting Rules
 
@@ -488,7 +488,7 @@ The following alerts are configured in `monitoring_foundation_schema.yaml`:
 | SLA | Target | Window | Metric |
 |-----|--------|--------|--------|
 | Router Success Rate | 95% | 24h | `router_success_rate` |
-| Router Latency P99 | 5000ms | 24h | `router_latency` |
+| Router Latency P99 | 5000ms | 24h | `router_latency_p99` |
 
 ---
 

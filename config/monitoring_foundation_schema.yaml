@@ -110,14 +110,44 @@ metrics:
       type: gauge
       unit: percentage
       description: "Percentage of routing decisions that fell back to deterministic path"
+      labels: []
+      
+    - name: router_fallback_count
+      type: counter
+      unit: count
+      description: "Count of fallback routing decisions by reason"
       labels: [fallback_reason]
       
-    - name: router_latency
-      type: histogram
+    - name: router_latency_avg
+      type: gauge
       unit: milliseconds
-      description: "Routing decision latency"
-      labels: [decision_mode]
-      buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000]
+      description: "Average routing decision latency"
+      labels: []
+      
+    - name: router_latency_p50
+      type: gauge
+      unit: milliseconds
+      description: "50th percentile routing decision latency"
+      labels: []
+      
+    - name: router_latency_p90
+      type: gauge
+      unit: milliseconds
+      description: "90th percentile routing decision latency"
+      labels: []
+      
+    - name: router_latency_p95
+      type: gauge
+      unit: milliseconds
+      description: "95th percentile routing decision latency"
+      labels: []
+      
+    - name: router_latency_p99
+      type: gauge
+      unit: milliseconds
+      description: "99th percentile routing decision latency"
+      labels: []
+      slo_target: 5000
       
     - name: router_decision_mode_distribution
       type: gauge
@@ -266,7 +296,7 @@ slas:
     unit: milliseconds
     measurement_window: 24h
     metrics:
-      - router_latency
+      - router_latency_p99
 
 
 alerts:
@@ -347,7 +377,7 @@ alerts:
   - name: router_latency_p99_high
     severity: critical
     description: "Flow Controller v3 routing P99 latency exceeds 5 seconds"
-    condition: "router_latency{quantile='0.99'} > 5000"
+    condition: "router_latency_p99 > 5000"
     duration: 5m
     notification_channels: [pagerduty, slack]
     
@@ -361,7 +391,7 @@ alerts:
   - name: router_slow_path_dominant
     severity: warning
     description: "Flow Controller v3 slow path usage exceeds 50%"
-    condition: "router_decision_mode_distribution{decision_mode='slow_path'} / router_decisions_total > 0.50"
+    condition: "sum(rate(router_decisions_total{decision_mode='slow_path'}[15m])) / sum(rate(router_decisions_total[15m])) > 0.50"
     duration: 15m
     notification_channels: [slack]
 
@@ -476,10 +506,9 @@ dashboards:
         thresholds: [0.05, 0.10, 0.20]
         
       - title: "Latency Percentiles"
-        metric: router_latency
+        metrics: [router_latency_p50, router_latency_p90, router_latency_p95, router_latency_p99]
         visualization: graph
         time_range: 1h
-        percentiles: [p50, p90, p95, p99]
         
       - title: "Decision Mode Distribution"
         metric: router_decision_mode_distribution
@@ -492,15 +521,14 @@ dashboards:
         labels: [fixer, publisher, executor, decision]
         
       - title: "Fallback Reasons"
-        metric: router_fallback_rate
+        metric: router_fallback_count
         visualization: table
         labels: [llm_fallback, router_exception, llm_error, timeout]
         
       - title: "Latency Trend"
-        metric: router_latency
+        metric: router_latency_avg
         visualization: graph
         time_range: 6h
-        aggregation: avg
 
 
 sentry:
