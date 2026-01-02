@@ -41,3 +41,14 @@ import time  # F401: unused import
 def another_bad_function():
     unused = "test"  # F841: unused variable
     return None
+
+# Test run 6 - 2026-01-02 16:32 UTC
+# Validating CiFailureContext (PR #3511 merged and deployed)
+# Expected: AutoFixer uses CI evidence instead of ReviewerAgent judgment
+import collections  # F401: unused import
+import functools  # F401: unused import
+
+def ci_failure_context_test():
+    test_var = "unused"  # F841: unused variable
+    another_unused = 123  # F841: unused variable
+    return None
