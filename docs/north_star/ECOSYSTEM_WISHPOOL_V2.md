@@ -2,7 +2,7 @@
 
 **Version**: 2025-Q4 Final
 **Status**: Active North Star Document
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-01-02
 
 ---
 
@@ -40,7 +40,7 @@
 | Layer | Wish Pool v2 Component | Current EPIC | Status |
 |-------|------------------------|--------------|--------|
 | **Model Layer** | Qwen3 Multi-Tier + Multi-Provider | [EPIC A: Qwen Provider & LLM Infrastructure (#2594)](https://github.com/RC918/morningai/issues/2594) | **Completed** |
-| **Intelligence Layer** | Reviewer Agent + Diff-Aware | [EPIC B: Diff-Aware Review Plumbing (#2595)](https://github.com/RC918/morningai/issues/2595) | **Phase 1-3 Completed**, Phase 6 In Progress |
+| **Intelligence Layer** | Reviewer Agent + Diff-Aware | [EPIC B: Diff-Aware Review Plumbing (#2595)](https://github.com/RC918/morningai/issues/2595) | **Phase 1-3 + B-6 Completed** |
 | **Intelligence Layer** | Flow Controller v3 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | **Stage 0 + C-6 Completed**; Pilot Pending (default: disabled) |
 | **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **In Progress** |
 | **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | Planning (after #3249) |
@@ -103,7 +103,7 @@ EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C
 | Phase 2 | Publishing Correctness (head_sha capture, line drift detection) | **Completed** |
 | Phase 3 | Security & Reliability (secrets sanitization, commit_id validation) | **Completed** |
 | Phase 4 | Checks API (GitHub App, branch protection) | Planned (2026) |
-| **B-6** | Reviewer -> Router Interface (`ReviewOutcome` schema) | **In Progress** ([#3130](https://github.com/RC918/morningai/issues/3130)) |
+| **B-6** | Reviewer -> Router Interface (`ReviewOutcome` schema) | **Completed** ([#3130](https://github.com/RC918/morningai/issues/3130), [#3135](https://github.com/RC918/morningai/pull/3135)) |
 
 **Telemetry 說明**: EPIC B 實作了 Reviewer 相關的 telemetry 欄位（trace_id, fallback_reason, drift metrics），這是 Blueprint 5.2 Telemetry v2 願景的一部分。完整的 Telemetry v2（執行軌跡重建、多代理回放）屬於 Infrastructure Layer，跨越多個 EPIC。
 
@@ -171,7 +171,7 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 | 2. Model Layer | **EPIC A Completed** | Maintenance mode |
 | 3.1 Planner v3 | Not started | After EPIC D |
 | 3.2 Flow Controller v3 | **EPIC C Stage 0 + C-6 Completed** (default: disabled) | Enable Pilot rollout |
-| 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 Completed**, EPIC D In Progress | Complete B-6, continue D |
+| 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 + B-6 Completed**, EPIC D In Progress | Continue D |
 | 4.1 Safety Governor v2 | Not started | Future EPIC E |
 | 4.2 Compliance Radar v2 | Not started | Future EPIC E |
 | 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) |
@@ -220,3 +220,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 1.2 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Updated EPIC C status based on code evidence: Stage 0 (C-1/C-2/C-3/C-4) + C-6 Graph Wiring Completed; Pilot Pending (ENABLE_DYNAMIC_ROUTING=false by default). |
 | 1.3 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Added EPIC I: Runtime Governance & Immune System (#3342) - Blueprint 4.3/4.4 implementation. Updated EPIC table, dependency graph, and cross-reference. |
 | 1.4 | 2025-12-31 | Ryan Chen (@RC918) with Devin AI | Refined EPIC B status: Added detailed phase table (B-1 to B-6, Phase 1-4). Clarified Telemetry v2 scope: EPIC B contributes Reviewer telemetry fields; full trace reconstruction is a separate future EPIC. |
+| 1.5 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Updated EPIC B Phase 6 (B-6) status from "In Progress" to "Completed" based on EPIC_B_DIFF_AWARE_REVIEW_ROADMAP.md evidence. Synced all references in EPIC table, phase table, and cross-reference section. |
