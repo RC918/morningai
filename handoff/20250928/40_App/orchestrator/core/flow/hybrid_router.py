@@ -44,8 +44,10 @@ from .llm_safety import (
     parse_json_safely,
 )
 from .schema import (
+    DecisionMode,
     RoutingContext,
     RoutingDecision,
+    RoutingResult,
 )
 from .candidate_registry import (
     validate_routing_decision,
@@ -159,6 +161,35 @@ class HybridRoutingPolicy:
     ) -> RoutingDecision:
         """Route based on ReviewOutcome fields.
 
+        This is a convenience method that returns only the RoutingDecision.
+        For structured decision_mode metadata, use route_with_meta() instead.
+
+        Args:
+            verdict: Review verdict (approve/request_changes/comment/blocked/unknown)
+            severity: Review severity (low/medium/high/critical)
+            summary: Review summary for LLM context
+            blocker_count: Number of blocking issues
+            context: Optional routing context for additional info
+
+        Returns:
+            RoutingDecision with next_node and reasoning
+        """
+        result = self.route_with_meta(verdict, severity, summary, blocker_count, context)
+        return result.decision
+
+    def route_with_meta(
+        self,
+        verdict: str,
+        severity: str,
+        summary: str,
+        blocker_count: int = 0,
+        context: Optional[RoutingContext] = None
+    ) -> RoutingResult:
+        """Route based on ReviewOutcome fields with structured metadata (Issue #3496).
+
+        This is the primary routing method that returns both the decision and
+        metadata about how the decision was made (decision_mode).
+
         Routing Rules:
         1. approve -> publisher (Fast Path)
         2. blocked/unknown -> decision + HITL (Fast Path)
@@ -174,71 +205,91 @@ class HybridRoutingPolicy:
             context: Optional routing context for additional info
 
         Returns:
-            RoutingDecision with next_node and reasoning
+            RoutingResult with decision, decision_mode, and optional fallback_reason
         """
         verdict_lower = verdict.lower()
         severity_lower = severity.lower()
 
         if verdict_lower == "approve":
-            return self._fast_path_approve()
+            return self._fast_path_approve_with_meta()
 
         if verdict_lower in ("blocked", "unknown"):
-            return self._fast_path_hitl(verdict_lower)
+            return self._fast_path_hitl_with_meta(verdict_lower)
 
         if verdict_lower == "request_changes":
             if severity_gte(severity_lower, "medium"):
-                return self._slow_path_request_changes(
+                return self._slow_path_request_changes_with_meta(
                     severity_lower, summary, blocker_count
                 )
             else:
-                return self._fast_path_fixer(severity_lower)
+                return self._fast_path_fixer_with_meta(severity_lower)
 
         if verdict_lower == "comment":
-            return self._fast_path_fixer_comment()
+            return self._fast_path_fixer_comment_with_meta()
 
         logger.warning(f"[HybridRouter] Unknown verdict '{verdict}', defaulting to HITL")
-        return self._fast_path_hitl(verdict_lower)
+        return self._fast_path_hitl_with_meta(verdict_lower)
 
     def _fast_path_approve(self) -> RoutingDecision:
         """Fast path: approve -> publisher."""
+        return self._fast_path_approve_with_meta().decision
+
+    def _fast_path_approve_with_meta(self) -> RoutingResult:
+        """Fast path: approve -> publisher (with metadata)."""
         logger.info("[ROUTER_FAST_PATH] approve -> publisher")
-        return RoutingDecision(
+        decision = RoutingDecision(
             next_node="publisher",
             reasoning="Review approved, proceeding to publish",
             risk_assessment="Low - review passed without issues",
             requires_hitl_approval=False
         )
+        return RoutingResult(decision=decision, decision_mode=DecisionMode.FAST_PATH)
 
     def _fast_path_hitl(self, verdict: str) -> RoutingDecision:
         """Fast path: blocked/unknown -> decision with HITL."""
+        return self._fast_path_hitl_with_meta(verdict).decision
+
+    def _fast_path_hitl_with_meta(self, verdict: str) -> RoutingResult:
+        """Fast path: blocked/unknown -> decision with HITL (with metadata)."""
         logger.info(f"[ROUTER_FAST_PATH] {verdict} -> decision")
         logger.info(f"[ROUTER_HITL] requires_hitl_approval=True for verdict={verdict}")
-        return RoutingDecision(
+        decision = RoutingDecision(
             next_node="decision",
             reasoning=f"Verdict '{verdict}' requires human review",
             risk_assessment="High - requires human-in-the-loop approval",
             requires_hitl_approval=True
         )
+        return RoutingResult(decision=decision, decision_mode=DecisionMode.FAST_PATH)
 
     def _fast_path_fixer(self, severity: str) -> RoutingDecision:
         """Fast path: request_changes with low severity -> fixer."""
+        return self._fast_path_fixer_with_meta(severity).decision
+
+    def _fast_path_fixer_with_meta(self, severity: str) -> RoutingResult:
+        """Fast path: request_changes with low severity -> fixer (with metadata)."""
         logger.info(f"[ROUTER_FAST_PATH] request_changes (severity={severity}) -> fixer")
-        return RoutingDecision(
+        decision = RoutingDecision(
             next_node="fixer",
             reasoning=f"Low severity ({severity}) issues can be auto-fixed",
             risk_assessment="Low - minor issues suitable for auto-fix",
             requires_hitl_approval=False
         )
+        return RoutingResult(decision=decision, decision_mode=DecisionMode.FAST_PATH)
 
     def _fast_path_fixer_comment(self) -> RoutingDecision:
         """Fast path: comment verdict -> fixer (treat as suggestions)."""
+        return self._fast_path_fixer_comment_with_meta().decision
+
+    def _fast_path_fixer_comment_with_meta(self) -> RoutingResult:
+        """Fast path: comment verdict -> fixer (with metadata)."""
         logger.info("[ROUTER_FAST_PATH] comment -> fixer")
-        return RoutingDecision(
+        decision = RoutingDecision(
             next_node="fixer",
             reasoning="Comment suggestions can be addressed by fixer",
             risk_assessment="Low - suggestions only, no blocking issues",
             requires_hitl_approval=False
         )
+        return RoutingResult(decision=decision, decision_mode=DecisionMode.FAST_PATH)
 
     def _slow_path_request_changes(
         self,
@@ -246,7 +297,16 @@ class HybridRoutingPolicy:
         summary: str,
         blocker_count: int
     ) -> RoutingDecision:
-        """Slow path: LLM decides between fixer and executor.
+        """Slow path: LLM decides between fixer and executor."""
+        return self._slow_path_request_changes_with_meta(severity, summary, blocker_count).decision
+
+    def _slow_path_request_changes_with_meta(
+        self,
+        severity: str,
+        summary: str,
+        blocker_count: int
+    ) -> RoutingResult:
+        """Slow path: LLM decides between fixer and executor (with metadata).
 
         For request_changes with medium+ severity, we need LLM judgment
         to determine if issues can be auto-fixed or require re-generation.
@@ -257,7 +317,7 @@ class HybridRoutingPolicy:
             blocker_count: Number of blocking issues
 
         Returns:
-            RoutingDecision from LLM or deterministic fallback
+            RoutingResult with decision and decision_mode (SLOW_PATH or LLM_FALLBACK)
         """
         logger.info(
             f"[ROUTER_SLOW_PATH] request_changes (severity={severity}, "
@@ -266,16 +326,16 @@ class HybridRoutingPolicy:
 
         if self.llm_generate_fn is None:
             logger.info("[ROUTER_LLM_FALLBACK] No LLM configured, using deterministic fallback")
-            return self._deterministic_fallback(severity, blocker_count)
+            return self._deterministic_fallback_with_meta(severity, blocker_count)
 
         try:
             prompt = self._build_slow_path_prompt(severity, summary, blocker_count)
             response = self.llm_generate_fn(prompt)
-            return self._parse_llm_response(response, severity, blocker_count)
+            return self._parse_llm_response_with_meta(response, severity, blocker_count)
 
         except Exception as e:
             logger.warning(f"[ROUTER_LLM_FALLBACK] LLM call failed: {e}, using fallback")
-            return self._deterministic_fallback(severity, blocker_count)
+            return self._deterministic_fallback_with_meta(severity, blocker_count)
 
     def _build_slow_path_prompt(
         self,
@@ -320,7 +380,16 @@ Your response (JSON only):"""
         severity: str,
         blocker_count: int
     ) -> RoutingDecision:
-        """Parse LLM response and create RoutingDecision.
+        """Parse LLM response and create RoutingDecision."""
+        return self._parse_llm_response_with_meta(response, severity, blocker_count).decision
+
+    def _parse_llm_response_with_meta(
+        self,
+        response: str,
+        severity: str,
+        blocker_count: int
+    ) -> RoutingResult:
+        """Parse LLM response and create RoutingResult (with metadata).
 
         Uses shared llm_safety module for JSON parsing with safety checks.
         CTO Directive: DRY - reuse RouterNode's JSON safety logic.
@@ -331,12 +400,12 @@ Your response (JSON only):"""
             blocker_count: Blocker count for fallback
 
         Returns:
-            RoutingDecision from parsed response or fallback
+            RoutingResult with decision and decision_mode (SLOW_PATH or LLM_FALLBACK)
         """
         data = parse_json_safely(response, log_prefix="[HybridRouter]")
 
         if data is None:
-            return self._deterministic_fallback(severity, blocker_count)
+            return self._deterministic_fallback_with_meta(severity, blocker_count)
 
         raw_node = data.get("next_node", "")
         reasoning = data.get("reasoning", "LLM decision")
@@ -345,7 +414,7 @@ Your response (JSON only):"""
             logger.warning(
                 "[HybridRouter] LLM response missing or invalid 'next_node' field"
             )
-            return self._deterministic_fallback(severity, blocker_count)
+            return self._deterministic_fallback_with_meta(severity, blocker_count)
 
         try:
             next_node = canonicalize_node_name(raw_node)
@@ -354,7 +423,7 @@ Your response (JSON only):"""
                 f"[HybridRouter] LLM returned invalid node '{raw_node}', "
                 f"using fallback"
             )
-            return self._deterministic_fallback(severity, blocker_count)
+            return self._deterministic_fallback_with_meta(severity, blocker_count)
 
         # C-8: Validate against CandidateRegistry
         # This prevents LLM hallucination from selecting invalid paths
@@ -365,7 +434,7 @@ Your response (JSON only):"""
                 f"[HybridRouter] LLM returned invalid candidate: {e}, "
                 f"using deterministic fallback"
             )
-            return self._deterministic_fallback(severity, blocker_count)
+            return self._deterministic_fallback_with_meta(severity, blocker_count)
 
         # Additional check: slow path should only return fixer or executor
         if next_node not in ("fixer", "executor"):
@@ -373,26 +442,35 @@ Your response (JSON only):"""
                 f"[HybridRouter] LLM returned unexpected node '{next_node}' "
                 f"(valid but not expected for slow path), using deterministic fallback"
             )
-            return self._deterministic_fallback(severity, blocker_count)
+            return self._deterministic_fallback_with_meta(severity, blocker_count)
 
         logger.info(
             f"[HybridRouter] Slow path: LLM decided -> {next_node} "
             f"(reasoning: {reasoning[:50]}...)"
         )
 
-        return RoutingDecision(
+        decision = RoutingDecision(
             next_node=next_node,
             reasoning=f"LLM decision: {reasoning}",
             risk_assessment=f"Medium - LLM-driven decision for {severity} severity",
             requires_hitl_approval=False
         )
+        return RoutingResult(decision=decision, decision_mode=DecisionMode.SLOW_PATH)
 
     def _deterministic_fallback(
         self,
         severity: str,
         blocker_count: int
     ) -> RoutingDecision:
-        """Deterministic fallback when LLM is unavailable or fails.
+        """Deterministic fallback when LLM is unavailable or fails."""
+        return self._deterministic_fallback_with_meta(severity, blocker_count).decision
+
+    def _deterministic_fallback_with_meta(
+        self,
+        severity: str,
+        blocker_count: int
+    ) -> RoutingResult:
+        """Deterministic fallback when LLM is unavailable or fails (with metadata).
 
         Logic:
         - medium severity with 0 blockers -> fixer
@@ -403,7 +481,7 @@ Your response (JSON only):"""
             blocker_count: Number of blocking issues
 
         Returns:
-            RoutingDecision based on deterministic rules
+            RoutingResult with decision and decision_mode=LLM_FALLBACK
         """
         if severity == "medium" and blocker_count == 0:
             next_node = "fixer"
@@ -414,11 +492,16 @@ Your response (JSON only):"""
 
         logger.info(f"[HybridRouter] Deterministic fallback: {next_node}")
 
-        return RoutingDecision(
+        decision = RoutingDecision(
             next_node=next_node,
             reasoning=f"Deterministic fallback: {reasoning}",
             risk_assessment="Medium - rule-based decision without LLM",
             requires_hitl_approval=False
+        )
+        return RoutingResult(
+            decision=decision,
+            decision_mode=DecisionMode.LLM_FALLBACK,
+            fallback_reason="llm_unavailable_or_failed"
         )
 
 
