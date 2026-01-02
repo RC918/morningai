@@ -38,25 +38,14 @@ from datetime import datetime, timedelta
 from threading import Lock
 from typing import Deque, Dict, Optional
 
+from .schema import DecisionMode  # noqa: F401 - re-export for backward compatibility
+
 logger = logging.getLogger(__name__)
 
 
 # Metrics schema version for safe evolution
 # v2: Added decision_mode field and decision_mode_distribution to summary (Issue #3486)
 METRICS_VERSION = "v2"
-
-
-class DecisionMode:
-    """Constants for decision mode (for metrics).
-
-    Issue #3496: Added LLM_FALLBACK to distinguish LLM failures from fast path.
-    """
-
-    FAST_PATH = "fast_path"
-    SLOW_PATH = "slow_path"
-    CI_FAILURE_FAST_PATH = "ci_failure_fast_path"
-    OUTER_FALLBACK = "outer_fallback"
-    LLM_FALLBACK = "llm_fallback"  # LLM call failed, fell back to deterministic
 
 
 @dataclass

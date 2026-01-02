@@ -190,6 +190,7 @@ class TestCIFailureFastPath:
     def test_router_no_short_circuit_when_ci_success(self):
         """Test that router_node does NOT short-circuit when ci_state=success."""
         from unittest.mock import patch, MagicMock
+        from core.flow.schema import DecisionMode, RoutingDecision, RoutingResult
 
         state = {
             "trace_id": "test-trace-456",
@@ -209,12 +210,17 @@ class TestCIFailureFastPath:
             with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
                 mock_metrics.return_value = MagicMock()
                 with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
-                    mock_decision = MagicMock()
-                    mock_decision.next_node = "publisher"
-                    mock_decision.requires_hitl_approval = False
-                    mock_decision.reasoning = "Approved"
-                    mock_decision.risk_assessment = "low"
-                    mock_router.return_value.route.return_value = mock_decision
+                    mock_decision = RoutingDecision(
+                        next_node="publisher",
+                        reasoning="Approved",
+                        risk_assessment="low",
+                        requires_hitl_approval=False,
+                    )
+                    mock_result = RoutingResult(
+                        decision=mock_decision,
+                        decision_mode=DecisionMode.FAST_PATH,
+                    )
+                    mock_router.return_value.route_with_meta.return_value = mock_result
 
                     from langgraph_orchestrator import router_node
                     result = router_node(state)
@@ -224,6 +230,7 @@ class TestCIFailureFastPath:
     def test_router_no_short_circuit_when_no_ci_failure_trigger(self):
         """Test that router_node does NOT short-circuit when ci_failure_trigger=False."""
         from unittest.mock import patch, MagicMock
+        from core.flow.schema import DecisionMode, RoutingDecision, RoutingResult
 
         state = {
             "trace_id": "test-trace-789",
@@ -243,17 +250,22 @@ class TestCIFailureFastPath:
             with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
                 mock_metrics.return_value = MagicMock()
                 with patch("core.flow.hybrid_router.get_hybrid_router") as mock_router:
-                    mock_decision = MagicMock()
-                    mock_decision.next_node = "fixer"
-                    mock_decision.requires_hitl_approval = False
-                    mock_decision.reasoning = "Low severity fix"
-                    mock_decision.risk_assessment = "low"
-                    mock_router.return_value.route.return_value = mock_decision
+                    mock_decision = RoutingDecision(
+                        next_node="fixer",
+                        reasoning="Low severity fix",
+                        risk_assessment="low",
+                        requires_hitl_approval=False,
+                    )
+                    mock_result = RoutingResult(
+                        decision=mock_decision,
+                        decision_mode=DecisionMode.FAST_PATH,
+                    )
+                    mock_router.return_value.route_with_meta.return_value = mock_result
 
                     from langgraph_orchestrator import router_node
                     router_node(state)
 
-        assert mock_router.return_value.route.called
+        assert mock_router.return_value.route_with_meta.called
 
     def test_entry_point_shortcut_logic(self):
         """Test that entry_point is set to ci_monitor when ci_failure_trigger=True."""
