@@ -406,8 +406,51 @@ ENABLE_DYNAMIC_ROUTING:
 
 ---
 
+## Implementation Notes (Current Gaps)
+
+> **Last Audit**: 2026-01-02  
+> **Tracking Issue**: [#3486](https://github.com/RC918/morningai/issues/3486)
+
+### RouterMetrics Wiring Status
+
+The `RouterMetrics` class exists in `core/flow/router_metrics.py` but is **not currently wired** into the runtime routing path:
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `RouterMetrics` class | Implemented | 399 lines, full API |
+| `get_router_metrics()` singleton | Implemented | Thread-safe |
+| Wiring to `HybridRoutingPolicy` | **Not Wired** | No calls to `record_decision()` |
+| Wiring to `RouterNode` | **Not Wired** | `metrics_callback` param exists but not passed |
+| API endpoint `/governance/router-metrics` | **Not Verified** | May not exist |
+
+### Metric Name Alignment
+
+| Runbook Metric | Implementation Status | Notes |
+|----------------|----------------------|-------|
+| `router_fallback_rate` | Implemented | `get_fallback_rate()` |
+| `router_latency_p99` | **Not Implemented** | Only `get_average_latency()` available |
+| `router_error_rate` | **Not Implemented** | No explicit method |
+| `router_success_rate` | Implemented | `get_success_rate()` |
+
+### Action Required
+
+Before enabling Pilot rollout, complete the following:
+
+1. Wire `RouterMetrics` into `HybridRoutingPolicy` or `router_node` to record decisions
+2. Either:
+   - Add p99 latency calculation to `RouterMetrics`, OR
+   - Update this runbook to reference `average_latency` instead of `p99`
+3. Verify or implement the `/governance/router-metrics` API endpoint
+4. Configure Grafana dashboard with actual metric names
+5. Either:
+   - Implement `get_error_rate()` in `RouterMetrics`, OR
+   - Update this runbook to rely solely on Sentry's `router_error_count`
+
+---
+
 ## Changelog
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Added Implementation Notes section documenting RouterMetrics wiring gaps ([#3486](https://github.com/RC918/morningai/issues/3486)) |
 | See git history | Devin AI | Initial version for C-7 |

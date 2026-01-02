@@ -41,8 +41,8 @@
 |-------|------------------------|--------------|--------|
 | **Model Layer** | Qwen3 Multi-Tier + Multi-Provider | [EPIC A: Qwen Provider & LLM Infrastructure (#2594)](https://github.com/RC918/morningai/issues/2594) | **Completed** |
 | **Intelligence Layer** | Reviewer Agent + Diff-Aware | [EPIC B: Diff-Aware Review Plumbing (#2595)](https://github.com/RC918/morningai/issues/2595) | **Phase 1-3 + B-6 Completed** |
-| **Intelligence Layer** | Flow Controller v3 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | **Stage 0 + C-6 Completed**; Pilot Pending (default: disabled) |
-| **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **In Progress** |
+| **Intelligence Layer** | Flow Controller v3 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | **Stage 0 + C-6 Completed**; Pilot Pending; Operationalization Pending ([#3486](https://github.com/RC918/morningai/issues/3486)) |
+| **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **In Progress**; HITL Gate Pending ([#3487](https://github.com/RC918/morningai/issues/3487)) |
 | **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | Planning (after #3249) |
 
 ### EPIC Dependencies
@@ -170,8 +170,8 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 |---------------------|----------------|-------------|
 | 2. Model Layer | **EPIC A Completed** | Maintenance mode |
 | 3.1 Planner v3 | Not started | After EPIC D |
-| 3.2 Flow Controller v3 | **EPIC C Stage 0 + C-6 Completed** (default: disabled) | Enable Pilot rollout |
-| 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 + B-6 Completed**, EPIC D In Progress | Continue D |
+| 3.2 Flow Controller v3 | **EPIC C Stage 0 + C-6 Completed** (default: disabled); Operationalization Pending ([#3486](https://github.com/RC918/morningai/issues/3486)) | Wire RouterMetrics; Enable Pilot rollout |
+| 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 + B-6 Completed**, EPIC D In Progress; HITL Gate Pending ([#3487](https://github.com/RC918/morningai/issues/3487)) | Continue D; Implement HITL gate for SeniorCoder |
 | 4.1 Safety Governor v2 | Not started | Future EPIC E |
 | 4.2 Compliance Radar v2 | Not started | Future EPIC E |
 | 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) |
@@ -221,3 +221,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 1.3 | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Added EPIC I: Runtime Governance & Immune System (#3342) - Blueprint 4.3/4.4 implementation. Updated EPIC table, dependency graph, and cross-reference. |
 | 1.4 | 2025-12-31 | Ryan Chen (@RC918) with Devin AI | Refined EPIC B status: Added detailed phase table (B-1 to B-6, Phase 1-4). Clarified Telemetry v2 scope: EPIC B contributes Reviewer telemetry fields; full trace reconstruction is a separate future EPIC. |
 | 1.5 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Updated EPIC B Phase 6 (B-6) status from "In Progress" to "Completed" based on EPIC_B_DIFF_AWARE_REVIEW_ROADMAP.md evidence. Synced all references in EPIC table, phase table, and cross-reference section. |
+| 1.6 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Added Operationalization Pending status for EPIC C ([#3486](https://github.com/RC918/morningai/issues/3486): RouterMetrics not wired) and EPIC D ([#3487](https://github.com/RC918/morningai/issues/3487): SeniorCoder HITL gate). Updated EPIC table and cross-reference section with Issue links. |
