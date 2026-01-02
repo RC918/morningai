@@ -4034,17 +4034,36 @@ def ci_monitor_node(state: AgentState) -> AgentState:
         metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
         return state
 
-    if ci_failure_trigger and ci_state == "failure":
-        logger.info(
-            "[CI Monitor] CI failure trigger active with ci_state=failure, "
-            "preserving state and skipping API call for fast path",
-            extra={
-                "operation": "ci_monitor",
-                "trace_id": trace_id,
-                "ci_failure_trigger": ci_failure_trigger,
-                "ci_state": ci_state,
-            }
-        )
+    # Issue #3516: Fix CI failure fast path - skip API call when ci_failure_trigger=True
+    # Previously required ci_state=="failure", but ci_state might be "pending" or other value
+    # from _create_base_initial_state() before run_orchestrator() sets it to "failure".
+    # The key insight: when ci_failure_trigger=True, we KNOW CI failed (from webhook),
+    # so we should preserve that state and skip the API call that would overwrite it.
+    if ci_failure_trigger:
+        # Ensure ci_state is "failure" for downstream router fast path
+        if ci_state != "failure":
+            logger.warning(
+                f"[CI Monitor] CI failure trigger active but ci_state={ci_state}, "
+                "forcing ci_state=failure for fast path",
+                extra={
+                    "operation": "ci_monitor",
+                    "trace_id": trace_id,
+                    "ci_failure_trigger": ci_failure_trigger,
+                    "original_ci_state": ci_state,
+                }
+            )
+            state["ci_state"] = "failure"
+        else:
+            logger.info(
+                "[CI Monitor] CI failure trigger active with ci_state=failure, "
+                "preserving state and skipping API call for fast path",
+                extra={
+                    "operation": "ci_monitor",
+                    "trace_id": trace_id,
+                    "ci_failure_trigger": ci_failure_trigger,
+                    "ci_state": ci_state,
+                }
+            )
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
         return state
