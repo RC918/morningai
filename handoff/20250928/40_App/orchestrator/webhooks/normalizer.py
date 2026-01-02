@@ -1633,8 +1633,10 @@ class EventNormalizer:
             dedup_key = f"{repo}:{pr_number}:{head_sha}"
 
         # Try Redis-backed dedup first (cross-worker idempotency)
+        # Use keyword arg for check_suite_id to improve signature robustness
         is_duplicate, dedup_source = self._check_ci_failure_dedup_redis(
-            dedup_key, event.event_id, repo, pr_number, head_sha, check_suite_id
+            dedup_key, event.event_id, repo, pr_number, head_sha,
+            check_suite_id=check_suite_id
         )
 
         if is_duplicate:

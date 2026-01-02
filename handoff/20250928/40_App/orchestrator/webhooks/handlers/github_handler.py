@@ -403,11 +403,23 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             # Issue: #3513 - Add check_suite_id for dedup refinement
             # GitHub sends multiple check_suite webhooks per SHA (different workflows)
             # Each workflow has a unique check_suite_id that we need for proper dedup
-            # Explicitly convert to int for type consistency (MorningAI review feedback)
+            # Defensive int conversion with try-except (MorningAI review feedback)
             raw_check_suite_id = check_suite.get("id")
-            metadata["ci_check_suite_id"] = (
-                int(raw_check_suite_id) if raw_check_suite_id is not None else None
-            )
+            try:
+                metadata["ci_check_suite_id"] = (
+                    int(raw_check_suite_id) if raw_check_suite_id is not None else None
+                )
+            except (ValueError, TypeError):
+                # Fallback to None if conversion fails - will use old dedup key format
+                logger.warning(
+                    "[GitHubWebhookHandler] Invalid check_suite_id, using fallback dedup",
+                    extra={
+                        "event_id": event_id,
+                        "repo": f"{repo_owner}/{repo_name}",
+                        "raw_check_suite_id": str(raw_check_suite_id)[:50],
+                    }
+                )
+                metadata["ci_check_suite_id"] = None
             # Store PR numbers for dedup and multi-PR handling
             pull_requests = check_suite.get("pull_requests", [])
             metadata["ci_pr_numbers"] = [
