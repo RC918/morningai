@@ -62,3 +62,14 @@ import operator  # F401: unused import
 def dedup_bypass_test():
     bypass_var = "new sha"  # F841: unused variable
     return None
+
+# Test run 8 - 2026-01-02 18:31 UTC
+# Validating PR #3514 dedup fix (check_suite_id added to dedup key)
+# Expected: ci_failure_actionable logs instead of ci_failure_skip_dedup
+import typing  # F401: unused import
+import dataclasses  # F401: unused import
+
+def dedup_fix_validation_test():
+    validation_var = "PR #3514 deployed"  # F841: unused variable
+    check_suite_id_test = 12345  # F841: unused variable
+    return None
