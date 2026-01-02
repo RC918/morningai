@@ -1565,6 +1565,8 @@ class EventNormalizer:
         head_branch = metadata.get("ci_head_branch", "")
         head_sha = metadata.get("ci_head_sha", "")
         pr_numbers = metadata.get("ci_pr_numbers", [])
+        # Issue: #3513 - Extract check_suite_id for dedup refinement
+        check_suite_id = metadata.get("ci_check_suite_id")
 
         # P0: Skip if conclusion is not "failure"
         # Only trigger auto-fix for actual failures, not success/cancelled/etc.
@@ -1615,15 +1617,24 @@ class EventNormalizer:
                 )
                 return False
 
-        # P3: Dedup - same PR + same head SHA only triggers once
+        # P3: Dedup - same PR + same head SHA + same check_suite only triggers once
         # This prevents duplicate triggers from webhook retries or re-runs
         # Issue: #3399 - Redis-backed dedup for cross-worker idempotency
+        # Issue: #3513 - Include check_suite_id to allow different workflows to trigger
+        # GitHub sends multiple check_suite webhooks per SHA (different workflows)
+        # Each workflow should be able to trigger auto-fix independently
         pr_number = pr_numbers[0]  # Use first PR for dedup key
-        dedup_key = f"{repo}:{pr_number}:{head_sha}"
+        # Include check_suite_id in dedup key to differentiate workflows
+        # Format: {repo}:{pr}:{sha}:{check_suite_id}
+        if check_suite_id:
+            dedup_key = f"{repo}:{pr_number}:{head_sha}:{check_suite_id}"
+        else:
+            # Fallback to old format if check_suite_id is not available
+            dedup_key = f"{repo}:{pr_number}:{head_sha}"
 
         # Try Redis-backed dedup first (cross-worker idempotency)
         is_duplicate, dedup_source = self._check_ci_failure_dedup_redis(
-            dedup_key, event.event_id, repo, pr_number, head_sha
+            dedup_key, event.event_id, repo, pr_number, head_sha, check_suite_id
         )
 
         if is_duplicate:
@@ -1635,6 +1646,7 @@ class EventNormalizer:
                     "repo": repo,
                     "pr_number": pr_number,
                     "head_sha": head_sha[:8] if head_sha else "unknown",
+                    "check_suite_id": check_suite_id,  # Issue #3513
                     "dedup_key": dedup_key,
                     "dedup_source": dedup_source,
                 }
@@ -1697,8 +1709,10 @@ class EventNormalizer:
                 "pr_number": pr_number,
                 "head_branch": head_branch,
                 "head_sha": head_sha[:8] if head_sha else "unknown",
+                "check_suite_id": check_suite_id,  # Issue #3513
                 "conclusion": conclusion,
                 "failed_check_name": ci_app_name,
+                "dedup_key": dedup_key,  # Issue #3513 - include for observability
             }
         )
 
@@ -1710,7 +1724,8 @@ class EventNormalizer:
         event_id: str,
         repo: str,
         pr_number: int,
-        head_sha: str
+        head_sha: str,
+        check_suite_id: Optional[int] = None
     ) -> tuple:
         """
         Check if CI failure event is a duplicate using Redis-backed dedup.
@@ -1719,11 +1734,12 @@ class EventNormalizer:
         Falls back to in-memory dedup if Redis is unavailable.
 
         Args:
-            dedup_key: Unique key for dedup (repo:pr:sha)
+            dedup_key: Unique key for dedup (repo:pr:sha:check_suite_id)
             event_id: Event ID for logging
             repo: Repository name
             pr_number: PR number
             head_sha: Head SHA
+            check_suite_id: GitHub check_suite ID (Issue #3513)
 
         Returns:
             Tuple of (is_duplicate: bool, source: str)
@@ -1731,6 +1747,7 @@ class EventNormalizer:
             - source: "redis" or "fallback" indicating which dedup was used
 
         Issue: #3399 - Redis-backed dedup for cross-worker idempotency
+        Issue: #3513 - Include check_suite_id for workflow-level dedup
         """
         redis_key = f"{self._CI_FAILURE_DEDUP_KEY_PREFIX}:{dedup_key}"
 
