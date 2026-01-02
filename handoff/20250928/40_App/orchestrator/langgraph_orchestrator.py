@@ -6090,11 +6090,14 @@ def router_node(state: AgentState) -> AgentState:
         routing_next_node = next_node
 
         # Infer decision mode from reasoning
+        # Issue #3496: Fix decision_mode classification bug
+        # "deterministic fallback" should be LLM_FALLBACK, not FAST_PATH
         reasoning_lower = decision.reasoning.lower()
         if "llm decision" in reasoning_lower:
             routing_decision_mode = DecisionMode.SLOW_PATH
         elif "deterministic fallback" in reasoning_lower:
-            routing_decision_mode = DecisionMode.FAST_PATH
+            # LLM was attempted but failed, fell back to deterministic rules
+            routing_decision_mode = DecisionMode.LLM_FALLBACK
             routing_fallback_reason = "llm_fallback"
         else:
             routing_decision_mode = DecisionMode.FAST_PATH
