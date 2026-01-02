@@ -1688,7 +1688,9 @@ class EventNormalizer:
                 error_summary=metadata.get("ci_error_summary"),
                 check_run_id=metadata.get("ci_check_run_id"),
             )
-            event.metadata["ci_failure_context"] = ci_failure_context
+            # Use to_dict() for JSON serialization compatibility with RQ queue
+            # The worker will use CiFailureContext.from_dict() to reconstruct
+            event.metadata["ci_failure_context"] = ci_failure_context.to_dict()
         else:
             logger.warning(
                 "[EventNormalizer] Skipping CiFailureContext - missing required fields",
