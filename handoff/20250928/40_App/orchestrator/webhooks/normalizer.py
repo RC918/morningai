@@ -1650,8 +1650,20 @@ class EventNormalizer:
         # This enables AutoFixer to use actual CI error evidence instead of
         # relying on ReviewerAgent judgment (which may use different rules)
         # Only build context if required fields are present to avoid brittle behavior
-        if pr_number and head_sha and head_branch and conclusion:
-            ci_app_name = metadata.get("ci_app_name", "unknown")
+        # Use explicit is not None for pr_number (int) to align with dataclass requirements
+        if pr_number is not None and head_sha and head_branch and conclusion:
+            ci_app_name = metadata.get("ci_app_name") or ""
+            if not ci_app_name:
+                ci_app_name = "unknown"
+                logger.warning(
+                    "[EventNormalizer] CiFailureContext using 'unknown' for failed_check_name",
+                    extra={
+                        "operation": "ci_failure_context_unknown_check",
+                        "event_id": event.event_id,
+                        "pr_number": pr_number,
+                        "head_sha": head_sha[:8] if head_sha else "unknown",
+                    }
+                )
             ci_failure_context = CiFailureContext(
                 failed_check_name=ci_app_name,
                 conclusion=conclusion,
@@ -1669,7 +1681,7 @@ class EventNormalizer:
                 extra={
                     "operation": "ci_failure_context_skip",
                     "event_id": event.event_id,
-                    "has_pr_number": bool(pr_number),
+                    "has_pr_number": pr_number is not None,
                     "has_head_sha": bool(head_sha),
                     "has_head_branch": bool(head_branch),
                     "has_conclusion": bool(conclusion),

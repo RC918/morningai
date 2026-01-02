@@ -183,6 +183,10 @@ class CiFailureContext:
     - Flow Controller v3: Deterministic - structured input for predictable behavior
     - Telemetry v2: Reproducible - failed check identifiers enable execution reconstruction
     - API-based Evidence: GitHub API for CI errors (git diff fallback proven unreliable)
+
+    Schema Evolution:
+    - version field enables backward-compatible changes
+    - Consumers should check version and handle unknown versions gracefully
     """
 
     failed_check_name: str  # Name of the failed check (e.g., "lint", "test")
@@ -190,6 +194,7 @@ class CiFailureContext:
     pr_number: int  # Associated PR number
     head_sha: str  # Commit SHA that triggered the failure
     head_branch: str  # Branch name
+    version: int = 1  # Schema version for backward-compatible evolution
     logs_url: Optional[str] = None  # URL to CI logs for reference
     error_summary: Optional[str] = None  # Top N error lines/annotations (if available)
     check_run_id: Optional[int] = None  # GitHub check_run ID for API lookups
