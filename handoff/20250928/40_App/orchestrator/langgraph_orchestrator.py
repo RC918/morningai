@@ -6075,13 +6075,16 @@ def router_node(state: AgentState) -> AgentState:
         # Get Hybrid Router instance (with LLM for slow path)
         router = get_hybrid_router(use_llm=True)
 
-        # Make routing decision
-        decision = router.route(
+        # Make routing decision with structured metadata (Issue #3496)
+        # route_with_meta() returns RoutingResult with decision_mode as structured field
+        # This eliminates the need for string inference from reasoning text
+        routing_result = router.route_with_meta(
             verdict=verdict,
             severity=severity,
             summary=summary,
             blocker_count=blocker_count
         )
+        decision = routing_result.decision
 
         # Map routing decision to state fields
         next_node = decision.next_node
@@ -6089,18 +6092,10 @@ def router_node(state: AgentState) -> AgentState:
         routing_success = True
         routing_next_node = next_node
 
-        # Infer decision mode from reasoning
-        # Issue #3496: Fix decision_mode classification bug
-        # "deterministic fallback" should be LLM_FALLBACK, not FAST_PATH
-        reasoning_lower = decision.reasoning.lower()
-        if "llm decision" in reasoning_lower:
-            routing_decision_mode = DecisionMode.SLOW_PATH
-        elif "deterministic fallback" in reasoning_lower:
-            # LLM was attempted but failed, fell back to deterministic rules
-            routing_decision_mode = DecisionMode.LLM_FALLBACK
-            routing_fallback_reason = "llm_fallback"
-        else:
-            routing_decision_mode = DecisionMode.FAST_PATH
+        # Use structured decision_mode from RoutingResult (Issue #3496)
+        # No more string inference - decision_mode is set by the router itself
+        routing_decision_mode = routing_result.decision_mode
+        routing_fallback_reason = routing_result.fallback_reason
 
         # Map next_node to merge_decision for compatibility with existing flow
         if next_node == "publisher":

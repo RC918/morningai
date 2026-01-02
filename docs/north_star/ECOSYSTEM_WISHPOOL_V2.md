@@ -43,14 +43,14 @@
 | **Intelligence Layer** | Reviewer Agent + Diff-Aware | [EPIC B: Diff-Aware Review Plumbing (#2595)](https://github.com/RC918/morningai/issues/2595) | **Phase 1-3 + B-6 Completed** |
 | **Intelligence Layer** | Flow Controller v3 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | **Completed** (Pilot Pending: `ENABLE_DYNAMIC_ROUTING=false`); Alert Evaluator: [#3499](https://github.com/RC918/morningai/issues/3499) |
 | **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **In Progress**; HITL Gate Completed ([#3487](https://github.com/RC918/morningai/issues/3487)) |
-| **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | Planning (after #3249) |
+| **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | **Phase 1 Active**, Phase 2+ gated by #3249 - [Roadmap](../EPIC_I_GOVERNANCE_ROADMAP.md) |
 
 ### Future EPICs (Placeholder)
 
 | Layer | Wish Pool v2 Component | EPIC | Status |
 |-------|------------------------|------|--------|
-| **Governance Layer** | Safety Governor v2 + Compliance Radar v2 | [EPIC E: Safety Governor v2 + Compliance Radar v2 (#3489)](https://github.com/RC918/morningai/issues/3489) | Placeholder |
-| **Intelligence Layer** | Planner v3 | [EPIC F: Planner v3 (#3490)](https://github.com/RC918/morningai/issues/3490) | Placeholder (After EPIC D) |
+| **Governance Layer** | Safety Governor v2 + Compliance Radar v2 | [EPIC E: Safety Governor v2 + Compliance Radar v2 (#3489)](https://github.com/RC918/morningai/issues/3489) | **Planning** - [Roadmap](../EPIC_E_SAFETY_GOVERNOR_V2_ROADMAP.md) |
+| **Intelligence Layer** | Planner v3 | [EPIC F: Planner v3 (#3490)](https://github.com/RC918/morningai/issues/3490) | **Planning** - [Roadmap](../EPIC_F_PLANNER_V3_ROADMAP.md) |
 | **Infrastructure Layer** | Memory v2 | [EPIC G: Memory v2 (#3491)](https://github.com/RC918/morningai/issues/3491) | Placeholder |
 | **Infrastructure Layer** | Simulation Suite v1 | [EPIC H: Simulation Suite v1 (#3492)](https://github.com/RC918/morningai/issues/3492) | Placeholder |
 
@@ -146,19 +146,25 @@ EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C
 - Autonomous Provisioning v2: Self-healing model management
 
 **Current Implementation (EPIC I #3342)**:
-EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Provisioning v2) 的落地實作。
+EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Provisioning v2) 的落地實作。詳細 Roadmap 請參考 [EPIC_I_GOVERNANCE_ROADMAP.md](../EPIC_I_GOVERNANCE_ROADMAP.md)。
 
-- Phase I-1: Runtime Drift Detection (格式/Schema 驗證)
-- Phase I-2: Provider Health Scoring (延遲、錯誤率、drift 頻率)
-- Phase I-3: Alerting & Dashboard (Grafana/Sentry 整合)
-- Phase I-4: Auto-Degradation (自動路由調整，對齊 PR #3316)
+| Phase | Description | Status |
+|-------|-------------|--------|
+| I-1 | Operationalization (Heartbeat + Distributed Lock) | **Active** |
+| I-2a | Defensive Gating (Soft Weighting Activation) | Pending I-1 |
+| I-2b | Active Recovery (Drift-Triggered Retry) | Gated by #3249 |
+| I-3 | Autonomous Evolution (Benchmark & Capability Scoring) | Future |
 
 **現有基礎設施**:
-- `LLMClient.generate()` - 統一 LLM 呼叫入口（Interceptor 插入點）
+- `LLMClient.generate()` - 統一 LLM 呼叫入口（已整合 drift detection）
 - `CanaryMetrics` - Redis-based 分鐘級指標系統
+- `HealthAlertService` - 健康告警服務（需排程啟用）
+- `DegradationAdvisor` - 降級建議引擎（Phase A observe-only 完成）
 - `ROUTING_ALLOWED_PROVIDERS` (PR #3316) - Provider 治理 allowlist
 
-**Status**: Planning. Will start after #3249 completion.
+**Cross-EPIC Integration**: RuntimeTrustScore = min(EPIC E Safety Score, EPIC I Health Score) → EPIC F Planner 消費
+
+**Status**: Phase 1 Active. Phase 2+ gated by #3249 (test stability).
 
 ### 6. Infrastructure Layer (Future EPICs)
 
@@ -178,11 +184,11 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 | Wish Pool v2 Section | Current Status | Next Action |
 |---------------------|----------------|-------------|
 | 2. Model Layer | **EPIC A Completed** | Maintenance mode |
-| 3.1 Planner v3 | Not started | [EPIC F (#3490)](https://github.com/RC918/morningai/issues/3490) - Placeholder (After EPIC D) |
+| 3.1 Planner v3 | **Planning** | [EPIC F (#3490)](https://github.com/RC918/morningai/issues/3490) - [Roadmap](../EPIC_F_PLANNER_V3_ROADMAP.md) |
 | 3.2 Flow Controller v3 | **EPIC C Completed** (Pilot Pending: `ENABLE_DYNAMIC_ROUTING=false`) | Enable Pilot rollout; Alert Evaluator ([#3499](https://github.com/RC918/morningai/issues/3499)) |
 | 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 + B-6 Completed**, EPIC D In Progress; HITL Gate Completed ([#3487](https://github.com/RC918/morningai/issues/3487)) | Continue D |
-| 4.1 Safety Governor v2 | Not started | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - Placeholder |
-| 4.2 Compliance Radar v2 | Not started | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - Placeholder |
+| 4.1 Safety Governor v2 | **Planning** | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - [Roadmap](../EPIC_E_SAFETY_GOVERNOR_V2_ROADMAP.md) |
+| 4.2 Compliance Radar v2 | **Planning** | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - [Roadmap](../EPIC_E_SAFETY_GOVERNOR_V2_ROADMAP.md) |
 | 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) |
 | 4.4 Autonomous Provisioning v2 | Planning | **EPIC I** (#3342) |
 | 5.1 Memory v2 | Not started | [EPIC G (#3491)](https://github.com/RC918/morningai/issues/3491) - Placeholder |
@@ -233,3 +239,5 @@ This North Star document is a living summary that maps the vision to current imp
 | 1.6 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Added Operationalization Pending status for EPIC C ([#3486](https://github.com/RC918/morningai/issues/3486): RouterMetrics not wired) and EPIC D ([#3487](https://github.com/RC918/morningai/issues/3487): SeniorCoder HITL gate). Updated EPIC table and cross-reference section with Issue links. |
 | 1.7 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Added Future EPICs section with placeholder issues: EPIC E (#3489 - Safety Governor + Compliance Radar), EPIC F (#3490 - Planner v3), EPIC G (#3491 - Memory v2), EPIC H (#3492 - Simulation Suite). Created dedicated roadmap documents for EPIC C and EPIC D. Updated cross-reference section with Issue links. |
 | 1.8 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Updated EPIC C status to **Completed** (Operationalization done via #3486/#3494, Dashboard/Alerting via #3495/#3497). Updated EPIC D HITL Gate status to **Completed** (#3487/#3498). Added Alert Evaluator follow-up issue (#3499). |
+| 1.9 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Created EPIC E and EPIC F detailed roadmap documents with JSON Schema definitions. Updated EPIC E/F status from "Placeholder" to "Planning" with roadmap links. |
+| 2.0 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Created EPIC I detailed roadmap document with JSON Schema definitions (GlobalHealthSnapshot, DriftRetryPolicy, RuntimeTrustScore). Updated EPIC I status from "Planning (after #3249)" to "Phase 1 Active, Phase 2+ gated by #3249". Added phase breakdown table and Cross-EPIC Integration (E+I+F closed loop). |
