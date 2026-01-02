@@ -406,45 +406,89 @@ ENABLE_DYNAMIC_ROUTING:
 
 ---
 
-## Implementation Notes (Current Gaps)
+## Implementation Notes
 
 > **Last Audit**: 2026-01-02  
-> **Tracking Issue**: [#3486](https://github.com/RC918/morningai/issues/3486)
+> **Completed**: [PR #3494](https://github.com/RC918/morningai/pull/3494) - RouterMetrics Operationalization  
+> **Dashboard/Alerting**: [Issue #3495](https://github.com/RC918/morningai/issues/3495)
 
-### RouterMetrics Wiring Status
+### RouterMetrics Wiring Status (Completed)
 
-The `RouterMetrics` class exists in `core/flow/router_metrics.py` but is **not currently wired** into the runtime routing path:
+The `RouterMetrics` class is now fully wired into the runtime routing path (PR #3494):
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `RouterMetrics` class | Implemented | 399 lines, full API |
-| `get_router_metrics()` singleton | Implemented | Thread-safe |
-| Wiring to `HybridRoutingPolicy` | **Not Wired** | No calls to `record_decision()` |
-| Wiring to `RouterNode` | **Not Wired** | `metrics_callback` param exists but not passed |
-| API endpoint `/governance/router-metrics` | **Not Verified** | May not exist |
+| `RouterMetrics` class | ✓ Implemented | Full API with latency percentiles |
+| `get_router_metrics()` singleton | ✓ Implemented | Thread-safe |
+| Wiring to `HybridRoutingPolicy` | ✓ Wired | Calls `record_decision()` on every routing |
+| Wiring to `RouterNode` | ✓ Wired | `metrics_callback` passed and invoked |
+| API endpoint `/api/governance/router-metrics` | ✓ Implemented | Returns full metrics summary |
 
-### Metric Name Alignment
+### Metric Name Alignment (Completed)
 
 | Runbook Metric | Implementation Status | Notes |
 |----------------|----------------------|-------|
-| `router_fallback_rate` | Implemented | `get_fallback_rate()` |
-| `router_latency_p99` | **Not Implemented** | Only `get_average_latency()` available |
-| `router_error_rate` | **Not Implemented** | No explicit method |
-| `router_success_rate` | Implemented | `get_success_rate()` |
+| `router_fallback_rate` | ✓ Implemented | `get_fallback_rate()` |
+| `router_latency_p99` | ✓ Implemented | `get_latency_percentiles()['p99']` |
+| `router_latency_p50/p90/p95` | ✓ Implemented | Full percentile support |
+| `router_error_rate` | Via Sentry | Use Sentry's `router_error_count` |
+| `router_success_rate` | ✓ Implemented | `get_success_rate()` |
 
-### Action Required
+---
 
-Before enabling Pilot rollout, complete the following:
+## Dashboard & Alerting Configuration
 
-1. Wire `RouterMetrics` into `HybridRoutingPolicy` or `router_node` to record decisions
-2. Either:
-   - Add p99 latency calculation to `RouterMetrics`, OR
-   - Update this runbook to reference `average_latency` instead of `p99`
-3. Verify or implement the `/governance/router-metrics` API endpoint
-4. Configure Grafana dashboard with actual metric names
-5. Either:
-   - Implement `get_error_rate()` in `RouterMetrics`, OR
-   - Update this runbook to rely solely on Sentry's `router_error_count`
+> **Configuration File**: `config/monitoring_foundation_schema.yaml`  
+> **Tracking Issue**: [#3495](https://github.com/RC918/morningai/issues/3495)
+
+### Dashboard: `router_metrics`
+
+Access RouterMetrics via the monitoring dashboard or directly via API:
+
+```bash
+# API Endpoint
+curl -s https://api.morning-ai.com/api/governance/router-metrics | jq
+
+# Response includes:
+# - total_decisions: Total routing decisions count
+# - success_rate: Percentage of successful decisions
+# - fallback_rate: Percentage of fallback decisions
+# - average_latency_ms: Average routing latency
+# - latency_percentiles: {p50, p90, p95, p99}
+# - decision_mode_distribution: {fast_path, slow_path, ci_failure_fast_path, outer_fallback}
+# - node_distribution: {fixer, publisher, executor, decision}
+```
+
+**Dashboard Panels** (defined in `monitoring_foundation_schema.yaml`):
+
+| Panel | Metric | Visualization |
+|-------|--------|---------------|
+| Total Routing Decisions | `router_decisions_total` | Stat |
+| Success Rate | `router_success_rate` | Gauge (thresholds: 90%, 95%, 99%) |
+| Fallback Rate | `router_fallback_rate` | Gauge (thresholds: 5%, 10%, 20%) |
+| Latency Percentiles | `router_latency_p50/p90/p95/p99` | Graph |
+| Decision Mode Distribution | `router_decision_mode_distribution` | Pie Chart |
+| Target Node Distribution | `router_node_distribution` | Bar Chart |
+| Fallback Reasons | `router_fallback_count` | Table (by fallback_reason) |
+| Latency Trend | `router_latency_avg` | Graph (6h) |
+
+### Alerting Rules
+
+The following alerts are configured in `monitoring_foundation_schema.yaml`:
+
+| Alert | Severity | Condition | Duration | Channels |
+|-------|----------|-----------|----------|----------|
+| `router_success_rate_low` | Critical | Success rate < 95% | 5m | PagerDuty, Slack |
+| `router_latency_p99_high` | Critical | P99 latency > 5000ms | 5m | PagerDuty, Slack |
+| `router_fallback_rate_high` | Warning | Fallback rate > 20% | 10m | Slack |
+| `router_slow_path_dominant` | Warning | Slow path > 50% of decisions | 15m | Slack |
+
+### SLA Targets
+
+| SLA | Target | Window | Metric |
+|-----|--------|--------|--------|
+| Router Success Rate | 95% | 24h | `router_success_rate` |
+| Router Latency P99 | 5000ms | 24h | `router_latency_p99` |
 
 ---
 
@@ -452,5 +496,7 @@ Before enabling Pilot rollout, complete the following:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-02 | Devin AI | Added Dashboard & Alerting Configuration section ([#3495](https://github.com/RC918/morningai/issues/3495)) |
+| 2026-01-02 | Devin AI | Updated Implementation Notes to reflect PR #3494 completion |
 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Added Implementation Notes section documenting RouterMetrics wiring gaps ([#3486](https://github.com/RC918/morningai/issues/3486)) |
 | See git history | Devin AI | Initial version for C-7 |
