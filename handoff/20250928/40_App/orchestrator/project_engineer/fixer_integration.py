@@ -429,33 +429,80 @@ class AutoFixer:
                 cwd, trace_id,
                 extra={"trace_id": trace_id, "cwd": cwd}
             )
+
+            # Try to get default branch dynamically, fallback to main
+            base_ref = "origin/main"
+            try:
+                head_result = subprocess.run(
+                    ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if head_result.returncode == 0 and head_result.stdout.strip():
+                    # refs/remotes/origin/HEAD -> refs/remotes/origin/main
+                    base_ref = head_result.stdout.strip().replace(
+                        "refs/remotes/", ""
+                    )
+                    logger.info(
+                        "[AutoFixer] Detected default branch: %s trace_id=%s",
+                        base_ref, trace_id,
+                        extra={"trace_id": trace_id, "base_ref": base_ref}
+                    )
+            except Exception as e:
+                logger.debug(
+                    "[AutoFixer] Could not detect default branch, using origin/main: %s",
+                    str(e)
+                )
+
             result = subprocess.run(
-                ["git", "diff", "--name-only", "origin/main", "HEAD"],
+                ["git", "diff", "--name-only", base_ref, "HEAD"],
                 capture_output=True,
                 text=True,
                 timeout=30
             )
+
+            # Handle stderr with truncation indicator
+            stderr_preview = ""
+            stderr_truncated = False
+            if result.stderr:
+                if len(result.stderr) > 500:
+                    stderr_preview = result.stderr[:500]
+                    stderr_truncated = True
+                else:
+                    stderr_preview = result.stderr
+
             logger.info(
-                "[AutoFixer] git diff returncode=%d stdout_len=%d stderr=%s trace_id=%s",
-                result.returncode, len(result.stdout), result.stderr[:200] if result.stderr else "",
-                trace_id,
+                "[AutoFixer] git diff returncode=%d stdout_len=%d trace_id=%s",
+                result.returncode, len(result.stdout), trace_id,
                 extra={
                     "trace_id": trace_id,
                     "method": "git_diff",
+                    "base_ref": base_ref,
                     "returncode": result.returncode,
                     "stdout_len": len(result.stdout),
-                    "stderr": result.stderr[:200] if result.stderr else ""
+                    "stderr_preview": stderr_preview,
+                    "stderr_truncated": stderr_truncated
                 }
             )
+            if stderr_preview:
+                logger.warning(
+                    "[AutoFixer] git diff stderr%s: %s",
+                    " (truncated)" if stderr_truncated else "",
+                    stderr_preview,
+                    extra={"trace_id": trace_id, "stderr_truncated": stderr_truncated}
+                )
+
             if result.returncode == 0:
                 files = [f for f in result.stdout.strip().split("\n") if f]
                 logger.info(
-                    "[AutoFixer] git diff returned %d files trace_id=%s files=%s",
-                    len(files), trace_id, files[:5],
+                    "[AutoFixer] git diff returned %d files trace_id=%s",
+                    len(files), trace_id,
                     extra={
                         "trace_id": trace_id,
                         "method": "git_diff",
-                        "file_count": len(files)
+                        "file_count": len(files),
+                        "files_preview": files[:5]
                     }
                 )
                 return files
