@@ -206,12 +206,78 @@ HEARTBEAT_INTERVAL = settings.worker_heartbeat_interval
 HEARTBEAT_TTL = settings.worker_heartbeat_ttl
 
 
+def _run_governance_heartbeat():
+    """
+    Execute governance heartbeat cycle with full error isolation.
+    
+    EPIC I-1: Operationalization (Heartbeat + Distributed Lock)
+    
+    This function is called after each worker heartbeat update.
+    It acquires a distributed lock and runs health checks + degradation advisory.
+    
+    Safety Contract:
+    - Governance failures MUST NOT affect worker heartbeat
+    - Non-blocking: Returns immediately if lock is held by another worker
+    - All exceptions are caught and logged
+    """
+    try:
+        from governance.heartbeat_handler import run_governance_cycle
+        
+        result = run_governance_cycle(
+            redis_client=redis,
+            evaluator_node_id=HEARTBEAT_ID,
+            heartbeat_id=HEARTBEAT_ID,
+            worker_id=WORKER_ID,
+        )
+        
+        # Only log at DEBUG if skipped (to avoid log noise)
+        if not result.executed and result.skipped_reason:
+            logger.debug(
+                f"Governance cycle skipped: {result.skipped_reason}",
+                extra={
+                    "operation": "governance_heartbeat",
+                    "worker_id": WORKER_ID,
+                    "heartbeat_id": HEARTBEAT_ID,
+                    "skipped_reason": result.skipped_reason,
+                }
+            )
+    except ImportError as e:
+        # Governance module not available - this is expected in some environments
+        logger.debug(
+            f"Governance heartbeat not available: {e}",
+            extra={
+                "operation": "governance_heartbeat",
+                "worker_id": WORKER_ID,
+                "heartbeat_id": HEARTBEAT_ID,
+            }
+        )
+    except Exception as e:
+        # Catch all exceptions to ensure governance never affects worker heartbeat
+        logger.warning(
+            f"Governance heartbeat failed (isolated): {e}",
+            extra={
+                "operation": "governance_heartbeat",
+                "worker_id": WORKER_ID,
+                "heartbeat_id": HEARTBEAT_ID,
+                "error": str(e),
+            }
+        )
+        if SENTRY_DSN:
+            try:
+                sentry_sdk.capture_exception(e)
+            except Exception:
+                pass  # Sentry failure should not propagate
+
+
 def update_worker_heartbeat():
     """
     Background thread to update worker heartbeat in Redis with TTL.
     Runs until shutdown_event is set.
     Updates state to 'shutting_down' when shutdown is initiated.
     Uses HEARTBEAT_ID for stable monitoring identity.
+    
+    EPIC I-1: Also triggers governance heartbeat cycle after each heartbeat update.
+    Governance runs with distributed lock to ensure only one worker executes.
     
     Configuration (via settings.py):
     - settings.worker_heartbeat_interval: Heartbeat interval in seconds (default: 60)
@@ -237,6 +303,11 @@ def update_worker_heartbeat():
                     })
                 )
                 logger.debug(f"Heartbeat updated", extra={"operation": "heartbeat", "worker_id": WORKER_ID, "heartbeat_id": HEARTBEAT_ID, "rq_worker_name": RQ_WORKER_NAME, "state": state})
+                
+                # EPIC I-1: Run governance heartbeat after worker heartbeat
+                # This is failure-isolated - governance errors never affect worker heartbeat
+                if not shutting_down:
+                    _run_governance_heartbeat()
             
             shutdown_event.wait(HEARTBEAT_INTERVAL)
         except RedisConnectionError as e:
