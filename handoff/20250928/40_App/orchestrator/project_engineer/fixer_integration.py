@@ -289,10 +289,12 @@ class AutoFixer:
             # use it directly instead of relying on ReviewerAgent judgment (which may
             # use different rules than CI lint checks)
             ci_failure_trigger = state.get("ci_failure_trigger", False)
-            ci_failure_context = state.get("ci_failure_context")
+            ci_failure_context_data = state.get("ci_failure_context")
 
-            if ci_failure_trigger is True and ci_failure_context:
+            if ci_failure_trigger is True and ci_failure_context_data:
                 # CI failure mode: use CI evidence directly
+                # Reconstruct CiFailureContext from serialized dict (RQ JSON serialization)
+                ci_failure_context = CiFailureContext.from_dict(ci_failure_context_data)
                 fix_description = self._build_ci_fix_description(
                     ci_failure_context, pr_number, changed_files
                 )

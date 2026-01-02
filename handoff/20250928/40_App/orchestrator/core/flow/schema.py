@@ -187,6 +187,10 @@ class CiFailureContext:
     Schema Evolution:
     - version field enables backward-compatible changes
     - Consumers should check version and handle unknown versions gracefully
+
+    Serialization:
+    - Use to_dict() for JSON serialization (e.g., RQ queue)
+    - Use from_dict() to reconstruct from serialized form
     """
 
     failed_check_name: str  # Name of the failed check (e.g., "lint", "test")
@@ -198,6 +202,46 @@ class CiFailureContext:
     logs_url: Optional[str] = None  # URL to CI logs for reference
     error_summary: Optional[str] = None  # Top N error lines/annotations (if available)
     check_run_id: Optional[int] = None  # GitHub check_run ID for API lookups
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict for RQ queue serialization.
+
+        Returns:
+            Dict representation suitable for JSON serialization
+        """
+        return {
+            "failed_check_name": self.failed_check_name,
+            "conclusion": self.conclusion,
+            "pr_number": self.pr_number,
+            "head_sha": self.head_sha,
+            "head_branch": self.head_branch,
+            "version": self.version,
+            "logs_url": self.logs_url,
+            "error_summary": self.error_summary,
+            "check_run_id": self.check_run_id,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CiFailureContext":
+        """Reconstruct CiFailureContext from serialized dict.
+
+        Args:
+            data: Dict from to_dict() or JSON deserialization
+
+        Returns:
+            CiFailureContext instance
+        """
+        return cls(
+            failed_check_name=data["failed_check_name"],
+            conclusion=data["conclusion"],
+            pr_number=data["pr_number"],
+            head_sha=data["head_sha"],
+            head_branch=data["head_branch"],
+            version=data.get("version", 1),
+            logs_url=data.get("logs_url"),
+            error_summary=data.get("error_summary"),
+            check_run_id=data.get("check_run_id"),
+        )
 
 
 class RoutingContext(BaseModel):
