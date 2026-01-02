@@ -6,6 +6,8 @@ EPIC C: Flow Controller v3 - LLM-driven Dynamic Routing
 Stage 0: Foundations
 
 This module defines the data contracts for flow routing:
+- DecisionMode: How a routing decision was made (Issue #3496)
+- RoutingResult: Wrapper with decision + metadata (Issue #3496)
 - RoutingCandidate: Candidate node definition for LLM selection
 - RoutingDecision: LLM routing decision result
 - RoutingContext: Minimal context for Router to make decisions
@@ -36,11 +38,31 @@ Usage:
     )
 """
 import logging
+from dataclasses import dataclass
+from enum import StrEnum
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
+
+
+class DecisionMode(StrEnum):
+    """How a routing decision was made (Issue #3496).
+
+    This enum classifies the decision path taken by the router:
+    - FAST_PATH: Deterministic rules applied (no LLM needed)
+    - SLOW_PATH: LLM made the routing decision
+    - LLM_FALLBACK: LLM was attempted but failed, fell back to deterministic
+    - CI_FAILURE_FAST_PATH: CI failure triggered immediate fixer routing
+    - OUTER_FALLBACK: Router exception, fell back to decision_node logic
+    """
+
+    FAST_PATH = "fast_path"
+    SLOW_PATH = "slow_path"
+    LLM_FALLBACK = "llm_fallback"
+    CI_FAILURE_FAST_PATH = "ci_failure_fast_path"
+    OUTER_FALLBACK = "outer_fallback"
 
 
 class RoutingCandidate(BaseModel):
@@ -133,6 +155,20 @@ class RoutingDecision(BaseModel):
     class Config:
         """Pydantic model configuration."""
         frozen = True
+
+
+@dataclass(frozen=True)
+class RoutingResult:
+    """Wrapper for routing decision with metadata (Issue #3496).
+
+    This is internal plumbing that combines the LLM decision with
+    system-level metadata about how the decision was made.
+    Unlike RoutingDecision (LLM contract), this is not shown to the LLM.
+    """
+
+    decision: RoutingDecision
+    decision_mode: DecisionMode
+    fallback_reason: Optional[str] = None
 
 
 class RoutingContext(BaseModel):
