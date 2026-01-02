@@ -1712,7 +1712,8 @@ class EventNormalizer:
                 "check_suite_id": check_suite_id,  # Issue #3513
                 "conclusion": conclusion,
                 "failed_check_name": ci_app_name,
-                "dedup_key": dedup_key,  # Issue #3513 - include for observability
+                # Note: dedup_key not logged to avoid exposing internal key format
+                # All constituent fields (repo, pr, sha, check_suite_id) are logged above
             }
         )
 

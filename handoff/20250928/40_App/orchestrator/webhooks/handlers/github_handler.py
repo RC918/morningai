@@ -403,7 +403,11 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             # Issue: #3513 - Add check_suite_id for dedup refinement
             # GitHub sends multiple check_suite webhooks per SHA (different workflows)
             # Each workflow has a unique check_suite_id that we need for proper dedup
-            metadata["ci_check_suite_id"] = check_suite.get("id")
+            # Explicitly convert to int for type consistency (MorningAI review feedback)
+            raw_check_suite_id = check_suite.get("id")
+            metadata["ci_check_suite_id"] = (
+                int(raw_check_suite_id) if raw_check_suite_id is not None else None
+            )
             # Store PR numbers for dedup and multi-PR handling
             pull_requests = check_suite.get("pull_requests", [])
             metadata["ci_pr_numbers"] = [
