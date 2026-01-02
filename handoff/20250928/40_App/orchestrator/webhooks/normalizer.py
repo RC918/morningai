@@ -38,6 +38,11 @@ except ImportError:
     from utils.rate_limit import check_ai_reviewer_rate_limit, check_pr_updated_debounce
 
 try:
+    from ..core.flow.schema import CiFailureContext
+except ImportError:
+    from core.flow.schema import CiFailureContext
+
+try:
     from common.config.settings import settings
 except ImportError:
     settings = None
@@ -1372,6 +1377,9 @@ class EventNormalizer:
             context["ci_failure_trigger"] = event.metadata.get("ci_failure_trigger")
             context["ci_failure_pr_number"] = event.metadata.get("ci_failure_pr_number")
             context["ci_failure_dedup_key"] = event.metadata.get("ci_failure_dedup_key")
+            # Issue #3510: Pass CiFailureContext for structured CI error propagation
+            if ci_context := event.metadata.get("ci_failure_context"):
+                context["ci_failure_context"] = ci_context
 
         return context
 
@@ -1638,6 +1646,48 @@ class EventNormalizer:
         event.metadata["ci_failure_pr_number"] = pr_number
         event.metadata["ci_failure_dedup_key"] = dedup_key
 
+        # Issue #3510: Build CiFailureContext for structured CI error propagation
+        # This enables AutoFixer to use actual CI error evidence instead of
+        # relying on ReviewerAgent judgment (which may use different rules)
+        # Only build context if required fields are present to avoid brittle behavior
+        # Use explicit is not None for pr_number (int) to align with dataclass requirements
+        if pr_number is not None and head_sha and head_branch and conclusion:
+            ci_app_name = metadata.get("ci_app_name") or ""
+            if not ci_app_name:
+                ci_app_name = "unknown"
+                logger.warning(
+                    "[EventNormalizer] CiFailureContext using 'unknown' for failed_check_name",
+                    extra={
+                        "operation": "ci_failure_context_unknown_check",
+                        "event_id": event.event_id,
+                        "pr_number": pr_number,
+                        "head_sha": head_sha[:8] if head_sha else "unknown",
+                    }
+                )
+            ci_failure_context = CiFailureContext(
+                failed_check_name=ci_app_name,
+                conclusion=conclusion,
+                pr_number=pr_number,
+                head_sha=head_sha,
+                head_branch=head_branch,
+                logs_url=metadata.get("ci_logs_url"),
+                error_summary=metadata.get("ci_error_summary"),
+                check_run_id=metadata.get("ci_check_run_id"),
+            )
+            event.metadata["ci_failure_context"] = ci_failure_context
+        else:
+            logger.warning(
+                "[EventNormalizer] Skipping CiFailureContext - missing required fields",
+                extra={
+                    "operation": "ci_failure_context_skip",
+                    "event_id": event.event_id,
+                    "has_pr_number": pr_number is not None,
+                    "has_head_sha": bool(head_sha),
+                    "has_head_branch": bool(head_branch),
+                    "has_conclusion": bool(conclusion),
+                }
+            )
+
         logger.info(
             "[EventNormalizer] CI failure is actionable - triggering auto-fix",
             extra={
@@ -1648,6 +1698,7 @@ class EventNormalizer:
                 "head_branch": head_branch,
                 "head_sha": head_sha[:8] if head_sha else "unknown",
                 "conclusion": conclusion,
+                "failed_check_name": ci_app_name,
             }
         )
 
