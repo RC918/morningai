@@ -52,3 +52,13 @@ def ci_failure_context_test():
     test_var = "unused"  # F841: unused variable
     another_unused = 123  # F841: unused variable
     return None
+
+# Test run 7 - 2026-01-02 17:31 UTC
+# Re-validating CiFailureContext with new SHA (bypassing dedup TTL)
+# Issue #3513 created to track dedup refinement
+import itertools  # F401: unused import
+import operator  # F401: unused import
+
+def dedup_bypass_test():
+    bypass_var = "new sha"  # F841: unused variable
+    return None
