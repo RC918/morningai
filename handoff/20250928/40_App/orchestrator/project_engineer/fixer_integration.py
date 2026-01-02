@@ -378,7 +378,7 @@ class AutoFixer:
                     trace_id,
                     extra={"trace_id": trace_id, "method": "github_api"}
                 )
-                gh_repo = get_repo(repo)
+                gh_repo = get_repo()  # get_repo() uses GITHUB_REPO from settings
                 file_list = get_pr_files(gh_repo, pr_number, trace_id=trace_id)
                 logger.info(
                     "[AutoFixer] github_api returned %d files trace_id=%s files=%s",

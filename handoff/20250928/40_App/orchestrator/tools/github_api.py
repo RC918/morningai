@@ -997,12 +997,13 @@ def get_pr_files(
 
     Returns:
         List[str]: List of file paths changed in the PR.
-                   Returns empty list on error (with error logged).
+
+    Raises:
+        CustomGitHubException: If the GitHub API call fails.
     """
     try:
         pr = repo.get_pull(pr_number)
-        files = list(pr.get_files())
-        file_paths = [f.filename for f in files]
+        file_paths = [f.filename for f in pr.get_files()]
         logger.info(
             "[GitHub] get_pr_files returned %d files pr_number=%d",
             len(file_paths), pr_number,
@@ -1013,9 +1014,9 @@ def get_pr_files(
         logger.error(
             "[GitHub] get_pr_files failed: %s pr_number=%d",
             str(e), pr_number,
-            extra={"trace_id": trace_id, "error": str(e)}
+            extra={"trace_id": trace_id, "error": str(e), "error_type": type(e).__name__}
         )
-        return []
+        raise CustomGitHubException(f"Failed to get PR files: {e}") from e
 
 
 def get_pr_diff(
