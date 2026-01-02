@@ -3,7 +3,7 @@ import logging
 import random
 import sys
 import time
-from typing import Optional
+from typing import List, Optional
 from github import Github, GithubException, RateLimitExceededException, UnknownObjectException, BadCredentialsException
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -967,6 +967,67 @@ def _should_ignore_file(filename: str) -> bool:
             return True
 
     return False
+
+
+@retry_with_backoff(
+    max_retries=API_RETRY_CONFIG.max_retries,
+    initial_delay=API_RETRY_CONFIG.initial_delay,
+    backoff_factor=API_RETRY_CONFIG.backoff_factor,
+    exceptions=(RateLimitExceededException, ConnectionError, TimeoutError)
+)
+def get_pr_files(
+    repo,
+    pr_number: int,
+    *,
+    trace_id: Optional[str] = None
+) -> List[str]:
+    """
+    Get list of file paths changed in a PR.
+
+    Issue #3504: AutoFixer Root Cause Fix
+    This is a lightweight wrapper that directly calls pr.get_files() to get
+    the complete list of changed files without any filtering.
+
+    This function is designed for the Tools Layer standardization (Blueprint alignment):
+    - Agent expresses "What" (I need file list), not "How" (parsing diff vs API)
+    - Reusable by multiple agents (AutoFixer, SeniorCoder, ReviewerAgent)
+    - Returns clean List[str] instead of complex dict
+
+    Note: Unlike get_pr_diff(), this function does NOT filter out lockfiles
+    or generated assets. The caller can apply their own filtering if needed.
+
+    Note: PyGithub's pr.get_files() returns a PaginatedList that automatically
+    handles pagination when iterated. The list comprehension fully iterates it,
+    ensuring all files are retrieved (not just the first page).
+
+    Args:
+        repo: GitHub repository object (from get_repo())
+        pr_number: Pull request number
+        trace_id: Optional trace ID for logging/telemetry correlation only,
+                  has no effect on functionality (keyword-only)
+
+    Returns:
+        List[str]: List of file paths changed in the PR.
+
+    Raises:
+        CustomGitHubException: If the GitHub API call fails after retries.
+    """
+    try:
+        pr = repo.get_pull(pr_number)
+        file_paths = [f.filename for f in pr.get_files()]
+        logger.info(
+            "[GitHub] get_pr_files returned %d files pr_number=%d",
+            len(file_paths), pr_number,
+            extra={"trace_id": trace_id, "file_count": len(file_paths)}
+        )
+        return file_paths
+    except Exception as e:
+        logger.error(
+            "[GitHub] get_pr_files failed: %s pr_number=%d",
+            str(e), pr_number,
+            extra={"trace_id": trace_id, "error": str(e), "error_type": type(e).__name__}
+        )
+        raise CustomGitHubException(f"Failed to get PR files: {e}") from e
 
 
 def get_pr_diff(
