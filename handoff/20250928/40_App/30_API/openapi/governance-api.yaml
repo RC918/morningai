@@ -557,7 +557,7 @@ components:
         timestamp:
           type: string
           format: date-time
-          description: Timestamp when metrics were collected
+          description: UTC ISO 8601 timestamp when metrics were collected (e.g., 2026-01-02T07:30:00.000Z)
         total_decisions:
           type: integer
           description: Total number of routing decisions in the time window
@@ -588,6 +588,7 @@ components:
           type: number
           format: float
           description: Average routing decision latency in milliseconds
+          nullable: true
           example: 45.5
         latency_p50_ms:
           type: number

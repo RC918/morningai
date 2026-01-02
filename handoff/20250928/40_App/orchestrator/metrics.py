@@ -881,22 +881,52 @@ class CanaryMetrics:
         Calculate router latency percentiles from histogram buckets
 
         Issue #3486: RouterMetrics Operationalization Gap
+
+        Uses Redis pipeline to batch all GET operations in a single round trip
+        to reduce network overhead (reviewer feedback).
         """
         try:
+            now = datetime.utcnow()
+            minute_keys = [now - timedelta(minutes=i) for i in range(window_minutes)]
+
+            # Use pipeline to batch all bucket key fetches
             bucket_counts = {}
+            with self.redis.pipeline(transaction=False) as pipe:
+                # Queue all bucket keys for all minutes
+                for bucket in self.buckets_ms:
+                    for mk in minute_keys:
+                        key = self._get_minute_key(f"router.latency.bucket_{bucket}", mk)
+                        pipe.get(key)
+
+                # Queue inf bucket keys
+                for mk in minute_keys:
+                    key = self._get_minute_key("router.latency.bucket_inf", mk)
+                    pipe.get(key)
+
+                results = pipe.execute()
+
+            # Parse results: first (len(buckets_ms) * window_minutes) are bucket results
+            idx = 0
             total = 0
-
             for bucket in self.buckets_ms:
-                count = self.get_window_counts(
-                    f"router.latency.bucket_{bucket}", window_minutes
-                )
-                bucket_counts[bucket] = count
-                total += count
+                bucket_total = 0
+                for _ in minute_keys:
+                    val = results[idx]
+                    if val:
+                        bucket_total += int(val)
+                    idx += 1
+                bucket_counts[bucket] = bucket_total
+                total += bucket_total
 
-            # Add inf bucket
-            inf_count = self.get_window_counts("router.latency.bucket_inf", window_minutes)
-            bucket_counts["inf"] = inf_count
-            total += inf_count
+            # Parse inf bucket results
+            inf_total = 0
+            for _ in minute_keys:
+                val = results[idx]
+                if val:
+                    inf_total += int(val)
+                idx += 1
+            bucket_counts["inf"] = inf_total
+            total += inf_total
 
             if total == 0:
                 return {"p50": None, "p90": None, "p95": None, "p99": None}
@@ -929,19 +959,30 @@ class CanaryMetrics:
         Calculate router average latency from sum and count
 
         Issue #3486: RouterMetrics Operationalization Gap
+
+        Uses Redis pipeline to batch all GET operations in a single round trip
+        to reduce network overhead (reviewer feedback).
         """
         try:
+            now = datetime.utcnow()
+
+            # Use pipeline to batch all sum/count key fetches
+            with self.redis.pipeline(transaction=False) as pipe:
+                for i in range(window_minutes):
+                    ts = now - timedelta(minutes=i)
+                    sum_key = self._get_minute_key("router.latency.sum", ts)
+                    count_key = self._get_minute_key("router.latency.count", ts)
+                    pipe.get(sum_key)
+                    pipe.get(count_key)
+
+                results = pipe.execute()
+
+            # Parse results: alternating sum, count values
             total_sum = 0.0
             total_count = 0
-
-            now = datetime.utcnow()
             for i in range(window_minutes):
-                ts = now - timedelta(minutes=i)
-                sum_key = self._get_minute_key("router.latency.sum", ts)
-                count_key = self._get_minute_key("router.latency.count", ts)
-
-                sum_val = self.redis.get(sum_key)
-                count_val = self.redis.get(count_key)
+                sum_val = results[i * 2]
+                count_val = results[i * 2 + 1]
 
                 if sum_val:
                     total_sum += float(sum_val)

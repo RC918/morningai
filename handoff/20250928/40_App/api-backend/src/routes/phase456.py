@@ -17,6 +17,8 @@ route behavior where functions were called directly from src.main.
 """
 import asyncio
 import logging
+from functools import lru_cache
+from typing import Optional
 
 from flask import Blueprint, jsonify, request
 
@@ -25,6 +27,23 @@ from src.middleware.auth_middleware import admin_required, analyst_required
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("phase456", __name__)
+
+
+@lru_cache(maxsize=1)
+def _get_cached_redis_client(redis_url: str):
+    """Get a cached Redis client to avoid per-request object churn.
+
+    Issue #3486: RouterMetrics Operationalization Gap
+    Reviewer feedback: Creating new Redis client on every API request is inefficient.
+
+    Args:
+        redis_url: Redis connection URL
+
+    Returns:
+        Redis client instance (cached)
+    """
+    import redis
+    return redis.from_url(redis_url)
 
 
 def _get_main():
@@ -180,10 +199,9 @@ def get_router_metrics():
             }), 200
 
         try:
-            import redis
             from metrics import CanaryMetrics
 
-            redis_client = redis.from_url(redis_url)
+            redis_client = _get_cached_redis_client(redis_url)
             canary_metrics = CanaryMetrics(redis_client=redis_client)
             result = canary_metrics.get_router_metrics_summary(window_minutes)
             return jsonify(result)
