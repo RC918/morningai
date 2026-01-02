@@ -5905,8 +5905,12 @@ def router_node(state: AgentState) -> AgentState:
         Updated state with merge_decision and requires_hitl_approval
     """
     from core.flow.hybrid_router import get_hybrid_router
+    from core.flow.router_metrics import get_router_metrics, DecisionMode
+    from metrics import get_canary_metrics
 
     start_time = time.time()
+    router_metrics = get_router_metrics()
+    canary_metrics = get_canary_metrics()
     metrics = _get_metrics()
 
     trace_id = state.get("trace_id", "unknown")
@@ -5957,6 +5961,25 @@ def router_node(state: AgentState) -> AgentState:
         ]
         latency_ms = (time.monotonic() - fast_path_start) * 1000
         metrics.record_node_complete("router", trace_id, success=True, latency_ms=latency_ms)
+
+        router_metrics.record_decision(
+            trace_id=trace_id,
+            latency_ms=latency_ms,
+            success=True,
+            chosen_node="fixer",
+            fallback_reason=None,
+            decision_mode=DecisionMode.CI_FAILURE_FAST_PATH,
+        )
+
+        if canary_metrics:
+            canary_metrics.record_router_decision(
+                next_node="fixer",
+                success=True,
+                latency_ms=latency_ms,
+                decision_mode=DecisionMode.CI_FAILURE_FAST_PATH,
+                fallback_reason=None,
+            )
+
         return state
 
     # Extract ReviewOutcome fields from state
@@ -5985,6 +6008,12 @@ def router_node(state: AgentState) -> AgentState:
         "blocker_count": blocker_count,
     })
 
+    routing_start = time.monotonic()
+    routing_success = False
+    routing_next_node = "decision"
+    routing_fallback_reason = None
+    routing_decision_mode = DecisionMode.FAST_PATH
+
     try:
         # Get Hybrid Router instance (with LLM for slow path)
         router = get_hybrid_router(use_llm=True)
@@ -6000,6 +6029,18 @@ def router_node(state: AgentState) -> AgentState:
         # Map routing decision to state fields
         next_node = decision.next_node
         requires_hitl = decision.requires_hitl_approval
+        routing_success = True
+        routing_next_node = next_node
+
+        # Infer decision mode from reasoning
+        reasoning_lower = decision.reasoning.lower()
+        if "llm decision" in reasoning_lower:
+            routing_decision_mode = DecisionMode.SLOW_PATH
+        elif "deterministic fallback" in reasoning_lower:
+            routing_decision_mode = DecisionMode.FAST_PATH
+            routing_fallback_reason = "llm_fallback"
+        else:
+            routing_decision_mode = DecisionMode.FAST_PATH
 
         # Map next_node to merge_decision for compatibility with existing flow
         if next_node == "publisher":
@@ -6052,12 +6093,16 @@ def router_node(state: AgentState) -> AgentState:
 
         if ci_state == "failure" or severity == "critical" or code_quality_score < 50:
             merge_decision = "needs_fix"
+            routing_next_node = "fixer"
         elif severity == "high" or code_quality_score < 70:
             merge_decision = "request_changes"
+            routing_next_node = "decision"
         elif ci_state == "success" and code_quality_score >= 70:
             merge_decision = "approve"
+            routing_next_node = "publisher"
         else:
             merge_decision = "pending"
+            routing_next_node = "decision"
 
         state["merge_decision"] = merge_decision
         state["requires_hitl_approval"] = False
@@ -6065,6 +6110,29 @@ def router_node(state: AgentState) -> AgentState:
         state["messages"] = state.get("messages", []) + [
             AIMessage(content=f"Router fallback decision: {merge_decision}")
         ]
+
+        routing_success = False
+        routing_fallback_reason = "router_exception"
+        routing_decision_mode = DecisionMode.OUTER_FALLBACK
+
+    routing_latency_ms = (time.monotonic() - routing_start) * 1000
+    router_metrics.record_decision(
+        trace_id=trace_id,
+        latency_ms=routing_latency_ms,
+        success=routing_success,
+        chosen_node=routing_next_node,
+        fallback_reason=routing_fallback_reason,
+        decision_mode=routing_decision_mode,
+    )
+
+    if canary_metrics:
+        canary_metrics.record_router_decision(
+            next_node=routing_next_node,
+            success=routing_success,
+            latency_ms=routing_latency_ms,
+            decision_mode=routing_decision_mode,
+            fallback_reason=routing_fallback_reason,
+        )
 
     latency_ms = (time.time() - start_time) * 1000
     metrics.record_node_complete("router", trace_id, success=True, latency_ms=latency_ms)

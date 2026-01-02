@@ -30,6 +30,8 @@ tags:
     description: Policy violation monitoring
   - name: Statistics
     description: System-wide governance statistics
+  - name: Router
+    description: Flow Controller v3 router metrics (EPIC C)
   - name: Health
     description: System health checks
 
@@ -294,6 +296,41 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /api/governance/router-metrics:
+    get:
+      tags:
+        - Router
+      summary: Get router metrics
+      description: |
+        Get router decision metrics for Flow Controller v3 (EPIC C).
+        
+        Issue #3486: RouterMetrics Operationalization Gap
+        
+        Returns metrics about routing decisions including success rates,
+        latency percentiles, and distribution by decision mode.
+      operationId: getRouterMetrics
+      parameters:
+        - name: window_minutes
+          in: query
+          required: false
+          description: Time window in minutes for metrics aggregation
+          schema:
+            type: integer
+            default: 15
+            minimum: 1
+            maximum: 60
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouterMetricsSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /api/governance/health:
     get:
       tags:
@@ -503,6 +540,106 @@ components:
           type: string
         message:
           type: string
+
+    RouterMetricsSummary:
+      type: object
+      description: |
+        Router metrics summary for Flow Controller v3 (EPIC C).
+        Issue #3486: RouterMetrics Operationalization Gap
+      properties:
+        enabled:
+          type: boolean
+          description: Whether router metrics collection is enabled
+        window_minutes:
+          type: integer
+          description: Time window in minutes for the metrics
+          example: 15
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when metrics were collected
+        total_decisions:
+          type: integer
+          description: Total number of routing decisions in the time window
+          example: 150
+        successes:
+          type: integer
+          description: Number of successful routing decisions
+          example: 145
+        fallbacks:
+          type: integer
+          description: Number of fallback routing decisions
+          example: 5
+        success_rate:
+          type: number
+          format: float
+          description: Percentage of successful routing decisions
+          minimum: 0
+          maximum: 100
+          example: 96.67
+        fallback_rate:
+          type: number
+          format: float
+          description: Percentage of fallback routing decisions
+          minimum: 0
+          maximum: 100
+          example: 3.33
+        average_latency_ms:
+          type: number
+          format: float
+          description: Average routing decision latency in milliseconds
+          example: 45.5
+        latency_p50_ms:
+          type: number
+          format: float
+          description: 50th percentile latency in milliseconds
+          nullable: true
+          example: 35.0
+        latency_p90_ms:
+          type: number
+          format: float
+          description: 90th percentile latency in milliseconds
+          nullable: true
+          example: 80.0
+        latency_p95_ms:
+          type: number
+          format: float
+          description: 95th percentile latency in milliseconds
+          nullable: true
+          example: 120.0
+        latency_p99_ms:
+          type: number
+          format: float
+          description: 99th percentile latency in milliseconds
+          nullable: true
+          example: 250.0
+        node_distribution:
+          type: object
+          description: Distribution of decisions by target node
+          additionalProperties:
+            type: integer
+          example:
+            fixer: 80
+            publisher: 50
+            decision: 15
+            executor: 5
+        decision_mode_distribution:
+          type: object
+          description: Distribution of decisions by mode (fast_path, slow_path, ci_failure_fast_path, outer_fallback)
+          additionalProperties:
+            type: integer
+          example:
+            fast_path: 120
+            slow_path: 25
+            ci_failure_fast_path: 5
+        fallback_distribution:
+          type: object
+          description: Distribution of fallback reasons
+          additionalProperties:
+            type: integer
+          example:
+            llm_fallback: 3
+            router_exception: 2
 
   responses:
     UnauthorizedError:
