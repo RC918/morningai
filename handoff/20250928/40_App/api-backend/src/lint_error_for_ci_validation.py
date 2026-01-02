@@ -73,3 +73,15 @@ def dedup_fix_validation_test():
     validation_var = "PR #3514 deployed"  # F841: unused variable
     check_suite_id_test = 12345  # F841: unused variable
     return None
+
+# Test run 9 - 2026-01-02 19:32 UTC
+# Validating PR #3515 CiFailureContext JSON serialization fix
+# Expected: Enqueue succeeds (no "Object of type CiFailureContext is not JSON serializable")
+# Expected: Worker processes job and AutoFixer executes with CI evidence
+import abc  # F401: unused import
+import copy  # F401: unused import
+
+def serialization_fix_validation_test():
+    to_dict_test = "PR #3515 deployed"  # F841: unused variable
+    from_dict_test = "JSON serializable"  # F841: unused variable
+    return None
