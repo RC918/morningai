@@ -3,7 +3,7 @@ import logging
 import random
 import sys
 import time
-from typing import Optional
+from typing import List, Optional
 from github import Github, GithubException, RateLimitExceededException, UnknownObjectException, BadCredentialsException
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -967,6 +967,55 @@ def _should_ignore_file(filename: str) -> bool:
             return True
 
     return False
+
+
+def get_pr_files(
+    repo,
+    pr_number: int,
+    *,
+    trace_id: Optional[str] = None
+) -> List[str]:
+    """
+    Get list of file paths changed in a PR.
+
+    Issue #3504: AutoFixer Root Cause Fix
+    This is a lightweight wrapper that directly calls pr.get_files() to get
+    the complete list of changed files without any filtering.
+
+    This function is designed for the Tools Layer standardization (Blueprint alignment):
+    - Agent expresses "What" (I need file list), not "How" (parsing diff vs API)
+    - Reusable by multiple agents (AutoFixer, SeniorCoder, ReviewerAgent)
+    - Returns clean List[str] instead of complex dict
+
+    Note: Unlike get_pr_diff(), this function does NOT filter out lockfiles
+    or generated assets. The caller can apply their own filtering if needed.
+
+    Args:
+        repo: GitHub repository object (from get_repo())
+        pr_number: Pull request number
+        trace_id: Optional trace ID for telemetry correlation (keyword-only)
+
+    Returns:
+        List[str]: List of file paths changed in the PR.
+                   Returns empty list on error (with error logged).
+    """
+    try:
+        pr = repo.get_pull(pr_number)
+        files = list(pr.get_files())
+        file_paths = [f.filename for f in files]
+        logger.info(
+            "[GitHub] get_pr_files returned %d files pr_number=%d",
+            len(file_paths), pr_number,
+            extra={"trace_id": trace_id, "file_count": len(file_paths)}
+        )
+        return file_paths
+    except Exception as e:
+        logger.error(
+            "[GitHub] get_pr_files failed: %s pr_number=%d",
+            str(e), pr_number,
+            extra={"trace_id": trace_id, "error": str(e)}
+        )
+        return []
 
 
 def get_pr_diff(
