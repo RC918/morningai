@@ -1148,12 +1148,13 @@ class TestWebhookDeliveryIdempotency:
                     content_type="application/json",
                     headers={
                         "X-GitHub-Event": "issues"
-                        # Note: X-GitHub-Delivery header intentionally omitted
+                        # Note: X-GitHub-Delivery and X-GitHub-Hook-ID headers intentionally omitted
                     }
                 )
                 assert response.status_code == 200
-                # Verify idempotency check was called with "unknown" fallback
-                mock_check.assert_called_once_with("unknown")
+                # Verify idempotency check was called with "unknown" fallback for delivery_id
+                # and empty string for hook_id (Issue #3366: hook_id added to prevent cross-env collision)
+                mock_check.assert_called_once_with("unknown", "")
 
     def test_github_webhook_duplicate_does_not_trigger_normalizer(self, client, mock_normalizer):
         """Should NOT call normalizer when duplicate is detected (no downstream processing)."""
