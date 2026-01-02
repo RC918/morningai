@@ -175,10 +175,12 @@ class RouterMetrics:
         if token_usage:
             log_extra["token_usage"] = token_usage
 
+        # Use %s formatting to avoid MagicMock.__format__ issues in tests
+        # when time.time() is mocked and latency_ms becomes a MagicMock
+        fallback_suffix = f", fallback_reason={fallback_reason}" if fallback_reason else ""
         logger.info(
-            f"[RouterMetrics] Decision recorded: "
-            f"node={chosen_node}, success={success}, latency={latency_ms:.1f}ms"
-            f"{f', fallback_reason={fallback_reason}' if fallback_reason else ''}",
+            "[RouterMetrics] Decision recorded: node=%s, success=%s, latency=%sms%s",
+            chosen_node, success, latency_ms, fallback_suffix,
             extra=log_extra
         )
 
