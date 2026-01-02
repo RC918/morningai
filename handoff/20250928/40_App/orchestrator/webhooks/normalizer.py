@@ -1378,8 +1378,8 @@ class EventNormalizer:
             context["ci_failure_pr_number"] = event.metadata.get("ci_failure_pr_number")
             context["ci_failure_dedup_key"] = event.metadata.get("ci_failure_dedup_key")
             # Issue #3510: Pass CiFailureContext for structured CI error propagation
-            if event.metadata.get("ci_failure_context"):
-                context["ci_failure_context"] = event.metadata.get("ci_failure_context")
+            if ci_context := event.metadata.get("ci_failure_context"):
+                context["ci_failure_context"] = ci_context
 
         return context
 
@@ -1649,18 +1649,32 @@ class EventNormalizer:
         # Issue #3510: Build CiFailureContext for structured CI error propagation
         # This enables AutoFixer to use actual CI error evidence instead of
         # relying on ReviewerAgent judgment (which may use different rules)
-        ci_app_name = metadata.get("ci_app_name", "unknown")
-        ci_failure_context = CiFailureContext(
-            failed_check_name=ci_app_name,
-            conclusion=conclusion,
-            pr_number=pr_number,
-            head_sha=head_sha,
-            head_branch=head_branch,
-            logs_url=metadata.get("ci_logs_url"),
-            error_summary=metadata.get("ci_error_summary"),
-            check_run_id=metadata.get("ci_check_run_id"),
-        )
-        event.metadata["ci_failure_context"] = ci_failure_context
+        # Only build context if required fields are present to avoid brittle behavior
+        if pr_number and head_sha and head_branch and conclusion:
+            ci_app_name = metadata.get("ci_app_name", "unknown")
+            ci_failure_context = CiFailureContext(
+                failed_check_name=ci_app_name,
+                conclusion=conclusion,
+                pr_number=pr_number,
+                head_sha=head_sha,
+                head_branch=head_branch,
+                logs_url=metadata.get("ci_logs_url"),
+                error_summary=metadata.get("ci_error_summary"),
+                check_run_id=metadata.get("ci_check_run_id"),
+            )
+            event.metadata["ci_failure_context"] = ci_failure_context
+        else:
+            logger.warning(
+                "[EventNormalizer] Skipping CiFailureContext - missing required fields",
+                extra={
+                    "operation": "ci_failure_context_skip",
+                    "event_id": event.event_id,
+                    "has_pr_number": bool(pr_number),
+                    "has_head_sha": bool(head_sha),
+                    "has_head_branch": bool(head_branch),
+                    "has_conclusion": bool(conclusion),
+                }
+            )
 
         logger.info(
             "[EventNormalizer] CI failure is actionable - triggering auto-fix",

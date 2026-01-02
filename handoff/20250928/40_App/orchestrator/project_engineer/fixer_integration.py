@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from common.config.settings import Settings
+    from core.flow.schema import CiFailureContext
 
 logger = logging.getLogger(__name__)
 
@@ -300,8 +301,8 @@ class AutoFixer:
                     extra={
                         "trace_id": trace_id,
                         "ci_failure_trigger": True,
-                        "failed_check_name": getattr(ci_failure_context, 'failed_check_name', 'unknown'),
-                        "conclusion": getattr(ci_failure_context, 'conclusion', 'unknown'),
+                        "failed_check_name": ci_failure_context.failed_check_name,
+                        "conclusion": ci_failure_context.conclusion,
                     }
                 )
             else:
@@ -648,7 +649,7 @@ class AutoFixer:
 
     def _build_ci_fix_description(
         self,
-        ci_failure_context: Any,
+        ci_failure_context: "CiFailureContext",
         pr_number: Optional[int],
         changed_files: List[str]
     ) -> str:
@@ -674,11 +675,11 @@ class AutoFixer:
         else:
             parts.append("Fix CI failures found in automated checks.")
 
-        # Extract CI failure details
-        failed_check_name = getattr(ci_failure_context, 'failed_check_name', 'unknown')
-        conclusion = getattr(ci_failure_context, 'conclusion', 'failure')
-        error_summary = getattr(ci_failure_context, 'error_summary', None)
-        logs_url = getattr(ci_failure_context, 'logs_url', None)
+        # Extract CI failure details using direct attribute access
+        failed_check_name = ci_failure_context.failed_check_name
+        conclusion = ci_failure_context.conclusion
+        error_summary = ci_failure_context.error_summary
+        logs_url = ci_failure_context.logs_url
 
         parts.append(f"CI check '{failed_check_name}' failed with conclusion: {conclusion}.")
 

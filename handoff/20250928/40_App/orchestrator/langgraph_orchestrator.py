@@ -7966,8 +7966,8 @@ def run_orchestrator(
         initial_state["ci_failure_trigger"] = True
         initial_state["ci_state"] = "failure"
         # Issue #3510: Pass CiFailureContext for structured CI error propagation
-        if context and context.get("ci_failure_context"):
-            initial_state["ci_failure_context"] = context.get("ci_failure_context")
+        if context and (ci_context := context.get("ci_failure_context")):
+            initial_state["ci_failure_context"] = ci_context
 
     config = _get_workflow_config(trace_id)
 
