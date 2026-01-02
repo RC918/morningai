@@ -399,7 +399,11 @@ class TestSeniorCoderHITLGate:
             assert state.get("requires_hitl_approval") is True
             assert state.get("hitl_approved") is False
             assert state.get("hitl_reason") == "senior_coder_complexity_abort"
-            assert "abort_reason" in state.get("hitl_details", {})
+            hitl_details = state.get("hitl_details", {})
+            assert "abort_reason" in hitl_details
+            # Verify version field for schema compatibility (Issue #3487 review feedback)
+            assert hitl_details.get("version") == "1.0"
+            assert hitl_details.get("escalation_source") == "SeniorCoder"
 
     @patch("coder.senior_coder.get_senior_coder")
     def test_system_error_does_not_set_hitl_flags(self, mock_get_coder):

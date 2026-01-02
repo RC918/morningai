@@ -145,6 +145,19 @@ _postgres_pool = None
 # to avoid race condition in lazy initialization pattern
 _postgres_pool_lock = _threading.Lock()
 
+# EPIC D Issue #3487: System error indicators for SeniorCoder abort classification
+# These patterns distinguish system errors (LLM failures, parsing errors) from
+# genuine complexity aborts that should trigger HITL gate.
+# Note: Uses substring matching (case-insensitive). For structured error types,
+# see follow-up issue for ArchitectureSpec error taxonomy.
+_SENIOR_CODER_SYSTEM_ERROR_INDICATORS = (
+    "JSON parsing failed",
+    "LLM call failed",
+    "parsing error",
+    "timeout",
+    "connection error",
+)
+
 
 def _get_metrics() -> OrchestratorMetrics:
     """Get or initialize the global metrics instance"""
@@ -4190,16 +4203,9 @@ def _attempt_senior_coder_plan(
             # Complexity abort is identified by:
             # 1. spec.should_proceed is False (checked above)
             # 2. abort_reason does NOT indicate a system error
-            system_error_indicators = [
-                "JSON parsing failed",
-                "LLM call failed",
-                "parsing error",
-                "timeout",
-                "connection error",
-            ]
             is_system_error = any(
                 indicator.lower() in abort_reason.lower()
-                for indicator in system_error_indicators
+                for indicator in _SENIOR_CODER_SYSTEM_ERROR_INDICATORS
             )
 
             if state is not None and not is_system_error:
@@ -4209,6 +4215,7 @@ def _attempt_senior_coder_plan(
                 state["hitl_approved"] = False
                 state["hitl_reason"] = "senior_coder_complexity_abort"
                 state["hitl_details"] = {
+                    "version": "1.0",
                     "abort_reason": abort_reason,
                     "task_description": task_description,
                     "file_count": len(files_with_content),
@@ -6358,7 +6365,8 @@ def should_proceed_after_hitl_gate(state: AgentState) -> str:
     """
     trace_id = state.get("trace_id", "unknown")
     hitl_reason = state.get("hitl_reason", "")
-    hitl_approved = state.get("hitl_approved", False)
+    # Use strict boolean check to prevent truthy string values like "False"
+    hitl_approved = state.get("hitl_approved") is True
     metrics = _get_metrics()
 
     # EPIC D Issue #3487: After HITL approval for SeniorCoder complexity abort,
@@ -6399,8 +6407,9 @@ def should_proceed_after_fixer(state: AgentState) -> str:
     Orchestrator EXECUTES, keeping HITL interrupt logic centralized.
     """
     trace_id = state.get("trace_id", "unknown")
-    requires_hitl = state.get("requires_hitl_approval", False)
-    hitl_approved = state.get("hitl_approved", False)
+    # Use strict boolean checks to prevent truthy string values like "False"
+    requires_hitl = state.get("requires_hitl_approval") is True
+    hitl_approved = state.get("hitl_approved") is True
     hitl_reason = state.get("hitl_reason", "")
     metrics = _get_metrics()
 
