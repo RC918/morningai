@@ -283,27 +283,50 @@ class AutoFixer:
                 extra={"trace_id": trace_id}
             )
 
-            review_result = await self._run_reviewer(changed_files, state)
+            # Issue #3510: CI failure mode uses CI evidence instead of ReviewerAgent
+            # When ci_failure_trigger=True, we have actual CI error context and should
+            # use it directly instead of relying on ReviewerAgent judgment (which may
+            # use different rules than CI lint checks)
+            ci_failure_trigger = state.get("ci_failure_trigger", False)
+            ci_failure_context = state.get("ci_failure_context")
 
-            if review_result is None:
-                logger.warning(
-                    "[AutoFixer] ReviewerAgent not available, skipping auto-fix",
-                    extra={"trace_id": trace_id}
+            if ci_failure_trigger is True and ci_failure_context:
+                # CI failure mode: use CI evidence directly
+                fix_description = self._build_ci_fix_description(
+                    ci_failure_context, pr_number, changed_files
                 )
-                state["error"] = "ReviewerAgent not available"
-                return state
-
-            if review_result.passed:
                 logger.info(
-                    "[AutoFixer] Review passed, no fixes needed",
-                    extra={"trace_id": trace_id}
+                    "[AutoFixer] CI failure mode - using CI evidence for fix",
+                    extra={
+                        "trace_id": trace_id,
+                        "ci_failure_trigger": True,
+                        "failed_check_name": getattr(ci_failure_context, 'failed_check_name', 'unknown'),
+                        "conclusion": getattr(ci_failure_context, 'conclusion', 'unknown'),
+                    }
                 )
-                state["error"] = None
-                return state
+            else:
+                # Normal mode: use ReviewerAgent judgment
+                review_result = await self._run_reviewer(changed_files, state)
 
-            fix_description = self._build_fix_task_description(
-                review_result, pr_number, changed_files
-            )
+                if review_result is None:
+                    logger.warning(
+                        "[AutoFixer] ReviewerAgent not available, skipping auto-fix",
+                        extra={"trace_id": trace_id}
+                    )
+                    state["error"] = "ReviewerAgent not available"
+                    return state
+
+                if review_result.passed:
+                    logger.info(
+                        "[AutoFixer] Review passed, no fixes needed",
+                        extra={"trace_id": trace_id}
+                    )
+                    state["error"] = None
+                    return state
+
+                fix_description = self._build_fix_task_description(
+                    review_result, pr_number, changed_files
+                )
 
             logger.info(
                 "[AutoFixer] Generated fix task description: %s",
@@ -617,6 +640,54 @@ class AutoFixer:
                 if suggestion:
                     issue_desc += f" (Suggestion: {suggestion})"
                 parts.append(issue_desc)
+
+        if changed_files:
+            parts.append(f"Files to review: {', '.join(changed_files[:10])}")
+
+        return " ".join(parts)
+
+    def _build_ci_fix_description(
+        self,
+        ci_failure_context: Any,
+        pr_number: Optional[int],
+        changed_files: List[str]
+    ) -> str:
+        """
+        Build a natural language task description from CI failure context.
+
+        Issue #3510: This method uses actual CI error evidence instead of
+        ReviewerAgent judgment, enabling AutoFixer to address the exact
+        errors that caused CI to fail.
+
+        Args:
+            ci_failure_context: CiFailureContext with CI error details
+            pr_number: PR number if available
+            changed_files: List of changed files
+
+        Returns:
+            Task description string
+        """
+        parts = []
+
+        if pr_number:
+            parts.append(f"Fix CI failures for PR #{pr_number}.")
+        else:
+            parts.append("Fix CI failures found in automated checks.")
+
+        # Extract CI failure details
+        failed_check_name = getattr(ci_failure_context, 'failed_check_name', 'unknown')
+        conclusion = getattr(ci_failure_context, 'conclusion', 'failure')
+        error_summary = getattr(ci_failure_context, 'error_summary', None)
+        logs_url = getattr(ci_failure_context, 'logs_url', None)
+
+        parts.append(f"CI check '{failed_check_name}' failed with conclusion: {conclusion}.")
+
+        if error_summary:
+            parts.append(f"Error details: {error_summary}")
+        elif logs_url:
+            parts.append(f"See CI logs for details: {logs_url}")
+        else:
+            parts.append("CI check failed - review the changed files for potential issues.")
 
         if changed_files:
             parts.append(f"Files to review: {', '.join(changed_files[:10])}")
