@@ -591,6 +591,12 @@
     ]
   ],
   [
+    "/api/governance/router-metrics",
+    [
+      "GET"
+    ]
+  ],
+  [
     "/api/governance/statistics",
     [
       "GET"

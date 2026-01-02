@@ -17,6 +17,7 @@ route behavior where functions were called directly from src.main.
 """
 import asyncio
 import logging
+from functools import lru_cache
 
 from flask import Blueprint, jsonify, request
 
@@ -25,6 +26,23 @@ from src.middleware.auth_middleware import admin_required, analyst_required
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("phase456", __name__)
+
+
+@lru_cache(maxsize=1)
+def _get_cached_redis_client(redis_url: str):
+    """Get a cached Redis client to avoid per-request object churn.
+
+    Issue #3486: RouterMetrics Operationalization Gap
+    Reviewer feedback: Creating new Redis client on every API request is inefficient.
+
+    Args:
+        redis_url: Redis connection URL
+
+    Returns:
+        Redis client instance (cached)
+    """
+    import redis
+    return redis.from_url(redis_url)
 
 
 def _get_main():
@@ -140,6 +158,67 @@ def create_governance_policy():
         loop.close()
         return jsonify(result)
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/api/governance/router-metrics", methods=["GET"])
+@analyst_required
+def get_router_metrics():
+    """Get router metrics summary for Flow Controller v3.
+
+    Issue #3486: RouterMetrics Operationalization Gap
+    EPIC C: Flow Controller v3 - LLM-driven Dynamic Routing
+
+    Returns router decision metrics including:
+    - total_decisions: Total routing decisions in the time window
+    - success_rate: Percentage of successful routing decisions
+    - fallback_rate: Percentage of fallback decisions
+    - average_latency_ms: Average routing decision latency
+    - latency_p99_ms: 99th percentile latency
+    - node_distribution: Distribution of decisions by target node
+    - decision_mode_distribution: Distribution by decision mode (fast_path, slow_path, etc.)
+
+    Query Parameters:
+        window_minutes (int): Time window in minutes (default: 15, max: 60)
+
+    Returns:
+        JSON object with router metrics summary
+    """
+    try:
+        from common.config.settings import settings
+
+        window_minutes = request.args.get("window_minutes", 15, type=int)
+        window_minutes = min(max(window_minutes, 1), 60)
+
+        redis_url = getattr(settings, "REDIS_URL", None)
+        if not redis_url:
+            return jsonify({
+                "enabled": False,
+                "message": "Redis not configured - router metrics unavailable"
+            }), 200
+
+        try:
+            from metrics import CanaryMetrics
+
+            redis_client = _get_cached_redis_client(redis_url)
+            canary_metrics = CanaryMetrics(redis_client=redis_client)
+            result = canary_metrics.get_router_metrics_summary(window_minutes)
+            return jsonify(result)
+        except ImportError as e:
+            logger.warning(f"Failed to import metrics dependencies: {e}")
+            return jsonify({
+                "enabled": False,
+                "message": "Metrics dependencies not available"
+            }), 200
+        except Exception as e:
+            logger.error(f"Failed to get router metrics: {e}")
+            return jsonify({
+                "enabled": True,
+                "error": str(e)
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Router metrics endpoint error: {e}")
         return jsonify({"error": str(e)}), 500
 
 

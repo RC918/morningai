@@ -976,10 +976,10 @@ class TestMetricsVersion:
         assert "metrics_version" in summary
         assert summary["metrics_version"] == METRICS_VERSION
 
-    def test_metrics_version_is_v1(self):
-        """Test that current metrics version is v1."""
+    def test_metrics_version_is_v2(self):
+        """Test that current metrics version is v2 (added decision_mode in Issue #3486)."""
         from core.flow.router_metrics import METRICS_VERSION
-        assert METRICS_VERSION == "v1"
+        assert METRICS_VERSION == "v2"
 
 
 # =============================================================================

@@ -718,6 +718,286 @@ class CanaryMetrics:
             logger.warning(f"Failed to get all providers health: {e}")
             return {"enabled": True, "error": str(e)}
 
+    # Issue #3486: Router Metrics for Flow Controller v3
+    def record_router_decision(
+        self,
+        next_node: str,
+        success: bool,
+        latency_ms: float,
+        decision_mode: str,
+        fallback_reason: Optional[str] = None
+    ) -> None:
+        """
+        Record a router decision for cross-process metrics
+
+        Issue #3486: RouterMetrics Operationalization Gap
+        EPIC C: Flow Controller v3 - LLM-driven Dynamic Routing
+
+        Args:
+            next_node: The node selected by the router (fixer, publisher, executor, decision)
+            success: Whether the routing decision was successful
+            latency_ms: Decision latency in milliseconds
+            decision_mode: How the decision was made (fast_path, slow_path, ci_failure_fast_path, outer_fallback)
+            fallback_reason: Reason for fallback if success=False
+        """
+        if not self.enabled:
+            return
+
+        try:
+            # Total decisions counter
+            self.incr_counter("router.decisions")
+
+            # Per-node counter
+            self.incr_counter(f"router.node.{next_node}")
+
+            # Per-mode counter
+            self.incr_counter(f"router.mode.{decision_mode}")
+
+            # Success/fallback counters
+            if success:
+                self.incr_counter("router.success")
+            else:
+                self.incr_counter("router.fallbacks")
+                if fallback_reason:
+                    self.incr_counter(f"router.fallback.{fallback_reason}")
+
+            # Latency recording (using histogram buckets)
+            self._record_router_latency(latency_ms)
+
+        except Exception as e:
+            logger.warning(f"Failed to record router decision: {e}")
+
+    def _record_router_latency(self, latency_ms: float) -> None:
+        """
+        Record router latency in histogram buckets
+
+        Issue #3486: RouterMetrics Operationalization Gap
+        """
+        try:
+            # Find the appropriate bucket
+            target_bucket = None
+            for bucket in self.buckets_ms:
+                if latency_ms <= bucket:
+                    target_bucket = bucket
+                    break
+
+            bucket_label = str(target_bucket) if target_bucket else "inf"
+            bucket_key = self._get_minute_key(f"router.latency.bucket_{bucket_label}")
+            sum_key = self._get_minute_key("router.latency.sum")
+            count_key = self._get_minute_key("router.latency.count")
+
+            with self.redis.pipeline(transaction=True) as pipe:
+                pipe.set(bucket_key, 0, ex=self.ttl_seconds, nx=True)
+                pipe.incr(bucket_key)
+                pipe.set(sum_key, 0, ex=self.ttl_seconds, nx=True)
+                pipe.incrbyfloat(sum_key, latency_ms)
+                pipe.set(count_key, 0, ex=self.ttl_seconds, nx=True)
+                pipe.incr(count_key)
+                pipe.execute()
+
+        except Exception as e:
+            logger.warning(f"Failed to record router latency: {e}")
+
+    def get_router_metrics_summary(self, window_minutes: int = 15) -> dict:
+        """
+        Get router metrics summary for API endpoint
+
+        Issue #3486: RouterMetrics Operationalization Gap
+        EPIC C: Flow Controller v3 - LLM-driven Dynamic Routing
+
+        Args:
+            window_minutes: Time window in minutes (default: 15)
+
+        Returns:
+            Dict with router metrics summary
+        """
+        if not self.enabled:
+            return {"enabled": False, "message": "Canary metrics disabled"}
+
+        try:
+            total_decisions = self.get_window_counts("router.decisions", window_minutes)
+            total_success = self.get_window_counts("router.success", window_minutes)
+            total_fallbacks = self.get_window_counts("router.fallbacks", window_minutes)
+
+            # Per-node breakdown
+            nodes = ["fixer", "publisher", "executor", "decision"]
+            node_counts = {}
+            for node in nodes:
+                count = self.get_window_counts(f"router.node.{node}", window_minutes)
+                if count > 0:
+                    node_counts[node] = count
+
+            # Per-mode breakdown
+            modes = ["fast_path", "slow_path", "ci_failure_fast_path", "outer_fallback"]
+            mode_counts = {}
+            for mode in modes:
+                count = self.get_window_counts(f"router.mode.{mode}", window_minutes)
+                if count > 0:
+                    mode_counts[mode] = count
+
+            # Per-fallback-reason breakdown
+            fallback_reasons = ["llm_fallback", "router_exception", "llm_error", "timeout"]
+            fallback_counts = {}
+            for reason in fallback_reasons:
+                count = self.get_window_counts(f"router.fallback.{reason}", window_minutes)
+                if count > 0:
+                    fallback_counts[reason] = count
+
+            # Calculate rates
+            success_rate = (total_success / total_decisions * 100) if total_decisions > 0 else 0
+            fallback_rate = (total_fallbacks / total_decisions * 100) if total_decisions > 0 else 0
+
+            # Calculate latency percentiles
+            latency_percentiles = self._get_router_latency_percentiles(window_minutes)
+
+            # Calculate average latency
+            avg_latency = self._get_router_average_latency(window_minutes)
+
+            return {
+                "enabled": True,
+                "window_minutes": window_minutes,
+                "timestamp": datetime.utcnow().isoformat(),
+                "total_decisions": total_decisions,
+                "successes": total_success,
+                "fallbacks": total_fallbacks,
+                "success_rate": round(success_rate, 2),
+                "fallback_rate": round(fallback_rate, 2),
+                "average_latency_ms": round(avg_latency, 2) if avg_latency else None,
+                "latency_p50_ms": latency_percentiles.get("p50"),
+                "latency_p90_ms": latency_percentiles.get("p90"),
+                "latency_p95_ms": latency_percentiles.get("p95"),
+                "latency_p99_ms": latency_percentiles.get("p99"),
+                "node_distribution": node_counts,
+                "decision_mode_distribution": mode_counts,
+                "fallback_distribution": fallback_counts,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get router metrics summary: {e}")
+            return {"enabled": True, "error": str(e)}
+
+    def _get_router_latency_percentiles(self, window_minutes: int = 15) -> dict:
+        """
+        Calculate router latency percentiles from histogram buckets
+
+        Issue #3486: RouterMetrics Operationalization Gap
+
+        Uses Redis pipeline to batch all GET operations in a single round trip
+        to reduce network overhead (reviewer feedback).
+        """
+        try:
+            now = datetime.utcnow()
+            minute_keys = [now - timedelta(minutes=i) for i in range(window_minutes)]
+
+            # Use pipeline to batch all bucket key fetches
+            bucket_counts = {}
+            with self.redis.pipeline(transaction=False) as pipe:
+                # Queue all bucket keys for all minutes
+                for bucket in self.buckets_ms:
+                    for mk in minute_keys:
+                        key = self._get_minute_key(f"router.latency.bucket_{bucket}", mk)
+                        pipe.get(key)
+
+                # Queue inf bucket keys
+                for mk in minute_keys:
+                    key = self._get_minute_key("router.latency.bucket_inf", mk)
+                    pipe.get(key)
+
+                results = pipe.execute()
+
+            # Parse results: first (len(buckets_ms) * window_minutes) are bucket results
+            idx = 0
+            total = 0
+            for bucket in self.buckets_ms:
+                bucket_total = 0
+                for _ in minute_keys:
+                    val = results[idx]
+                    if val:
+                        bucket_total += int(val)
+                    idx += 1
+                bucket_counts[bucket] = bucket_total
+                total += bucket_total
+
+            # Parse inf bucket results
+            inf_total = 0
+            for _ in minute_keys:
+                val = results[idx]
+                if val:
+                    inf_total += int(val)
+                idx += 1
+            bucket_counts["inf"] = inf_total
+            total += inf_total
+
+            if total == 0:
+                return {"p50": None, "p90": None, "p95": None, "p99": None}
+
+            # Calculate percentiles using cumulative distribution
+            targets = [50, 90, 95, 99]
+            percentiles = {"p50": None, "p90": None, "p95": None, "p99": None}
+            target_idx = 0
+            cumulative = 0
+
+            for bucket in sorted(self.buckets_ms):
+                cumulative += bucket_counts[bucket]
+                cumulative_pct = (cumulative / total) * 100.0
+
+                while target_idx < len(targets) and cumulative_pct >= targets[target_idx]:
+                    percentiles[f"p{targets[target_idx]}"] = float(bucket)
+                    target_idx += 1
+
+                if target_idx >= len(targets):
+                    break
+
+            return percentiles
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate router latency percentiles: {e}")
+            return {"p50": None, "p90": None, "p95": None, "p99": None}
+
+    def _get_router_average_latency(self, window_minutes: int = 15) -> Optional[float]:
+        """
+        Calculate router average latency from sum and count
+
+        Issue #3486: RouterMetrics Operationalization Gap
+
+        Uses Redis pipeline to batch all GET operations in a single round trip
+        to reduce network overhead (reviewer feedback).
+        """
+        try:
+            now = datetime.utcnow()
+
+            # Use pipeline to batch all sum/count key fetches
+            with self.redis.pipeline(transaction=False) as pipe:
+                for i in range(window_minutes):
+                    ts = now - timedelta(minutes=i)
+                    sum_key = self._get_minute_key("router.latency.sum", ts)
+                    count_key = self._get_minute_key("router.latency.count", ts)
+                    pipe.get(sum_key)
+                    pipe.get(count_key)
+
+                results = pipe.execute()
+
+            # Parse results: alternating sum, count values
+            total_sum = 0.0
+            total_count = 0
+            for i in range(window_minutes):
+                sum_val = results[i * 2]
+                count_val = results[i * 2 + 1]
+
+                if sum_val:
+                    total_sum += float(sum_val)
+                if count_val:
+                    total_count += int(count_val)
+
+            if total_count == 0:
+                return None
+
+            return total_sum / total_count
+
+        except Exception as e:
+            logger.warning(f"Failed to calculate router average latency: {e}")
+            return None
+
 
 def create_canary_metrics(redis_client: redis.Redis, enabled: bool = True) -> CanaryMetrics:
     """

@@ -42,7 +42,17 @@ logger = logging.getLogger(__name__)
 
 
 # Metrics schema version for safe evolution
-METRICS_VERSION = "v1"
+# v2: Added decision_mode field and decision_mode_distribution to summary (Issue #3486)
+METRICS_VERSION = "v2"
+
+
+class DecisionMode:
+    """Constants for decision mode (for metrics)."""
+
+    FAST_PATH = "fast_path"
+    SLOW_PATH = "slow_path"
+    CI_FAILURE_FAST_PATH = "ci_failure_fast_path"
+    OUTER_FALLBACK = "outer_fallback"
 
 
 @dataclass
@@ -61,6 +71,7 @@ class RouterDecisionRecord:
     fallback_reason: Optional[str] = None
     token_usage: Optional[int] = None
     cost_estimate: Optional[float] = None
+    decision_mode: Optional[str] = None  # fast_path, slow_path, ci_failure_fast_path, outer_fallback
 
 
 class RouterMetrics:
@@ -101,18 +112,22 @@ class RouterMetrics:
         chosen_node: str,
         fallback_reason: Optional[str] = None,
         token_usage: Optional[int] = None,
-        cost_estimate: Optional[float] = None
+        cost_estimate: Optional[float] = None,
+        decision_mode: Optional[str] = None
     ) -> None:
         """Record a single routing decision.
 
         Args:
             trace_id: Unique identifier for the trace
             latency_ms: Decision latency in milliseconds
-            success: Whether the LLM decision was successful
+            success: Whether the LLM decision was successful (for slow path)
+                     or whether the decision completed without error (for fast path)
             chosen_node: The node that was selected
             fallback_reason: Reason for fallback (if success=False)
             token_usage: Number of tokens used (if available)
             cost_estimate: Estimated cost in USD (if available)
+            decision_mode: How the decision was made (fast_path, slow_path,
+                          ci_failure_fast_path, outer_fallback)
         """
         record = RouterDecisionRecord(
             trace_id=trace_id,
@@ -122,7 +137,8 @@ class RouterMetrics:
             chosen_node=chosen_node,
             fallback_reason=fallback_reason,
             token_usage=token_usage,
-            cost_estimate=cost_estimate
+            cost_estimate=cost_estimate,
+            decision_mode=decision_mode
         )
 
         with self._lock:
@@ -159,10 +175,12 @@ class RouterMetrics:
         if token_usage:
             log_extra["token_usage"] = token_usage
 
+        # Use %s formatting to avoid MagicMock.__format__ issues in tests
+        # when time.time() is mocked and latency_ms becomes a MagicMock
+        fallback_suffix = f", fallback_reason={fallback_reason}" if fallback_reason else ""
         logger.info(
-            f"[RouterMetrics] Decision recorded: "
-            f"node={chosen_node}, success={success}, latency={latency_ms:.1f}ms"
-            f"{f', fallback_reason={fallback_reason}' if fallback_reason else ''}",
+            "[RouterMetrics] Decision recorded: node=%s, success=%s, latency=%sms%s",
+            chosen_node, success, latency_ms, fallback_suffix,
             extra=log_extra
         )
 
@@ -222,6 +240,72 @@ class RouterMetrics:
 
             return sum(r.latency_ms for r in recent_records) / len(recent_records)
 
+    def get_latency_p99(self, window_minutes: int = 60) -> Optional[float]:
+        """Get the 99th percentile latency within a time window.
+
+        Args:
+            window_minutes: Time window in minutes (default: 60)
+
+        Returns:
+            99th percentile latency in milliseconds, or None if no data
+        """
+        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+
+        with self._lock:
+            recent_records = [
+                r for r in self._records
+                if r.timestamp >= cutoff
+            ]
+
+            if not recent_records:
+                return None
+
+            latencies = sorted(r.latency_ms for r in recent_records)
+            n = len(latencies)
+
+            if n < 100:
+                return latencies[-1]
+
+            p99_index = int(n * 0.99)
+            return latencies[min(p99_index, n - 1)]
+
+    def get_latency_percentiles(
+        self,
+        window_minutes: int = 60
+    ) -> Dict[str, Optional[float]]:
+        """Get latency percentiles (p50, p90, p95, p99) within a time window.
+
+        Args:
+            window_minutes: Time window in minutes (default: 60)
+
+        Returns:
+            Dict with p50, p90, p95, p99 in milliseconds (None if no data)
+        """
+        cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
+
+        with self._lock:
+            recent_records = [
+                r for r in self._records
+                if r.timestamp >= cutoff
+            ]
+
+            if not recent_records:
+                return {"p50": None, "p90": None, "p95": None, "p99": None}
+
+            latencies = sorted(r.latency_ms for r in recent_records)
+            n = len(latencies)
+
+            def percentile(p: float) -> float:
+                idx = int(n * p / 100)
+                return latencies[min(idx, n - 1)]
+
+            return {
+                "p50": percentile(50),
+                "p90": percentile(90),
+                "p95": percentile(95),
+                "p99": percentile(99),
+            }
+
     def get_fallback_distribution(
         self,
         window_minutes: int = 60
@@ -271,7 +355,7 @@ class RouterMetrics:
             window_minutes: Time window in minutes (default: 60)
 
         Returns:
-            Dict with summary metrics
+            Dict with summary metrics including latency percentiles
         """
         cutoff = datetime.utcnow() - timedelta(minutes=window_minutes)
 
@@ -305,10 +389,32 @@ class RouterMetrics:
             # try to acquire the lock again)
             fallback_dist: Dict[str, int] = defaultdict(int)
             node_dist: Dict[str, int] = defaultdict(int)
+            mode_dist: Dict[str, int] = defaultdict(int)
             for r in recent_records:
                 node_dist[r.chosen_node] += 1
                 if r.fallback_reason:
                     fallback_dist[r.fallback_reason] += 1
+                if r.decision_mode:
+                    mode_dist[r.decision_mode] += 1
+
+            # Compute latency percentiles inline
+            latency_percentiles: Dict[str, Optional[float]] = {
+                "p50": None, "p90": None, "p95": None, "p99": None
+            }
+            if recent_records:
+                latencies = sorted(r.latency_ms for r in recent_records)
+                n = len(latencies)
+
+                def percentile(p: float) -> float:
+                    idx = int(n * p / 100)
+                    return latencies[min(idx, n - 1)]
+
+                latency_percentiles = {
+                    "p50": percentile(50),
+                    "p90": percentile(90),
+                    "p95": percentile(95),
+                    "p99": percentile(99),
+                }
 
             return {
                 "metrics_version": METRICS_VERSION,
@@ -319,10 +425,15 @@ class RouterMetrics:
                 "success_rate": successes / total if total > 0 else 0.0,
                 "fallback_rate": fallbacks / total if total > 0 else 0.0,
                 "average_latency_ms": avg_latency,
+                "latency_p50_ms": latency_percentiles["p50"],
+                "latency_p90_ms": latency_percentiles["p90"],
+                "latency_p95_ms": latency_percentiles["p95"],
+                "latency_p99_ms": latency_percentiles["p99"],
                 "total_tokens": total_tokens,
                 "total_cost_usd": total_cost,
                 "fallback_distribution": dict(fallback_dist),
                 "node_distribution": dict(node_dist),
+                "decision_mode_distribution": dict(mode_dist),
             }
 
     def get_all_time_summary(self) -> dict:
