@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class HITLApprovalSystem:
     """Stub for Human-in-the-Loop approval system."""
-    
+
     def __init__(self, telegram_bot_token=None, admin_chat_id=None):
         """Initialize HITL approval system (stub)."""
         self.telegram_bot_token = telegram_bot_token
@@ -87,6 +87,95 @@ class SimpleGitTool:
                 'error': result.stderr if result.returncode != 0 else None
             }
         except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    async def create_pr(
+        self, title: str, body: str
+    ) -> Dict[str, Any]:
+        """
+        Commit and push changes to the current branch.
+
+        For AutoFixer scenarios where a PR already exists, this method:
+        1. Stages all modified files
+        2. Commits with the provided title as commit message
+        3. Pushes to the current branch
+
+        Args:
+            title: Used as commit message
+            body: Included in commit message body
+
+        Returns:
+            Dict with success status. Note: pr_number and pr_url are not
+            returned since we're pushing to an existing PR branch.
+        """
+        try:
+            cwd = os.getcwd()
+
+            status_result = subprocess.run(
+                ['git', 'status', '--porcelain'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if not status_result.stdout.strip():
+                logger.warning("[SimpleGitTool] No changes to commit")
+                return {
+                    'success': False,
+                    'error': 'No changes to commit'
+                }
+
+            add_result = subprocess.run(
+                ['git', 'add', '-A'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if add_result.returncode != 0:
+                logger.error(f"[SimpleGitTool] git add failed: {add_result.stderr}")
+                return {
+                    'success': False,
+                    'error': f'git add failed: {add_result.stderr}'
+                }
+
+            commit_message = f"{title}\n\n{body}" if body else title
+            commit_result = subprocess.run(
+                ['git', 'commit', '-m', commit_message],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if commit_result.returncode != 0:
+                logger.error(f"[SimpleGitTool] git commit failed: {commit_result.stderr}")
+                return {
+                    'success': False,
+                    'error': f'git commit failed: {commit_result.stderr}'
+                }
+
+            logger.info(f"[SimpleGitTool] Committed: {title}")
+
+            push_result = subprocess.run(
+                ['git', 'push'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if push_result.returncode != 0:
+                logger.error(f"[SimpleGitTool] git push failed: {push_result.stderr}")
+                return {
+                    'success': False,
+                    'error': f'git push failed: {push_result.stderr}'
+                }
+
+            logger.info("[SimpleGitTool] Pushed changes to remote")
+
+            return {
+                'success': True,
+                'output': commit_result.stdout,
+                'commit_pushed': True
+            }
+
+        except Exception as e:
+            logger.error(f"[SimpleGitTool] create_pr failed: {e}")
             return {'success': False, 'error': str(e)}
 
 
