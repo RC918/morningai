@@ -28,14 +28,14 @@ executed sequentially by pushing commits that intentionally fail lint/type check
 **File:** `probe2_complexity/hardcoded_logic.py`
 **Scenario:** Request Strategy Pattern refactor (complex architectural change).
 **Expected:** SeniorCoder marks as complex, triggers HITL gate.
-**Log Keywords:** `[SENIOR_CODER_PLAN_ATTEMPT]`, `[SENIOR_CODER_PLAN_COMPLEX]`
+**Log Keywords:** `[SENIOR_CODER_PLAN_ATTEMPT]`, `[SENIOR_CODER_PLAN_COMPLEX]`, `[SENIOR_CODER_HITL_ESCALATION]`
 
 ### Probe 3: Syntax Safety Guardrail
 **Purpose:** Verify GeneralCoder's syntax validation prevents bad commits.
 **File:** `probe3_safety/syntax_trap.py`
 **Scenario:** File with subtle issue that might cause LLM to generate invalid syntax.
 **Expected:** GeneralCoder skips (no bad commit), logs syntax abort.
-**Log Keywords:** `[GENERAL_CODER_SKIP]`, `[CODER_SYNTAX_ABORT]`
+**Log Keywords:** `[GENERAL_CODER_SKIP]`, `[CODER_SYNTAX_ABORT]`, `[GENERAL_CODER_SYNTAX_ABORT]`
 
 ## Observability
 
