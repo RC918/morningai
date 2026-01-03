@@ -2441,6 +2441,12 @@ class AgentState(TypedDict):
     # Set by run_orchestrator() when CI failure webhook triggers auto-fix flow.
     # When True, workflow routes directly to fixer_node for auto-fix without planner.
     ci_failure_trigger: Optional[bool]
+    # Issue #3529: CI Failure Context for AutoFixer
+    # Set by run_orchestrator() when CI failure webhook provides structured error context.
+    # Contains CiFailureContext.to_dict() with failed_check_name, conclusion, pr_number,
+    # head_sha, head_branch, logs_url, error_summary, check_run_id.
+    # Used by fixer_integration.py to use CI evidence directly instead of ReviewerAgent.
+    ci_failure_context: Optional[dict]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
