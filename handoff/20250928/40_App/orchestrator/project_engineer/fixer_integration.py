@@ -17,9 +17,10 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from core.flow.schema import CiFailureContext
+
 if TYPE_CHECKING:
     from common.config.settings import Settings
-    from core.flow.schema import CiFailureContext
 
 logger = logging.getLogger(__name__)
 
