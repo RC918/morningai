@@ -908,7 +908,7 @@ class TestSlackRateLimiting:
         mock_redis = MagicMock()
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
 
-        now = time.time()
+        now = time.monotonic()
         for i in range(10):
             recorder._alert_timestamps.append(now - i)
 
@@ -920,7 +920,7 @@ class TestSlackRateLimiting:
         mock_redis = MagicMock()
         recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
 
-        old_time = time.time() - 120
+        old_time = time.monotonic() - 120
         for i in range(10):
             recorder._alert_timestamps.append(old_time - i)
 
@@ -935,7 +935,7 @@ class TestSlackRateLimiting:
         with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
             recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
 
-            now = time.time()
+            now = time.monotonic()
             for i in range(10):
                 recorder._alert_timestamps.append(now - i)
 

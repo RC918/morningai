@@ -178,11 +178,12 @@ class FailureRecorder:
         Check if Slack alerting is rate limited (Issue #3517).
 
         Uses a sliding window algorithm to enforce max 10 alerts per minute.
+        Uses time.monotonic() to avoid issues with clock adjustments (NTP, etc).
 
         Returns:
             True if rate limited (should skip alert), False otherwise
         """
-        now = time.time()
+        now = time.monotonic()
         window_start = now - SLACK_RATE_LIMIT_WINDOW_SECONDS
 
         # Remove timestamps outside the window
@@ -232,12 +233,11 @@ class FailureRecorder:
                 failure.goal[:200] + "..." if len(failure.goal) > 200 else failure.goal
             )
 
-            # Build dashboard link (if available)
-            dashboard_url = os.environ.get(
-                "FAILURE_DASHBOARD_URL",
-                "https://morningai-worker-dashboard.onrender.com"
-            )
-            failure_link = f"{dashboard_url}/failures/{failure.id}"
+            # Format created_at with explicit UTC suffix for clarity
+            created_at_display = f"{failure.created_at} UTC"
+
+            # Build dashboard link (only if FAILURE_DASHBOARD_URL is configured)
+            dashboard_url = os.environ.get("FAILURE_DASHBOARD_URL")
 
             payload = {
                 "text": ":warning: Workflow Failure Recorded",
@@ -279,35 +279,40 @@ class FailureRecorder:
                         }
                     },
                     {
-                        "type": "actions",
-                        "elements": [
-                            {
-                                "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "View Failure Details",
-                                    "emoji": True
-                                },
-                                "url": failure_link,
-                                "action_id": "view_failure"
-                            }
-                        ]
-                    },
-                    {
                         "type": "context",
                         "elements": [
                             {
                                 "type": "mrkdwn",
-                                "text": f"Failure ID: `{failure.id}` | Recorded at: {failure.created_at}"
+                                "text": f"Failure ID: `{failure.id}` | Recorded at: {created_at_display}"
                             }
                         ]
                     }
                 ]
             }
 
+            # Add dashboard link button only if FAILURE_DASHBOARD_URL is configured
+            if dashboard_url:
+                failure_link = f"{dashboard_url}/failures/{failure.id}"
+                payload["blocks"].insert(3, {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "View Failure Details",
+                                "emoji": True
+                            },
+                            "url": failure_link,
+                            "action_id": "view_failure"
+                        }
+                    ]
+                })
+
             # Add PR URL if available
             if failure.pr_url:
-                payload["blocks"].insert(3, {
+                insert_index = 4 if dashboard_url else 3
+                payload["blocks"].insert(insert_index, {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
@@ -324,8 +329,8 @@ class FailureRecorder:
                 )
                 response.raise_for_status()
 
-            # Record timestamp for rate limiting
-            self._alert_timestamps.append(time.time())
+            # Record timestamp for rate limiting (using monotonic time)
+            self._alert_timestamps.append(time.monotonic())
 
             logger.info(
                 "[FailureRecorder] Slack alert sent successfully",
