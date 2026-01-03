@@ -31,3 +31,4 @@ def validate_ci_pipeline(value: int) -> int:
 # Trigger CI re-run after PR #3530 fix (ci_failure_context in AgentState)
 # Trigger CI re-run after PR #3532 fix (worker PYTHONPATH with project root)
 
+# Trigger CI re-run after confirmed Start Command PYTHONPATH fix
