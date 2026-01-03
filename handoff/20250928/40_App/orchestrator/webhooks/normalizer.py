@@ -1638,7 +1638,9 @@ class EventNormalizer:
         """
         Check if manual fix command is rate limited.
 
-        Uses Redis INCR with TTL for atomic rate limiting across workers.
+        Uses atomic Lua script from utils/rate_limit.py for race-safe rate limiting.
+        This prevents the race condition where INCR and EXPIRE are not atomic,
+        which could cause permanent rate limiting if worker crashes between calls.
 
         Args:
             rate_limit_key: Key for rate limiting (repo:pr)
@@ -1656,14 +1658,22 @@ class EventNormalizer:
         try:
             redis_client = self._get_redis_client_for_dedup()
             if redis_client:
-                # Atomic INCR - returns new count after increment
-                current_count = redis_client.incr(redis_key)
+                # Use atomic Lua script for race-safe rate limiting (Issue #2943 pattern)
+                # This prevents the race condition where INCR and EXPIRE are not atomic
+                from utils.rate_limit import _atomic_rate_limit_check
 
-                # Refresh TTL on every access for sliding window rate limiting
-                # This ensures the window is 1 hour from the most recent trigger
-                redis_client.expire(redis_key, self._MANUAL_FIX_RATE_LIMIT_TTL_SECONDS)
+                result = _atomic_rate_limit_check(
+                    r=redis_client,
+                    key=redis_key,
+                    max_limit=self._MANUAL_FIX_RATE_LIMIT_MAX,
+                    expiry_seconds=self._MANUAL_FIX_RATE_LIMIT_TTL_SECONDS,
+                    trace_id=event_id,
+                    context_id=f"{repo}:{pr_number}",
+                    operation="manual_fix_rate_limit"
+                )
 
-                is_rate_limited = current_count > self._MANUAL_FIX_RATE_LIMIT_MAX
+                is_rate_limited = not result.allowed
+                current_count = result.current_count
 
                 logger.debug(
                     "[EventNormalizer] Manual fix rate limit check",

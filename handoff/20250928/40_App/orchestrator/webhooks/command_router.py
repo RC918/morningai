@@ -271,10 +271,9 @@ class CommandRouter:
 
         # P7: Build CommandTrigger
         # Extract comment_id for dedup (Issue #3518)
+        # Use safer .get() pattern to handle cases where comment exists but is not a dict
         raw = event.raw_payload or {}
-        comment_id = None
-        if "comment" in raw and "id" in raw["comment"]:
-            comment_id = raw["comment"]["id"]
+        comment_id = (raw.get("comment") or {}).get("id")
 
         trigger = CommandTrigger(
             command_type=command_type,
