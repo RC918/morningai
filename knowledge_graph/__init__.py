@@ -10,7 +10,6 @@
 # We must explicitly import submodules to make them available as attributes.
 
 import sys
-from agents.dev_agent import knowledge_graph as _kg
 
 # Re-export all public names from the actual package
 from agents.dev_agent.knowledge_graph import *  # noqa: F401,F403
