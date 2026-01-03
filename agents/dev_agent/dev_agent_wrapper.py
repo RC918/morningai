@@ -95,18 +95,25 @@ class SimpleGitTool:
         """
         Commit and push changes to the current branch.
 
-        For AutoFixer scenarios where a PR already exists, this method:
-        1. Stages all modified files
-        2. Commits with the provided title as commit message
-        3. Pushes to the current branch
+        NOTE: This method name matches the interface expected by
+        CodeGenerationWorkflow but does NOT create a new GitHub PR.
+        For AutoFixer scenarios, the PR already exists and this method
+        commits and pushes fixes to the existing PR branch.
+
+        Steps:
+        1. Check for uncommitted changes
+        2. Stage all modified files
+        3. Commit with the provided title as commit message
+        4. Push to the current branch
 
         Args:
-            title: Used as commit message
+            title: Used as commit message subject
             body: Included in commit message body
 
         Returns:
-            Dict with success status. Note: pr_number and pr_url are not
-            returned since we're pushing to an existing PR branch.
+            Dict with success status, commit_sha, and branch name.
+            Note: pr_number and pr_url are not returned since we're
+            pushing to an existing PR branch, not creating a new PR.
         """
         try:
             cwd = os.getcwd()
@@ -118,10 +125,11 @@ class SimpleGitTool:
                 cwd=cwd
             )
             if not status_result.stdout.strip():
-                logger.warning("[SimpleGitTool] No changes to commit")
+                logger.info("[SimpleGitTool] No changes to commit (no-op)")
                 return {
-                    'success': False,
-                    'error': 'No changes to commit'
+                    'success': True,
+                    'commit_pushed': False,
+                    'output': 'No changes to commit'
                 }
 
             add_result = subprocess.run(
@@ -151,7 +159,23 @@ class SimpleGitTool:
                     'error': f'git commit failed: {commit_result.stderr}'
                 }
 
-            logger.info(f"[SimpleGitTool] Committed: {title}")
+            sha_result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            commit_sha = sha_result.stdout.strip() if sha_result.returncode == 0 else None
+
+            branch_result = subprocess.run(
+                ['git', 'branch', '--show-current'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            branch = branch_result.stdout.strip() if branch_result.returncode == 0 else None
+
+            logger.info(f"[SimpleGitTool] Committed {commit_sha[:8] if commit_sha else 'unknown'}: {title}")
 
             push_result = subprocess.run(
                 ['git', 'push'],
@@ -166,12 +190,14 @@ class SimpleGitTool:
                     'error': f'git push failed: {push_result.stderr}'
                 }
 
-            logger.info("[SimpleGitTool] Pushed changes to remote")
+            logger.info(f"[SimpleGitTool] Pushed to branch '{branch}'")
 
             return {
                 'success': True,
-                'output': commit_result.stdout,
-                'commit_pushed': True
+                'commit_pushed': True,
+                'commit_sha': commit_sha,
+                'branch': branch,
+                'output': f'Committed and pushed {commit_sha[:8] if commit_sha else "changes"} to {branch}'
             }
 
         except Exception as e:
