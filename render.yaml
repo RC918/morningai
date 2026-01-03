@@ -99,6 +99,9 @@ services:
       python -c "import httpx, websockets, supabase; print(f'httpx={httpx.__version__}, websockets={websockets.__version__}, supabase={supabase.__version__}')"
     startCommand: cd handoff/20250928/40_App/orchestrator && python redis_queue/worker.py
     envVars:
+      # Issue #3531: Add PYTHONPATH for DevAgent imports (knowledge_graph module)
+      - key: PYTHONPATH
+        value: /opt/render/project/src/handoff/20250928/40_App:/opt/render/project/src/handoff/20250928/40_App/api-backend/src:/opt/render/project/src/agents/dev_agent
       - key: REDIS_URL
         sync: false
       - key: SENTRY_DSN
