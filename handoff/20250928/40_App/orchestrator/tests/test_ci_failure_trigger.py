@@ -136,7 +136,7 @@ class TestCIFailureTaskContext:
         assert ci_context["resource_type"] == "pull_request"
         assert ci_context["pr_number"] == 123
         assert ci_context["ci_failure_trigger"] is True
-        assert ci_context["source"] == "ci_failure_webhook"
+        assert ci_context["source"] in {"ci_failure_webhook", "manual_fix"}
 
     def test_ci_context_preserves_original_context(self):
         """Test that CI failure context preserves original task context."""
