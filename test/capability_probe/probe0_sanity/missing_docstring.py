@@ -1,13 +1,13 @@
 """
 Probe 0: Sanity Check - Single File AutoFixer Test
 
-This file intentionally has a function missing a docstring.
-When CI runs flake8 with D100/D103 rules, it should fail.
-SimpleCoder should be able to add the missing docstring.
+This file intentionally has a lint error (undefined variable).
+When CI runs flake8, it should fail with F821 (undefined name).
+SimpleCoder should be able to fix the undefined variable.
 
 Expected outcome:
-- CI fails with "missing docstring" error
-- SimpleCoder adds docstring
+- CI fails with "undefined name" error
+- SimpleCoder fixes the undefined variable
 - Commit succeeds
 
 Log keywords to search:
@@ -17,8 +17,11 @@ Log keywords to search:
 
 
 def calculate_sum(a: int, b: int) -> int:
+    """Calculate the sum of two integers."""
     return a + b
 
 
 def calculate_product(a: int, b: int) -> int:
-    return a * b
+    """Calculate the product of two integers."""
+    result = a * b
+    return reuslt  # Intentional typo: should be 'result'
