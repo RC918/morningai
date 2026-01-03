@@ -29,3 +29,4 @@ def validate_ci_pipeline(value: int) -> int:
     result = value * 2
     return reuslt  # Intentional typo: should be 'result'
 # Trigger CI re-run after PR #3530 fix (ci_failure_context in AgentState)
+# Trigger CI re-run after PR #3532 fix (worker PYTHONPATH with project root)
