@@ -658,3 +658,368 @@ class TestSaveToFailureMemory:
         with patch.dict(sys.modules, {"failure_memory": None}):
             # Should not raise - graceful degradation
             recorder._save_to_failure_memory(failure)
+
+
+class TestSlackAlerting:
+    """Tests for Slack alerting feature (Issue #3517)"""
+
+    def test_slack_disabled_without_webhook_url(self):
+        """Test that Slack alerting is disabled when no webhook URL is set"""
+        mock_redis = MagicMock()
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        assert recorder.slack_enabled is False
+
+    def test_slack_enabled_with_webhook_url(self):
+        """Test that Slack alerting is enabled when webhook URL is set"""
+        mock_redis = MagicMock()
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx", MagicMock()):
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+                assert recorder.slack_enabled is True
+                assert recorder.slack_webhook_url == "https://hooks.slack.com/test"
+
+    def test_slack_enabled_with_constructor_param(self):
+        """Test that Slack alerting can be enabled via constructor parameter"""
+        mock_redis = MagicMock()
+        with patch("failure_recorder.httpx", MagicMock()):
+            recorder = FailureRecorder(
+                redis_client=mock_redis,
+                enabled=True,
+                slack_webhook_url="https://hooks.slack.com/constructor"
+            )
+
+            assert recorder.slack_enabled is True
+            assert recorder.slack_webhook_url == "https://hooks.slack.com/constructor"
+
+    def test_send_slack_alert_when_disabled(self):
+        """Test that _send_slack_alert returns False when Slack is disabled"""
+        mock_redis = MagicMock()
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+        failure = FailureRecord(
+            id="test-id",
+            trace_id="test-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+
+        result = recorder._send_slack_alert(failure)
+
+        assert result is False
+
+    def test_send_slack_alert_success(self):
+        """Test successful Slack alert sending"""
+        mock_redis = MagicMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx") as mock_httpx:
+                mock_client = MagicMock()
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                mock_client.post.return_value = mock_response
+                mock_httpx.Client.return_value = mock_client
+
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+                failure = FailureRecord(
+                    id="test-id",
+                    trace_id="test-trace",
+                    goal="Test goal",
+                    error_type="test_error"
+                )
+
+                result = recorder._send_slack_alert(failure)
+
+                assert result is True
+                mock_client.post.assert_called_once()
+
+    def test_send_slack_alert_with_long_goal_truncates(self):
+        """Test that long goals are truncated in Slack alerts"""
+        mock_redis = MagicMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+
+        long_goal = "A" * 300
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx") as mock_httpx:
+                mock_client = MagicMock()
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                mock_client.post.return_value = mock_response
+                mock_httpx.Client.return_value = mock_client
+
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+                failure = FailureRecord(
+                    id="test-id",
+                    trace_id="test-trace",
+                    goal=long_goal,
+                    error_type="test_error"
+                )
+
+                result = recorder._send_slack_alert(failure)
+
+                assert result is True
+                call_args = mock_client.post.call_args
+                payload = call_args[1]["json"]
+                goal_block = payload["blocks"][2]["text"]["text"]
+                assert "..." in goal_block
+                assert len(goal_block) < len(long_goal)
+
+    def test_send_slack_alert_includes_pr_url(self):
+        """Test that PR URL is included in Slack alert when available"""
+        mock_redis = MagicMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx") as mock_httpx:
+                mock_client = MagicMock()
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                mock_client.post.return_value = mock_response
+                mock_httpx.Client.return_value = mock_client
+
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+                failure = FailureRecord(
+                    id="test-id",
+                    trace_id="test-trace",
+                    goal="Test goal",
+                    error_type="test_error",
+                    pr_url="https://github.com/test/repo/pull/123"
+                )
+
+                result = recorder._send_slack_alert(failure)
+
+                assert result is True
+                call_args = mock_client.post.call_args
+                payload = call_args[1]["json"]
+                payload_str = str(payload)
+                assert "https://github.com/test/repo/pull/123" in payload_str
+
+    def test_send_slack_alert_handles_timeout(self):
+        """Test graceful handling of Slack webhook timeout"""
+        import pytest
+        httpx = pytest.importorskip("httpx")
+        mock_redis = MagicMock()
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx") as mock_httpx:
+                mock_httpx.TimeoutException = httpx.TimeoutException
+                mock_httpx.HTTPStatusError = httpx.HTTPStatusError
+                mock_client = MagicMock()
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                mock_client.post.side_effect = httpx.TimeoutException("Timeout")
+                mock_httpx.Client.return_value = mock_client
+
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+                failure = FailureRecord(
+                    id="test-id",
+                    trace_id="test-trace",
+                    goal="Test goal",
+                    error_type="test_error"
+                )
+
+                result = recorder._send_slack_alert(failure)
+
+                assert result is False
+
+    def test_send_slack_alert_handles_http_error(self):
+        """Test graceful handling of Slack webhook HTTP error"""
+        import pytest
+        httpx = pytest.importorskip("httpx")
+        mock_redis = MagicMock()
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx") as mock_httpx:
+                mock_httpx.TimeoutException = httpx.TimeoutException
+                mock_httpx.HTTPStatusError = httpx.HTTPStatusError
+                mock_client = MagicMock()
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                mock_response = MagicMock()
+                mock_response.status_code = 400
+                mock_request = MagicMock()
+                mock_error = httpx.HTTPStatusError(
+                    "Bad Request",
+                    request=mock_request,
+                    response=mock_response
+                )
+                mock_client.post.side_effect = mock_error
+                mock_httpx.Client.return_value = mock_client
+
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+                failure = FailureRecord(
+                    id="test-id",
+                    trace_id="test-trace",
+                    goal="Test goal",
+                    error_type="test_error"
+                )
+
+                result = recorder._send_slack_alert(failure)
+
+                assert result is False
+
+    def test_send_slack_alert_handles_generic_exception(self):
+        """Test graceful handling of generic exceptions in Slack alerting"""
+        import pytest
+        httpx = pytest.importorskip("httpx")
+        mock_redis = MagicMock()
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx") as mock_httpx:
+                mock_httpx.TimeoutException = httpx.TimeoutException
+                mock_httpx.HTTPStatusError = httpx.HTTPStatusError
+                mock_client = MagicMock()
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                mock_client.post.side_effect = RuntimeError("Unexpected error")
+                mock_httpx.Client.return_value = mock_client
+
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+                failure = FailureRecord(
+                    id="test-id",
+                    trace_id="test-trace",
+                    goal="Test goal",
+                    error_type="test_error"
+                )
+
+                result = recorder._send_slack_alert(failure)
+
+                assert result is False
+
+
+class TestSlackRateLimiting:
+    """Tests for Slack alerting rate limiting (Issue #3517)"""
+
+    def test_rate_limiting_not_triggered_initially(self):
+        """Test that rate limiting is not triggered with no previous alerts"""
+        mock_redis = MagicMock()
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        assert recorder._is_rate_limited() is False
+
+    def test_rate_limiting_triggered_after_max_alerts(self):
+        """Test that rate limiting is triggered after max alerts"""
+        import time
+        mock_redis = MagicMock()
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        now = time.monotonic()
+        for i in range(10):
+            recorder._alert_timestamps.append(now - i)
+
+        assert recorder._is_rate_limited() is True
+
+    def test_rate_limiting_clears_old_timestamps(self):
+        """Test that old timestamps are cleared from rate limiting window"""
+        import time
+        mock_redis = MagicMock()
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+        old_time = time.monotonic() - 120
+        for i in range(10):
+            recorder._alert_timestamps.append(old_time - i)
+
+        assert recorder._is_rate_limited() is False
+        assert len(recorder._alert_timestamps) == 0
+
+    def test_rate_limited_alert_returns_false(self):
+        """Test that rate limited alerts return False"""
+        import time
+        mock_redis = MagicMock()
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+
+            now = time.monotonic()
+            for i in range(10):
+                recorder._alert_timestamps.append(now - i)
+
+            failure = FailureRecord(
+                id="test-id",
+                trace_id="test-trace",
+                goal="Test goal",
+                error_type="test_error"
+            )
+
+            result = recorder._send_slack_alert(failure)
+
+            assert result is False
+
+    def test_successful_alert_adds_timestamp(self):
+        """Test that successful alerts add timestamp for rate limiting"""
+        mock_redis = MagicMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+
+        with patch.dict(os.environ, {"SLACK_WEBHOOK_URL": "https://hooks.slack.com/test"}):
+            with patch("failure_recorder.httpx") as mock_httpx:
+                mock_client = MagicMock()
+                mock_client.__enter__ = MagicMock(return_value=mock_client)
+                mock_client.__exit__ = MagicMock(return_value=False)
+                mock_client.post.return_value = mock_response
+                mock_httpx.Client.return_value = mock_client
+
+                recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+                failure = FailureRecord(
+                    id="test-id",
+                    trace_id="test-trace",
+                    goal="Test goal",
+                    error_type="test_error"
+                )
+
+                initial_count = len(recorder._alert_timestamps)
+                recorder._send_slack_alert(failure)
+                final_count = len(recorder._alert_timestamps)
+
+                assert final_count == initial_count + 1
+
+
+class TestRecordFailureWithSlackAlert:
+    """Tests for record_failure integration with Slack alerting"""
+
+    def test_record_failure_calls_slack_alert(self):
+        """Test that record_failure calls _send_slack_alert"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipeline)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+        failure = FailureRecord(
+            id="test-id",
+            trace_id="test-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+
+        with patch.object(recorder, "_send_slack_alert") as mock_slack:
+            with patch.object(recorder, "_save_to_failure_memory"):
+                recorder.record_failure(failure)
+
+                mock_slack.assert_called_once_with(failure)
+
+    def test_record_failure_succeeds_even_if_slack_fails(self):
+        """Test that record_failure succeeds even if Slack alert fails"""
+        mock_redis = MagicMock()
+        mock_pipeline = MagicMock()
+        mock_redis.pipeline.return_value.__enter__ = MagicMock(return_value=mock_pipeline)
+        mock_redis.pipeline.return_value.__exit__ = MagicMock(return_value=False)
+
+        recorder = FailureRecorder(redis_client=mock_redis, enabled=True)
+        failure = FailureRecord(
+            id="test-id",
+            trace_id="test-trace",
+            goal="Test goal",
+            error_type="test_error"
+        )
+
+        with patch.object(recorder, "_send_slack_alert", side_effect=Exception("Slack error")):
+            with patch.object(recorder, "_save_to_failure_memory"):
+                result = recorder.record_failure(failure)
+
+                assert result == "test-id"

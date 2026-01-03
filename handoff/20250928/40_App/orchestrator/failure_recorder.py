@@ -10,12 +10,20 @@ Captures failures when:
 - Unexpected exceptions occur during orchestration
 
 All operations are wrapped in try/except to never break the job path.
+
+Slack Alerting (Issue #3517):
+- Sends Slack webhook notifications when failures are recorded
+- Rate limited to max 10 alerts/minute to prevent spam
+- Graceful degradation if Slack webhook fails
 """
 
 import logging
 import json
+import os
+import time
 import uuid
-from typing import Dict, List, Optional, Any
+from collections import deque
+from typing import Dict, List, Optional, Any, Deque
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 
@@ -24,7 +32,17 @@ try:
 except ImportError:
     redis = None
 
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
 logger = logging.getLogger(__name__)
+
+# Slack alerting constants (Issue #3517)
+SLACK_RATE_LIMIT_MAX_ALERTS = 10  # Max alerts per window
+SLACK_RATE_LIMIT_WINDOW_SECONDS = 60  # Window size in seconds
+SLACK_REQUEST_TIMEOUT_SECONDS = 5  # Timeout for Slack webhook requests
 
 FAILURE_KEY_PREFIX = "orchestrator:failures"
 FAILURE_LIST_KEY = f"{FAILURE_KEY_PREFIX}:list"
@@ -110,6 +128,11 @@ class FailureRecorder:
     Uses Redis for storage with:
     - Per-record keys: orchestrator:failures:<failure_id>
     - List key: orchestrator:failures:list (newest first)
+
+    Slack Alerting (Issue #3517):
+    - Sends Slack webhook notifications when failures are recorded
+    - Rate limited to max 10 alerts/minute to prevent spam
+    - Graceful degradation if Slack webhook fails
     """
 
     def __init__(
@@ -117,7 +140,8 @@ class FailureRecorder:
         redis_client: Optional["redis.Redis"] = None,
         enabled: bool = True,
         ttl_seconds: int = FAILURE_TTL_SECONDS,
-        key_prefix: str = FAILURE_KEY_PREFIX
+        key_prefix: str = FAILURE_KEY_PREFIX,
+        slack_webhook_url: Optional[str] = None,
     ):
         """
         Initialize failure recorder
@@ -127,6 +151,7 @@ class FailureRecorder:
             enabled: Whether failure recording is enabled
             ttl_seconds: TTL for failure records (default: 30 days)
             key_prefix: Prefix for all Redis keys
+            slack_webhook_url: Slack webhook URL for alerting (optional)
         """
         self.redis = redis_client
         self.enabled = enabled and redis_client is not None
@@ -134,9 +159,221 @@ class FailureRecorder:
         self.key_prefix = key_prefix
         self.list_key = f"{key_prefix}:list"
 
+        # Slack alerting configuration (Issue #3517)
+        self.slack_webhook_url = slack_webhook_url or os.environ.get(
+            "SLACK_WEBHOOK_URL"
+        )
+        self.slack_enabled = bool(self.slack_webhook_url) and httpx is not None
+        # Rate limiting: track timestamps of recent alerts
+        self._alert_timestamps: Deque[float] = deque(
+            maxlen=SLACK_RATE_LIMIT_MAX_ALERTS
+        )
+
     def _get_record_key(self, failure_id: str) -> str:
         """Generate Redis key for a failure record"""
         return f"{self.key_prefix}:{failure_id}"
+
+    def _is_rate_limited(self) -> bool:
+        """
+        Check if Slack alerting is rate limited (Issue #3517).
+
+        Uses a sliding window algorithm to enforce max 10 alerts per minute.
+        Uses time.monotonic() to avoid issues with clock adjustments (NTP, etc).
+
+        Returns:
+            True if rate limited (should skip alert), False otherwise
+        """
+        now = time.monotonic()
+        window_start = now - SLACK_RATE_LIMIT_WINDOW_SECONDS
+
+        # Remove timestamps outside the window
+        while self._alert_timestamps and self._alert_timestamps[0] < window_start:
+            self._alert_timestamps.popleft()
+
+        # Check if we've hit the limit
+        if len(self._alert_timestamps) >= SLACK_RATE_LIMIT_MAX_ALERTS:
+            return True
+
+        return False
+
+    def _send_slack_alert(self, failure: FailureRecord) -> bool:
+        """
+        Send Slack webhook notification for a failure (Issue #3517).
+
+        This is a best-effort operation - failures here should not break
+        the main recording flow. Rate limited to max 10 alerts/minute.
+
+        Args:
+            failure: FailureRecord instance to alert about
+
+        Returns:
+            True if alert was sent successfully, False otherwise
+        """
+        if not self.slack_enabled:
+            logger.debug(
+                "[FailureRecorder] Slack alerting disabled, skipping",
+                extra={"failure_id": failure.id}
+            )
+            return False
+
+        if self._is_rate_limited():
+            logger.warning(
+                "[FailureRecorder] Slack alert rate limited, skipping",
+                extra={
+                    "operation": "send_slack_alert",
+                    "failure_id": failure.id,
+                    "rate_limit": f"{SLACK_RATE_LIMIT_MAX_ALERTS}/{SLACK_RATE_LIMIT_WINDOW_SECONDS}s"
+                }
+            )
+            return False
+
+        try:
+            # Build Slack message payload
+            goal_truncated = (
+                failure.goal[:200] + "..." if len(failure.goal) > 200 else failure.goal
+            )
+
+            # Format created_at with explicit UTC suffix for clarity
+            created_at_display = f"{failure.created_at} UTC"
+
+            # Build dashboard link (only if FAILURE_DASHBOARD_URL is configured)
+            dashboard_url = os.environ.get("FAILURE_DASHBOARD_URL")
+
+            payload = {
+                "text": ":warning: Workflow Failure Recorded",
+                "blocks": [
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": ":warning: Workflow Failure Recorded",
+                            "emoji": True
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Error Type:*\n`{failure.error_type}`"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Trace ID:*\n`{failure.trace_id}`"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Environment:*\n{failure.env}"
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": f"*Fixer Retries:*\n{failure.fixer_retries}"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*Goal:*\n{goal_truncated}"
+                        }
+                    },
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": f"Failure ID: `{failure.id}` | Recorded at: {created_at_display}"
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            # Add dashboard link button only if FAILURE_DASHBOARD_URL is configured
+            if dashboard_url:
+                failure_link = f"{dashboard_url}/failures/{failure.id}"
+                payload["blocks"].insert(3, {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "View Failure Details",
+                                "emoji": True
+                            },
+                            "url": failure_link,
+                            "action_id": "view_failure"
+                        }
+                    ]
+                })
+
+            # Add PR URL if available
+            if failure.pr_url:
+                insert_index = 4 if dashboard_url else 3
+                payload["blocks"].insert(insert_index, {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*PR:* <{failure.pr_url}|View Pull Request>"
+                    }
+                })
+
+            # Send webhook request
+            with httpx.Client(timeout=SLACK_REQUEST_TIMEOUT_SECONDS) as client:
+                response = client.post(
+                    self.slack_webhook_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+
+            # Record timestamp for rate limiting (using monotonic time)
+            self._alert_timestamps.append(time.monotonic())
+
+            logger.info(
+                "[FailureRecorder] Slack alert sent successfully",
+                extra={
+                    "operation": "send_slack_alert",
+                    "failure_id": failure.id,
+                    "trace_id": failure.trace_id
+                }
+            )
+            return True
+
+        except httpx.TimeoutException:
+            logger.warning(
+                "[FailureRecorder] Slack alert timed out",
+                extra={
+                    "operation": "send_slack_alert",
+                    "failure_id": failure.id,
+                    "timeout": SLACK_REQUEST_TIMEOUT_SECONDS
+                }
+            )
+            return False
+        except httpx.HTTPStatusError as e:
+            logger.warning(
+                "[FailureRecorder] Slack alert HTTP error",
+                extra={
+                    "operation": "send_slack_alert",
+                    "failure_id": failure.id,
+                    "status_code": e.response.status_code,
+                    "error": str(e)
+                }
+            )
+            return False
+        except Exception as e:
+            # Never break the main flow - just log the error
+            logger.warning(
+                "[FailureRecorder] Failed to send Slack alert",
+                extra={
+                    "operation": "send_slack_alert",
+                    "failure_id": failure.id,
+                    "error": str(e)
+                }
+            )
+            return False
 
     def _save_to_failure_memory(self, failure: FailureRecord) -> None:
         """
@@ -219,6 +456,20 @@ class FailureRecorder:
             # Also save to long-term failure memory (Supabase) for knowledge base
             # This is wrapped in try/except to never break the main recording flow
             self._save_to_failure_memory(failure)
+
+            # Send Slack alert (Issue #3517)
+            # This is wrapped in try/except to never break the main recording flow
+            try:
+                self._send_slack_alert(failure)
+            except Exception as slack_error:
+                logger.warning(
+                    "[FailureRecorder] Failed to send Slack alert",
+                    extra={
+                        "operation": "send_slack_alert",
+                        "failure_id": failure.id,
+                        "error": str(slack_error)
+                    }
+                )
 
             return failure.id
 
