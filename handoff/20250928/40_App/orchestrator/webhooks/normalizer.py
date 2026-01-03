@@ -1523,6 +1523,254 @@ class EventNormalizer:
         """
         return self.command_router.is_command_comment(event)
 
+    # Issue: #3518 - Manual /fix command trigger
+    # Redis key prefixes for manual fix dedup and rate limiting
+    _MANUAL_FIX_DEDUP_KEY_PREFIX = "orchestrator:manual_fix_dedup"
+    _MANUAL_FIX_DEDUP_TTL_SECONDS = 300  # 5 minutes TTL (shorter than CI failure)
+    _MANUAL_FIX_RATE_LIMIT_KEY_PREFIX = "orchestrator:manual_fix_rl"
+    _MANUAL_FIX_RATE_LIMIT_TTL_SECONDS = 3600  # 1 hour window
+    _MANUAL_FIX_RATE_LIMIT_MAX = 3  # Max 3 triggers per PR per hour
+
+    def handle_manual_fix_command(
+        self,
+        trigger: CommandTrigger,
+        head_sha: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Handle a manual /fix or /retry command trigger.
+
+        This method implements the manual fix trigger logic:
+        1. Check rate limit (max 3 per PR per hour)
+        2. Check dedup (same comment_id only triggers once)
+        3. Return context for downstream processing
+
+        Args:
+            trigger: CommandTrigger from CommandRouter
+            head_sha: Current PR head SHA (fetched via GitHub API)
+
+        Returns:
+            Dict with manual fix context if allowed, None if rate limited or deduped
+
+        Issue: #3518 - Manual /fix command for AutoFixer trigger
+        """
+        repo = trigger.repo
+        pr_number = trigger.pr_number
+        comment_id = trigger.metadata.get("comment_id")
+        actor = trigger.actor
+
+        # P0: Check rate limit first (max 3 per PR per hour)
+        rate_limit_key = f"{repo}:{pr_number}"
+        is_rate_limited, current_count = self._check_manual_fix_rate_limit(
+            rate_limit_key, trigger.metadata.get("event_id", "unknown"), repo, pr_number
+        )
+
+        if is_rate_limited:
+            logger.warning(
+                "[EventNormalizer] Manual fix rate limited",
+                extra={
+                    "operation": "manual_fix_rate_limited",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "actor": actor,
+                    "current_count": current_count,
+                    "limit": self._MANUAL_FIX_RATE_LIMIT_MAX,
+                }
+            )
+            return None
+
+        # P1: Check dedup (same comment_id only triggers once)
+        if comment_id:
+            dedup_key = f"{repo}:{pr_number}:{head_sha}:{comment_id}"
+            is_duplicate, dedup_source = self._check_manual_fix_dedup(
+                dedup_key,
+                trigger.metadata.get("event_id", "unknown"),
+                repo,
+                pr_number,
+                head_sha,
+                comment_id
+            )
+
+            if is_duplicate:
+                logger.info(
+                    "[EventNormalizer] Manual fix deduped",
+                    extra={
+                        "operation": "manual_fix_deduped",
+                        "repo": repo,
+                        "pr_number": pr_number,
+                        "actor": actor,
+                        "comment_id": comment_id,
+                        "dedup_source": dedup_source,
+                    }
+                )
+                return None
+
+        # P2: Build manual fix context
+        logger.info(
+            "[EventNormalizer] Manual fix command accepted",
+            extra={
+                "operation": "manual_fix_accepted",
+                "repo": repo,
+                "pr_number": pr_number,
+                "actor": actor,
+                "head_sha": head_sha[:8] if head_sha else "unknown",
+                "comment_id": comment_id,
+            }
+        )
+
+        return {
+            "source": "manual_fix",
+            "manual_trigger": True,
+            "manual_trigger_actor": actor,
+            "manual_trigger_comment_url": trigger.comment_url,
+            "manual_trigger_comment_id": comment_id,
+            "repo": repo,
+            "pr_number": pr_number,
+            "head_sha": head_sha,
+        }
+
+    def _check_manual_fix_rate_limit(
+        self,
+        rate_limit_key: str,
+        event_id: str,
+        repo: str,
+        pr_number: int
+    ) -> tuple:
+        """
+        Check if manual fix command is rate limited.
+
+        Uses atomic Lua script from utils/rate_limit.py for race-safe rate limiting.
+        This prevents the race condition where INCR and EXPIRE are not atomic,
+        which could cause permanent rate limiting if worker crashes between calls.
+
+        Args:
+            rate_limit_key: Key for rate limiting (repo:pr)
+            event_id: Event ID for logging
+            repo: Repository name
+            pr_number: PR number
+
+        Returns:
+            Tuple of (is_rate_limited: bool, current_count: int)
+
+        Issue: #3518 - Anti-spam rate limiting for manual fix
+        """
+        redis_key = f"{self._MANUAL_FIX_RATE_LIMIT_KEY_PREFIX}:{rate_limit_key}"
+
+        try:
+            redis_client = self._get_redis_client_for_dedup()
+            if redis_client:
+                # Use atomic Lua script for race-safe rate limiting (Issue #2943 pattern)
+                # This prevents the race condition where INCR and EXPIRE are not atomic
+                from utils.rate_limit import _atomic_rate_limit_check
+
+                result = _atomic_rate_limit_check(
+                    r=redis_client,
+                    key=redis_key,
+                    max_limit=self._MANUAL_FIX_RATE_LIMIT_MAX,
+                    expiry_seconds=self._MANUAL_FIX_RATE_LIMIT_TTL_SECONDS,
+                    trace_id=event_id,
+                    context_id=f"{repo}:{pr_number}",
+                    operation="manual_fix_rate_limit"
+                )
+
+                is_rate_limited = not result.allowed
+                current_count = result.current_count
+
+                logger.debug(
+                    "[EventNormalizer] Manual fix rate limit check",
+                    extra={
+                        "operation": "manual_fix_rate_limit_check",
+                        "event_id": event_id,
+                        "rate_limit_key": rate_limit_key,
+                        "current_count": current_count,
+                        "limit": self._MANUAL_FIX_RATE_LIMIT_MAX,
+                        "is_rate_limited": is_rate_limited,
+                    }
+                )
+
+                return (is_rate_limited, current_count)
+
+        except Exception as e:
+            logger.warning(
+                "[EventNormalizer] Manual fix rate limit Redis error - allowing request",
+                extra={
+                    "operation": "manual_fix_rate_limit_error",
+                    "event_id": event_id,
+                    "rate_limit_key": rate_limit_key,
+                    "error": str(e),
+                }
+            )
+
+        # Fallback: allow request if Redis is unavailable (fail-open for rate limiting)
+        return (False, 0)
+
+    def _check_manual_fix_dedup(
+        self,
+        dedup_key: str,
+        event_id: str,
+        repo: str,
+        pr_number: int,
+        head_sha: str,
+        comment_id: int
+    ) -> tuple:
+        """
+        Check if manual fix command is a duplicate using Redis-backed dedup.
+
+        Uses atomic SET NX EX for race-safe deduplication across workers.
+
+        Args:
+            dedup_key: Unique key for dedup (repo:pr:sha:comment_id)
+            event_id: Event ID for logging
+            repo: Repository name
+            pr_number: PR number
+            head_sha: Head SHA
+            comment_id: Comment ID (nonce for dedup)
+
+        Returns:
+            Tuple of (is_duplicate: bool, source: str)
+
+        Issue: #3518 - Dedup for manual fix commands
+        """
+        redis_key = f"{self._MANUAL_FIX_DEDUP_KEY_PREFIX}:{dedup_key}"
+
+        try:
+            redis_client = self._get_redis_client_for_dedup()
+            if redis_client:
+                # Atomic SET NX EX - returns True if key was set (first time)
+                is_new = redis_client.set(
+                    redis_key,
+                    "1",
+                    nx=True,
+                    ex=self._MANUAL_FIX_DEDUP_TTL_SECONDS
+                )
+
+                if is_new:
+                    logger.debug(
+                        "[EventNormalizer] Manual fix dedup - new command (Redis)",
+                        extra={
+                            "operation": "manual_fix_dedup_new",
+                            "event_id": event_id,
+                            "dedup_key": dedup_key,
+                            "source": "redis",
+                        }
+                    )
+                    return (False, "redis")
+                else:
+                    return (True, "redis")
+
+        except Exception as e:
+            logger.warning(
+                "[EventNormalizer] Manual fix dedup Redis error - allowing request",
+                extra={
+                    "operation": "manual_fix_dedup_error",
+                    "event_id": event_id,
+                    "dedup_key": dedup_key,
+                    "error": str(e),
+                }
+            )
+
+        # Fallback: allow request if Redis is unavailable (fail-open for dedup)
+        return (False, "fallback")
+
     # Issue: #3366 - CI Failure Reflex Integration
     # Issue: #3399 - Redis-backed dedup for cross-worker idempotency
     # Redis key prefix for CI failure dedup

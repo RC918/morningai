@@ -522,6 +522,227 @@ def _enqueue_ci_failure_task(task):
         return None
 
 
+MANUAL_FIX_ACK_MARKER = "<!-- MORNINGAI_MANUAL_FIX_ACK -->"
+
+
+def _enqueue_manual_fix_task(
+    repo: str,
+    pr_number: int,
+    head_sha: str,
+    manual_fix_context: dict,
+    task_id: str,
+):
+    """
+    Enqueue a manual fix task for auto-fix processing.
+
+    This implements the manual /fix command flow:
+    Webhook (issue_comment) → CommandRouter → EventNormalizer → _enqueue_manual_fix_task
+    → run_orchestrator_task → LangGraph orchestrator → GeneralCoder/SeniorCoder
+
+    Issue: #3518 - Manual /fix command for AutoFixer trigger
+
+    Args:
+        repo: Repository in owner/repo format
+        pr_number: PR number
+        head_sha: Current PR head SHA
+        manual_fix_context: Context from EventNormalizer.handle_manual_fix_command()
+        task_id: Unique task ID
+
+    Returns:
+        Job ID if enqueued successfully, None otherwise
+    """
+    try:
+        from redis import Redis
+        from rq import Queue
+        from rq.serializers import JSONSerializer
+
+        redis_url = settings.redis_url
+        if not redis_url:
+            logger.warning("[Webhooks] Redis URL not configured, skipping manual fix task enqueue")
+            return None
+
+        redis_client = Redis.from_url(redis_url, decode_responses=False)
+        queue_name = settings.rq_queue_name or "orchestrator"
+        queue = Queue(queue_name, connection=redis_client, serializer=JSONSerializer())
+
+        from redis_queue.worker import run_orchestrator_task
+
+        actor = manual_fix_context.get('manual_trigger_actor', 'unknown')
+        actor = (actor or 'unknown')[:39]
+        goal_text = f"Fix CI failures for PR #{pr_number} (manual trigger by {actor})"
+
+        ci_context = {
+            **manual_fix_context,
+            "resource_type": "pull_request",
+            "resource_id": str(pr_number),
+            "pr_number": pr_number,
+            "ci_failure_trigger": True,
+            "ci_head_sha": head_sha,
+        }
+
+        job = queue.enqueue(
+            run_orchestrator_task,
+            task_id,
+            goal_text,
+            repo,
+            "manual_fix",
+            ci_context,
+            job_id=task_id,
+            ttl=600,
+            job_timeout=settings.rq_job_timeout,
+            result_ttl=86400,
+            failure_ttl=3600,
+        )
+
+        logger.info(
+            "[Webhooks] Enqueued manual fix task %s as job %s for repo %s PR #%s",
+            task_id,
+            job.id,
+            repo,
+            pr_number,
+            extra={
+                "operation": "enqueue_manual_fix_task",
+                "task_id": task_id,
+                "job_id": job.id,
+                "repo": repo,
+                "pr_number": pr_number,
+                "actor": manual_fix_context.get("manual_trigger_actor"),
+            }
+        )
+        return job.id
+
+    except Exception as e:
+        logger.exception("[Webhooks] Failed to enqueue manual fix task: %s", e)
+        return None
+
+
+def _post_manual_fix_acknowledgment(repo: str, pr_number: int, actor: str, task_id: str):
+    """
+    Post an acknowledgment comment to the PR after successful manual fix enqueue.
+
+    The comment includes a marker to prevent self-trigger loops.
+
+    Issue: #3518 - Acknowledgment comment for manual fix trigger
+
+    Args:
+        repo: Repository in owner/repo format
+        pr_number: PR number
+        actor: User who triggered the fix
+        task_id: Task ID for reference
+
+    Returns:
+        True if comment posted successfully, False otherwise
+    """
+    try:
+        github_token = settings.github_token
+        if not github_token:
+            logger.warning("[Webhooks] No GitHub token configured, skipping acknowledgment comment")
+            return False
+
+        import requests
+
+        comment_body = f"""{MANUAL_FIX_ACK_MARKER}
+**MorningAI AutoFixer triggered** by @{actor}
+
+Task ID: `{task_id}`
+
+The AutoFixer is now analyzing CI failures and will attempt to fix them automatically.
+"""
+
+        url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
+        headers = {
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+        }
+
+        response = requests.post(
+            url,
+            headers=headers,
+            json={"body": comment_body},
+            timeout=10,
+        )
+
+        if response.status_code in (200, 201):
+            logger.info(
+                "[Webhooks] Posted manual fix acknowledgment comment to %s PR #%s",
+                repo,
+                pr_number,
+                extra={
+                    "operation": "post_manual_fix_ack",
+                    "repo": repo,
+                    "pr_number": pr_number,
+                    "actor": actor,
+                    "task_id": task_id,
+                }
+            )
+            return True
+        else:
+            logger.warning(
+                "[Webhooks] Failed to post acknowledgment comment: %s %s",
+                response.status_code,
+                response.text[:200],
+            )
+            return False
+
+    except Exception as e:
+        logger.warning("[Webhooks] Error posting acknowledgment comment: %s", e)
+        return False
+
+
+def _get_pr_head_sha(repo: str, pr_number: int) -> str:
+    """
+    Fetch the current head SHA of a PR via GitHub API.
+
+    Issue: #3518 - Need head SHA for manual fix dedup
+
+    Args:
+        repo: Repository in owner/repo format
+        pr_number: PR number
+
+    Returns:
+        Head SHA string, or None if fetch failed
+    """
+    try:
+        github_token = settings.github_token
+        if not github_token:
+            logger.warning("[Webhooks] No GitHub token configured, cannot fetch PR head SHA")
+            return None
+
+        import requests
+
+        url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
+        headers = {
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+
+        response = requests.get(url, headers=headers, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            head_sha = data.get("head", {}).get("sha")
+            if head_sha:
+                logger.debug(
+                    "[Webhooks] Fetched PR head SHA: %s for %s PR #%s",
+                    head_sha[:8],
+                    repo,
+                    pr_number,
+                )
+                return head_sha
+
+        logger.warning(
+            "[Webhooks] Failed to fetch PR head SHA: %s %s",
+            response.status_code,
+            response.text[:200] if response.text else "no response",
+        )
+        return None
+
+    except Exception as e:
+        logger.warning("[Webhooks] Error fetching PR head SHA: %s", e)
+        return None
+
+
 def _enqueue_meta_agent_task(task):
     """
     Enqueue a normalized task for Meta Agent autonomous execution.
@@ -846,6 +1067,68 @@ def github_webhook():
         # Parse event and extract task if actionable
         event = normalizer.parse_event(WebhookSource.GITHUB, headers, parsed_payload)
         if event:
+            # Issue #3518: Check for manual /fix or /retry command first
+            from orchestrator.webhooks.command_router import CommandType
+            command_trigger = normalizer.route_command(event)
+
+            if command_trigger and command_trigger.command_type == CommandType.FIX:
+                # Handle manual fix command
+                is_bare_fix = command_trigger.metadata.get("is_bare_fix", False)
+                if is_bare_fix or command_trigger.metadata.get("event_type") in ("issue_commented", "pr_commented"):
+                    # Fetch PR head SHA for dedup
+                    head_sha = _get_pr_head_sha(command_trigger.repo, command_trigger.pr_number)
+                    if head_sha:
+                        # Check rate limit and dedup via normalizer
+                        manual_fix_context = normalizer.handle_manual_fix_command(
+                            command_trigger, head_sha
+                        )
+
+                        if manual_fix_context:
+                            # Generate task ID
+                            import uuid
+                            repo_slug = command_trigger.repo.replace('/', '_')
+                            pr_num = command_trigger.pr_number
+                            task_id = f"manual_fix_{repo_slug}_{pr_num}_{uuid.uuid4().hex[:8]}"
+
+                            # Enqueue the manual fix task
+                            job_id = _enqueue_manual_fix_task(
+                                command_trigger.repo,
+                                command_trigger.pr_number,
+                                head_sha,
+                                manual_fix_context,
+                                task_id,
+                            )
+
+                            if job_id:
+                                # Post acknowledgment comment
+                                _post_manual_fix_acknowledgment(
+                                    command_trigger.repo,
+                                    command_trigger.pr_number,
+                                    command_trigger.actor,
+                                    task_id,
+                                )
+                                response.task_id = task_id
+                                response.message = f"Manual fix triggered, task created: {task_id}"
+                                return jsonify(response.to_dict()), 200
+                            else:
+                                response.message = "Manual fix command received but failed to enqueue task"
+                                return jsonify(response.to_dict()), 200
+                        else:
+                            # Rate limited or deduped
+                            response.message = "Manual fix command rate limited or already processed"
+                            return jsonify(response.to_dict()), 200
+                    else:
+                        logger.warning(
+                            "[Webhooks] Could not fetch PR head SHA for manual fix command",
+                            extra={
+                                "repo": command_trigger.repo,
+                                "pr_number": command_trigger.pr_number,
+                            }
+                        )
+                        response.message = "Manual fix command received but could not fetch PR info"
+                        return jsonify(response.to_dict()), 200
+
+            # Normal task extraction flow
             task = normalizer.extract_task(event)
             if task:
                 _enqueue_task(task)
