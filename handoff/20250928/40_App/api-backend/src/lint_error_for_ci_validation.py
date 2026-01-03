@@ -32,3 +32,4 @@ def validate_ci_pipeline(value: int) -> int:
 # Trigger CI re-run after PR #3532 fix (worker PYTHONPATH with project root)
 
 # Trigger CI re-run after confirmed Start Command PYTHONPATH fix
+# Trigger CI re-run after PR #3534 module shadowing fix
