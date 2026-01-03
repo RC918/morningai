@@ -7,6 +7,7 @@ enabling external triggering of MorningAI flows via PR comments.
 Issue: #3224 - PR Comment Command Router
 Issue: #3388 - Add authorization/permission gating for /morningai commands
 Issue: #3390 - Improve command detection to ignore fenced code blocks
+Issue: #3518 - Add bare /fix and /retry commands for manual AutoFixer trigger
 Blueprint Alignment:
     - Self-Governed: Command routing is part of the governance mechanism
     - Modular: Aligns with EPIC C Flow Controller dynamic routing design
@@ -17,6 +18,7 @@ Flow:
 
 MVP Commands:
     - /morningai review - Trigger reviewer_node
+    - /fix or /retry - Trigger manual CI failure auto-fix (Issue #3518)
 
 Future Commands (stub):
     - /morningai explain <file:line> - Explain specific code
@@ -31,6 +33,11 @@ Authorization:
 Code Block Handling (Issue #3390):
     - Commands inside fenced code blocks (```) are ignored
     - This prevents false positives when users paste example commands
+
+Bare Command Handling (Issue #3518):
+    - /fix and /retry are supported as bare commands (without /morningai prefix)
+    - These trigger the manual CI failure auto-fix flow
+    - Subject to rate limiting (max 3 per PR per hour) and dedup
 """
 
 import logging
@@ -110,6 +117,13 @@ class CommandRouter:
         re.MULTILINE | re.IGNORECASE
     )
 
+    # Bare fix command pattern - matches /fix or /retry at start of line
+    # Issue #3518: Support bare commands for manual CI failure auto-fix
+    BARE_FIX_PATTERN = re.compile(
+        r"^\s*/(fix|retry)\s*$",
+        re.MULTILINE | re.IGNORECASE
+    )
+
     # Fenced code block pattern - matches ``` with optional language tag
     # Issue #3390: Strip these before command matching to avoid false positives
     # Supports both single-line (```code```) and multi-line fenced blocks
@@ -125,6 +139,9 @@ class CommandRouter:
         "explain": CommandType.EXPLAIN,
         "fix": CommandType.FIX,
     }
+
+    # Bare commands that map to FIX (Issue #3518)
+    BARE_FIX_COMMANDS = {"fix", "retry"}
 
     # Event types that can contain commands
     COMMAND_EVENT_TYPES = {
@@ -198,16 +215,29 @@ class CommandRouter:
         comment_text_stripped = self._strip_code_blocks(comment_text)
 
         # P3: Parse command from comment (using stripped text)
+        # First try /morningai <command> pattern
         command_match = self.COMMAND_PATTERN.search(comment_text_stripped)
-        if not command_match:
-            return None
+        bare_fix_match = None
+        is_bare_fix = False
 
-        command_name = command_match.group(1).lower()
-        command_args_str = command_match.group(2) or ""
-        command_args = command_args_str.split()
+        if command_match:
+            command_name = command_match.group(1).lower()
+            command_args_str = command_match.group(2) or ""
+            command_args = command_args_str.split()
+        else:
+            # Issue #3518: Try bare /fix or /retry pattern
+            bare_fix_match = self.BARE_FIX_PATTERN.search(comment_text_stripped)
+            if not bare_fix_match:
+                return None
+            command_name = bare_fix_match.group(1).lower()
+            command_args: List[str] = []
+            is_bare_fix = True
 
         # P4: Validate command is supported
-        command_type = self.SUPPORTED_COMMANDS.get(command_name, CommandType.UNKNOWN)
+        if is_bare_fix and command_name in self.BARE_FIX_COMMANDS:
+            command_type = CommandType.FIX
+        else:
+            command_type = self.SUPPORTED_COMMANDS.get(command_name, CommandType.UNKNOWN)
 
         # P5: Extract PR context
         repo = self._extract_repo(event)
@@ -240,6 +270,12 @@ class CommandRouter:
                 return None
 
         # P7: Build CommandTrigger
+        # Extract comment_id for dedup (Issue #3518)
+        raw = event.raw_payload or {}
+        comment_id = None
+        if "comment" in raw and "id" in raw["comment"]:
+            comment_id = raw["comment"]["id"]
+
         trigger = CommandTrigger(
             command_type=command_type,
             repo=repo,
@@ -252,6 +288,8 @@ class CommandRouter:
                 "event_id": event.event_id,
                 "event_type": event.event_type.value,
                 "source": event.source.value,
+                "is_bare_fix": is_bare_fix,
+                "comment_id": comment_id,
             },
         )
 
@@ -350,7 +388,7 @@ class CommandRouter:
             event: WebhookEvent to check
 
         Returns:
-            True if event might contain a /morningai command
+            True if event might contain a /morningai command or bare /fix /retry
         """
         if event.event_type not in self.COMMAND_EVENT_TYPES:
             return False
@@ -360,4 +398,6 @@ class CommandRouter:
             return False
 
         # Quick substring check before regex
-        return "/morningai" in comment_text.lower()
+        # Issue #3518: Also check for bare /fix and /retry commands
+        lower_text = comment_text.lower()
+        return "/morningai" in lower_text or "/fix" in lower_text or "/retry" in lower_text

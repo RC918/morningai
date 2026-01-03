@@ -835,3 +835,135 @@ class TestCommandAuthorizerWithMockedGitHub:
 
         assert result.authorized is False
         assert result.permission_level == PermissionLevel.UNKNOWN
+
+
+class TestBareFixCommand:
+    """Tests for bare /fix and /retry commands (Issue #3518)"""
+
+    def test_route_bare_fix_command(self, command_router):
+        """Test routing bare /fix command"""
+        event = create_comment_event("/fix")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+        assert trigger.metadata.get("is_bare_fix") is True
+
+    def test_route_bare_retry_command(self, command_router):
+        """Test routing bare /retry command (alias for /fix)"""
+        event = create_comment_event("/retry")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+        assert trigger.metadata.get("is_bare_fix") is True
+
+    def test_route_bare_fix_case_insensitive(self, command_router):
+        """Test that bare /fix command is case-insensitive"""
+        event = create_comment_event("/FIX")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+
+    def test_route_bare_retry_case_insensitive(self, command_router):
+        """Test that bare /retry command is case-insensitive"""
+        event = create_comment_event("/RETRY")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+
+    def test_route_bare_fix_with_leading_whitespace(self, command_router):
+        """Test routing bare /fix with leading whitespace"""
+        event = create_comment_event("  /fix")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+
+    def test_route_bare_fix_with_trailing_whitespace(self, command_router):
+        """Test routing bare /fix with trailing whitespace"""
+        event = create_comment_event("/fix  ")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+
+    def test_ignore_bare_fix_in_code_block(self, command_router):
+        """Test that bare /fix in code block is ignored"""
+        event = create_comment_event("```\n/fix\n```")
+        trigger = command_router.route(event)
+
+        assert trigger is None
+
+    def test_ignore_bare_fix_mid_sentence(self, command_router):
+        """Test that bare /fix mid-sentence is ignored"""
+        event = create_comment_event("Please run /fix for me")
+        trigger = command_router.route(event)
+
+        assert trigger is None
+
+    def test_bare_fix_on_second_line(self, command_router):
+        """Test that bare /fix on second line is detected"""
+        event = create_comment_event("First line\n/fix")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+
+    def test_bare_fix_with_args_not_matched(self, command_router):
+        """Test that bare /fix with args is not matched (use /morningai fix instead)"""
+        event = create_comment_event("/fix some_arg")
+        trigger = command_router.route(event)
+
+        assert trigger is None
+
+    def test_morningai_fix_still_works(self, command_router):
+        """Test that /morningai fix still works alongside bare /fix"""
+        event = create_comment_event("/morningai fix")
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.command_type == CommandType.FIX
+        assert trigger.metadata.get("is_bare_fix") is False
+
+    def test_bare_fix_includes_comment_id(self, command_router):
+        """Test that bare /fix trigger includes comment_id in metadata"""
+        event = create_comment_event(
+            "/fix",
+            raw_payload={
+                "issue": {
+                    "number": 123,
+                    "pull_request": {"url": "https://api.github.com/repos/test/test/pulls/123"},
+                },
+                "comment": {
+                    "id": 456789,
+                    "body": "/fix",
+                },
+            },
+        )
+        trigger = command_router.route(event)
+
+        assert trigger is not None
+        assert trigger.metadata.get("comment_id") == 456789
+
+    def test_is_command_comment_detects_bare_fix(self, command_router):
+        """Test that is_command_comment detects bare /fix"""
+        event = create_comment_event("/fix")
+        assert command_router.is_command_comment(event) is True
+
+    def test_is_command_comment_detects_bare_retry(self, command_router):
+        """Test that is_command_comment detects bare /retry"""
+        event = create_comment_event("/retry")
+        assert command_router.is_command_comment(event) is True
+
+    def test_bare_fix_ignored_from_bot(self, command_router):
+        """Test that bare /fix from bot is ignored"""
+        event = create_comment_event(
+            "/fix",
+            actor_name="github-actions[bot]",
+        )
+        trigger = command_router.route(event)
+
+        assert trigger is None
