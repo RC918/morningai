@@ -1659,9 +1659,9 @@ class EventNormalizer:
                 # Atomic INCR - returns new count after increment
                 current_count = redis_client.incr(redis_key)
 
-                # Set TTL only on first increment (when count is 1)
-                if current_count == 1:
-                    redis_client.expire(redis_key, self._MANUAL_FIX_RATE_LIMIT_TTL_SECONDS)
+                # Refresh TTL on every access for sliding window rate limiting
+                # This ensures the window is 1 hour from the most recent trigger
+                redis_client.expire(redis_key, self._MANUAL_FIX_RATE_LIMIT_TTL_SECONDS)
 
                 is_rate_limited = current_count > self._MANUAL_FIX_RATE_LIMIT_MAX
 

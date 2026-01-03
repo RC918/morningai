@@ -567,7 +567,9 @@ def _enqueue_manual_fix_task(
 
         from redis_queue.worker import run_orchestrator_task
 
-        goal_text = f"Fix CI failures for PR #{pr_number} (manual trigger by {manual_fix_context.get('manual_trigger_actor', 'unknown')})"
+        actor = manual_fix_context.get('manual_trigger_actor', 'unknown')
+        actor = (actor or 'unknown')[:39]
+        goal_text = f"Fix CI failures for PR #{pr_number} (manual trigger by {actor})"
 
         ci_context = {
             **manual_fix_context,
@@ -1084,7 +1086,9 @@ def github_webhook():
                         if manual_fix_context:
                             # Generate task ID
                             import uuid
-                            task_id = f"manual_fix_{command_trigger.repo.replace('/', '_')}_{command_trigger.pr_number}_{uuid.uuid4().hex[:8]}"
+                            repo_slug = command_trigger.repo.replace('/', '_')
+                            pr_num = command_trigger.pr_number
+                            task_id = f"manual_fix_{repo_slug}_{pr_num}_{uuid.uuid4().hex[:8]}"
 
                             # Enqueue the manual fix task
                             job_id = _enqueue_manual_fix_task(
