@@ -567,7 +567,9 @@ class LLMReviewerAdapter:
         """
         if not self.llm_client or not self.llm_client.is_available():
             logger.warning("[LLM Reviewer] LLM client not available, skipping LLM review")
-            return self._get_fallback_result(base_quality_score, base_severity)
+            return self._get_fallback_result(
+                base_quality_score, base_severity, diff_files=diff_files
+            )
 
         try:
             has_diff = bool(diff and diff.strip())
@@ -641,7 +643,9 @@ class LLMReviewerAdapter:
                 exc_info=True
             )
             return self._get_fallback_result(
-                base_quality_score, base_severity, fallback_reason="llm_json_parse_failed"
+                base_quality_score, base_severity,
+                fallback_reason="llm_json_parse_failed",
+                diff_files=diff_files
             )
         except Exception as e:
             # P2 Follow-up: Determine fallback reason based on exception type
@@ -659,7 +663,9 @@ class LLMReviewerAdapter:
                 exc_info=True
             )
             return self._get_fallback_result(
-                base_quality_score, base_severity, fallback_reason=fallback_reason
+                base_quality_score, base_severity,
+                fallback_reason=fallback_reason,
+                diff_files=diff_files
             )
 
     def _call_llm(
@@ -874,6 +880,29 @@ When you see changes to ANY of these, you MUST check and comment:
 3. **Event Names / Telemetry Keys**:
    - Will this break existing dashboards or alerts?
    - Is the naming consistent with existing events?
+
+=== STATE MACHINE / ORCHESTRATOR SAFETY CHECKLIST ===
+When reviewing changes to state machines, orchestrators, or graph-based workflows:
+
+1. **One-Shot Flag Consumption** (CRITICAL - Issue #3541):
+   - If a flag triggers special behavior (e.g., `ci_failure_trigger`), is there a "consumed" flag?
+   - Is the consumed flag set on FIRST pass to prevent re-triggering?
+   - Example pattern: `if trigger and not consumed: consumed = True; do_action()`
+
+2. **Edge/Router Safety**:
+   - Do new edges create potential cycles?
+   - Is there a bounded retry/loop limit?
+   - Are terminal conditions reachable from all paths?
+
+3. **State Flag Preservation**:
+   - Are routing flags preserved through node transitions?
+   - Could a node accidentally clear a flag needed downstream?
+
+4. **Infinite Loop Detection**:
+   - If node A routes to B routes to C routes back to A, what breaks the cycle?
+   - Is there a max_steps or max_iterations guard?
+
+Flag these as CRITICAL severity if the code could cause infinite loops.
 
 === NOISE BUDGET: QUALITY OVER QUANTITY ===
 - Maximum 5 comments per review (focus on the most important issues)
@@ -1353,7 +1382,8 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         self,
         base_quality_score: int,
         base_severity: str,
-        fallback_reason: str = "llm_unavailable"
+        fallback_reason: str = "llm_unavailable",
+        diff_files: Optional[list] = None
     ) -> Dict[str, Any]:
         """
         Get fallback result when LLM review fails
@@ -1363,16 +1393,83 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             base_severity: Base severity from CI-only review
             fallback_reason: Reason for fallback (llm_unavailable, llm_json_parse_failed,
                            llm_timeout, llm_connection_error, llm_api_error)
+            diff_files: List of changed files metadata for risk assessment
 
         Returns:
             Dict with fallback review results including fallback_reason
+
+        Safety Net (P1): When LLM fails on high-risk files, escalate severity
+        to ensure human review. This prevents silent approval of critical changes.
         """
-        if base_severity == "none":
+        final_severity = base_severity
+        escalation_reason = None
+
+        orchestrator_path_prefixes = [
+            "handoff/20250928/40_app/orchestrator/",
+            "orchestrator/",
+        ]
+
+        high_risk_exact_files = [
+            "langgraph_orchestrator.py",
+            "langgraph_orchestrator",
+        ]
+
+        high_risk_orchestrator_patterns = [
+            "/routing/",
+            "/router",
+            "router.py",
+            "_trigger",
+            "ci_monitor",
+            "conditional_edge",
+            "state_machine",
+            "add_edge",
+            "graph_builder",
+        ]
+
+        if diff_files:
+            high_risk_files = []
+            for file_info in diff_files:
+                filename = file_info.get("filename", "") if isinstance(file_info, dict) else str(file_info)
+                filename_lower = filename.lower()
+
+                for exact_file in high_risk_exact_files:
+                    if filename_lower.endswith(exact_file):
+                        high_risk_files.append(filename)
+                        break
+                else:
+                    is_orchestrator_file = any(
+                        prefix in filename_lower for prefix in orchestrator_path_prefixes
+                    )
+                    if is_orchestrator_file:
+                        for pattern in high_risk_orchestrator_patterns:
+                            if pattern in filename_lower:
+                                high_risk_files.append(filename)
+                                break
+
+            if high_risk_files:
+                if base_severity in ("none", "low"):
+                    final_severity = "high"
+                    escalation_reason = (
+                        f"LLM review failed on high-risk files: {', '.join(high_risk_files[:3])}. "
+                        "Escalating severity for human review."
+                    )
+                    logger.warning(
+                        f"[LLM Reviewer] Fail-closed escalation: {escalation_reason}",
+                        extra={
+                            "operation": "llm_reviewer_fallback",
+                            "trace_id": self.trace_id,
+                            "high_risk_files": high_risk_files,
+                            "original_severity": base_severity,
+                            "escalated_severity": final_severity,
+                            "fallback_reason": fallback_reason
+                        }
+                    )
+
+        if final_severity == "none":
             decision = "approve"
         else:
             decision = "needs_changes"
 
-        # Phase 1 Quick Win: Generate descriptive summary based on fallback reason
         reason_summaries = {
             "llm_unavailable": "LLM review unavailable, using CI-based assessment",
             "llm_json_parse_failed": "LLM response parsing failed, using CI-based assessment",
@@ -1382,9 +1479,12 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         }
         summary = reason_summaries.get(fallback_reason, reason_summaries["llm_unavailable"])
 
+        if escalation_reason:
+            summary = f"{summary}. {escalation_reason}"
+
         return {
             "quality_score": base_quality_score,
-            "severity": base_severity,
+            "severity": final_severity,
             "summary": summary,
             "decision": decision,
             "comments": [],
