@@ -32,9 +32,9 @@ export function BackupCodesList({ backupCodes, onContinue }) {
 
   return (
     <div className="space-y-4">
-      <Card className="border-yellow-200 dark:border-yellow-800">
+      <Card className="border-warning-200 dark:border-warning-800">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+          <CardTitle className="flex items-center gap-2 text-warning-800 dark:text-warning-200">
             <AlertCircle className="w-5 h-5" />
             {t('settings.2fa.backupCodes.saveTitle')}
           </CardTitle>
@@ -84,8 +84,8 @@ export function BackupCodesList({ backupCodes, onContinue }) {
             </Button>
           </div>
 
-          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-            <p className="text-xs text-yellow-800 dark:text-yellow-200">
+          <div className="p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
+            <p className="text-xs text-warning-800 dark:text-warning-200">
               <strong>{t('settings.2fa.backupCodes.important')}</strong> {t('settings.2fa.backupCodes.warningMessage')}
             </p>
           </div>

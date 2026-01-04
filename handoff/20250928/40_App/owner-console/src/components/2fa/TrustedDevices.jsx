@@ -149,7 +149,7 @@ export function TrustedDevices({ className }) {
                       <p className={cn(
                         'text-xs mt-1',
                         isExpiringSoon(device.expires_at)
-                          ? 'text-yellow-600 dark:text-yellow-500'
+                          ? 'text-warning-600 dark:text-warning-500'
                           : 'text-muted-foreground'
                       )}>
                         {t('settings.2fa.trustedDevices.expires')}: {formatDate(device.expires_at)}
