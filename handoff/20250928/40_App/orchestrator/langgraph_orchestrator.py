@@ -4931,7 +4931,7 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
 
     Issue #3564: Root Cause #10 - Coders skip due to missing comment_body
     Issue #3567: Root Cause #11 - SimpleCoder needs review_file_path
-    Issue #3571: Root Cause #12 - review_comments gate blocks CI failure synthesis
+    Issue #3572: Root Cause #12 - review_comments gate blocks CI failure synthesis
     """
     ci_failure_trigger = state.get("ci_failure_trigger", False)
 
@@ -4952,14 +4952,14 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
         )
         return
 
-    # Issue #3571: Do NOT check review_comments here. The review_comments list
+    # Issue #3572: Do NOT check review_comments here. The review_comments list
     # contains ALL historical PR comments, not just the triggering comment.
     # For CI failure scenarios, there is no triggering comment.
     review_comments = state.get("review_comments", [])
     if review_comments:
         logger.info(
             f"[Fixer] CI failure synthesis proceeding despite {len(review_comments)} "
-            f"historical review_comments (Issue #3571). trace_id={trace_id}",
+            f"historical review_comments (Issue #3572).",
             extra={
                 "operation": "fixer_ci_synthesis_with_comments",
                 "trace_id": trace_id,
