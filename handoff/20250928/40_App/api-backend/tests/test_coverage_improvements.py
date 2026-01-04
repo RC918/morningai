@@ -383,6 +383,58 @@ class TestMonitoringDashboardExportMetrics:
         assert 'Unsupported format' in result
 
 
+class TestI18nGetLocaleEdgeCases:
+    """Test i18n get_locale function edge cases to cover lines 109-114"""
+
+    def test_get_locale_with_zh_tw_header(self):
+        """Test get_locale with zh-TW Accept-Language header (line 109-110)"""
+        from src.utils.i18n import I18n
+        from flask import Flask
+        app = Flask(__name__)
+        with app.test_request_context(headers={'Accept-Language': 'zh-TW,en;q=0.9'}):
+            i18n = I18n()
+            result = i18n.get_locale()
+            assert result == 'zh-TW'
+
+    def test_get_locale_with_zh_header(self):
+        """Test get_locale with zh Accept-Language header (line 111-112)"""
+        from src.utils.i18n import I18n
+        from flask import Flask
+        app = Flask(__name__)
+        with app.test_request_context(headers={'Accept-Language': 'zh,en;q=0.9'}):
+            i18n = I18n()
+            result = i18n.get_locale()
+            assert result == 'zh-TW'
+
+    def test_get_locale_with_en_header(self):
+        """Test get_locale with en Accept-Language header (line 113-114)"""
+        from src.utils.i18n import I18n
+        from flask import Flask
+        app = Flask(__name__)
+        with app.test_request_context(headers={'Accept-Language': 'en-US,en;q=0.9'}):
+            i18n = I18n()
+            result = i18n.get_locale()
+            assert result == 'en-US'
+
+    def test_get_locale_with_unknown_header(self):
+        """Test get_locale with unknown Accept-Language header (line 116)"""
+        from src.utils.i18n import I18n
+        from flask import Flask
+        app = Flask(__name__)
+        with app.test_request_context(headers={'Accept-Language': 'fr-FR,de;q=0.9'}):
+            i18n = I18n()
+            result = i18n.get_locale()
+            assert result == 'zh-TW'  # default locale
+
+    def test_get_locale_exception_handling(self):
+        """Test get_locale exception handling (line 117-118)"""
+        from src.utils.i18n import I18n
+        i18n = I18n()
+        # Outside of request context, should return default locale
+        result = i18n.get_locale()
+        assert result == 'zh-TW'
+
+
 class TestI18nConvenienceFunctions:
     """Test i18n convenience functions to cover lines 227, 232, 245"""
 
