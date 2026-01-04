@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class HITLApprovalSystem:
     """Stub for Human-in-the-Loop approval system."""
-    
+
     def __init__(self, telegram_bot_token=None, admin_chat_id=None):
         """Initialize HITL approval system (stub)."""
         self.telegram_bot_token = telegram_bot_token
@@ -88,6 +88,151 @@ class SimpleGitTool:
             }
         except Exception as e:
             return {'success': False, 'error': str(e)}
+
+    async def commit_and_push(
+        self, title: str, body: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Commit and push changes to the current branch.
+
+        This is the preferred method name for new code. For interface
+        compatibility with CodeGenerationWorkflow, use create_pr() which
+        delegates to this method.
+
+        Steps:
+        1. Check for uncommitted changes
+        2. Stage all modified files
+        3. Commit with the provided title/body as commit message
+        4. Push to the current branch
+
+        Args:
+            title: Commit message subject line
+            body: Commit message body (optional)
+
+        Returns:
+            Dict with success status, commit_sha, and branch name.
+        """
+        try:
+            cwd = os.getcwd()
+
+            status_result = subprocess.run(
+                ['git', 'status', '--porcelain'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if not status_result.stdout.strip():
+                logger.info("[SimpleGitTool] No changes to commit (no-op)")
+                return {
+                    'success': True,
+                    'commit_pushed': False,
+                    'output': 'No changes to commit'
+                }
+
+            add_result = subprocess.run(
+                ['git', 'add', '-A'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if add_result.returncode != 0:
+                logger.error(f"[SimpleGitTool] git add failed: {add_result.stderr}")
+                return {
+                    'success': False,
+                    'error': f'git add failed: {add_result.stderr}'
+                }
+
+            commit_cmd = ['git', 'commit', '-m', title]
+            if body:
+                commit_cmd.extend(['-m', body])
+            commit_result = subprocess.run(
+                commit_cmd,
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if commit_result.returncode != 0:
+                logger.error(f"[SimpleGitTool] git commit failed: {commit_result.stderr}")
+                return {
+                    'success': False,
+                    'error': f'git commit failed: {commit_result.stderr}'
+                }
+
+            sha_result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            commit_sha = sha_result.stdout.strip() if sha_result.returncode == 0 else "unknown"
+
+            branch_result = subprocess.run(
+                ['git', 'branch', '--show-current'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "unknown"
+
+            commit_sha_short = commit_sha[:8] if len(commit_sha) >= 8 else commit_sha
+            logger.info(f"[SimpleGitTool] Committed {commit_sha_short}: {title}")
+
+            push_result = subprocess.run(
+                ['git', 'push'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if push_result.returncode != 0:
+                logger.error(f"[SimpleGitTool] git push failed: {push_result.stderr}")
+                return {
+                    'success': False,
+                    'error': f'git push failed: {push_result.stderr}',
+                    'commit_sha': commit_sha,
+                    'branch': branch
+                }
+
+            logger.info(f"[SimpleGitTool] Pushed to branch '{branch}'")
+
+            return {
+                'success': True,
+                'commit_pushed': True,
+                'commit_sha': commit_sha,
+                'branch': branch,
+                'output': f'Committed and pushed {commit_sha_short} to {branch}'
+            }
+
+        except Exception as e:
+            logger.error(f"[SimpleGitTool] commit_and_push failed: {e}")
+            return {'success': False, 'error': str(e)}
+
+    async def create_pr(
+        self, title: str, body: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Commit and push changes to the current branch.
+
+        DEPRECATION NOTE: This method name is kept for interface compatibility
+        with CodeGenerationWorkflow. It does NOT create a new GitHub PR.
+        For new code, prefer using commit_and_push() directly.
+
+        For AutoFixer scenarios, the PR already exists and this method
+        commits and pushes fixes to the existing PR branch.
+
+        Args:
+            title: Commit message subject line
+            body: Commit message body (optional)
+
+        Returns:
+            Dict with success status, commit_sha, and branch name.
+            Note: pr_number and pr_url are not returned since we're
+            pushing to an existing PR branch, not creating a new PR.
+        """
+        logger.debug(
+            "[SimpleGitTool] create_pr called - delegating to commit_and_push "
+            "(create_pr is kept for interface compatibility)"
+        )
+        return await self.commit_and_push(title, body)
 
 
 class SimpleFilesystemTool:

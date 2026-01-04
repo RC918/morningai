@@ -286,3 +286,146 @@ class TestCIFailureFastPath:
             entry_point = "ci_monitor"
 
         assert entry_point == "planner"
+
+
+class TestCIMonitorFastPathConsumed:
+    """Test CI monitor fast path consumed flag (Issue #3541).
+
+    This prevents infinite loop when fixer routes back to ci_monitor:
+    - First pass: ci_failure_trigger=True, fast_path_consumed=False -> skip API, force failure
+    - Second pass: ci_failure_trigger=True, fast_path_consumed=True -> check real CI status
+    """
+
+    def test_ci_monitor_first_pass_skips_api_and_sets_consumed(self):
+        """Test that first ci_monitor pass skips API call and sets consumed flag."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-first-pass",
+            "ci_failure_trigger": True,
+            "ci_state": "pending",  # Will be forced to "failure"
+            "pr_number": 123,
+            "messages": [],
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("tools.github_api") as mock_github:
+                    from langgraph_orchestrator import ci_monitor_node
+                    result = ci_monitor_node(state)
+
+        # First pass should skip API call
+        mock_github.get_repo.assert_not_called()
+        mock_github.get_pr_checks.assert_not_called()
+
+        # First pass should force ci_state to "failure"
+        assert result["ci_state"] == "failure"
+
+        # First pass should set consumed flag
+        assert result["ci_failure_fast_path_consumed"] is True
+
+    def test_ci_monitor_second_pass_checks_real_ci_status(self):
+        """Test that second ci_monitor pass (post-fix) checks real CI status."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-second-pass",
+            "ci_failure_trigger": True,
+            "ci_state": "failure",
+            "ci_failure_fast_path_consumed": True,  # Already consumed
+            "pr_number": 123,
+            "messages": [],
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("tools.github_api") as mock_github:
+                    mock_repo = MagicMock()
+                    mock_github.get_repo.return_value = mock_repo
+                    # Simulate CI now passing after fix
+                    mock_github.get_pr_checks.return_value = ("success", [])
+
+                    from langgraph_orchestrator import ci_monitor_node
+                    result = ci_monitor_node(state)
+
+        # Second pass should call API to check real CI status
+        mock_github.get_repo.assert_called_once()
+        mock_github.get_pr_checks.assert_called_once_with(mock_repo, 123)
+
+        # Second pass should update ci_state based on real CI status
+        assert result["ci_state"] == "success"
+
+    def test_ci_monitor_no_infinite_loop_after_fix(self):
+        """Test that ci_monitor can observe CI recovery after fixer applies fix.
+
+        This is a regression test for Issue #3541:
+        Without the consumed flag, ci_monitor would always force ci_state="failure"
+        when ci_failure_trigger=True, causing an infinite loop.
+        """
+        from unittest.mock import patch, MagicMock
+
+        # Simulate state after fixer has applied fix and routed back to ci_monitor
+        state = {
+            "trace_id": "test-trace-no-loop",
+            "ci_failure_trigger": True,
+            "ci_state": "failure",
+            "ci_failure_fast_path_consumed": True,
+            "pr_number": 456,
+            "messages": [],
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("tools.github_api") as mock_github:
+                    mock_repo = MagicMock()
+                    mock_github.get_repo.return_value = mock_repo
+                    # CI is now passing after the fix
+                    mock_github.get_pr_checks.return_value = ("success", [
+                        {"name": "lint", "conclusion": "success"},
+                    ])
+
+                    from langgraph_orchestrator import ci_monitor_node
+                    result = ci_monitor_node(state)
+
+        # The key assertion: ci_state should be updated to "success"
+        # If the infinite loop bug existed, ci_state would still be "failure"
+        assert result["ci_state"] == "success"
+        assert result["ci_checks"] == [{"name": "lint", "conclusion": "success"}]
+
+    def test_ci_monitor_normal_flow_unaffected(self):
+        """Test that normal flow (no ci_failure_trigger) is unaffected."""
+        from unittest.mock import patch, MagicMock
+
+        state = {
+            "trace_id": "test-trace-normal",
+            "ci_failure_trigger": False,
+            "ci_state": "pending",
+            "pr_number": 789,
+            "messages": [],
+        }
+
+        with patch("langgraph_orchestrator.time") as mock_time:
+            mock_time.time.return_value = 1000.0
+            with patch("langgraph_orchestrator._get_metrics") as mock_metrics:
+                mock_metrics.return_value = MagicMock()
+                with patch("tools.github_api") as mock_github:
+                    mock_repo = MagicMock()
+                    mock_github.get_repo.return_value = mock_repo
+                    mock_github.get_pr_checks.return_value = ("success", [])
+
+                    from langgraph_orchestrator import ci_monitor_node
+                    result = ci_monitor_node(state)
+
+        # Normal flow should always check real CI status
+        mock_github.get_repo.assert_called_once()
+        mock_github.get_pr_checks.assert_called_once()
+        assert result["ci_state"] == "success"
+
+        # Normal flow should not set consumed flag
+        assert result.get("ci_failure_fast_path_consumed") is None
