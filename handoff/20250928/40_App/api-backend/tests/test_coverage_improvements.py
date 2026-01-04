@@ -269,6 +269,46 @@ class TestVectorsVisualizationUnavailable:
             assert 'Visualization libraries not available' in data['error']
 
 
+class TestBootstrapPathsDebugMode:
+    """Test bootstrap_paths debug mode to cover lines 40, 71"""
+
+    def test_debug_log_with_debug_enabled(self):
+        """Test _debug_log with BOOTSTRAP_PATHS_DEBUG=1 (line 40)"""
+        import os
+        import importlib
+        original_debug = os.environ.get('BOOTSTRAP_PATHS_DEBUG', '')
+        try:
+            os.environ['BOOTSTRAP_PATHS_DEBUG'] = '1'
+            import src.bootstrap_paths as bp
+            importlib.reload(bp)
+            # Call _debug_log which should use logger.info when debug is enabled
+            bp._debug_log("test message")
+            assert bp._DEBUG is True
+        finally:
+            os.environ['BOOTSTRAP_PATHS_DEBUG'] = original_debug
+            importlib.reload(bp)
+
+    def test_ensure_path_at_front_with_debug(self):
+        """Test _ensure_path_at_front with debug enabled (line 71)"""
+        import os
+        import sys
+        import importlib
+        original_debug = os.environ.get('BOOTSTRAP_PATHS_DEBUG', '')
+        try:
+            os.environ['BOOTSTRAP_PATHS_DEBUG'] = '1'
+            import src.bootstrap_paths as bp
+            importlib.reload(bp)
+            # Call _ensure_path_at_front which logs sys.path when debug is enabled
+            test_path = '/tmp/test_path_for_coverage'
+            bp._ensure_path_at_front(test_path, "test description")
+            # Clean up sys.path
+            if test_path in sys.path:
+                sys.path.remove(test_path)
+        finally:
+            os.environ['BOOTSTRAP_PATHS_DEBUG'] = original_debug
+            importlib.reload(bp)
+
+
 class TestBootstrapPaths:
     """Test bootstrap_paths.py edge cases to cover lines 115-119"""
 
