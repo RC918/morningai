@@ -723,6 +723,11 @@ Generate the complete code:"""
             return final_state
         
         except Exception as e:
-            logger.error(f"Workflow execution failed: {e}")
-            initial_state["error"] = str(e)
+            # Issue #3567: Use logger.exception for full traceback and store meaningful error
+            # An exception with empty str(e) becomes indistinguishable from "no error"
+            error_str = str(e)
+            if not error_str:
+                error_str = f"{type(e).__name__}: (empty exception message)"
+            logger.exception(f"Workflow execution failed: {error_str}")
+            initial_state["error"] = error_str
             return initial_state
