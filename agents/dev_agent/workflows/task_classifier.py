@@ -136,7 +136,21 @@ class TaskClassifier:
 
         Returns:
             TaskType enum value
+
+        Note: Order matters! More specific heuristics should come before
+        more general ones to prevent misclassification.
         """
+        # Issue #3557: LINT_FIX heuristics MUST come before BACKEND_UTILS_BUG_FIX
+        # to prevent "fix style error in util.py" from being misclassified
+        if any(word in text for word in ['lint', 'flake8', 'pylint', 'eslint', 'style']) and \
+           any(word in text for word in ['fix', 'error', 'warning']):
+            return TaskType.LINT_FIX
+
+        if any(word in text for word in ['undefined', 'unused', 'typo']) and \
+           any(word in text for word in ['fix', 'name', 'variable', 'import']):
+            return TaskType.LINT_FIX
+
+        # BACKEND_UTILS_BUG_FIX is more general, so it comes after LINT_FIX
         if any(word in text for word in ['bug', 'error', 'fix']) and \
            any(word in text for word in ['.py', 'python', 'backend', 'util', 'helper']):
             return TaskType.BACKEND_UTILS_BUG_FIX
@@ -156,15 +170,6 @@ class TaskClassifier:
         if any(word in text for word in ['documentation', 'readme', 'docstring', 'comment', '.md']) and \
            any(word in text for word in ['update', 'improve', 'add', 'fix']):
             return TaskType.DOCUMENTATION_UPDATE
-
-        # Issue #3557: LINT_FIX heuristics for CI failure auto-fix
-        if any(word in text for word in ['lint', 'flake8', 'pylint', 'eslint', 'style']) and \
-           any(word in text for word in ['fix', 'error', 'warning']):
-            return TaskType.LINT_FIX
-
-        if any(word in text for word in ['undefined', 'unused', 'typo']) and \
-           any(word in text for word in ['fix', 'name', 'variable', 'import']):
-            return TaskType.LINT_FIX
 
         return TaskType.UNKNOWN
 
