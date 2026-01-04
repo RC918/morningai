@@ -319,3 +319,67 @@ class TestHelpersAsBool:
         """Test _as_bool with various inputs."""
         from src.utils.helpers import _as_bool
         assert _as_bool(value) is expected
+
+
+class TestI18nConvenienceFunctions:
+    """Test i18n convenience functions to cover lines 227, 232, 245"""
+
+    def test_translate_function(self):
+        """Test translate convenience function (line 227)"""
+        from src.utils.i18n import translate
+        result = translate('query.success')
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_get_locale_function(self):
+        """Test get_locale convenience function (line 232)"""
+        from src.utils.i18n import get_locale
+        result = get_locale()
+        assert result in ['zh-TW', 'en-US']
+
+    def test_localized_response_function(self):
+        """Test localized_response convenience function (line 245)"""
+        from src.utils.i18n import localized_response
+        data = {'message': 'test', 'status': 'ok'}
+        result = localized_response(data)
+        assert 'message' in result
+        assert 'status' in result
+
+    def test_translate_response_with_error_dict(self):
+        """Test translate_response with error dict (lines 168-171)"""
+        from src.utils.i18n import I18n
+        i18n = I18n()
+        data = {
+            'error': {
+                'message': '_error.unauthorized',
+                'code': 'unauthorized'
+            }
+        }
+        result = i18n.translate_response(data)
+        assert 'error' in result
+        assert result['error']['message'] != '_error.unauthorized'
+
+    def test_t_with_missing_interpolation_variable(self):
+        """Test t method with missing interpolation variable (lines 144-145)"""
+        from src.utils.i18n import I18n
+        i18n = I18n()
+        result = i18n.t('error.rate_limit', locale='en-US', missing_var='test')
+        assert isinstance(result, str)
+
+    def test_error_response_with_kwargs(self):
+        """Test error_response with kwargs (lines 207-208)"""
+        from src.utils.i18n import I18n
+        from flask import Flask
+        app = Flask(__name__)
+        with app.test_request_context():
+            i18n = I18n()
+            response, status = i18n.error_response(
+                'invalid_parameter',
+                status_code=400,
+                field='email',
+                message='invalid format'
+            )
+            assert status == 400
+            assert 'error' in response
+            assert 'details' in response['error']
+            assert response['error']['details']['field'] == 'email'
