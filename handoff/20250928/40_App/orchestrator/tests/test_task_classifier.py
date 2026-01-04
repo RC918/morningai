@@ -25,19 +25,16 @@ class TestTaskClassifierInitialization:
 
         assert hasattr(classifier, 'patterns')
         assert isinstance(classifier.patterns, dict)
-        assert len(classifier.patterns) == 5  # 5 task types (excluding UNKNOWN)
+        # Patterns should exist for all TaskTypes except UNKNOWN
+        expected_pattern_count = len([t for t in TaskType if t != TaskType.UNKNOWN])
+        assert len(classifier.patterns) == expected_pattern_count
 
     def test_init_patterns_have_correct_task_types(self):
         """Test that patterns dictionary has all expected task types"""
         classifier = TaskClassifier()
 
-        expected_types = [
-            TaskType.BACKEND_UTILS_BUG_FIX,
-            TaskType.FRONTEND_UI_TOKENS,
-            TaskType.SIMPLE_API_ENDPOINT,
-            TaskType.TEST_GENERATION,
-            TaskType.DOCUMENTATION_UPDATE
-        ]
+        # All TaskTypes except UNKNOWN should have patterns
+        expected_types = [t for t in TaskType if t != TaskType.UNKNOWN]
 
         for task_type in expected_types:
             assert task_type in classifier.patterns
@@ -301,13 +298,8 @@ class TestIsSupported:
         """Test that known task types are supported"""
         classifier = TaskClassifier()
 
-        supported_types = [
-            TaskType.BACKEND_UTILS_BUG_FIX,
-            TaskType.FRONTEND_UI_TOKENS,
-            TaskType.SIMPLE_API_ENDPOINT,
-            TaskType.TEST_GENERATION,
-            TaskType.DOCUMENTATION_UPDATE
-        ]
+        # All TaskTypes except UNKNOWN should be supported
+        supported_types = [t for t in TaskType if t != TaskType.UNKNOWN]
 
         for task_type in supported_types:
             assert classifier.is_supported(task_type) is True
