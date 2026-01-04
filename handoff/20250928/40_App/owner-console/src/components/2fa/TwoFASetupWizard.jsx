@@ -81,7 +81,7 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                     isCompleted
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-success-500 text-white'
                       : isActive
                       ? 'bg-primary text-white'
                       : 'bg-accent text-muted-foreground'
@@ -98,7 +98,7 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
               {index < steps.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 mx-2 transition-colors ${
-                    index < currentIndex ? 'bg-green-500' : 'bg-accent'
+                    index < currentIndex ? 'bg-success-500' : 'bg-accent'
                   }`}
                 />
               )}
@@ -113,7 +113,7 @@ export function TwoFASetupWizard({ onComplete, onCancel }) {
     return (
       <Card>
         <CardContent className="pt-6 flex flex-col items-center space-y-4 py-8">
-          <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-success-500 flex items-center justify-center">
             <CheckCircle2 className="w-8 h-8 text-white" />
           </div>
           <div className="text-center space-y-2">
