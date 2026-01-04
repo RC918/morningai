@@ -576,77 +576,58 @@ class TestSafeTaskActionMappingConsistency:
 
     These tests prevent future drift between the two taxonomies.
 
-    NOTE: ACTION_MAPPING is a copy of agent.py:_process_step() action_mapping.
-    A future improvement (tracked separately) is to extract ACTION_MAPPING to a
-    module-level constant in agent.py so tests can import it directly.
+    Issue #3555: ACTION_MAPPING is now imported directly from agent.py as a
+    module-level constant, eliminating the need for a hardcoded copy in tests.
     """
-
-    ACTION_MAPPING = {
-        "documentation_update": "write_file",
-        "test_generation": "write_file",
-        "code_review": "review_code",
-        "bug_fix": "write_file",
-        "refactoring": "write_file",
-        "feature_implementation": "write_file",
-        "backend_utils_bug_fix": "write_file",
-        "frontend_ui_tokens": "write_file",
-        "simple_api_endpoint": "write_file",
-        "fix_lint": "write_file",
-        "fix_typo": "write_file",
-        "update_readme": "write_file",
-        "comment_enhancement": "write_file",
-        "env_sync": "write_file",
-        "config_update": "write_file",
-        "i18n_update": "write_file",
-    }
 
     def test_all_safe_task_types_have_action_mapping(self):
         """Every SAFE_TASK_TYPE should have a corresponding action_mapping entry"""
+        from project_engineer.agent import ACTION_MAPPING
         from project_engineer.safe_tasks import SAFE_TASK_TYPES
 
         missing_mappings = [
             task_type
             for task_type in SAFE_TASK_TYPES
-            if task_type not in self.ACTION_MAPPING
+            if task_type not in ACTION_MAPPING
         ]
 
         assert not missing_mappings, (
-            f"SAFE_TASK_TYPES contains task types without action_mapping entries: "
+            f"SAFE_TASK_TYPES contains task types without ACTION_MAPPING entries: "
             f"{missing_mappings}. This will cause semantic validation to fail with "
             f"'Action not in allowed actions whitelist'. "
-            f"Add these to action_mapping in agent.py:_process_step()"
+            f"Add these to ACTION_MAPPING in agent.py"
         )
 
     def test_all_safe_task_actions_are_in_allowed_whitelist(self):
         """Every action mapped from SAFE_TASK_TYPES should be in DEFAULT_ALLOWED_ACTIONS"""
+        from project_engineer.agent import ACTION_MAPPING
         from project_engineer.safe_tasks import SAFE_TASK_TYPES
         from project_engineer.semantic_rules import DEFAULT_ALLOWED_ACTIONS
 
         invalid_actions = [
-            (task_type, self.ACTION_MAPPING[task_type])
+            (task_type, ACTION_MAPPING[task_type])
             for task_type in SAFE_TASK_TYPES
-            if task_type in self.ACTION_MAPPING
-            and self.ACTION_MAPPING[task_type] not in DEFAULT_ALLOWED_ACTIONS
+            if task_type in ACTION_MAPPING
+            and ACTION_MAPPING[task_type] not in DEFAULT_ALLOWED_ACTIONS
         ]
 
         assert not invalid_actions, (
             f"SAFE_TASK_TYPES have actions not in DEFAULT_ALLOWED_ACTIONS: "
             f"{invalid_actions}. This will cause semantic validation to fail. "
             f"Either add the action to DEFAULT_ALLOWED_ACTIONS in semantic_rules.py "
-            f"or change the action_mapping in agent.py:_process_step()"
+            f"or change ACTION_MAPPING in agent.py"
         )
 
     def test_default_fallback_action_is_in_whitelist(self):
         """The default fallback action should be in DEFAULT_ALLOWED_ACTIONS"""
+        from project_engineer.agent import DEFAULT_FALLBACK_ACTION
         from project_engineer.semantic_rules import DEFAULT_ALLOWED_ACTIONS
 
-        default_fallback = "read_file"
-
-        assert default_fallback in DEFAULT_ALLOWED_ACTIONS, (
-            f"Default fallback action '{default_fallback}' is not in "
+        assert DEFAULT_FALLBACK_ACTION in DEFAULT_ALLOWED_ACTIONS, (
+            f"DEFAULT_FALLBACK_ACTION '{DEFAULT_FALLBACK_ACTION}' is not in "
             f"DEFAULT_ALLOWED_ACTIONS. This will cause semantic validation to fail "
-            f"for unknown task types. Update agent.py:_process_step() to use an "
-            f"action from: {DEFAULT_ALLOWED_ACTIONS}"
+            f"for unknown task types. Update DEFAULT_FALLBACK_ACTION in agent.py "
+            f"to use an action from: {DEFAULT_ALLOWED_ACTIONS}"
         )
 
 
