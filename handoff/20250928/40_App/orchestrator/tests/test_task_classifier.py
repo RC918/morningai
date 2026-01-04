@@ -133,6 +133,61 @@ class TestTaskClassifierPatternMatching:
             result = classifier.classify(description)
             assert result == TaskType.DOCUMENTATION_UPDATE, f"Failed for: {description}"
 
+    def test_classify_lint_fix_pattern(self):
+        """Test classification of lint fix tasks (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        test_cases = [
+            "Fix lint error in utils.py",
+            "Lint error fix for main.py",
+            "Fix flake8 errors",
+            "Fix pylint warnings",
+            "Fix eslint issues",
+            "undefined name 'result' in function",
+            "unused variable 'temp' should be removed",
+            "unused import os at top of file",
+            "Fix typo in variable name",
+            "Typo fix in function name",
+        ]
+
+        for description in test_cases:
+            result = classifier.classify(description)
+            assert result == TaskType.LINT_FIX, f"Failed for: {description}"
+
+    def test_classify_lint_fix_error_codes_with_word_boundaries(self):
+        """Test that lint error codes match with word boundaries (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        # These SHOULD match - standalone error codes
+        should_match = [
+            "Fix F821 undefined name error",
+            "Error F401 unused import",
+            "E501 line too long",
+            "W291 trailing whitespace",
+            "Fix E302 expected 2 blank lines",
+            "W293 blank line contains whitespace",
+        ]
+
+        for description in should_match:
+            result = classifier.classify(description)
+            assert result == TaskType.LINT_FIX, f"Should match LINT_FIX: {description}"
+
+    def test_classify_lint_fix_error_codes_word_boundary_negative(self):
+        """Test that error codes don't match when embedded in other words (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        # These should NOT match LINT_FIX due to word boundaries
+        # (they might match other types or UNKNOWN)
+        should_not_match_lint_fix = [
+            "GF4012 is a product code",  # F401 embedded in GF4012
+            "myF821thing is a variable",  # F821 embedded
+            "Error code XE501Y",  # E501 embedded
+        ]
+
+        for description in should_not_match_lint_fix:
+            result = classifier.classify(description)
+            assert result != TaskType.LINT_FIX, f"Should NOT match LINT_FIX: {description}"
+
 
 class TestTaskClassifierHeuristics:
     """Test heuristic-based classification"""
@@ -177,6 +232,59 @@ class TestTaskClassifierHeuristics:
         description = "The README needs to be improved with better documentation"
         result = classifier.classify(description)
         assert result == TaskType.DOCUMENTATION_UPDATE
+
+    def test_classify_lint_fix_heuristic_lint_tools(self):
+        """Test heuristic classification for lint fix with tool names (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        # Test heuristics with lint tool names
+        # Note: These inputs should NOT match any patterns, only heuristics
+        test_cases = [
+            "There's a lint warning that needs to be fixed",
+            "The flake8 warning should be fixed",
+            "The pylint error should be resolved",
+            "eslint error needs to be fixed",  # Must have 'fix', 'error', or 'warning'
+        ]
+
+        for description in test_cases:
+            result = classifier.classify(description)
+            assert result == TaskType.LINT_FIX, f"Failed for: {description}"
+
+    def test_classify_lint_fix_heuristic_undefined_unused(self):
+        """Test heuristic classification for undefined/unused errors (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        # Test heuristics with undefined/unused keywords
+        test_cases = [
+            "Fix the undefined name in the function",
+            "Remove the unused variable from code",
+            "There's a typo that needs to be fixed",
+        ]
+
+        for description in test_cases:
+            result = classifier.classify(description)
+            assert result == TaskType.LINT_FIX, f"Failed for: {description}"
+
+    def test_classify_lint_fix_priority_over_backend_bug_fix(self):
+        """Test that LINT_FIX heuristics take priority over BACKEND_UTILS_BUG_FIX (Issue #3560)
+
+        Note: This tests heuristic priority, not pattern priority.
+        Inputs must NOT match any patterns (patterns always take precedence).
+        The heuristics check LINT_FIX before BACKEND_UTILS_BUG_FIX.
+        """
+        classifier = TaskClassifier()
+
+        # These should match LINT_FIX heuristic, not BACKEND_UTILS_BUG_FIX heuristic
+        # Note: "style" keyword triggers LINT_FIX heuristic before BACKEND_UTILS_BUG_FIX
+        # These inputs must NOT match any patterns (e.g., avoid "fix.*helper.*\.py")
+        test_cases = [
+            "Fix the style error in the backend code",  # 'style' + 'fix' + 'error' -> LINT_FIX
+            "There's a lint warning in the python util",  # 'lint' + 'warning' -> LINT_FIX
+        ]
+
+        for description in test_cases:
+            result = classifier.classify(description)
+            assert result == TaskType.LINT_FIX, f"Should be LINT_FIX, not BACKEND_UTILS_BUG_FIX: {description}"
 
     def test_classify_unknown_no_match(self):
         """Test that unmatched tasks return UNKNOWN"""
@@ -289,6 +397,20 @@ class TestTaskMetadata:
         assert metadata["estimated_time_minutes"] == 0
         assert metadata["requires_tests"] is False
         assert len(metadata["file_patterns"]) == 0
+
+    def test_get_metadata_lint_fix(self):
+        """Test metadata for lint fix task type (Issue #3560)"""
+        classifier = TaskClassifier()
+        metadata = classifier.get_task_metadata(TaskType.LINT_FIX)
+
+        assert metadata["complexity"] == "low"
+        assert metadata["estimated_time_minutes"] == 5
+        assert metadata["requires_tests"] is False
+        assert metadata["requires_review"] is False
+        assert "*.py" in metadata["file_patterns"]
+        assert "*.js" in metadata["file_patterns"]
+        assert "*.ts" in metadata["file_patterns"]
+        assert "description" in metadata
 
 
 class TestIsSupported:
@@ -501,6 +623,57 @@ class TestRealWorldCases:
 
         result = classifier.classify(description)
         assert result == TaskType.SIMPLE_API_ENDPOINT
+
+    def test_classify_ci_failure_lint_error(self):
+        """Test classification with real CI failure lint error message (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        # Real-world CI failure message format
+        description = """
+        CI Failure: Lint check failed
+
+        Error: F821 undefined name 'reuslt'
+        File: handoff/20250928/40_App/orchestrator/utils.py
+        Line: 42
+
+        Please fix the lint error and push again.
+        """
+
+        result = classifier.classify(description)
+        assert result == TaskType.LINT_FIX
+
+    def test_classify_ci_failure_multiple_lint_errors(self):
+        """Test classification with multiple lint errors from CI (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        description = """
+        Flake8 check failed with 3 errors:
+
+        utils.py:10:1: F401 'os' imported but unused
+        utils.py:25:80: E501 line too long (95 > 79 characters)
+        utils.py:42:5: W291 trailing whitespace
+
+        Run 'flake8 utils.py' to see all errors.
+        """
+
+        result = classifier.classify(description)
+        assert result == TaskType.LINT_FIX
+
+    def test_classify_ci_failure_eslint_error(self):
+        """Test classification with ESLint error from CI (Issue #3560)"""
+        classifier = TaskClassifier()
+
+        description = """
+        ESLint found issues:
+
+        src/components/Button.tsx
+          15:10  error  'unused' is defined but never used  @typescript-eslint/no-unused-vars
+
+        Fix the eslint errors before merging.
+        """
+
+        result = classifier.classify(description)
+        assert result == TaskType.LINT_FIX
 
 
 if __name__ == "__main__":
