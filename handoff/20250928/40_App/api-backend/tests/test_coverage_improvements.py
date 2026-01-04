@@ -99,7 +99,16 @@ class TestUserModelMethods:
 
         user.set_preferences(prefs)
 
-        assert user.preferences == '{"theme": "light", "notifications": true}'
+        assert json.loads(user.preferences) == prefs
+
+    def test_get_preferences_type_error(self):
+        """Test User.get_preferences with TypeError (line 29-30 TypeError branch)"""
+        user = User()
+        user.preferences = 12345
+
+        result = user.get_preferences()
+
+        assert result == {}
 
 
 class TestI18nTranslationLoading:
@@ -266,48 +275,47 @@ class TestBootstrapPaths:
     def test_bootstrap_orchestrator_paths_missing_directory(self):
         """Test bootstrap_orchestrator_paths when orchestrator dir doesn't exist (lines 115-119)"""
         from pathlib import Path
+        from src import bootstrap_paths
+        import importlib
 
-        with patch.object(Path, 'is_dir', return_value=False):
-            from src import bootstrap_paths
-            bootstrap_paths._bootstrapped = False
+        original_bootstrapped = bootstrap_paths._bootstrapped
+        try:
+            with patch.object(Path, 'is_dir', return_value=False):
+                importlib.reload(bootstrap_paths)
+                bootstrap_paths._bootstrapped = False
 
-            result = bootstrap_paths.bootstrap_orchestrator_paths()
+                result = bootstrap_paths.bootstrap_orchestrator_paths()
 
-            assert result is False
+                assert result is False
+        finally:
+            bootstrap_paths._bootstrapped = original_bootstrapped
+            importlib.reload(bootstrap_paths)
 
 
 class TestHelpersAsBool:
     """Test helpers._as_bool function edge cases"""
 
-    def test_as_bool_with_true_bool(self):
-        """Test _as_bool with True boolean"""
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            (True, True),
+            (False, False),
+            (None, False),
+            ('1', True),
+            ('true', True),
+            ('TRUE', True),
+            ('yes', True),
+            ('on', True),
+            ('0', False),
+            ('false', False),
+            ('no', False),
+            ('off', False),
+            ('', False),
+            ('  true  ', True),
+            ('  1  ', True),
+        ]
+    )
+    def test_as_bool(self, value, expected):
+        """Test _as_bool with various inputs."""
         from src.utils.helpers import _as_bool
-        assert _as_bool(True) is True
-
-    def test_as_bool_with_false_bool(self):
-        """Test _as_bool with False boolean"""
-        from src.utils.helpers import _as_bool
-        assert _as_bool(False) is False
-
-    def test_as_bool_with_none(self):
-        """Test _as_bool with None"""
-        from src.utils.helpers import _as_bool
-        assert _as_bool(None) is False
-
-    def test_as_bool_with_truthy_strings(self):
-        """Test _as_bool with truthy string values"""
-        from src.utils.helpers import _as_bool
-        assert _as_bool('1') is True
-        assert _as_bool('true') is True
-        assert _as_bool('TRUE') is True
-        assert _as_bool('yes') is True
-        assert _as_bool('on') is True
-
-    def test_as_bool_with_falsy_strings(self):
-        """Test _as_bool with falsy string values"""
-        from src.utils.helpers import _as_bool
-        assert _as_bool('0') is False
-        assert _as_bool('false') is False
-        assert _as_bool('no') is False
-        assert _as_bool('off') is False
-        assert _as_bool('') is False
+        assert _as_bool(value) is expected
