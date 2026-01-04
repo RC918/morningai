@@ -26,7 +26,7 @@ class TestTaskClassifierInitialization:
         assert hasattr(classifier, 'patterns')
         assert isinstance(classifier.patterns, dict)
         # Patterns should exist for all TaskTypes except UNKNOWN
-        expected_pattern_count = len([t for t in TaskType if t != TaskType.UNKNOWN])
+        expected_pattern_count = sum(1 for t in TaskType if t != TaskType.UNKNOWN)
         assert len(classifier.patterns) == expected_pattern_count
 
     def test_init_patterns_have_correct_task_types(self):
