@@ -7,32 +7,30 @@ Tests cover specific missing lines in:
 - services/monitoring_dashboard.py: Exception handling (lines 117-119, 235-236, 268-269)
 """
 import json
+import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
+
+from src.models.user import User
+from src.services.monitoring_dashboard import MonitoringDashboard, DashboardMetrics
 
 
 class TestUserModelRepr:
     """Test User model __repr__ method to cover line 15"""
 
-    def test_user_repr(self):
-        """Test User __repr__ returns expected format"""
-        from src.models.user import User
-
+    @pytest.mark.parametrize(
+        "username, expected_repr",
+        [
+            ("testuser", "<User testuser>"),
+            ("test_user_123", "<User test_user_123>"),
+        ],
+    )
+    def test_user_repr(self, username, expected_repr):
+        """Test User __repr__ returns expected format for various usernames"""
         user = User()
-        user.username = 'testuser'
-
+        user.username = username
         repr_str = repr(user)
-        assert repr_str == '<User testuser>'
-
-    def test_user_repr_with_special_chars(self):
-        """Test User __repr__ with special characters in username"""
-        from src.models.user import User
-
-        user = User()
-        user.username = 'test_user_123'
-
-        repr_str = repr(user)
-        assert repr_str == '<User test_user_123>'
+        assert repr_str == expected_repr
 
 
 class TestI18nTranslationLoading:
@@ -77,13 +75,16 @@ class TestI18nTranslationLoading:
             assert i18n.translations.get('zh-TW') == {}
 
 
+# Note: I18n imports are kept inline because they trigger file system operations
+# at import time that need to be mocked before the import occurs.
+
+
 class TestMonitoringDashboardEdgeCases:
     """Test monitoring dashboard edge cases for coverage"""
 
-    def test_calculate_system_health_exception(self):
+    @pytest.mark.asyncio
+    async def test_calculate_system_health_exception(self):
         """Test _calculate_system_health exception handling (lines 117-119)"""
-        from services.monitoring_dashboard import MonitoringDashboard
-
         dashboard = MonitoringDashboard()
 
         bad_metrics = {
@@ -91,17 +92,12 @@ class TestMonitoringDashboardEdgeCases:
             'bulkheads': None
         }
 
-        import asyncio
-        health = asyncio.get_event_loop().run_until_complete(
-            dashboard._calculate_system_health(bad_metrics)
-        )
+        health = await dashboard._calculate_system_health(bad_metrics)
 
         assert health['overall_status'] == 'unknown'
 
     def test_calculate_trends_decreasing_error_rate(self):
         """Test _calculate_trends with decreasing error rate (lines 235-236)"""
-        from services.monitoring_dashboard import MonitoringDashboard, DashboardMetrics
-
         dashboard = MonitoringDashboard()
         base_time = datetime.now()
 
@@ -130,8 +126,6 @@ class TestMonitoringDashboardEdgeCases:
 
     def test_generate_alerts_rejected_requests(self):
         """Test _generate_alerts with rejected requests > 10 (lines 268-269)"""
-        from services.monitoring_dashboard import MonitoringDashboard, DashboardMetrics
-
         dashboard = MonitoringDashboard()
 
         metrics = DashboardMetrics(
@@ -174,13 +168,18 @@ class TestVectorsGetDbConnection:
 class TestVectorsVisualizationUnavailable:
     """Test vectors.py when visualization libraries are unavailable"""
 
-    def test_visualize_returns_503_when_libs_unavailable(self):
-        """Test visualization endpoint returns 503 when libraries unavailable"""
+    @pytest.fixture
+    def client(self):
+        """Create a test client with proper isolation"""
         from src.main import app
+        app.config['TESTING'] = True
+        with app.test_client() as client:
+            yield client
+
+    def test_visualize_returns_503_when_libs_unavailable(self, client):
+        """Test visualization endpoint returns 503 when libraries unavailable"""
         from src.middleware.auth_middleware import create_admin_token
 
-        app.config['TESTING'] = True
-        client = app.test_client()
         token = create_admin_token()
         headers = {'Authorization': f'Bearer {token}'}
 
