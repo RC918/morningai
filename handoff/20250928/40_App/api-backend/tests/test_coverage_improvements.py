@@ -587,3 +587,115 @@ class TestI18nConvenienceFunctions:
             assert 'error' in response
             assert 'details' in response['error']
             assert response['error']['details']['field'] == 'email'
+
+
+class TestAuthServiceErrorHandling:
+    """Test auth_service.py error handling paths to cover exception branches"""
+
+    def test_log_token_config_on_startup_exception(self):
+        """Test _log_token_config_on_startup exception handling (lines 58-65)"""
+        from src.services import auth_service
+        import importlib
+        
+        # Save original state
+        original_warned = auth_service._warned_startup_config_failed
+        
+        try:
+            # Reset warning flag to test the warning path
+            auth_service._warned_startup_config_failed = False
+            
+            # Mock get_settings to raise an exception
+            with patch('src.services.auth_service.get_settings') as mock_settings:
+                mock_settings.side_effect = Exception("Settings validation error")
+                
+                # Call the function - should catch exception and log warning
+                auth_service._log_token_config_on_startup()
+                
+                # Warning flag should be set
+                assert auth_service._warned_startup_config_failed is True
+        finally:
+            # Restore original state
+            auth_service._warned_startup_config_failed = original_warned
+
+    def test_is_testing_mode_settings_exception(self):
+        """Test is_testing_mode exception handling (lines 106-114)"""
+        import os
+        from src.services import auth_service
+        
+        # Save original state
+        original_warned = auth_service._warned_settings_load_failed
+        original_testing = os.environ.get('TESTING', '')
+        
+        try:
+            # Reset warning flag and remove TESTING env var
+            auth_service._warned_settings_load_failed = False
+            if 'TESTING' in os.environ:
+                del os.environ['TESTING']
+            
+            # Mock get_settings to raise an exception
+            with patch('src.services.auth_service.get_settings') as mock_settings:
+                mock_settings.side_effect = Exception("Settings validation error")
+                
+                # Call the function - should catch exception and return False
+                result = auth_service.is_testing_mode()
+                
+                # Should return False and set warning flag
+                assert result is False
+                assert auth_service._warned_settings_load_failed is True
+        finally:
+            # Restore original state
+            auth_service._warned_settings_load_failed = original_warned
+            if original_testing:
+                os.environ['TESTING'] = original_testing
+
+    def test_is_production_with_env_var(self):
+        """Test is_production with ENVIRONMENT env var set (lines 130-132)"""
+        import os
+        from src.services import auth_service
+        
+        # Save original env var
+        original_env = os.environ.get('ENVIRONMENT', '')
+        
+        try:
+            # Set ENVIRONMENT to production
+            os.environ['ENVIRONMENT'] = 'production'
+            result = auth_service.is_production()
+            assert result is True
+            
+            # Set ENVIRONMENT to development
+            os.environ['ENVIRONMENT'] = 'development'
+            result = auth_service.is_production()
+            assert result is False
+        finally:
+            # Restore original state
+            if original_env:
+                os.environ['ENVIRONMENT'] = original_env
+            elif 'ENVIRONMENT' in os.environ:
+                del os.environ['ENVIRONMENT']
+
+    def test_is_mock_users_enabled_with_env_var(self):
+        """Test is_mock_users_enabled with ENABLE_MOCK_USERS env var (lines 181-183)"""
+        import os
+        from src.services import auth_service
+        
+        # Save original env var
+        original_mock = os.environ.get('ENABLE_MOCK_USERS', '')
+        
+        try:
+            # Mock is_testing_mode to return True
+            with patch.object(auth_service, 'is_testing_mode', return_value=True):
+                # Set ENABLE_MOCK_USERS to false
+                os.environ['ENABLE_MOCK_USERS'] = 'false'
+                result = auth_service.is_mock_users_enabled()
+                assert result is False
+                
+                # Set ENABLE_MOCK_USERS to true
+                os.environ['ENABLE_MOCK_USERS'] = 'true'
+                result = auth_service.is_mock_users_enabled()
+                assert result is True
+        finally:
+            # Restore original state
+            if original_mock:
+                os.environ['ENABLE_MOCK_USERS'] = original_mock
+            elif 'ENABLE_MOCK_USERS' in os.environ:
+                del os.environ['ENABLE_MOCK_USERS']
