@@ -137,6 +137,10 @@ services:
         sync: false
       - key: USE_POSTGRES_CHECKPOINTER
         value: "true"
+      - key: USE_LLM_PLANNER
+        value: "false"
+      - key: USE_LLM_REVIEWER
+        value: "false"
       - key: SLACK_WEBHOOK_URL
         sync: false
 

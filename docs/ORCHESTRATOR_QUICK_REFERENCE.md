@@ -1,45 +1,46 @@
 # Orchestrator Quick Reference Card
 
-**Version**: Phase 1 (2025-11-24)  
+**Version**: Phase 8 (2025-12-20) - LangGraph Only  
 **Complete Documentation**: [ONBOARDING_GUIDE.md](./ONBOARDING_GUIDE.md#orchestrator-architecture)
 
 ---
 
-## 🎯 When to Use Which Mode?
-
-| Scenario | Use Mode | Explanation |
-|----------|----------|-------------|
-| **New Feature Development** | LangGraph Mode | All new features MUST be implemented in LangGraph mode |
-| **Bug Fixes** | Simple Mode | Simple mode only accepts bug fixes (feature-frozen) |
-| **Modifying graph.execute()** | BOTH Modes | Must test both Simple and LangGraph modes |
-| **Testing New Features** | LangGraph Mode | Use `USE_LANGGRAPH=true` to force routing |
-| **Production Rollback** | Simple Mode | Set `USE_LANGGRAPH_PERCENT=0` for immediate rollback |
+> **Important**: As of December 2025 (Issue #2651), Simple Mode has been removed. LangGraph is now the only orchestrator mode. This document has been updated to reflect the current architecture.
 
 ---
 
-## ⚙️ Environment Variables Quick Reference
+## Architecture Overview
+
+```
+HTTP Request → API Backend → Redis Queue → Worker
+                                             ↓
+                                    LangGraph Orchestrator
+                                             ↓
+                                      graph.execute()
+                                    (Core Executor)
+```
+
+**Key Insight**: LangGraph is the sole orchestration mode. All tasks are processed through the LangGraph orchestrator.
+
+---
+
+## Environment Variables Quick Reference
 
 | Variable | Default | Purpose | Scope |
 |----------|---------|---------|-------|
-| `USE_LANGGRAPH` | `false` | Force 100% LangGraph routing | Worker routing decision |
-| `USE_LANGGRAPH_PERCENT` | `0` | Canary percentage (0-100) | Worker routing decision |
-| `USE_LLM_PLANNER` | `false` | Use LLM vs static planner | LangGraph mode only |
+| `USE_LLM_PLANNER` | `false` | Use LLM vs static planner | LangGraph orchestrator |
+| `USE_LLM_REVIEWER` | `false` | Enable LLM-powered code reviewer | LangGraph orchestrator |
+| `USE_POSTGRES_CHECKPOINTER` | `false` (prod: `true`) | PostgreSQL state persistence | LangGraph orchestrator |
+| `ENABLE_CHECKPOINT_FAILOVER` | `true` | Failover to MemorySaver on error | LangGraph orchestrator |
 
 ### Default Configuration
 
 ```bash
-# Default Worker Configuration
-USE_LANGGRAPH=false              # Allow canary routing
-USE_LANGGRAPH_PERCENT=0          # Default: 0% (100% Simple Mode)
-USE_LLM_PLANNER=false            # LangGraph uses static planner by default
+# Default Worker Configuration (Production)
+USE_LLM_PLANNER=false            # Static planner by default
+USE_LLM_REVIEWER=false           # CI-only reviewer by default
+USE_POSTGRES_CHECKPOINTER=true   # PostgreSQL checkpointer in production
 ```
-
-**Environment-Specific Overrides**:
-- Development: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode)
-- Staging: `USE_LANGGRAPH_PERCENT=15` (15% LangGraph canary)
-- Production: `USE_LANGGRAPH_PERCENT=0` (100% Simple Mode, conservative)
-
-**Note**: For staging worker configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Staging worker service names are environment-specific.
 
 ### Configuration Locations
 
@@ -51,138 +52,110 @@ USE_LLM_PLANNER=false            # LangGraph uses static planner by default
 
 ---
 
-## 🖥️ Service Names Quick Reference
+## Service Names Quick Reference
 
 | Service | Role | Environment | Configuration Location |
 |---------|------|-------------|----------------------|
 | `morningai-agent-worker` | Production Worker | Production | Render Dashboard → Production Worker → Environment |
-| `morningai-backend-v2` | API Backend | Production | ❌ No routing flags needed (API layer) |
-
-**Important**: Routing flags (`USE_LANGGRAPH*`) are set on **Worker services only**, NOT on API Backend.
-
-**Staging Workers**: For staging worker service names and configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Worker services may differ by environment.
+| `morningai-backend-v2` | API Backend | Production | Render Dashboard → Backend → Environment |
+| `morningai-orchestrator-api` | Orchestrator API | Production | Render Dashboard → Orchestrator API → Environment |
 
 ---
 
-## 🔍 Log Search Keywords
+## Log Search Keywords
 
 | Keyword | Purpose | Example |
 |---------|---------|---------|
-| `"Using LangGraph orchestrator"` | Find LangGraph mode executions | Search in worker logs (Render Dashboard) |
-| `"Using simple orchestrator"` | Find Simple mode executions | Search in worker logs (Render Dashboard) |
-| `"Canary deployment"` | Find routing decisions | Search in worker logs (Render Dashboard) |
-| `"task_percent"` | Find task routing percentages | Search in worker logs (Render Dashboard) |
+| `"Using LangGraph orchestrator"` | Find LangGraph executions | Search in worker logs (Render Dashboard) |
+| `"Using PostgreSQL checkpointer"` | Verify checkpointer type | Search in worker logs |
+| `"CHECKPOINT DEGRADED"` | Detect checkpointer failover events | Search in worker logs |
 | `planner_type` | Identify planner type (llm/static) | Search in planner logs |
 | `trace_id` | Track execution across services | Search in logs by trace ID |
+| `[I-4-ADVISORY]` | Degradation advisor recommendations | Search in governance logs |
 
 ---
 
-## 🧪 Local Testing Commands
-
-### Test Simple Mode
-
-```bash
-cd handoff/20250928/40_App/orchestrator
-export USE_LANGGRAPH=false
-export USE_LANGGRAPH_PERCENT=0
-pytest tests/test_persistence_db_writer.py -v
-```
+## Local Testing Commands
 
 ### Test LangGraph Mode
 
 ```bash
 cd handoff/20250928/40_App/orchestrator
-export USE_LANGGRAPH=true
 pytest tests/test_langgraph_smoke.py -v
 ```
 
-### Test Canary Routing
+### Test with LLM Planner
 
 ```bash
 cd handoff/20250928/40_App/orchestrator
-export USE_LANGGRAPH=false
-export USE_LANGGRAPH_PERCENT=5
-pytest tests/test_worker.py -k canary -v
+export USE_LLM_PLANNER=true
+pytest tests/test_langgraph_smoke.py -v
 ```
 
-**Note**: Canary routing tests are in `test_worker.py` (e.g., `test_canary_5_percent_distribution`, `test_canary_deterministic_same_task_id`).
-
-### Test Both Modes (Required for graph.execute() changes)
+### Test Checkpointer Failover
 
 ```bash
 cd handoff/20250928/40_App/orchestrator
-
-# Test Simple Mode
-export USE_LANGGRAPH=false USE_LANGGRAPH_PERCENT=0
-pytest tests/test_persistence_db_writer.py -v
-
-# Test LangGraph Mode
-export USE_LANGGRAPH=true
-pytest tests/test_langgraph_smoke.py -v
+export USE_POSTGRES_CHECKPOINTER=true
+export ENABLE_CHECKPOINT_FAILOVER=true
+pytest tests/test_checkpointer.py -v
 ```
 
 ---
 
-## 📊 Monitoring Metrics
+## Monitoring Metrics
 
 | Metric | Location | Purpose |
 |--------|----------|---------|
-| `decisions.langgraph` | Redis/Logs | Count of LangGraph mode selections |
-| `decisions.simple` | Redis/Logs | Count of Simple mode selections |
 | `planner_runs.jsonl` | Logs | Planner execution records with timing |
 | `task_execution_time` | Logs | End-to-end task duration |
-| `graph_execute_time` | Logs | Time spent in shared core executor |
-
-### Expected Ratios
-
-Traffic split is configurable via `USE_LANGGRAPH_PERCENT`:
-- Default: 100% Simple Mode (USE_LANGGRAPH_PERCENT=0)
-- Staging: 85% Simple / 15% LangGraph (USE_LANGGRAPH_PERCENT=15)
-- Error Rate: <5% for Simple, <20% for LangGraph (canary tolerance)
+| `graph_execute_time` | Logs | Time spent in core executor |
+| `checkpoint_failover_count` | Logs | Number of failovers to MemorySaver |
 
 ---
 
-## 🚨 Common Pitfalls & Solutions
+## Common Pitfalls & Solutions
 
 | Pitfall | Correct Approach |
 |---------|-----------------|
-| ❌ Adding new features to Simple mode | ✅ Add new features to LangGraph mode only |
-| ❌ Modifying graph.py and testing only one mode | ✅ Test BOTH Simple and LangGraph modes |
-| ❌ Thinking graph.py is "old orchestrator" | ✅ graph.py is the **shared core executor** used by both modes |
-| ❌ Setting routing flags on API Backend | ✅ Set routing flags on **Worker services only** |
-| ❌ Assuming 100% LangGraph is safe | ✅ Use gradual rollout: 5% → 25% → 50% → 100% |
+| Assuming USE_LANGGRAPH flags still exist | USE_LANGGRAPH flags were removed in Issue #2651 |
+| Not setting USE_POSTGRES_CHECKPOINTER in prod | Set to `true` in production for state persistence |
+| Ignoring checkpoint failover logs | Monitor `CHECKPOINT DEGRADED` logs for degradation |
+| Not testing with LLM planner before enabling | Test locally with `USE_LLM_PLANNER=true` first |
 
 ---
 
-## 🔄 Quick Rollback Procedures
+## Quick Rollback Procedures
 
-### Scenario 1: LangGraph Mode Issues (Most Common)
+### Scenario 1: LLM Planner Issues
 
-**Symptoms**: High error rate (>20%), timeouts, incorrect results
+**Symptoms**: High error rate, incorrect planning, timeouts
 
 **Immediate Rollback** (< 2 minutes):
 ```bash
 # In Render Dashboard → morningai-agent-worker → Environment
-USE_LANGGRAPH_PERCENT = 0  # Route 100% to Simple Mode
+USE_LLM_PLANNER = false  # Revert to static planner
 # Save and redeploy
 ```
 
-**Verify**: Check worker logs in Render Dashboard for `"Using simple orchestrator"` (should be 100%)
+**Verify**: Check worker logs for `planner_type: static`
 
 **Recovery Time**: < 5 minutes
 
-### Scenario 2: Shared Core Issues (Rare but Critical)
+### Scenario 2: Checkpointer Issues
 
-**Symptoms**: Both modes failing, graph.execute() errors
+**Symptoms**: Persistent state persistence failures, workflow interruptions, or repeated `CHECKPOINT DEGRADED` logs
 
-**Rollback**:
+**Context**: The system has automatic failover to an in-memory checkpointer for transient database errors. Use this manual rollback if PostgreSQL issues are persistent or if the automatic failover mechanism is causing problems.
+
+**Immediate Rollback**:
 ```bash
-git revert <bad_commit_hash>
-git push origin main
-# Render auto-deploys
+# In Render Dashboard → morningai-agent-worker → Environment
+USE_POSTGRES_CHECKPOINTER = false  # Fallback to in-memory MemorySaver
+# Save and redeploy
 ```
 
-**Recovery Time**: 10-15 minutes
+**Impact**: This reverts to in-memory state management. Workflows in progress will lose state if the worker restarts.
 
 ### Scenario 3: Complete Worker Failure
 
@@ -197,68 +170,56 @@ git push origin main
 
 ---
 
-## 📐 Architecture Quick View
-
-```
-HTTP Request → API Backend → Redis Queue → Worker
-                                             ↓
-                                    Routing Decision (MD5 Hash)
-                                    /                    \
-                              Simple Mode          LangGraph Mode
-                             (Feature-frozen)    (Active development)
-                                    \                    /
-                                     graph.execute()
-                                   (Shared Core Executor)
-```
-
-**Key Insight**: Both modes use the same `graph.execute()` function. Modifications affect both modes.
-
----
-
-## 📞 Need Help?
+## Need Help?
 
 ### Complete Documentation
 
-- 📖 **Architecture Overview**: [ONBOARDING_GUIDE.md](./ONBOARDING_GUIDE.md#orchestrator-architecture)
-- 📊 **System Details**: [PROJECT_STRUCTURE_REPORT.md](./PROJECT_STRUCTURE_REPORT.md#orchestrator-system)
-- ⚙️ **Configuration Guide**: [ENVIRONMENTS.md](./ENVIRONMENTS.md#orchestrator-configuration)
-- 📝 **Design Decisions**: [ADR-004: Shared Core Executor Pattern](./adr/004-shared-core-executor-pattern.md)
-- 📝 **Historical Context**: [ADR-005: Dual Orchestrator Architecture](./adr/005-dual-orchestrator-architecture.md)
+- **Architecture Overview**: [ONBOARDING_GUIDE.md](./ONBOARDING_GUIDE.md#orchestrator-architecture)
+- **System Details**: [PROJECT_STRUCTURE_REPORT.md](./PROJECT_STRUCTURE_REPORT.md#orchestrator-system)
+- **Configuration Guide**: [ENVIRONMENTS.md](./ENVIRONMENTS.md#orchestrator-configuration)
+- **Design Decisions**: [ADR-004: Shared Core Executor Pattern](./adr/004-shared-core-executor-pattern.md)
+- **Historical Context**: [ADR-005: Deprecate Simple Orchestrator Mode](./adr/005-deprecate-simple-orchestrator-mode.md)
 
 ### Code Locations
 
-- **Shared Core**: `handoff/20250928/40_App/orchestrator/graph.py:30-155`
-- **Routing Logic**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:366-395`
-- **Simple Mode Call**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:399-400`
-- **LangGraph Mode**: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py:143`
-- **Settings**: `common/config/settings.py:890-908`
+- **Core Executor**: `handoff/20250928/40_App/orchestrator/graph.py`
+- **LangGraph Orchestrator**: `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py`
+- **Worker**: `handoff/20250928/40_App/orchestrator/redis_queue/worker.py`
+- **Settings**: `common/config/settings.py`
+- **Routing Engine**: `handoff/20250928/40_App/orchestrator/core/routing/engine.py`
 
 ---
 
-## 🎓 Development Checklist
+## Development Checklist
 
 ### When Modifying graph.execute()
 
-- [ ] Understand changes affect BOTH modes
-- [ ] Test Simple mode: `USE_LANGGRAPH=false USE_LANGGRAPH_PERCENT=0`
-- [ ] Test LangGraph mode: `USE_LANGGRAPH=true`
-- [ ] Test canary routing: `USE_LANGGRAPH=false USE_LANGGRAPH_PERCENT=5`
-- [ ] Update tests in both `test_persistence_db_writer.py` and `test_langgraph_smoke.py`
+- [ ] Understand changes affect all LangGraph workflows
+- [ ] Test with `pytest tests/test_langgraph_smoke.py -v`
+- [ ] Test checkpointer integration
+- [ ] Update tests in `test_langgraph_smoke.py`
 - [ ] Document behavioral changes in PR description
 - [ ] Get CTO approval for major changes
 
 ### When Adding New Features
 
-- [ ] Implement in LangGraph mode only
-- [ ] Do NOT add to Simple mode (feature-frozen)
+- [ ] Implement in LangGraph orchestrator
 - [ ] Can call `graph.execute()` for core execution
-- [ ] Test with `USE_LANGGRAPH=true`
+- [ ] Test with various planner configurations
 - [ ] Document in PR description
+
+### When Enabling LLM Features (Canary)
+
+- [ ] Test locally with feature flag enabled
+- [ ] Start with low percentage in staging
+- [ ] Monitor error rates and latency
+- [ ] Gradually increase percentage
+- [ ] Document rollback procedure
 
 ---
 
-**Last Updated**: 2025-11-24  
-**Next Review**: 2025-12-24
+**Last Updated**: 2025-12-20  
+**Next Review**: 2026-01-20
 
 ---
 

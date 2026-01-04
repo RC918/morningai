@@ -607,118 +607,72 @@ MorningAI uses a multi-environment deployment architecture to ensure safe develo
 - **Auto-Deploy**: Yes (on push to `main`)
 - **Health Check**: `GET /health`
 
-⚠️ **Orchestrator Architecture (Dual-Mode System with Shared Core)**
+**Orchestrator Architecture (LangGraph Only)**
 
-MorningAI uses a **dual-mode orchestrator architecture** with a shared core executor and canary routing:
+> **Important**: As of December 2025 (Issue #2651), Simple Mode has been removed. LangGraph is now the only orchestrator mode.
 
 ```
-API Backend → Redis Queue → Worker (Routing) → [Simple Mode | LangGraph Mode]
-                                                       ↓              ↓
-                                                  graph.execute (Shared Core)
+API Backend → Redis Queue → Worker → LangGraph Orchestrator → graph.execute (Core Executor)
 ```
 
-**Key Insight**: `graph.py` is NOT just "legacy code" - it's the **shared execution engine** used by both modes.
+**Key Insight**: `graph.py` is the **core execution engine** used by the LangGraph orchestrator.
 
 | Component | Role | Traffic | Status | Path |
 |-----------|------|---------|--------|------|
-| **Simple Mode** | Direct execution | ~95% | Feature-frozen | `handoff/20250928/40_App/orchestrator/graph.py` |
-| **LangGraph Mode** | Stateful workflows | ~5% | Active development | `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` |
-| **Shared Core** | Execution engine | 100% | Both modes | `handoff/20250928/40_App/orchestrator/graph.py:30-155` |
-| **Routing Logic** | Mode selection | 100% | Canary deployment | `handoff/20250928/40_App/orchestrator/redis_queue/worker.py:366-400` |
+| **LangGraph Orchestrator** | Stateful workflows | 100% | Active | `handoff/20250928/40_App/orchestrator/langgraph_orchestrator.py` |
+| **Core Executor** | Execution engine | 100% | Active | `handoff/20250928/40_App/orchestrator/graph.py` |
+| **Worker** | Task processing | 100% | Active | `handoff/20250928/40_App/orchestrator/redis_queue/worker.py` |
 
-### Execution Modes
+### LangGraph Orchestrator Features
 
-**Simple Mode** (~95% traffic):
-- ✅ Fast: Direct execution, no state machine overhead
-- ✅ Stable: Battle-tested, production-proven
-- ✅ Stateless: No retry logic, no CI monitoring
-- ❌ Feature-frozen: Only bug fixes accepted
-- Entry: `worker.py:399` → `graph.execute()`
-
-**LangGraph Mode** (~5% traffic, Phase 1):
-- ✅ Stateful: Full state machine with LangGraph
-- ✅ Intelligent: LLM-powered planning (when `USE_LLM_PLANNER=true`)
-- ✅ Resilient: Retry logic, error handling, CI monitoring
-- ✅ Active Development: New features go here
-- Entry: `worker.py:396` → `langgraph_orchestrator.run_orchestrator()` → `executor_node` → `graph.execute()`
-
-### Routing Logic (Canary Deployment)
-
-**Algorithm** (`worker.py:366-400`):
-```python
-use_langgraph = settings.use_langgraph or False
-use_langgraph_percent = getattr(settings, 'use_langgraph_percent', 0)
-
-if not use_langgraph and use_langgraph_percent > 0:
-    # Canary logic: MD5 hash for deterministic routing
-    task_hash = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
-    task_percent = task_hash % 100  # 0-99 bucket
-    use_langgraph = task_percent < use_langgraph_percent
-```
-
-**Properties**:
-- **Deterministic**: Same task_id always routes to same mode
-- **Uniform**: MD5 ensures even distribution across 0-99 buckets
-- **Controllable**: Adjust `USE_LANGGRAPH_PERCENT` to change traffic split
-- **Observable**: Logs routing decision with structured logging
+- Stateful: Full state machine with LangGraph
+- Intelligent: LLM-powered planning (when `USE_LLM_PLANNER=true`)
+- Resilient: Retry logic, error handling, CI monitoring
+- Persistent: PostgreSQL checkpointer for state persistence (when `USE_POSTGRES_CHECKPOINTER=true`)
+- Entry: `worker.py` → `langgraph_orchestrator.run_orchestrator()` → `executor_node` → `graph.execute()`
 
 **Monitoring Keywords** (search in Render Dashboard logs):
-- `"Canary deployment"` - Routing decision
 - `"Using LangGraph orchestrator"` - LangGraph execution
-- `"Using simple orchestrator"` - Simple execution
+- `"Using PostgreSQL checkpointer"` - PostgreSQL state persistence
 - `"Using LLM planner"` - LLM planner selection
+- `planner_type` - Planner type (llm/static)
 
 ### Environment Variable Configuration
 
 ⚠️ **注意**：本文檔描述架構設計和政策。實際環境變數配置可能因運維需求調整。請以 Render Dashboard 的實際配置為準。
 
-**預設值說明**:
-- `USE_LANGGRAPH_PERCENT` 預設值為 **0**（100% Simple mode，LangGraph 停用）
-- 啟用 LangGraph 金絲雀需要明確設定 `USE_LANGGRAPH_PERCENT`（例如 Staging 環境設為 15）
+**Phase 8 參考配置**（實際配置請查看 Render Dashboard）:
 
-**Phase 1 參考配置**（實際配置請查看 Render Dashboard）:
-
-| 服務 | USE_LANGGRAPH | USE_LANGGRAPH_PERCENT | USE_LLM_PLANNER | 位置 |
-|------|---------------|----------------------|-----------------|------|
-| `morningai-agent-worker` (Production) | `false` | `0` | `false` | Render Dashboard → Production Worker → Environment |
+| 服務 | USE_LLM_PLANNER | USE_POSTGRES_CHECKPOINTER | 位置 |
+|------|-----------------|---------------------------|------|
+| `morningai-agent-worker` (Production) | `false` | `true` | Render Dashboard → Production Worker → Environment |
 
 **Note**: For staging worker configuration, refer to [STAGING_SETUP_GUIDE.md](./ops/STAGING_SETUP_GUIDE.md). Staging worker service names are environment-specific and defined in the staging setup documentation.
 
-**配置範例**（Staging 環境）:
+**配置範例**（Production 環境）:
 ```bash
-USE_LANGGRAPH=false              # Allow canary routing (not 100%)
-USE_LANGGRAPH_PERCENT=15         # 15% traffic to LangGraph (Staging)
-USE_LLM_PLANNER=true             # LangGraph uses LLM planner
+USE_LLM_PLANNER=false            # Static planner by default
+USE_POSTGRES_CHECKPOINTER=true   # PostgreSQL checkpointer for state persistence
+USE_LLM_REVIEWER=false           # CI-only reviewer by default
 ```
 
-**Kill Switch** (Emergency - 100% Simple):
+**LLM Planner Canary** (Staging):
 ```bash
-USE_LANGGRAPH=false
-USE_LANGGRAPH_PERCENT=0          # 0% to LangGraph (100% Simple)
-```
-
-**Full LangGraph** (Future - Phase 2+):
-```bash
-USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
+USE_LLM_PLANNER=true             # Enable LLM-powered planner
+USE_POSTGRES_CHECKPOINTER=true   # PostgreSQL checkpointer
 ```
 
 ### Development Guidelines
 
-**✅ DO**: Add new orchestrator features to LangGraph mode only
-**❌ DON'T**: Add features to Simple mode (feature-frozen)
-**⚠️ CRITICAL**: Changes to `graph.execute()` affect BOTH modes - test both!
+**✅ DO**: Add new orchestrator features to LangGraph orchestrator
+**⚠️ CRITICAL**: Changes to `graph.execute()` affect all workflows - test thoroughly!
 
 **Documentation**: 
 - [ONBOARDING_GUIDE.md - Orchestrator Architecture](./ONBOARDING_GUIDE.md#orchestrator-architecture) - Comprehensive developer guide
 - [PROJECT_STRUCTURE_REPORT.md - Orchestrator System](./PROJECT_STRUCTURE_REPORT.md#3-orchestrator-system) - Technical details
-- [ADR-005: Dual Orchestrator Architecture](adr/005-dual-orchestrator-architecture.md) - Historical context
+- [ADR-005: Deprecate Simple Orchestrator Mode](adr/005-deprecate-simple-orchestrator-mode.md) - Historical context
 - [ADR-002: Producer-Consumer Architecture](adr/002-producer-consumer-architecture.md) - Technical architecture
 - [ADR-004: Shared Core Executor Pattern](adr/004-shared-core-executor-pattern.md) - Design decision for shared execution engine
-
-**Migration Roadmap**:
-- **Phase 1** (Current): LangGraph canary validation (configurable via USE_LANGGRAPH_PERCENT)
-- **Phase 2** (Q1 2026): Gradually increase to 100% LangGraph
-- **Phase 3** (Q2 2026): Refactor `graph.py` to `core_executor.py`
 
 #### Frontend Dashboard
 - **URL**: https://morningai.vercel.app
@@ -783,9 +737,11 @@ USE_LANGGRAPH=true               # 100% to LangGraph (overrides percent)
     - **Required when**: `LLM_PROVIDER=gemini` or `LLM_PROVIDER=auto`
     - **Get API key**: https://makersuite.google.com/app/apikey
   - `USE_LLM_PLANNER` (boolean) - Enable LLM-based task planning (Phase 1)
+  - `USE_LLM_REVIEWER` (boolean) - Enable LLM-powered code reviewer (Phase 6 PR-3)
   - `USE_CODEGEN_WORKFLOW_PERCENT` (integer 0-100) - Percentage rollout for code generation workflow (Phase 2)
-  - `USE_LANGGRAPH` (boolean) - Enable LangGraph orchestrator mode
-  - `USE_LANGGRAPH_PERCENT` (integer 0-100) - Percentage rollout for LangGraph
+  - `USE_POSTGRES_CHECKPOINTER` (boolean) - Enable PostgreSQL checkpointer for LangGraph state persistence
+  - ~~`USE_LANGGRAPH` (boolean)~~ - **REMOVED** in Issue #2651 (Dec 2025) - LangGraph is now the only mode
+  - ~~`USE_LANGGRAPH_PERCENT` (integer 0-100)~~ - **REMOVED** in Issue #2651 (Dec 2025)
   - ⚠️ `ENABLE_PROJECT_ENGINEER_CODEGEN` (boolean) - **PRIVILEGED SWITCH** - Enable ProjectEngineerAgent code generation execution mode (Phase 2 Step B-1)
     - **Default**: `false` (analysis-only mode)
     - **Security Level**: High-risk feature flag
@@ -860,17 +816,19 @@ SENTRY_DSN=<production-dsn>
 SENTRY_ENVIRONMENT=production
 ```
 
-**Orchestrator Configuration** (Phase 1-2):
+**Orchestrator Configuration** (Phase 8 - LangGraph Only):
 
 ⚠️ **注意**：以下為參考配置。實際環境變數請查看 Render Dashboard。
 
-```bash
-# Dual-Mode Orchestrator with Canary Routing
-USE_LANGGRAPH=false                     # Allow canary routing (false = use percent, true = 100%)
-USE_LANGGRAPH_PERCENT=5                 # 5% traffic to LangGraph mode (0-100)
+> **Important**: As of December 2025 (Issue #2651), `USE_LANGGRAPH` and `USE_LANGGRAPH_PERCENT` flags have been removed. LangGraph is now the only orchestrator mode.
 
-# Phase 1-2 Feature Flags
-USE_LLM_PLANNER=true                    # Enable LLM-based task planning (Phase 1)
+```bash
+# LangGraph Orchestrator Configuration
+USE_LLM_PLANNER=false                   # Enable LLM-based task planning (default: static planner)
+USE_LLM_REVIEWER=false                  # Enable LLM-powered code reviewer
+USE_POSTGRES_CHECKPOINTER=true          # PostgreSQL checkpointer for state persistence (recommended for production)
+
+# Phase 2 Feature Flags
 USE_CODEGEN_WORKFLOW_PERCENT=0          # Percentage rollout for code generation (Phase 2, 0-100)
 ENABLE_PROJECT_ENGINEER_CODEGEN=false   # ⚠️ PRIVILEGED - ProjectEngineerAgent execution mode (Phase 2 Step B-1)
                                         # DO NOT enable in production without controlled rollout
@@ -881,10 +839,9 @@ PROJECT_ENGINEER_FIXER_PERCENT=0        # Percentage rollout for auto-fix (0-100
                                         # Uses MD5 hash routing for deterministic task assignment
 
 # Configuration Examples:
-# - Kill Switch (100% Simple):    USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=0
-# - 5% Canary (Phase 1 Reference): USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=5
-# - 50% Split Testing:            USE_LANGGRAPH=false, USE_LANGGRAPH_PERCENT=50
-# - 100% LangGraph (Future):      USE_LANGGRAPH=true (overrides percent)
+# - Default (Static Planner):     USE_LLM_PLANNER=false
+# - LLM Planner Canary:           USE_LLM_PLANNER=true (test in staging first)
+# - LLM Reviewer Canary:          USE_LLM_REVIEWER=true (test in staging first)
 ```
 
 **Rate Limiting**:
