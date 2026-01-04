@@ -2447,6 +2447,12 @@ class AgentState(TypedDict):
     # head_sha, head_branch, logs_url, error_summary, check_run_id.
     # Used by fixer_integration.py to use CI evidence directly instead of ReviewerAgent.
     ci_failure_context: Optional[dict]
+    # Issue #3541: CI Failure Fast Path Consumed Flag
+    # Set by ci_monitor_node on first pass when ci_failure_trigger=True.
+    # Prevents infinite loop: after fixer applies fix and routes back to ci_monitor,
+    # this flag ensures ci_monitor makes actual API call to check real CI status
+    # instead of forcing ci_state="failure" again.
+    ci_failure_fast_path_consumed: Optional[bool]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -4045,34 +4051,57 @@ def ci_monitor_node(state: AgentState) -> AgentState:
     # from _create_base_initial_state() before run_orchestrator() sets it to "failure".
     # The key insight: when ci_failure_trigger=True, we KNOW CI failed (from webhook),
     # so we should preserve that state and skip the API call that would overwrite it.
-    if ci_failure_trigger:
+    #
+    # Issue #3541: Make fast path one-shot to prevent infinite loop
+    # After fixer applies fix and routes back to ci_monitor (via should_proceed_after_fixer),
+    # we need to check real CI status to see if the fix worked. The consumed flag ensures
+    # we only skip the API call on the FIRST pass, then do normal CI check on subsequent passes.
+    fast_path_consumed = state.get("ci_failure_fast_path_consumed") is True
+    if ci_failure_trigger and not fast_path_consumed:
+        # Mark fast path as consumed so subsequent ci_monitor calls check real CI status
+        state["ci_failure_fast_path_consumed"] = True
         # Ensure ci_state is "failure" for downstream router fast path
         if ci_state != "failure":
             logger.warning(
                 f"[CI Monitor] CI failure trigger active but ci_state={ci_state}, "
-                "forcing ci_state=failure for fast path",
+                "forcing ci_state=failure for fast path (first pass)",
                 extra={
                     "operation": "ci_monitor",
                     "trace_id": trace_id,
                     "ci_failure_trigger": ci_failure_trigger,
                     "original_ci_state": ci_state,
+                    "fast_path_consumed": False,
                 }
             )
             state["ci_state"] = "failure"
         else:
             logger.info(
                 "[CI Monitor] CI failure trigger active with ci_state=failure, "
-                "preserving state and skipping API call for fast path",
+                "preserving state and skipping API call for fast path (first pass)",
                 extra={
                     "operation": "ci_monitor",
                     "trace_id": trace_id,
                     "ci_failure_trigger": ci_failure_trigger,
                     "ci_state": ci_state,
+                    "fast_path_consumed": False,
                 }
             )
         latency_ms = (time.time() - start_time) * 1000
         metrics.record_node_complete("ci_monitor", trace_id, success=True, latency_ms=latency_ms)
         return state
+
+    # Issue #3541: Log when fast path was already consumed (post-fix CI check)
+    if ci_failure_trigger and fast_path_consumed:
+        logger.info(
+            "[CI Monitor] CI failure trigger active but fast path already consumed, "
+            "proceeding to check real CI status (post-fix verification)",
+            extra={
+                "operation": "ci_monitor",
+                "trace_id": trace_id,
+                "ci_failure_trigger": ci_failure_trigger,
+                "fast_path_consumed": True,
+            }
+        )
 
     # Note: We don't check for GitHub token here - instead we rely on exception handling
     # below to catch GitHubAuthenticationError when the token is missing/invalid.
