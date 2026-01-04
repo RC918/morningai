@@ -43,12 +43,15 @@ def setup_fake_modules():
 
         class FakeSettings:
             enable_simple_coder = False
+            enable_general_coder = False
             enable_project_engineer_fixer = False
             project_engineer_fixer_percent = 0
             enable_project_engineer_codegen = False
             workspace_path = "."
             openai_api_key = "test-key"
             github_repo = "RC918/morningai"
+            github_token = "test-token"
+            agent_github_token = "test-agent-token"
 
         settings_module.settings = FakeSettings()
         sys.modules["common.config.settings"] = settings_module
@@ -80,6 +83,7 @@ from langgraph_orchestrator import (  # noqa: E402
     fixer_node,
     _attempt_simple_coder_fix,
     _ensure_comment_body_for_ci_failure,
+    _extract_file_path_from_error,
 )
 
 
@@ -898,3 +902,113 @@ class TestEnsureCommentBodyForCiFailure:
 
         assert state["comment_body"] != ""
         assert "lint" in state["comment_body"]
+
+    def test_extracts_file_path_from_error_summary(self):
+        """Test that review_file_path is extracted from error_summary (Issue #3567)."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": "src/utils/helper.py:42:1: F821 undefined name 'reuslt'",
+            },
+            "comment_body": "",
+            "review_comments": [],
+            "review_file_path": "",
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["review_file_path"] == "src/utils/helper.py"
+
+    def test_does_not_override_existing_review_file_path(self):
+        """Test that existing review_file_path is not overwritten."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": "src/utils/helper.py:42:1: F821 undefined name",
+            },
+            "comment_body": "",
+            "review_comments": [],
+            "review_file_path": "existing/path.py",
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["review_file_path"] == "existing/path.py"
+
+
+class TestExtractFilePathFromError:
+    """Tests for _extract_file_path_from_error helper function (Issue #3567).
+
+    This function extracts file paths from CI error summaries to enable
+    SimpleCoder to work in CI failure scenarios.
+    """
+
+    def test_extracts_flake8_format(self):
+        """Test extraction from flake8 format: path/file.py:line:col: error."""
+        error = "src/utils/helper.py:42:1: F821 undefined name 'reuslt'"
+        assert _extract_file_path_from_error(error) == "src/utils/helper.py"
+
+    def test_extracts_pylint_format(self):
+        """Test extraction from pylint format."""
+        error = "orchestrator/agent.py:123:0: E1101: Module has no member"
+        assert _extract_file_path_from_error(error) == "orchestrator/agent.py"
+
+    def test_extracts_eslint_format(self):
+        """Test extraction from eslint format: path/file.js:line:col: error."""
+        error = "src/components/Button.tsx:15:3: 'useState' is defined but never used"
+        assert _extract_file_path_from_error(error) == "src/components/Button.tsx"
+
+    def test_extracts_compiler_format(self):
+        """Test extraction from compiler format: path/file.py(line): error."""
+        error = "src/main.py(42): SyntaxError: invalid syntax"
+        assert _extract_file_path_from_error(error) == "src/main.py"
+
+    def test_extracts_error_in_format(self):
+        """Test extraction from 'Error in path/file.py' format."""
+        error = "Error in src/utils/helper.py: undefined variable"
+        assert _extract_file_path_from_error(error) == "src/utils/helper.py"
+
+    def test_extracts_file_format(self):
+        """Test extraction from 'File path/file.py' format."""
+        error = "File src/config.py has issues"
+        assert _extract_file_path_from_error(error) == "src/config.py"
+
+    def test_extracts_multiline_first_match(self):
+        """Test extraction from multiline error (first file wins)."""
+        error = """src/first.py:10:1: E501 line too long
+src/second.py:20:1: E501 line too long"""
+        assert _extract_file_path_from_error(error) == "src/first.py"
+
+    def test_returns_empty_for_no_match(self):
+        """Test returns empty string when no file path found."""
+        error = "Some generic error without file path"
+        assert _extract_file_path_from_error(error) == ""
+
+    def test_returns_empty_for_empty_input(self):
+        """Test returns empty string for empty input."""
+        assert _extract_file_path_from_error("") == ""
+        assert _extract_file_path_from_error(None) == ""
+
+    def test_handles_various_extensions(self):
+        """Test extraction works for various file extensions."""
+        test_cases = [
+            ("app.js:1:1: error", "app.js"),
+            ("app.ts:1:1: error", "app.ts"),
+            ("app.jsx:1:1: error", "app.jsx"),
+            ("app.tsx:1:1: error", "app.tsx"),
+            ("main.go:1:1: error", "main.go"),
+            ("lib.rs:1:1: error", "lib.rs"),
+            ("App.java:1:1: error", "App.java"),
+            ("script.rb:1:1: error", "script.rb"),
+            ("index.php:1:1: error", "index.php"),
+            ("main.c:1:1: error", "main.c"),
+            ("main.cpp:1:1: error", "main.cpp"),
+            ("header.h:1:1: error", "header.h"),
+            ("header.hpp:1:1: error", "header.hpp"),
+        ]
+        for error, expected in test_cases:
+            assert _extract_file_path_from_error(error) == expected, f"Failed for: {error}"

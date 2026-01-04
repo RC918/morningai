@@ -666,21 +666,55 @@ class ProjectEngineerAgent:
             result_state = await self.workflow.execute(task_dict)
 
             # Extract results
-            if result_state.get("error"):
-                logger.error(f"[ProjectEngineerAgent] Code generation failed: {result_state['error']}")
+            # Issue #3567: Fix silent failure - check for error (including empty string)
+            # and missing PR (which indicates workflow didn't complete successfully)
+            error_value = result_state.get("error")
+            has_error = error_value is not None and error_value != ""
+
+            # Also treat empty string error as an error (normalize to meaningful message)
+            if error_value == "":
+                error_value = "UnknownError: workflow returned empty error string"
+                has_error = True
+                logger.warning(
+                    f"[ProjectEngineerAgent] Workflow returned empty error string. "
+                    f"task_id={task_id}, treating as failure"
+                )
+
+            if has_error:
+                logger.error(f"[ProjectEngineerAgent] Code generation failed: {error_value}")
                 return TaskResult(
                     task_id=task_id,
                     task_type=task_type,
                     status="failed",
                     is_safe=True,
-                    details=f"Code generation failed: {result_state['error']}",
-                    error=result_state["error"]
+                    details=f"Code generation failed: {error_value}",
+                    error=error_value
                 )
 
-            # Success
+            # Issue #3567: Check if PR was actually created
+            # A workflow that completes without error but produces no PR is a failure
+            pr_url = result_state.get("pr_url")
+            pr_number = result_state.get("pr_number")
+
+            if not pr_url and not pr_number:
+                logger.warning(
+                    f"[ProjectEngineerAgent] Workflow completed but no PR created. "
+                    f"task_id={task_id}, result_state_keys={list(result_state.keys())}"
+                )
+                return TaskResult(
+                    task_id=task_id,
+                    task_type=task_type,
+                    status="failed",
+                    is_safe=True,
+                    details="Code generation completed but no PR was created. "
+                            "This may indicate git tool unavailability or workflow issue.",
+                    error="No PR created after workflow completion"
+                )
+
+            # Success - PR was actually created
             logger.info(
                 f"[ProjectEngineerAgent] Code generation completed successfully. "
-                f"PR: {result_state.get('pr_url', 'N/A')}"
+                f"PR: {pr_url}"
             )
             return TaskResult(
                 task_id=task_id,
@@ -688,8 +722,8 @@ class ProjectEngineerAgent:
                 status="success",
                 is_safe=True,
                 details="Code generation completed successfully. PR created.",
-                pr_number=result_state.get("pr_number"),
-                pr_url=result_state.get("pr_url")
+                pr_number=pr_number,
+                pr_url=pr_url
             )
 
         except Exception as e:
