@@ -806,6 +806,21 @@ class AutoFixer:
             )
             return "documentation_update"
 
+        # Issue #3550: When failed_check_name is a generic CI provider name
+        # (e.g., "GitHub Actions") and error_summary is empty, we cannot
+        # reliably infer the task type. However, since CI failure auto-fix
+        # is typically triggered by lint failures, default to fix_lint as
+        # a safe fallback to avoid classifier misclassification.
+        generic_ci_providers = ["github actions", "circleci", "travis ci", "jenkins"]
+        if failed_check_name.lower() in generic_ci_providers:
+            logger.info(
+                "[AutoFixer] failed_check_name is generic CI provider '%s', "
+                "defaulting to fix_lint as safe fallback (Issue #3550)",
+                failed_check_name,
+                extra={"ci_failure_task_type_inference": "fix_lint_fallback"}
+            )
+            return "fix_lint"
+
         # No match - let classifier decide (may fail whitelist check)
         logger.warning(
             "[AutoFixer] Could not infer task_type from CI failure context. "
