@@ -6420,6 +6420,9 @@ def should_proceed_after_fixer(state: AgentState) -> str:
     Routes based on HITL requirement:
     - hitl_gate: If requires_hitl_approval is True and hitl_approved is False
       (SeniorCoder determined task complexity is too high)
+    - ci_monitor: If ci_failure_trigger is True (CI failure auto-fix flow)
+      This bypasses executor_node which calls graph.execute() (FAQ doc flow)
+      that has ValueGate blocking low-significance changesets.
     - executor: Default path for normal fixer completion
 
     CTO Directive (Separation of Concerns):
@@ -6434,6 +6437,7 @@ def should_proceed_after_fixer(state: AgentState) -> str:
     requires_hitl = state.get("requires_hitl_approval") is True
     hitl_approved = state.get("hitl_approved") is True
     hitl_reason = state.get("hitl_reason", "")
+    ci_failure_trigger = state.get("ci_failure_trigger") is True
     metrics = _get_metrics()
 
     # Route to HITL gate if approval is required and not yet approved
@@ -6450,6 +6454,22 @@ def should_proceed_after_fixer(state: AgentState) -> str:
         )
         metrics.record_transition("fixer", "hitl_gate", trace_id)
         return "hitl_gate"
+
+    # CI failure auto-fix: bypass executor_node (which calls graph.execute with ValueGate)
+    # Route directly to ci_monitor to check if the fix was successful
+    if ci_failure_trigger:
+        logger.info(
+            f"[FIXER_ROUTING] CI failure auto-fix complete, routing to ci_monitor. "
+            f"ci_failure_trigger={ci_failure_trigger}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer_routing",
+                "trace_id": trace_id,
+                "event_code": "CI_FAILURE_FIXER_TO_CI_MONITOR",
+                "ci_failure_trigger": ci_failure_trigger,
+            }
+        )
+        metrics.record_transition("fixer", "ci_monitor", trace_id)
+        return "ci_monitor"
 
     # Default: proceed to executor
     metrics.record_transition("fixer", "executor", trace_id)
@@ -7708,16 +7728,19 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
         }
     )
 
-    # fixer → (executor | hitl_gate)
+    # fixer → (executor | hitl_gate | ci_monitor)
     # EPIC D Issue #3487: SeniorCoder HITL Gate
     # Changed from direct edge to conditional edge to support HITL escalation
     # when SeniorCoder determines task complexity is too high
+    # Issue #3541: Added ci_monitor route for CI failure auto-fix to bypass
+    # executor_node (which calls graph.execute with ValueGate)
     workflow.add_conditional_edges(
         "fixer",
         should_proceed_after_fixer,
         {
             "executor": "executor",
-            "hitl_gate": "hitl_gate"
+            "hitl_gate": "hitl_gate",
+            "ci_monitor": "ci_monitor"
         }
     )
 
