@@ -4857,6 +4857,45 @@ def _attempt_simple_coder_fix(
         return False, f"Failed to apply patch: {result.message}"
 
 
+def _extract_file_path_from_error(error_summary: str) -> str:
+    """Extract file path from CI error summary.
+
+    Parses common lint error formats to extract the file path:
+    - "path/to/file.py:123:45: E501 line too long"
+    - "path/to/file.py(123): error"
+    - "Error in path/to/file.py"
+
+    Issue #3567: Enable SimpleCoder for CI failures by extracting file path
+
+    Args:
+        error_summary: CI error output text
+
+    Returns:
+        Extracted file path or empty string if not found
+    """
+    import re
+
+    if not error_summary:
+        return ""
+
+    # Pattern 1: "path/file.py:line:col: error" (flake8, pylint, eslint)
+    match = re.search(r'^([^\s:]+\.(py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp)):', error_summary, re.MULTILINE)
+    if match:
+        return match.group(1)
+
+    # Pattern 2: "path/file.py(line): error" (some compilers)
+    match = re.search(r'^([^\s(]+\.(py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp))\(', error_summary, re.MULTILINE)
+    if match:
+        return match.group(1)
+
+    # Pattern 3: "Error in path/file.py" or "File path/file.py"
+    match = re.search(r'(?:Error in|File|in file)\s+([^\s:]+\.(py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp))', error_summary, re.IGNORECASE)
+    if match:
+        return match.group(1)
+
+    return ""
+
+
 def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
     """Synthesize comment_body from ci_failure_context for CI failure scenarios.
 
@@ -4871,24 +4910,46 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
 
     This ensures we don't override real human review comments.
 
+    Also extracts file path from error_summary to populate review_file_path
+    for SimpleCoder gate check (Issue #3567).
+
     Issue #3564: Root Cause #10 - Coders skip due to missing comment_body
+    Issue #3567: Root Cause #11 - SimpleCoder needs review_file_path
     """
     ci_failure_trigger = state.get("ci_failure_trigger", False)
+
+    # Debug logging for early return diagnosis (Issue #3567)
     if not ci_failure_trigger:
+        logger.debug(
+            f"[Fixer] _ensure_comment_body skipped: ci_failure_trigger=False. "
+            f"trace_id={trace_id}"
+        )
         return
 
     existing_comment = state.get("comment_body", "")
     if existing_comment:
+        logger.debug(
+            f"[Fixer] _ensure_comment_body skipped: comment_body already set. "
+            f"len={len(existing_comment)}, repr={repr(existing_comment[:50])}... "
+            f"trace_id={trace_id}"
+        )
         return
 
     review_comments = state.get("review_comments", [])
     if review_comments:
+        logger.debug(
+            f"[Fixer] _ensure_comment_body skipped: review_comments non-empty. "
+            f"count={len(review_comments)}, trace_id={trace_id}"
+        )
         return
 
     ci_context = state.get("ci_failure_context", {})
+    ci_context_type = type(ci_context).__name__
+
     if not ci_context:
         logger.warning(
             f"[Fixer] CI failure trigger set but no ci_failure_context. "
+            f"ci_context_type={ci_context_type}, ci_context_is_none={ci_context is None}, "
             f"trace_id={trace_id}"
         )
         return
@@ -4899,8 +4960,22 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
     if error_summary:
         if not isinstance(error_summary, str):
             error_summary = str(error_summary)
-        error_summary = error_summary[:500]
-        synthesized = f"Fix CI failure in {failed_check}: {error_summary}"
+        error_summary_truncated = error_summary[:500]
+        synthesized = f"Fix CI failure in {failed_check}: {error_summary_truncated}"
+
+        # Issue #3567: Extract file path for SimpleCoder
+        extracted_file_path = _extract_file_path_from_error(error_summary)
+        if extracted_file_path and not state.get("review_file_path"):
+            state["review_file_path"] = extracted_file_path
+            logger.info(
+                f"[Fixer] Extracted review_file_path from error_summary. "
+                f"file_path={extracted_file_path}, trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_extract_file_path",
+                    "trace_id": trace_id,
+                    "file_path": extracted_file_path,
+                }
+            )
     else:
         synthesized = f"Fix CI failure in {failed_check} check"
 
@@ -4950,7 +5025,60 @@ def fixer_node(state: AgentState) -> AgentState:
     trace_id = state["trace_id"]
     retry_count = state.get("retry_count", 0)
 
+    # Issue #3567: Diagnostic log for coder prerequisites debugging
+    # This log helps diagnose why coders skip in CI failure scenarios
+    ci_failure_trigger = state.get("ci_failure_trigger", False)
+    comment_body = state.get("comment_body", "")
+    review_comments = state.get("review_comments", [])
+    review_file_path = state.get("review_file_path", "")
+    review_files = state.get("review_files", [])
+    ci_context = state.get("ci_failure_context")
+
+    logger.info(
+        f"[FIXER_ENTRY_DIAGNOSTIC] Coder prerequisites at fixer_node entry. "
+        f"ci_failure_trigger={ci_failure_trigger}, "
+        f"comment_body_len={len(comment_body)}, "
+        f"comment_body_repr={repr(comment_body[:50]) if comment_body else 'empty'}..., "
+        f"review_comments_count={len(review_comments)}, "
+        f"review_file_path={review_file_path or 'empty'}, "
+        f"review_files_count={len(review_files)}, "
+        f"ci_context_present={ci_context is not None}, "
+        f"ci_context_type={type(ci_context).__name__}, "
+        f"enable_general_coder={settings.enable_general_coder}, "
+        f"enable_simple_coder={settings.enable_simple_coder}, "
+        f"trace_id={trace_id}",
+        extra={
+            "operation": "fixer_entry_diagnostic",
+            "trace_id": trace_id,
+            "ci_failure_trigger": ci_failure_trigger,
+            "comment_body_len": len(comment_body),
+            "review_comments_count": len(review_comments),
+            "review_file_path": review_file_path,
+            "review_files_count": len(review_files),
+            "ci_context_present": ci_context is not None,
+            "enable_general_coder": settings.enable_general_coder,
+            "enable_simple_coder": settings.enable_simple_coder,
+        }
+    )
+
     _ensure_comment_body_for_ci_failure(state, trace_id)
+
+    # Log state after synthesis attempt
+    comment_body_after = state.get("comment_body", "")
+    review_file_path_after = state.get("review_file_path", "")
+    if comment_body_after != comment_body or review_file_path_after != review_file_path:
+        logger.info(
+            f"[FIXER_ENTRY_DIAGNOSTIC] State after _ensure_comment_body_for_ci_failure. "
+            f"comment_body_len={len(comment_body_after)}, "
+            f"review_file_path={review_file_path_after or 'empty'}, "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "fixer_entry_diagnostic_after",
+                "trace_id": trace_id,
+                "comment_body_len": len(comment_body_after),
+                "review_file_path": review_file_path_after,
+            }
+        )
 
     metrics.record_node_start("fixer", trace_id)
 
