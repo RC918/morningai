@@ -92,9 +92,9 @@ class TaskClassifier:
                 r'undefined.*name',
                 r'unused.*variable',
                 r'unused.*import',
-                r'F\d{3}',  # Flake8 error codes (F401, F821, etc.)
-                r'E\d{3}',  # PEP8 error codes (E501, E302, etc.)
-                r'W\d{3}',  # PEP8 warning codes (W291, W293, etc.)
+                r'\bF\d{3}\b',  # Flake8 error codes (F401, F821, etc.)
+                r'\bE\d{3}\b',  # PEP8 error codes (E501, E302, etc.)
+                r'\bW\d{3}\b',  # PEP8 warning codes (W291, W293, etc.)
                 r'fix.*typo',
                 r'typo.*fix',
             ],
