@@ -435,6 +435,27 @@ class TestI18nGetLocaleEdgeCases:
         assert result == 'zh-TW'
 
 
+class TestMonitoringDashboardUtilization:
+    """Test monitoring dashboard _calculate_utilization to cover lines 197-203"""
+
+    def test_calculate_utilization_with_active_requests(self):
+        """Test _calculate_utilization with active requests (lines 201-202)"""
+        from src.services.monitoring_dashboard import MonitoringDashboard
+        dashboard = MonitoringDashboard()
+        metrics = {'active_requests': 5, 'available_capacity': 15}
+        result = dashboard._calculate_utilization(metrics)
+        # 5 / (5 + 15) * 100 = 25%
+        assert result == 25.0
+
+    def test_calculate_utilization_zero_capacity(self):
+        """Test _calculate_utilization with zero capacity (line 203)"""
+        from src.services.monitoring_dashboard import MonitoringDashboard
+        dashboard = MonitoringDashboard()
+        metrics = {'active_requests': 0, 'available_capacity': 0}
+        result = dashboard._calculate_utilization(metrics)
+        assert result == 0
+
+
 class TestI18nUncoveredLines:
     """Test i18n uncovered lines 137, 165-166"""
 
