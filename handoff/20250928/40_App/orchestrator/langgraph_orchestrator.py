@@ -100,6 +100,7 @@ import contextlib
 import functools
 import gc
 import logging
+import re
 import sys
 import threading as _threading
 import time
@@ -4857,6 +4858,11 @@ def _attempt_simple_coder_fix(
         return False, f"Failed to apply patch: {result.message}"
 
 
+# Supported file extensions for CI error path extraction (Issue #3567)
+# Used by _extract_file_path_from_error() to identify source files in lint output
+_SUPPORTED_SOURCE_EXTENSIONS = r'py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp'
+
+
 def _extract_file_path_from_error(error_summary: str) -> str:
     """Extract file path from CI error summary.
 
@@ -4873,23 +4879,33 @@ def _extract_file_path_from_error(error_summary: str) -> str:
     Returns:
         Extracted file path or empty string if not found
     """
-    import re
-
     if not error_summary:
         return ""
 
     # Pattern 1: "path/file.py:line:col: error" (flake8, pylint, eslint)
-    match = re.search(r'^([^\s:]+\.(py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp)):', error_summary, re.MULTILINE)
+    match = re.search(
+        fr'^([^\s:]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS})):',
+        error_summary,
+        re.MULTILINE
+    )
     if match:
         return match.group(1)
 
     # Pattern 2: "path/file.py(line): error" (some compilers)
-    match = re.search(r'^([^\s(]+\.(py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp))\(', error_summary, re.MULTILINE)
+    match = re.search(
+        fr'^([^\s(]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))\(',
+        error_summary,
+        re.MULTILINE
+    )
     if match:
         return match.group(1)
 
     # Pattern 3: "Error in path/file.py" or "File path/file.py"
-    match = re.search(r'(?:Error in|File|in file)\s+([^\s:]+\.(py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp))', error_summary, re.IGNORECASE)
+    match = re.search(
+        fr'(?:Error in|File|in file)\s+([^\s:]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))',
+        error_summary,
+        re.IGNORECASE
+    )
     if match:
         return match.group(1)
 
