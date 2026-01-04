@@ -566,5 +566,103 @@ class TestSecurityEdgeCases:
             assert mock_logger.info.called
 
 
+class TestSafeTaskActionMappingConsistency:
+    """
+    Regression tests to ensure SAFE_TASK_TYPES and action_mapping stay in sync.
+
+    Root Cause #9 (Issue #3552) was caused by SAFE_TASK_TYPES containing task types
+    (like fix_lint) that were not in action_mapping, causing semantic validation to
+    fail with "Action 'analyze_code' is not in allowed actions whitelist".
+
+    These tests prevent future drift between the two taxonomies.
+    """
+
+    def test_all_safe_task_types_have_action_mapping(self):
+        """Every SAFE_TASK_TYPE should have a corresponding action_mapping entry"""
+        from project_engineer.safe_tasks import SAFE_TASK_TYPES
+
+        action_mapping = {
+            "documentation_update": "write_file",
+            "test_generation": "write_file",
+            "code_review": "review_code",
+            "bug_fix": "write_file",
+            "refactoring": "write_file",
+            "feature_implementation": "write_file",
+            "backend_utils_bug_fix": "write_file",
+            "frontend_ui_tokens": "write_file",
+            "simple_api_endpoint": "write_file",
+            "fix_lint": "write_file",
+            "fix_typo": "write_file",
+            "update_readme": "write_file",
+            "comment_enhancement": "write_file",
+            "env_sync": "write_file",
+            "config_update": "write_file",
+            "i18n_update": "write_file",
+        }
+
+        missing_mappings = []
+        for task_type in SAFE_TASK_TYPES:
+            if task_type not in action_mapping:
+                missing_mappings.append(task_type)
+
+        assert len(missing_mappings) == 0, (
+            f"SAFE_TASK_TYPES contains task types without action_mapping entries: "
+            f"{missing_mappings}. This will cause semantic validation to fail with "
+            f"'Action not in allowed actions whitelist'. "
+            f"Add these to action_mapping in agent.py:_process_step()"
+        )
+
+    def test_all_safe_task_actions_are_in_allowed_whitelist(self):
+        """Every action mapped from SAFE_TASK_TYPES should be in DEFAULT_ALLOWED_ACTIONS"""
+        from project_engineer.safe_tasks import SAFE_TASK_TYPES
+        from project_engineer.semantic_rules import DEFAULT_ALLOWED_ACTIONS
+
+        action_mapping = {
+            "documentation_update": "write_file",
+            "test_generation": "write_file",
+            "code_review": "review_code",
+            "bug_fix": "write_file",
+            "refactoring": "write_file",
+            "feature_implementation": "write_file",
+            "backend_utils_bug_fix": "write_file",
+            "frontend_ui_tokens": "write_file",
+            "simple_api_endpoint": "write_file",
+            "fix_lint": "write_file",
+            "fix_typo": "write_file",
+            "update_readme": "write_file",
+            "comment_enhancement": "write_file",
+            "env_sync": "write_file",
+            "config_update": "write_file",
+            "i18n_update": "write_file",
+        }
+
+        invalid_actions = []
+        for task_type in SAFE_TASK_TYPES:
+            if task_type in action_mapping:
+                action = action_mapping[task_type]
+                if action not in DEFAULT_ALLOWED_ACTIONS:
+                    invalid_actions.append((task_type, action))
+
+        assert len(invalid_actions) == 0, (
+            f"SAFE_TASK_TYPES have actions not in DEFAULT_ALLOWED_ACTIONS: "
+            f"{invalid_actions}. This will cause semantic validation to fail. "
+            f"Either add the action to DEFAULT_ALLOWED_ACTIONS in semantic_rules.py "
+            f"or change the action_mapping in agent.py:_process_step()"
+        )
+
+    def test_default_fallback_action_is_in_whitelist(self):
+        """The default fallback action should be in DEFAULT_ALLOWED_ACTIONS"""
+        from project_engineer.semantic_rules import DEFAULT_ALLOWED_ACTIONS
+
+        default_fallback = "read_file"
+
+        assert default_fallback in DEFAULT_ALLOWED_ACTIONS, (
+            f"Default fallback action '{default_fallback}' is not in "
+            f"DEFAULT_ALLOWED_ACTIONS. This will cause semantic validation to fail "
+            f"for unknown task types. Update agent.py:_process_step() to use an "
+            f"action from: {DEFAULT_ALLOWED_ACTIONS}"
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
