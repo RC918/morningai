@@ -79,6 +79,7 @@ from langgraph_orchestrator import (  # noqa: E402
     AgentState,
     fixer_node,
     _attempt_simple_coder_fix,
+    _ensure_comment_body_for_ci_failure,
 )
 
 
@@ -752,3 +753,148 @@ class TestSeverityExtraction:
             call_args = mock_coder.return_value.execute.call_args
             context = call_args[0][0].context
             assert context["severity"] == "low"
+
+
+class TestEnsureCommentBodyForCiFailure:
+    """Regression tests for _ensure_comment_body_for_ci_failure (Issue #3564).
+
+    Root Cause #10: CI failure scenarios don't have a PR review comment,
+    but coders need comment_body to understand what to fix. This function
+    synthesizes comment_body from ci_failure_context.
+    """
+
+    def test_synthesizes_comment_when_ci_failure_trigger_and_no_comment(self):
+        """Test that comment_body is synthesized when ci_failure_trigger=True."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": "F821: undefined name 'reuslt'",
+            },
+            "comment_body": "",
+            "review_comments": [],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["comment_body"] != ""
+        assert "lint" in state["comment_body"]
+        assert "F821" in state["comment_body"]
+
+    def test_does_not_override_existing_comment_body(self):
+        """Test that existing comment_body is not overwritten."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": "F821: undefined name",
+            },
+            "comment_body": "Human review comment",
+            "review_comments": [],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["comment_body"] == "Human review comment"
+
+    def test_does_not_override_existing_review_comments(self):
+        """Test that comment_body is not synthesized when review_comments exist."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": "F821: undefined name",
+            },
+            "comment_body": "",
+            "review_comments": [{"body": "Please fix this"}],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["comment_body"] == ""
+
+    def test_does_nothing_when_ci_failure_trigger_false(self):
+        """Test that nothing happens when ci_failure_trigger=False."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": False,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": "F821: undefined name",
+            },
+            "comment_body": "",
+            "review_comments": [],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["comment_body"] == ""
+
+    def test_handles_missing_ci_failure_context(self):
+        """Test graceful handling when ci_failure_context is missing."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "comment_body": "",
+            "review_comments": [],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["comment_body"] == ""
+
+    def test_synthesizes_without_error_summary(self):
+        """Test synthesis when error_summary is empty."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "test",
+                "error_summary": "",
+            },
+            "comment_body": "",
+            "review_comments": [],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["comment_body"] == "Fix CI failure in test check"
+
+    def test_truncates_long_error_summary(self):
+        """Test that long error_summary is truncated to 500 chars."""
+        long_error = "E" * 1000
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": long_error,
+            },
+            "comment_body": "",
+            "review_comments": [],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert len(state["comment_body"]) < 600
+
+    def test_handles_non_string_error_summary(self):
+        """Test handling when error_summary is not a string."""
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": ["error1", "error2"],
+            },
+            "comment_body": "",
+            "review_comments": [],
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        assert state["comment_body"] != ""
+        assert "lint" in state["comment_body"]
