@@ -5034,6 +5034,10 @@ def fixer_node(state: AgentState) -> AgentState:
     review_files = state.get("review_files", [])
     ci_context = state.get("ci_failure_context")
 
+    # Safe access to settings attributes (handles None settings in tests)
+    enable_general_coder = getattr(settings, 'enable_general_coder', False) if settings else False
+    enable_simple_coder = getattr(settings, 'enable_simple_coder', False) if settings else False
+
     logger.info(
         f"[FIXER_ENTRY_DIAGNOSTIC] Coder prerequisites at fixer_node entry. "
         f"ci_failure_trigger={ci_failure_trigger}, "
@@ -5044,8 +5048,8 @@ def fixer_node(state: AgentState) -> AgentState:
         f"review_files_count={len(review_files)}, "
         f"ci_context_present={ci_context is not None}, "
         f"ci_context_type={type(ci_context).__name__}, "
-        f"enable_general_coder={settings.enable_general_coder}, "
-        f"enable_simple_coder={settings.enable_simple_coder}, "
+        f"enable_general_coder={enable_general_coder}, "
+        f"enable_simple_coder={enable_simple_coder}, "
         f"trace_id={trace_id}",
         extra={
             "operation": "fixer_entry_diagnostic",
@@ -5056,8 +5060,8 @@ def fixer_node(state: AgentState) -> AgentState:
             "review_file_path": review_file_path,
             "review_files_count": len(review_files),
             "ci_context_present": ci_context is not None,
-            "enable_general_coder": settings.enable_general_coder,
-            "enable_simple_coder": settings.enable_simple_coder,
+            "enable_general_coder": enable_general_coder,
+            "enable_simple_coder": enable_simple_coder,
         }
     )
 
