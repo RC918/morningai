@@ -566,5 +566,70 @@ class TestSecurityEdgeCases:
             assert mock_logger.info.called
 
 
+class TestSafeTaskActionMappingConsistency:
+    """
+    Regression tests to ensure SAFE_TASK_TYPES and action_mapping stay in sync.
+
+    Root Cause #9 (Issue #3552) was caused by SAFE_TASK_TYPES containing task types
+    (like fix_lint) that were not in action_mapping, causing semantic validation to
+    fail with "Action 'analyze_code' is not in allowed actions whitelist".
+
+    These tests prevent future drift between the two taxonomies.
+
+    Issue #3555: ACTION_MAPPING is now imported directly from agent.py as a
+    module-level constant, eliminating the need for a hardcoded copy in tests.
+    """
+
+    def test_all_safe_task_types_have_action_mapping(self):
+        """Every SAFE_TASK_TYPE should have a corresponding action_mapping entry"""
+        from project_engineer.agent import ACTION_MAPPING
+        from project_engineer.safe_tasks import SAFE_TASK_TYPES
+
+        missing_mappings = [
+            task_type
+            for task_type in SAFE_TASK_TYPES
+            if task_type not in ACTION_MAPPING
+        ]
+
+        assert not missing_mappings, (
+            f"SAFE_TASK_TYPES contains task types without ACTION_MAPPING entries: "
+            f"{missing_mappings}. This will cause semantic validation to fail with "
+            f"'Action not in allowed actions whitelist'. "
+            f"Add these to ACTION_MAPPING in agent.py"
+        )
+
+    def test_all_safe_task_actions_are_in_allowed_whitelist(self):
+        """Every action mapped from SAFE_TASK_TYPES should be in DEFAULT_ALLOWED_ACTIONS"""
+        from project_engineer.agent import ACTION_MAPPING
+        from project_engineer.safe_tasks import SAFE_TASK_TYPES
+        from project_engineer.semantic_rules import DEFAULT_ALLOWED_ACTIONS
+
+        invalid_actions = [
+            (task_type, ACTION_MAPPING[task_type])
+            for task_type in SAFE_TASK_TYPES
+            if task_type in ACTION_MAPPING
+            and ACTION_MAPPING[task_type] not in DEFAULT_ALLOWED_ACTIONS
+        ]
+
+        assert not invalid_actions, (
+            f"SAFE_TASK_TYPES have actions not in DEFAULT_ALLOWED_ACTIONS: "
+            f"{invalid_actions}. This will cause semantic validation to fail. "
+            f"Either add the action to DEFAULT_ALLOWED_ACTIONS in semantic_rules.py "
+            f"or change ACTION_MAPPING in agent.py"
+        )
+
+    def test_default_fallback_action_is_in_whitelist(self):
+        """The default fallback action should be in DEFAULT_ALLOWED_ACTIONS"""
+        from project_engineer.agent import DEFAULT_FALLBACK_ACTION
+        from project_engineer.semantic_rules import DEFAULT_ALLOWED_ACTIONS
+
+        assert DEFAULT_FALLBACK_ACTION in DEFAULT_ALLOWED_ACTIONS, (
+            f"DEFAULT_FALLBACK_ACTION '{DEFAULT_FALLBACK_ACTION}' is not in "
+            f"DEFAULT_ALLOWED_ACTIONS. This will cause semantic validation to fail "
+            f"for unknown task types. Update DEFAULT_FALLBACK_ACTION in agent.py "
+            f"to use an action from: {DEFAULT_ALLOWED_ACTIONS}"
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
