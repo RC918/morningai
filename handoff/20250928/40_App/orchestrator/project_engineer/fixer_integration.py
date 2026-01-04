@@ -660,6 +660,69 @@ class AutoFixer:
 
         return " ".join(parts)
 
+    def _tokenize_text(self, text: str) -> set:
+        """
+        Tokenize text into a set of lowercase alphanumeric tokens.
+
+        This avoids false positives from substring matching (e.g., 'black' in 'blacklist',
+        'doc' in 'docker') by splitting on non-alphanumeric characters.
+
+        Args:
+            text: Text to tokenize
+
+        Returns:
+            Set of lowercase tokens
+        """
+        import re
+        return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+    def _contains_token(self, text: str, token: str) -> bool:
+        """
+        Check if text contains a specific token (word-aware matching).
+
+        Args:
+            text: Text to search in
+            token: Token to search for (will be lowercased)
+
+        Returns:
+            True if token is found as a complete word
+        """
+        tokens = self._tokenize_text(text)
+        return token.lower() in tokens
+
+    def _contains_any_token(self, text: str, token_list: list) -> Optional[str]:
+        """
+        Check if text contains any of the specified tokens.
+
+        Args:
+            text: Text to search in
+            token_list: List of tokens to search for
+
+        Returns:
+            First matched token, or None if no match
+        """
+        tokens = self._tokenize_text(text)
+        for token in token_list:
+            if token.lower() in tokens:
+                return token
+        return None
+
+    def _contains_phrase(self, text: str, phrase: str) -> bool:
+        """
+        Check if text contains a specific phrase (for multi-word patterns).
+
+        Phrases like "undefined name" are less risky for substring matching
+        because they're more specific.
+
+        Args:
+            text: Text to search in
+            phrase: Phrase to search for
+
+        Returns:
+            True if phrase is found
+        """
+        return phrase.lower() in text.lower()
+
     def _infer_task_type_from_ci_failure(
         self,
         ci_failure_context: "CiFailureContext"
@@ -670,6 +733,9 @@ class AutoFixer:
         Issue #3546: This method deterministically maps CI failure types to safe
         task types, bypassing the LLM classifier which may produce non-whitelisted
         types like 'backend_utils_bug_fix'.
+
+        Uses token-based matching to avoid false positives from substring matching
+        (e.g., 'black' in 'blacklist', 'doc' in 'docker', 'lint' in 'flint').
 
         Mapping rules:
         - ruff/flake8/eslint/pylint errors → fix_lint
@@ -682,50 +748,63 @@ class AutoFixer:
         Returns:
             Safe task_type string if inferrable, None otherwise
         """
-        failed_check_name = (ci_failure_context.failed_check_name or "").lower()
-        error_summary = (ci_failure_context.error_summary or "").lower()
+        failed_check_name = ci_failure_context.failed_check_name or ""
+        error_summary = ci_failure_context.error_summary or ""
 
-        # Lint tool patterns → fix_lint
-        lint_patterns = [
+        # Lint tool patterns → fix_lint (token-based matching)
+        lint_tokens = [
             "ruff", "flake8", "eslint", "pylint", "mypy", "black",
             "prettier", "stylelint", "lint", "linting"
         ]
-        for pattern in lint_patterns:
-            if pattern in failed_check_name or pattern in error_summary:
-                logger.info(
-                    "[AutoFixer] Inferred task_type=fix_lint from CI failure "
-                    "(matched pattern: %s)",
-                    pattern,
-                    extra={"ci_failure_task_type_inference": "fix_lint"}
-                )
-                return "fix_lint"
+        matched = self._contains_any_token(failed_check_name, lint_tokens)
+        if not matched:
+            matched = self._contains_any_token(error_summary, lint_tokens)
+        if matched:
+            logger.info(
+                "[AutoFixer] Inferred task_type=fix_lint from CI failure "
+                "(matched token: %s)",
+                matched,
+                extra={"ci_failure_task_type_inference": "fix_lint"}
+            )
+            return "fix_lint"
 
         # Typo-like error patterns → fix_typo
-        typo_patterns = [
-            "undefined name", "undeclared", "typo", "misspell",
-            "f821", "f841", "e999"  # Common flake8/ruff error codes
-        ]
-        for pattern in typo_patterns:
-            if pattern in error_summary:
+        # Use phrase matching for multi-word patterns, token matching for error codes
+        typo_phrases = ["undefined name", "undeclared variable"]
+        for phrase in typo_phrases:
+            if self._contains_phrase(error_summary, phrase):
                 logger.info(
                     "[AutoFixer] Inferred task_type=fix_typo from CI failure "
-                    "(matched pattern: %s)",
-                    pattern,
+                    "(matched phrase: %s)",
+                    phrase,
                     extra={"ci_failure_task_type_inference": "fix_typo"}
                 )
                 return "fix_typo"
 
-        # Documentation-related failures → documentation_update
-        doc_patterns = ["readme", "docs", "documentation", "docstring"]
-        for pattern in doc_patterns:
-            if pattern in failed_check_name or pattern in error_summary:
-                logger.info(
-                    "[AutoFixer] Inferred task_type=documentation_update from CI failure "
-                    "(matched pattern: %s)",
-                    pattern,
-                    extra={"ci_failure_task_type_inference": "documentation_update"}
-                )
-                return "documentation_update"
+        typo_tokens = ["typo", "misspell", "f821", "f841", "e999"]
+        matched = self._contains_any_token(error_summary, typo_tokens)
+        if matched:
+            logger.info(
+                "[AutoFixer] Inferred task_type=fix_typo from CI failure "
+                "(matched token: %s)",
+                matched,
+                extra={"ci_failure_task_type_inference": "fix_typo"}
+            )
+            return "fix_typo"
+
+        # Documentation-related failures → documentation_update (token-based matching)
+        doc_tokens = ["readme", "documentation", "docstring"]
+        matched = self._contains_any_token(failed_check_name, doc_tokens)
+        if not matched:
+            matched = self._contains_any_token(error_summary, doc_tokens)
+        if matched:
+            logger.info(
+                "[AutoFixer] Inferred task_type=documentation_update from CI failure "
+                "(matched token: %s)",
+                matched,
+                extra={"ci_failure_task_type_inference": "documentation_update"}
+            )
+            return "documentation_update"
 
         # No match - let classifier decide (may fail whitelist check)
         logger.warning(
