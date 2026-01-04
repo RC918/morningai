@@ -292,6 +292,9 @@ class AutoFixer:
             ci_failure_trigger = state.get("ci_failure_trigger", False)
             ci_failure_context_data = state.get("ci_failure_context")
 
+            # Issue #3546: Track task_type_hint for CI failure mode
+            task_type_hint: Optional[str] = None
+
             if ci_failure_trigger is True and ci_failure_context_data:
                 # CI failure mode: use CI evidence directly
                 # Reconstruct CiFailureContext from serialized dict (RQ JSON serialization)
@@ -299,6 +302,10 @@ class AutoFixer:
                 fix_description = self._build_ci_fix_description(
                     ci_failure_context, pr_number, changed_files
                 )
+
+                # Issue #3546: Infer task_type from CI failure to bypass classifier misclassification
+                task_type_hint = self._infer_task_type_from_ci_failure(ci_failure_context)
+
                 logger.info(
                     "[AutoFixer] CI failure mode - using CI evidence for fix",
                     extra={
@@ -306,6 +313,7 @@ class AutoFixer:
                         "ci_failure_trigger": True,
                         "failed_check_name": ci_failure_context.failed_check_name,
                         "conclusion": ci_failure_context.conclusion,
+                        "task_type_hint": task_type_hint,
                     }
                 )
             else:
@@ -335,10 +343,12 @@ class AutoFixer:
             logger.info(
                 "[AutoFixer] Generated fix task description: %s",
                 fix_description[:200],
-                extra={"trace_id": trace_id}
+                extra={"trace_id": trace_id, "task_type_hint": task_type_hint}
             )
 
-            fix_result = await self._run_project_engineer(fix_description, repo, state)
+            fix_result = await self._run_project_engineer(
+                fix_description, repo, state, task_type_hint=task_type_hint
+            )
 
             if fix_result.get("success"):
                 logger.info(
@@ -650,6 +660,83 @@ class AutoFixer:
 
         return " ".join(parts)
 
+    def _infer_task_type_from_ci_failure(
+        self,
+        ci_failure_context: "CiFailureContext"
+    ) -> Optional[str]:
+        """
+        Infer safe task_type from CI failure context.
+
+        Issue #3546: This method deterministically maps CI failure types to safe
+        task types, bypassing the LLM classifier which may produce non-whitelisted
+        types like 'backend_utils_bug_fix'.
+
+        Mapping rules:
+        - ruff/flake8/eslint/pylint errors → fix_lint
+        - typo-like patterns (undefined name, misspelling) → fix_typo
+        - documentation-related failures → documentation_update
+
+        Args:
+            ci_failure_context: CiFailureContext with CI error details
+
+        Returns:
+            Safe task_type string if inferrable, None otherwise
+        """
+        failed_check_name = (ci_failure_context.failed_check_name or "").lower()
+        error_summary = (ci_failure_context.error_summary or "").lower()
+
+        # Lint tool patterns → fix_lint
+        lint_patterns = [
+            "ruff", "flake8", "eslint", "pylint", "mypy", "black",
+            "prettier", "stylelint", "lint", "linting"
+        ]
+        for pattern in lint_patterns:
+            if pattern in failed_check_name or pattern in error_summary:
+                logger.info(
+                    "[AutoFixer] Inferred task_type=fix_lint from CI failure "
+                    "(matched pattern: %s)",
+                    pattern,
+                    extra={"ci_failure_task_type_inference": "fix_lint"}
+                )
+                return "fix_lint"
+
+        # Typo-like error patterns → fix_typo
+        typo_patterns = [
+            "undefined name", "undeclared", "typo", "misspell",
+            "f821", "f841", "e999"  # Common flake8/ruff error codes
+        ]
+        for pattern in typo_patterns:
+            if pattern in error_summary:
+                logger.info(
+                    "[AutoFixer] Inferred task_type=fix_typo from CI failure "
+                    "(matched pattern: %s)",
+                    pattern,
+                    extra={"ci_failure_task_type_inference": "fix_typo"}
+                )
+                return "fix_typo"
+
+        # Documentation-related failures → documentation_update
+        doc_patterns = ["readme", "docs", "documentation", "docstring"]
+        for pattern in doc_patterns:
+            if pattern in failed_check_name or pattern in error_summary:
+                logger.info(
+                    "[AutoFixer] Inferred task_type=documentation_update from CI failure "
+                    "(matched pattern: %s)",
+                    pattern,
+                    extra={"ci_failure_task_type_inference": "documentation_update"}
+                )
+                return "documentation_update"
+
+        # No match - let classifier decide (may fail whitelist check)
+        logger.warning(
+            "[AutoFixer] Could not infer task_type from CI failure context. "
+            "Classifier will be used (may produce non-whitelisted type). "
+            "failed_check_name=%s",
+            ci_failure_context.failed_check_name,
+            extra={"ci_failure_task_type_inference": "none"}
+        )
+        return None
+
     def _build_ci_fix_description(
         self,
         ci_failure_context: "CiFailureContext",
@@ -702,7 +789,8 @@ class AutoFixer:
         self,
         fix_description: str,
         repo: str,
-        state: Dict[str, Any]
+        state: Dict[str, Any],
+        task_type_hint: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Run ProjectEngineerAgent to generate fix.
@@ -711,10 +799,15 @@ class AutoFixer:
         safe_tasks whitelist. Only tasks classified as safe (e.g., fix_lint,
         documentation_update, test_generation) will have code generation enabled.
 
+        Issue #3546: Added task_type_hint parameter to bypass classifier
+        misclassification for CI failure auto-fix.
+
         Args:
             fix_description: Natural language task description
             repo: Repository name
             state: AgentState dict
+            task_type_hint: Optional safe task_type to use instead of classifier
+                           (Issue #3546: deterministic CI failure task_type)
 
         Returns:
             Dict with success, pr_number, pr_url, error
@@ -740,12 +833,13 @@ class AutoFixer:
             # Log safety check: ProjectEngineerAgent uses safe_tasks whitelist
             logger.info(
                 "[AutoFixer] Running ProjectEngineerAgent with safe_tasks whitelist enforcement. "
-                "autofixer_safety_check=whitelist_enforced trace_id=%s",
-                trace_id,
+                "autofixer_safety_check=whitelist_enforced trace_id=%s task_type_hint=%s",
+                trace_id, task_type_hint,
                 extra={
                     "trace_id": trace_id,
                     "autofixer_safety_check": "whitelist_enforced",
-                    "safety_mechanism": "Phase 2 Step B safe_tasks whitelist"
+                    "safety_mechanism": "Phase 2 Step B safe_tasks whitelist",
+                    "task_type_hint": task_type_hint
                 }
             )
 
@@ -760,7 +854,10 @@ class AutoFixer:
                     dev_agent=self._dev_agent
                 )
 
-            results = await self._project_engineer_agent.run_task(fix_description, repo)
+            # Issue #3546: Pass task_type_hint to bypass classifier misclassification
+            results = await self._project_engineer_agent.run_task(
+                fix_description, repo, task_type_hint=task_type_hint
+            )
 
             success_results = [r for r in results if r.status == "success"]
             if success_results:
