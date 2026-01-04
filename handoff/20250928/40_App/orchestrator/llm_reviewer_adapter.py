@@ -1404,24 +1404,47 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         final_severity = base_severity
         escalation_reason = None
 
-        high_risk_patterns = [
+        orchestrator_path_prefixes = [
+            "handoff/20250928/40_app/orchestrator/",
+            "orchestrator/",
+        ]
+
+        high_risk_exact_files = [
+            "langgraph_orchestrator.py",
             "langgraph_orchestrator",
-            "add_edge",
+        ]
+
+        high_risk_orchestrator_patterns = [
+            "/routing/",
+            "/router",
+            "router.py",
             "_trigger",
-            "router",
             "ci_monitor",
-            "state_machine",
             "conditional_edge",
+            "state_machine",
+            "add_edge",
+            "graph_builder",
         ]
 
         if diff_files:
             high_risk_files = []
             for file_info in diff_files:
                 filename = file_info.get("filename", "") if isinstance(file_info, dict) else str(file_info)
-                for pattern in high_risk_patterns:
-                    if pattern in filename.lower():
+                filename_lower = filename.lower()
+
+                for exact_file in high_risk_exact_files:
+                    if filename_lower.endswith(exact_file):
                         high_risk_files.append(filename)
                         break
+                else:
+                    is_orchestrator_file = any(
+                        prefix in filename_lower for prefix in orchestrator_path_prefixes
+                    )
+                    if is_orchestrator_file:
+                        for pattern in high_risk_orchestrator_patterns:
+                            if pattern in filename_lower:
+                                high_risk_files.append(filename)
+                                break
 
             if high_risk_files:
                 if base_severity in ("none", "low"):
@@ -1469,8 +1492,7 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             "provider": None,
             "review_time_ms": 0,
             "diff_aware": False,
-            "fallback_reason": fallback_reason,
-            "escalated": escalation_reason is not None
+            "fallback_reason": fallback_reason
         }
 
 
