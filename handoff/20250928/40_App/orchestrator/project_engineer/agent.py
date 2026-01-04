@@ -14,10 +14,39 @@ Features:
 """
 import logging
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Dict
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# Module-level constant for task type to action mapping
+# Used by _process_step() for semantic rules validation
+# Keys match TaskClassifier TaskType enum values AND safe_tasks.py SAFE_TASK_TYPES
+# Exported for use by regression tests (Issue #3555)
+ACTION_MAPPING: Dict[str, str] = {
+    # TaskClassifier produced types
+    "documentation_update": "write_file",
+    "test_generation": "write_file",
+    "code_review": "review_code",
+    "bug_fix": "write_file",
+    "refactoring": "write_file",
+    "feature_implementation": "write_file",
+    "backend_utils_bug_fix": "write_file",
+    "frontend_ui_tokens": "write_file",
+    "simple_api_endpoint": "write_file",
+    # Safe task types from safe_tasks.py (Issue #3552: CI failure auto-fix)
+    "fix_lint": "write_file",
+    "fix_typo": "write_file",
+    "update_readme": "write_file",
+    "comment_enhancement": "write_file",
+    "env_sync": "write_file",
+    "config_update": "write_file",
+    "i18n_update": "write_file",
+}
+
+# Default fallback action when task_type is not in ACTION_MAPPING
+# Must be in DEFAULT_ALLOWED_ACTIONS whitelist (semantic_rules.py)
+DEFAULT_FALLBACK_ACTION: str = "read_file"
 
 
 @dataclass
@@ -503,33 +532,8 @@ class ProjectEngineerAgent:
                 )
 
             # Phase 1 Security Foundation: Comprehensive semantic rules validation
-            # Maps task_type to action for semantic rules validation
-            # Keys match TaskClassifier TaskType enum values AND safe_tasks.py SAFE_TASK_TYPES
-            action_mapping = {
-                # TaskClassifier produced types
-                "documentation_update": "write_file",
-                "test_generation": "write_file",
-                "code_review": "review_code",
-                "bug_fix": "write_file",
-                "refactoring": "write_file",
-                "feature_implementation": "write_file",
-                "backend_utils_bug_fix": "write_file",  # Backend utility bug fixes
-                "frontend_ui_tokens": "write_file",  # Frontend UI token updates
-                "simple_api_endpoint": "write_file",  # Simple API endpoint creation
-                # Safe task types from safe_tasks.py (Issue #3552: CI failure auto-fix)
-                "fix_lint": "write_file",  # Fix linting errors
-                "fix_typo": "write_file",  # Fix typos in code/comments
-                "update_readme": "write_file",  # Update README files
-                "comment_enhancement": "write_file",  # Enhance code comments
-                "env_sync": "write_file",  # Sync environment files
-                "config_update": "write_file",  # Update config files
-                "i18n_update": "write_file",  # Update i18n files
-                # Note: 'unknown' key removed per MorningAI Reviewer feedback to ensure
-                # single source of truth - default fallback is controlled by .get() below
-            }
-            # Default fallback: 'read_file' is in DEFAULT_ALLOWED_ACTIONS whitelist
-            # (changed from 'analyze_code' which was not in whitelist)
-            action = action_mapping.get(task_type, "read_file")
+            # Use module-level ACTION_MAPPING constant (Issue #3555)
+            action = ACTION_MAPPING.get(task_type, DEFAULT_FALLBACK_ACTION)
 
             semantic_valid, semantic_error, requires_approval = self._validate_task_semantic_rules(
                 repo=repo,
