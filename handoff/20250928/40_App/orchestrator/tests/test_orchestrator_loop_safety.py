@@ -19,6 +19,27 @@ Test Categories:
 1. TestOneShotFlagConsumption - Verify flags are consumed after first use
 2. TestBoundedExecution - Verify graph terminates within step limit
 3. TestNodeSequencePatterns - Detect repeated node sequences (loops)
+4. TestRouterEdgeSafety - Verify router edges don't create cycles
+5. TestStateFlagInvariants - Verify state flags maintain invariants
+
+=== OWNERSHIP & DEFENSE-IN-DEPTH ===
+
+This file focuses on:
+- LOOP SAFETY: Bounded execution, pattern detection, termination guarantees
+- STATE MACHINE INVARIANTS: Flag consumption, state preservation
+
+Related file: test_ci_failure_trigger.py focuses on:
+- CI FAILURE FLOW: Context building, routing logic, fast path behavior
+- WEBHOOK INTEGRATION: Event normalization, task context
+
+Some tests overlap intentionally (defense-in-depth):
+- One-shot flag consumption tests exist in both files
+- This file tests from "loop prevention" perspective
+- test_ci_failure_trigger.py tests from "CI failure flow" perspective
+
+This overlap is acceptable per Issue #3547 - both perspectives are valuable
+for catching regressions. Do NOT remove overlapping tests without careful
+consideration of coverage gaps.
 """
 
 import pytest

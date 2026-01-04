@@ -8,6 +8,34 @@ This module tests the orchestrator-side logic for CI failure auto-fix:
 
 Note: Tests for _enqueue_ci_failure_task() in webhooks.py are located in
 the api-backend test suite (webhooks/tests/) since that module requires Flask.
+
+=== OWNERSHIP & DEFENSE-IN-DEPTH ===
+
+This file focuses on:
+- CI FAILURE FLOW: Complete flow from webhook to orchestrator
+- CONTEXT BUILDING: Event normalization, metadata passing, task context
+- ROUTING LOGIC: Fast path short-circuit, entry point selection
+- CI MONITOR BEHAVIOR: First pass vs second pass, API call skipping
+
+Related file: test_orchestrator_loop_safety.py focuses on:
+- LOOP SAFETY: Bounded execution, pattern detection, termination guarantees
+- STATE MACHINE INVARIANTS: Flag consumption, state preservation
+
+Some tests overlap intentionally (defense-in-depth):
+- One-shot flag consumption tests exist in both files
+- This file tests from "CI failure flow" perspective
+- test_orchestrator_loop_safety.py tests from "loop prevention" perspective
+
+This overlap is acceptable per Issue #3547 - both perspectives are valuable
+for catching regressions. Do NOT remove overlapping tests without careful
+consideration of coverage gaps.
+
+Test Categories:
+1. TestBuildContextCIFailureMetadata - Context building from webhook events
+2. TestCIFailureTriggerContextExtraction - Extraction logic for ci_failure_trigger
+3. TestCIFailureTaskContext - Task context structure validation
+4. TestCIFailureFastPath - Router fast path behavior
+5. TestCIMonitorFastPathConsumed - ci_monitor consumed flag behavior
 """
 
 from datetime import datetime, timezone
