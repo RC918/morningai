@@ -435,6 +435,35 @@ class TestI18nGetLocaleEdgeCases:
         assert result == 'zh-TW'
 
 
+class TestI18nUncoveredLines:
+    """Test i18n uncovered lines 137, 165-166"""
+
+    def test_t_with_unsupported_locale_fallback(self):
+        """Test t method falls back to default locale when locale not in translations (line 137)"""
+        from src.utils.i18n import I18n
+        i18n = I18n()
+        # Use a locale that's not in supported_locales
+        result = i18n.t('query.success', locale='fr-FR')
+        # Should fall back to default locale (zh-TW) and return the translation
+        assert result == '查詢成功'
+
+    def test_translate_response_with_underscore_message(self):
+        """Test translate_response with message starting with underscore (lines 165-166)"""
+        from src.utils.i18n import I18n
+        from flask import Flask
+        app = Flask(__name__)
+        with app.test_request_context():
+            i18n = I18n()
+            data = {
+                'message': '_query.success',
+                'status': 'ok'
+            }
+            result = i18n.translate_response(data)
+            # Message should be translated from _query.success to the actual translation
+            assert result['message'] != '_query.success'
+            assert result['message'] in ['查詢成功', 'Query successful']
+
+
 class TestI18nConvenienceFunctions:
     """Test i18n convenience functions to cover lines 227, 232, 245"""
 
