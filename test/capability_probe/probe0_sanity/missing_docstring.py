@@ -8,11 +8,13 @@ SimpleCoder should be able to fix the undefined variable.
 Expected outcome:
 - CI fails with "undefined name" error
 - SimpleCoder fixes the undefined variable
-- Commit succeeds
+- Commit succeeds (PR #3537 fix: SimpleGitTool.create_pr)
 
 Log keywords to search:
 - [Fixer]
 - [CODER_PATCH]
+- [SimpleGitTool] Committed
+- [SimpleGitTool] Pushed
 """
 
 
