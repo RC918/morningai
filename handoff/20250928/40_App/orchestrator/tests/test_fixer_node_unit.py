@@ -803,14 +803,21 @@ class TestEnsureCommentBodyForCiFailure:
 
         assert state["comment_body"] == "Human review comment"
 
-    def test_does_not_override_existing_review_comments(self):
-        """Test that comment_body is not synthesized when review_comments exist."""
+    def test_synthesizes_comment_despite_existing_review_comments(self):
+        """Test that comment_body IS synthesized even when review_comments exist (Issue #3572).
+
+        Root Cause #12: The review_comments list contains ALL historical PR comments
+        (including bot comments, previous test comments, etc.), not just the triggering
+        comment. For CI failure scenarios, there is no triggering comment - the webhook
+        comes from CI, not a PR review. We should NOT skip synthesis just because
+        historical comments exist.
+        """
         state = {
             "trace_id": "test-trace-123",
             "ci_failure_trigger": True,
             "ci_failure_context": {
                 "failed_check_name": "lint",
-                "error_summary": "F821: undefined name",
+                "error_summary": "F821: undefined name 'reuslt'",
             },
             "comment_body": "",
             "review_comments": [{"body": "Please fix this"}],
@@ -818,7 +825,38 @@ class TestEnsureCommentBodyForCiFailure:
 
         _ensure_comment_body_for_ci_failure(state, "test-trace-123")
 
-        assert state["comment_body"] == ""
+        # Issue #3572: comment_body should be synthesized despite review_comments
+        assert state["comment_body"] != ""
+        assert "lint" in state["comment_body"]
+        assert "F821" in state["comment_body"]
+
+    def test_synthesizes_comment_with_many_historical_comments(self):
+        """Test synthesis works with many historical PR comments (Issue #3572).
+
+        This is the exact scenario from Probe 0 (#3528) which had 25 historical
+        comments and was blocking CI failure auto-fix for "十幾個版本" (a dozen versions).
+        """
+        # Simulate 25 historical comments like Probe 0 had
+        historical_comments = [{"body": f"Comment {i}"} for i in range(25)]
+        state = {
+            "trace_id": "test-trace-123",
+            "ci_failure_trigger": True,
+            "ci_failure_context": {
+                "failed_check_name": "lint",
+                "error_summary": "test/capability_probe/probe0_sanity/missing_docstring.py:15:12: F821 undefined name 'reuslt'",
+            },
+            "comment_body": "",
+            "review_comments": historical_comments,
+            "review_file_path": "",
+        }
+
+        _ensure_comment_body_for_ci_failure(state, "test-trace-123")
+
+        # Issue #3572: comment_body should be synthesized
+        assert state["comment_body"] != ""
+        assert "lint" in state["comment_body"]
+        # Issue #3567: review_file_path should be extracted
+        assert state["review_file_path"] == "test/capability_probe/probe0_sanity/missing_docstring.py"
 
     def test_does_nothing_when_ci_failure_trigger_false(self):
         """Test that nothing happens when ci_failure_trigger=False."""

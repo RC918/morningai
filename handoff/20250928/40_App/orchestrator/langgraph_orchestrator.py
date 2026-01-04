@@ -4922,15 +4922,16 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
     Only synthesizes when:
     - ci_failure_trigger=True
     - comment_body is empty
-    - review_comments is empty
 
-    This ensures we don't override real human review comments.
-
-    Also extracts file path from error_summary to populate review_file_path
-    for SimpleCoder gate check (Issue #3567).
+    Note: We intentionally do NOT check review_comments here. The review_comments
+    list contains ALL historical PR comments (including bot comments, previous
+    test comments, etc.), not just the triggering comment. For CI failure scenarios,
+    there is no triggering comment - the webhook comes from CI, not a PR review.
+    The existing_comment check is sufficient to avoid overwriting real human input.
 
     Issue #3564: Root Cause #10 - Coders skip due to missing comment_body
     Issue #3567: Root Cause #11 - SimpleCoder needs review_file_path
+    Issue #3572: Root Cause #12 - review_comments gate blocks CI failure synthesis
     """
     ci_failure_trigger = state.get("ci_failure_trigger", False)
 
@@ -4951,13 +4952,20 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
         )
         return
 
+    # Issue #3572: Do NOT check review_comments here. The review_comments list
+    # contains ALL historical PR comments, not just the triggering comment.
+    # For CI failure scenarios, there is no triggering comment.
     review_comments = state.get("review_comments", [])
     if review_comments:
-        logger.debug(
-            f"[Fixer] _ensure_comment_body skipped: review_comments non-empty. "
-            f"count={len(review_comments)}, trace_id={trace_id}"
+        logger.info(
+            f"[Fixer] CI failure synthesis proceeding despite {len(review_comments)} "
+            f"historical review_comments (Issue #3572).",
+            extra={
+                "operation": "fixer_ci_synthesis_with_comments",
+                "trace_id": trace_id,
+                "review_comments_count": len(review_comments),
+            }
         )
-        return
 
     ci_context = state.get("ci_failure_context", {})
     ci_context_type = type(ci_context).__name__
