@@ -91,11 +91,15 @@ def _get_timestamp_ms() -> int:
 
 
 def _compute_hash(data: Any, algorithm: str = "sha256") -> str:
-    """Compute hash of data for redaction purposes"""
+    """Compute hash of data for redaction purposes.
+    
+    Returns 128-bit (32 hex chars) hash to minimize collision probability
+    in high-volume telemetry systems.
+    """
     if data is None:
         return ""
     serialized = json.dumps(data, sort_keys=True, default=str)
-    return hashlib.new(algorithm, serialized.encode()).hexdigest()[:16]
+    return hashlib.new(algorithm, serialized.encode()).hexdigest()[:32]
 
 
 @dataclass

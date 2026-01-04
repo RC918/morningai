@@ -215,12 +215,12 @@ class TestComputeHash:
     """Tests for _compute_hash function"""
 
     def test_compute_hash_string(self):
-        """_compute_hash should hash strings"""
+        """_compute_hash should hash strings with 128-bit (32 hex chars) output"""
         hash1 = _compute_hash("hello world")
         hash2 = _compute_hash("hello world")
 
         assert hash1 == hash2
-        assert len(hash1) == 16
+        assert len(hash1) == 32  # 128-bit hash for reduced collision probability
 
     def test_compute_hash_dict(self):
         """_compute_hash should hash dicts"""
