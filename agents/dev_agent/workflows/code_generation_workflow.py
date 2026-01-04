@@ -157,7 +157,13 @@ class CodeGenerationWorkflow:
         
         workflow.set_finish_point("create_pr")
         
-        return workflow.compile()
+        # Issue #3579: Explicitly disable checkpointer to prevent NotImplementedError
+        # When CodeGenerationWorkflow runs inside the orchestrator's LangGraph context,
+        # checkpointer=None can inherit the parent graph's checkpointer via contextvars.
+        # This causes NotImplementedError when LangGraph tries to use abstract methods
+        # from BaseCheckpointSaver that aren't implemented. Setting checkpointer=False
+        # explicitly disables checkpointing and prevents inheritance.
+        return workflow.compile(checkpointer=False)
     
     def _should_continue_after_classify(self, state: CodeGenState) -> str:
         """Decide next step after task classification"""
