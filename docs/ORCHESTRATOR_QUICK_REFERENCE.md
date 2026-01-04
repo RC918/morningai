@@ -68,6 +68,7 @@ USE_POSTGRES_CHECKPOINTER=true   # PostgreSQL checkpointer in production
 |---------|---------|---------|
 | `"Using LangGraph orchestrator"` | Find LangGraph executions | Search in worker logs (Render Dashboard) |
 | `"Using PostgreSQL checkpointer"` | Verify checkpointer type | Search in worker logs |
+| `"CHECKPOINT DEGRADED"` | Detect checkpointer failover events | Search in worker logs |
 | `planner_type` | Identify planner type (llm/static) | Search in planner logs |
 | `trace_id` | Track execution across services | Search in logs by trace ID |
 | `[I-4-ADVISORY]` | Degradation advisor recommendations | Search in governance logs |
@@ -119,7 +120,7 @@ pytest tests/test_checkpointer.py -v
 |---------|-----------------|
 | Assuming USE_LANGGRAPH flags still exist | USE_LANGGRAPH flags were removed in Issue #2651 |
 | Not setting USE_POSTGRES_CHECKPOINTER in prod | Set to `true` in production for state persistence |
-| Ignoring checkpoint failover logs | Monitor `[CHECKPOINT_FAILOVER]` logs for degradation |
+| Ignoring checkpoint failover logs | Monitor `CHECKPOINT DEGRADED` logs for degradation |
 | Not testing with LLM planner before enabling | Test locally with `USE_LLM_PLANNER=true` first |
 
 ---
@@ -143,16 +144,18 @@ USE_LLM_PLANNER = false  # Revert to static planner
 
 ### Scenario 2: Checkpointer Issues
 
-**Symptoms**: State persistence failures, workflow interruptions
+**Symptoms**: Persistent state persistence failures, workflow interruptions, or repeated `CHECKPOINT DEGRADED` logs
+
+**Context**: The system has automatic failover to an in-memory checkpointer for transient database errors. Use this manual rollback if PostgreSQL issues are persistent or if the automatic failover mechanism is causing problems.
 
 **Immediate Rollback**:
 ```bash
 # In Render Dashboard → morningai-agent-worker → Environment
-USE_POSTGRES_CHECKPOINTER = false  # Fallback to MemorySaver
+USE_POSTGRES_CHECKPOINTER = false  # Fallback to in-memory MemorySaver
 # Save and redeploy
 ```
 
-**Note**: MemorySaver is in-memory only and does not persist across restarts.
+**Impact**: This reverts to in-memory state management. Workflows in progress will lose state if the worker restarts.
 
 ### Scenario 3: Complete Worker Failure
 
