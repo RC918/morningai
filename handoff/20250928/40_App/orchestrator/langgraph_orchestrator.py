@@ -4857,6 +4857,67 @@ def _attempt_simple_coder_fix(
         return False, f"Failed to apply patch: {result.message}"
 
 
+def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
+    """Synthesize comment_body from ci_failure_context for CI failure scenarios.
+
+    When ci_failure_trigger=True, there's no PR review comment, but the coders
+    need a comment_body to understand what to fix. This function synthesizes one
+    from the CI failure context.
+
+    Only synthesizes when:
+    - ci_failure_trigger=True
+    - comment_body is empty
+    - review_comments is empty
+
+    This ensures we don't override real human review comments.
+
+    Issue #3564: Root Cause #10 - Coders skip due to missing comment_body
+    """
+    ci_failure_trigger = state.get("ci_failure_trigger", False)
+    if not ci_failure_trigger:
+        return
+
+    existing_comment = state.get("comment_body", "")
+    if existing_comment:
+        return
+
+    review_comments = state.get("review_comments", [])
+    if review_comments:
+        return
+
+    ci_context = state.get("ci_failure_context", {})
+    if not ci_context:
+        logger.warning(
+            f"[Fixer] CI failure trigger set but no ci_failure_context. "
+            f"trace_id={trace_id}"
+        )
+        return
+
+    failed_check = ci_context.get("failed_check_name", "unknown")
+    error_summary = ci_context.get("error_summary", "")
+
+    if error_summary:
+        if not isinstance(error_summary, str):
+            error_summary = str(error_summary)
+        error_summary = error_summary[:500]
+        synthesized = f"Fix CI failure in {failed_check}: {error_summary}"
+    else:
+        synthesized = f"Fix CI failure in {failed_check} check"
+
+    state["comment_body"] = synthesized
+
+    logger.info(
+        f"[Fixer] Synthesized comment_body for CI failure. "
+        f"failed_check={failed_check}, trace_id={trace_id}",
+        extra={
+            "operation": "fixer_synthesize_comment",
+            "trace_id": trace_id,
+            "failed_check": failed_check,
+            "has_error_summary": bool(error_summary),
+        }
+    )
+
+
 def fixer_node(state: AgentState) -> AgentState:
     """
     Fixer node: Attempts to fix CI failures
@@ -4876,6 +4937,10 @@ def fixer_node(state: AgentState) -> AgentState:
     - Attempts GeneralCoder multi-file fix first (if enabled)
     - Falls back to SimpleCoder for single-file issues
     - Falls back to AutoFixer if both coders skip or fail
+
+    Issue #3564 Enhancement:
+    - Synthesizes comment_body from ci_failure_context for CI failure scenarios
+    - Ensures coders don't skip due to missing comment_body
     """
     from common.config.settings import settings
 
@@ -4884,6 +4949,8 @@ def fixer_node(state: AgentState) -> AgentState:
 
     trace_id = state["trace_id"]
     retry_count = state.get("retry_count", 0)
+
+    _ensure_comment_body_for_ci_failure(state, trace_id)
 
     metrics.record_node_start("fixer", trace_id)
 
