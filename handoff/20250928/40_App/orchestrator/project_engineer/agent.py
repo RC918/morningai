@@ -524,9 +524,11 @@ class ProjectEngineerAgent:
                 "env_sync": "write_file",  # Sync environment files
                 "config_update": "write_file",  # Update config files
                 "i18n_update": "write_file",  # Update i18n files
-                # Default fallback
-                "unknown": "read_file",  # Changed from analyze_code to read_file (in whitelist)
+                # Note: 'unknown' key removed per MorningAI Reviewer feedback to ensure
+                # single source of truth - default fallback is controlled by .get() below
             }
+            # Default fallback: 'read_file' is in DEFAULT_ALLOWED_ACTIONS whitelist
+            # (changed from 'analyze_code' which was not in whitelist)
             action = action_mapping.get(task_type, "read_file")
 
             semantic_valid, semantic_error, requires_approval = self._validate_task_semantic_rules(
