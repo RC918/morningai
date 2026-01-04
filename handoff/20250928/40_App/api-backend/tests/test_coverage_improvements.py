@@ -321,6 +321,68 @@ class TestHelpersAsBool:
         assert _as_bool(value) is expected
 
 
+class TestMonitoringDashboardExportMetrics:
+    """Test monitoring dashboard export_metrics function to cover lines 290-300"""
+
+    def test_export_metrics_no_history(self):
+        """Test export_metrics when no metrics history (line 291)"""
+        dashboard = MonitoringDashboard()
+        dashboard.metrics_history = []
+        result = dashboard.export_metrics()
+        assert 'error' in result
+        assert 'No metrics available' in result
+
+    def test_export_metrics_json_format(self):
+        """Test export_metrics with json format (lines 295-296)"""
+        dashboard = MonitoringDashboard()
+        dashboard.metrics_history = [
+            DashboardMetrics(
+                timestamp=datetime.now(),
+                circuit_breakers={'test': {'state': 'closed'}},
+                bulkheads={},
+                saga_orchestrator={},
+                storage_stats={},
+                system_health={'error_rate': 0.01}
+            )
+        ]
+        result = dashboard.export_metrics(format='json')
+        assert 'circuit_breakers' in result
+        assert 'test' in result
+
+    def test_export_metrics_prometheus_format(self):
+        """Test export_metrics with prometheus format (lines 297-298)"""
+        dashboard = MonitoringDashboard()
+        dashboard.metrics_history = [
+            DashboardMetrics(
+                timestamp=datetime.now(),
+                circuit_breakers={'api': {'total_requests': 100, 'failed_requests': 5, 'failure_rate': 0.05}},
+                bulkheads={},
+                saga_orchestrator={},
+                storage_stats={},
+                system_health={'error_rate': 0.05, 'open_circuit_breakers': 0}
+            )
+        ]
+        result = dashboard.export_metrics(format='prometheus')
+        assert 'circuit_breaker_total_requests' in result
+        assert 'system_error_rate' in result
+
+    def test_export_metrics_unsupported_format(self):
+        """Test export_metrics with unsupported format (lines 299-300)"""
+        dashboard = MonitoringDashboard()
+        dashboard.metrics_history = [
+            DashboardMetrics(
+                timestamp=datetime.now(),
+                circuit_breakers={},
+                bulkheads={},
+                saga_orchestrator={},
+                storage_stats={},
+                system_health={}
+            )
+        ]
+        result = dashboard.export_metrics(format='xml')
+        assert 'Unsupported format' in result
+
+
 class TestI18nConvenienceFunctions:
     """Test i18n convenience functions to cover lines 227, 232, 245"""
 
