@@ -319,14 +319,19 @@ class ProjectEngineerAgent:
             # Fail closed: reject task on validation error
             return False, f"Semantic rules validation error: {str(e)}", False
 
-    async def run_task(self, description: str, repo: str = "RC918/morningai") -> List[TaskResult]:
+    async def run_task(
+        self,
+        description: str,
+        repo: str = "RC918/morningai",
+        task_type_hint: Optional[str] = None
+    ) -> List[TaskResult]:
         """
         Execute a task based on natural language description
 
         Workflow:
         1. Validate input and semantic rules (repo allowed)
         2. Use LLM Planner to decompose task into steps
-        3. Classify each step's task type
+        3. Classify each step's task type (or use task_type_hint if provided)
         4. Check if task is safe for code generation
         5. Return structured results (analysis only in Phase 2 Step A)
 
@@ -334,9 +339,14 @@ class ProjectEngineerAgent:
         - Agent-level timeout (configurable via PROJECT_ENGINEER_TASK_TIMEOUT_SECONDS)
         - Semantic task rules: repo validation (configurable via PROJECT_ENGINEER_ALLOWED_REPOS)
 
+        Issue #3546 Enhancement:
+        - task_type_hint parameter to bypass classifier misclassification for CI failure auto-fix
+
         Args:
             description: Natural language task description
             repo: Repository name (default: RC918/morningai)
+            task_type_hint: Optional safe task_type to use instead of classifier
+                           (Issue #3546: deterministic CI failure task_type)
 
         Returns:
             List of TaskResult objects with execution details
@@ -399,11 +409,13 @@ class ProjectEngineerAgent:
             for i, step in enumerate(plan_steps):
                 step_text = step if isinstance(step, str) else step.get("step", str(step))
 
+                # Issue #3546: Pass task_type_hint to bypass classifier misclassification
                 result = await self._process_step(
                     step_text=step_text,
                     step_index=i,
                     trace_id=trace_id,
-                    repo=repo
+                    repo=repo,
+                    task_type_hint=task_type_hint
                 )
                 results.append(result)
 
@@ -432,7 +444,8 @@ class ProjectEngineerAgent:
         step_text: str,
         step_index: int,
         trace_id: str,
-        repo: str = "RC918/morningai"
+        repo: str = "RC918/morningai",
+        task_type_hint: Optional[str] = None
     ) -> TaskResult:
         """
         Process a single step from the plan
@@ -442,6 +455,8 @@ class ProjectEngineerAgent:
             step_index: Index of step in plan
             trace_id: Trace ID for logging
             repo: Repository name for semantic rules validation
+            task_type_hint: Optional safe task_type to use instead of classifier
+                           (Issue #3546: deterministic CI failure task_type)
 
         Returns:
             TaskResult for this step
@@ -450,7 +465,15 @@ class ProjectEngineerAgent:
 
         try:
             # Step 3: Classify task type
-            if self.classifier:
+            # Issue #3546: Use task_type_hint if provided to bypass classifier misclassification
+            if task_type_hint:
+                task_type = task_type_hint
+                complexity = "low"  # Safe tasks are typically low complexity
+                logger.info(
+                    f"[ProjectEngineerAgent] Step {step_index} using task_type_hint: "
+                    f"{task_type} (bypassing classifier per Issue #3546)"
+                )
+            elif self.classifier:
                 task_type_enum = self.classifier.classify(step_text)
                 task_type = task_type_enum.value if hasattr(task_type_enum, 'value') else str(task_type_enum)
 
