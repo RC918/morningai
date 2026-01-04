@@ -2,8 +2,10 @@
 Targeted tests to improve code coverage to 80%+
 
 Tests cover specific missing lines in:
-- models/user.py: __repr__ method (line 15)
+- models/user.py: __repr__, to_dict, get_preferences, set_preferences (lines 15, 18, 27-30, 34)
 - utils/i18n.py: Translation file loading edge cases (lines 34-36, 46-48, 50-51)
+- utils/helpers.py: _as_bool function edge cases (line 42)
+- bootstrap_paths.py: orchestrator directory not found warning (lines 115-119)
 - services/monitoring_dashboard.py: Exception handling (lines 117-119, 235-236, 268-269)
 """
 import json
@@ -31,6 +33,73 @@ class TestUserModelRepr:
         user.username = username
         repr_str = repr(user)
         assert repr_str == expected_repr
+
+
+class TestUserModelMethods:
+    """Test User model methods to cover lines 18, 27-30, 34"""
+
+    def test_to_dict(self):
+        """Test User.to_dict returns correct dictionary (line 18)"""
+        user = User()
+        user.id = 1
+        user.username = "testuser"
+        user.email = "test@example.com"
+        user.created_at = datetime(2025, 1, 1, 12, 0, 0)
+
+        result = user.to_dict()
+
+        assert result['id'] == 1
+        assert result['username'] == "testuser"
+        assert result['email'] == "test@example.com"
+        assert result['created_at'] == "2025-01-01T12:00:00"
+
+    def test_to_dict_with_none_created_at(self):
+        """Test User.to_dict handles None created_at"""
+        user = User()
+        user.id = 2
+        user.username = "testuser2"
+        user.email = "test2@example.com"
+        user.created_at = None
+
+        result = user.to_dict()
+
+        assert result['created_at'] is None
+
+    def test_get_preferences_valid_json(self):
+        """Test User.get_preferences with valid JSON (line 28)"""
+        user = User()
+        user.preferences = '{"theme": "dark", "language": "en"}'
+
+        result = user.get_preferences()
+
+        assert result == {"theme": "dark", "language": "en"}
+
+    def test_get_preferences_empty_string(self):
+        """Test User.get_preferences with empty preferences"""
+        user = User()
+        user.preferences = None
+
+        result = user.get_preferences()
+
+        assert result == {}
+
+    def test_get_preferences_invalid_json(self):
+        """Test User.get_preferences with invalid JSON (lines 29-30)"""
+        user = User()
+        user.preferences = "not valid json {"
+
+        result = user.get_preferences()
+
+        assert result == {}
+
+    def test_set_preferences(self):
+        """Test User.set_preferences sets JSON string (line 34)"""
+        user = User()
+        prefs = {"theme": "light", "notifications": True}
+
+        user.set_preferences(prefs)
+
+        assert user.preferences == '{"theme": "light", "notifications": true}'
 
 
 class TestI18nTranslationLoading:
@@ -189,3 +258,56 @@ class TestVectorsVisualizationUnavailable:
             assert response.status_code == 503
             data = json.loads(response.data)
             assert 'Visualization libraries not available' in data['error']
+
+
+class TestBootstrapPaths:
+    """Test bootstrap_paths.py edge cases to cover lines 115-119"""
+
+    def test_bootstrap_orchestrator_paths_missing_directory(self):
+        """Test bootstrap_orchestrator_paths when orchestrator dir doesn't exist (lines 115-119)"""
+        from pathlib import Path
+
+        with patch.object(Path, 'is_dir', return_value=False):
+            from src import bootstrap_paths
+            bootstrap_paths._bootstrapped = False
+
+            result = bootstrap_paths.bootstrap_orchestrator_paths()
+
+            assert result is False
+
+
+class TestHelpersAsBool:
+    """Test helpers._as_bool function edge cases"""
+
+    def test_as_bool_with_true_bool(self):
+        """Test _as_bool with True boolean"""
+        from src.utils.helpers import _as_bool
+        assert _as_bool(True) is True
+
+    def test_as_bool_with_false_bool(self):
+        """Test _as_bool with False boolean"""
+        from src.utils.helpers import _as_bool
+        assert _as_bool(False) is False
+
+    def test_as_bool_with_none(self):
+        """Test _as_bool with None"""
+        from src.utils.helpers import _as_bool
+        assert _as_bool(None) is False
+
+    def test_as_bool_with_truthy_strings(self):
+        """Test _as_bool with truthy string values"""
+        from src.utils.helpers import _as_bool
+        assert _as_bool('1') is True
+        assert _as_bool('true') is True
+        assert _as_bool('TRUE') is True
+        assert _as_bool('yes') is True
+        assert _as_bool('on') is True
+
+    def test_as_bool_with_falsy_strings(self):
+        """Test _as_bool with falsy string values"""
+        from src.utils.helpers import _as_bool
+        assert _as_bool('0') is False
+        assert _as_bool('false') is False
+        assert _as_bool('no') is False
+        assert _as_bool('off') is False
+        assert _as_bool('') is False
