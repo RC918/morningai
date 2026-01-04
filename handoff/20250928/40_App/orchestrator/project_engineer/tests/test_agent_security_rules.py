@@ -459,12 +459,17 @@ class TestProcessStepSecurityValidation:
         """Should map task types to actions correctly"""
         agent = ProjectEngineerAgent()
 
+        # Action mapping must use whitelisted actions from DEFAULT_ALLOWED_ACTIONS
+        # Note: 'unknown' maps to 'read_file' (not 'analyze_code') because:
+        # - 'read_file' is in DEFAULT_ALLOWED_ACTIONS whitelist
+        # - 'analyze_code' is NOT in the whitelist, causing semantic rules validation to fail
+        # - This was fixed in PR #3553 to resolve Root Cause #9 in Probe 0 validation
         action_mapping = {
             "documentation_update": "write_file",
             "test_generation": "write_file",
             "code_review": "review_code",
             "bug_fix": "write_file",
-            "unknown": "analyze_code",
+            "unknown": "read_file",  # Changed from analyze_code (Issue #3552)
         }
 
         for task_type, expected_action in action_mapping.items():
