@@ -575,8 +575,29 @@ class CodeGenerationWorkflow:
         return state
 
     async def run_tests(self, state: CodeGenState) -> CodeGenState:
-        """Stage 7: Run tests to verify generated code"""
+        """Stage 7: Run tests to verify generated code
+
+        Issue #3599: Skip pytest for fix_lint tasks and treat "pytest not found"
+        as skipped rather than failed. This prevents infinite retry loops when
+        pytest is not available in the environment.
+        """
         logger.info(f"[Stage 7] Running tests for task #{state['task_id']}")
+
+        # Issue #3599: Skip tests for fix_lint tasks - lint fixes should be
+        # verified by running lint, not pytest. Running pytest for lint fixes
+        # causes unnecessary failures and retry loops.
+        task_type = state.get("task_type", "")
+        if task_type in ("fix_lint", "lint_fix"):
+            logger.info(
+                f"[Stage 7] Skipping pytest for {task_type} task - "
+                "lint fixes don't require test verification"
+            )
+            state["test_results"] = {
+                "success": True,
+                "skipped": True,
+                "reason": f"pytest skipped for {task_type} task"
+            }
+            return state
 
         try:
             if hasattr(self.agent, 'test_tool') and self.agent.test_tool:
@@ -586,14 +607,40 @@ class CodeGenerationWorkflow:
                 if test_results.get("success"):
                     logger.info("Tests passed!")
                 else:
-                    logger.warning(f"Tests failed: {test_results.get('error', 'Unknown error')}")
+                    # Issue #3599: Check if failure is due to pytest not being available
+                    error_msg = str(test_results.get('error', ''))
+                    if 'No such file or directory' in error_msg and 'pytest' in error_msg:
+                        logger.warning(
+                            "[Stage 7] pytest not available in environment - "
+                            "treating as skipped, not failed"
+                        )
+                        state["test_results"] = {
+                            "success": True,
+                            "skipped": True,
+                            "reason": "pytest not available in environment"
+                        }
+                    else:
+                        logger.warning(f"Tests failed: {error_msg}")
             else:
                 logger.warning("Test tool not available, skipping tests")
                 state["test_results"] = {"success": True, "skipped": True}
 
         except Exception as e:
-            logger.warning(f"Test execution failed: {str(e)}")
-            state["test_results"] = {"success": False, "error": str(e)}
+            error_msg = str(e)
+            # Issue #3599: Check if exception is due to pytest not being available
+            if 'No such file or directory' in error_msg and 'pytest' in error_msg:
+                logger.warning(
+                    "[Stage 7] pytest not available in environment - "
+                    "treating as skipped, not failed"
+                )
+                state["test_results"] = {
+                    "success": True,
+                    "skipped": True,
+                    "reason": "pytest not available in environment"
+                }
+            else:
+                logger.warning(f"Test execution failed: {error_msg}")
+                state["test_results"] = {"success": False, "error": error_msg}
 
         return state
 
