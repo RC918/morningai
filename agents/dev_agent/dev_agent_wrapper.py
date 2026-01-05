@@ -64,20 +64,51 @@ class SimpleGitTool:
     ) -> Dict[str, Any]:
         """Commit changes."""
         try:
+            cwd = os.getcwd()
             if files:
-                subprocess.run(['git', 'add'] + files, cwd=os.getcwd())
+                add_result = subprocess.run(
+                    ['git', 'add'] + files,
+                    capture_output=True,
+                    text=True,
+                    cwd=cwd
+                )
+                if add_result.returncode != 0:
+                    logger.error(f"[SimpleGitTool] git add failed: {add_result.stderr}")
+                    return {
+                        'success': False,
+                        'error': f'git add failed: {add_result.stderr}'
+                    }
+            
+            # Issue #3584: Use git -c options to set author identity
+            commit_cmd = [
+                'git',
+                '-c', f'user.name={self.DEFAULT_GIT_AUTHOR_NAME}',
+                '-c', f'user.email={self.DEFAULT_GIT_AUTHOR_EMAIL}',
+                'commit', '-m', message
+            ]
+            
+            logger.info(
+                f"[SimpleGitTool] Committing with author: "
+                f"{self.DEFAULT_GIT_AUTHOR_NAME} <{self.DEFAULT_GIT_AUTHOR_EMAIL}>"
+            )
+            
             result = subprocess.run(
-                ['git', 'commit', '-m', message],
+                commit_cmd,
                 capture_output=True,
                 text=True,
-                cwd=os.getcwd()
+                cwd=cwd
             )
+            
+            if result.returncode != 0:
+                logger.error(f"[SimpleGitTool] git commit failed: {result.stderr}")
+            
             return {
                 'success': result.returncode == 0,
                 'output': result.stdout,
                 'error': result.stderr if result.returncode != 0 else None
             }
         except Exception as e:
+            logger.error(f"[SimpleGitTool] commit failed with exception: {e}")
             return {'success': False, 'error': str(e)}
 
     async def push(
