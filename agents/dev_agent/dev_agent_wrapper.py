@@ -539,7 +539,7 @@ class SimpleGitTool:
                             )
 
                             # Step 2: Rebase local commit(s) on top of remote
-                            # Use --onto to rebase even in detached HEAD state
+                            # This replays local commits on top of the fetched remote branch
                             rebase_cmd = [
                                 'git', 'rebase',
                                 f'{self.DEFAULT_REMOTE_NAME}/{push_target}'
@@ -559,16 +559,25 @@ class SimpleGitTool:
                                     f"{rebase_result.stderr}"
                                 )
                                 # Abort the rebase to restore clean state
-                                subprocess.run(
+                                # Per gemini-code-assist review: check abort result
+                                abort_result = subprocess.run(
                                     ['git', 'rebase', '--abort'],
                                     capture_output=True,
                                     text=True,
-                                    cwd=cwd
+                                    cwd=cwd,
+                                    env=push_env
                                 )
-                                logger.info(
-                                    "[SimpleGitTool] Rebase aborted, "
-                                    "returning original push error"
-                                )
+                                if abort_result.returncode == 0:
+                                    logger.info(
+                                        "[SimpleGitTool] Rebase aborted, "
+                                        "returning original push error"
+                                    )
+                                else:
+                                    # Note: "No rebase in progress" is not critical
+                                    logger.warning(
+                                        f"[SimpleGitTool] 'git rebase --abort' returned "
+                                        f"non-zero: {abort_result.stderr.strip()}"
+                                    )
                                 # Fall through to return the original push error
                             else:
                                 logger.info(
