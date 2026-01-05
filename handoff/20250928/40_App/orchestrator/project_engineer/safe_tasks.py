@@ -130,7 +130,12 @@ SAFE_TASK_METADATA: Dict[str, Dict[str, Any]] = {
         "max_files": 10,
         "allowed_extensions": [".py", ".js", ".ts", ".jsx", ".tsx"],
         "allowed_files": [],
-        "allowed_directories": ["src/", "lib/", "tests/", "components/", "services/", "utils/"],
+        "allowed_directories": [
+            "src/", "lib/", "tests/", "test/", "components/", "services/", "utils/",
+            "handoff/20250928/40_App/api-backend/src/",
+            "handoff/20250928/40_App/frontend-dashboard/src/",
+            "handoff/20250928/40_App/owner-console/src/",
+        ],
         "requires_review": False,
         "requires_tests": False,
         "description": "Fix linting errors (formatting, style)",
