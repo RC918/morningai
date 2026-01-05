@@ -225,7 +225,7 @@ class SimpleGitTool:
             return {'success': False, 'error': str(e)}
 
     async def commit_and_push(
-        self, title: str, body: str = ""
+        self, title: str, body: str = "", target_branch: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Commit and push changes to the current branch.
@@ -243,6 +243,10 @@ class SimpleGitTool:
         Args:
             title: Commit message subject line
             body: Commit message body (optional)
+            target_branch: Optional target branch name for push (Issue #3606).
+                          Used when in detached HEAD state to specify which
+                          remote branch to push to. If not provided, uses
+                          the current branch name or GITHUB_HEAD_REF env var.
 
         Returns:
             Dict with success status, commit_sha, and branch name.
@@ -426,29 +430,47 @@ class SimpleGitTool:
                 # Issue #3605: Root Cause #29 - Handle detached HEAD properly
                 # In detached HEAD state, we must NOT push to 'main' (it's protected).
                 # Instead, try to get the branch name from environment variables.
-                target_branch = branch
-                if not target_branch or target_branch == 'HEAD':
+                #
+                # Issue #3606: Root Cause #30 - Pass head_branch from webhook context
+                # The target_branch parameter allows callers to pass the PR branch name
+                # from webhook context (CiFailureContext.head_branch), which is the most
+                # reliable source of the branch name in AutoFixer workflows.
+                #
+                # Priority order for determining push target:
+                # 1. target_branch parameter (from webhook context)
+                # 2. Current git branch name (if on a named branch)
+                # 3. GITHUB_HEAD_REF environment variable (GitHub Actions fallback)
+                # 4. Fail gracefully (never push to protected 'main')
+                push_target = target_branch  # Priority 1: explicit parameter
+                branch_source = "target_branch parameter"
+
+                if not push_target:
+                    push_target = branch  # Priority 2: current git branch
+                    branch_source = "git branch"
+
+                if not push_target or push_target == 'HEAD':
                     # Detached HEAD case - try to get branch from environment
                     # GITHUB_HEAD_REF is set by GitHub Actions for PR events
-                    target_branch = os.environ.get('GITHUB_HEAD_REF', '')
-                    if target_branch:
+                    push_target = os.environ.get('GITHUB_HEAD_REF', '')
+                    branch_source = "GITHUB_HEAD_REF"
+                    if push_target:
                         logger.info(
                             f"[SimpleGitTool] Detached HEAD detected, using GITHUB_HEAD_REF: "
-                            f"{target_branch}"
+                            f"{push_target}"
                         )
                     else:
                         # No branch name available - fail gracefully
                         # Do NOT push to 'main' as it's likely protected
                         logger.error(
-                            "[SimpleGitTool] Detached HEAD detected and no GITHUB_HEAD_REF set. "
-                            "Cannot determine target branch for push."
+                            "[SimpleGitTool] Detached HEAD detected and no target branch available. "
+                            "Checked: target_branch param, git branch, GITHUB_HEAD_REF env var."
                         )
                         return {
                             'success': False,
                             'error': (
-                                'git push failed: Detached HEAD state and no GITHUB_HEAD_REF '
-                                'environment variable set. Cannot determine target branch. '
-                                'Please checkout a named branch before committing.'
+                                'git push failed: Detached HEAD state and no target branch '
+                                'available. Please pass target_branch parameter or checkout '
+                                'a named branch before committing.'
                             ),
                             'commit_sha': commit_sha,
                             'branch': branch
@@ -456,11 +478,11 @@ class SimpleGitTool:
 
                 push_cmd = [
                     'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
-                    f'HEAD:refs/heads/{target_branch}'
+                    f'HEAD:refs/heads/{push_target}'
                 ]
                 logger.info(
-                    f"[SimpleGitTool] Pushing to branch '{target_branch}' "
-                    f"(detected from: {'git branch' if branch == target_branch else 'GITHUB_HEAD_REF'})"
+                    f"[SimpleGitTool] Pushing to branch '{push_target}' "
+                    f"(source: {branch_source})"
                 )
 
                 push_result = subprocess.run(
@@ -498,7 +520,7 @@ class SimpleGitTool:
             return {'success': False, 'error': str(e)}
 
     async def create_pr(
-        self, title: str, body: str = ""
+        self, title: str, body: str = "", target_branch: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Commit and push changes to the current branch.
@@ -513,6 +535,9 @@ class SimpleGitTool:
         Args:
             title: Commit message subject line
             body: Commit message body (optional)
+            target_branch: Optional target branch name for push (Issue #3606).
+                          Used when in detached HEAD state to specify which
+                          remote branch to push to.
 
         Returns:
             Dict with success status, commit_sha, and branch name.
@@ -523,7 +548,7 @@ class SimpleGitTool:
             "[SimpleGitTool] create_pr called - delegating to commit_and_push "
             "(create_pr is kept for interface compatibility)"
         )
-        return await self.commit_and_push(title, body)
+        return await self.commit_and_push(title, body, target_branch=target_branch)
 
 
 class SimpleFilesystemTool:
