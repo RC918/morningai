@@ -132,7 +132,9 @@ SAFE_TASK_METADATA: Dict[str, Dict[str, Any]] = {
         "allowed_files": [],
         "allowed_directories": [
             "src/", "lib/", "tests/", "test/", "components/", "services/", "utils/",
-            "handoff/"
+            "handoff/20250928/40_App/api-backend/src/",
+            "handoff/20250928/40_App/frontend-dashboard/src/",
+            "handoff/20250928/40_App/owner-console/src/",
         ],
         "requires_review": False,
         "requires_tests": False,

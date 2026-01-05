@@ -41,6 +41,8 @@ class SimpleGitTool:
     # These are used when git user.name/user.email are not configured in the environment
     DEFAULT_GIT_AUTHOR_NAME = "MorningAI Bot"
     DEFAULT_GIT_AUTHOR_EMAIL = "bot@morningai.com"
+    # Default remote name for git push operations
+    DEFAULT_REMOTE_NAME = "origin"
 
     async def create_branch(self, branch_name: str) -> Dict[str, Any]:
         """Create a new Git branch."""
@@ -233,7 +235,7 @@ class SimpleGitTool:
             logger.info(f"[SimpleGitTool] Committed {commit_sha_short}: {title}")
 
             push_result = subprocess.run(
-                ['git', 'push', '-u', 'origin', 'HEAD'],
+                ['git', 'push', '-u', self.DEFAULT_REMOTE_NAME, 'HEAD'],
                 capture_output=True,
                 text=True,
                 cwd=cwd
