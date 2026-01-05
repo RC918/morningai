@@ -4,6 +4,7 @@ Dev Agent Wrapper - Provides unified interface for Bug Fix Workflow
 Phase 1 Week 6: Bug Fix Workflow
 """
 import os
+import re
 import logging
 import subprocess
 from typing import Optional, Dict, Any
@@ -257,19 +258,15 @@ class SimpleGitTool:
 
                 if not github_repo:
                     # Fallback to settings.github_repo (always available, defaults to RC918/morningai)
-                    try:
-                        from common.config.settings import settings
-                        github_repo = getattr(settings, 'github_repo', None)
-                        if github_repo:
-                            logger.info(
-                                f"[SimpleGitTool] Using settings.github_repo as fallback: {github_repo}"
-                            )
-                    except ImportError:
-                        logger.warning("[SimpleGitTool] Could not import settings for github_repo fallback")
+                    # Note: settings is already imported at module level
+                    github_repo = settings.github_repo
+                    if github_repo:
+                        logger.info(
+                            f"[SimpleGitTool] Using settings.github_repo as fallback: {github_repo}"
+                        )
 
                 if github_repo:
                     # Validate repo slug format (security: only allow safe characters)
-                    import re
                     if not re.match(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$', github_repo):
                         logger.error(f"[SimpleGitTool] Invalid repo slug format: {github_repo}")
                         return {

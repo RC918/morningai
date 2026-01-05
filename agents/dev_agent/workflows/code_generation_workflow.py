@@ -104,6 +104,10 @@ class CodeGenerationWorkflow:
         r'\byaml\.load\s*\(',
     ]
 
+    # Issue #3593: Code file extensions for changed_files fallback filtering
+    # Used when LLM extraction fails and we need to filter PR changed_files
+    CODE_EXTENSIONS = ('.py', '.js', '.ts', '.jsx', '.tsx', '.md', '.yml', '.yaml')
+
     def __init__(self, dev_agent):
         """
         Initialize Code Generation Workflow
@@ -292,10 +296,10 @@ class CodeGenerationWorkflow:
                 changed_files = state.get("changed_files") or []
                 if changed_files:
                     # Filter to only include files that look like code files
-                    code_extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.md', '.yml', '.yaml'}
+                    # Uses class constant CODE_EXTENSIONS for maintainability
                     target_files = [
                         f for f in changed_files
-                        if any(f.endswith(ext) for ext in code_extensions)
+                        if f.endswith(self.CODE_EXTENSIONS)
                     ]
                     if target_files:
                         logger.info(
