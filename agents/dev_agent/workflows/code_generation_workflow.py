@@ -57,6 +57,7 @@ class CodeGenState(TypedDict):
     task_type: Optional[str]
     task_metadata: Optional[Dict[str, Any]]
     target_files: List[str]
+    changed_files: Optional[List[str]]  # Issue #3593: fallback target files from PR
     generated_code: Optional[str]
     generated_tests: Optional[str]
     code_diff: Optional[str]
@@ -102,6 +103,10 @@ class CodeGenerationWorkflow:
         r'\bpickle\.loads\s*\(',
         r'\byaml\.load\s*\(',
     ]
+
+    # Issue #3593: Code file extensions for changed_files fallback filtering
+    # Used when LLM extraction fails and we need to filter PR changed_files
+    CODE_EXTENSIONS = ('.py', '.js', '.ts', '.jsx', '.tsx', '.md', '.yml', '.yaml')
 
     def __init__(self, dev_agent):
         """
@@ -275,11 +280,36 @@ class CodeGenerationWorkflow:
         return state
 
     async def analyze_context(self, state: CodeGenState) -> CodeGenState:
-        """Stage 2: Analyze codebase context"""
+        """Stage 2: Analyze codebase context
+
+        Issue #3593: Added fallback to changed_files when extraction fails.
+        This handles cases where the LLM planner fails (e.g., quota exceeded)
+        and the static plan doesn't include file paths in the task description.
+        """
         logger.info(f"[Stage 2] Analyzing context for task #{state['task_id']}")
 
         try:
             target_files = self._extract_file_paths(state["task_description"])
+
+            # Issue #3593: Fallback to changed_files if extraction returns empty
+            if not target_files:
+                changed_files = state.get("changed_files") or []
+                if changed_files:
+                    # Filter to only include files that look like code files
+                    # Uses class constant CODE_EXTENSIONS for maintainability
+                    target_files = [
+                        f for f in changed_files
+                        if f.endswith(self.CODE_EXTENSIONS)
+                    ]
+                    if target_files:
+                        logger.info(
+                            f"[Stage 2] Using changed_files as fallback target files: {target_files}"
+                        )
+                    else:
+                        logger.warning(
+                            "[Stage 2] changed_files available but no code files found"
+                        )
+
             state["target_files"] = target_files
 
             if not target_files:
@@ -865,6 +895,7 @@ Generate the complete code:"""
         Args:
             task: Task dict with id, title, description, and optionally task_type/task_metadata
                   If task_type is provided, classification stage will be skipped.
+                  Issue #3593: Also accepts changed_files as fallback for target files.
 
         Returns:
             Final state dict
@@ -876,6 +907,7 @@ Generate the complete code:"""
             "task_type": task.get("task_type"),
             "task_metadata": task.get("task_metadata"),
             "target_files": [],
+            "changed_files": task.get("changed_files"),  # Issue #3593: fallback target files
             "generated_code": None,
             "generated_tests": None,
             "code_diff": None,

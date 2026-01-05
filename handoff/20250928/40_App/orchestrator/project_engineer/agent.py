@@ -352,7 +352,8 @@ class ProjectEngineerAgent:
         self,
         description: str,
         repo: str = "RC918/morningai",
-        task_type_hint: Optional[str] = None
+        task_type_hint: Optional[str] = None,
+        changed_files: Optional[List[str]] = None
     ) -> List[TaskResult]:
         """
         Execute a task based on natural language description
@@ -371,11 +372,15 @@ class ProjectEngineerAgent:
         Issue #3546 Enhancement:
         - task_type_hint parameter to bypass classifier misclassification for CI failure auto-fix
 
+        Issue #3593 Enhancement:
+        - changed_files parameter to provide fallback target files when extraction fails
+
         Args:
             description: Natural language task description
             repo: Repository name (default: RC918/morningai)
             task_type_hint: Optional safe task_type to use instead of classifier
                            (Issue #3546: deterministic CI failure task_type)
+            changed_files: Optional list of changed files from PR (Issue #3593: fallback target files)
 
         Returns:
             List of TaskResult objects with execution details
@@ -439,12 +444,14 @@ class ProjectEngineerAgent:
                 step_text = step if isinstance(step, str) else step.get("step", str(step))
 
                 # Issue #3546: Pass task_type_hint to bypass classifier misclassification
+                # Issue #3593: Pass changed_files for fallback target files
                 result = await self._process_step(
                     step_text=step_text,
                     step_index=i,
                     trace_id=trace_id,
                     repo=repo,
-                    task_type_hint=task_type_hint
+                    task_type_hint=task_type_hint,
+                    changed_files=changed_files
                 )
                 results.append(result)
 
@@ -474,7 +481,8 @@ class ProjectEngineerAgent:
         step_index: int,
         trace_id: str,
         repo: str = "RC918/morningai",
-        task_type_hint: Optional[str] = None
+        task_type_hint: Optional[str] = None,
+        changed_files: Optional[List[str]] = None
     ) -> TaskResult:
         """
         Process a single step from the plan
@@ -486,6 +494,7 @@ class ProjectEngineerAgent:
             repo: Repository name for semantic rules validation
             task_type_hint: Optional safe task_type to use instead of classifier
                            (Issue #3546: deterministic CI failure task_type)
+            changed_files: Optional list of changed files from PR (Issue #3593: fallback target files)
 
         Returns:
             TaskResult for this step
@@ -576,10 +585,12 @@ class ProjectEngineerAgent:
             # Step 5: Execute code generation if enabled and safe
             if self.enable_code_generation and is_safe:
                 logger.info(f"[ProjectEngineerAgent] Executing code generation for step {step_index}")
+                # Issue #3593: Pass changed_files for fallback target files
                 return await self._execute_code_generation(
                     step_text=step_text,
                     task_type=task_type,
                     task_id=task_id,
+                    changed_files=changed_files,
                     trace_id=trace_id
                 )
 
@@ -626,7 +637,8 @@ class ProjectEngineerAgent:
         step_text: str,
         task_type: str,
         task_id: str,
-        trace_id: str
+        changed_files: Optional[List[str]] = None,
+        trace_id: str = ""
     ) -> TaskResult:
         """
         Execute code generation using CodeGenerationWorkflow
@@ -635,6 +647,7 @@ class ProjectEngineerAgent:
             step_text: Task description
             task_type: Classified task type
             task_id: Unique task ID
+            changed_files: Optional list of changed files from PR (Issue #3593: fallback target files)
             trace_id: Trace ID for logging
 
         Returns:
@@ -653,12 +666,14 @@ class ProjectEngineerAgent:
 
             # Prepare task dict for CodeGenerationWorkflow.execute()
             # Note: execute() expects "id", "title", "description" keys
+            # Issue #3593: Include changed_files for fallback target files
             task_dict = {
                 "id": task_id_int,
                 "title": step_text[:100],
                 "description": step_text,
                 "task_type": task_type,
                 "task_metadata": task_metadata if task_metadata else None,
+                "changed_files": changed_files,  # Issue #3593: fallback target files
             }
 
             # Execute workflow
