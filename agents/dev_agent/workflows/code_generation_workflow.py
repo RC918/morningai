@@ -115,6 +115,7 @@ class CodeGenerationWorkflow:
         '.github/',      # CI/CD workflows - high risk, can bypass security checks
         '.circleci/',    # CI/CD config
         '.gitlab/',      # CI/CD config
+        '.buildkite/',   # CI/CD config (gemini-code-assist suggestion)
         'infra/',        # Infrastructure code
         'terraform/',    # Infrastructure as code
         'k8s/',          # Kubernetes configs
@@ -614,12 +615,13 @@ class CodeGenerationWorkflow:
             return state
 
         # Issue #3595: Skip PR creation if security validation didn't pass
+        # Note: The error check above already returned, so state["error"] is guaranteed
+        # to be falsy here (gemini-code-assist suggestion to simplify)
         if not state.get("security_validated", False):
             logger.warning(
                 "[Stage 8] Skipping PR creation - security validation not passed"
             )
-            if not state.get("error"):
-                state["error"] = "PR creation skipped: security validation not passed"
+            state["error"] = "PR creation skipped: security validation not passed"
             return state
 
         try:
