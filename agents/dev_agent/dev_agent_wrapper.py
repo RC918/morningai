@@ -422,20 +422,46 @@ class SimpleGitTool:
                 # know what branch name to create on the remote.
                 # Solution: Use explicit refspec 'HEAD:refs/heads/<branch_name>'
                 # This tells git exactly what remote branch to create/update.
-                # Handle detached HEAD case: if branch is empty, we can't push with -u
-                if branch and branch != 'HEAD':
-                    # Normal case: on a named branch
-                    push_cmd = [
-                        'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
-                        f'HEAD:refs/heads/{branch}'
-                    ]
-                else:
-                    # Detached HEAD case: push without setting upstream
-                    # This is rare in AutoFixer workflow but handle it gracefully
-                    logger.warning(
-                        "[SimpleGitTool] Detached HEAD detected, pushing without upstream tracking"
-                    )
-                    push_cmd = ['git', 'push', self.DEFAULT_REMOTE_NAME, 'HEAD:refs/heads/main']
+                #
+                # Issue #3605: Root Cause #29 - Handle detached HEAD properly
+                # In detached HEAD state, we must NOT push to 'main' (it's protected).
+                # Instead, try to get the branch name from environment variables.
+                target_branch = branch
+                if not target_branch or target_branch == 'HEAD':
+                    # Detached HEAD case - try to get branch from environment
+                    # GITHUB_HEAD_REF is set by GitHub Actions for PR events
+                    target_branch = os.environ.get('GITHUB_HEAD_REF', '')
+                    if target_branch:
+                        logger.info(
+                            f"[SimpleGitTool] Detached HEAD detected, using GITHUB_HEAD_REF: "
+                            f"{target_branch}"
+                        )
+                    else:
+                        # No branch name available - fail gracefully
+                        # Do NOT push to 'main' as it's likely protected
+                        logger.error(
+                            "[SimpleGitTool] Detached HEAD detected and no GITHUB_HEAD_REF set. "
+                            "Cannot determine target branch for push."
+                        )
+                        return {
+                            'success': False,
+                            'error': (
+                                'git push failed: Detached HEAD state and no GITHUB_HEAD_REF '
+                                'environment variable set. Cannot determine target branch. '
+                                'Please checkout a named branch before committing.'
+                            ),
+                            'commit_sha': commit_sha,
+                            'branch': branch
+                        }
+
+                push_cmd = [
+                    'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
+                    f'HEAD:refs/heads/{target_branch}'
+                ]
+                logger.info(
+                    f"[SimpleGitTool] Pushing to branch '{target_branch}' "
+                    f"(detected from: {'git branch' if branch == target_branch else 'GITHUB_HEAD_REF'})"
+                )
 
                 push_result = subprocess.run(
                     push_cmd,
