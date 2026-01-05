@@ -603,6 +603,13 @@ class CodeGenerationWorkflow:
         # verified by running lint, not pytest. Running pytest for lint fixes
         # causes unnecessary failures and retry loops.
         task_type = state.get("task_type", "")
+
+        # Diagnostic logging to debug task_type matching (Issue #3599)
+        logger.info(
+            f"[Stage 7] DIAGNOSTIC: task_type={task_type!r} type={type(task_type).__name__} "
+            f"task_id={state['task_id']}"
+        )
+
         if task_type in ("fix_lint", "lint_fix"):
             logger.info(
                 f"[Stage 7] Skipping pytest for {task_type} task - "
