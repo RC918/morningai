@@ -20,7 +20,26 @@ from pathlib import Path
 from langgraph.graph import StateGraph
 
 import sys
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Issue #3585: Root Cause #16 - Path corruption fix
+# The previous calculation using dirname() was incorrect:
+# - Old: os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+# - This gave /path/to/agents instead of /path/to (repo root)
+#
+# Now uses common.utils.repo_root.get_repo_root() which is the canonical
+# implementation with proper fallback chain and error handling.
+# Must bootstrap sys.path first to import from common.utils.
+_bootstrap_root = Path(__file__).resolve()
+for _parent in _bootstrap_root.parents:
+    if (_parent / '.git').exists():
+        _bootstrap_root = _parent
+        break
+if str(_bootstrap_root) not in sys.path:
+    sys.path.insert(0, str(_bootstrap_root))
+
+from common.utils.repo_root import get_repo_root
+
+project_root = str(get_repo_root())
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
