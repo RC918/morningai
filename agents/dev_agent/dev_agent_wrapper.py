@@ -437,22 +437,27 @@ class SimpleGitTool:
                 # reliable source of the branch name in AutoFixer workflows.
                 #
                 # Priority order for determining push target:
-                # 1. target_branch parameter (from webhook context)
-                # 2. Current git branch name (if on a named branch)
+                # 1. target_branch parameter (from webhook context, if valid)
+                # 2. Current git branch name (if on a named branch, not 'HEAD')
                 # 3. GITHUB_HEAD_REF environment variable (GitHub Actions fallback)
                 # 4. Fail gracefully (never push to protected 'main')
-                push_target = target_branch  # Priority 1: explicit parameter
-                branch_source = "target_branch parameter"
-
-                if not push_target:
-                    push_target = branch  # Priority 2: current git branch
+                #
+                # Refactored per gemini-code-assist review for better readability.
+                # Note: 'HEAD' is treated as invalid since it indicates detached HEAD state.
+                if target_branch and target_branch != 'HEAD':
+                    push_target = target_branch
+                    branch_source = "target_branch parameter"
+                elif branch and branch != 'HEAD':
+                    push_target = branch
                     branch_source = "git branch"
-
-                if not push_target or push_target == 'HEAD':
+                else:
                     # Detached HEAD case - try to get branch from environment
                     # GITHUB_HEAD_REF is set by GitHub Actions for PR events
                     push_target = os.environ.get('GITHUB_HEAD_REF', '')
                     branch_source = "GITHUB_HEAD_REF"
+
+                # Log detached HEAD detection and validate push_target
+                if branch_source == "GITHUB_HEAD_REF":
                     if push_target:
                         logger.info(
                             f"[SimpleGitTool] Detached HEAD detected, using GITHUB_HEAD_REF: "
