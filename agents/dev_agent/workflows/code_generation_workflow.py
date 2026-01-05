@@ -228,8 +228,27 @@ class CodeGenerationWorkflow:
         return "end"
     
     async def classify_task(self, state: CodeGenState) -> CodeGenState:
-        """Stage 1: Classify task type"""
+        """Stage 1: Classify task type
+        
+        If task_type is already set (e.g., from task_type_hint passed via execute()),
+        skip classification and use the pre-set value.
+        """
         logger.info(f"[Stage 1] Classifying task #{state['task_id']}")
+        
+        if state.get("task_type"):
+            logger.info(
+                f"[Stage 1] Skipping classification - task_type already set: {state['task_type']}"
+            )
+            if not state.get("task_metadata"):
+                try:
+                    task_type_enum = TaskType(state["task_type"])
+                    state["task_metadata"] = self.classifier.get_task_metadata(task_type_enum)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid task_type '{state['task_type']}' provided, using default metadata."
+                    )
+                    state["task_metadata"] = {"complexity": "medium", "requires_tests": False}
+            return state
         
         try:
             classification = classify_task(
@@ -755,7 +774,8 @@ Generate the complete code:"""
         Execute code generation workflow
         
         Args:
-            task: Task dict with id, title, description
+            task: Task dict with id, title, description, and optionally task_type/task_metadata
+                  If task_type is provided, classification stage will be skipped.
         
         Returns:
             Final state dict
@@ -764,8 +784,8 @@ Generate the complete code:"""
             "task_id": task.get("id", 0),
             "task_title": task.get("title", ""),
             "task_description": task.get("description", ""),
-            "task_type": None,
-            "task_metadata": None,
+            "task_type": task.get("task_type"),
+            "task_metadata": task.get("task_metadata"),
             "target_files": [],
             "generated_code": None,
             "generated_tests": None,
