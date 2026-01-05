@@ -7,6 +7,8 @@ import os
 import re
 import logging
 import subprocess
+import tempfile
+import stat
 from typing import Optional, Dict, Any
 
 from knowledge_graph.knowledge_graph_manager import (
@@ -36,6 +38,10 @@ class SimpleGitTool:
     Issue #3584: Added default git author identity to prevent "Author identity unknown"
     errors in CI/CD environments where git user.name and user.email are not configured.
     The bot identity is used for automated commits from the AutoFixer workflow.
+
+    Issue #3602: Added GITHUB_TOKEN authentication for git push operations.
+    Uses GIT_ASKPASS mechanism to securely provide credentials without exposing
+    the token in logs, git config, or remote URLs.
     """
 
     # Default git author identity for automated commits
@@ -44,6 +50,91 @@ class SimpleGitTool:
     DEFAULT_GIT_AUTHOR_EMAIL = "bot@morningai.com"
     # Default remote name for git push operations
     DEFAULT_REMOTE_NAME = "origin"
+
+    def _get_git_auth_env(self) -> Dict[str, str]:
+        """
+        Get environment variables for git authentication using GITHUB_TOKEN.
+
+        Issue #3602: Root Cause #27 - git push fails with "could not read Username"
+        because GITHUB_TOKEN is not being used for authentication.
+
+        This method creates a temporary askpass script that provides the token
+        when git requests credentials. This approach:
+        - Does NOT expose the token in remote URLs
+        - Does NOT write the token to git config
+        - Does NOT expose the token in process arguments
+        - Works with HTTPS remotes
+
+        Returns:
+            Dict of environment variables to pass to subprocess.run()
+        """
+        github_token = os.environ.get('GITHUB_TOKEN')
+
+        if not github_token:
+            logger.warning(
+                "[SimpleGitTool] GITHUB_TOKEN not found in environment. "
+                "Git push may fail if authentication is required."
+            )
+            return {}
+
+        # Log that we have a token (without exposing it)
+        logger.info(
+            f"[SimpleGitTool] GITHUB_TOKEN found (length={len(github_token)}), "
+            "configuring git authentication"
+        )
+
+        # Create a temporary askpass script
+        # This script will be called by git when it needs credentials
+        # Security fix: Read token from environment at runtime to prevent
+        # command injection if token contains shell metacharacters
+        askpass_script = None
+        try:
+            askpass_script = tempfile.NamedTemporaryFile(
+                mode='w',
+                suffix='.sh',
+                delete=False
+            )
+            # The script reads GITHUB_TOKEN from environment at runtime
+            # Using printf '%s' instead of echo to:
+            # - Avoid shell metacharacter interpretation
+            # - Avoid adding extra newline
+            # - Avoid echo option parsing issues (-n, -e, etc.)
+            # For username, we use 'x-access-token' which is the standard
+            # for GitHub token authentication
+            askpass_script.write('#!/bin/sh\n')
+            askpass_script.write('case "$1" in\n')
+            askpass_script.write("  *Username*) printf '%s' 'x-access-token' ;;\n")
+            askpass_script.write("  *Password*) printf '%s' \"$GITHUB_TOKEN\" ;;\n")
+            askpass_script.write('  *) exit 0 ;;\n')
+            askpass_script.write('esac\n')
+            askpass_script.close()
+
+            # Make the script executable (owner only for security)
+            os.chmod(askpass_script.name, stat.S_IRWXU)
+
+            # Return environment variables for git
+            # GITHUB_TOKEN is passed through so the askpass script can read it
+            return {
+                'GIT_ASKPASS': askpass_script.name,
+                'GIT_TERMINAL_PROMPT': '0',  # Disable interactive prompts
+                'GITHUB_TOKEN': github_token,  # Pass through for askpass script
+            }
+        except (IOError, OSError) as e:
+            logger.error(f"[SimpleGitTool] Failed to create askpass script: {e}")
+            # Clean up on error using existing cleanup method (DRY)
+            if askpass_script and hasattr(askpass_script, 'name'):
+                self._cleanup_askpass_script({'GIT_ASKPASS': askpass_script.name})
+            return {}
+
+    def _cleanup_askpass_script(self, env: Dict[str, str]) -> None:
+        """Clean up the temporary askpass script after git operation."""
+        askpass_path = env.get('GIT_ASKPASS')
+        if askpass_path and os.path.exists(askpass_path):
+            try:
+                os.unlink(askpass_path)
+                logger.debug(f"[SimpleGitTool] Cleaned up askpass script: {askpass_path}")
+            except OSError as e:
+                logger.warning(f"[SimpleGitTool] Failed to clean up askpass script: {e}")
 
     async def create_branch(self, branch_name: str) -> Dict[str, Any]:
         """Create a new Git branch."""
@@ -313,12 +404,29 @@ class SimpleGitTool:
                     f"{remote_check.stdout.strip()}"
                 )
 
-            push_result = subprocess.run(
-                ['git', 'push', '-u', self.DEFAULT_REMOTE_NAME, 'HEAD'],
-                capture_output=True,
-                text=True,
-                cwd=cwd
-            )
+            # Issue #3602: Root Cause #27 - Use GITHUB_TOKEN for authentication
+            # Get authentication environment variables (creates temporary askpass script)
+            # Initialize auth_env before the call to prevent NameError in finally block
+            # if _get_git_auth_env() raises an exception
+            auth_env: Dict[str, str] = {}
+            try:
+                auth_env = self._get_git_auth_env()
+
+                # Merge auth env with current environment
+                push_env = os.environ.copy()
+                push_env.update(auth_env)
+
+                push_result = subprocess.run(
+                    ['git', 'push', '-u', self.DEFAULT_REMOTE_NAME, 'HEAD'],
+                    capture_output=True,
+                    text=True,
+                    cwd=cwd,
+                    env=push_env
+                )
+            finally:
+                # Always clean up the askpass script
+                self._cleanup_askpass_script(auth_env)
+
             if push_result.returncode != 0:
                 logger.error(f"[SimpleGitTool] git push failed: {push_result.stderr}")
                 return {
