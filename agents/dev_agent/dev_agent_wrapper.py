@@ -30,7 +30,17 @@ class HITLApprovalSystem:
 
 
 class SimpleGitTool:
-    """Simple Git tool for local operations."""
+    """Simple Git tool for local operations.
+    
+    Issue #3584: Added default git author identity to prevent "Author identity unknown"
+    errors in CI/CD environments where git user.name and user.email are not configured.
+    The bot identity is used for automated commits from the AutoFixer workflow.
+    """
+    
+    # Default git author identity for automated commits
+    # These are used when git user.name/user.email are not configured in the environment
+    DEFAULT_GIT_AUTHOR_NAME = "MorningAI Bot"
+    DEFAULT_GIT_AUTHOR_EMAIL = "bot@morningai.com"
 
     async def create_branch(self, branch_name: str) -> Dict[str, Any]:
         """Create a new Git branch."""
@@ -142,9 +152,23 @@ class SimpleGitTool:
                     'error': f'git add failed: {add_result.stderr}'
                 }
 
-            commit_cmd = ['git', 'commit', '-m', title]
+            # Issue #3584: Use git -c options to set author identity
+            # This prevents "Author identity unknown" errors in CI/CD environments
+            # where git user.name and user.email are not configured globally
+            commit_cmd = [
+                'git',
+                '-c', f'user.name={self.DEFAULT_GIT_AUTHOR_NAME}',
+                '-c', f'user.email={self.DEFAULT_GIT_AUTHOR_EMAIL}',
+                'commit', '-m', title
+            ]
             if body:
                 commit_cmd.extend(['-m', body])
+            
+            logger.info(
+                f"[SimpleGitTool] Committing with author: "
+                f"{self.DEFAULT_GIT_AUTHOR_NAME} <{self.DEFAULT_GIT_AUTHOR_EMAIL}>"
+            )
+            
             commit_result = subprocess.run(
                 commit_cmd,
                 capture_output=True,
