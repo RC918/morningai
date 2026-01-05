@@ -233,7 +233,7 @@ class SimpleGitTool:
             logger.info(f"[SimpleGitTool] Committed {commit_sha_short}: {title}")
 
             push_result = subprocess.run(
-                ['git', 'push'],
+                ['git', 'push', '-u', 'origin', 'HEAD'],
                 capture_output=True,
                 text=True,
                 cwd=cwd
