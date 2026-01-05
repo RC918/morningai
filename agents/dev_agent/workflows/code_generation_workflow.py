@@ -574,9 +574,46 @@ class CodeGenerationWorkflow:
 
         return state
 
+    def _is_pytest_not_found_error(self, error_msg: str) -> bool:
+        """Check if error message indicates pytest is not found (Issue #3599)."""
+        return 'No such file or directory' in error_msg and 'pytest' in error_msg
+
+    def _mark_tests_as_skipped_for_missing_pytest(self, state: CodeGenState) -> None:
+        """Update state to mark tests as skipped due to missing pytest (Issue #3599)."""
+        logger.warning(
+            "[Stage 7] pytest not available in environment - "
+            "treating as skipped, not failed"
+        )
+        state["test_results"] = {
+            "success": True,
+            "skipped": True,
+            "reason": "pytest not available in environment"
+        }
+
     async def run_tests(self, state: CodeGenState) -> CodeGenState:
-        """Stage 7: Run tests to verify generated code"""
+        """Stage 7: Run tests to verify generated code
+
+        Issue #3599: Skip pytest for fix_lint tasks and treat "pytest not found"
+        as skipped rather than failed. This prevents infinite retry loops when
+        pytest is not available in the environment.
+        """
         logger.info(f"[Stage 7] Running tests for task #{state['task_id']}")
+
+        # Issue #3599: Skip tests for fix_lint tasks - lint fixes should be
+        # verified by running lint, not pytest. Running pytest for lint fixes
+        # causes unnecessary failures and retry loops.
+        task_type = state.get("task_type", "")
+        if task_type in ("fix_lint", "lint_fix"):
+            logger.info(
+                f"[Stage 7] Skipping pytest for {task_type} task - "
+                "lint fixes don't require test verification"
+            )
+            state["test_results"] = {
+                "success": True,
+                "skipped": True,
+                "reason": f"pytest skipped for {task_type} task"
+            }
+            return state
 
         try:
             if hasattr(self.agent, 'test_tool') and self.agent.test_tool:
@@ -586,14 +623,22 @@ class CodeGenerationWorkflow:
                 if test_results.get("success"):
                     logger.info("Tests passed!")
                 else:
-                    logger.warning(f"Tests failed: {test_results.get('error', 'Unknown error')}")
+                    error_msg = str(test_results.get('error', ''))
+                    if self._is_pytest_not_found_error(error_msg):
+                        self._mark_tests_as_skipped_for_missing_pytest(state)
+                    else:
+                        logger.warning(f"Tests failed: {error_msg}")
             else:
                 logger.warning("Test tool not available, skipping tests")
                 state["test_results"] = {"success": True, "skipped": True}
 
         except Exception as e:
-            logger.warning(f"Test execution failed: {str(e)}")
-            state["test_results"] = {"success": False, "error": str(e)}
+            error_msg = str(e)
+            if self._is_pytest_not_found_error(error_msg):
+                self._mark_tests_as_skipped_for_missing_pytest(state)
+            else:
+                logger.warning(f"Test execution failed: {error_msg}")
+                state["test_results"] = {"success": False, "error": error_msg}
 
         return state
 
