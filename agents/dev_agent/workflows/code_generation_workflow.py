@@ -240,7 +240,14 @@ class CodeGenerationWorkflow:
                 f"[Stage 1] Skipping classification - task_type already set: {state['task_type']}"
             )
             if not state.get("task_metadata"):
-                state["task_metadata"] = {"complexity": "medium", "requires_tests": False}
+                try:
+                    task_type_enum = TaskType(state["task_type"])
+                    state["task_metadata"] = self.classifier.get_task_metadata(task_type_enum)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid task_type '{state['task_type']}' provided, using default metadata."
+                    )
+                    state["task_metadata"] = {"complexity": "medium", "requires_tests": False}
             return state
         
         try:
