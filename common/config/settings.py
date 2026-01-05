@@ -1361,6 +1361,16 @@ class Settings(BaseSettings):
         description="Job timeout for CI failure auto-fix tasks in seconds (default: 1800 = 30 minutes). These tasks involve multiple LLM calls and need longer timeout."
     )
 
+    # Issue #3581: Timeout for individual LLM calls during code generation
+    # The OpenAI v1 SDK uses httpx with a default timeout of 600 seconds, which was
+    # causing code generation to appear to hang for 10+ minutes before the RQ worker
+    # was killed. Default: 120 seconds = 2 minutes per LLM call.
+    codegen_llm_timeout_seconds: int = Field(
+        default=120,
+        alias="CODEGEN_LLM_TIMEOUT_SECONDS",
+        description="Timeout in seconds for individual LLM calls during code generation (default: 120 = 2 minutes). Prevents SimpleLLM from hanging on slow OpenAI responses."
+    )
+
     rq_task_ttl: int = Field(
         default=600,
         alias="RQ_TASK_TTL",

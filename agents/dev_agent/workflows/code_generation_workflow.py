@@ -266,25 +266,57 @@ class CodeGenerationWorkflow:
         return state
     
     async def generate_code(self, state: CodeGenState) -> CodeGenState:
-        """Stage 3: Generate code using LLM"""
-        logger.info(f"[Stage 3] Generating code for task #{state['task_id']}")
+        """Stage 3: Generate code using LLM
+        
+        Issue #3581: Added instrumentation to track LLM call duration.
+        This stage was identified as the bottleneck (10+ minutes observed in staging).
+        """
+        stage_start = time.time()
+        task_id = state['task_id']
+        logger.info(f"[Stage 3] Generating code for task #{task_id}")
         
         try:
             task_type = state["task_type"]
             task_desc = state["task_description"]
             target_files = state.get("target_files", [])
             
+            # Build prompt and log timing
+            prompt_start = time.time()
             prompt = self._build_code_generation_prompt(
                 task_type, task_desc, target_files
             )
+            prompt_elapsed_ms = (time.time() - prompt_start) * 1000
+            logger.info(
+                f"[Stage 3] Prompt built: length={len(prompt)}, elapsed_ms={prompt_elapsed_ms:.2f}"
+            )
             
             if hasattr(self.agent, 'llm') and self.agent.llm:
+                # Log before LLM call
+                llm_start = time.time()
+                logger.info(
+                    f"[Stage 3] Starting LLM call for task #{task_id}"
+                )
+                
                 response = await self.agent.llm.generate(prompt)
+                
+                # Log after LLM call
+                llm_elapsed_ms = (time.time() - llm_start) * 1000
+                logger.info(
+                    f"[Stage 3] LLM call completed: elapsed_ms={llm_elapsed_ms:.2f}, "
+                    f"response_length={len(response) if response else 0}"
+                )
+                
+                # Extract code and log timing
+                extract_start = time.time()
                 generated_code = self._extract_code_from_response(response)
+                extract_elapsed_ms = (time.time() - extract_start) * 1000
                 
                 if generated_code:
                     state["generated_code"] = generated_code
-                    logger.info(f"Generated {len(generated_code)} characters of code")
+                    logger.info(
+                        f"[Stage 3] Code extracted: length={len(generated_code)}, "
+                        f"extract_elapsed_ms={extract_elapsed_ms:.2f}"
+                    )
                 else:
                     state["error"] = "Failed to extract code from LLM response"
                     logger.error(state["error"])
@@ -294,7 +326,15 @@ class CodeGenerationWorkflow:
         
         except Exception as e:
             state["error"] = f"Code generation failed: {str(e)}"
-            logger.error(state["error"])
+            logger.error(f"[Stage 3] {state['error']}", exc_info=True)
+        
+        finally:
+            stage_elapsed_ms = (time.time() - stage_start) * 1000
+            logger.info(
+                f"[Stage 3] Stage completed: task_id={task_id}, "
+                f"total_elapsed_ms={stage_elapsed_ms:.2f}, "
+                f"has_error={state.get('error') is not None}"
+            )
         
         return state
     

@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 263
+- **Total Variables**: 264
 - **Required**: 21
-- **Optional**: 242
+- **Optional**: 243
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -30,7 +30,7 @@
 - [Infrastructure](#infrastructure) (21 variables)
 - [Monitoring](#monitoring) (16 variables)
 - [Integration](#integration) (20 variables)
-- [Worker](#worker) (7 variables)
+- [Worker](#worker) (8 variables)
 - [Application](#application) (28 variables)
 - [Feature Flags](#feature-flags) (64 variables)
 - [Orchestrator](#orchestrator) (6 variables)
@@ -1297,6 +1297,7 @@ Mailtrap API token for email testing
 | `RQ_SERIALIZER` | string (json, pickle) | No | json | PUBLIC |
 | `RQ_JOB_TIMEOUT` | integer | No | 600 | PUBLIC |
 | `RQ_CI_AUTOFIX_TIMEOUT` | integer | No | 1800 | PUBLIC |
+| `CODEGEN_LLM_TIMEOUT_SECONDS` | integer | No | 120 | PUBLIC |
 | `RQ_TASK_TTL` | integer | No | 600 | PUBLIC |
 | `RQ_RESULT_TTL` | integer | No | 86400 | PUBLIC |
 | `RQ_FAILURE_TTL` | integer | No | 3600 | PUBLIC |
@@ -1347,6 +1348,19 @@ Job timeout in seconds for CI failure auto-fix tasks. These tasks involve multip
 **Notes**:
 > Default 1800 seconds (30 minutes) to allow complex code generation workflows to complete.
 > Issue #3581: Increased from 600s due to code generation taking 10+ minutes.
+
+#### `CODEGEN_LLM_TIMEOUT_SECONDS`
+
+Timeout in seconds for individual LLM calls during code generation. The OpenAI SDK default is 600s which can cause jobs to hang.
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `120`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Default 120 seconds (2 minutes) per LLM call.
+> Issue #3581: Added to prevent SimpleLLM from hanging on slow OpenAI responses. The OpenAI v1 SDK uses httpx with a default timeout of 600 seconds, which was causing code generation to appear to hang for 10+ minutes before the RQ worker was killed.
 
 #### `RQ_TASK_TTL`
 

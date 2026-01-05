@@ -358,17 +358,46 @@ class TestTool:
 
 
 class SimpleLLM:
-    """Simple LLM wrapper for OpenAI."""
+    """Simple LLM wrapper for OpenAI.
+    
+    Issue #3581: Added timeout configuration to prevent hanging LLM calls.
+    The OpenAI v1 SDK uses httpx under the hood, which has a default timeout
+    of 600 seconds. This was causing code generation to hang for 10+ minutes
+    before the RQ worker was killed.
+    
+    Default timeout: 120 seconds (configurable via CODEGEN_LLM_TIMEOUT_SECONDS)
+    """
 
-    def __init__(self, api_key: str):
-        """Initialize LLM with API key."""
+    # Default timeout in seconds for LLM calls
+    DEFAULT_TIMEOUT_SECONDS = 120
+
+    def __init__(self, api_key: str, timeout: Optional[int] = None):
+        """Initialize LLM with API key.
+        
+        Args:
+            api_key: OpenAI API key
+            timeout: Request timeout in seconds (default: 120s from settings or DEFAULT_TIMEOUT_SECONDS)
+        """
         from openai import OpenAI
-        self.client = OpenAI(api_key=api_key)
+        
+        # Get timeout from settings, parameter, or default
+        self.timeout = timeout or getattr(settings, 'codegen_llm_timeout_seconds', self.DEFAULT_TIMEOUT_SECONDS)
+        
+        # Initialize OpenAI client with explicit timeout
+        # OpenAI v1 SDK accepts timeout parameter directly
+        self.client = OpenAI(api_key=api_key, timeout=self.timeout)
         self.model = "gpt-4"
+        
+        logger.info(
+            f"[SimpleLLM] Initialized with model={self.model}, timeout={self.timeout}s"
+        )
 
     async def generate(self, prompt: str) -> str:
         """
         Generate response from LLM.
+        
+        Issue #3581: Added instrumentation to track LLM call duration and
+        diagnose slow code generation (10+ minutes observed in staging).
 
         Args:
             prompt: Input prompt
@@ -376,6 +405,15 @@ class SimpleLLM:
         Returns:
             Generated text response
         """
+        import time
+        start_time = time.monotonic()
+        prompt_length = len(prompt)
+        
+        logger.info(
+            f"[SimpleLLM] Starting LLM call: model={self.model}, "
+            f"prompt_length={prompt_length}, timeout={self.timeout}s"
+        )
+        
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -383,9 +421,35 @@ class SimpleLLM:
                 max_tokens=2000,
                 temperature=0.7
             )
-            return response.choices[0].message.content
+            
+            elapsed_ms = (time.monotonic() - start_time) * 1000
+            content = response.choices[0].message.content or ""
+            
+            # Log success with timing and token usage
+            usage_info = ""
+            if hasattr(response, 'usage') and response.usage:
+                usage_info = (
+                    f", prompt_tokens={response.usage.prompt_tokens}, "
+                    f"completion_tokens={response.usage.completion_tokens}, "
+                    f"total_tokens={response.usage.total_tokens}"
+                )
+            
+            logger.info(
+                f"[SimpleLLM] LLM call completed: elapsed_ms={elapsed_ms:.2f}, "
+                f"response_length={len(content)}{usage_info}"
+            )
+            
+            return content
+            
         except Exception as e:
-            logger.error(f"LLM generation failed: {e}")
+            elapsed_ms = (time.monotonic() - start_time) * 1000
+            error_type = type(e).__name__
+            
+            # Log failure with timing and error classification
+            logger.error(
+                f"[SimpleLLM] LLM call failed: elapsed_ms={elapsed_ms:.2f}, "
+                f"error_type={error_type}, error={e}"
+            )
             return f"Error: {str(e)}"
 
 
