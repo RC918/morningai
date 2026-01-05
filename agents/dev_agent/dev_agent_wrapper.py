@@ -87,12 +87,13 @@ class SimpleGitTool:
         # This script will be called by git when it needs credentials
         # Security fix: Read token from environment at runtime to prevent
         # command injection if token contains shell metacharacters
-        askpass_script = tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.sh',
-            delete=False
-        )
+        askpass_script = None
         try:
+            askpass_script = tempfile.NamedTemporaryFile(
+                mode='w',
+                suffix='.sh',
+                delete=False
+            )
             # The script reads GITHUB_TOKEN from environment at runtime
             # Using printf '%s' instead of echo to:
             # - Avoid shell metacharacter interpretation
@@ -118,13 +119,11 @@ class SimpleGitTool:
                 'GIT_TERMINAL_PROMPT': '0',  # Disable interactive prompts
                 'GITHUB_TOKEN': github_token,  # Pass through for askpass script
             }
-        except Exception as e:
+        except (IOError, OSError) as e:
             logger.error(f"[SimpleGitTool] Failed to create askpass script: {e}")
-            # Clean up on error
-            try:
-                os.unlink(askpass_script.name)
-            except OSError:
-                pass
+            # Clean up on error using existing cleanup method (DRY)
+            if askpass_script and hasattr(askpass_script, 'name'):
+                self._cleanup_askpass_script({'GIT_ASKPASS': askpass_script.name})
             return {}
 
     def _cleanup_askpass_script(self, env: Dict[str, str]) -> None:
