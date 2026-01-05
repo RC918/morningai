@@ -487,6 +487,10 @@ def _enqueue_ci_failure_task(task):
         }
 
         # Enqueue the task
+        # Issue #3581: Use longer timeout for CI failure auto-fix tasks
+        # These tasks involve multiple LLM calls (classification, code generation, review)
+        # and can take longer than regular tasks (default: 1800s = 30 minutes)
+        ci_autofix_timeout = settings.rq_ci_autofix_timeout
         job = queue.enqueue(
             run_orchestrator_task,
             task.task_id,
@@ -495,8 +499,8 @@ def _enqueue_ci_failure_task(task):
             "ci_failure",  # task_type for metrics/logging
             ci_context,
             job_id=task.task_id,
-            ttl=600,
-            job_timeout=settings.rq_job_timeout,
+            ttl=ci_autofix_timeout,  # Match TTL to job timeout
+            job_timeout=ci_autofix_timeout,
             result_ttl=86400,
             failure_ttl=3600,
         )
