@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 262
+- **Total Variables**: 263
 - **Required**: 21
-- **Optional**: 241
+- **Optional**: 242
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -30,7 +30,7 @@
 - [Infrastructure](#infrastructure) (21 variables)
 - [Monitoring](#monitoring) (16 variables)
 - [Integration](#integration) (20 variables)
-- [Worker](#worker) (6 variables)
+- [Worker](#worker) (7 variables)
 - [Application](#application) (28 variables)
 - [Feature Flags](#feature-flags) (64 variables)
 - [Orchestrator](#orchestrator) (6 variables)
@@ -1296,6 +1296,7 @@ Mailtrap API token for email testing
 | `RQ_QUEUE_NAME` | string | No | orchestrator | PUBLIC |
 | `RQ_SERIALIZER` | string (json, pickle) | No | json | PUBLIC |
 | `RQ_JOB_TIMEOUT` | integer | No | 600 | PUBLIC |
+| `RQ_CI_AUTOFIX_TIMEOUT` | integer | No | 1800 | PUBLIC |
 | `RQ_TASK_TTL` | integer | No | 600 | PUBLIC |
 | `RQ_RESULT_TTL` | integer | No | 86400 | PUBLIC |
 | `RQ_FAILURE_TTL` | integer | No | 3600 | PUBLIC |
@@ -1333,6 +1334,19 @@ Job timeout in seconds for orchestrator RQ worker jobs (run_orchestrator_task). 
 > Default 600 seconds (10 minutes) allows LLM Planner tasks to complete.
 > Lower values (180s) may cause AbandonedJobError for long-running tasks.
 > Higher values (900s+) may be needed for complex multi-step workflows.
+
+#### `RQ_CI_AUTOFIX_TIMEOUT`
+
+Job timeout in seconds for CI failure auto-fix tasks. These tasks involve multiple LLM calls (classification, code generation, review) and can take longer than regular tasks.
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `1800`
+- **Security Level**: PUBLIC
+
+**Notes**:
+> Default 1800 seconds (30 minutes) to allow complex code generation workflows to complete.
+> Issue #3581: Increased from 600s due to code generation taking 10+ minutes.
 
 #### `RQ_TASK_TTL`
 
