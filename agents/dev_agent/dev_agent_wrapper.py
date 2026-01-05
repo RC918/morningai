@@ -31,12 +31,12 @@ class HITLApprovalSystem:
 
 class SimpleGitTool:
     """Simple Git tool for local operations.
-    
+
     Issue #3584: Added default git author identity to prevent "Author identity unknown"
     errors in CI/CD environments where git user.name and user.email are not configured.
     The bot identity is used for automated commits from the AutoFixer workflow.
     """
-    
+
     # Default git author identity for automated commits
     # These are used when git user.name/user.email are not configured in the environment
     DEFAULT_GIT_AUTHOR_NAME = "MorningAI Bot"
@@ -80,7 +80,7 @@ class SimpleGitTool:
                         'success': False,
                         'error': f'git add failed: {add_result.stderr}'
                     }
-            
+
             # Issue #3584: Use git -c options to set author identity
             commit_cmd = [
                 'git',
@@ -88,22 +88,22 @@ class SimpleGitTool:
                 '-c', f'user.email={self.DEFAULT_GIT_AUTHOR_EMAIL}',
                 'commit', '-m', message
             ]
-            
+
             logger.info(
                 f"[SimpleGitTool] Committing with author: "
                 f"{self.DEFAULT_GIT_AUTHOR_NAME} <{self.DEFAULT_GIT_AUTHOR_EMAIL}>"
             )
-            
+
             result = subprocess.run(
                 commit_cmd,
                 capture_output=True,
                 text=True,
                 cwd=cwd
             )
-            
+
             if result.returncode != 0:
                 logger.error(f"[SimpleGitTool] git commit failed: {result.stderr}")
-            
+
             return {
                 'success': result.returncode == 0,
                 'output': result.stdout,
@@ -196,12 +196,12 @@ class SimpleGitTool:
             ]
             if body:
                 commit_cmd.extend(['-m', body])
-            
+
             logger.info(
                 f"[SimpleGitTool] Committing with author: "
                 f"{self.DEFAULT_GIT_AUTHOR_NAME} <{self.DEFAULT_GIT_AUTHOR_EMAIL}>"
             )
-            
+
             commit_result = subprocess.run(
                 commit_cmd,
                 capture_output=True,
@@ -233,6 +233,63 @@ class SimpleGitTool:
 
             commit_sha_short = commit_sha[:8] if len(commit_sha) >= 8 else commit_sha
             logger.info(f"[SimpleGitTool] Committed {commit_sha_short}: {title}")
+
+            # Issue #3591: Root Cause #22 - Ensure remote exists before pushing
+            # In staging, the workspace may not have 'origin' configured if it was
+            # initialized differently (e.g., via init+fetch instead of clone)
+            remote_check = subprocess.run(
+                ['git', 'remote', 'get-url', self.DEFAULT_REMOTE_NAME],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            if remote_check.returncode != 0:
+                # Remote doesn't exist - try to get the repo URL from git config
+                # or use a fallback based on the current directory structure
+                logger.warning(
+                    f"[SimpleGitTool] Remote '{self.DEFAULT_REMOTE_NAME}' not found, "
+                    "attempting to configure from environment"
+                )
+
+                # Try to get repo URL from GITHUB_REPOSITORY env var (common in CI)
+                github_repo = os.environ.get('GITHUB_REPOSITORY')
+                if github_repo:
+                    remote_url = f"https://github.com/{github_repo}.git"
+                    add_remote = subprocess.run(
+                        ['git', 'remote', 'add', self.DEFAULT_REMOTE_NAME, remote_url],
+                        capture_output=True,
+                        text=True,
+                        cwd=cwd
+                    )
+                    if add_remote.returncode == 0:
+                        logger.info(f"[SimpleGitTool] Added remote '{self.DEFAULT_REMOTE_NAME}': {remote_url}")
+                    else:
+                        logger.error(f"[SimpleGitTool] Failed to add remote: {add_remote.stderr}")
+                        return {
+                            'success': False,
+                            'error': f'Failed to configure git remote: {add_remote.stderr}',
+                            'commit_sha': commit_sha,
+                            'branch': branch
+                        }
+                else:
+                    logger.error(
+                        f"[SimpleGitTool] Remote '{self.DEFAULT_REMOTE_NAME}' not configured "
+                        "and GITHUB_REPOSITORY env var not set"
+                    )
+                    return {
+                        'success': False,
+                        'error': (
+                            f"git push failed: Remote '{self.DEFAULT_REMOTE_NAME}' not configured. "
+                            "Set GITHUB_REPOSITORY env var or configure git remote manually."
+                        ),
+                        'commit_sha': commit_sha,
+                        'branch': branch
+                    }
+            else:
+                logger.debug(
+                    f"[SimpleGitTool] Remote '{self.DEFAULT_REMOTE_NAME}' exists: "
+                    f"{remote_check.stdout.strip()}"
+                )
 
             push_result = subprocess.run(
                 ['git', 'push', '-u', self.DEFAULT_REMOTE_NAME, 'HEAD'],
@@ -416,12 +473,12 @@ class TestTool:
 
 class SimpleLLM:
     """Simple LLM wrapper for OpenAI.
-    
+
     Issue #3581: Added timeout configuration to prevent hanging LLM calls.
     The OpenAI v1 SDK uses httpx under the hood, which has a default timeout
     of 600 seconds. This was causing code generation to hang for 10+ minutes
     before the RQ worker was killed.
-    
+
     Default timeout: 120 seconds (configurable via CODEGEN_LLM_TIMEOUT_SECONDS)
     """
 
@@ -430,21 +487,21 @@ class SimpleLLM:
 
     def __init__(self, api_key: str, timeout: Optional[int] = None):
         """Initialize LLM with API key.
-        
+
         Args:
             api_key: OpenAI API key
             timeout: Request timeout in seconds (default: 120s from settings or DEFAULT_TIMEOUT_SECONDS)
         """
         from openai import OpenAI
-        
+
         # Get timeout from settings, parameter, or default
         self.timeout = timeout or getattr(settings, 'codegen_llm_timeout_seconds', self.DEFAULT_TIMEOUT_SECONDS)
-        
+
         # Initialize OpenAI client with explicit timeout
         # OpenAI v1 SDK accepts timeout parameter directly
         self.client = OpenAI(api_key=api_key, timeout=self.timeout)
         self.model = "gpt-4"
-        
+
         logger.info(
             f"[SimpleLLM] Initialized with model={self.model}, timeout={self.timeout}s"
         )
@@ -452,7 +509,7 @@ class SimpleLLM:
     async def generate(self, prompt: str) -> str:
         """
         Generate response from LLM.
-        
+
         Issue #3581: Added instrumentation to track LLM call duration and
         diagnose slow code generation (10+ minutes observed in staging).
 
@@ -465,12 +522,12 @@ class SimpleLLM:
         import time
         start_time = time.monotonic()
         prompt_length = len(prompt)
-        
+
         logger.info(
             f"[SimpleLLM] Starting LLM call: model={self.model}, "
             f"prompt_length={prompt_length}, timeout={self.timeout}s"
         )
-        
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -478,10 +535,10 @@ class SimpleLLM:
                 max_tokens=2000,
                 temperature=0.7
             )
-            
+
             elapsed_ms = (time.monotonic() - start_time) * 1000
             content = response.choices[0].message.content or ""
-            
+
             # Log success with timing and token usage
             usage_info = ""
             if hasattr(response, 'usage') and response.usage:
@@ -490,18 +547,18 @@ class SimpleLLM:
                     f"completion_tokens={response.usage.completion_tokens}, "
                     f"total_tokens={response.usage.total_tokens}"
                 )
-            
+
             logger.info(
                 f"[SimpleLLM] LLM call completed: elapsed_ms={elapsed_ms:.2f}, "
                 f"response_length={len(content)}{usage_info}"
             )
-            
+
             return content
-            
+
         except Exception as e:
             elapsed_ms = (time.monotonic() - start_time) * 1000
             error_type = type(e).__name__
-            
+
             # Log failure with timing and error classification
             logger.error(
                 f"[SimpleLLM] LLM call failed: elapsed_ms={elapsed_ms:.2f}, "
