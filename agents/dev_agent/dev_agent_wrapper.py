@@ -378,7 +378,6 @@ class SimpleLLM:
             api_key: OpenAI API key
             timeout: Request timeout in seconds (default: 120s from settings or DEFAULT_TIMEOUT_SECONDS)
         """
-        import time
         from openai import OpenAI
         
         # Get timeout from settings, parameter, or default
