@@ -251,9 +251,34 @@ class SimpleGitTool:
                     "attempting to configure from environment"
                 )
 
-                # Try to get repo URL from GITHUB_REPOSITORY env var (common in CI)
+                # Issue #3593: Root Cause #22 - Use multiple fallback sources for repo slug
+                # Priority: 1) GITHUB_REPOSITORY env var, 2) settings.github_repo
                 github_repo = os.environ.get('GITHUB_REPOSITORY')
+
+                if not github_repo:
+                    # Fallback to settings.github_repo (always available, defaults to RC918/morningai)
+                    try:
+                        from common.config.settings import settings
+                        github_repo = getattr(settings, 'github_repo', None)
+                        if github_repo:
+                            logger.info(
+                                f"[SimpleGitTool] Using settings.github_repo as fallback: {github_repo}"
+                            )
+                    except ImportError:
+                        logger.warning("[SimpleGitTool] Could not import settings for github_repo fallback")
+
                 if github_repo:
+                    # Validate repo slug format (security: only allow safe characters)
+                    import re
+                    if not re.match(r'^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$', github_repo):
+                        logger.error(f"[SimpleGitTool] Invalid repo slug format: {github_repo}")
+                        return {
+                            'success': False,
+                            'error': f'Invalid repo slug format: {github_repo}',
+                            'commit_sha': commit_sha,
+                            'branch': branch
+                        }
+
                     remote_url = f"https://github.com/{github_repo}.git"
                     add_remote = subprocess.run(
                         ['git', 'remote', 'add', self.DEFAULT_REMOTE_NAME, remote_url],
@@ -274,13 +299,13 @@ class SimpleGitTool:
                 else:
                     logger.error(
                         f"[SimpleGitTool] Remote '{self.DEFAULT_REMOTE_NAME}' not configured "
-                        "and GITHUB_REPOSITORY env var not set"
+                        "and no fallback repo slug available"
                     )
                     return {
                         'success': False,
                         'error': (
                             f"git push failed: Remote '{self.DEFAULT_REMOTE_NAME}' not configured. "
-                            "Set GITHUB_REPOSITORY env var or configure git remote manually."
+                            "Set GITHUB_REPOSITORY env var or configure settings.github_repo."
                         ),
                         'commit_sha': commit_sha,
                         'branch': branch

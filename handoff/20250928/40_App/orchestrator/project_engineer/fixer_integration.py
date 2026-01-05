@@ -346,8 +346,11 @@ class AutoFixer:
                 extra={"trace_id": trace_id, "task_type_hint": task_type_hint}
             )
 
+            # Issue #3593: Pass changed_files as fallback for target files
             fix_result = await self._run_project_engineer(
-                fix_description, repo, state, task_type_hint=task_type_hint
+                fix_description, repo, state,
+                task_type_hint=task_type_hint,
+                changed_files=changed_files
             )
 
             if fix_result.get("success"):
@@ -884,7 +887,8 @@ class AutoFixer:
         fix_description: str,
         repo: str,
         state: Dict[str, Any],
-        task_type_hint: Optional[str] = None
+        task_type_hint: Optional[str] = None,
+        changed_files: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Run ProjectEngineerAgent to generate fix.
@@ -896,12 +900,17 @@ class AutoFixer:
         Issue #3546: Added task_type_hint parameter to bypass classifier
         misclassification for CI failure auto-fix.
 
+        Issue #3593: Added changed_files parameter as fallback for target files
+        when LLM extraction fails (e.g., due to quota exceeded).
+
         Args:
             fix_description: Natural language task description
             repo: Repository name
             state: AgentState dict
             task_type_hint: Optional safe task_type to use instead of classifier
                            (Issue #3546: deterministic CI failure task_type)
+            changed_files: Optional list of changed files from PR as fallback
+                          (Issue #3593: fallback target files)
 
         Returns:
             Dict with success, pr_number, pr_url, error
@@ -949,8 +958,11 @@ class AutoFixer:
                 )
 
             # Issue #3546: Pass task_type_hint to bypass classifier misclassification
+            # Issue #3593: Pass changed_files as fallback for target files
             results = await self._project_engineer_agent.run_task(
-                fix_description, repo, task_type_hint=task_type_hint
+                fix_description, repo,
+                task_type_hint=task_type_hint,
+                changed_files=changed_files
             )
 
             success_results = [r for r in results if r.status == "success"]
