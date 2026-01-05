@@ -61,3 +61,4 @@ Search Render logs for these event codes:
 | Probe 1 | Both files updated atomically | Only one file updated or skip |
 | Probe 2 | HITL gate triggered | Task proceeds without HITL |
 | Probe 3 | Skip with syntax reason, no bad commit | Bad code committed |
+
