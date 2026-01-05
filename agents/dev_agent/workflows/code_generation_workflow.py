@@ -12,7 +12,6 @@ Supports 5 task types:
 """
 import logging
 import re
-import subprocess
 import time
 import os
 from typing import Dict, Any, List, Optional, TypedDict
@@ -22,50 +21,25 @@ from langgraph.graph import StateGraph
 
 import sys
 
+# Issue #3585: Root Cause #16 - Path corruption fix
+# The previous calculation using dirname() was incorrect:
+# - Old: os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+# - This gave /path/to/agents instead of /path/to (repo root)
+#
+# Now uses common.utils.repo_root.get_repo_root() which is the canonical
+# implementation with proper fallback chain and error handling.
+# Must bootstrap sys.path first to import from common.utils.
+_bootstrap_root = Path(__file__).resolve()
+for _parent in _bootstrap_root.parents:
+    if (_parent / '.git').exists():
+        _bootstrap_root = _parent
+        break
+if str(_bootstrap_root) not in sys.path:
+    sys.path.insert(0, str(_bootstrap_root))
 
-def _discover_repo_root() -> str:
-    """
-    Discover repository root path using git rev-parse.
-    
-    Issue #3585: Root Cause #16 - Path corruption fix
-    The previous calculation using dirname() was incorrect:
-    - Old: os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    - This gave /path/to/agents instead of /path/to (repo root)
-    
-    Now uses git rev-parse --show-toplevel which correctly returns
-    the repository root regardless of where the code is located.
-    
-    Fallback chain:
-    1. git rev-parse --show-toplevel (most reliable)
-    2. Traverse up from __file__ looking for .git directory
-    3. Original dirname calculation (last resort)
-    
-    Returns:
-        Absolute path to repository root
-    """
-    try:
-        result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=True
-        )
-        repo_root = result.stdout.strip()
-        if repo_root and os.path.exists(repo_root):
-            return os.path.abspath(repo_root)
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / '.git').exists():
-            return str(parent)
-    
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common.utils.repo_root import get_repo_root
 
-
-project_root = _discover_repo_root()
+project_root = str(get_repo_root())
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
