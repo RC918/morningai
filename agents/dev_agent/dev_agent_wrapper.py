@@ -416,8 +416,29 @@ class SimpleGitTool:
                 push_env = os.environ.copy()
                 push_env.update(auth_env)
 
+                # Issue #3604: Root Cause #28 - Use explicit refspec for git push
+                # When pushing to a newly added remote, 'git push -u origin HEAD' fails with
+                # "The destination you provided is not a full refname" because git doesn't
+                # know what branch name to create on the remote.
+                # Solution: Use explicit refspec 'HEAD:refs/heads/<branch_name>'
+                # This tells git exactly what remote branch to create/update.
+                # Handle detached HEAD case: if branch is empty, we can't push with -u
+                if branch and branch != 'HEAD':
+                    # Normal case: on a named branch
+                    push_cmd = [
+                        'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
+                        f'HEAD:refs/heads/{branch}'
+                    ]
+                else:
+                    # Detached HEAD case: push without setting upstream
+                    # This is rare in AutoFixer workflow but handle it gracefully
+                    logger.warning(
+                        "[SimpleGitTool] Detached HEAD detected, pushing without upstream tracking"
+                    )
+                    push_cmd = ['git', 'push', self.DEFAULT_REMOTE_NAME, 'HEAD:refs/heads/main']
+
                 push_result = subprocess.run(
-                    ['git', 'push', '-u', self.DEFAULT_REMOTE_NAME, 'HEAD'],
+                    push_cmd,
                     capture_output=True,
                     text=True,
                     cwd=cwd,
