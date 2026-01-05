@@ -4,13 +4,14 @@ LLM Planner Adapter - Phase 1 Implementation
 Integrates LLM-powered dynamic planning into LangGraph orchestrator
 
 This module provides:
-1. LLM-based plan generation using multiple providers (OpenAI, Gemini)
+1. LLM-based plan generation using multiple providers (Qwen via AliCloud/SiliconFlow)
 2. Task classification integration
 3. Code context extraction
 4. Plan validation and fallback logic
 5. Planner accuracy metric recording
 
 Updated in Phase 2 Extra to use LLMClient abstraction layer.
+Updated to default to Qwen (alicloud) per routing_policy.json governance (EPIC #2594).
 """
 import json
 import logging
@@ -59,10 +60,12 @@ class LLMPlannerAdapter:
         try:
             if trace_id:
                 # Use experiment-aware client creation for A/B testing
+                # Default to alicloud (Qwen) to ensure all traffic goes through Qwen providers
+                # per routing_policy.json governance (EPIC #2594)
                 self.llm_client = get_client_for_component(
                     component="planner",
                     trace_id=trace_id,
-                    default_provider="openai"
+                    default_provider="alicloud"
                 )
                 logger.info(
                     f"[LLM Planner] Initialized with experiment routing, "

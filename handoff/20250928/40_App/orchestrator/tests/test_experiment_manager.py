@@ -102,10 +102,23 @@ class TestIsExperimentActive:
     """Tests for is_experiment_active method"""
 
     def test_experiment_active_in_staging(self):
-        """Test experiment is active in staging"""
-        manager = ExperimentManager(environment="staging")
-        # gemini3_planner_10pct_staging is enabled, gemini_planner_10pct_staging is disabled
-        assert manager.is_experiment_active("gemini3_planner_10pct_staging") is True
+        """Test experiment is active in staging (using test-specific experiment)"""
+        # Create a test-specific experiment to avoid coupling to production config
+        config = ExperimentConfig(
+            name="test_active_experiment",
+            description="Test active experiment",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="planner",
+            enabled=True
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_active_experiment": config}
+        )
+        assert manager.is_experiment_active("test_active_experiment") is True
 
     def test_experiment_inactive_in_production(self):
         """Test staging-only experiment is inactive in production"""
@@ -149,18 +162,31 @@ class TestIsExperimentActive:
             assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is False
 
     def test_gemini3_experiment_active_without_kill_switch(self):
-        """Test Gemini 3 planner experiment is active when kill switch is off (Phase 4)"""
-        manager = ExperimentManager(environment="staging")
+        """Test Gemini 3 experiment is active when kill switch is off (using test-specific experiment)"""
+        # Create a test-specific Gemini 3 experiment to test kill switch behavior
+        config = ExperimentConfig(
+            name="test_gemini3_experiment",
+            description="Test Gemini 3 experiment for kill switch",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="planner",
+            enabled=True,
+            treatment_model="gemini-3-pro-preview"  # Gemini 3 model
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_gemini3_experiment": config}
+        )
 
         # Mock settings with DISABLE_GEMINI3=False
         mock_settings = MagicMock()
         mock_settings.disable_gemini3 = False
 
         with patch.dict("sys.modules", {"common.config.settings": MagicMock(settings=mock_settings)}):
-            # Gemini 3 planner experiment should be active
-            assert manager.is_experiment_active("gemini3_planner_10pct_staging") is True
-            # Gemini 3 reviewer experiment is disabled (LLMReviewerAdapter now uses task-based routing)
-            assert manager.is_experiment_active("gemini3_reviewer_5pct_staging") is False
+            # Gemini 3 experiment should be active when kill switch is off
+            assert manager.is_experiment_active("test_gemini3_experiment") is True
 
 
 class TestGetVariant:
@@ -183,13 +209,26 @@ class TestGetVariant:
         assert variant1 == variant2
 
     def test_get_variant_different_traces_can_differ(self):
-        """Test different trace_ids can get different variants"""
-        manager = ExperimentManager(environment="staging")
+        """Test different trace_ids can get different variants (using test-specific experiment)"""
+        # Create a test-specific experiment to avoid coupling to production config
+        config = ExperimentConfig(
+            name="test_variant_experiment",
+            description="Test variant distribution",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="planner",
+            enabled=True
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_variant_experiment": config}
+        )
 
         variants = set()
         for i in range(100):
-            # Use gemini3_planner_10pct_staging which is enabled
-            variant = manager.get_variant("gemini3_planner_10pct_staging", f"trace-{i}")
+            variant = manager.get_variant("test_variant_experiment", f"trace-{i}")
             variants.add(variant)
 
         assert len(variants) == 2
@@ -236,14 +275,27 @@ class TestGetVariant:
             assert variant == "control"
 
     def test_get_variant_caching(self):
-        """Test variant assignment is cached"""
-        manager = ExperimentManager(environment="staging")
+        """Test variant assignment is cached (using test-specific experiment)"""
+        # Create a test-specific experiment to avoid coupling to production config
+        config = ExperimentConfig(
+            name="test_caching_experiment",
+            description="Test caching",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="planner",
+            enabled=True
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_caching_experiment": config}
+        )
         trace_id = "cache-test-trace"
 
-        # Use gemini3_planner_10pct_staging which is enabled
-        manager.get_variant("gemini3_planner_10pct_staging", trace_id)
+        manager.get_variant("test_caching_experiment", trace_id)
 
-        cache_key = f"gemini3_planner_10pct_staging:{trace_id}"
+        cache_key = f"test_caching_experiment:{trace_id}"
         assert cache_key in manager._assignment_cache
 
 
@@ -295,13 +347,26 @@ class TestGetExperimentForComponent:
     """Tests for get_experiment_for_component method"""
 
     def test_get_experiment_for_planner(self):
-        """Test getting experiment for planner component"""
-        manager = ExperimentManager(environment="staging")
+        """Test getting experiment for planner component (using test-specific experiment)"""
+        # Create a test-specific experiment to avoid coupling to production config
+        config = ExperimentConfig(
+            name="test_planner_experiment",
+            description="Test planner experiment",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="planner",
+            enabled=True
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_planner_experiment": config}
+        )
         result = manager.get_experiment_for_component("planner", "trace-123")
 
         assert result is not None
-        # gemini3_planner_10pct_staging is enabled, gemini_planner_10pct_staging is disabled
-        assert result["experiment_name"] == "gemini3_planner_10pct_staging"
+        assert result["experiment_name"] == "test_planner_experiment"
         assert result["component"] == "planner"
         assert result["variant"] in ["control", "treatment"]
         assert result["provider"] in ["openai", "gemini"]
@@ -372,16 +437,40 @@ class TestListActiveExperiments:
     """Tests for list_active_experiments method"""
 
     def test_list_active_experiments_staging(self):
-        """Test listing active experiments in staging"""
-        manager = ExperimentManager(environment="staging")
+        """Test listing active experiments in staging (using test-specific experiment)"""
+        # Create test-specific experiments to avoid coupling to production config
+        enabled_config = ExperimentConfig(
+            name="test_enabled_experiment",
+            description="Test enabled experiment",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="planner",
+            enabled=True
+        )
+        disabled_config = ExperimentConfig(
+            name="test_disabled_experiment",
+            description="Test disabled experiment",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="reviewer",
+            enabled=False
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={
+                "test_enabled_experiment": enabled_config,
+                "test_disabled_experiment": disabled_config
+            }
+        )
         active = manager.list_active_experiments()
 
-        # gemini3_planner_10pct_staging is enabled
-        # gemini_reviewer_staging_only and gemini3_reviewer_5pct_staging are disabled
-        # (LLMReviewerAdapter now uses task-based routing via RoutingEngine)
-        assert "gemini3_planner_10pct_staging" in active
-        assert "gemini_reviewer_staging_only" not in active
-        assert "gemini3_reviewer_5pct_staging" not in active
+        # Only enabled experiment should be in active list
+        assert "test_enabled_experiment" in active
+        assert "test_disabled_experiment" not in active
 
     def test_list_active_experiments_production(self):
         """Test listing active experiments in production (should be empty)"""
@@ -472,18 +561,31 @@ class TestExperimentDistribution:
     """Tests for experiment distribution accuracy"""
 
     def test_25_percent_distribution(self):
-        """Test 25% treatment distribution is approximately correct (Phase 4: increased from 10%)"""
-        manager = ExperimentManager(environment="staging")
+        """Test 25% treatment distribution is approximately correct (using test-specific experiment)"""
+        # Create a test-specific experiment to avoid coupling to production config
+        config = ExperimentConfig(
+            name="test_distribution_experiment",
+            description="Test distribution accuracy",
+            treatment_percent=25,
+            enabled_environments=["staging"],
+            treatment_provider="gemini",
+            control_provider="openai",
+            target_component="planner",
+            enabled=True
+        )
+        manager = ExperimentManager(
+            environment="staging",
+            experiments={"test_distribution_experiment": config}
+        )
 
         treatment_count = 0
         total = 1000
 
         for i in range(total):
-            # Use gemini3_planner_10pct_staging which is enabled (now at 25% for Phase 4)
-            variant = manager.get_variant("gemini3_planner_10pct_staging", f"dist-test-{i}")
+            variant = manager.get_variant("test_distribution_experiment", f"dist-test-{i}")
             if variant == "treatment":
                 treatment_count += 1
 
         treatment_rate = treatment_count / total * 100
-        # Phase 4: treatment_percent increased from 10% to 25%
+        # 25% treatment rate should be within 20-30% range
         assert 20 <= treatment_rate <= 30
