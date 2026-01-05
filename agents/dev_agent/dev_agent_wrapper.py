@@ -85,30 +85,38 @@ class SimpleGitTool:
 
         # Create a temporary askpass script
         # This script will be called by git when it needs credentials
-        # It outputs the token for password prompts
+        # Security fix: Read token from environment at runtime to prevent
+        # command injection if token contains shell metacharacters
         askpass_script = tempfile.NamedTemporaryFile(
             mode='w',
             suffix='.sh',
             delete=False
         )
         try:
-            # The script echoes the token when git asks for password
+            # The script reads GITHUB_TOKEN from environment at runtime
+            # Using printf '%s' instead of echo to:
+            # - Avoid shell metacharacter interpretation
+            # - Avoid adding extra newline
+            # - Avoid echo option parsing issues (-n, -e, etc.)
             # For username, we use 'x-access-token' which is the standard
             # for GitHub token authentication
             askpass_script.write('#!/bin/sh\n')
             askpass_script.write('case "$1" in\n')
-            askpass_script.write('  *Username*) echo "x-access-token" ;;\n')
-            askpass_script.write(f'  *Password*) echo "{github_token}" ;;\n')
+            askpass_script.write("  *Username*) printf '%s' 'x-access-token' ;;\n")
+            askpass_script.write("  *Password*) printf '%s' \"$GITHUB_TOKEN\" ;;\n")
+            askpass_script.write('  *) exit 0 ;;\n')
             askpass_script.write('esac\n')
             askpass_script.close()
 
-            # Make the script executable
+            # Make the script executable (owner only for security)
             os.chmod(askpass_script.name, stat.S_IRWXU)
 
             # Return environment variables for git
+            # GITHUB_TOKEN is passed through so the askpass script can read it
             return {
                 'GIT_ASKPASS': askpass_script.name,
                 'GIT_TERMINAL_PROMPT': '0',  # Disable interactive prompts
+                'GITHUB_TOKEN': github_token,  # Pass through for askpass script
             }
         except Exception as e:
             logger.error(f"[SimpleGitTool] Failed to create askpass script: {e}")
@@ -399,13 +407,16 @@ class SimpleGitTool:
 
             # Issue #3602: Root Cause #27 - Use GITHUB_TOKEN for authentication
             # Get authentication environment variables (creates temporary askpass script)
-            auth_env = self._get_git_auth_env()
-
-            # Merge auth env with current environment
-            push_env = os.environ.copy()
-            push_env.update(auth_env)
-
+            # Initialize auth_env before the call to prevent NameError in finally block
+            # if _get_git_auth_env() raises an exception
+            auth_env: Dict[str, str] = {}
             try:
+                auth_env = self._get_git_auth_env()
+
+                # Merge auth env with current environment
+                push_env = os.environ.copy()
+                push_env.update(auth_env)
+
                 push_result = subprocess.run(
                     ['git', 'push', '-u', self.DEFAULT_REMOTE_NAME, 'HEAD'],
                     capture_output=True,
