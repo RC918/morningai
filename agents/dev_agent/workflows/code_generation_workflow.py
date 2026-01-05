@@ -574,6 +574,22 @@ class CodeGenerationWorkflow:
 
         return state
 
+    def _is_pytest_not_found_error(self, error_msg: str) -> bool:
+        """Check if error message indicates pytest is not found (Issue #3599)."""
+        return 'No such file or directory' in error_msg and 'pytest' in error_msg
+
+    def _mark_tests_as_skipped_for_missing_pytest(self, state: CodeGenState) -> None:
+        """Update state to mark tests as skipped due to missing pytest (Issue #3599)."""
+        logger.warning(
+            "[Stage 7] pytest not available in environment - "
+            "treating as skipped, not failed"
+        )
+        state["test_results"] = {
+            "success": True,
+            "skipped": True,
+            "reason": "pytest not available in environment"
+        }
+
     async def run_tests(self, state: CodeGenState) -> CodeGenState:
         """Stage 7: Run tests to verify generated code
 
@@ -607,18 +623,9 @@ class CodeGenerationWorkflow:
                 if test_results.get("success"):
                     logger.info("Tests passed!")
                 else:
-                    # Issue #3599: Check if failure is due to pytest not being available
                     error_msg = str(test_results.get('error', ''))
-                    if 'No such file or directory' in error_msg and 'pytest' in error_msg:
-                        logger.warning(
-                            "[Stage 7] pytest not available in environment - "
-                            "treating as skipped, not failed"
-                        )
-                        state["test_results"] = {
-                            "success": True,
-                            "skipped": True,
-                            "reason": "pytest not available in environment"
-                        }
+                    if self._is_pytest_not_found_error(error_msg):
+                        self._mark_tests_as_skipped_for_missing_pytest(state)
                     else:
                         logger.warning(f"Tests failed: {error_msg}")
             else:
@@ -627,17 +634,8 @@ class CodeGenerationWorkflow:
 
         except Exception as e:
             error_msg = str(e)
-            # Issue #3599: Check if exception is due to pytest not being available
-            if 'No such file or directory' in error_msg and 'pytest' in error_msg:
-                logger.warning(
-                    "[Stage 7] pytest not available in environment - "
-                    "treating as skipped, not failed"
-                )
-                state["test_results"] = {
-                    "success": True,
-                    "skipped": True,
-                    "reason": "pytest not available in environment"
-                }
+            if self._is_pytest_not_found_error(error_msg):
+                self._mark_tests_as_skipped_for_missing_pytest(state)
             else:
                 logger.warning(f"Test execution failed: {error_msg}")
                 state["test_results"] = {"success": False, "error": error_msg}
