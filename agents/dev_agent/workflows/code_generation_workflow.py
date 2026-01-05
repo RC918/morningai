@@ -12,6 +12,7 @@ Supports 5 task types:
 """
 import logging
 import re
+import subprocess
 import time
 import os
 from typing import Dict, Any, List, Optional, TypedDict
@@ -20,7 +21,51 @@ from pathlib import Path
 from langgraph.graph import StateGraph
 
 import sys
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _discover_repo_root() -> str:
+    """
+    Discover repository root path using git rev-parse.
+    
+    Issue #3585: Root Cause #16 - Path corruption fix
+    The previous calculation using dirname() was incorrect:
+    - Old: os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    - This gave /path/to/agents instead of /path/to (repo root)
+    
+    Now uses git rev-parse --show-toplevel which correctly returns
+    the repository root regardless of where the code is located.
+    
+    Fallback chain:
+    1. git rev-parse --show-toplevel (most reliable)
+    2. Traverse up from __file__ looking for .git directory
+    3. Original dirname calculation (last resort)
+    
+    Returns:
+        Absolute path to repository root
+    """
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=True
+        )
+        repo_root = result.stdout.strip()
+        if repo_root and os.path.exists(repo_root):
+            return os.path.abspath(repo_root)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / '.git').exists():
+            return str(parent)
+    
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+project_root = _discover_repo_root()
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
