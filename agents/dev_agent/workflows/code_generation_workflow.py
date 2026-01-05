@@ -108,6 +108,20 @@ class CodeGenerationWorkflow:
     # Used when LLM extraction fails and we need to filter PR changed_files
     CODE_EXTENSIONS = ('.py', '.js', '.ts', '.jsx', '.tsx', '.md', '.yml', '.yaml')
 
+    # Issue #3595: Directories that are never allowed for auto-fix
+    # These are filtered out from changed_files fallback regardless of task_metadata
+    # because they require special handling or are high-risk
+    DISALLOWED_DIRECTORIES = (
+        '.github/',      # CI/CD workflows - high risk, can bypass security checks
+        '.circleci/',    # CI/CD config
+        '.gitlab/',      # CI/CD config
+        '.buildkite/',   # CI/CD config (gemini-code-assist suggestion)
+        'infra/',        # Infrastructure code
+        'terraform/',    # Infrastructure as code
+        'k8s/',          # Kubernetes configs
+        'deploy/',       # Deployment scripts
+    )
+
     def __init__(self, dev_agent):
         """
         Initialize Code Generation Workflow
@@ -285,6 +299,9 @@ class CodeGenerationWorkflow:
         Issue #3593: Added fallback to changed_files when extraction fails.
         This handles cases where the LLM planner fails (e.g., quota exceeded)
         and the static plan doesn't include file paths in the task description.
+
+        Issue #3595: Filter changed_files to exclude disallowed directories
+        (e.g., .github/) that would fail security validation anyway.
         """
         logger.info(f"[Stage 2] Analyzing context for task #{state['task_id']}")
 
@@ -295,10 +312,25 @@ class CodeGenerationWorkflow:
             if not target_files:
                 changed_files = state.get("changed_files") or []
                 if changed_files:
+                    # Issue #3595: Filter out files in disallowed directories
+                    # These would fail security validation anyway, so filter early
+                    filtered_files = [
+                        f for f in changed_files
+                        if not any(f.startswith(d) for d in self.DISALLOWED_DIRECTORIES)
+                    ]
+
+                    # Log what was filtered out
+                    filtered_out = set(changed_files) - set(filtered_files)
+                    if filtered_out:
+                        logger.info(
+                            f"[Stage 2] Filtered out {len(filtered_out)} files in "
+                            f"disallowed directories: {list(filtered_out)}"
+                        )
+
                     # Filter to only include files that look like code files
                     # Uses class constant CODE_EXTENSIONS for maintainability
                     target_files = [
-                        f for f in changed_files
+                        f for f in filtered_files
                         if f.endswith(self.CODE_EXTENSIONS)
                     ]
                     if target_files:
@@ -307,7 +339,7 @@ class CodeGenerationWorkflow:
                         )
                     else:
                         logger.warning(
-                            "[Stage 2] changed_files available but no code files found"
+                            "[Stage 2] changed_files available but no allowed code files found"
                         )
 
             state["target_files"] = target_files
@@ -566,8 +598,31 @@ class CodeGenerationWorkflow:
         return state
 
     async def create_pr(self, state: CodeGenState) -> CodeGenState:
-        """Stage 8: Create Pull Request"""
+        """Stage 8: Create Pull Request
+
+        Issue #3595: Skip PR creation if there's already an error in state.
+        This prevents misleading 'NoneType' errors when security validation
+        or other stages have already failed.
+        """
         logger.info(f"[Stage 8] Creating PR for task #{state['task_id']}")
+
+        # Issue #3595: Skip PR creation if there's already an error
+        # This happens when security validation fails or other stages error out
+        if state.get("error"):
+            logger.warning(
+                f"[Stage 8] Skipping PR creation due to existing error: {state['error']}"
+            )
+            return state
+
+        # Issue #3595: Skip PR creation if security validation didn't pass
+        # Note: The error check above already returned, so state["error"] is guaranteed
+        # to be falsy here (gemini-code-assist suggestion to simplify)
+        if not state.get("security_validated", False):
+            logger.warning(
+                "[Stage 8] Skipping PR creation - security validation not passed"
+            )
+            state["error"] = "PR creation skipped: security validation not passed"
+            return state
 
         try:
             task_title = state["task_title"]
