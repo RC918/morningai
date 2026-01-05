@@ -1352,6 +1352,15 @@ class Settings(BaseSettings):
         description="Job timeout in seconds (default: 600 = 10 minutes). Jobs exceeding this timeout will be terminated."
     )
 
+    # Issue #3581: Longer timeout for CI failure auto-fix tasks
+    # CI failure auto-fix involves multiple LLM calls (classification, code generation, review)
+    # and can take longer than regular tasks. Default: 1800 seconds = 30 minutes.
+    rq_ci_autofix_timeout: int = Field(
+        default=1800,
+        alias="RQ_CI_AUTOFIX_TIMEOUT",
+        description="Job timeout for CI failure auto-fix tasks in seconds (default: 1800 = 30 minutes). These tasks involve multiple LLM calls and need longer timeout."
+    )
+
     rq_task_ttl: int = Field(
         default=600,
         alias="RQ_TASK_TTL",
