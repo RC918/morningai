@@ -23,7 +23,8 @@ redis>=5.2.0,<7.0.0
 upstash-redis>=1.1.0,<2.0.0
 rq
 sentry-sdk==2.48.0
-supabase==2.11.0
+# Must match orchestrator/requirements.txt version (both installed in morningai-backend-v2)
+supabase==2.27.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 pandas
