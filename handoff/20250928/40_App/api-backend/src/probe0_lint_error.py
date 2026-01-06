@@ -1,2 +1,8 @@
+from math import sqrt
+import os
 
-Step 2: Run pylint on the target file to see the linting errors:
+def calculate_square(number):
+    result = sqrt(number)
+    print(f"The square root of {number} is {result}")
+
+calculate_square(16)
