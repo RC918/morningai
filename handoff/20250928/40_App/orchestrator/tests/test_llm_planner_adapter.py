@@ -11,12 +11,20 @@ from llm_planner_adapter import LLMPlannerAdapter, generate_llm_plan
 class TestLLMPlannerAdapter:
     """Test suite for LLM Planner Adapter"""
 
-    def test_init_with_api_key(self):
-        """Test initialization with OpenAI API key"""
-        with patch('llm_planner_adapter.settings') as mock_settings:
-            mock_settings.openai_api_key = "test-key"
-            adapter = LLMPlannerAdapter()
-            assert adapter.client is not None
+    @patch('llm_planner_adapter.OpenAI')
+    @patch('llm_planner_adapter.LLMClient')
+    @patch('llm_planner_adapter.settings')
+    def test_init_with_api_key(self, mock_settings, mock_llmclient_cls, mock_openai_cls):
+        """Test initialization with OpenAI API key when explicitly requesting OpenAI provider"""
+        mock_settings.openai_api_key = "test-key"
+        mock_llm = MagicMock()
+        mock_llm.provider_name = "openai"
+        mock_llmclient_cls.return_value = mock_llm
+
+        adapter = LLMPlannerAdapter(provider="openai")
+
+        mock_openai_cls.assert_called_once_with(api_key="test-key")
+        assert adapter.client is mock_openai_cls.return_value
 
     def test_init_without_api_key(self):
         """Test initialization without OpenAI API key"""
