@@ -1,2 +1,2 @@
 
-2. Go to the directory containing the problematic file:
+Then, you can run pylint on your file like this:
