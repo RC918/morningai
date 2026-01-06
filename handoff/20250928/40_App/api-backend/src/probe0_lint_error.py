@@ -1,1 +1,6 @@
-2. Run pylint on your python file:
+# Before
+import os
+import sys
+
+def my_function():
+    pass
