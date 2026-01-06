@@ -625,8 +625,8 @@ class SimpleGitTool:
                                     # available in the new checkout context. Using -c options
                                     # ensures identity is always set regardless of git config.
                                     git_identity_args = [
-                                        '-c', f'user.email={self.DEFAULT_GIT_EMAIL}',
-                                        '-c', f'user.name={self.DEFAULT_GIT_NAME}',
+                                        '-c', f'user.email={self.DEFAULT_GIT_AUTHOR_EMAIL}',
+                                        '-c', f'user.name={self.DEFAULT_GIT_AUTHOR_NAME}',
                                     ]
 
                                     if base_sha and base_sha != commit_sha:
