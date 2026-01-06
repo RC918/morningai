@@ -1,1 +1,1 @@
-As an AI, I need the actual code and the linting error details to provide the solution. I can't fetch the code and the linting errors from a GitHub Actions log or from a file path. Please provide the code and the specific linting error.
+As an AI model, I need to see the content of the file and the specific lint error to provide an accurate solution. Please provide the lint error and the code snippet from "probe0_lint_error.py".
