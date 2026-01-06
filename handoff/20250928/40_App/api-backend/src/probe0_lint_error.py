@@ -1,7 +1,2 @@
-# Before
-def greet(name):
-    return 'Hello, ' + name
 
-# After (fixing missing whitespace around operator)
-def greet(name: str) -> str:
-    return 'Hello, ' + name
+Step 2: Run pylint on the target file
