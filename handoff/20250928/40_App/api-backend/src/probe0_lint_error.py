@@ -1,2 +1,2 @@
 
-3. Then, commit the changes with a clear message:
+Then, you can use the following Python code to run the linter on your file:
