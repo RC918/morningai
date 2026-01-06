@@ -620,8 +620,12 @@ class SimpleGitTool:
                                     # Per code review: support multiple commits using
                                     # base_sha..commit_sha range instead of single SHA
                                     # This handles cases where multiple commits were created
-                                    if base_sha:
+                                    if base_sha and base_sha != commit_sha:
                                         # Use range to get all commits created by this invocation
+                                        # Note: base_sha..commit_sha means "commits reachable from
+                                        # commit_sha but not from base_sha" - this is correct.
+                                        # Do NOT use base_sha^..commit_sha as that would include
+                                        # base_sha itself, which we don't want to transplant.
                                         cherry_pick_range = f'{base_sha}..{commit_sha}'
                                         logger.info(
                                             f"[SimpleGitTool] Cherry-picking commits "
@@ -632,9 +636,22 @@ class SimpleGitTool:
                                         ]
                                     else:
                                         # Fallback: single commit if base_sha not available
+                                        # or if base_sha == commit_sha (edge case)
+                                        if not base_sha:
+                                            logger.warning(
+                                                "[SimpleGitTool] base_sha not available, "
+                                                "multi-commit cherry-pick not supported. "
+                                                "Falling back to single commit."
+                                            )
+                                        elif base_sha == commit_sha:
+                                            logger.warning(
+                                                "[SimpleGitTool] base_sha == commit_sha, "
+                                                "range would be empty. "
+                                                "Falling back to single commit."
+                                            )
                                         logger.info(
                                             f"[SimpleGitTool] Cherry-picking single commit "
-                                            f"{commit_sha[:8]} (base_sha not available)"
+                                            f"{commit_sha[:8]}"
                                         )
                                         cherry_pick_cmd = [
                                             'git', 'cherry-pick', commit_sha
