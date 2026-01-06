@@ -1,3 +1,1 @@
-As an AI, I can't directly access or modify files on your local system or on GitHub. However, I can guide you on how to fix lint errors. 
-
-Please provide the specific lint error and the relevant code snippet, so I can assist you with the necessary correction.
+As an AI model, I'm unable to run a linter locally or check GitHub Actions logs. Please provide the specific lint error that needs to be fixed in the 'probe0_lint_error.py' file.
