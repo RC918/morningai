@@ -80,7 +80,7 @@ EXPERIMENT_CONFIGS: Dict[str, ExperimentConfig] = {
         treatment_provider="gemini",
         control_provider="openai",
         target_component="planner",
-        enabled=True,  # Enabled for Phase 2-4 validation
+        enabled=False,  # Disabled: All LLM traffic should go through Qwen (routing_policy.json)
         treatment_model="gemini-3-pro-preview"
     ),
     "gemini3_reviewer_5pct_staging": ExperimentConfig(
