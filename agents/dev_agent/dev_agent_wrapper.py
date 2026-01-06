@@ -268,6 +268,17 @@ class SimpleGitTool:
                     'output': 'No changes to commit'
                 }
 
+            # Issue #3612: Capture base_sha before commit for multi-commit cherry-pick support
+            # This allows us to identify exactly which commits were created by this invocation
+            # in case we need to retry with cherry-pick after a non-fast-forward rejection
+            base_sha_result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            base_sha = base_sha_result.stdout.strip() if base_sha_result.returncode == 0 else None
+
             add_result = subprocess.run(
                 ['git', 'add', '-A'],
                 capture_output=True,
@@ -510,11 +521,17 @@ class SimpleGitTool:
                 # Solution: Cherry-pick only the newly created commit(s) onto the
                 # remote branch tip. This avoids replaying unrelated commits.
                 #
+                # Per code review feedback:
+                # - Support multiple commits using base_sha..HEAD range
+                # - Add safety check for clean working directory before checkout -B
+                # - Update commit_sha after cherry-pick to return actual pushed commit
+                #
                 # Steps:
                 # 1. Fetch the latest remote branch
-                # 2. Checkout the remote branch tip (creates local branch at that point)
-                # 3. Cherry-pick the commit we just created (commit_sha)
-                # 4. Push again
+                # 2. Verify working directory is clean (safety check for -B)
+                # 3. Checkout the remote branch tip (creates local branch at that point)
+                # 4. Cherry-pick the commit(s) created by this invocation (base_sha..HEAD)
+                # 5. Push again
                 if push_result.returncode != 0:
                     stderr = push_result.stderr
                     is_non_fast_forward = (
@@ -553,106 +570,162 @@ class SimpleGitTool:
                                 f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
                             )
 
-                            # Step 2: Checkout the remote branch tip
-                            # Use -B to force create/reset the local branch to remote tip
-                            # This moves HEAD to the latest remote state
-                            checkout_cmd = [
-                                'git', 'checkout', '-B', push_target,
-                                f'{self.DEFAULT_REMOTE_NAME}/{push_target}'
-                            ]
-                            checkout_result = subprocess.run(
-                                checkout_cmd,
+                            # Step 2: Safety check - verify working directory is clean
+                            # Per code review: -B force checkout may discard changes
+                            # This should always pass since we just committed, but
+                            # adds safety if environment is reused or polluted
+                            clean_check = subprocess.run(
+                                ['git', 'status', '--porcelain'],
                                 capture_output=True,
                                 text=True,
-                                cwd=cwd,
-                                env=push_env
+                                cwd=cwd
                             )
-
-                            if checkout_result.returncode != 0:
+                            if clean_check.stdout.strip():
                                 logger.error(
-                                    f"[SimpleGitTool] Checkout failed during retry: "
-                                    f"{checkout_result.stderr}"
+                                    "[SimpleGitTool] Working directory not clean, "
+                                    "cannot safely checkout remote branch for retry. "
+                                    f"Uncommitted changes: {clean_check.stdout.strip()}"
                                 )
                                 # Fall through to return the original push error
                             else:
-                                logger.info(
-                                    f"[SimpleGitTool] Checked out "
-                                    f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
-                                )
-
-                                # Step 3: Cherry-pick the commit we just created
-                                # This transplants only our fix commit onto the remote tip
-                                cherry_pick_cmd = [
-                                    'git', 'cherry-pick', commit_sha
+                                # Step 3: Checkout the remote branch tip
+                                # Use -B to force create/reset local branch to remote tip
+                                # This moves HEAD to the latest remote state
+                                # Safety: We verified working directory is clean above
+                                checkout_cmd = [
+                                    'git', 'checkout', '-B', push_target,
+                                    f'{self.DEFAULT_REMOTE_NAME}/{push_target}'
                                 ]
-                                cherry_pick_result = subprocess.run(
-                                    cherry_pick_cmd,
+                                checkout_result = subprocess.run(
+                                    checkout_cmd,
                                     capture_output=True,
                                     text=True,
                                     cwd=cwd,
                                     env=push_env
                                 )
 
-                                if cherry_pick_result.returncode != 0:
-                                    # Cherry-pick failed (likely conflicts) - abort
+                                if checkout_result.returncode != 0:
                                     logger.error(
-                                        f"[SimpleGitTool] Cherry-pick failed during retry: "
-                                        f"{cherry_pick_result.stderr}"
+                                        f"[SimpleGitTool] Checkout failed during retry: "
+                                        f"{checkout_result.stderr}"
                                     )
-                                    # Abort the cherry-pick to restore clean state
-                                    abort_result = subprocess.run(
-                                        ['git', 'cherry-pick', '--abort'],
-                                        capture_output=True,
-                                        text=True,
-                                        cwd=cwd,
-                                        env=push_env
-                                    )
-                                    if abort_result.returncode == 0:
-                                        logger.info(
-                                            "[SimpleGitTool] Cherry-pick aborted, "
-                                            "returning original push error"
-                                        )
-                                    else:
-                                        # Note: "No cherry-pick in progress" is not critical
-                                        logger.warning(
-                                            f"[SimpleGitTool] 'git cherry-pick --abort' "
-                                            f"returned non-zero: {abort_result.stderr.strip()}"
-                                        )
                                     # Fall through to return the original push error
                                 else:
                                     logger.info(
-                                        f"[SimpleGitTool] Cherry-picked {commit_sha[:8]} "
-                                        f"onto {self.DEFAULT_REMOTE_NAME}/{push_target}"
+                                        f"[SimpleGitTool] Checked out "
+                                        f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
                                     )
 
-                                    # Step 4: Retry push (now from the local branch)
-                                    # Update push_cmd to push the local branch
-                                    retry_push_cmd = [
-                                        'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
-                                        f'{push_target}:refs/heads/{push_target}'
-                                    ]
-                                    retry_push_result = subprocess.run(
-                                        retry_push_cmd,
+                                    # Step 4: Cherry-pick the commit(s) we created
+                                    # Per code review: support multiple commits using
+                                    # base_sha..commit_sha range instead of single SHA
+                                    # This handles cases where multiple commits were created
+                                    if base_sha:
+                                        # Use range to get all commits created by this invocation
+                                        cherry_pick_range = f'{base_sha}..{commit_sha}'
+                                        logger.info(
+                                            f"[SimpleGitTool] Cherry-picking commits "
+                                            f"in range {cherry_pick_range}"
+                                        )
+                                        cherry_pick_cmd = [
+                                            'git', 'cherry-pick', cherry_pick_range
+                                        ]
+                                    else:
+                                        # Fallback: single commit if base_sha not available
+                                        logger.info(
+                                            f"[SimpleGitTool] Cherry-picking single commit "
+                                            f"{commit_sha[:8]} (base_sha not available)"
+                                        )
+                                        cherry_pick_cmd = [
+                                            'git', 'cherry-pick', commit_sha
+                                        ]
+
+                                    cherry_pick_result = subprocess.run(
+                                        cherry_pick_cmd,
                                         capture_output=True,
                                         text=True,
                                         cwd=cwd,
                                         env=push_env
                                     )
 
-                                    if retry_push_result.returncode == 0:
-                                        logger.info(
-                                            "[SimpleGitTool] Retry push succeeded "
-                                            "after fetch+cherry-pick"
-                                        )
-                                        # Update push_result for success path
-                                        push_result = retry_push_result
-                                    else:
+                                    if cherry_pick_result.returncode != 0:
+                                        # Cherry-pick failed (likely conflicts) - abort
                                         logger.error(
-                                            f"[SimpleGitTool] Retry push failed: "
-                                            f"{retry_push_result.stderr}"
+                                            f"[SimpleGitTool] Cherry-pick failed during retry: "
+                                            f"{cherry_pick_result.stderr}"
                                         )
-                                        # Update push_result with retry error
-                                        push_result = retry_push_result
+                                        # Abort the cherry-pick to restore clean state
+                                        abort_result = subprocess.run(
+                                            ['git', 'cherry-pick', '--abort'],
+                                            capture_output=True,
+                                            text=True,
+                                            cwd=cwd,
+                                            env=push_env
+                                        )
+                                        if abort_result.returncode == 0:
+                                            logger.info(
+                                                "[SimpleGitTool] Cherry-pick aborted, "
+                                                "returning original push error"
+                                            )
+                                        else:
+                                            # Note: "No cherry-pick in progress" is not critical
+                                            logger.warning(
+                                                f"[SimpleGitTool] 'git cherry-pick --abort' "
+                                                f"returned non-zero: {abort_result.stderr.strip()}"
+                                            )
+                                        # Fall through to return the original push error
+                                    else:
+                                        # Per code review: update commit_sha to the actual
+                                        # pushed commit (cherry-pick creates new SHA)
+                                        new_sha_result = subprocess.run(
+                                            ['git', 'rev-parse', 'HEAD'],
+                                            capture_output=True,
+                                            text=True,
+                                            cwd=cwd
+                                        )
+                                        new_commit_sha = (
+                                            new_sha_result.stdout.strip()
+                                            if new_sha_result.returncode == 0
+                                            else commit_sha
+                                        )
+                                        logger.info(
+                                            f"[SimpleGitTool] Cherry-picked onto "
+                                            f"{self.DEFAULT_REMOTE_NAME}/{push_target}, "
+                                            f"new HEAD: {new_commit_sha[:8]}"
+                                        )
+
+                                        # Step 5: Retry push (now from the local branch)
+                                        retry_push_cmd = [
+                                            'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
+                                            f'{push_target}:refs/heads/{push_target}'
+                                        ]
+                                        retry_push_result = subprocess.run(
+                                            retry_push_cmd,
+                                            capture_output=True,
+                                            text=True,
+                                            cwd=cwd,
+                                            env=push_env
+                                        )
+
+                                        if retry_push_result.returncode == 0:
+                                            logger.info(
+                                                "[SimpleGitTool] Retry push succeeded "
+                                                "after fetch+cherry-pick"
+                                            )
+                                            # Update for success path
+                                            push_result = retry_push_result
+                                            # Update commit_sha to actual pushed commit
+                                            commit_sha = new_commit_sha
+                                            commit_sha_short = commit_sha[:8]
+                                            # Update branch to pushed branch
+                                            branch = push_target
+                                        else:
+                                            logger.error(
+                                                f"[SimpleGitTool] Retry push failed: "
+                                                f"{retry_push_result.stderr}"
+                                            )
+                                            # Update push_result with retry error
+                                            push_result = retry_push_result
 
             finally:
                 # Always clean up the askpass script
