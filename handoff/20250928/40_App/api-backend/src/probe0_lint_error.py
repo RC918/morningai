@@ -1,4 +1,4 @@
 
-2. The linter will return a list of issues found in the file. Go through each one and amend your code accordingly.
+After running the above commands, pylint will provide you with a list of linting errors. Fix those errors and re-run the pylint command until no errors are left.
 
-3. After making the corrections, rerun the linter to verify that all the issues have been resolved.
+After you've fixed all the lint errors, make a commit to test the GitHub Actions workflow:
