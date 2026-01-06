@@ -1,2 +1,2 @@
 
-Once installed, you can run the linter on the file. 
+Then, run pylint on your script:
