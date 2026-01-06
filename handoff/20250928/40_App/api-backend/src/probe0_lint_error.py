@@ -1,1 +1,1 @@
-As an AI language model developed by OpenAI, I need to see the actual code with the lint error to provide a fix. Please provide the code from the file "probe0_lint_error.py" that contains the lint error.
+As an AI, I need to see the exact lint error and the relevant Python code in order to provide a correct solution. Can you please provide the error message and at least a snippet of the code that is causing the error?
