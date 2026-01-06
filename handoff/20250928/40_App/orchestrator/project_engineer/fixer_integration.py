@@ -306,6 +306,22 @@ class AutoFixer:
                 # Issue #3546: Infer task_type from CI failure to bypass classifier misclassification
                 task_type_hint = self._infer_task_type_from_ci_failure(ci_failure_context)
 
+                # Issue #3628: Add observability marker for EPIC D Probe 0 validation
+                # This marker allows searching staging logs to confirm SimpleCoder path is triggered
+                # Code review feedback: Add event_type structured field for downstream tooling
+                logger.info(
+                    "[SIMPLE_CODER_ATTEMPT] CI failure auto-fix triggered",
+                    extra={
+                        "event_type": "simple_coder_attempt",  # Stable field for log ingestion
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "failed_check_name": ci_failure_context.failed_check_name,
+                        "task_type_hint": task_type_hint,
+                        "target_files": changed_files[:5] if changed_files else [],
+                        "ci_failure_actionable": True,
+                    }
+                )
+
                 logger.info(
                     "[AutoFixer] CI failure mode - using CI evidence for fix",
                     extra={
