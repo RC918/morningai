@@ -1,1 +1,2 @@
-To run your GitHub Actions workflow, navigate to your repository's directory and use the 'act' command:
+
+3. Then, commit the changes with a clear message:
