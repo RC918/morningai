@@ -1,4 +1,14 @@
+from flask import Flask,request
 
-Then, open the file having lint error and fix the error. We're assuming the error is PEP8 related, which usually involves issues like line length, white spaces, variable names, etc. The specific fix would depend on the lint error message.
+app = Flask(__name__)
 
-After fixing the lint error, check the file again with a linter to make sure the error is fixed. For Python, you can use pylint or flake8:
+@app.route('/api/v1/resource', methods=['GET'])
+def get_resource():
+    resource_id = request.args.get('id')
+    if resource_id == None:
+        return {'error': 'Missing resource id'}, 400
+    else:
+        return {'data': {'id': resource_id, 'name': 'Resource Name'}}, 200
+
+if __name__ == '__main__':
+  app.run(host='0.0.0.0', port=8080)
