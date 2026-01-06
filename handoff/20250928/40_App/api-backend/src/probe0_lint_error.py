@@ -1,1 +1,2 @@
-pylint api-backend/src/probe0_lint_error.py
+
+To check for lint errors in the target file, run:
