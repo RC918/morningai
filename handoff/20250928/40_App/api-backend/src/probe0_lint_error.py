@@ -1,20 +1,30 @@
-The task you're requesting requires multiple actions and interactions with different tools like Git, GitHub, and a CI/CD pipeline, and unfortunately, these cannot be addressed by generating a single piece of Python or TypeScript code.
+import subprocess
+from typing import Tuple
 
-However, let me provide you a step-by-step guide on how you can achieve this:
+def run_linter(file: str) -> Tuple[int, str]:
+    """
+    Run linter on the given file and return the exit code and output.
 
-1. First, you need to fix your lint errors in the file `handoff/20250928/40_App/api-backend/src/probe0_lint_error.py`. This step depends on the specific lint errors you're encountering. Common lint issues can be fixed by following PEP8 style guide which includes issues like line length, variable names, unused imports, etc.
+    :param file: The file to run the linter on.
+    :return: A tuple containing the exit code and output.
+    """
+    try:
+        output = subprocess.check_output(["pylint", file])
+        return 0, output.decode("utf-8")
+    except subprocess.CalledProcessError as e:
+        return e.returncode, e.output.decode("utf-8")
 
-2. Once the lint errors are fixed, you need to commit and push your changes to the PR branch. You can do this by using the following Git commands:
+def main() -> None:
+    """
+    Main function to run the linter on the target file and print the result.
+    """
+    target_file = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
+    exit_code, output = run_linter(target_file)
 
-```bash
-git add handoff/20250928/40_App/api-backend/src/probe0_lint_error.py
-git commit -m "Fix lint errors"
-git push origin <your-branch-name>
-```
-Please replace `<your-branch-name>` with the name of your branch.
+    if exit_code == 0:
+        print("No linting errors found.")
+    else:
+        print(f"Linting errors found in {target_file}:\n{output}")
 
-3. Now, you need to monitor the GitHub Actions CI pipeline for successful completion. This can be done on the GitHub web interface. Go to the `Actions` tab in your repository and you will see the progress of your workflows.
-
-4. If your pipeline fails, you should receive a notification from GitHub. You can check the logs to see what caused the failure, fix it, and then commit and push your changes again.
-
-Remember, you need to have proper access rights to push to the repo and view the Actions CI pipeline. Also, the actual lint errors and the steps to fix them can be varied based on the project and the linter you're using.
+if __name__ == "__main__":
+    main()
