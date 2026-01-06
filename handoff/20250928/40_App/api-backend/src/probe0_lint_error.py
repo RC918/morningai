@@ -1,2 +1,6 @@
+# probe0_lint_error.py
 
-To run pylint on the target file and output the result to a file, use the following command:
+# import unused_module  # Remove unused import
+
+def function_example():
+    pass
