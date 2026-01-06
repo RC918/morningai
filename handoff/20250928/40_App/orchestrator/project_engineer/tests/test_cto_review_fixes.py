@@ -230,6 +230,7 @@ class TestPRCreationFailureHandling:
             "code_diff": "diff",
             "test_results": {"summary": "passed"},
             "error": None,
+            "security_validated": True,  # Required for create_pr to proceed
         }
 
         result_state = await workflow.create_pr(state)
@@ -263,6 +264,7 @@ class TestPRCreationFailureHandling:
             "code_diff": "diff",
             "test_results": {"summary": "passed"},
             "error": None,
+            "security_validated": True,  # Required for create_pr to proceed
         }
 
         result_state = await workflow.create_pr(state)

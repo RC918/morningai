@@ -7,6 +7,8 @@ import os
 import re
 import logging
 import subprocess
+import tempfile
+import stat
 from typing import Optional, Dict, Any
 
 from knowledge_graph.knowledge_graph_manager import (
@@ -36,6 +38,10 @@ class SimpleGitTool:
     Issue #3584: Added default git author identity to prevent "Author identity unknown"
     errors in CI/CD environments where git user.name and user.email are not configured.
     The bot identity is used for automated commits from the AutoFixer workflow.
+
+    Issue #3602: Added GITHUB_TOKEN authentication for git push operations.
+    Uses GIT_ASKPASS mechanism to securely provide credentials without exposing
+    the token in logs, git config, or remote URLs.
     """
 
     # Default git author identity for automated commits
@@ -44,6 +50,91 @@ class SimpleGitTool:
     DEFAULT_GIT_AUTHOR_EMAIL = "bot@morningai.com"
     # Default remote name for git push operations
     DEFAULT_REMOTE_NAME = "origin"
+
+    def _get_git_auth_env(self) -> Dict[str, str]:
+        """
+        Get environment variables for git authentication using GITHUB_TOKEN.
+
+        Issue #3602: Root Cause #27 - git push fails with "could not read Username"
+        because GITHUB_TOKEN is not being used for authentication.
+
+        This method creates a temporary askpass script that provides the token
+        when git requests credentials. This approach:
+        - Does NOT expose the token in remote URLs
+        - Does NOT write the token to git config
+        - Does NOT expose the token in process arguments
+        - Works with HTTPS remotes
+
+        Returns:
+            Dict of environment variables to pass to subprocess.run()
+        """
+        github_token = os.environ.get('GITHUB_TOKEN')
+
+        if not github_token:
+            logger.warning(
+                "[SimpleGitTool] GITHUB_TOKEN not found in environment. "
+                "Git push may fail if authentication is required."
+            )
+            return {}
+
+        # Log that we have a token (without exposing it)
+        logger.info(
+            f"[SimpleGitTool] GITHUB_TOKEN found (length={len(github_token)}), "
+            "configuring git authentication"
+        )
+
+        # Create a temporary askpass script
+        # This script will be called by git when it needs credentials
+        # Security fix: Read token from environment at runtime to prevent
+        # command injection if token contains shell metacharacters
+        askpass_script = None
+        try:
+            askpass_script = tempfile.NamedTemporaryFile(
+                mode='w',
+                suffix='.sh',
+                delete=False
+            )
+            # The script reads GITHUB_TOKEN from environment at runtime
+            # Using printf '%s' instead of echo to:
+            # - Avoid shell metacharacter interpretation
+            # - Avoid adding extra newline
+            # - Avoid echo option parsing issues (-n, -e, etc.)
+            # For username, we use 'x-access-token' which is the standard
+            # for GitHub token authentication
+            askpass_script.write('#!/bin/sh\n')
+            askpass_script.write('case "$1" in\n')
+            askpass_script.write("  *Username*) printf '%s' 'x-access-token' ;;\n")
+            askpass_script.write("  *Password*) printf '%s' \"$GITHUB_TOKEN\" ;;\n")
+            askpass_script.write('  *) exit 0 ;;\n')
+            askpass_script.write('esac\n')
+            askpass_script.close()
+
+            # Make the script executable (owner only for security)
+            os.chmod(askpass_script.name, stat.S_IRWXU)
+
+            # Return environment variables for git
+            # GITHUB_TOKEN is passed through so the askpass script can read it
+            return {
+                'GIT_ASKPASS': askpass_script.name,
+                'GIT_TERMINAL_PROMPT': '0',  # Disable interactive prompts
+                'GITHUB_TOKEN': github_token,  # Pass through for askpass script
+            }
+        except (IOError, OSError) as e:
+            logger.error(f"[SimpleGitTool] Failed to create askpass script: {e}")
+            # Clean up on error using existing cleanup method (DRY)
+            if askpass_script and hasattr(askpass_script, 'name'):
+                self._cleanup_askpass_script({'GIT_ASKPASS': askpass_script.name})
+            return {}
+
+    def _cleanup_askpass_script(self, env: Dict[str, str]) -> None:
+        """Clean up the temporary askpass script after git operation."""
+        askpass_path = env.get('GIT_ASKPASS')
+        if askpass_path and os.path.exists(askpass_path):
+            try:
+                os.unlink(askpass_path)
+                logger.debug(f"[SimpleGitTool] Cleaned up askpass script: {askpass_path}")
+            except OSError as e:
+                logger.warning(f"[SimpleGitTool] Failed to clean up askpass script: {e}")
 
     async def create_branch(self, branch_name: str) -> Dict[str, Any]:
         """Create a new Git branch."""
@@ -134,7 +225,7 @@ class SimpleGitTool:
             return {'success': False, 'error': str(e)}
 
     async def commit_and_push(
-        self, title: str, body: str = ""
+        self, title: str, body: str = "", target_branch: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Commit and push changes to the current branch.
@@ -152,6 +243,10 @@ class SimpleGitTool:
         Args:
             title: Commit message subject line
             body: Commit message body (optional)
+            target_branch: Optional target branch name for push (Issue #3606).
+                          Used when in detached HEAD state to specify which
+                          remote branch to push to. If not provided, uses
+                          the current branch name or GITHUB_HEAD_REF env var.
 
         Returns:
             Dict with success status, commit_sha, and branch name.
@@ -172,6 +267,17 @@ class SimpleGitTool:
                     'commit_pushed': False,
                     'output': 'No changes to commit'
                 }
+
+            # Issue #3612: Capture base_sha before commit for multi-commit cherry-pick support
+            # This allows us to identify exactly which commits were created by this invocation
+            # in case we need to retry with cherry-pick after a non-fast-forward rejection
+            base_sha_result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            base_sha = base_sha_result.stdout.strip() if base_sha_result.returncode == 0 else None
 
             add_result = subprocess.run(
                 ['git', 'add', '-A'],
@@ -313,12 +419,335 @@ class SimpleGitTool:
                     f"{remote_check.stdout.strip()}"
                 )
 
-            push_result = subprocess.run(
-                ['git', 'push', '-u', self.DEFAULT_REMOTE_NAME, 'HEAD'],
-                capture_output=True,
-                text=True,
-                cwd=cwd
-            )
+            # Issue #3602: Root Cause #27 - Use GITHUB_TOKEN for authentication
+            # Get authentication environment variables (creates temporary askpass script)
+            # Initialize auth_env before the call to prevent NameError in finally block
+            # if _get_git_auth_env() raises an exception
+            auth_env: Dict[str, str] = {}
+            try:
+                auth_env = self._get_git_auth_env()
+
+                # Merge auth env with current environment
+                push_env = os.environ.copy()
+                push_env.update(auth_env)
+
+                # Issue #3604: Root Cause #28 - Use explicit refspec for git push
+                # When pushing to a newly added remote, 'git push -u origin HEAD' fails with
+                # "The destination you provided is not a full refname" because git doesn't
+                # know what branch name to create on the remote.
+                # Solution: Use explicit refspec 'HEAD:refs/heads/<branch_name>'
+                # This tells git exactly what remote branch to create/update.
+                #
+                # Issue #3605: Root Cause #29 - Handle detached HEAD properly
+                # In detached HEAD state, we must NOT push to 'main' (it's protected).
+                # Instead, try to get the branch name from environment variables.
+                #
+                # Issue #3606: Root Cause #30 - Pass head_branch from webhook context
+                # The target_branch parameter allows callers to pass the PR branch name
+                # from webhook context (CiFailureContext.head_branch), which is the most
+                # reliable source of the branch name in AutoFixer workflows.
+                #
+                # Priority order for determining push target:
+                # 1. target_branch parameter (from webhook context, if valid)
+                # 2. Current git branch name (if on a named branch, not 'HEAD')
+                # 3. GITHUB_HEAD_REF environment variable (GitHub Actions fallback)
+                # 4. Fail gracefully (never push to protected 'main')
+                #
+                # Refactored per gemini-code-assist review for better readability.
+                # Note: 'HEAD' is treated as invalid since it indicates detached HEAD state.
+                if target_branch and target_branch != 'HEAD':
+                    push_target = target_branch
+                    branch_source = "target_branch parameter"
+                elif branch and branch != 'HEAD':
+                    push_target = branch
+                    branch_source = "git branch"
+                else:
+                    # Detached HEAD case - try to get branch from environment
+                    # GITHUB_HEAD_REF is set by GitHub Actions for PR events
+                    push_target = os.environ.get('GITHUB_HEAD_REF', '')
+                    branch_source = "GITHUB_HEAD_REF"
+
+                # Log detached HEAD detection and validate push_target
+                if branch_source == "GITHUB_HEAD_REF":
+                    if push_target:
+                        logger.info(
+                            f"[SimpleGitTool] Detached HEAD detected, using GITHUB_HEAD_REF: "
+                            f"{push_target}"
+                        )
+                    else:
+                        # No branch name available - fail gracefully
+                        # Do NOT push to 'main' as it's likely protected
+                        logger.error(
+                            "[SimpleGitTool] Detached HEAD detected and no target branch available. "
+                            "Checked: target_branch param, git branch, GITHUB_HEAD_REF env var."
+                        )
+                        return {
+                            'success': False,
+                            'error': (
+                                'git push failed: Detached HEAD state and no target branch '
+                                'available. Please pass target_branch parameter or checkout '
+                                'a named branch before committing.'
+                            ),
+                            'commit_sha': commit_sha,
+                            'branch': branch
+                        }
+
+                push_cmd = [
+                    'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
+                    f'HEAD:refs/heads/{push_target}'
+                ]
+                logger.info(
+                    f"[SimpleGitTool] Pushing to branch '{push_target}' "
+                    f"(source: {branch_source})"
+                )
+
+                push_result = subprocess.run(
+                    push_cmd,
+                    capture_output=True,
+                    text=True,
+                    cwd=cwd,
+                    env=push_env
+                )
+
+                # Issue #3609: Root Cause #31 - Handle non-fast-forward rejection
+                # Issue #3612: Root Cause #32 - Use cherry-pick instead of rebase
+                #
+                # Problem with rebase approach:
+                # When the worker's workspace is based on a different commit chain
+                # (e.g., an older main branch), 'git rebase origin/<branch>' tries to
+                # replay ALL commits between the local base and HEAD, including commits
+                # that are already in the remote branch. This causes conflicts.
+                #
+                # Solution: Cherry-pick only the newly created commit(s) onto the
+                # remote branch tip. This avoids replaying unrelated commits.
+                #
+                # Per code review feedback:
+                # - Support multiple commits using base_sha..HEAD range
+                # - Add safety check for clean working directory before checkout -B
+                # - Update commit_sha after cherry-pick to return actual pushed commit
+                #
+                # Steps:
+                # 1. Fetch the latest remote branch
+                # 2. Verify working directory is clean (safety check for -B)
+                # 3. Checkout the remote branch tip (creates local branch at that point)
+                # 4. Cherry-pick the commit(s) created by this invocation (base_sha..HEAD)
+                # 5. Push again
+                if push_result.returncode != 0:
+                    stderr = push_result.stderr
+                    is_non_fast_forward = (
+                        'fetch first' in stderr or
+                        'non-fast-forward' in stderr or
+                        'Updates were rejected' in stderr
+                    )
+
+                    if is_non_fast_forward:
+                        logger.warning(
+                            f"[SimpleGitTool] Push rejected (non-fast-forward), "
+                            f"attempting fetch+cherry-pick+retry for branch '{push_target}'"
+                        )
+
+                        # Step 1: Fetch the latest remote branch
+                        fetch_cmd = [
+                            'git', 'fetch', self.DEFAULT_REMOTE_NAME, push_target
+                        ]
+                        fetch_result = subprocess.run(
+                            fetch_cmd,
+                            capture_output=True,
+                            text=True,
+                            cwd=cwd,
+                            env=push_env
+                        )
+
+                        if fetch_result.returncode != 0:
+                            logger.error(
+                                f"[SimpleGitTool] Fetch failed during retry: "
+                                f"{fetch_result.stderr}"
+                            )
+                            # Fall through to return the original push error
+                        else:
+                            logger.info(
+                                f"[SimpleGitTool] Fetched latest "
+                                f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
+                            )
+
+                            # Step 2: Safety check - verify working directory is clean
+                            # Per code review: -B force checkout may discard changes
+                            # This should always pass since we just committed, but
+                            # adds safety if environment is reused or polluted
+                            clean_check = subprocess.run(
+                                ['git', 'status', '--porcelain'],
+                                capture_output=True,
+                                text=True,
+                                cwd=cwd
+                            )
+                            if clean_check.stdout.strip():
+                                logger.error(
+                                    "[SimpleGitTool] Working directory not clean, "
+                                    "cannot safely checkout remote branch for retry. "
+                                    f"Uncommitted changes: {clean_check.stdout.strip()}"
+                                )
+                                # Fall through to return the original push error
+                            else:
+                                # Step 3: Checkout the remote branch tip
+                                # Use -B to force create/reset local branch to remote tip
+                                # This moves HEAD to the latest remote state
+                                # Safety: We verified working directory is clean above
+                                checkout_cmd = [
+                                    'git', 'checkout', '-B', push_target,
+                                    f'{self.DEFAULT_REMOTE_NAME}/{push_target}'
+                                ]
+                                checkout_result = subprocess.run(
+                                    checkout_cmd,
+                                    capture_output=True,
+                                    text=True,
+                                    cwd=cwd,
+                                    env=push_env
+                                )
+
+                                if checkout_result.returncode != 0:
+                                    logger.error(
+                                        f"[SimpleGitTool] Checkout failed during retry: "
+                                        f"{checkout_result.stderr}"
+                                    )
+                                    # Fall through to return the original push error
+                                else:
+                                    logger.info(
+                                        f"[SimpleGitTool] Checked out "
+                                        f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
+                                    )
+
+                                    # Step 4: Cherry-pick the commit(s) we created
+                                    # Per code review: support multiple commits using
+                                    # base_sha..commit_sha range instead of single SHA
+                                    # This handles cases where multiple commits were created
+                                    if base_sha and base_sha != commit_sha:
+                                        # Use range to get all commits created by this invocation
+                                        # Note: base_sha..commit_sha means "commits reachable from
+                                        # commit_sha but not from base_sha" - this is correct.
+                                        # Do NOT use base_sha^..commit_sha as that would include
+                                        # base_sha itself, which we don't want to transplant.
+                                        cherry_pick_range = f'{base_sha}..{commit_sha}'
+                                        logger.info(
+                                            f"[SimpleGitTool] Cherry-picking commits "
+                                            f"in range {cherry_pick_range}"
+                                        )
+                                        cherry_pick_cmd = [
+                                            'git', 'cherry-pick', cherry_pick_range
+                                        ]
+                                    else:
+                                        # Fallback: single commit if base_sha not available
+                                        # or if base_sha == commit_sha (edge case)
+                                        if not base_sha:
+                                            logger.warning(
+                                                "[SimpleGitTool] base_sha not available, "
+                                                "multi-commit cherry-pick not supported. "
+                                                "Falling back to single commit."
+                                            )
+                                        elif base_sha == commit_sha:
+                                            logger.warning(
+                                                "[SimpleGitTool] base_sha == commit_sha, "
+                                                "range would be empty. "
+                                                "Falling back to single commit."
+                                            )
+                                        logger.info(
+                                            f"[SimpleGitTool] Cherry-picking single commit "
+                                            f"{commit_sha[:8]}"
+                                        )
+                                        cherry_pick_cmd = [
+                                            'git', 'cherry-pick', commit_sha
+                                        ]
+
+                                    cherry_pick_result = subprocess.run(
+                                        cherry_pick_cmd,
+                                        capture_output=True,
+                                        text=True,
+                                        cwd=cwd,
+                                        env=push_env
+                                    )
+
+                                    if cherry_pick_result.returncode != 0:
+                                        # Cherry-pick failed (likely conflicts) - abort
+                                        logger.error(
+                                            f"[SimpleGitTool] Cherry-pick failed during retry: "
+                                            f"{cherry_pick_result.stderr}"
+                                        )
+                                        # Abort the cherry-pick to restore clean state
+                                        abort_result = subprocess.run(
+                                            ['git', 'cherry-pick', '--abort'],
+                                            capture_output=True,
+                                            text=True,
+                                            cwd=cwd,
+                                            env=push_env
+                                        )
+                                        if abort_result.returncode == 0:
+                                            logger.info(
+                                                "[SimpleGitTool] Cherry-pick aborted, "
+                                                "returning original push error"
+                                            )
+                                        else:
+                                            # Note: "No cherry-pick in progress" is not critical
+                                            logger.warning(
+                                                f"[SimpleGitTool] 'git cherry-pick --abort' "
+                                                f"returned non-zero: {abort_result.stderr.strip()}"
+                                            )
+                                        # Fall through to return the original push error
+                                    else:
+                                        # Per code review: update commit_sha to the actual
+                                        # pushed commit (cherry-pick creates new SHA)
+                                        new_sha_result = subprocess.run(
+                                            ['git', 'rev-parse', 'HEAD'],
+                                            capture_output=True,
+                                            text=True,
+                                            cwd=cwd
+                                        )
+                                        new_commit_sha = (
+                                            new_sha_result.stdout.strip()
+                                            if new_sha_result.returncode == 0
+                                            else commit_sha
+                                        )
+                                        logger.info(
+                                            f"[SimpleGitTool] Cherry-picked onto "
+                                            f"{self.DEFAULT_REMOTE_NAME}/{push_target}, "
+                                            f"new HEAD: {new_commit_sha[:8]}"
+                                        )
+
+                                        # Step 5: Retry push (now from the local branch)
+                                        retry_push_cmd = [
+                                            'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
+                                            f'{push_target}:refs/heads/{push_target}'
+                                        ]
+                                        retry_push_result = subprocess.run(
+                                            retry_push_cmd,
+                                            capture_output=True,
+                                            text=True,
+                                            cwd=cwd,
+                                            env=push_env
+                                        )
+
+                                        if retry_push_result.returncode == 0:
+                                            logger.info(
+                                                "[SimpleGitTool] Retry push succeeded "
+                                                "after fetch+cherry-pick"
+                                            )
+                                            # Update for success path
+                                            push_result = retry_push_result
+                                            # Update commit_sha to actual pushed commit
+                                            commit_sha = new_commit_sha
+                                            commit_sha_short = commit_sha[:8]
+                                            # Update branch to pushed branch
+                                            branch = push_target
+                                        else:
+                                            logger.error(
+                                                f"[SimpleGitTool] Retry push failed: "
+                                                f"{retry_push_result.stderr}"
+                                            )
+                                            # Update push_result with retry error
+                                            push_result = retry_push_result
+
+            finally:
+                # Always clean up the askpass script
+                self._cleanup_askpass_script(auth_env)
+
             if push_result.returncode != 0:
                 logger.error(f"[SimpleGitTool] git push failed: {push_result.stderr}")
                 return {
@@ -343,7 +772,7 @@ class SimpleGitTool:
             return {'success': False, 'error': str(e)}
 
     async def create_pr(
-        self, title: str, body: str = ""
+        self, title: str, body: str = "", target_branch: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Commit and push changes to the current branch.
@@ -358,6 +787,9 @@ class SimpleGitTool:
         Args:
             title: Commit message subject line
             body: Commit message body (optional)
+            target_branch: Optional target branch name for push (Issue #3606).
+                          Used when in detached HEAD state to specify which
+                          remote branch to push to.
 
         Returns:
             Dict with success status, commit_sha, and branch name.
@@ -368,7 +800,7 @@ class SimpleGitTool:
             "[SimpleGitTool] create_pr called - delegating to commit_and_push "
             "(create_pr is kept for interface compatibility)"
         )
-        return await self.commit_and_push(title, body)
+        return await self.commit_and_push(title, body, target_branch=target_branch)
 
 
 class SimpleFilesystemTool:

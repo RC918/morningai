@@ -58,6 +58,7 @@ class CodeGenState(TypedDict):
     task_metadata: Optional[Dict[str, Any]]
     target_files: List[str]
     changed_files: Optional[List[str]]  # Issue #3593: fallback target files from PR
+    target_branch: Optional[str]  # Issue #3606: PR branch name for git push
     generated_code: Optional[str]
     generated_tests: Optional[str]
     code_diff: Optional[str]
@@ -107,6 +108,20 @@ class CodeGenerationWorkflow:
     # Issue #3593: Code file extensions for changed_files fallback filtering
     # Used when LLM extraction fails and we need to filter PR changed_files
     CODE_EXTENSIONS = ('.py', '.js', '.ts', '.jsx', '.tsx', '.md', '.yml', '.yaml')
+
+    # Issue #3595: Directories that are never allowed for auto-fix
+    # These are filtered out from changed_files fallback regardless of task_metadata
+    # because they require special handling or are high-risk
+    DISALLOWED_DIRECTORIES = (
+        '.github/',      # CI/CD workflows - high risk, can bypass security checks
+        '.circleci/',    # CI/CD config
+        '.gitlab/',      # CI/CD config
+        '.buildkite/',   # CI/CD config (gemini-code-assist suggestion)
+        'infra/',        # Infrastructure code
+        'terraform/',    # Infrastructure as code
+        'k8s/',          # Kubernetes configs
+        'deploy/',       # Deployment scripts
+    )
 
     def __init__(self, dev_agent):
         """
@@ -285,6 +300,9 @@ class CodeGenerationWorkflow:
         Issue #3593: Added fallback to changed_files when extraction fails.
         This handles cases where the LLM planner fails (e.g., quota exceeded)
         and the static plan doesn't include file paths in the task description.
+
+        Issue #3595: Filter changed_files to exclude disallowed directories
+        (e.g., .github/) that would fail security validation anyway.
         """
         logger.info(f"[Stage 2] Analyzing context for task #{state['task_id']}")
 
@@ -295,10 +313,25 @@ class CodeGenerationWorkflow:
             if not target_files:
                 changed_files = state.get("changed_files") or []
                 if changed_files:
+                    # Issue #3595: Filter out files in disallowed directories
+                    # These would fail security validation anyway, so filter early
+                    filtered_files = [
+                        f for f in changed_files
+                        if not any(f.startswith(d) for d in self.DISALLOWED_DIRECTORIES)
+                    ]
+
+                    # Log what was filtered out
+                    filtered_out = set(changed_files) - set(filtered_files)
+                    if filtered_out:
+                        logger.info(
+                            f"[Stage 2] Filtered out {len(filtered_out)} files in "
+                            f"disallowed directories: {list(filtered_out)}"
+                        )
+
                     # Filter to only include files that look like code files
                     # Uses class constant CODE_EXTENSIONS for maintainability
                     target_files = [
-                        f for f in changed_files
+                        f for f in filtered_files
                         if f.endswith(self.CODE_EXTENSIONS)
                     ]
                     if target_files:
@@ -307,7 +340,7 @@ class CodeGenerationWorkflow:
                         )
                     else:
                         logger.warning(
-                            "[Stage 2] changed_files available but no code files found"
+                            "[Stage 2] changed_files available but no allowed code files found"
                         )
 
             state["target_files"] = target_files
@@ -542,9 +575,53 @@ class CodeGenerationWorkflow:
 
         return state
 
+    def _is_pytest_not_found_error(self, error_msg: str) -> bool:
+        """Check if error message indicates pytest is not found (Issue #3599)."""
+        return 'No such file or directory' in error_msg and 'pytest' in error_msg
+
+    def _mark_tests_as_skipped_for_missing_pytest(self, state: CodeGenState) -> None:
+        """Update state to mark tests as skipped due to missing pytest (Issue #3599)."""
+        logger.warning(
+            "[Stage 7] pytest not available in environment - "
+            "treating as skipped, not failed"
+        )
+        state["test_results"] = {
+            "success": True,
+            "skipped": True,
+            "reason": "pytest not available in environment"
+        }
+
     async def run_tests(self, state: CodeGenState) -> CodeGenState:
-        """Stage 7: Run tests to verify generated code"""
+        """Stage 7: Run tests to verify generated code
+
+        Issue #3599: Skip pytest for fix_lint tasks and treat "pytest not found"
+        as skipped rather than failed. This prevents infinite retry loops when
+        pytest is not available in the environment.
+        """
         logger.info(f"[Stage 7] Running tests for task #{state['task_id']}")
+
+        # Issue #3599: Skip tests for fix_lint tasks - lint fixes should be
+        # verified by running lint, not pytest. Running pytest for lint fixes
+        # causes unnecessary failures and retry loops.
+        task_type = state.get("task_type", "")
+
+        # Diagnostic logging to debug task_type matching (Issue #3599)
+        logger.info(
+            f"[Stage 7] DIAGNOSTIC: task_type={task_type!r} type={type(task_type).__name__} "
+            f"task_id={state['task_id']}"
+        )
+
+        if task_type in ("fix_lint", "lint_fix"):
+            logger.info(
+                f"[Stage 7] Skipping pytest for {task_type} task - "
+                "lint fixes don't require test verification"
+            )
+            state["test_results"] = {
+                "success": True,
+                "skipped": True,
+                "reason": f"pytest skipped for {task_type} task"
+            }
+            return state
 
         try:
             if hasattr(self.agent, 'test_tool') and self.agent.test_tool:
@@ -554,20 +631,51 @@ class CodeGenerationWorkflow:
                 if test_results.get("success"):
                     logger.info("Tests passed!")
                 else:
-                    logger.warning(f"Tests failed: {test_results.get('error', 'Unknown error')}")
+                    error_msg = str(test_results.get('error', ''))
+                    if self._is_pytest_not_found_error(error_msg):
+                        self._mark_tests_as_skipped_for_missing_pytest(state)
+                    else:
+                        logger.warning(f"Tests failed: {error_msg}")
             else:
                 logger.warning("Test tool not available, skipping tests")
                 state["test_results"] = {"success": True, "skipped": True}
 
         except Exception as e:
-            logger.warning(f"Test execution failed: {str(e)}")
-            state["test_results"] = {"success": False, "error": str(e)}
+            error_msg = str(e)
+            if self._is_pytest_not_found_error(error_msg):
+                self._mark_tests_as_skipped_for_missing_pytest(state)
+            else:
+                logger.warning(f"Test execution failed: {error_msg}")
+                state["test_results"] = {"success": False, "error": error_msg}
 
         return state
 
     async def create_pr(self, state: CodeGenState) -> CodeGenState:
-        """Stage 8: Create Pull Request"""
+        """Stage 8: Create Pull Request
+
+        Issue #3595: Skip PR creation if there's already an error in state.
+        This prevents misleading 'NoneType' errors when security validation
+        or other stages have already failed.
+        """
         logger.info(f"[Stage 8] Creating PR for task #{state['task_id']}")
+
+        # Issue #3595: Skip PR creation if there's already an error
+        # This happens when security validation fails or other stages error out
+        if state.get("error"):
+            logger.warning(
+                f"[Stage 8] Skipping PR creation due to existing error: {state['error']}"
+            )
+            return state
+
+        # Issue #3595: Skip PR creation if security validation didn't pass
+        # Note: The error check above already returned, so state["error"] is guaranteed
+        # to be falsy here (gemini-code-assist suggestion to simplify)
+        if not state.get("security_validated", False):
+            logger.warning(
+                "[Stage 8] Skipping PR creation - security validation not passed"
+            )
+            state["error"] = "PR creation skipped: security validation not passed"
+            return state
 
         try:
             task_title = state["task_title"]
@@ -585,9 +693,14 @@ Generated by Code Generation Workflow (Phase 2)
 """
 
             if hasattr(self.agent, 'git_tool') and self.agent.git_tool:
+                # Issue #3606: Pass target_branch to git tool for detached HEAD support
+                # In AutoFixer workflows, the workspace is in detached HEAD state,
+                # so we need to pass the PR branch name explicitly.
+                target_branch = state.get("target_branch")
                 pr_result = await self.agent.git_tool.create_pr(
                     title=pr_title,
-                    body=pr_body
+                    body=pr_body,
+                    target_branch=target_branch
                 )
 
                 # Issue #3589: Defensive None-handling to prevent cascading NoneType errors
@@ -896,6 +1009,7 @@ Generate the complete code:"""
             task: Task dict with id, title, description, and optionally task_type/task_metadata
                   If task_type is provided, classification stage will be skipped.
                   Issue #3593: Also accepts changed_files as fallback for target files.
+                  Issue #3606: Also accepts target_branch for git push in detached HEAD state.
 
         Returns:
             Final state dict
@@ -908,6 +1022,7 @@ Generate the complete code:"""
             "task_metadata": task.get("task_metadata"),
             "target_files": [],
             "changed_files": task.get("changed_files"),  # Issue #3593: fallback target files
+            "target_branch": task.get("target_branch"),  # Issue #3606: PR branch for git push
             "generated_code": None,
             "generated_tests": None,
             "code_diff": None,

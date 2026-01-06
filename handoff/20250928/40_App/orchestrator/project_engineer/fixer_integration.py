@@ -340,6 +340,20 @@ class AutoFixer:
                     review_result, pr_number, changed_files
                 )
 
+            # Issue #3606: Extract head_branch from CI failure context for git push
+            # In Render webhook worker, the workspace is in detached HEAD state,
+            # so we need to pass the PR branch name explicitly for git push.
+            target_branch: Optional[str] = None
+            if ci_failure_trigger is True and ci_failure_context_data:
+                ci_ctx = CiFailureContext.from_dict(ci_failure_context_data)
+                target_branch = ci_ctx.head_branch
+                if target_branch:
+                    logger.info(
+                        "[AutoFixer] Using head_branch from CI failure context: %s",
+                        target_branch,
+                        extra={"trace_id": trace_id, "target_branch": target_branch}
+                    )
+
             logger.info(
                 "[AutoFixer] Generated fix task description: %s",
                 fix_description[:200],
@@ -347,10 +361,12 @@ class AutoFixer:
             )
 
             # Issue #3593: Pass changed_files as fallback for target files
+            # Issue #3606: Pass target_branch for git push in detached HEAD state
             fix_result = await self._run_project_engineer(
                 fix_description, repo, state,
                 task_type_hint=task_type_hint,
-                changed_files=changed_files
+                changed_files=changed_files,
+                target_branch=target_branch
             )
 
             if fix_result.get("success"):
@@ -888,7 +904,8 @@ class AutoFixer:
         repo: str,
         state: Dict[str, Any],
         task_type_hint: Optional[str] = None,
-        changed_files: Optional[List[str]] = None
+        changed_files: Optional[List[str]] = None,
+        target_branch: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Run ProjectEngineerAgent to generate fix.
@@ -903,6 +920,9 @@ class AutoFixer:
         Issue #3593: Added changed_files parameter as fallback for target files
         when LLM extraction fails (e.g., due to quota exceeded).
 
+        Issue #3606: Added target_branch parameter to specify PR branch for git
+        push in detached HEAD state (Render webhook worker context).
+
         Args:
             fix_description: Natural language task description
             repo: Repository name
@@ -911,6 +931,8 @@ class AutoFixer:
                            (Issue #3546: deterministic CI failure task_type)
             changed_files: Optional list of changed files from PR as fallback
                           (Issue #3593: fallback target files)
+            target_branch: Optional PR branch name for git push
+                          (Issue #3606: detached HEAD support)
 
         Returns:
             Dict with success, pr_number, pr_url, error
@@ -959,10 +981,12 @@ class AutoFixer:
 
             # Issue #3546: Pass task_type_hint to bypass classifier misclassification
             # Issue #3593: Pass changed_files as fallback for target files
+            # Issue #3606: Pass target_branch for git push in detached HEAD state
             results = await self._project_engineer_agent.run_task(
                 fix_description, repo,
                 task_type_hint=task_type_hint,
-                changed_files=changed_files
+                changed_files=changed_files,
+                target_branch=target_branch
             )
 
             success_results = [r for r in results if r.status == "success"]
