@@ -1,1 +1,1 @@
-As an AI, I can't fix the lint error without having the actual file content or at least information about what the lint error is. Please provide either the content of the file "probe0_lint_error.py" or details about the lint error to be fixed.
+As an AI model, I need to see the content of 'probe0_lint_error.py' to provide a fix for the linting errors. Please provide the content of the file.
