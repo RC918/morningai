@@ -497,6 +497,118 @@ class SimpleGitTool:
                     cwd=cwd,
                     env=push_env
                 )
+
+                # Issue #3609: Root Cause #31 - Handle non-fast-forward rejection
+                # If push fails due to remote having newer commits, try fetch+rebase+retry
+                if push_result.returncode != 0:
+                    stderr = push_result.stderr
+                    is_non_fast_forward = (
+                        'fetch first' in stderr or
+                        'non-fast-forward' in stderr or
+                        'Updates were rejected' in stderr
+                    )
+
+                    if is_non_fast_forward:
+                        logger.warning(
+                            f"[SimpleGitTool] Push rejected (non-fast-forward), "
+                            f"attempting fetch+rebase+retry for branch '{push_target}'"
+                        )
+
+                        # Step 1: Fetch the latest remote branch
+                        fetch_cmd = [
+                            'git', 'fetch', self.DEFAULT_REMOTE_NAME, push_target
+                        ]
+                        fetch_result = subprocess.run(
+                            fetch_cmd,
+                            capture_output=True,
+                            text=True,
+                            cwd=cwd,
+                            env=push_env
+                        )
+
+                        if fetch_result.returncode != 0:
+                            logger.error(
+                                f"[SimpleGitTool] Fetch failed during retry: "
+                                f"{fetch_result.stderr}"
+                            )
+                            # Fall through to return the original push error
+                        else:
+                            logger.info(
+                                f"[SimpleGitTool] Fetched latest "
+                                f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
+                            )
+
+                            # Step 2: Rebase local commit(s) on top of remote
+                            # This replays local commits on top of the fetched remote branch
+                            rebase_cmd = [
+                                'git', 'rebase',
+                                f'{self.DEFAULT_REMOTE_NAME}/{push_target}'
+                            ]
+                            rebase_result = subprocess.run(
+                                rebase_cmd,
+                                capture_output=True,
+                                text=True,
+                                cwd=cwd,
+                                env=push_env
+                            )
+
+                            if rebase_result.returncode != 0:
+                                # Rebase failed (likely conflicts) - abort and report
+                                logger.error(
+                                    f"[SimpleGitTool] Rebase failed during retry: "
+                                    f"{rebase_result.stderr}"
+                                )
+                                # Abort the rebase to restore clean state
+                                # Per gemini-code-assist review: check abort result
+                                abort_result = subprocess.run(
+                                    ['git', 'rebase', '--abort'],
+                                    capture_output=True,
+                                    text=True,
+                                    cwd=cwd,
+                                    env=push_env
+                                )
+                                if abort_result.returncode == 0:
+                                    logger.info(
+                                        "[SimpleGitTool] Rebase aborted, "
+                                        "returning original push error"
+                                    )
+                                else:
+                                    # Note: "No rebase in progress" is not critical
+                                    logger.warning(
+                                        f"[SimpleGitTool] 'git rebase --abort' returned "
+                                        f"non-zero: {abort_result.stderr.strip()}"
+                                    )
+                                # Fall through to return the original push error
+                            else:
+                                logger.info(
+                                    f"[SimpleGitTool] Rebased successfully onto "
+                                    f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
+                                )
+
+                                # Step 3: Retry push
+                                retry_push_result = subprocess.run(
+                                    push_cmd,
+                                    capture_output=True,
+                                    text=True,
+                                    cwd=cwd,
+                                    env=push_env
+                                )
+
+                                if retry_push_result.returncode == 0:
+                                    logger.info(
+                                        "[SimpleGitTool] Retry push succeeded "
+                                        "after fetch+rebase"
+                                    )
+                                    # Update push_result for success path
+                                    push_result = retry_push_result
+                                else:
+                                    logger.error(
+                                        f"[SimpleGitTool] Retry push failed: "
+                                        f"{retry_push_result.stderr}"
+                                    )
+                                    # Update push_result with retry error
+                                    push_result = retry_push_result
+
             finally:
                 # Always clean up the askpass script
                 self._cleanup_askpass_script(auth_env)
