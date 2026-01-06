@@ -1,8 +1,3 @@
-# Before
-def foo():
-  print(bar)
-
-# After
-def foo():
-  bar = 'Hello, World!'
-  print(bar)
+def add(a, b):
+    result = a + b
+    return reuslt
