@@ -1,24 +1,13 @@
-# Importing necessary libraries
-import pylint
-from pylint import epylint as lint
+# Step 1: Navigate to the directory containing the file
+cd handoff/20250928/40_App/api-backend/src
 
-# Defining the function to lint the python file
-def lint_python_file(file_path: str) -> None:
-    (pylint_stdout, pylint_stderr) = lint.py_run(file_path, return_std=True)
-    
-    if pylint_stderr.getvalue():
-        print(f"Error while linting file {file_path}: {pylint_stderr.getvalue()}")
-        
-    print(pylint_stdout.getvalue())
+# Step 2: Stage the file that has been modified
+git add probe0_lint_error.py
 
-# Defining the function to fix lint errors in python file
-def fix_lint_errors_in_python_file(file_path: str) -> None:
-    lint_python_file(file_path)
-    # Based on the issues identified we can now fix the issues
-    # This part is highly specific to the issues at hand and cannot be generalized
+# Step 3: Commit the changes
+git commit -m "Fix lint errors in probe0_lint_error.py"
 
-# Path of the file to be linted
-file_path = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
+# Step 4: Push the changes to the remote repository
+git push origin master
 
-# Linting the python file
-fix_lint_errors_in_python_file(file_path)
+# Note: replace 'master' with the name of your branch, if you are not on 'master'
