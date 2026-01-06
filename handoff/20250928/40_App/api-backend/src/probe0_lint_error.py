@@ -1,2 +1,20 @@
+# probe0_lint_error.py
 
-The output of this command will show you the linting errors. You need to fix these errors manually by editing the file. For example, if pylint complained about a lack of module docstring, you could add one:
+def add_numbers(num1: int, num2: int) -> int:
+    """
+    Add two integers and return the result
+
+    :param num1: First integer
+    :param num2: Second integer
+    :return: Sum of num1 and num2
+    """
+    try:
+        result = num1 + num2
+        return result
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+if __name__ == "__main__":
+    print(add_numbers(5, 10))
