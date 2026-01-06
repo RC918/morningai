@@ -1,4 +1,10 @@
+# Assuming the lint error was an unused variable
 
-2. Fix the lint errors manually in your code editor. The linter will provide descriptions of the errors and often suggest how to fix them.
+# Before
+def example():
+    unused_var = 5
+    print("Hello, World!")
 
-3. After fixing the errors, run the linter again to ensure all errors have been fixed.
+# After
+def example():
+    print("Hello, World!")
