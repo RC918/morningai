@@ -620,6 +620,15 @@ class SimpleGitTool:
                                     # Per code review: support multiple commits using
                                     # base_sha..commit_sha range instead of single SHA
                                     # This handles cases where multiple commits were created
+                                    # Issue #3614: Set git identity inline for cherry-pick
+                                    # After checkout -B, the committer identity may not be
+                                    # available in the new checkout context. Using -c options
+                                    # ensures identity is always set regardless of git config.
+                                    git_identity_args = [
+                                        '-c', f'user.email={self.DEFAULT_GIT_AUTHOR_EMAIL}',
+                                        '-c', f'user.name={self.DEFAULT_GIT_AUTHOR_NAME}',
+                                    ]
+
                                     if base_sha and base_sha != commit_sha:
                                         # Use range to get all commits created by this invocation
                                         # Note: base_sha..commit_sha means "commits reachable from
@@ -632,7 +641,8 @@ class SimpleGitTool:
                                             f"in range {cherry_pick_range}"
                                         )
                                         cherry_pick_cmd = [
-                                            'git', 'cherry-pick', cherry_pick_range
+                                            'git', *git_identity_args,
+                                            'cherry-pick', cherry_pick_range
                                         ]
                                     else:
                                         # Fallback: single commit if base_sha not available
@@ -654,7 +664,8 @@ class SimpleGitTool:
                                             f"{commit_sha[:8]}"
                                         )
                                         cherry_pick_cmd = [
-                                            'git', 'cherry-pick', commit_sha
+                                            'git', *git_identity_args,
+                                            'cherry-pick', commit_sha
                                         ]
 
                                     cherry_pick_result = subprocess.run(
