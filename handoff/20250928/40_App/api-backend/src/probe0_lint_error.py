@@ -1,2 +1,2 @@
 
-This will print out any linting errors in your terminal. Suppose the linter is complaining about a lack of space around an operator. In that case, you might have a line of code that looks like this:
+The output of this command will show you the linting errors. You need to fix these errors manually by editing the file. For example, if pylint complained about a lack of module docstring, you could add one:
