@@ -1,2 +1,9 @@
+# probe0_lint_error.py
 
-2. Run the linter to identify linting errors. You can run it on the specific file you mentioned.
+# Importing necessary libraries
+import os  # Unused import
+from flask import Flask
+
+def create_app():
+    app = Flask(__name__)
+    return app
