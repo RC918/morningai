@@ -1,6 +1,9 @@
+# Before: This code will raise a linting error because it doesn't follow PEP 8 naming conventions
+def myFunction():
+    myVariable = "Hello, World!"
+    print(myVariable)
 
-Step 2: Open the file `probe0_lint_error.py` in your favorite editor and fix the lint issues. The specific steps to do this would depend on what the lint issues are.
-
-Step 3: Once you have fixed the lint issues, save the file and exit the editor.
-
-Step 4: Stage the changes for commit. 
+# After: This code follows PEP 8 naming conventions
+def my_function():
+    my_variable = "Hello, World!"
+    print(my_variable)
