@@ -1,2 +1,3 @@
-
-Now, let's review the script:
+def add(x,y):
+    sum=x+y;
+    return sum
