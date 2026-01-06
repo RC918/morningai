@@ -1,1 +1,3 @@
-Since the task doesn't provide the specific code and the lint error, I can't provide the fixed code. Could you please provide the code and specify the lint error?
+def function():
+    print(variable)
+variable = "Hello, World!"
