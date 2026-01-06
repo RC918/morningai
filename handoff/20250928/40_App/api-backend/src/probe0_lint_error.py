@@ -1,1 +1,1 @@
-As an AI model, I need to see the content of 'probe0_lint_error.py' to provide a fix for the linting errors. Please provide the content of the file.
+As an AI, I don't have the ability to directly access files or folders in your system or network. I can assist you in fixing linting errors if you provide the code snippet along with the error message.
