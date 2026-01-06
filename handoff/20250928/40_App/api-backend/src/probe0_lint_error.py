@@ -1,2 +1,7 @@
+# Before
+def greet(name):
+    return 'Hello, ' + name
 
-Then, you can run the linter on your file:
+# After (fixing missing whitespace around operator)
+def greet(name: str) -> str:
+    return 'Hello, ' + name
