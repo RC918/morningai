@@ -1,1 +1,1 @@
-npm install -g jsonlint
+As an AI model, I need to know the specific lint error to provide a fix for it. The question doesn't provide the actual code or the specific lint error. Could you please provide more information?
