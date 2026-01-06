@@ -1,18 +1,13 @@
-import pylint.lint
-import sys
+# Example of cleaning up code to fix linting errors
 
-def lint_file(file_path: str) -> None:
-    try:
-        # Run PyLint on the file
-        pylint_opts = [file_path]
-        pylint.lint.Run(pylint_opts)
-    except Exception as e:
-        print(f"An error occurred during linting: {e}", file=sys.stderr)
-        sys.exit(1)
+def function_with_lint_errors():    # missing docstring and type hints
+    a=1    # incorrect spacing
+    return a
 
-def main() -> None:
-    file_to_lint = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
-    lint_file(file_to_lint)
-
-if __name__ == "__main__":
-    main()
+# Cleaned up version
+def cleaned_function() -> int:
+    """
+    A function that returns 1.
+    """
+    a = 1
+    return a
