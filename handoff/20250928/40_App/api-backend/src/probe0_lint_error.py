@@ -1,1 +1,1 @@
-As an AI model, I'm unable to run a linter locally or check GitHub Actions logs. Please provide the specific lint error that needs to be fixed in the 'probe0_lint_error.py' file.
+As an AI model, I need the actual content of the file 'probe0_lint_error.py' to identify and fix the linting errors. Could you please provide the content of the file or describe the linting error?
