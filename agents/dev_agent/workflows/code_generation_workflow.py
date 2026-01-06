@@ -10,6 +10,7 @@ Supports 5 task types:
 4. Test Generation
 5. Documentation Update
 """
+import ast
 import logging
 import re
 import time
@@ -530,8 +531,48 @@ class CodeGenerationWorkflow:
 
         return state
 
+    def _validate_python_syntax(self, code: str, file_path: str) -> tuple:
+        """
+        Validate Python code syntax using ast.parse.
+
+        Issue #3629: P4 fail-closed validation to prevent writing invalid code.
+        When the LLM generates conversational text instead of code (e.g.,
+        "As an AI model, I need to see..."), this validation catches it before
+        the invalid content is written to disk.
+
+        Args:
+            code: The generated code to validate
+            file_path: The target file path (for error messages)
+
+        Returns:
+            Tuple of (is_valid: bool, error_message: str or None)
+        """
+        try:
+            ast.parse(code)
+            return (True, None)
+        except SyntaxError as e:
+            error_msg = (
+                f"Generated code has invalid Python syntax: "
+                f"{e.msg} at line {e.lineno}, column {e.offset}"
+            )
+            logger.error(
+                f"[Stage 5] {error_msg}",
+                extra={
+                    "operation": "apply_code_syntax_validation",
+                    "file_path": file_path,
+                    "syntax_error_line": e.lineno,
+                    "syntax_error_msg": e.msg,
+                    "code_preview": code[:200] if code else "",
+                }
+            )
+            return (False, error_msg)
+
     async def apply_code(self, state: CodeGenState) -> CodeGenState:
-        """Stage 5: Apply generated code to files with atomic writes"""
+        """Stage 5: Apply generated code to files with atomic writes
+
+        Issue #3629: Added fail-closed validation for Python files using ast.parse.
+        This prevents writing invalid code (e.g., LLM conversational text) to disk.
+        """
         logger.info(f"[Stage 5] Applying code for task #{state['task_id']}")
 
         try:
@@ -553,6 +594,25 @@ class CodeGenerationWorkflow:
                 state["error"] = f"Unsafe file path in apply_code: {target_file}"
                 logger.error(state["error"])
                 return state
+
+            # Issue #3629: P4 fail-closed validation for Python files
+            # Validate syntax BEFORE writing to prevent corrupting files with
+            # invalid LLM output (e.g., conversational text instead of code)
+            if target_file.endswith(".py"):
+                is_valid, syntax_error = self._validate_python_syntax(
+                    generated_code, target_file
+                )
+                if not is_valid:
+                    state["error"] = syntax_error
+                    logger.error(
+                        f"[Stage 5] Refusing to write invalid Python code to {target_file}",
+                        extra={
+                            "operation": "apply_code_fail_closed",
+                            "file_path": target_file,
+                            "task_id": state["task_id"],
+                        }
+                    )
+                    return state
 
             # Issue #3616: Use helper for path conversion with sandbox validation
             abs_target_file = self._to_abs_repo_path(target_file)
