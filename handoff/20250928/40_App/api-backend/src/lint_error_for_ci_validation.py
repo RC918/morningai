@@ -1,4 +1,19 @@
+# Example of original code with possible lint errors
+def example_function(a,b):
+    c=a+b
+    return c
 
-This command will output any linting errors found in the file. You can then fix these errors manually in your code editor. 
+# Example of fixed code following flake8 rules
+def example_function(a: int, b: int) -> int:
+    """
+    Add two integers and return result.
 
-Please note: For this to work, you need to have `flake8` installed in your Python environment. You can install it using pip:
+    Parameters:
+        a (int): The first integer
+        b (int): The second integer
+
+    Returns:
+        int: The sum of the two integers
+    """
+    c = a + b
+    return c
