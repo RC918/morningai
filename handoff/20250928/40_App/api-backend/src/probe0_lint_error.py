@@ -1,7 +1,2 @@
-import os, sys
 
-def func(flag):
- if flag==None:
-  print('Flag is None')
- else:
-  print('Flag is not None')
+Step 2: Run Pylint on your python file
