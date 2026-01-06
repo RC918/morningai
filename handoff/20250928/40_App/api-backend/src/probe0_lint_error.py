@@ -1,11 +1,5 @@
+2. Review the errors, warnings, refactors, and conventions reported by pylint. Fix these issues by editing the Python file according to the Python PEP 8 style guide.
 
-Pylint will output some messages about any linting errors it finds.
+Here's a very basic example:
 
-Let's say you get the following errors on the Python file:
-
-1. Line too long (82/80)
-2. Variable name "x" doesn't conform to snake_case naming style
-3. Missing module docstring
-4. Missing function docstring
-
-A possible version of your Python file (probe0_lint_error.py) could be:
+Original code:
