@@ -1,8 +1,2 @@
-from math import sqrt
-import os
 
-def calculate_square(number):
-    result = sqrt(number)
-    print(f"The square root of {number} is {result}")
-
-calculate_square(16)
+This will print out any linting errors in your terminal. Suppose the linter is complaining about a lack of space around an operator. In that case, you might have a line of code that looks like this:
