@@ -1,1 +1,1 @@
-As an AI model developed by OpenAI, I need to see the content of the files "probe0_lint_error.py" and "planner_runs.jsonl" to assist you in fixing the linting errors. Please provide the content of these files so I can help you further.
+As an AI model, I need to see the content of the file "probe0_lint_error.py" and the specific lint error to provide a solution. Please provide the content of the file and the specific lint error that needs to be fixed.
