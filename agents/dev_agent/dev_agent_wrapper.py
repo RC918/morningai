@@ -499,7 +499,22 @@ class SimpleGitTool:
                 )
 
                 # Issue #3609: Root Cause #31 - Handle non-fast-forward rejection
-                # If push fails due to remote having newer commits, try fetch+rebase+retry
+                # Issue #3612: Root Cause #32 - Use cherry-pick instead of rebase
+                #
+                # Problem with rebase approach:
+                # When the worker's workspace is based on a different commit chain
+                # (e.g., an older main branch), 'git rebase origin/<branch>' tries to
+                # replay ALL commits between the local base and HEAD, including commits
+                # that are already in the remote branch. This causes conflicts.
+                #
+                # Solution: Cherry-pick only the newly created commit(s) onto the
+                # remote branch tip. This avoids replaying unrelated commits.
+                #
+                # Steps:
+                # 1. Fetch the latest remote branch
+                # 2. Checkout the remote branch tip (creates local branch at that point)
+                # 3. Cherry-pick the commit we just created (commit_sha)
+                # 4. Push again
                 if push_result.returncode != 0:
                     stderr = push_result.stderr
                     is_non_fast_forward = (
@@ -511,7 +526,7 @@ class SimpleGitTool:
                     if is_non_fast_forward:
                         logger.warning(
                             f"[SimpleGitTool] Push rejected (non-fast-forward), "
-                            f"attempting fetch+rebase+retry for branch '{push_target}'"
+                            f"attempting fetch+cherry-pick+retry for branch '{push_target}'"
                         )
 
                         # Step 1: Fetch the latest remote branch
@@ -538,76 +553,106 @@ class SimpleGitTool:
                                 f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
                             )
 
-                            # Step 2: Rebase local commit(s) on top of remote
-                            # This replays local commits on top of the fetched remote branch
-                            rebase_cmd = [
-                                'git', 'rebase',
+                            # Step 2: Checkout the remote branch tip
+                            # Use -B to force create/reset the local branch to remote tip
+                            # This moves HEAD to the latest remote state
+                            checkout_cmd = [
+                                'git', 'checkout', '-B', push_target,
                                 f'{self.DEFAULT_REMOTE_NAME}/{push_target}'
                             ]
-                            rebase_result = subprocess.run(
-                                rebase_cmd,
+                            checkout_result = subprocess.run(
+                                checkout_cmd,
                                 capture_output=True,
                                 text=True,
                                 cwd=cwd,
                                 env=push_env
                             )
 
-                            if rebase_result.returncode != 0:
-                                # Rebase failed (likely conflicts) - abort and report
+                            if checkout_result.returncode != 0:
                                 logger.error(
-                                    f"[SimpleGitTool] Rebase failed during retry: "
-                                    f"{rebase_result.stderr}"
+                                    f"[SimpleGitTool] Checkout failed during retry: "
+                                    f"{checkout_result.stderr}"
                                 )
-                                # Abort the rebase to restore clean state
-                                # Per gemini-code-assist review: check abort result
-                                abort_result = subprocess.run(
-                                    ['git', 'rebase', '--abort'],
-                                    capture_output=True,
-                                    text=True,
-                                    cwd=cwd,
-                                    env=push_env
-                                )
-                                if abort_result.returncode == 0:
-                                    logger.info(
-                                        "[SimpleGitTool] Rebase aborted, "
-                                        "returning original push error"
-                                    )
-                                else:
-                                    # Note: "No rebase in progress" is not critical
-                                    logger.warning(
-                                        f"[SimpleGitTool] 'git rebase --abort' returned "
-                                        f"non-zero: {abort_result.stderr.strip()}"
-                                    )
                                 # Fall through to return the original push error
                             else:
                                 logger.info(
-                                    f"[SimpleGitTool] Rebased successfully onto "
+                                    f"[SimpleGitTool] Checked out "
                                     f"{self.DEFAULT_REMOTE_NAME}/{push_target}"
                                 )
 
-                                # Step 3: Retry push
-                                retry_push_result = subprocess.run(
-                                    push_cmd,
+                                # Step 3: Cherry-pick the commit we just created
+                                # This transplants only our fix commit onto the remote tip
+                                cherry_pick_cmd = [
+                                    'git', 'cherry-pick', commit_sha
+                                ]
+                                cherry_pick_result = subprocess.run(
+                                    cherry_pick_cmd,
                                     capture_output=True,
                                     text=True,
                                     cwd=cwd,
                                     env=push_env
                                 )
 
-                                if retry_push_result.returncode == 0:
-                                    logger.info(
-                                        "[SimpleGitTool] Retry push succeeded "
-                                        "after fetch+rebase"
-                                    )
-                                    # Update push_result for success path
-                                    push_result = retry_push_result
-                                else:
+                                if cherry_pick_result.returncode != 0:
+                                    # Cherry-pick failed (likely conflicts) - abort
                                     logger.error(
-                                        f"[SimpleGitTool] Retry push failed: "
-                                        f"{retry_push_result.stderr}"
+                                        f"[SimpleGitTool] Cherry-pick failed during retry: "
+                                        f"{cherry_pick_result.stderr}"
                                     )
-                                    # Update push_result with retry error
-                                    push_result = retry_push_result
+                                    # Abort the cherry-pick to restore clean state
+                                    abort_result = subprocess.run(
+                                        ['git', 'cherry-pick', '--abort'],
+                                        capture_output=True,
+                                        text=True,
+                                        cwd=cwd,
+                                        env=push_env
+                                    )
+                                    if abort_result.returncode == 0:
+                                        logger.info(
+                                            "[SimpleGitTool] Cherry-pick aborted, "
+                                            "returning original push error"
+                                        )
+                                    else:
+                                        # Note: "No cherry-pick in progress" is not critical
+                                        logger.warning(
+                                            f"[SimpleGitTool] 'git cherry-pick --abort' "
+                                            f"returned non-zero: {abort_result.stderr.strip()}"
+                                        )
+                                    # Fall through to return the original push error
+                                else:
+                                    logger.info(
+                                        f"[SimpleGitTool] Cherry-picked {commit_sha[:8]} "
+                                        f"onto {self.DEFAULT_REMOTE_NAME}/{push_target}"
+                                    )
+
+                                    # Step 4: Retry push (now from the local branch)
+                                    # Update push_cmd to push the local branch
+                                    retry_push_cmd = [
+                                        'git', 'push', '-u', self.DEFAULT_REMOTE_NAME,
+                                        f'{push_target}:refs/heads/{push_target}'
+                                    ]
+                                    retry_push_result = subprocess.run(
+                                        retry_push_cmd,
+                                        capture_output=True,
+                                        text=True,
+                                        cwd=cwd,
+                                        env=push_env
+                                    )
+
+                                    if retry_push_result.returncode == 0:
+                                        logger.info(
+                                            "[SimpleGitTool] Retry push succeeded "
+                                            "after fetch+cherry-pick"
+                                        )
+                                        # Update push_result for success path
+                                        push_result = retry_push_result
+                                    else:
+                                        logger.error(
+                                            f"[SimpleGitTool] Retry push failed: "
+                                            f"{retry_push_result.stderr}"
+                                        )
+                                        # Update push_result with retry error
+                                        push_result = retry_push_result
 
             finally:
                 # Always clean up the askpass script
