@@ -1,1 +1,1 @@
-As an AI model, I am unable to access the file 'probe0_lint_error.py' in the directory 'handoff/20250928/40_App/api-backend/src/'. If you could provide the content of the file and specify the lint error, I would be happy to help you fix it.
+npm install -g jsonlint
