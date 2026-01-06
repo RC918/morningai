@@ -1,2 +1,2 @@
 
-Then, you can run flake8 on your file:
+After that, you can run the following Python script:
