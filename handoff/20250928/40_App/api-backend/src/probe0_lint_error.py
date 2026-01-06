@@ -2,7 +2,7 @@
 Probe 0: CI Failure Path Validation - SimpleCoder Sanity Check
 
 This file intentionally has a lint error (undefined variable).
-When CI runs flake8, it should fail with F821 (undefined name 'reuslt').
+When CI runs Ruff linter, it should fail with F821 (undefined name 'reuslt').
 The CI failure webhook should trigger AutoFixer via the CI failure path.
 SimpleCoder should be able to fix the undefined variable.
 
