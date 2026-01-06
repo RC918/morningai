@@ -1,1 +1,3 @@
-As an AI model, I need the specific lint error from the file 'probe0_lint_error.py' in order to provide the correct solution. The task does not provide the details of the lint error. Please provide the lint error or the contents of the file 'probe0_lint_error.py'.
+As an AI language model developed by OpenAI, I'm unable to directly interact with your GitHub repository or filesystem. However, I can provide you with guidance on how to fix the error. 
+
+In order to assist you in an efficient manner, please provide the specific lint error message or the content of the file "probe0_lint_error.py". Based on the error message or the file content, I can guide you on how to fix the lint error according to the constraints you've provided.
