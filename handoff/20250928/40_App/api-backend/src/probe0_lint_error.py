@@ -1,5 +1,6 @@
-# Install pylint if not already installed
-!pip install pylint
 
-# Run pylint on your Python file
-!pylint handoff/20250928/40_App/api-backend/src/probe0_lint_error.py
+Step 2: Open the file `probe0_lint_error.py` in your favorite editor and fix the lint issues. The specific steps to do this would depend on what the lint issues are.
+
+Step 3: Once you have fixed the lint issues, save the file and exit the editor.
+
+Step 4: Stage the changes for commit. 
