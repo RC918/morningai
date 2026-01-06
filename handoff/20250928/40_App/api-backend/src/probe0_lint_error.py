@@ -1,1 +1,9 @@
-As an AI model, I need the actual content of the file 'probe0_lint_error.py' to identify and fix the linting errors. Could you please provide the content of the file or describe the linting error?
+import json
+
+try:
+    with open('planner_runs.jsonl', 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            data = json.loads(line)
+except json.JSONDecodeError:
+    print("Invalid JSON")
