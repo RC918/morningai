@@ -1,2 +1,4 @@
-# command line
-pylint handoff/20250928/40_App/api-backend/src/probe0_lint_error.py
+
+2. Run the linter on the target file:
+
+You can run the linter on your target file to see what issues it brings up. 
