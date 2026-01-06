@@ -1,1 +1,2 @@
-As an AI model, I don't have direct access to the file you mentioned. However, I can guide you on how to fix the common lint errors. Please provide the code or specify the lint error you're facing to get a more precise solution.
+
+Then you can use the following Python script to check for linting issues:
