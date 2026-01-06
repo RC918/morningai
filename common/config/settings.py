@@ -560,9 +560,9 @@ class Settings(BaseSettings):
     )
 
     llm_provider: Literal["openai", "gemini", "alicloud", "siliconflow", "auto"] = Field(
-        default="openai",
+        default="auto",
         alias="LLM_PROVIDER",
-        description="LLM provider for text generation (openai, gemini, alicloud, siliconflow, auto)"
+        description="LLM provider for text generation (openai, gemini, alicloud, siliconflow, auto). Auto selects Qwen-first."
     )
 
     gemini_api_key_secret: Optional[SecretStr] = Field(
