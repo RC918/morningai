@@ -1,43 +1,52 @@
-# pylint: disable=invalid-name
-import sys
+import pylint.lint
+import pylint.epylint as lint
+import ast
+from typing import Tuple
 
-def fix_lint_error(file_path: str) -> None:
+def lint_error(filename: str) -> Tuple[int, int, str]:
     """
-    This function fixes lint error by using autopep8 tool
+    Function to lint the python file and return the results.
 
     Args:
-        file_path (str): The path to the file with lint errors
+    filename (str): The python file to lint.
+
+    Returns:
+    Tuple[int, int, str]: The number of errors, the number of warnings and the report of the lint.
     """
+    (pylint_stdout, pylint_stderr) = lint.py_run(filename, return_std=True)
+    lint_report = pylint_stdout.getvalue()
+
+    # Parse the report to get the number of errors and warnings
+    num_errors = sum(1 for line in lint_report.split("\n") if "E:" in line)
+    num_warnings = sum(1 for line in lint_report.split("\n") if "W:" in line)
+
+    return num_errors, num_warnings, lint_report
+
+def fix_lint() -> None:
+    """
+    Function to fix the linting errors of the python file.
+    """
+    filename = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
     try:
-        # Importing required modules
-        import autopep8
+        with open(filename, 'r') as file:
+            try:
+                # Check if the file is a valid python file
+                ast.parse(file.read())
+            except SyntaxError as e:
+                print(f"SyntaxError: {e}")
+                return
 
-        # Reading the file
-        with open(file_path, "r") as file:
-            code = file.read()
+        # Lint the file
+        num_errors, num_warnings, lint_report = lint_error(filename)
 
-        # Fixing the lint errors
-        fixed_code = autopep8.fix_code(code)
+        # Print the lint report
+        print(lint_report)
 
-        # Writing the fixed code back to the file
-        with open(file_path, "w") as file:
-            file.write(fixed_code)
-
-        print(f"Lint errors in {file_path} have been fixed.")
-
-    except ImportError:
-        print("Please install autopep8 module to fix lint errors. Run 'pip install autopep8'")
-        sys.exit(1)
+        # If there are errors or warnings, manually fix them
+        if num_errors > 0 or num_warnings > 0:
+            print(f"The file {filename} has {num_errors} errors and {num_warnings} warnings. Please fix them manually.")
     except FileNotFoundError:
-        print(f"File {file_path} not found.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        sys.exit(1)
-
+        print(f"The file {filename} does not exist.")
 
 if __name__ == "__main__":
-    # Path to the file with lint errors
-    file_path = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
-    # Call function to fix lint errors
-    fix_lint_error(file_path)
+    fix_lint()
