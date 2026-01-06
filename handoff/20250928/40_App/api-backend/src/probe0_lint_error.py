@@ -1,2 +1,2 @@
-
-2. Run Pylint on your file:
+result = calculate_sum(a, b)
+return reuslt  # typo here
