@@ -4956,21 +4956,55 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
     # Issue #3618: Synthesize review_outcome for CI failure path
     # CI failure fast path bypasses reviewer_node which normally populates review_outcome.
     # Without review_outcome, is_autofix_allowed() gate always fails.
-    # Synthesize minimal review_outcome for low-risk CI failures (lint, docstring, etc.)
+    #
+    # These are the MINIMAL fields required by is_autofix_allowed() in coder/autofix_gate.py:
+    # - schema_validated: Must be True for autofix to proceed
+    # - severity: Must be "low" for SimpleCoder (higher severity blocks autofix)
+    # - diff_truncated: Must be False for autofix to proceed
+    #
+    # We use setdefault() to only fill missing keys, preserving any values set by upstream.
+    # This avoids brittleness if reviewer_node adds more fields in the future.
     existing_review_outcome = state.get("review_outcome")
-    if not existing_review_outcome:
+    if existing_review_outcome is None:
+        # No review_outcome at all - create minimal dict for autofix gate
+        ci_context = state.get("ci_failure_context", {})
+        failed_check_name = (ci_context.get("failed_check_name") or "").lower()
+
+        # Infer severity from CI failure type to prevent unsafe auto-fixes
+        # Security/vulnerability scans and build failures should NOT be auto-fixed
+        severity = "low"
+        if any(k in failed_check_name for k in ["security", "scan", "vulnerability"]):
+            severity = "critical"
+        elif any(k in failed_check_name for k in ["build", "compile"]):
+            severity = "high"
+
         state["review_outcome"] = {
             "schema_validated": True,
-            "severity": "low",
+            "severity": severity,
             "diff_truncated": False,
         }
         logger.info(
             f"[Fixer] Synthesized review_outcome for CI failure path. "
-            f"trace_id={trace_id}",
+            f"failed_check={failed_check_name}, severity={severity}, trace_id={trace_id}",
             extra={
                 "operation": "fixer_synthesize_review_outcome",
                 "trace_id": trace_id,
-                "review_outcome": state["review_outcome"],
+                "failed_check_name": failed_check_name,
+                "severity": severity,
+            }
+        )
+    elif isinstance(existing_review_outcome, dict):
+        # review_outcome exists but may be missing required keys - fill only missing ones
+        # This preserves any upstream-set values (e.g., severity from reviewer_node)
+        existing_review_outcome.setdefault("schema_validated", True)
+        existing_review_outcome.setdefault("severity", "low")
+        existing_review_outcome.setdefault("diff_truncated", False)
+        logger.debug(
+            f"[Fixer] Filled missing review_outcome keys for CI failure path. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "fixer_fill_review_outcome",
+                "trace_id": trace_id,
             }
         )
 
