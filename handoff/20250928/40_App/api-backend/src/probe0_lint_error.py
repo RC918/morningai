@@ -1,12 +1,30 @@
+# Importing required modules
+import pylint.lint
+import pylint.epylint as lint
+from typing import NoReturn
 
-2. The linting tool will output a list of errors and warnings in your python file. The output will also contain the line and column number where the error is located.
+# Function to fix lint errors
+def fix_lint_errors(file_path: str) -> NoReturn:
+    """
+    Function to fix lint errors in a python file
+    :param file_path: path of the python file
+    :return: NoReturn
+    """
+    try:
+        # Running pylint on the file
+        (pylint_stdout, pylint_stderr) = lint.py_run(file_path, return_std=True)
 
-3. Open the file `handoff/20250928/40_App/api-backend/src/probe0_lint_error.py` in your code editor.
+        # Printing pylint's standard output
+        print(pylint_stdout.getvalue())
 
-4. Navigate to the line and column number of the first error.
+        # Printing pylint's standard error
+        if pylint_stderr.getvalue():
+            print(pylint_stderr.getvalue())
 
-5. Fix the error. This could be a syntax error, incorrect indentation, unused variable, etc.
+    except Exception as e:
+        print(f"An error occurred while trying to lint the file: {str(e)}")
 
-6. Repeat steps 4 and 5 for all errors and warnings.
 
-7. After you have fixed all errors, run the linting tool again to ensure that there are no more errors:
+# Main function
+if __name__ == "__main__":
+    fix_lint_errors("handoff/20250928/40_App/api-backend/src/probe0_lint_error.py")
