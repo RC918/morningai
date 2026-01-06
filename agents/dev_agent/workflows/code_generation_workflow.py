@@ -352,9 +352,13 @@ class CodeGenerationWorkflow:
 
             state["file_backups"] = {}
             for file_path in target_files:
-                if os.path.exists(file_path):
+                # Issue #3616: Join with repo_root to ensure correct path regardless of CWD
+                # file_path is repo-relative, but file I/O needs absolute path
+                abs_file_path = os.path.join(self.repo_root, file_path)
+                if os.path.exists(abs_file_path):
                     try:
-                        with open(file_path, 'r') as f:
+                        with open(abs_file_path, 'r') as f:
+                            # Store backup keyed by repo-relative path for consistency
                             state["file_backups"][file_path] = f.read()
                         logger.info(f"Backed up: {file_path}")
                     except Exception as e:
@@ -507,12 +511,16 @@ class CodeGenerationWorkflow:
                 logger.error(state["error"])
                 return state
 
+            # Issue #3616: Join with repo_root to ensure correct path regardless of CWD
+            # target_file is repo-relative, but file I/O needs absolute path
+            abs_target_file = os.path.join(self.repo_root, target_file)
+
             try:
-                os.makedirs(os.path.dirname(target_file), exist_ok=True)
+                os.makedirs(os.path.dirname(abs_target_file), exist_ok=True)
 
                 import tempfile
                 temp_fd, temp_path = tempfile.mkstemp(
-                    dir=os.path.dirname(target_file),
+                    dir=os.path.dirname(abs_target_file),
                     prefix='.tmp_',
                     suffix=os.path.basename(target_file)
                 )
@@ -523,7 +531,7 @@ class CodeGenerationWorkflow:
                         f.flush()
                         os.fsync(f.fileno())
 
-                    os.replace(temp_path, target_file)
+                    os.replace(temp_path, abs_target_file)
                     logger.info(f"Applied code atomically to: {target_file}")
 
                 except Exception as e:
@@ -992,7 +1000,10 @@ Generate the complete code:"""
         try:
             for file_path, backup_content in state.get("file_backups", {}).items():
                 try:
-                    with open(file_path, 'w') as f:
+                    # Issue #3616: Join with repo_root to ensure correct path regardless of CWD
+                    # file_path is repo-relative, but file I/O needs absolute path
+                    abs_file_path = os.path.join(self.repo_root, file_path)
+                    with open(abs_file_path, 'w') as f:
                         f.write(backup_content)
                     logger.info(f"Rolled back: {file_path}")
                 except Exception as e:
