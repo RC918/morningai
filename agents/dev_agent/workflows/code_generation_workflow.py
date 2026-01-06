@@ -352,17 +352,21 @@ class CodeGenerationWorkflow:
 
             state["file_backups"] = {}
             for file_path in target_files:
-                # Issue #3616: Join with repo_root to ensure correct path regardless of CWD
-                # file_path is repo-relative, but file I/O needs absolute path
-                abs_file_path = os.path.join(self.repo_root, file_path)
-                if os.path.exists(abs_file_path):
-                    try:
+                try:
+                    # Issue #3616: Use helper for path conversion with sandbox validation
+                    # This provides defense-in-depth since analyze_context runs
+                    # BEFORE validate_security in the workflow
+                    abs_file_path = self._to_abs_repo_path(file_path)
+                    if os.path.exists(abs_file_path):
                         with open(abs_file_path, 'r') as f:
                             # Store backup keyed by repo-relative path for consistency
                             state["file_backups"][file_path] = f.read()
                         logger.info(f"Backed up: {file_path}")
-                    except Exception as e:
-                        logger.warning(f"Could not backup {file_path}: {e}")
+                except ValueError as e:
+                    # Path validation failed (traversal attempt or absolute path)
+                    logger.warning(f"Skipping unsafe path {file_path}: {e}")
+                except Exception as e:
+                    logger.warning(f"Could not backup {file_path}: {e}")
 
         except Exception as e:
             state["error"] = f"Context analysis failed: {str(e)}"
@@ -511,9 +515,8 @@ class CodeGenerationWorkflow:
                 logger.error(state["error"])
                 return state
 
-            # Issue #3616: Join with repo_root to ensure correct path regardless of CWD
-            # target_file is repo-relative, but file I/O needs absolute path
-            abs_target_file = os.path.join(self.repo_root, target_file)
+            # Issue #3616: Use helper for path conversion with sandbox validation
+            abs_target_file = self._to_abs_repo_path(target_file)
 
             try:
                 os.makedirs(os.path.dirname(abs_target_file), exist_ok=True)
@@ -993,6 +996,47 @@ Generate the complete code:"""
 
         return f"--- OLD\n{old_code[:250]}\n\n+++ NEW\n{new_code[:250]}"
 
+    def _to_abs_repo_path(self, rel_path: str) -> str:
+        """Convert repo-relative path to absolute path with sandbox validation.
+
+        Issue #3616: Centralizes path conversion and adds defense-in-depth
+        against directory traversal. This is important because analyze_context
+        runs BEFORE validate_security, so we need early protection.
+
+        Args:
+            rel_path: Repo-relative file path (e.g., 'src/main.py')
+
+        Returns:
+            Absolute path under repo_root
+
+        Raises:
+            ValueError: If path would escape repo_root (directory traversal)
+            ValueError: If path is already absolute (unexpected input)
+        """
+        # Reject absolute paths - they should never be passed here
+        if os.path.isabs(rel_path):
+            raise ValueError(f"Expected repo-relative path, got absolute: {rel_path}")
+
+        # Join and resolve to absolute path
+        abs_path = os.path.realpath(os.path.join(self.repo_root, rel_path))
+        real_repo_root = os.path.realpath(self.repo_root)
+
+        # Sandbox check: ensure resolved path is under repo_root
+        # Use commonpath instead of startswith to avoid prefix attacks
+        # (e.g., /repo/root2 would match startswith /repo/root)
+        try:
+            common = os.path.commonpath([abs_path, real_repo_root])
+            if common != real_repo_root:
+                raise ValueError(
+                    f"Path escapes repo root: {rel_path} -> {abs_path}"
+                )
+        except ValueError as e:
+            # commonpath raises ValueError if paths are on different drives (Windows)
+            # or if one is relative and one is absolute
+            raise ValueError(f"Invalid path comparison: {rel_path}") from e
+
+        return abs_path
+
     def _rollback_changes(self, state: CodeGenState):
         """Rollback code changes on error"""
         logger.info("Rolling back changes...")
@@ -1000,12 +1044,14 @@ Generate the complete code:"""
         try:
             for file_path, backup_content in state.get("file_backups", {}).items():
                 try:
-                    # Issue #3616: Join with repo_root to ensure correct path regardless of CWD
-                    # file_path is repo-relative, but file I/O needs absolute path
-                    abs_file_path = os.path.join(self.repo_root, file_path)
+                    # Issue #3616: Use helper for path conversion with sandbox validation
+                    abs_file_path = self._to_abs_repo_path(file_path)
                     with open(abs_file_path, 'w') as f:
                         f.write(backup_content)
                     logger.info(f"Rolled back: {file_path}")
+                except ValueError as e:
+                    # Path validation failed - skip this file but continue rollback
+                    logger.error(f"Cannot rollback unsafe path {file_path}: {e}")
                 except Exception as e:
                     logger.error(f"Failed to rollback {file_path}: {e}")
 
