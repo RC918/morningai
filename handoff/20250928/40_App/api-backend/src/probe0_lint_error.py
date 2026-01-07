@@ -1,2 +1,2 @@
 
-2. Run the linter on the script:
+2. Run pylint on the specified Python file to see the lint errors:
