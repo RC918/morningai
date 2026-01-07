@@ -937,46 +937,60 @@ class TestTool:
 
 
 class SimpleLLM:
-    """Simple LLM wrapper for OpenAI.
+    """Simple LLM wrapper using unified LLMClient.
 
     Issue #3581: Added timeout configuration to prevent hanging LLM calls.
-    The OpenAI v1 SDK uses httpx under the hood, which has a default timeout
-    of 600 seconds. This was causing code generation to hang for 10+ minutes
-    before the RQ worker was killed.
-
     Default timeout: 120 seconds (configurable via CODEGEN_LLM_TIMEOUT_SECONDS)
+
+    EPIC D Fix: Migrated from hardcoded OpenAI to LLMClient abstraction layer.
+    This allows SimpleCoder to use the configured LLM provider (e.g., Qwen via
+    alicloud) instead of always using OpenAI. The provider is determined by:
+    1. LLM_PROVIDER environment variable (e.g., "alicloud", "siliconflow")
+    2. ROUTING_ALLOWED_PROVIDERS for governance filtering
+    3. Auto-selection based on available API keys (Qwen-first per EPIC #2594)
     """
 
     # Default timeout in seconds for LLM calls
     DEFAULT_TIMEOUT_SECONDS = 120
 
-    def __init__(self, api_key: str, timeout: Optional[int] = None):
-        """Initialize LLM with API key.
+    def __init__(self, api_key: str = None, timeout: Optional[int] = None):
+        """Initialize LLM using unified LLMClient.
 
         Args:
-            api_key: OpenAI API key
+            api_key: Deprecated - kept for backward compatibility but ignored.
+                     LLMClient uses provider-specific API keys from settings.
             timeout: Request timeout in seconds (default: 120s from settings or DEFAULT_TIMEOUT_SECONDS)
         """
-        from openai import OpenAI
+        # Import LLMClient from orchestrator's llm module
+        # This provides unified access to all LLM providers (OpenAI, Gemini, Qwen, etc.)
+        try:
+            from llm.client import LLMClient
+        except ImportError:
+            # Fallback import path for different execution contexts
+            from handoff.orchestrator.llm.client import LLMClient
 
         # Get timeout from settings, parameter, or default
         self.timeout = timeout or getattr(settings, 'codegen_llm_timeout_seconds', self.DEFAULT_TIMEOUT_SECONDS)
 
-        # Initialize OpenAI client with explicit timeout
-        # OpenAI v1 SDK accepts timeout parameter directly
-        self.client = OpenAI(api_key=api_key, timeout=self.timeout)
-        self.model = "gpt-4"
+        # Initialize unified LLMClient (respects LLM_PROVIDER setting)
+        # Provider selection follows EPIC #2594: Qwen-first for cost optimization
+        self._client = LLMClient()
+        self.model = self._client.model
 
         logger.info(
-            f"[SimpleLLM] Initialized with model={self.model}, timeout={self.timeout}s"
+            f"[SimpleLLM] Initialized with provider={self._client.provider_name}, "
+            f"model={self.model}, timeout={self.timeout}s"
         )
 
     async def generate(self, prompt: str) -> str:
         """
-        Generate response from LLM.
+        Generate response from LLM using unified LLMClient.
 
         Issue #3581: Added instrumentation to track LLM call duration and
         diagnose slow code generation (10+ minutes observed in staging).
+
+        EPIC D Fix: Now uses LLMClient which respects LLM_PROVIDER setting,
+        allowing SimpleCoder to use Qwen or other configured providers.
 
         Args:
             prompt: Input prompt
@@ -989,33 +1003,33 @@ class SimpleLLM:
         prompt_length = len(prompt)
 
         logger.info(
-            f"[SimpleLLM] Starting LLM call: model={self.model}, "
-            f"prompt_length={prompt_length}, timeout={self.timeout}s"
+            f"[SimpleLLM] Starting LLM call: provider={self._client.provider_name}, "
+            f"model={self.model}, prompt_length={prompt_length}, timeout={self.timeout}s"
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+            # Use LLMClient's generate method which handles all provider-specific logic
+            response = self._client.generate(
+                prompt=prompt,
                 max_tokens=2000,
                 temperature=0.7
             )
 
             elapsed_ms = (time.monotonic() - start_time) * 1000
-            content = response.choices[0].message.content or ""
+            content = response.content or ""
 
             # Log success with timing and token usage
             usage_info = ""
-            if hasattr(response, 'usage') and response.usage:
+            if response.usage:
                 usage_info = (
-                    f", prompt_tokens={response.usage.prompt_tokens}, "
-                    f"completion_tokens={response.usage.completion_tokens}, "
-                    f"total_tokens={response.usage.total_tokens}"
+                    f", prompt_tokens={response.usage.get('prompt_tokens', 'N/A')}, "
+                    f"completion_tokens={response.usage.get('completion_tokens', 'N/A')}, "
+                    f"total_tokens={response.usage.get('total_tokens', 'N/A')}"
                 )
 
             logger.info(
-                f"[SimpleLLM] LLM call completed: elapsed_ms={elapsed_ms:.2f}, "
-                f"response_length={len(content)}{usage_info}"
+                f"[SimpleLLM] LLM call completed: provider={self._client.provider_name}, "
+                f"elapsed_ms={elapsed_ms:.2f}, response_length={len(content)}{usage_info}"
             )
 
             return content
@@ -1026,8 +1040,8 @@ class SimpleLLM:
 
             # Log failure with timing and error classification
             logger.error(
-                f"[SimpleLLM] LLM call failed: elapsed_ms={elapsed_ms:.2f}, "
-                f"error_type={error_type}, error={e}"
+                f"[SimpleLLM] LLM call failed: provider={self._client.provider_name}, "
+                f"elapsed_ms={elapsed_ms:.2f}, error_type={error_type}, error={e}"
             )
             return f"Error: {str(e)}"
 
@@ -1084,13 +1098,15 @@ class DevAgent:
             admin_chat_id=admin_id
         )
 
-        openai_key = openai_api_key or settings.openai_api_key
-        self.llm = SimpleLLM(openai_key) if openai_key else None
-
-        if not self.llm:
-            logger.warning(
-                "OpenAI API key not configured - LLM features disabled"
-            )
+        # SimpleLLM now uses LLMClient which auto-selects provider based on
+        # LLM_PROVIDER setting and available API keys (Qwen-first per EPIC #2594)
+        # The openai_api_key parameter is kept for backward compatibility but ignored
+        try:
+            self.llm = SimpleLLM()
+        except ValueError as e:
+            # LLMClient raises ValueError if no provider is available
+            logger.warning(f"LLM features disabled: {e}")
+            self.llm = None
 
         logger.info("DevAgent initialized with all tools")
 
