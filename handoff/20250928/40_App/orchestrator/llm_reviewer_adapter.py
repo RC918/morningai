@@ -495,13 +495,21 @@ class LLMReviewerAdapter:
     - Graceful fallback on failure
     """
 
-    def __init__(self, trace_id: str, risk_level: str = "medium"):
+    def __init__(
+        self,
+        trace_id: str,
+        risk_level: str = "medium",
+        escalation_count: int = 0,
+        retry_count: int = 0
+    ):
         """
         Initialize LLM reviewer adapter
 
         Args:
             trace_id: Trace ID for logging
             risk_level: Risk level for routing decision ("high", "medium", "low")
+            escalation_count: Number of tier escalations already performed (Issue #3640)
+            retry_count: Number of retries already attempted (Issue #3640)
         """
         self.trace_id = trace_id
         self.llm_client = None
@@ -510,7 +518,9 @@ class LLMReviewerAdapter:
             # This ensures Routing Policy is respected, not bypassed by ExperimentManager
             self.llm_client = get_client_for_task(
                 task_type=TaskType.REVIEW,
-                risk_level=risk_level
+                risk_level=risk_level,
+                escalation_count=escalation_count,
+                retry_count=retry_count
             )
             logger.info(
                 f"[LLM Reviewer] Initialized with provider={self.llm_client.provider_name} via task-based routing",
@@ -1507,7 +1517,9 @@ def generate_llm_review(
     base_severity: str,
     diff: Optional[str] = None,
     diff_truncated: bool = False,
-    diff_files: Optional[list] = None
+    diff_files: Optional[list] = None,
+    escalation_count: int = 0,
+    retry_count: int = 0
 ) -> Dict[str, Any]:
     """
     Convenience function to generate LLM-powered code review
@@ -1524,11 +1536,17 @@ def generate_llm_review(
         diff: PR diff content (EPIC B Phase B-1)
         diff_truncated: Whether diff was truncated (EPIC B Phase B-2)
         diff_files: List of changed files metadata (EPIC B Phase B-1)
+        escalation_count: Number of tier escalations already performed (Issue #3640)
+        retry_count: Number of retries already attempted (Issue #3640)
 
     Returns:
         Dict with review results
     """
-    adapter = LLMReviewerAdapter(trace_id=trace_id)
+    adapter = LLMReviewerAdapter(
+        trace_id=trace_id,
+        escalation_count=escalation_count,
+        retry_count=retry_count
+    )
     return adapter.generate_review(
         pr_number=pr_number,
         pr_url=pr_url,

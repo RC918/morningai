@@ -2454,6 +2454,12 @@ class AgentState(TypedDict):
     # this flag ensures ci_monitor makes actual API call to check real CI status
     # instead of forcing ci_state="failure" again.
     ci_failure_fast_path_consumed: Optional[bool]
+    # Issue #3640: Escalation Ladder Hard Cap State Tracking
+    # Tracks the number of tier escalations for cost optimization.
+    # Used by RoutingEngine.select_model() to enforce max_escalations limit.
+    # Incremented when a task escalates to a higher tier (lower tier number).
+    # Default: 0 (no escalations yet)
+    escalation_count: int
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -5776,6 +5782,7 @@ def reviewer_node(state: AgentState) -> AgentState:
 
                 # Issue #3379: diff_content is now fetched BEFORE this block
                 # and stored in state, so LLM review can use it directly
+                # Issue #3640: Pass escalation/retry counts for cost optimization hard cap
                 llm_review = generate_llm_review(
                     pr_number=pr_number,
                     pr_url=pr_url,
@@ -5787,7 +5794,9 @@ def reviewer_node(state: AgentState) -> AgentState:
                     base_severity=ci_review["review_severity"],
                     diff=diff_content,
                     diff_truncated=diff_truncated,
-                    diff_files=diff_files
+                    diff_files=diff_files,
+                    escalation_count=state.get("escalation_count", 0),
+                    retry_count=state.get("retry_count", 0)
                 )
 
                 if llm_review.get("llm_used", False):
@@ -8238,6 +8247,8 @@ def _create_base_initial_state(
         "ci_checks": {},
         "error": None,
         "retry_count": 0,
+        # Issue #3640: Escalation Ladder Hard Cap State Tracking
+        "escalation_count": 0,
         "final_result": {},
         "review_result": {},
         "review_comments": [],
