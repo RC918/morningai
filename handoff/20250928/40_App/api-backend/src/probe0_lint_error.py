@@ -1,3 +1,2 @@
-def example():
-x = 5
-return x
+
+Step 2: Run the linter on the target file:
