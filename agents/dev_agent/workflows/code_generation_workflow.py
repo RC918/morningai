@@ -10,6 +10,7 @@ Supports 5 task types:
 4. Test Generation
 5. Documentation Update
 """
+import ast
 import logging
 import re
 import time
@@ -304,31 +305,53 @@ class CodeGenerationWorkflow:
         Issue #3595: Filter changed_files to exclude disallowed directories
         (e.g., .github/) that would fail security validation anyway.
 
-        Issue #3618: Resolve partial paths (filenames only) against changed_files.
-        When LLM extracts just 'missing_docstring.py' instead of full path like
-        'test/capability_probe/probe0_sanity/missing_docstring.py', we try to
-        match against changed_files to get the full path.
+        Issue #3618/#3628: Canonicalize extracted file paths using changed_files.
+        When the LLM extracts just a filename (e.g., 'probe0_lint_error.py'),
+        we try to find the full path from changed_files to pass security validation.
         """
         logger.info(f"[Stage 2] Analyzing context for task #{state['task_id']}")
 
         try:
             target_files = self._extract_file_paths(state["task_description"])
-
-            # Issue #3618: Resolve partial paths against changed_files
-            # If extracted paths are just filenames (no directory component),
-            # try to match them against changed_files to get full paths
             changed_files = state.get("changed_files") or []
+
+            # Issue #3628: Canonicalize extracted paths using changed_files
+            # When LLM extracts just a filename, find the full path from changed_files
+            # Code review feedback: Drop ambiguous files instead of keeping bare filenames
+            # that would fail security validation with a confusing error message
             if target_files and changed_files:
-                resolved_files = self._resolve_partial_paths(target_files, changed_files)
-                if resolved_files != target_files:
-                    logger.info(
-                        f"[Stage 2] Resolved partial paths: {target_files} -> {resolved_files}"
+                canonicalized = []
+                dropped_ambiguous = []
+                for extracted_path in target_files:
+                    canonical, is_ambiguous = self._canonicalize_path(extracted_path, changed_files)
+                    if canonical and canonical not in canonicalized:
+                        canonicalized.append(canonical)
+                    elif is_ambiguous:
+                        # Drop ambiguous files - don't keep bare filename that will fail later
+                        dropped_ambiguous.append(extracted_path)
+                    elif extracted_path not in canonicalized:
+                        # Keep original only if it's a full path (contains /) with no match
+                        # Bare filenames without matches are dropped to avoid confusing errors
+                        if '/' in extracted_path:
+                            canonicalized.append(extracted_path)
+                        else:
+                            dropped_ambiguous.append(extracted_path)
+
+                if dropped_ambiguous:
+                    logger.warning(
+                        f"[Stage 2] Dropped {len(dropped_ambiguous)} ambiguous/unresolvable files: "
+                        f"{dropped_ambiguous}. These would fail security validation. "
+                        f"Require full paths in task description to avoid this."
                     )
-                    target_files = resolved_files
+
+                if canonicalized != target_files:
+                    logger.info(
+                        f"[Stage 2] Canonicalized target files: {target_files} -> {canonicalized}"
+                    )
+                    target_files = canonicalized
 
             # Issue #3593: Fallback to changed_files if extraction returns empty
             if not target_files:
-                changed_files = state.get("changed_files") or []
                 if changed_files:
                     # Issue #3595: Filter out files in disallowed directories
                     # These would fail security validation anyway, so filter early
@@ -508,8 +531,48 @@ class CodeGenerationWorkflow:
 
         return state
 
+    def _validate_python_syntax(self, code: str, file_path: str) -> tuple:
+        """
+        Validate Python code syntax using ast.parse.
+
+        Issue #3629: P4 fail-closed validation to prevent writing invalid code.
+        When the LLM generates conversational text instead of code (e.g.,
+        "As an AI model, I need to see..."), this validation catches it before
+        the invalid content is written to disk.
+
+        Args:
+            code: The generated code to validate
+            file_path: The target file path (for error messages)
+
+        Returns:
+            Tuple of (is_valid: bool, error_message: str or None)
+        """
+        try:
+            ast.parse(code)
+            return (True, None)
+        except SyntaxError as e:
+            error_msg = (
+                f"Generated code has invalid Python syntax: "
+                f"{e.msg} at line {e.lineno}, column {e.offset}"
+            )
+            logger.error(
+                f"[Stage 5] {error_msg}",
+                extra={
+                    "operation": "apply_code_syntax_validation",
+                    "file_path": file_path,
+                    "syntax_error_line": e.lineno,
+                    "syntax_error_msg": e.msg,
+                    "code_preview": code[:200] if code else "",
+                }
+            )
+            return (False, error_msg)
+
     async def apply_code(self, state: CodeGenState) -> CodeGenState:
-        """Stage 5: Apply generated code to files with atomic writes"""
+        """Stage 5: Apply generated code to files with atomic writes
+
+        Issue #3629: Added fail-closed validation for Python files using ast.parse.
+        This prevents writing invalid code (e.g., LLM conversational text) to disk.
+        """
         logger.info(f"[Stage 5] Applying code for task #{state['task_id']}")
 
         try:
@@ -531,6 +594,25 @@ class CodeGenerationWorkflow:
                 state["error"] = f"Unsafe file path in apply_code: {target_file}"
                 logger.error(state["error"])
                 return state
+
+            # Issue #3629: P4 fail-closed validation for Python files
+            # Validate syntax BEFORE writing to prevent corrupting files with
+            # invalid LLM output (e.g., conversational text instead of code)
+            if target_file.endswith(".py"):
+                is_valid, syntax_error = self._validate_python_syntax(
+                    generated_code, target_file
+                )
+                if not is_valid:
+                    state["error"] = syntax_error
+                    logger.error(
+                        f"[Stage 5] Refusing to write invalid Python code to {target_file}",
+                        extra={
+                            "operation": "apply_code_fail_closed",
+                            "file_path": target_file,
+                            "task_id": state["task_id"],
+                        }
+                    )
+                    return state
 
             # Issue #3616: Use helper for path conversion with sandbox validation
             abs_target_file = self._to_abs_repo_path(target_file)
@@ -848,66 +930,65 @@ Generated by Code Generation Workflow (Phase 2)
 
         return files
 
-    def _resolve_partial_paths(
-        self, extracted_paths: List[str], changed_files: List[str]
-    ) -> List[str]:
-        """Resolve partial paths (filenames only) against changed_files.
+    def _canonicalize_path(
+        self, extracted_path: str, changed_files: List[str]
+    ) -> tuple[Optional[str], bool]:
+        """
+        Canonicalize an extracted file path using changed_files.
 
-        Root Cause #37: When LLM extracts just a filename like 'missing_docstring.py'
-        instead of the full path 'test/capability_probe/probe0_sanity/missing_docstring.py',
-        this method tries to match against changed_files to get the full path.
+        Issue #3618/#3628: When the LLM extracts just a filename (e.g., 'probe0_lint_error.py')
+        instead of the full path, we try to find the matching full path from changed_files.
 
-        Note: We use '/' (POSIX path separator) intentionally here because:
-        - GitHub API always returns paths with forward slashes
-        - Repo-relative paths are POSIX-like regardless of OS
-        - Conversion to OS paths happens in _to_abs_repo_path()
+        This is important because:
+        1. The LLM may output just the filename in its response
+        2. Security validation requires the full path to match allowed_directories
+        3. Without canonicalization, valid files get blocked by security checks
+
+        Code review feedback: Return tuple (path, is_ambiguous) so caller can distinguish
+        between "no match" and "ambiguous match" and handle them appropriately.
 
         Args:
-            extracted_paths: Paths extracted from task description (may be partial)
-            changed_files: Full paths from PR changed files
+            extracted_path: Path extracted from task description (may be just filename)
+            changed_files: List of full repo-relative paths from PR
 
         Returns:
-            List of resolved paths. If a partial path matches exactly one
-            changed_file, it's replaced with the full path. Otherwise, the
-            original path is kept.
+            Tuple of (canonical_path, is_ambiguous):
+            - (full_path, False) if unambiguous match found
+            - (None, True) if ambiguous (multiple matches)
+            - (None, False) if no match found
         """
-        if not changed_files:
-            return extracted_paths
+        if not extracted_path or not changed_files:
+            return (None, False)
 
-        resolved = []
-        for path in extracted_paths:
-            resolved_path = path  # Default to original path
+        # If extracted_path already looks like a full path (contains /), check exact match
+        if '/' in extracted_path:
+            if extracted_path in changed_files:
+                return (extracted_path, False)
+            # No exact match, not ambiguous - just not found in changed_files
+            return (None, False)
 
-            # Check if this is a partial path (no directory component)
-            # Use '/' for POSIX paths (GitHub API always uses forward slashes)
-            if '/' not in path:
-                # Try to find matching full path in changed_files
-                matches = [
-                    cf for cf in changed_files
-                    if cf.endswith('/' + path) or cf == path
-                ]
+        # extracted_path is just a filename - find matching full path
+        basename = os.path.basename(extracted_path)
+        matches = [f for f in changed_files if os.path.basename(f) == basename]
 
-                if len(matches) == 1:
-                    # Exactly one match - use the full path
-                    resolved_path = matches[0]
-                    logger.debug(
-                        f"[_resolve_partial_paths] Resolved '{path}' -> '{resolved_path}'"
-                    )
-                elif len(matches) > 1:
-                    # Multiple matches - ambiguous, keep original and log warning
-                    logger.warning(
-                        f"[_resolve_partial_paths] Ambiguous partial path '{path}' "
-                        f"matches multiple files: {matches}. Keeping original."
-                    )
-                else:
-                    # No matches - keep original
-                    logger.debug(
-                        f"[_resolve_partial_paths] No match for '{path}' in changed_files"
-                    )
-
-            resolved.append(resolved_path)
-
-        return resolved
+        if len(matches) == 1:
+            # Unambiguous match - use the full path
+            logger.info(
+                f"[Stage 2] Canonicalized basename '{extracted_path}' -> '{matches[0]}'"
+            )
+            return (matches[0], False)
+        elif len(matches) > 1:
+            # Ambiguous - multiple files with same basename
+            # Code review feedback: Mark as ambiguous so caller can drop this file
+            # instead of keeping a bare filename that will fail security validation
+            logger.warning(
+                f"[Stage 2] Ambiguous basename '{extracted_path}' matches {len(matches)} files: "
+                f"{matches}. File will be dropped from target_files."
+            )
+            return (None, True)
+        else:
+            # No match found - not ambiguous, just not in changed_files
+            return (None, False)
 
     def _is_safe_file_path(self, file_path: str, task_metadata: dict = None) -> bool:
         """
@@ -1039,8 +1120,39 @@ Generated by Code Generation Workflow (Phase 2)
         task_description: str,
         target_files: List[str]
     ) -> str:
-        """Build prompt for code generation"""
-        prompt = f"""Generate code for the following task:
+        """Build prompt for code generation
+
+        Issue #3628: Added special constraints for fix_lint tasks to enforce
+        minimal changes and prevent the LLM from rewriting entire files.
+        """
+        # Issue #3628: Special prompt for lint fix tasks - enforce minimal changes
+        if task_type in ("fix_lint", "lint_fix"):
+            prompt = f"""Fix the lint error in the following file:
+
+Task Type: {task_type}
+Description: {task_description}
+Target Files: {', '.join(target_files) if target_files else 'Not specified'}
+
+CRITICAL CONSTRAINTS - YOU MUST FOLLOW THESE EXACTLY:
+1. ONLY fix the specific lint error mentioned (e.g., F821 undefined name, F841 unused variable)
+2. Change the MINIMUM number of characters needed to fix the error
+3. Do NOT refactor any code
+4. Do NOT add new imports
+5. Do NOT create new functions or classes
+6. Do NOT change any code unrelated to the lint error
+7. Do NOT use subprocess, os.system, git commands, or any shell operations
+8. Do NOT add comments explaining the fix
+9. Keep the EXACT same file structure and formatting
+10. If the error is a typo (e.g., 'reuslt' should be 'result'), just fix the typo
+
+Example: If the error is "F821 undefined name 'reuslt'", and the code has:
+    result = calculate_sum(a, b)
+    return reuslt
+Just change 'reuslt' to 'result'. Do NOT rewrite the function.
+
+Generate ONLY the fixed code for the target file:"""
+        else:
+            prompt = f"""Generate code for the following task:
 
 Task Type: {task_type}
 Description: {task_description}

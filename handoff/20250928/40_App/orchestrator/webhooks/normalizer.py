@@ -1783,6 +1783,134 @@ class EventNormalizer:
     _ci_failure_dedup_fallback: Dict[str, float] = {}
     _CI_FAILURE_DEDUP_FALLBACK_MAX_SIZE = 1000  # Max entries for fallback
 
+    def _fetch_failed_check_runs(
+        self,
+        repo: str,
+        check_suite_id: int,
+        event_id: str
+    ) -> tuple:
+        """
+        Fetch failed check_runs from GitHub API for a check_suite.
+
+        Issue #3629: P3 fix - Extract specific failed check names instead of
+        generic "GitHub Actions". This enables the LLM to receive actual error
+        context (e.g., "lint" check failed with F821 error).
+
+        Args:
+            repo: Repository in owner/repo format
+            check_suite_id: GitHub check_suite ID
+            event_id: Event ID for logging
+
+        Returns:
+            Tuple of (failed_check_names: List[str], error_summary: str or None)
+            - failed_check_names: List of specific check names that failed
+            - error_summary: Truncated error output from failed checks (max 500 chars)
+        """
+        failed_check_names = []
+        error_summary_parts = []
+
+        try:
+            import os
+            from github import Github
+
+            # Use GITHUB_TOKEN from environment (same as tools.github_api)
+            github_token = os.environ.get("GITHUB_TOKEN")
+            if not github_token:
+                logger.warning(
+                    "[EventNormalizer] Cannot fetch check_runs - GITHUB_TOKEN not set",
+                    extra={
+                        "operation": "fetch_failed_check_runs_skip",
+                        "event_id": event_id,
+                        "repo": repo,
+                    }
+                )
+                return ([], None)
+
+            gh = Github(github_token)
+            github_repo = gh.get_repo(repo)
+
+            # Fetch check_runs for this check_suite
+            # GitHub API: GET /repos/{owner}/{repo}/check-suites/{check_suite_id}/check-runs
+            check_suite = github_repo.get_check_suite(check_suite_id)
+            check_runs = check_suite.get_check_runs()
+
+            # P3 fix enhancement: Track all check_runs for debugging
+            # GitHub check_run conclusions: success, failure, neutral, cancelled,
+            # skipped, timed_out, action_required, stale, startup_failure
+            all_check_runs_info = []
+            failure_conclusions = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
+
+            for check_run in check_runs:
+                # Log all check_runs for debugging P3 issues
+                check_info = {
+                    "name": check_run.name,
+                    "conclusion": check_run.conclusion,
+                    "status": check_run.status,
+                }
+                all_check_runs_info.append(check_info)
+
+                # Check for any failure-like conclusion (not just "failure")
+                if check_run.conclusion in failure_conclusions:
+                    failed_check_names.append(check_run.name)
+                    # Extract error summary from check_run output
+                    # PyGithub returns output as a dict-like object
+                    output = check_run.output
+                    if output:
+                        summary = output.get("summary") if isinstance(output, dict) else getattr(output, "summary", None)
+                        if summary:
+                            # Truncate to avoid huge payloads
+                            summary_text = str(summary)[:200]
+                            error_summary_parts.append(f"{check_run.name}: {summary_text}")
+
+            # Log all check_runs for debugging (helps diagnose P3 issues)
+            logger.info(
+                "[EventNormalizer] P3 debug: All check_runs in check_suite",
+                extra={
+                    "operation": "fetch_failed_check_runs_debug",
+                    "event_id": event_id,
+                    "repo": repo,
+                    "check_suite_id": check_suite_id,
+                    "total_check_runs": len(all_check_runs_info),
+                    "check_runs_info": all_check_runs_info[:10],  # Log first 10
+                }
+            )
+
+            # Combine error summaries (max 500 chars total)
+            error_summary = None
+            if error_summary_parts:
+                combined = "; ".join(error_summary_parts)
+                error_summary = combined[:500] if len(combined) > 500 else combined
+
+            logger.info(
+                "[EventNormalizer] Fetched failed check_runs from GitHub API",
+                extra={
+                    "operation": "fetch_failed_check_runs_success",
+                    "event_id": event_id,
+                    "repo": repo,
+                    "check_suite_id": check_suite_id,
+                    "failed_check_count": len(failed_check_names),
+                    "failed_check_names": failed_check_names[:5],  # Log first 5
+                }
+            )
+
+            return (failed_check_names, error_summary)
+
+        except Exception as e:
+            # Fail-open: if API call fails, return empty results
+            # The downstream code will fall back to generic "GitHub Actions"
+            logger.warning(
+                "[EventNormalizer] Failed to fetch check_runs from GitHub API",
+                extra={
+                    "operation": "fetch_failed_check_runs_error",
+                    "event_id": event_id,
+                    "repo": repo,
+                    "check_suite_id": check_suite_id,
+                    "error": str(e)[:200],
+                    "error_type": type(e).__name__,
+                }
+            )
+            return ([], None)
+
     def _handle_ci_check_completed(self, event: WebhookEvent) -> bool:
         """
         Handle CI_CHECK_COMPLETED events for CI failure reflex.
@@ -1914,26 +2042,57 @@ class EventNormalizer:
         # Only build context if required fields are present to avoid brittle behavior
         # Use explicit is not None for pr_number (int) to align with dataclass requirements
         if pr_number is not None and head_sha and head_branch and conclusion:
-            ci_app_name = metadata.get("ci_app_name") or ""
-            if not ci_app_name:
-                ci_app_name = "unknown"
-                logger.warning(
-                    "[EventNormalizer] CiFailureContext using 'unknown' for failed_check_name",
-                    extra={
-                        "operation": "ci_failure_context_unknown_check",
-                        "event_id": event.event_id,
-                        "pr_number": pr_number,
-                        "head_sha": head_sha[:8] if head_sha else "unknown",
-                    }
+            # Issue #3629: P3 fix - Fetch specific failed check names from GitHub API
+            # Instead of using generic ci_app_name (e.g., "GitHub Actions"), we now
+            # query the check_runs API to get specific check names (e.g., "lint")
+            failed_check_name = "unknown"
+            ci_error_summary = metadata.get("ci_error_summary")
+
+            if check_suite_id:
+                failed_check_names, api_error_summary = self._fetch_failed_check_runs(
+                    repo, check_suite_id, event.event_id
                 )
+                if failed_check_names:
+                    # Use first failed check name (most specific)
+                    # For multiple failures, join them with comma
+                    failed_check_name = ", ".join(failed_check_names[:3])
+                    logger.info(
+                        "[EventNormalizer] Using specific failed check names from API",
+                        extra={
+                            "operation": "ci_failure_specific_check_names",
+                            "event_id": event.event_id,
+                            "failed_check_name": failed_check_name,
+                            "total_failed": len(failed_check_names),
+                        }
+                    )
+                if api_error_summary:
+                    # Prefer API error summary over metadata (more specific)
+                    ci_error_summary = api_error_summary
+
+            # Fallback to ci_app_name if API call didn't return specific names
+            if failed_check_name == "unknown":
+                ci_app_name = metadata.get("ci_app_name") or ""
+                if ci_app_name:
+                    failed_check_name = ci_app_name
+                else:
+                    logger.warning(
+                        "[EventNormalizer] CiFailureContext using 'unknown' for failed_check_name",
+                        extra={
+                            "operation": "ci_failure_context_unknown_check",
+                            "event_id": event.event_id,
+                            "pr_number": pr_number,
+                            "head_sha": head_sha[:8] if head_sha else "unknown",
+                        }
+                    )
+
             ci_failure_context = CiFailureContext(
-                failed_check_name=ci_app_name,
+                failed_check_name=failed_check_name,
                 conclusion=conclusion,
                 pr_number=pr_number,
                 head_sha=head_sha,
                 head_branch=head_branch,
                 logs_url=metadata.get("ci_logs_url"),
-                error_summary=metadata.get("ci_error_summary"),
+                error_summary=ci_error_summary,
                 check_run_id=metadata.get("ci_check_run_id"),
             )
             # Use to_dict() for JSON serialization compatibility with RQ queue
@@ -1952,6 +2111,16 @@ class EventNormalizer:
                 }
             )
 
+        # Issue #3629: P3 fix - Log the specific failed check name (not generic ci_app_name)
+        # The failed_check_name variable is set above from API call or fallback
+        log_failed_check_name = "unknown"
+        if pr_number is not None and head_sha and head_branch and conclusion:
+            # Use the failed_check_name from CiFailureContext building above
+            log_failed_check_name = failed_check_name
+        else:
+            # Fallback to ci_app_name if CiFailureContext wasn't built
+            log_failed_check_name = metadata.get("ci_app_name") or "unknown"
+
         logger.info(
             "[EventNormalizer] CI failure is actionable - triggering auto-fix",
             extra={
@@ -1963,7 +2132,7 @@ class EventNormalizer:
                 "head_sha": head_sha[:8] if head_sha else "unknown",
                 "check_suite_id": check_suite_id,  # Issue #3513
                 "conclusion": conclusion,
-                "failed_check_name": ci_app_name,
+                "failed_check_name": log_failed_check_name,
                 # Note: dedup_key not logged to avoid exposing internal key format
                 # All constituent fields (repo, pr, sha, check_suite_id) are logged above
             }

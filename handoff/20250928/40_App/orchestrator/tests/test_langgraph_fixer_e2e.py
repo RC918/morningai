@@ -31,6 +31,29 @@ from langgraph_orchestrator import (
 )
 
 
+@pytest.fixture(autouse=True)
+def mock_loop_protection():
+    """
+    Mock AutoFixLoopProtection to always allow in tests.
+
+    This fixture is needed because fixer_node now calls AutoFixLoopProtection
+    BEFORE any other logic. Without this mock, tests would fail because:
+    1. Redis state persists across tests in CI
+    2. Loop protection would trigger early and skip the code paths being tested
+
+    The loop protection feature itself is tested in test_auto_fix_policy.py.
+
+    Note: We patch utils.auto_fix_policy.AutoFixLoopProtection because fixer_node
+    imports it inside the function with `from utils.auto_fix_policy import ...`
+    """
+    with patch("utils.auto_fix_policy.AutoFixLoopProtection") as MockLoopProtection:
+        mock_instance = MagicMock()
+        # Always allow: return (True, 1) meaning "allowed, first attempt"
+        mock_instance.check_and_increment.return_value = (True, 1)
+        MockLoopProtection.return_value = mock_instance
+        yield MockLoopProtection
+
+
 @dataclass
 class MockSettings:
     """Mock settings for testing AutoFixer behavior"""

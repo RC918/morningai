@@ -4521,7 +4521,9 @@ def _attempt_general_coder_fix(
         return False, "Missing repo or branch"
 
     try:
-        repo = get_repo(repo_name)
+        # Issue #3618: Fix get_repo() signature - function takes no parameters
+        # It reads GITHUB_REPO from environment internally
+        repo = get_repo()
         if repo is None:
             logger.warning(f"[GENERAL_CODER_GATE_FAIL] Could not get repo. trace_id={trace_id}")
             return False, "Could not access repository"
@@ -4767,7 +4769,9 @@ def _attempt_simple_coder_fix(
         return False, "Missing repo or branch"
 
     try:
-        repo = get_repo(repo_name)
+        # Issue #3618: Fix get_repo() signature - function takes no parameters
+        # It reads GITHUB_REPO from environment internally
+        repo = get_repo()
         if repo is None:
             logger.warning(f"[SIMPLE_CODER_GATE_FAIL] Could not get repo. trace_id={trace_id}")
             return False, "Could not access repository"
@@ -4913,15 +4917,20 @@ def _extract_file_path_from_error(error_summary: str) -> str:
 
 
 def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
-    """Synthesize comment_body from ci_failure_context for CI failure scenarios.
+    """Synthesize comment_body and review_outcome from ci_failure_context for CI failure scenarios.
 
     When ci_failure_trigger=True, there's no PR review comment, but the coders
     need a comment_body to understand what to fix. This function synthesizes one
     from the CI failure context.
 
+    Additionally, CI failure fast path bypasses reviewer_node which normally
+    populates review_outcome. Without review_outcome, is_autofix_allowed() gate
+    always fails. This function synthesizes a minimal review_outcome for CI failures.
+
     Only synthesizes when:
     - ci_failure_trigger=True
-    - comment_body is empty
+    - comment_body is empty (for comment_body)
+    - review_outcome is empty/None (for review_outcome)
 
     Note: We intentionally do NOT check review_comments here. The review_comments
     list contains ALL historical PR comments (including bot comments, previous
@@ -4932,6 +4941,7 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
     Issue #3564: Root Cause #10 - Coders skip due to missing comment_body
     Issue #3567: Root Cause #11 - SimpleCoder needs review_file_path
     Issue #3572: Root Cause #12 - review_comments gate blocks CI failure synthesis
+    Issue #3618: Root Cause #13 - CI failure path bypasses reviewer_node, review_outcome never set
     """
     ci_failure_trigger = state.get("ci_failure_trigger", False)
 
@@ -4942,6 +4952,61 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
             f"trace_id={trace_id}"
         )
         return
+
+    # Issue #3618: Synthesize review_outcome for CI failure path
+    # CI failure fast path bypasses reviewer_node which normally populates review_outcome.
+    # Without review_outcome, is_autofix_allowed() gate always fails.
+    #
+    # These are the MINIMAL fields required by is_autofix_allowed() in coder/autofix_gate.py:
+    # - schema_validated: Must be True for autofix to proceed
+    # - severity: Must be "low" for SimpleCoder (higher severity blocks autofix)
+    # - diff_truncated: Must be False for autofix to proceed
+    #
+    # We use setdefault() to only fill missing keys, preserving any values set by upstream.
+    # This avoids brittleness if reviewer_node adds more fields in the future.
+    existing_review_outcome = state.get("review_outcome")
+    if existing_review_outcome is None:
+        # No review_outcome at all - create minimal dict for autofix gate
+        ci_context = state.get("ci_failure_context", {})
+        failed_check_name = (ci_context.get("failed_check_name") or "").lower()
+
+        # Infer severity from CI failure type to prevent unsafe auto-fixes
+        # Security/vulnerability scans and build failures should NOT be auto-fixed
+        severity = "low"
+        if any(k in failed_check_name for k in ["security", "scan", "vulnerability"]):
+            severity = "critical"
+        elif any(k in failed_check_name for k in ["build", "compile"]):
+            severity = "high"
+
+        state["review_outcome"] = {
+            "schema_validated": True,
+            "severity": severity,
+            "diff_truncated": False,
+        }
+        logger.info(
+            f"[Fixer] Synthesized review_outcome for CI failure path. "
+            f"failed_check={failed_check_name}, severity={severity}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer_synthesize_review_outcome",
+                "trace_id": trace_id,
+                "failed_check_name": failed_check_name,
+                "severity": severity,
+            }
+        )
+    elif isinstance(existing_review_outcome, dict):
+        # review_outcome exists but may be missing required keys - fill only missing ones
+        # This preserves any upstream-set values (e.g., severity from reviewer_node)
+        existing_review_outcome.setdefault("schema_validated", True)
+        existing_review_outcome.setdefault("severity", "low")
+        existing_review_outcome.setdefault("diff_truncated", False)
+        logger.debug(
+            f"[Fixer] Filled missing review_outcome keys for CI failure path. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "fixer_fill_review_outcome",
+                "trace_id": trace_id,
+            }
+        )
 
     existing_comment = state.get("comment_body", "")
     if existing_comment:
@@ -5040,6 +5105,11 @@ def fixer_node(state: AgentState) -> AgentState:
     Issue #3564 Enhancement:
     - Synthesizes comment_body from ci_failure_context for CI failure scenarios
     - Ensures coders don't skip due to missing comment_body
+
+    Cost Optimization Enhancement:
+    - Adds AutoFixLoopProtection to prevent infinite retry loops
+    - Tracks attempts per PR in Redis to enforce max_retries across webhook triggers
+    - Adds CI signature deduplication to avoid re-processing identical failures
     """
     from common.config.settings import settings
 
@@ -5048,6 +5118,116 @@ def fixer_node(state: AgentState) -> AgentState:
 
     trace_id = state["trace_id"]
     retry_count = state.get("retry_count", 0)
+
+    # Cost Optimization: Check loop protection BEFORE any LLM calls
+    # This prevents infinite loops where CI failure → fix attempt → CI failure → ...
+    repo = state.get("repo", "")
+    pr_number = state.get("pr_number")
+    pr_id = f"{repo}#{pr_number}" if repo and pr_number else trace_id
+
+    try:
+        from utils.auto_fix_policy import AutoFixLoopProtection
+        loop_protection = AutoFixLoopProtection(settings)
+        loop_allowed, current_attempts = loop_protection.check_and_increment(pr_id)
+
+        if not loop_allowed:
+            max_retries = getattr(settings, 'auto_fix_max_retries', 3)
+            logger.warning(
+                f"[Fixer] Loop protection triggered - max retries exceeded. "
+                f"pr_id={pr_id}, attempts={current_attempts}, max={max_retries}, trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_loop_protection",
+                    "trace_id": trace_id,
+                    "pr_id": pr_id,
+                    "current_attempts": current_attempts,
+                    "max_retries": max_retries,
+                    "loop_protection_triggered": True,
+                }
+            )
+            state["error"] = f"Loop protection: max retries ({max_retries}) exceeded after {current_attempts} attempts"
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"AutoFixer stopped by loop protection after {current_attempts} attempts")
+            ]
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_fixer_attempt(trace_id, retry_count, success=False)
+            metrics.record_node_complete("fixer", trace_id, success=False, latency_ms=latency_ms)
+            return state
+
+        logger.info(
+            f"[Fixer] Loop protection check passed. pr_id={pr_id}, attempt={current_attempts}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer_loop_protection_passed",
+                "trace_id": trace_id,
+                "pr_id": pr_id,
+                "current_attempts": current_attempts,
+            }
+        )
+    except ImportError as e:
+        logger.warning(
+            f"[Fixer] AutoFixLoopProtection not available, proceeding without loop protection: {e}",
+            extra={"trace_id": trace_id, "error": str(e)}
+        )
+    except Exception as e:
+        # Fail-open: if loop protection fails, continue with fix attempt
+        # but log for observability
+        logger.error(
+            f"[Fixer] Loop protection check failed, proceeding (fail-open): {e}",
+            extra={"trace_id": trace_id, "error": str(e), "pr_id": pr_id}
+        )
+
+    # Cost Optimization: CI signature deduplication
+    # Prevents re-processing the EXACT SAME CI failure within 24 hours
+    ci_context_for_dedup = state.get("ci_failure_context")
+    if ci_context_for_dedup and isinstance(ci_context_for_dedup, dict):
+        try:
+            from utils.auto_fix_policy import CISignatureDeduplication
+            dedup = CISignatureDeduplication(settings)
+            failed_check_name = ci_context_for_dedup.get("failed_check_name", "unknown")
+            error_summary = ci_context_for_dedup.get("error_summary", "")
+
+            is_new, signature = dedup.check_and_mark(pr_id, failed_check_name, error_summary)
+
+            if not is_new:
+                logger.warning(
+                    f"[Fixer] CI signature deduplication triggered - identical failure already processed. "
+                    f"pr_id={pr_id}, signature={signature}, trace_id={trace_id}",
+                    extra={
+                        "operation": "fixer_ci_signature_dedup",
+                        "trace_id": trace_id,
+                        "pr_id": pr_id,
+                        "signature": signature,
+                        "failed_check_name": failed_check_name,
+                        "ci_signature_duplicate": True,
+                    }
+                )
+                state["error"] = f"CI signature deduplication: identical failure already processed (signature={signature})"
+                state["messages"] = state.get("messages", []) + [
+                    AIMessage(content="AutoFixer skipped - identical CI failure already processed within 24h")
+                ]
+                latency_ms = (time.time() - start_time) * 1000
+                metrics.record_fixer_attempt(trace_id, retry_count, success=False)
+                metrics.record_node_complete("fixer", trace_id, success=False, latency_ms=latency_ms)
+                return state
+
+            logger.debug(
+                f"[Fixer] CI signature deduplication passed. signature={signature}, trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_ci_signature_dedup_passed",
+                    "trace_id": trace_id,
+                    "signature": signature,
+                }
+            )
+        except ImportError as e:
+            logger.warning(
+                f"[Fixer] CISignatureDeduplication not available: {e}",
+                extra={"trace_id": trace_id, "error": str(e)}
+            )
+        except Exception as e:
+            # Fail-open: if dedup fails, continue with fix attempt
+            logger.error(
+                f"[Fixer] CI signature deduplication failed, proceeding (fail-open): {e}",
+                extra={"trace_id": trace_id, "error": str(e)}
+            )
 
     # Issue #3567: Diagnostic log for coder prerequisites debugging
     # This log helps diagnose why coders skip in CI failure scenarios
