@@ -8247,6 +8247,8 @@ def _create_base_initial_state(
         "ci_checks": {},
         "error": None,
         "retry_count": 0,
+        # Issue #3640: Escalation Ladder Hard Cap State Tracking
+        "escalation_count": 0,
         "final_result": {},
         "review_result": {},
         "review_comments": [],

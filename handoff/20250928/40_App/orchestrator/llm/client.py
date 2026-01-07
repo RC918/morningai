@@ -659,11 +659,12 @@ def get_client_for_task(
         response = client.generate("Write button label")
 
         # With escalation tracking (Issue #3640)
+        # Note: 'state' refers to AgentState from langgraph_orchestrator
         client = get_client_for_task(
             TaskType.CODING,
             risk_level="medium",
-            escalation_count=state.get("escalation_count", 0),
-            retry_count=state.get("retry_count", 0)
+            escalation_count=state.get("escalation_count", 0),  # from AgentState
+            retry_count=state.get("retry_count", 0)  # from AgentState
         )
     """
     try:
