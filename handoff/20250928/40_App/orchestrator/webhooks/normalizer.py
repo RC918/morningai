@@ -1944,9 +1944,12 @@ class EventNormalizer:
         # Issue: #3513 - Extract check_suite_id for dedup refinement
         check_suite_id = metadata.get("ci_check_suite_id")
 
-        # P0: Skip if conclusion is not "failure"
-        # Only trigger auto-fix for actual failures, not success/cancelled/etc.
-        if conclusion != "failure":
+        # P0: Skip if conclusion is not a failure-like state
+        # Issue #3633: Expanded to include cancelled, timed_out, startup_failure, action_required
+        # GitHub check_run conclusions: success, failure, neutral, cancelled,
+        # skipped, timed_out, action_required, stale, startup_failure
+        failure_conclusions = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
+        if conclusion not in failure_conclusions:
             logger.info(
                 "[EventNormalizer] CI check skipped - not a failure",
                 extra={
