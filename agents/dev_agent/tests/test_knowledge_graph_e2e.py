@@ -15,6 +15,30 @@ from knowledge_graph import (
 )
 
 
+def is_embedding_available(kg_manager) -> bool:
+    """
+    Check if embedding functionality is available on the KnowledgeGraphManager.
+
+    Supports both legacy (openai_api_key) and new (_embedding_client) APIs
+    for backward compatibility during the EmbeddingClient migration (PR #3652).
+
+    Args:
+        kg_manager: KnowledgeGraphManager instance
+
+    Returns:
+        bool: True if embedding is configured and available
+    """
+    if hasattr(kg_manager, '_embedding_client'):
+        # New EmbeddingClient abstraction (PR #3652+)
+        return (
+            kg_manager._embedding_client is not None and
+            kg_manager._embedding_client.is_available()
+        )
+    else:
+        # Legacy OpenAI-only implementation
+        return kg_manager.openai_api_key is not None
+
+
 class TestEmbeddingsCache:
     """Test embeddings cache functionality"""
 
@@ -83,14 +107,19 @@ class TestKnowledgeGraphManager:
 
         result = kg_manager.generate_embedding(test_code)
 
-        if not kg_manager.openai_api_key:
+        embedding_available = is_embedding_available(kg_manager)
+
+        if not embedding_available:
             assert not result.get('success')
             assert 'error' in result
-            print("✓ Correctly handles missing OpenAI API key")
+            print("✓ Correctly handles missing embedding API credentials")
         else:
             if result.get('success'):
-                assert 'embedding' in result
-                assert len(result['embedding']) == 1536
+                # Handle both old and new response formats
+                if 'data' in result and 'embedding' in result.get('data', {}):
+                    assert len(result['data']['embedding']) == 1536
+                elif 'embedding' in result:
+                    assert len(result['embedding']) == 1536
                 print("✓ Embedding generation works")
             else:
                 print(
@@ -103,7 +132,8 @@ class TestKnowledgeGraphManager:
         assert 'success' in health or 'error' in health
         if 'data' in health:
             data = health['data']
-            assert 'openai_configured' in data
+            # Support both old (openai_configured) and new (embedding_configured) health check keys
+            assert 'embedding_configured' in data or 'openai_configured' in data
             assert 'database_configured' in data
 
         print("✓ KG Manager health check works")
@@ -189,7 +219,9 @@ def function():
         """Test indexing behavior without API credentials"""
         result = indexer.index_directory(temp_code_dir)
 
-        if not indexer.kg_manager.openai_api_key:
+        embedding_available = is_embedding_available(indexer.kg_manager)
+
+        if not embedding_available:
             if 'data' in result:
                 assert result['data']['failed'] > 0 or result['data']['skipped'] > 0
                 print("✓ Correctly handles missing credentials during indexing")
@@ -315,8 +347,8 @@ class TestKnowledgeGraphIntegration:
         assert 'success' in health or 'error' in health
 
         print("✓ Knowledge Graph system components initialized")
-        print(
-            f"  - OpenAI configured: {kg_manager.openai_api_key is not None}")
+        embedding_available = is_embedding_available(kg_manager)
+        print(f"  - Embedding configured: {embedding_available}")
         print(f"  - Database configured: {kg_manager.db_pool is not None}")
         print(f"  - Cache enabled: {cache.enabled if cache else False}")
 
