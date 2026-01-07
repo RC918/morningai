@@ -1,1 +1,1 @@
-As an AI, I'm unable to directly access or modify your files. However, I can help you fix a lint error if you provide the specific code snippet and the lint error message. Please share the details of the lint error and the relevant code snippet.
+As an AI, I need access to the specific lint error and the contents of the file "probe0_lint_error.py" in order to provide a solution. Please provide the necessary information.
