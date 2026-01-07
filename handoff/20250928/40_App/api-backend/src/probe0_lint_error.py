@@ -1,2 +1,1 @@
-
-Step 2: Run the linter on the target file:
+# pylint: probe0_lint_error.py
