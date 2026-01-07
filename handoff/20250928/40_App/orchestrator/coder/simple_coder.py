@@ -55,6 +55,7 @@ Usage:
 import ast
 import json
 import logging
+import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
@@ -63,6 +64,17 @@ from typing import Optional, Dict, Any
 from core.agents import BaseAgent, AgentInput, AgentOutput
 
 logger = logging.getLogger(__name__)
+
+
+# P6: Dialogue detection patterns - phrases that indicate LLM returned dialogue instead of code
+# These patterns are used to detect when the LLM ignores JSON format instructions
+DIALOGUE_PATTERNS = [
+    r"^(here|let me|i'll|i will|i can|sure|okay|ok,)",  # Common dialogue starters
+    r"(run the linter|run linter|check the|please run|you should|you can|try running)",  # Instructions
+    r"(to fix this|to identify|to resolve|the issue is|the problem is)",  # Explanations
+    r"(```|~~~)",  # Markdown code blocks (should be raw JSON)
+]
+DIALOGUE_REGEX = re.compile("|".join(DIALOGUE_PATTERNS), re.IGNORECASE)
 
 
 class CoderStatus(str, Enum):
@@ -186,25 +198,41 @@ def is_python_file(file_path: str) -> bool:
 
 CODER_SYSTEM_PROMPT = """You are a precise code fixer. Your job is to fix code issues based on review comments.
 
+CRITICAL OUTPUT FORMAT REQUIREMENT:
+- You MUST respond with ONLY a valid JSON object
+- Do NOT include any text before or after the JSON
+- Do NOT include markdown code blocks (no ```)
+- Do NOT include explanations, greetings, or dialogue
+- Do NOT say things like "Here is the fix" or "I'll help you"
+- ONLY output the raw JSON object, nothing else
+
 IMPORTANT RULES:
 1. If you are not 100% sure how to fix the issue, DO NOT change anything.
 2. If the fix requires complex logic changes or architectural decisions, DO NOT change anything.
 3. Only fix simple, localized issues like:
-   - Variable naming
+   - Variable naming (e.g., fixing typos like 'reuslt' -> 'result')
    - Adding docstrings
-   - Fixing typos
+   - Fixing typos in code
    - Adding type hints
    - Simple formatting fixes
 
-You MUST respond with ONLY a JSON object in this exact format:
+REQUIRED JSON FORMAT (output ONLY this, no other text):
 {
     "status": "skipped" or "patch",
     "reason": "explanation (required if status is skipped)",
-    "patch": "the fixed code (required if status is patch)"
+    "patch": "the complete fixed source code (required if status is patch)"
 }
 
-If you skip, explain why in the reason field.
-If you provide a patch, include the complete fixed code in the patch field.
+EXAMPLES:
+
+Example 1 - Fixing a typo:
+Input: return reuslt  # typo
+Output: {"status": "patch", "patch": "return result"}
+
+Example 2 - Skipping complex fix:
+Output: {"status": "skipped", "reason": "Fix requires architectural changes"}
+
+Remember: The "patch" field must contain ACTUAL CODE, not instructions or descriptions.
 """
 
 CODER_PROMPT_TEMPLATE = """Fix the following code issue:
@@ -348,17 +376,51 @@ class SimpleCoder(BaseAgent):
     ) -> CoderOutput:
         """Parse LLM response and validate.
 
+        P6: Output Parsing Fallback - handles cases where LLM returns
+        dialogue text instead of JSON, or wraps JSON in markdown blocks.
+
         Args:
             response: Raw LLM response (expected JSON)
             file_path: File path for context
 
         Returns:
             CoderOutput from parsed response
+
+        Event Codes (greppable):
+            [CODER_DIALOGUE_ABORT] - LLM returned dialogue instead of JSON
+            [CODER_JSON_EXTRACT] - Extracted JSON from wrapped response
         """
+        # P6: First check if response looks like dialogue instead of JSON
+        response_stripped = response.strip()
+        if DIALOGUE_REGEX.search(response_stripped):
+            # Log the first 100 chars for debugging
+            preview = response_stripped[:100].replace('\n', ' ')
+            logger.warning(
+                f"[CODER_DIALOGUE_ABORT] {file_path}: LLM returned dialogue "
+                f"instead of JSON. Preview: {preview}..."
+            )
+            return CoderOutput.create_skipped(
+                "LLM returned dialogue/instructions instead of JSON code patch. "
+                "This is a prompt compliance issue.",
+                file_path=file_path
+            )
+
+        # P6: Try to extract JSON if wrapped in markdown code blocks
+        json_to_parse = response_stripped
+        if response_stripped.startswith("```"):
+            # Extract content between code blocks
+            match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response_stripped)
+            if match:
+                json_to_parse = match.group(1).strip()
+                logger.info(f"[CODER_JSON_EXTRACT] {file_path}: Extracted JSON from markdown block")
+
         try:
-            data = json.loads(response)
+            data = json.loads(json_to_parse)
         except json.JSONDecodeError as e:
             logger.warning(f"[SimpleCoder] Failed to parse JSON: {e}")
+            # Log preview for debugging
+            preview = response_stripped[:100].replace('\n', ' ')
+            logger.warning(f"[SimpleCoder] Response preview: {preview}...")
             return CoderOutput.create_skipped(
                 f"Failed to parse LLM response as JSON: {str(e)}",
                 file_path=file_path
@@ -386,6 +448,19 @@ class SimpleCoder(BaseAgent):
                 logger.warning(f"[CODER_WHITESPACE_ABORT] {file_path}: whitespace-only content")
                 return CoderOutput.create_skipped(
                     "LLM returned patch with only whitespace content",
+                    file_path=file_path
+                )
+
+            # P6: Check if patch content looks like dialogue instead of code
+            # This catches cases where JSON parsing succeeded but patch contains instructions
+            if DIALOGUE_REGEX.search(patch_content):
+                preview = patch_content[:100].replace('\n', ' ')
+                logger.warning(
+                    f"[CODER_PATCH_DIALOGUE_ABORT] {file_path}: patch field contains "
+                    f"dialogue instead of code. Preview: {preview}..."
+                )
+                return CoderOutput.create_skipped(
+                    "LLM returned dialogue/instructions in patch field instead of code",
                     file_path=file_path
                 )
 
