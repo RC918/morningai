@@ -1,9 +1,2 @@
-# Original code with lint error (unused import, missing whitespace around operators, etc.)
-import os, sys
 
-def add(a,b):
-    return a+b
-
-# Fixed code
-def add(a: int, b: int) -> int:
-    return a + b
+2. Now, create a new branch for your lint fixes (to avoid messing up your main branch):
