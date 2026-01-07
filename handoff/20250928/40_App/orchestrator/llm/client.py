@@ -618,7 +618,9 @@ def get_client_for_component(
 def get_client_for_task(
     task_type,
     risk_level: str = "medium",
-    context_size: int = 0
+    context_size: int = 0,
+    escalation_count: int = 0,
+    retry_count: int = 0
 ) -> LLMClient:
     """
     Get an LLMClient configured based on task type using the RoutingEngine.
@@ -628,11 +630,15 @@ def get_client_for_task(
     - Task type (planning, coding, review, etc.)
     - Risk level (high, medium, low)
     - Context size (token count)
+    - Escalation count (for hard cap enforcement)
+    - Retry count (for hard cap enforcement)
 
     Args:
         task_type: Type of task (from core.routing.TaskType)
         risk_level: Risk level ("high", "medium", "low")
         context_size: Estimated context size in tokens
+        escalation_count: Number of tier escalations already performed (Issue #3640)
+        retry_count: Number of retries already attempted (Issue #3640)
 
     Returns:
         LLMClient configured with the appropriate provider and model
@@ -651,6 +657,15 @@ def get_client_for_task(
         # UX copy task - will select Tier 3 model (qwen-14b)
         client = get_client_for_task(TaskType.UX_COPY)
         response = client.generate("Write button label")
+
+        # With escalation tracking (Issue #3640)
+        # Note: 'state' refers to AgentState from langgraph_orchestrator
+        client = get_client_for_task(
+            TaskType.CODING,
+            risk_level="medium",
+            escalation_count=state.get("escalation_count", 0),  # from AgentState
+            retry_count=state.get("retry_count", 0)  # from AgentState
+        )
     """
     try:
         from core.routing import RoutingEngine
@@ -669,7 +684,9 @@ def get_client_for_task(
         model_info = engine.select_model(
             task_type=task_type,
             risk_level=risk_level,
-            context_size=context_size
+            context_size=context_size,
+            escalation_count=escalation_count,
+            retry_count=retry_count
         )
 
         logger.info(
