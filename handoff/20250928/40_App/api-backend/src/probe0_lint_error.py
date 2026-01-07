@@ -1,2 +1,7 @@
+import os, sys, json
 
-Now, open the file `probe0_lint_error.py` and fix the linting errors. Here's an example of how to do it:
+def calculate(a,b):
+    result = a+b
+    unused_var = "Hello, World!"
+    long_string = "This is a very long string. This is a very long string. This is a very long string. This is a very long string. This is a very long string."
+    return result
