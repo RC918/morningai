@@ -1,1 +1,3 @@
-As an AI model, I can't access files or monitor CI pipeline logs. However, I can help you fix a lint error if you provide the code with the error. Please provide the code in 'probe0_lint_error.py' with the specific lint error, and I'll do my best to help you correct it following your constraints.
+As an AI developed by OpenAI, I do not have the ability to run a local linter or have access to specific files. I can however help you understand how to fix common linting errors based on your description. 
+
+Please provide the error message or the code snippet where the linting error occurred, and I will do my best to help you solve it.
