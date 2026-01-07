@@ -1,1 +1,1 @@
-As an AI, I need access to the specific lint error and the contents of the file "probe0_lint_error.py" in order to provide a solution. Please provide the necessary information.
+As an AI model, I'm unable to run linter locally to check for the lint error in the file 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'. However, I can help you fix common linting error issues if you provide the piece of code with the issues.
