@@ -1,2 +1,13 @@
+# Before fixing lint
+def myfunc(n):
+    if(n>0):
+     return n*2
+    else:
+     return None
 
-Then navigate to the directory containing the tests, and run `pytest`.
+# After fixing lint
+def myfunc(n: int) -> Union[int, None]:
+    if n > 0:
+        return n * 2
+    else:
+        return None
