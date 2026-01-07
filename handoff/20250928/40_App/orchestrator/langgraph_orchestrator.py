@@ -4450,11 +4450,11 @@ def _attempt_general_coder_fix(
         from common.agents.base_agent import AgentInput
         from tools.github_api import get_repo, commit_files
     except ImportError as e:
-        logger.debug(f"[GENERAL_CODER_DISABLED] Import failed: {e}")
+        logger.info(f"[GENERAL_CODER_DISABLED] Import failed: {e}")
         return False, f"GeneralCoder not available: {e}"
 
     if not settings.enable_general_coder:
-        logger.debug("[GENERAL_CODER_DISABLED] Feature flag disabled")
+        logger.info("[GENERAL_CODER_DISABLED] Feature flag disabled")
         return False, "GeneralCoder feature flag disabled"
 
     # Issue #3366: Use smart gate logic for CI failure scenarios
@@ -4486,9 +4486,9 @@ def _attempt_general_coder_fix(
 
     # If only single file, let SimpleCoder handle it
     if len(review_files) <= 1 and file_path:
-        logger.debug(
+        logger.info(
             f"[GENERAL_CODER_GATE_FAIL] Single file detected, deferring to SimpleCoder. "
-            f"trace_id={trace_id}"
+            f"review_files_count={len(review_files)}, file_path={file_path}, trace_id={trace_id}"
         )
         return False, "Single file - deferring to SimpleCoder"
 
@@ -5243,10 +5243,15 @@ def fixer_node(state: AgentState) -> AgentState:
     review_file_path = state.get("review_file_path", "")
     review_files = state.get("review_files", [])
     ci_context = state.get("ci_failure_context")
+    review_outcome = state.get("review_outcome")
 
     # Safe access to settings attributes (handles None settings in tests)
     enable_general_coder = getattr(settings, 'enable_general_coder', False) if settings else False
     enable_simple_coder = getattr(settings, 'enable_simple_coder', False) if settings else False
+
+    # Extract review_outcome fields for diagnostic
+    review_outcome_severity = review_outcome.get("severity", "N/A") if isinstance(review_outcome, dict) else "N/A"
+    review_outcome_schema_validated = review_outcome.get("schema_validated", "N/A") if isinstance(review_outcome, dict) else "N/A"
 
     logger.info(
         f"[FIXER_ENTRY_DIAGNOSTIC] Coder prerequisites at fixer_node entry. "
@@ -5256,6 +5261,9 @@ def fixer_node(state: AgentState) -> AgentState:
         f"review_comments_count={len(review_comments)}, "
         f"review_file_path={review_file_path or 'empty'}, "
         f"review_files_count={len(review_files)}, "
+        f"review_outcome_present={review_outcome is not None}, "
+        f"review_outcome_severity={review_outcome_severity}, "
+        f"review_outcome_schema_validated={review_outcome_schema_validated}, "
         f"ci_context_present={ci_context is not None}, "
         f"ci_context_type={type(ci_context).__name__}, "
         f"enable_general_coder={enable_general_coder}, "
@@ -5269,6 +5277,9 @@ def fixer_node(state: AgentState) -> AgentState:
             "review_comments_count": len(review_comments),
             "review_file_path": review_file_path,
             "review_files_count": len(review_files),
+            "review_outcome_present": review_outcome is not None,
+            "review_outcome_severity": review_outcome_severity,
+            "review_outcome_schema_validated": review_outcome_schema_validated,
             "ci_context_present": ci_context is not None,
             "enable_general_coder": enable_general_coder,
             "enable_simple_coder": enable_simple_coder,
@@ -5322,7 +5333,7 @@ def fixer_node(state: AgentState) -> AgentState:
         agent_eval.record_fixer_iteration(trace_id, retry_count + 1, True)
         return state
 
-    logger.debug(
+    logger.info(
         f"[Fixer] GeneralCoder did not apply fix, trying SimpleCoder. "
         f"reason={general_coder_msg}, trace_id={trace_id}"
     )
