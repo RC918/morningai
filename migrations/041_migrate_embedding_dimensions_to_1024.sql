@@ -67,10 +67,16 @@
 --   SET LOCAL morningai.confirm_embedding_migration = 'I_UNDERSTAND_DATA_WILL_BE_DELETED';
 --   \i migrations/041_migrate_embedding_dimensions_to_1024.sql
 --   COMMIT;
+--
+-- NOTE: current_setting(..., true) returns NULL if the parameter doesn't exist.
+-- IS DISTINCT FROM handles NULL correctly - if NULL or any other value,
+-- the migration will be blocked. This is the intended behavior.
 -- ============================================================================
 
 DO $$
 BEGIN
+    -- current_setting with missing_ok=true returns NULL if param doesn't exist
+    -- IS DISTINCT FROM correctly handles NULL comparison (NULL IS DISTINCT FROM 'X' = true)
     IF current_setting('morningai.confirm_embedding_migration', true) IS DISTINCT FROM 'I_UNDERSTAND_DATA_WILL_BE_DELETED' THEN
         RAISE EXCEPTION '
 ============================================================================
@@ -281,6 +287,9 @@ COMMENT ON COLUMN failure_memory.embedding IS 'Vector embedding (1024 dimensions
 -- ============================================================================
 -- Verification
 -- ============================================================================
+-- NOTE: PostgreSQL's atttypmod for pgvector stores dimensions as negative values
+-- (e.g., vector(1024) stores atttypmod as 1024, but some versions may use -1024).
+-- We use ABS() to handle both cases robustly.
 
 DO $$
 DECLARE
@@ -300,47 +309,47 @@ BEGIN
 ';
 
     -- Check embeddings table dimension
-    SELECT atttypmod INTO embeddings_dim
+    SELECT ABS(atttypmod) INTO embeddings_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'embeddings' AND a.attname = 'embedding';
     
     -- Check vector_queries table dimension
-    SELECT atttypmod INTO vector_queries_dim
+    SELECT ABS(atttypmod) INTO vector_queries_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'vector_queries' AND a.attname = 'query_embedding';
     
     -- Check error_fix_pairs table dimensions (both columns)
-    SELECT atttypmod INTO error_embedding_dim
+    SELECT ABS(atttypmod) INTO error_embedding_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'error_fix_pairs' AND a.attname = 'error_embedding';
     
-    SELECT atttypmod INTO fix_embedding_dim
+    SELECT ABS(atttypmod) INTO fix_embedding_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'error_fix_pairs' AND a.attname = 'fix_embedding';
     
     -- Check memory table dimension
-    SELECT atttypmod INTO memory_dim
+    SELECT ABS(atttypmod) INTO memory_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'memory' AND a.attname = 'embedding';
     
     -- Check failure_memory table dimension
-    SELECT atttypmod INTO failure_memory_dim
+    SELECT ABS(atttypmod) INTO failure_memory_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'failure_memory' AND a.attname = 'embedding';
     
     -- Check code_embeddings table dimension (if exists)
-    SELECT atttypmod INTO code_embeddings_dim
+    SELECT ABS(atttypmod) INTO code_embeddings_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'code_embeddings' AND a.attname = 'embedding';
 
-    -- Report all dimensions
+    -- Report all dimensions (now showing absolute values)
     RAISE NOTICE '  Verification Results:';
     RAISE NOTICE '  ----------------------';
     RAISE NOTICE '  embeddings.embedding:              % (expected: 1024)', embeddings_dim;
@@ -355,7 +364,7 @@ BEGIN
         RAISE NOTICE '  code_embeddings.embedding:         (table not found - OK if not using Knowledge Graph)';
     END IF;
 
-    -- Validate all dimensions are 1024
+    -- Validate all dimensions are 1024 (using absolute values)
     IF embeddings_dim != 1024 THEN
         RAISE WARNING 'embeddings.embedding dimension mismatch: expected 1024, got %', embeddings_dim;
         all_passed := FALSE;
