@@ -1,42 +1,44 @@
-# Step 1: Fix the lint error in the file "probe0_lint_error.py"
-# The lint error can be identified using tools like pylint or flake8. Once identified, the error should be fixed.
-
-# Step 2: Commit the changes
-# After fixing the lint error, we need to commit these changes. Here is how you can do it:
-
-# Import necessary modules
 import subprocess
+import os
+from typing import NoReturn
 
-def commit_changes(file_path: str) -> None:
+def fix_lint(file_path: str) -> NoReturn:
     """
-    Function to commit changes to a specific file
+    Fix linting errors in the file using autopep8
     """
     try:
-        # Stage the file for commit
+        subprocess.check_call(['autopep8', '--in-place', '--aggressive', '--aggressive', file_path])
+        print(f"Linting errors in {file_path} have been fixed.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred while fixing linting errors in {file_path}: {str(e)}")
+
+def commit_changes(file_path: str) -> NoReturn:
+    """
+    Commit the corrected file
+    """
+    try:
         subprocess.check_call(['git', 'add', file_path])
-
-        # Commit the changes
-        commit_message = "Fix lint errors"
-        subprocess.check_call(['git', 'commit', '-m', commit_message])
+        subprocess.check_call(['git', 'commit', '-m', 'Fix linting errors'])
+        print(f"Changes in {file_path} have been committed.")
     except subprocess.CalledProcessError as e:
-        print("Failed to commit changes. Error: ", str(e))
+        print(f"Error occurred while committing the changes in {file_path}: {str(e)}")
 
-# Call the function
-commit_changes("handoff/20250928/40_App/api-backend/src/probe0_lint_error.py")
-
-# Step 3: Push the changes to the PR branch
-def push_changes(branch_name: str) -> None:
+def push_changes(branch_name: str) -> NoReturn:
     """
-    Function to push changes to a specific branch
+    Push the changes to the branch
     """
     try:
-        # Push the changes
         subprocess.check_call(['git', 'push', 'origin', branch_name])
+        print(f"Changes have been pushed to the branch {branch_name}")
     except subprocess.CalledProcessError as e:
-        print("Failed to push changes. Error: ", str(e))
-        
-# Call the function (replace 'PR_branch' with the actual PR branch name)
-push_changes('PR_branch')
+        print(f"Error occurred while pushing the changes to the branch {branch_name}: {str(e)}")
 
-# Note: Monitoring the CI pipeline execution in GitHub Actions can't be done programmatically. 
-# You need to manually check the Actions tab in the GitHub repository.
+def main() -> NoReturn:
+    file_path = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
+    branch_name = "feature/fix-lint-errors" # Assuming the branch name
+    fix_lint(file_path)
+    commit_changes(file_path)
+    push_changes(branch_name)
+
+if __name__ == "__main__":
+    main()
