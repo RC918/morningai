@@ -1,21 +1,42 @@
-Fixing linting errors is a manual process that depends on the specific errors the linter is throwing. It's not possible to generate code to fix these errors without knowing what they are. However, I can show you how to commit and push your changes to trigger the GitHub Actions CI pipeline.
+import pytest
+import pylint
+import subprocess
+import sys
+from typing import Tuple
 
-The following commands assume that you have already fixed the linting errors in the file "probe0_lint_error.py" and you are ready to commit and push these changes.
+def run_lint_and_tests(filepath: str) -> Tuple[int, int]:
+    """
+    Function to run lint check and tests on a python script.
 
-```bash
-# Navigate to the correct directory
-cd handoff/20250928/40_App/api-backend/src
+    Parameters:
+    filepath (str): path to the python script
 
-# Add the changes to the staging area
-git add probe0_lint_error.py
+    Returns:
+    Tuple[int, int]: returns a tuple, first element is the lint score, second is the test result
+    """
+    
+    # Run pylint on the specified file
+    lint_score = pylint.lint.Run([filepath], exit=False).linter.stats['global_note']
 
-# Commit the changes with a descriptive message
-git commit -m "Fix linting errors in probe0_lint_error.py"
+    # Run pytest on the specified file
+    test_result = pytest.main([filepath])
 
-# Push the changes to the remote repository
-git push origin main
-```
+    return lint_score, test_result
 
-Replace "main" with the name of the branch you are working on, if it's not the main branch. 
+if __name__ == "__main__":
+    # Path to the python script
+    filepath = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
 
-After running these commands, GitHub Actions should automatically start running your CI pipeline again. If it doesn't, you should check the configuration of your GitHub Actions to ensure it's set up to run on every push.
+    try:
+        lint_score, test_result = run_lint_and_tests(filepath)
+        print(f"Lint score: {lint_score}")
+        print(f"Test result: {test_result}")
+
+        if lint_score < 10.0 or test_result != 0:
+            print("Script failed either lint check or tests, check the above scores for more details.")
+            sys.exit(1)
+
+    except Exception as e:
+        print("An error occurred while running lint check or tests.")
+        print(str(e))
+        sys.exit(1)
