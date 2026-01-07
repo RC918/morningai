@@ -1,16 +1,4 @@
-# Before linting: 
 
-def add(a,b):
-    return a+b;
+The commit message here is clear and describes the changes made.
 
-# After linting:
-
-def add(a: int, b: int) -> int:
-    """
-    This function adds two integers and returns the result.
-
-    :param a: The first integer
-    :param b: The second integer
-    :return: The sum of the two integers
-    """
-    return a + b
+3. Next, you need to push the changes to the repository to trigger a new CI pipeline run. You would do this with:
