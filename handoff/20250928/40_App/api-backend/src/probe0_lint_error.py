@@ -1,45 +1,37 @@
-import autopep8
-import os
-from typing import NoReturn
+import subprocess
+import sys
+from typing import List
 
-
-def fix_lint_errors(file_path: str) -> NoReturn:
-    """Fix lint errors in a Python file using autopep8.
-
-    Args:
-        file_path (str): Path to the Python file.
+def git_commit(file: str, commit_message: str) -> None:
     """
-
-    # Check if file exists
-    if not os.path.isfile(file_path):
-        print(f"Error: {file_path} does not exist.")
-        return
-
-    # Check if file is a Python file
-    if not file_path.endswith(".py"):
-        print(f"Error: {file_path} is not a Python file.")
-        return
-
+    This function stages and commits a file using git.
+    Args:
+        file (str): The file to commit.
+        commit_message (str): The commit message.
+    """
     try:
-        # Read original file
-        with open(file_path, "r") as input_file:
-            file_contents = input_file.read()
+        # Stage the file
+        subprocess.check_output(['git', 'add', file])
+        # Commit the file
+        subprocess.check_output(['git', 'commit', '-m', commit_message])
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while committing the file: {e.output}", file=sys.stderr)
 
-        # Fix lint errors
-        fixed_contents = autopep8.fix_code(file_contents)
+def fix_lint(target_files: List[str]) -> None:
+    """
+    This function fixes lint issues and commits the changes to the repository.
+    Args:
+        target_files (List[str]): The list of files to fix and commit.
+    """
+    for file in target_files:
+        try:
+            # Fix lint issues
+            subprocess.check_output(['autopep8', '--in-place', '--aggressive', file])
+            # Commit the changes
+            git_commit(file, "Fixed lint errors")
+        except subprocess.CalledProcessError as e:
+            print(f"An error occurred while fixing lint errors in the file: {e.output}", file=sys.stderr)
 
-        # Write fixed contents back to file
-        with open(file_path, "w") as output_file:
-            output_file.write(fixed_contents)
-
-        print(f"Lint errors in {file_path} have been fixed.")
-
-    except Exception as e:
-        print(f"Error fixing lint errors in {file_path}: {e}")
-
-
-# Target file path
-file_path = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
-
-# Fix lint errors in target file
-fix_lint_errors(file_path)
+if __name__ == "__main__":
+    target_files = ['handoff/20250928/40_App/api-backend/src/probe0_lint_error.py']
+    fix_lint(target_files)
