@@ -1,2 +1,2 @@
 
-Then, run pylint on the specified file:
+2. Navigate to the file with the lint error.
