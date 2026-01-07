@@ -1,1 +1,2 @@
-4. Commit the changes with a clear commit message:
+
+Step 2: Run the GitHub workflow locally.
