@@ -240,7 +240,7 @@ class TestCIFailureReflex:
             metadata={
                 "ci_conclusion": "timed_out",
                 "ci_head_branch": "feature/test",
-                "ci_head_sha": "abc123def456",
+                "ci_head_sha": "timed_out_sha_001",  # Unique SHA to avoid dedup collision
                 "ci_pr_numbers": [123],
             },
         )
@@ -265,7 +265,7 @@ class TestCIFailureReflex:
             metadata={
                 "ci_conclusion": "startup_failure",
                 "ci_head_branch": "feature/test",
-                "ci_head_sha": "abc123def456",
+                "ci_head_sha": "startup_fail_sha_002",  # Unique SHA to avoid dedup collision
                 "ci_pr_numbers": [123],
             },
         )
@@ -291,7 +291,7 @@ class TestCIFailureReflex:
             metadata={
                 "ci_conclusion": "action_required",
                 "ci_head_branch": "feature/test",
-                "ci_head_sha": "abc123def456",
+                "ci_head_sha": "action_req_sha_003",  # Unique SHA to avoid dedup collision
                 "ci_pr_numbers": [123],
             },
         )
