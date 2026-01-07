@@ -80,7 +80,8 @@ class KnowledgeGraphManager:
     MAX_REQUESTS_PER_MINUTE = 500
     MAX_TOKENS_PER_MINUTE = 1_000_000
 
-    EMBEDDING_DIMENSIONS = 1536
+    # EMBEDDING_DIMENSIONS removed - now dynamically determined by EmbeddingClient
+    # based on provider (OpenAI: 1536, AliCloud: 1024)
 
     def __init__(
         self,
@@ -120,13 +121,14 @@ class KnowledgeGraphManager:
         self.token_usage: List[Tuple[float, int]] = []
 
         try:
-            self._embedding_client = get_embedding_client(
-                dimensions=self.EMBEDDING_DIMENSIONS
-            )
+            # Let EmbeddingClient auto-select dimensions based on provider
+            # (OpenAI: 1536, AliCloud: 1024)
+            self._embedding_client = get_embedding_client()
             logger.info(
                 f"[KnowledgeGraphManager] Initialized with embedding provider="
                 f"{self._embedding_client.provider_name}, "
-                f"model={self._embedding_client.model}"
+                f"model={self._embedding_client.model}, "
+                f"dimensions={self._embedding_client.dimensions}"
             )
         except Exception as e:
             logger.warning(
