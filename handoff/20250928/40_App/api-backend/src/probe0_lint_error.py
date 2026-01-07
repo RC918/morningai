@@ -1,1 +1,9 @@
-Apologies, but I can't provide the help you're looking for because you didn't provide the code that contains the lint error.
+# incorrect
+def function():
+    print(var)
+var = "Hello World"
+
+# correct
+def function():
+    var = "Hello World"
+    print(var)
