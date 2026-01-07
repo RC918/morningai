@@ -16,6 +16,13 @@ from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+# Import settings at module level for proper test mocking and security
+# Fallback defaults are used if settings module is unavailable
+try:
+    from common.config.settings import settings
+except ImportError:
+    settings = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -217,7 +224,9 @@ class RoutingEngine:
         self,
         task_type: TaskType,
         risk_level: RiskLevel | str = RiskLevel.MEDIUM,
-        context_size: int = 0
+        context_size: int = 0,
+        escalation_count: int = 0,
+        retry_count: int = 0
     ) -> ModelInfo:
         """
         Select the appropriate model for a given task
@@ -226,17 +235,72 @@ class RoutingEngine:
             task_type: Type of task to perform
             risk_level: Risk level (RiskLevel enum or "high", "medium", "low")
             context_size: Estimated context size in tokens
+            escalation_count: Number of times this task has already escalated (for hard cap)
+            retry_count: Number of times this task has been retried (for hard cap)
 
         Returns:
             ModelInfo with selected model details
 
         Raises:
             ValueError: If no suitable model is available or invalid risk level
+
+        Cost Optimization: Escalation Ladder Hard Cap
+        - max_escalations: Maximum tier escalations allowed (default: 1)
+        - max_retries: Maximum retries allowed (default: 2). Note: cap triggers when
+          retry_count >= max_retries, meaning with max_retries=2, the cap triggers
+          on the 3rd attempt (retry_count=0,1,2 -> cap at 2).
+        - tier_floor: Minimum tier (default: 2) - tasks cannot escalate below this
+        - force_tier_floor: If true, enforce tier floor for non-high-risk tasks
         """
         normalized_risk = self._normalize_risk_level(risk_level)
 
+        # Load escalation cap settings from module-level import
+        # Uses fallback defaults if settings module is unavailable
+        if settings is not None:
+            max_escalations = getattr(settings, 'routing_max_escalations', 1)
+            max_retries = getattr(settings, 'routing_max_retries', 2)
+            default_tier = getattr(settings, 'routing_default_tier', 2)
+            force_tier_floor = getattr(settings, 'routing_force_tier_floor', True)
+            tier_floor = getattr(settings, 'routing_tier_floor', 2)
+        else:
+            max_escalations = 1
+            max_retries = 2
+            default_tier = 2
+            force_tier_floor = True
+            tier_floor = 2
+
+        # Cost Optimization: Check retry hard cap
+        if retry_count >= max_retries:
+            logger.warning(
+                f"[RoutingEngine] RETRY_CAP_TRIGGERED: retry_count={retry_count}, "
+                f"max_retries={max_retries}, escalation_count={escalation_count}. "
+                f"Returning lowest-cost available model.",
+                extra={
+                    "operation": "routing_retry_cap",
+                    "event": "RETRY_CAP_TRIGGERED",
+                    "decision": "retry_cap_fallback",
+                    "task_type": task_type.value,
+                    "retry_count": retry_count,
+                    "max_retries": max_retries,
+                    "escalation_count": escalation_count,
+                    "max_escalations": max_escalations,
+                }
+            )
+            # Return lowest-cost available model when retry cap reached
+            # Start from Tier 3 (lowest cost) and fall back upward if unavailable
+            for tier in [Tier.TIER_3, Tier.TIER_2, Tier.TIER_1, Tier.TIER_0]:
+                model_info = self._find_available_model(tier)
+                if model_info:
+                    model_info.reason = (
+                        f"Retry cap reached ({retry_count}/{max_retries}), "
+                        f"escalation_count={escalation_count}, using tier {tier.value}"
+                    )
+                    model_info.is_fallback = tier != Tier.TIER_3
+                    return model_info
+            # If no model available at all, continue to normal flow which will raise ValueError
+
         task_key = task_type.value
-        routing_config = self._task_routing.get(task_key, {"tier": 2, "fallback": 3})
+        routing_config = self._task_routing.get(task_key, {"tier": default_tier, "fallback": 3})
 
         # Determine target tier based on task and risk
         target_tier_value = routing_config["tier"]
@@ -249,6 +313,41 @@ class RoutingEngine:
         elif normalized_risk == RiskLevel.LOW:
             # For low-risk tasks, can use lower capability (higher tier number)
             target_tier_value = min(3, target_tier_value + 1)
+
+        # Cost Optimization: Enforce tier floor for non-high-risk tasks
+        if force_tier_floor and normalized_risk != RiskLevel.HIGH:
+            if target_tier_value < tier_floor:
+                logger.info(
+                    f"[RoutingEngine] Tier floor enforced: target_tier={target_tier_value} -> {tier_floor} "
+                    f"(risk={normalized_risk.value}, force_tier_floor=True)",
+                    extra={
+                        "operation": "routing_tier_floor",
+                        "task_type": task_key,
+                        "original_tier": target_tier_value,
+                        "enforced_tier": tier_floor,
+                        "risk_level": normalized_risk.value,
+                    }
+                )
+                target_tier_value = tier_floor
+
+        # Cost Optimization: Enforce escalation hard cap
+        if escalation_count >= max_escalations:
+            # Don't allow further escalation - use current tier or higher
+            original_tier = routing_config["tier"]
+            if target_tier_value < original_tier:
+                logger.info(
+                    f"[RoutingEngine] Escalation cap reached: escalation_count={escalation_count}, "
+                    f"max_escalations={max_escalations}. Reverting to original tier {original_tier}.",
+                    extra={
+                        "operation": "routing_escalation_cap",
+                        "task_type": task_key,
+                        "escalation_count": escalation_count,
+                        "max_escalations": max_escalations,
+                        "blocked_tier": target_tier_value,
+                        "reverted_tier": original_tier,
+                    }
+                )
+                target_tier_value = original_tier
 
         target_tier = Tier(target_tier_value)
         fallback_tier = Tier(fallback_tier_value)
