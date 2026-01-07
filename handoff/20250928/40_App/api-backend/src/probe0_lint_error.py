@@ -1,22 +1,25 @@
-# Importing necessary modules
-import sys
 import pylint.lint
+from typing import NoReturn
 
-def check_lint(file_path: str) -> None:
+def run_linter_on_file(file_path: str) -> NoReturn:
     """
-    Function to check lint errors
-    :param file_path: str: path to the Python file
+    Run the pylint linter on the specified file.
+
+    Args:
+        file_path (str): The path to the file to lint.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
     """
-    # Run pylint
-    pylint_output = pylint.lint.Run([file_path], do_exit=False)
-
-    # If there are any errors
-    if pylint_output.linter.stats['global_note'] < 10.0:
-        print(f"Lint errors detected in {file_path}. Please fix them.")
-        sys.exit(1)
-    else:
-        print(f"No lint errors detected in {file_path}. File is clean.")
-
+    try:
+        pylint_opts = [file_path]
+        pylint.lint.Run(pylint_opts)
+    except FileNotFoundError as e:
+        print(f"Error: {file_path} does not exist.")
+        raise e
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}")
+        raise e
 
 if __name__ == "__main__":
-    check_lint('handoff/20250928/40_App/api-backend/src/probe0_lint_error.py')
+    run_linter_on_file('handoff/20250928/40_App/api-backend/src/probe0_lint_error.py')
