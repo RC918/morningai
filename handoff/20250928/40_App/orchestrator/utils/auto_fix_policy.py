@@ -619,6 +619,173 @@ class AutoFixLoopProtection:
             return False
 
 
+class CISignatureDeduplication:
+    """
+    CI signature deduplication to prevent re-processing identical failures.
+
+    Cost Optimization: Tracks CI failure signatures (hash of check_name + error_digest)
+    to avoid running the same fix attempt multiple times within a time window.
+
+    This is different from AutoFixLoopProtection which counts attempts per PR.
+    CISignatureDeduplication prevents re-processing the EXACT SAME failure.
+    """
+
+    # Default TTL: 24 hours (in seconds)
+    DEFAULT_TTL = 86400
+
+    def __init__(self, settings: "Settings" = None, redis_url: Optional[str] = None):
+        """
+        Initialize CISignatureDeduplication.
+
+        Args:
+            settings: Application settings. If None, uses global settings.
+            redis_url: Redis connection URL. If None, uses settings.redis_url.
+        """
+        if settings is None:
+            from common.config.settings import settings as global_settings
+            settings = global_settings
+        self.settings = settings
+        self.redis_url = redis_url or settings.redis_url
+
+    def _get_redis_client(self) -> Optional[redis.Redis]:
+        """Get Redis client, returning None if unavailable."""
+        try:
+            if self.redis_url:
+                return redis.Redis.from_url(self.redis_url, decode_responses=True)
+            return redis.Redis(
+                host=self.settings.redis_host,
+                port=self.settings.redis_port,
+                db=self.settings.redis_db,
+                decode_responses=True
+            )
+        except Exception as e:
+            logger.error(
+                "[CISignatureDeduplication] ALERT: Failed to connect to Redis: %s",
+                str(e),
+                extra={
+                    "operation": "ci_signature_dedup_redis_error",
+                    "alert_type": "redis_connection_failure",
+                    "component": "CISignatureDeduplication",
+                    "severity": "high",
+                    "fail_open": True,
+                }
+            )
+            return None
+
+    def _compute_signature(
+        self,
+        pr_id: str,
+        failed_check_name: str,
+        error_digest: str,
+    ) -> str:
+        """
+        Compute a unique signature for a CI failure.
+
+        Args:
+            pr_id: Pull request identifier
+            failed_check_name: Name of the failed CI check
+            error_digest: Hash/digest of the error message (first 500 chars)
+
+        Returns:
+            SHA256 hash of the combined signature
+        """
+        import hashlib
+        signature_input = f"{pr_id}:{failed_check_name}:{error_digest}"
+        return hashlib.sha256(signature_input.encode()).hexdigest()[:16]
+
+    def check_and_mark(
+        self,
+        pr_id: str,
+        failed_check_name: str,
+        error_summary: str,
+        ttl: int = None,
+    ) -> tuple:
+        """
+        Check if this CI failure signature has been processed recently.
+        If not, mark it as processed.
+
+        Args:
+            pr_id: Pull request identifier
+            failed_check_name: Name of the failed CI check
+            error_summary: Error summary text (will be hashed)
+            ttl: Time-to-live in seconds (default: 24 hours)
+
+        Returns:
+            Tuple of (is_new: bool, signature: str)
+            - is_new=True means this is a new failure, proceed with fix
+            - is_new=False means this failure was already processed, skip
+        """
+        if ttl is None:
+            ttl = self.DEFAULT_TTL
+
+        # Create error digest from first 500 chars of error summary
+        error_digest = error_summary[:500] if error_summary else ""
+
+        signature = self._compute_signature(pr_id, failed_check_name, error_digest)
+
+        r = self._get_redis_client()
+        if r is None:
+            # Fail-open: if Redis unavailable, treat as new failure
+            logger.warning(
+                "[CISignatureDeduplication] Redis unavailable, treating as new failure (fail-open)",
+                extra={
+                    "operation": "ci_signature_dedup_redis_unavailable",
+                    "pr_id": pr_id,
+                    "signature": signature,
+                    "fail_open": True,
+                }
+            )
+            return True, signature
+
+        try:
+            key = f"ci_signature:{signature}"
+
+            # Check if signature exists
+            existing = r.get(key)
+            if existing:
+                logger.info(
+                    "[CISignatureDeduplication] Duplicate CI failure detected, skipping",
+                    extra={
+                        "operation": "ci_signature_duplicate_detected",
+                        "pr_id": pr_id,
+                        "failed_check_name": failed_check_name,
+                        "signature": signature,
+                        "first_seen": existing,
+                    }
+                )
+                return False, signature
+
+            # Mark as processed
+            r.setex(key, ttl, time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+
+            logger.debug(
+                "[CISignatureDeduplication] New CI failure signature recorded",
+                extra={
+                    "operation": "ci_signature_recorded",
+                    "pr_id": pr_id,
+                    "failed_check_name": failed_check_name,
+                    "signature": signature,
+                    "ttl": ttl,
+                }
+            )
+            return True, signature
+
+        except redis.ConnectionError as e:
+            logger.warning(
+                "[CISignatureDeduplication] Redis connection error, treating as new failure: %s",
+                str(e),
+                extra={"operation": "ci_signature_dedup_redis_error"}
+            )
+            return True, signature
+        except Exception as e:
+            logger.warning(
+                "[CISignatureDeduplication] Unexpected error, treating as new failure: %s",
+                str(e),
+                extra={"operation": "ci_signature_dedup_error"}
+            )
+            return True, signature
+
+
 @dataclass
 class AutoFixSafetyCheckResult:
     """Combined result of all auto-fix safety checks"""
