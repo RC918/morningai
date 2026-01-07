@@ -1,45 +1,44 @@
-# Step 1: Fix the lint errors in the target file 
-# This depends on the specific lint errors you are getting.
-# Use tools like pylint, flake8 etc to check and fix the code style issues.
-
-# Step 2: Commit the fixes with clear messages
-# Use the git add, git commit commands to stage and commit your changes.
-
 import os
 import subprocess
 
-# Path to the file
-file_path = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
-
-def commit_changes(file_path: str) -> None:
+def commit_changes(file_path: str, commit_message: str) -> None:
+    """
+    This function commits changes to the specified file with the given commit message.
+    """
     try:
-        # Stage the file
-        subprocess.check_call(["git", "add", file_path])
-        
-        # Commit the changes
-        message = "fix: lint errors in probe0_lint_error.py"
-        subprocess.check_call(["git", "commit", "-m", message])
-
+        subprocess.check_call(['git', 'add', file_path])
+        subprocess.check_call(['git', 'commit', '-m', commit_message])
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred while committing the changes: {str(e)}")
-        return
+        print(f"Error occurred while committing changes: {str(e)}")
+        raise
 
-commit_changes(file_path)
-
-# Step 3: Push the changes to PR #3627.
-# This depends on how your git workflow is set up.
-# Usually, you would push to the branch associated with PR #3627.
-
-def push_changes() -> None:
+def push_changes(remote: str, branch: str) -> None:
+    """
+    This function pushes changes to the specified remote and branch.
+    """
     try:
-        # Push the changes
-        subprocess.check_call(["git", "push", "origin", "<branch-name>"])
-
+        subprocess.check_call(['git', 'push', remote, branch])
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred while pushing the changes: {str(e)}")
-        return
+        print(f"Error occurred while pushing changes: {str(e)}")
+        raise
 
-push_changes()
+def fix_lint(file_path: str) -> None:
+    """
+    This function fixes linting issues in the specified file and pushes the changes.
+    """
+    # Run lint fix command
+    try:
+        subprocess.check_call(['python', '-m', 'autopep8', '--in-place', '--aggressive', '--aggressive', file_path])
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred while fixing lint: {str(e)}")
+        raise
 
-# Step 4: Monitor the GitHub Actions logs for successful completion.
-# This is usually done on the GitHub website, in the Actions tab of your repository.
+    # Commit and push changes
+    commit_message = "Fix lint errors"
+    commit_changes(file_path, commit_message)
+    push_changes('origin', 'main')
+
+
+if __name__ == '__main__':
+    file_path = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
+    fix_lint(file_path)
