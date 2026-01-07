@@ -1,46 +1,45 @@
+import autopep8
 import os
-import subprocess
 from typing import NoReturn
 
+
 def fix_lint_errors(file_path: str) -> NoReturn:
-    """Run the lint fix command on the specified file"""
+    """Fix lint errors in a Python file using autopep8.
+
+    Args:
+        file_path (str): Path to the Python file.
+    """
+
+    # Check if file exists
+    if not os.path.isfile(file_path):
+        print(f"Error: {file_path} does not exist.")
+        return
+
+    # Check if file is a Python file
+    if not file_path.endswith(".py"):
+        print(f"Error: {file_path} is not a Python file.")
+        return
+
     try:
-        subprocess.check_call(['flake8', '--max-complexity=10', file_path, '--count', '--exit-zero', '--statistics'])
-    except subprocess.CalledProcessError as err:
-        print(f"Lint fixing failed with error: {err}")
+        # Read original file
+        with open(file_path, "r") as input_file:
+            file_contents = input_file.read()
 
-def git_commit(file_path: str, commit_msg: str) -> NoReturn:
-    """Commit the changes with the specified message"""
-    try:
-        subprocess.check_call(['git', 'add', file_path])
-        subprocess.check_call(['git', 'commit', '-m', commit_msg])
-    except subprocess.CalledProcessError as err:
-        print(f"Git commit failed with error: {err}")
+        # Fix lint errors
+        fixed_contents = autopep8.fix_code(file_contents)
 
-def git_push(branch_name: str) -> NoReturn:
-    """Push the changes to the specified branch"""
-    try:
-        subprocess.check_call(['git', 'push', 'origin', branch_name])
-    except subprocess.CalledProcessError as err:
-        print(f"Git push failed with error: {err}")
+        # Write fixed contents back to file
+        with open(file_path, "w") as output_file:
+            output_file.write(fixed_contents)
 
-def monitor_github_actions() -> NoReturn:
-    """Monitor the GitHub Actions CI pipeline"""
-    # This function requires a method for monitoring the GitHub Actions CI pipeline, 
-    # which is beyond the scope of this task and may require using the GitHub API or a third-party service.
+        print(f"Lint errors in {file_path} have been fixed.")
 
-# Set the file path and branch name
-file_path = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
-branch_name = 'PR-3627'
+    except Exception as e:
+        print(f"Error fixing lint errors in {file_path}: {e}")
 
-# Fix lint errors
+
+# Target file path
+file_path = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
+
+# Fix lint errors in target file
 fix_lint_errors(file_path)
-
-# Commit changes
-git_commit(file_path, 'Fix lint errors')
-
-# Push changes
-git_push(branch_name)
-
-# Monitor the GitHub Actions CI pipeline
-monitor_github_actions()
