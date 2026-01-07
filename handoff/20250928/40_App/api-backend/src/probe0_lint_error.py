@@ -1,8 +1,7 @@
-import json
 
-def parse_json(json_string):
-    parsed_json = json.loads(json_string)
-    return parsed_json
+This will output a list of linting errors for that file. For each error, you'd then go into the code and fix it. Let's assume `pylint` gives us two errors:
 
-json_string = '{"name": "John", "age": 30, "city": "New York"}'
-print(parse_json(json_string))
+1. `unused-variable`: Unused variable 'unused_var' (unused-variable)
+2. `missing-function-docstring`: Missing function docstring (missing-function-docstring)
+
+Here is a simple way to fix these issues in your Python code:
