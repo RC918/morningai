@@ -332,7 +332,12 @@ class KnowledgeGraphManager:
                 embedding = self._embedding_client.embed(content)
 
                 if embedding is None:
-                    raise RuntimeError("Embedding generation returned None")
+                    # Return error instead of raising to maintain return type contract
+                    return create_error(
+                        ErrorCode.EXTERNAL_API_ERROR,
+                        "Embedding generation returned None",
+                        hint="Check embedding provider configuration and API availability"
+                    )
 
                 cost = (token_count / 1000) * cost_per_1k
 
