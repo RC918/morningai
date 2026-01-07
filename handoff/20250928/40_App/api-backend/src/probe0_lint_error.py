@@ -1,9 +1,15 @@
-# Bad code
-def some_function(some_arg1,some_arg2):
-    result=some_arg1+some_arg2;return result
+# probe0_lint_error.py
 
-# Good code
-def some_function(some_arg1: int, some_arg2: int) -> int:
-    """Add two numbers."""
-    result = some_arg1 + some_arg2
-    return result
+# import statements
+
+def function_name(param1: str, param2: int) -> None:
+    """
+    This function does something with a string and an integer.
+    """
+    try:
+        # code implementation
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    function_name("string", 10)
