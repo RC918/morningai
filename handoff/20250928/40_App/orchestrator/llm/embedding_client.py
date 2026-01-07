@@ -110,10 +110,12 @@ class EmbeddingClient:
 
         Args:
             model: Embedding model to use (auto-selected based on provider if None)
-            provider: Embedding provider ("auto", "alicloud", "openai")
+            provider: Embedding provider ("auto", "alicloud", "openai").
+                      Note: When called via get_embedding_client(), provider is
+                      already resolved. Direct instantiation will still resolve.
             dimensions: Embedding dimensions (default: 1536 for DB compatibility)
         """
-        self._provider = _resolve_provider(provider)
+        self._provider = provider if provider != "auto" else _resolve_provider(provider)
         self._model = model or _get_default_model(self._provider)
         self._dimensions = dimensions
         self._client = None
@@ -276,24 +278,53 @@ class EmbeddingClient:
 
 
 @lru_cache(maxsize=None)
-def get_embedding_client(
-    model: Optional[str] = None,
-    provider: str = "auto"
+def _get_cached_client(
+    resolved_provider: str,
+    model: Optional[str],
+    dimensions: int
 ) -> EmbeddingClient:
     """
-    Get an EmbeddingClient instance (thread-safe singleton per provider/model).
-
-    Uses lru_cache for thread-safe singleton behavior. Each unique
-    (provider, model) combination gets its own cached instance.
+    Internal cached client factory. Cache is keyed on resolved provider,
+    model, and dimensions to ensure correct behavior when API keys change.
 
     Args:
-        model: Embedding model to use (auto-selected based on provider if None)
-        provider: Embedding provider ("auto", "alicloud", "openai")
+        resolved_provider: Already-resolved provider name (not "auto")
+        model: Embedding model to use
+        dimensions: Embedding dimensions
 
     Returns:
         EmbeddingClient instance
     """
-    return EmbeddingClient(model=model, provider=provider)
+    return EmbeddingClient(
+        model=model,
+        provider=resolved_provider,
+        dimensions=dimensions
+    )
+
+
+def get_embedding_client(
+    model: Optional[str] = None,
+    provider: str = "auto",
+    dimensions: int = DEFAULT_EMBEDDING_DIMENSIONS
+) -> EmbeddingClient:
+    """
+    Get an EmbeddingClient instance (thread-safe singleton per resolved provider/model).
+
+    Provider resolution happens BEFORE caching to ensure correct behavior
+    when API keys change at runtime. Each unique (resolved_provider, model, dimensions)
+    combination gets its own cached instance.
+
+    Args:
+        model: Embedding model to use (auto-selected based on provider if None)
+        provider: Embedding provider ("auto", "alicloud", "openai")
+        dimensions: Embedding dimensions (default: 1536 for DB compatibility)
+
+    Returns:
+        EmbeddingClient instance
+    """
+    resolved_provider = _resolve_provider(provider)
+    resolved_model = model or _get_default_model(resolved_provider)
+    return _get_cached_client(resolved_provider, resolved_model, dimensions)
 
 
 def embed(text: str) -> Optional[List[float]]:
