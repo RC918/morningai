@@ -36,25 +36,25 @@ def session_store(mock_redis):
 
 
 @pytest.fixture
-def mock_openai():
-    """Mock OpenAI client"""
-    openai_mock = Mock()
+def mock_llm_client():
+    """Mock LLMClient for testing"""
+    llm_mock = Mock()
 
-    # Mock chat completion response
+    # Mock generate response (LLMClient uses generate() not chat.completions.create())
     mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = "Analysis: Task is progressing well. Recommend continuing with current approach."
+    mock_response.content = "Analysis: Task is progressing well. Recommend continuing with current approach."
 
-    openai_mock.chat.completions.create = Mock(return_value=mock_response)
+    llm_mock.generate = Mock(return_value=mock_response)
+    llm_mock.model = "gpt-4-turbo-preview"
 
-    return openai_mock
+    return llm_mock
 
 
 @pytest.fixture
-def dev_agent(mock_openai, session_store):
+def dev_agent(mock_llm_client, session_store):
     """Create DevAgentV2 instance with mocks"""
     return DevAgentV2(
-        openai_client=mock_openai,
+        llm_client=mock_llm_client,
         session_store=session_store,
         model="gpt-4-turbo-preview"
     )
@@ -257,28 +257,27 @@ class TestDevAgentV2OODALoop:
         assert len(result_state.observations) == 1
         assert "Observing task" in result_state.observations[0]["observation"]
 
-    def test_orient_phase_with_gpt4(self, dev_agent, mock_openai, session_store, sample_session_state):
-        """Test orient phase calls GPT-4 and transitions to decide"""
+    def test_orient_phase_with_llm(self, dev_agent, mock_llm_client, session_store, sample_session_state):
+        """Test orient phase calls LLM and transitions to decide"""
         # Add some observations first
         sample_session_state.add_observation("Test observation", {"test": "data"})
         sample_session_state.current_phase = OODAPhase.ORIENT
 
         result_state = dev_agent.orient(sample_session_state)
 
-        # Verify GPT-4 was called
-        mock_openai.chat.completions.create.assert_called_once()
-        call_kwargs = mock_openai.chat.completions.create.call_args[1]
-        assert call_kwargs["model"] == "gpt-4-turbo-preview"
+        # Verify LLM was called
+        mock_llm_client.generate.assert_called_once()
+        call_kwargs = mock_llm_client.generate.call_args[1]
         assert call_kwargs["temperature"] == 0.3
 
         # Verify phase transition
         assert result_state.current_phase == OODAPhase.DECIDE
         assert "orientation_analysis" in result_state.context
 
-    def test_orient_phase_handles_gpt4_failure(self, dev_agent, mock_openai, session_store, sample_session_state):
-        """Test orient phase handles GPT-4 API failure gracefully"""
-        # Make GPT-4 call fail
-        mock_openai.chat.completions.create.side_effect = Exception("API Error")
+    def test_orient_phase_handles_llm_failure(self, dev_agent, mock_llm_client, session_store, sample_session_state):
+        """Test orient phase handles LLM API failure gracefully"""
+        # Make LLM call fail
+        mock_llm_client.generate.side_effect = Exception("API Error")
 
         sample_session_state.current_phase = OODAPhase.ORIENT
         result_state = dev_agent.orient(sample_session_state)
@@ -408,7 +407,7 @@ class TestDevAgentV2Integration:
         assert final_state.iteration <= 2
         assert final_state.status in ["active", "escalated", "completed", "failed"]
 
-    def test_run_ooda_loop_stops_on_completion(self, dev_agent, session_store, mock_redis, mock_openai):
+    def test_run_ooda_loop_stops_on_completion(self, dev_agent, session_store, mock_redis, mock_llm_client):
         """Test run_ooda_loop stops when status changes to completed"""
         mock_redis.get.return_value = None
 
@@ -438,20 +437,24 @@ class TestDevAgentV2Integration:
 class TestCreateDevAgentV2Factory:
     """Test factory function for creating DevAgentV2"""
 
-    @patch('orchestrator.dev_agent_v2.OpenAI')
+    @patch('orchestrator.dev_agent_v2.LLMClient')
     @patch('orchestrator.dev_agent_v2.settings')
-    def test_create_dev_agent_v2(self, mock_settings, mock_openai_class, mock_redis):
+    def test_create_dev_agent_v2(self, mock_settings, mock_llm_client_class, mock_redis):
         """Test factory function creates properly configured agent"""
-        mock_settings.openai_api_key = "test-api-key"
         mock_settings.dev_agent_model = "gpt-4-turbo-preview"
+
+        # Mock LLMClient instance
+        mock_llm_instance = Mock()
+        mock_llm_instance.model = "gpt-4-turbo-preview"
+        mock_llm_client_class.return_value = mock_llm_instance
 
         agent = create_dev_agent_v2(mock_redis)
 
         assert isinstance(agent, DevAgentV2)
         assert agent.model == "gpt-4-turbo-preview"
 
-        # Verify OpenAI client was created with correct API key
-        mock_openai_class.assert_called_once_with(api_key="test-api-key")
+        # Verify LLMClient was instantiated
+        mock_llm_client_class.assert_called_once()
 
 
 if __name__ == "__main__":

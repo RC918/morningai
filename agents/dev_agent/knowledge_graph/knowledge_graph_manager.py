@@ -6,29 +6,81 @@ Phase 1 Week 5: Knowledge Graph System
 import logging
 import os
 import time
+from enum import Enum
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import psycopg2
 from psycopg2 import extras, pool
-from openai import OpenAI
 
 from agents.dev_agent.knowledge_graph.db_schema import QUERIES
 from agents.dev_agent.knowledge_graph.embeddings_cache import EmbeddingsCache
 from agents.dev_agent.error_handler import ErrorCode, create_error, create_success
 from common.config.settings import settings
 
+try:
+    from llm.embedding_client import get_embedding_client, EmbeddingClient
+except ImportError:
+    from handoff.orchestrator.llm.embedding_client import get_embedding_client, EmbeddingClient
+
 logger = logging.getLogger(__name__)
 
 
+class EmbeddingProvider(str, Enum):
+    """
+    Standardized embedding provider names for health checks and monitoring.
+
+    Using an enum ensures consistent naming across the codebase and prevents
+    breaking changes when provider names are used in external contracts
+    (e.g., monitoring dashboards, alerting systems).
+    """
+    ALICLOUD = "alicloud"
+    OPENAI = "openai"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def from_string(cls, provider_name: Optional[str]) -> "EmbeddingProvider":
+        """Convert provider name string to enum, with fallback to UNKNOWN."""
+        if not provider_name:
+            return cls.UNKNOWN
+        try:
+            return cls(provider_name.lower())
+        except ValueError:
+            return cls.UNKNOWN
+
+
+# Provider-specific embedding costs per 1K tokens (USD)
+# These costs should be updated when provider pricing changes
+EMBEDDING_COSTS_PER_1K_TOKENS: Dict[str, Dict[str, float]] = {
+    "alicloud": {
+        "text-embedding-v3": 0.0007,  # AliCloud DashScope pricing
+        "text-embedding-v2": 0.0007,
+    },
+    "openai": {
+        "text-embedding-3-small": 0.00002,  # OpenAI pricing
+        "text-embedding-3-large": 0.00013,
+        "text-embedding-ada-002": 0.0001,
+    },
+}
+
+# Default cost when provider/model not found in pricing table
+DEFAULT_COST_PER_1K_TOKENS = 0.0001
+
+
 class KnowledgeGraphManager:
-    """Manages code knowledge graph with embeddings and patterns"""
+    """Manages code knowledge graph with embeddings and patterns
+
+    EPIC D Fix: Migrated from hardcoded OpenAI to EmbeddingClient abstraction layer.
+    This allows KnowledgeGraphManager to use the configured embedding provider
+    (e.g., Qwen via alicloud) instead of always using OpenAI. The provider is
+    determined by:
+    1. Auto-selection based on available API keys (alicloud-first per EPIC #2594)
+    2. DASHSCOPE_API_KEY for alicloud, OPENAI_API_KEY for openai
+    """
 
     MAX_REQUESTS_PER_MINUTE = 500
     MAX_TOKENS_PER_MINUTE = 1_000_000
 
-    EMBEDDING_MODEL = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS = 1536
-    COST_PER_1K_TOKENS = 0.00002
 
     def __init__(
         self,
@@ -41,17 +93,20 @@ class KnowledgeGraphManager:
         """
         Initialize Knowledge Graph Manager
 
+        EPIC D Fix: Now uses EmbeddingClient which auto-selects provider based on
+        available API keys (alicloud-first to avoid OpenAI billing issues).
+
         Args:
             supabase_url: Supabase PostgreSQL URL
             supabase_password: Database password
-            openai_api_key: OpenAI API key
+            openai_api_key: Deprecated - kept for backward compatibility but ignored.
+                           EmbeddingClient uses provider-specific API keys from settings.
             enable_cache: Whether to enable Redis cache
             max_daily_cost: Maximum daily cost in USD (default from env or None)
         """
         self.supabase_url = supabase_url or os.getenv('SUPABASE_URL')
         self.supabase_password = supabase_password or os.getenv(
             'SUPABASE_DB_PASSWORD')
-        self.openai_api_key = openai_api_key or settings.openai_api_key
 
         self.max_daily_cost = max_daily_cost or (
             float(os.getenv('OPENAI_MAX_DAILY_COST', '0')) or None
@@ -59,17 +114,25 @@ class KnowledgeGraphManager:
 
         self.db_pool = None
         self.cache = EmbeddingsCache() if enable_cache else None
-        self.openai_client = None
+        self._embedding_client: Optional[EmbeddingClient] = None
 
         self.request_times: List[float] = []
         self.token_usage: List[Tuple[float, int]] = []
 
-        if self.openai_api_key:
-            self.openai_client = OpenAI(api_key=self.openai_api_key)
-            logger.info("OpenAI API key configured")
-        else:
+        try:
+            self._embedding_client = get_embedding_client(
+                dimensions=self.EMBEDDING_DIMENSIONS
+            )
+            logger.info(
+                f"[KnowledgeGraphManager] Initialized with embedding provider="
+                f"{self._embedding_client.provider_name}, "
+                f"model={self._embedding_client.model}"
+            )
+        except Exception as e:
             logger.warning(
-                "OpenAI API key not configured, embeddings will not work")
+                f"[KnowledgeGraphManager] Failed to initialize embedding client: {e}. "
+                "Embeddings will not work."
+            )
 
         if self.supabase_url and self.supabase_password:
             self._init_connection_pool()
@@ -156,10 +219,83 @@ class KnowledgeGraphManager:
 
         return None
 
+    def _get_cost_per_1k_tokens(self) -> float:
+        """
+        Get the cost per 1K tokens for the current embedding provider and model.
+
+        Uses the EMBEDDING_COSTS_PER_1K_TOKENS lookup table for accurate cost
+        tracking across different providers. Falls back to DEFAULT_COST_PER_1K_TOKENS
+        if the provider/model combination is not found.
+
+        Returns:
+            Cost per 1K tokens in USD
+        """
+        if not self._embedding_client:
+            return DEFAULT_COST_PER_1K_TOKENS
+
+        provider = self._embedding_client.provider_name
+        model = self._embedding_client.model
+
+        provider_costs = EMBEDDING_COSTS_PER_1K_TOKENS.get(provider, {})
+        cost = provider_costs.get(model, DEFAULT_COST_PER_1K_TOKENS)
+
+        if cost == DEFAULT_COST_PER_1K_TOKENS and model not in provider_costs:
+            logger.warning(
+                f"[KnowledgeGraphManager] Unknown model {model} for provider {provider}, "
+                f"using default cost ${DEFAULT_COST_PER_1K_TOKENS}/1K tokens"
+            )
+
+        return cost
+
+    def _estimate_token_count(self, content: str) -> int:
+        """
+        Estimate token count for content using tiktoken when available.
+
+        Uses tiktoken for accurate token counting when the model is supported,
+        with a fallback to len(content) // 4 heuristic for unsupported models
+        or when tiktoken is not available.
+
+        Args:
+            content: Text content to count tokens for
+
+        Returns:
+            Estimated token count
+        """
+        if not self._embedding_client:
+            return len(content) // 4
+
+        model = self._embedding_client.model
+
+        try:
+            import tiktoken
+            try:
+                encoding = tiktoken.encoding_for_model(model)
+                return len(encoding.encode(content))
+            except KeyError:
+                # Model not supported by tiktoken, try cl100k_base (GPT-4/3.5 encoding)
+                # which is a reasonable approximation for most modern models
+                encoding = tiktoken.get_encoding("cl100k_base")
+                return len(encoding.encode(content))
+        except ImportError:
+            # tiktoken not installed, use heuristic
+            logger.debug(
+                "[KnowledgeGraphManager] tiktoken not available, using len//4 heuristic"
+            )
+            return len(content) // 4
+        except Exception as e:
+            # Any other error, fall back to heuristic
+            logger.debug(
+                f"[KnowledgeGraphManager] Token counting failed ({e}), using len//4 heuristic"
+            )
+            return len(content) // 4
+
     def generate_embedding(
             self, content: str, max_retries: int = 3) -> Dict[str, Any]:
         """
         Generate embedding for code content with caching and retry logic
+
+        EPIC D Fix: Now uses EmbeddingClient which auto-selects provider
+        (alicloud-first to avoid OpenAI billing issues).
 
         Args:
             content: Code content to embed
@@ -168,50 +304,52 @@ class KnowledgeGraphManager:
         Returns:
             Dict with success status and embedding vector
         """
-        if not self.openai_api_key:
+        if not self._embedding_client or not self._embedding_client.is_available():
             return create_error(
                 ErrorCode.MISSING_CREDENTIALS,
-                "OpenAI API key not configured",
-                hint="Set OPENAI_API_KEY environment variable"
+                "Embedding API not configured",
+                hint="Set DASHSCOPE_API_KEY or OPENAI_API_KEY environment variable"
             )
 
         cost_limit_error = self._check_daily_cost_limit()
         if cost_limit_error:
             return cost_limit_error
 
+        embedding_model = self._embedding_client.model
         if self.cache:
-            cached_embedding = self.cache.get(content, self.EMBEDDING_MODEL)
+            cached_embedding = self.cache.get(content, embedding_model)
             if cached_embedding:
                 return create_success(
                     {'embedding': cached_embedding, 'cached': True})
 
-        import tiktoken
-        try:
-            encoding = tiktoken.encoding_for_model(self.EMBEDDING_MODEL)
-            tokens = encoding.encode(content)
-            token_count = len(tokens)
-        except Exception:
-            token_count = len(content) // 4
+        token_count = self._estimate_token_count(content)
+        cost_per_1k = self._get_cost_per_1k_tokens()
 
         for attempt in range(max_retries):
             try:
                 self._check_rate_limit(token_count)
 
-                response = self.openai_client.embeddings.create(
-                    model=self.EMBEDDING_MODEL,
-                    input=content,
-                    encoding_format="float"
-                )
+                embedding = self._embedding_client.embed(content)
 
-                embedding = response.data[0].embedding
+                if embedding is None:
+                    # Return error instead of raising to maintain return type contract
+                    return create_error(
+                        ErrorCode.EXTERNAL_API_ERROR,
+                        "Embedding generation returned None",
+                        hint="Check embedding provider configuration and API availability"
+                    )
 
-                cost = (token_count / 1000) * self.COST_PER_1K_TOKENS
+                cost = (token_count / 1000) * cost_per_1k
 
                 if self.cache:
-                    self.cache.set(content, embedding, self.EMBEDDING_MODEL)
+                    self.cache.set(content, embedding, embedding_model)
                     self.cache.record_api_call(token_count, cost)
 
-                logger.debug(f"Generated embedding: {token_count} tokens, ${cost:.6f}")
+                logger.debug(
+                    f"[KnowledgeGraphManager] Generated embedding: "
+                    f"provider={self._embedding_client.provider_name}, "
+                    f"{token_count} tokens, ${cost:.6f}"
+                )
 
                 return create_success({
                     'embedding': embedding,
@@ -223,7 +361,7 @@ class KnowledgeGraphManager:
             except Exception as e:
                 error_str = str(e)
                 error_type = type(e).__name__
-                
+
                 if 'rate_limit' in error_str.lower() or 'RateLimitError' in error_type:
                     if attempt < max_retries - 1:
                         sleep_time = 2 ** attempt
@@ -233,7 +371,7 @@ class KnowledgeGraphManager:
                     else:
                         return create_error(
                             ErrorCode.RATE_LIMIT_EXCEEDED,
-                            f"OpenAI rate limit exceeded: {error_str}"
+                            f"Embedding rate limit exceeded: {error_str}"
                         )
                 else:
                     logger.error(f"Embedding generation failed: {e}")
@@ -449,10 +587,28 @@ class KnowledgeGraphManager:
                 self._return_connection(conn)
 
     def health_check(self) -> Dict[str, Any]:
-        """Check system health"""
+        """
+        Check system health.
+
+        Returns standardized provider names via EmbeddingProvider enum to ensure
+        consistent naming across the codebase and prevent breaking changes when
+        provider names are used in external contracts (e.g., monitoring dashboards).
+        """
+        # Use EmbeddingProvider enum for standardized provider names
+        provider_enum = EmbeddingProvider.from_string(
+            self._embedding_client.provider_name if self._embedding_client else None
+        )
+
         health = {
             'timestamp': datetime.now().isoformat(),
-            'openai_configured': self.openai_api_key is not None,
+            'embedding_configured': (
+                self._embedding_client is not None and
+                self._embedding_client.is_available()
+            ),
+            # Standardized provider name via enum (prevents contract breakage)
+            'embedding_provider': provider_enum.value,
+            # Include version for future compatibility
+            'health_check_version': '2.0',
             'database_configured': self.db_pool is not None,
             'cache_enabled': self.cache is not None
         }
