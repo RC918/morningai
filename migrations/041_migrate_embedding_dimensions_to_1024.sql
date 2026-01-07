@@ -26,6 +26,33 @@
 -- - match_error_fix_pairs_by_error (migration 033)
 --
 -- ============================================================================
+-- EMERGENCY ROLLBACK INSTRUCTIONS
+-- ============================================================================
+-- If you need to revert to 1536 dimensions (e.g., to use OpenAI embeddings):
+--
+-- 1. Revert vector columns back to 1536:
+--    ALTER TABLE embeddings ALTER COLUMN embedding TYPE vector(1536);
+--    ALTER TABLE vector_queries ALTER COLUMN query_embedding TYPE vector(1536);
+--    ALTER TABLE error_fix_pairs ALTER COLUMN error_embedding TYPE vector(1536);
+--    ALTER TABLE error_fix_pairs ALTER COLUMN fix_embedding TYPE vector(1536);
+--    ALTER TABLE memory ALTER COLUMN embedding TYPE vector(1536);
+--    ALTER TABLE failure_memory ALTER COLUMN embedding TYPE vector(1536);
+--    -- If code_embeddings exists:
+--    ALTER TABLE code_embeddings ALTER COLUMN embedding TYPE vector(1536);
+--
+-- 2. Recreate SQL functions with vector(1536) parameter type:
+--    (Copy function definitions from migrations/032_vector_similarity_functions.sql
+--     and migrations/033_error_fix_pairs.sql)
+--
+-- 3. Revert Python code to use 1536 dimensions:
+--    - Revert PR #3660 changes in embedding_client.py
+--    - Restore EMBEDDING_DIMENSIONS = 1536 in knowledge_graph_manager.py
+--
+-- 4. Regenerate all embeddings with the OpenAI provider
+--
+-- NOTE: Rollback will also require TRUNCATE since 1024-dimension vectors
+-- cannot be stored in 1536-dimension columns (dimension mismatch).
+-- ============================================================================
 
 -- ============================================================================
 -- Step 0: Safety Check - Require explicit confirmation
