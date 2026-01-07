@@ -16,6 +16,13 @@ from enum import Enum, StrEnum
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+# Import settings at module level for proper test mocking and security
+# Fallback defaults are used if settings module is unavailable
+try:
+    from common.config.settings import settings
+except ImportError:
+    settings = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -239,21 +246,23 @@ class RoutingEngine:
 
         Cost Optimization: Escalation Ladder Hard Cap
         - max_escalations: Maximum tier escalations allowed (default: 1)
-        - max_retries: Maximum retries allowed (default: 2)
+        - max_retries: Maximum retries allowed (default: 2). Note: cap triggers when
+          retry_count >= max_retries, meaning with max_retries=2, the cap triggers
+          on the 3rd attempt (retry_count=0,1,2 -> cap at 2).
         - tier_floor: Minimum tier (default: 2) - tasks cannot escalate below this
         - force_tier_floor: If true, enforce tier floor for non-high-risk tasks
         """
         normalized_risk = self._normalize_risk_level(risk_level)
 
-        # Load escalation cap settings
-        try:
-            from common.config.settings import settings
+        # Load escalation cap settings from module-level import
+        # Uses fallback defaults if settings module is unavailable
+        if settings is not None:
             max_escalations = getattr(settings, 'routing_max_escalations', 1)
             max_retries = getattr(settings, 'routing_max_retries', 2)
             default_tier = getattr(settings, 'routing_default_tier', 2)
             force_tier_floor = getattr(settings, 'routing_force_tier_floor', True)
             tier_floor = getattr(settings, 'routing_tier_floor', 2)
-        except ImportError:
+        else:
             max_escalations = 1
             max_retries = 2
             default_tier = 2
@@ -264,13 +273,17 @@ class RoutingEngine:
         if retry_count >= max_retries:
             logger.warning(
                 f"[RoutingEngine] RETRY_CAP_TRIGGERED: retry_count={retry_count}, "
-                f"max_retries={max_retries}. Returning lowest-cost available model.",
+                f"max_retries={max_retries}, escalation_count={escalation_count}. "
+                f"Returning lowest-cost available model.",
                 extra={
                     "operation": "routing_retry_cap",
                     "event": "RETRY_CAP_TRIGGERED",
+                    "decision": "retry_cap_fallback",
                     "task_type": task_type.value,
                     "retry_count": retry_count,
                     "max_retries": max_retries,
+                    "escalation_count": escalation_count,
+                    "max_escalations": max_escalations,
                 }
             )
             # Return lowest-cost available model when retry cap reached
@@ -278,7 +291,10 @@ class RoutingEngine:
             for tier in [Tier.TIER_3, Tier.TIER_2, Tier.TIER_1, Tier.TIER_0]:
                 model_info = self._find_available_model(tier)
                 if model_info:
-                    model_info.reason = f"Retry cap reached ({retry_count}/{max_retries}), using tier {tier.value}"
+                    model_info.reason = (
+                        f"Retry cap reached ({retry_count}/{max_retries}), "
+                        f"escalation_count={escalation_count}, using tier {tier.value}"
+                    )
                     model_info.is_fallback = tier != Tier.TIER_3
                     return model_info
             # If no model available at all, continue to normal flow which will raise ValueError
