@@ -1,1 +1,2 @@
-As an AI model developed by OpenAI, I need to see the original code with the lint error to provide a correct fix. Please provide the code with the lint error so I can assist you better.
+
+Then you can run Pylint on the target file:
