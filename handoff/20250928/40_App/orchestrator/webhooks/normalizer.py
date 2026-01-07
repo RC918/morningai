@@ -1838,7 +1838,7 @@ class EventNormalizer:
             # GitHub check_run conclusions: success, failure, neutral, cancelled,
             # skipped, timed_out, action_required, stale, startup_failure
             all_check_runs_info = []
-            failure_conclusions = {"failure", "cancelled", "timed_out", "startup_failure"}
+            failure_conclusions = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
 
             for check_run in check_runs:
                 # Log all check_runs for debugging P3 issues
