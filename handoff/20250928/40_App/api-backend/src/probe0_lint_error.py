@@ -1,2 +1,7 @@
+import os, sys
+def example1(): x = { 'a':37,'b':42,
 
-Then, you can check the linting errors in your Python script by running the following command:
+'c':927}
+
+x = 123
+print x
