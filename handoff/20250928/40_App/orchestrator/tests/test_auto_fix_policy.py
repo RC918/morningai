@@ -18,6 +18,7 @@ from utils.auto_fix_policy import (  # noqa: E402
     AutoFixLoopProtection,
     AutoFixPolicy,
     AutoFixRateLimiter,
+    CISignatureDeduplication,
     check_auto_fix_safety,
     get_allowed_categories,
     get_allowed_repos,
@@ -431,3 +432,133 @@ class TestCheckAutoFixSafety:
             )
             assert result.allowed is False
             assert "max retries" in result.reason.lower()
+
+
+class TestCISignatureDeduplication:
+    """Tests for CISignatureDeduplication class (Cost Optimization)"""
+
+    def test_compute_signature_deterministic(self, mock_settings):
+        """Test signature computation is deterministic"""
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.return_value = MagicMock()
+            dedup = CISignatureDeduplication(mock_settings)
+
+            sig1 = dedup._compute_signature("owner/repo#123", "lint", "error msg")
+            sig2 = dedup._compute_signature("owner/repo#123", "lint", "error msg")
+            assert sig1 == sig2
+            assert len(sig1) == 16  # SHA256 truncated to 16 chars
+
+    def test_compute_signature_different_inputs(self, mock_settings):
+        """Test different inputs produce different signatures"""
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.return_value = MagicMock()
+            dedup = CISignatureDeduplication(mock_settings)
+
+            sig1 = dedup._compute_signature("owner/repo#123", "lint", "error A")
+            sig2 = dedup._compute_signature("owner/repo#123", "lint", "error B")
+            sig3 = dedup._compute_signature("owner/repo#123", "test", "error A")
+            sig4 = dedup._compute_signature("owner/repo#456", "lint", "error A")
+
+            assert sig1 != sig2  # Different error
+            assert sig1 != sig3  # Different check name
+            assert sig1 != sig4  # Different PR
+
+    def test_check_and_mark_new_failure(self, mock_settings):
+        """Test check_and_mark returns True for new failure"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None  # Not seen before
+
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.return_value = mock_redis
+            dedup = CISignatureDeduplication(mock_settings)
+            is_new, signature = dedup.check_and_mark(
+                pr_id="owner/repo#123",
+                failed_check_name="lint",
+                error_summary="Error: unused variable"
+            )
+            assert is_new is True
+            assert len(signature) == 16
+            mock_redis.setex.assert_called_once()
+
+    def test_check_and_mark_duplicate_failure(self, mock_settings):
+        """Test check_and_mark returns False for duplicate failure"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = "2026-01-06T12:00:00Z"  # Already seen
+
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.return_value = mock_redis
+            dedup = CISignatureDeduplication(mock_settings)
+            is_new, signature = dedup.check_and_mark(
+                pr_id="owner/repo#123",
+                failed_check_name="lint",
+                error_summary="Error: unused variable"
+            )
+            assert is_new is False
+            assert len(signature) == 16
+            mock_redis.setex.assert_not_called()
+
+    def test_check_and_mark_redis_unavailable_fail_open(self, mock_settings):
+        """Test check_and_mark returns True (fail-open) when Redis unavailable"""
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.side_effect = Exception("Connection failed")
+            dedup = CISignatureDeduplication(mock_settings)
+            is_new, signature = dedup.check_and_mark(
+                pr_id="owner/repo#123",
+                failed_check_name="lint",
+                error_summary="Error: unused variable"
+            )
+            assert is_new is True  # Fail-open behavior
+            assert len(signature) == 16
+
+    def test_check_and_mark_redis_connection_error_fail_open(self, mock_settings):
+        """Test check_and_mark returns True (fail-open) on Redis connection error"""
+        import redis as redis_lib
+        mock_redis = MagicMock()
+        mock_redis.get.side_effect = redis_lib.ConnectionError("Connection lost")
+
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.return_value = mock_redis
+            dedup = CISignatureDeduplication(mock_settings)
+            is_new, signature = dedup.check_and_mark(
+                pr_id="owner/repo#123",
+                failed_check_name="lint",
+                error_summary="Error: unused variable"
+            )
+            assert is_new is True  # Fail-open behavior
+
+    def test_check_and_mark_uses_correct_ttl(self, mock_settings):
+        """Test check_and_mark uses correct TTL (24 hours default)"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.return_value = mock_redis
+            dedup = CISignatureDeduplication(mock_settings)
+            dedup.check_and_mark(
+                pr_id="owner/repo#123",
+                failed_check_name="lint",
+                error_summary="Error: unused variable",
+                ttl=3600  # Custom TTL
+            )
+            # Verify setex was called with correct TTL
+            call_args = mock_redis.setex.call_args
+            assert call_args[0][1] == 3600  # TTL is second positional arg
+
+    def test_error_digest_truncation(self, mock_settings):
+        """Test error summary is truncated to 500 chars for digest"""
+        mock_redis = MagicMock()
+        mock_redis.get.return_value = None
+
+        with patch('utils.auto_fix_policy.redis.Redis') as redis_class:
+            redis_class.return_value = mock_redis
+            dedup = CISignatureDeduplication(mock_settings)
+
+            # Long error message
+            long_error = "x" * 1000
+            short_error = "x" * 500
+
+            sig_long = dedup._compute_signature("pr#1", "lint", long_error[:500])
+            sig_short = dedup._compute_signature("pr#1", "lint", short_error)
+
+            # Both should produce same signature (truncated to 500)
+            assert sig_long == sig_short
