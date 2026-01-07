@@ -1,2 +1,4 @@
 
-For monitoring GitHub Actions CI pipeline, you can use GitHub's APIs to check the status of your workflows. Here is a Python script that does that:
+2. After running this command, pylint will output any linting errors that are present. You need to manually go through these errors and fix them in your code. 
+
+3. After fixing the linting errors, you can stage your changes by using git add:
