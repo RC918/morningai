@@ -1834,8 +1834,23 @@ class EventNormalizer:
             check_suite = github_repo.get_check_suite(check_suite_id)
             check_runs = check_suite.get_check_runs()
 
+            # P3 fix enhancement: Track all check_runs for debugging
+            # GitHub check_run conclusions: success, failure, neutral, cancelled,
+            # skipped, timed_out, action_required, stale, startup_failure
+            all_check_runs_info = []
+            failure_conclusions = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
+
             for check_run in check_runs:
-                if check_run.conclusion == "failure":
+                # Log all check_runs for debugging P3 issues
+                check_info = {
+                    "name": check_run.name,
+                    "conclusion": check_run.conclusion,
+                    "status": check_run.status,
+                }
+                all_check_runs_info.append(check_info)
+
+                # Check for any failure-like conclusion (not just "failure")
+                if check_run.conclusion in failure_conclusions:
                     failed_check_names.append(check_run.name)
                     # Extract error summary from check_run output
                     # PyGithub returns output as a dict-like object
@@ -1846,6 +1861,19 @@ class EventNormalizer:
                             # Truncate to avoid huge payloads
                             summary_text = str(summary)[:200]
                             error_summary_parts.append(f"{check_run.name}: {summary_text}")
+
+            # Log all check_runs for debugging (helps diagnose P3 issues)
+            logger.info(
+                "[EventNormalizer] P3 debug: All check_runs in check_suite",
+                extra={
+                    "operation": "fetch_failed_check_runs_debug",
+                    "event_id": event_id,
+                    "repo": repo,
+                    "check_suite_id": check_suite_id,
+                    "total_check_runs": len(all_check_runs_info),
+                    "check_runs_info": all_check_runs_info[:10],  # Log first 10
+                }
+            )
 
             # Combine error summaries (max 500 chars total)
             error_summary = None
