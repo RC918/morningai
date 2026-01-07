@@ -68,9 +68,12 @@ class TestLLMReviewerAdapter:
         adapter = LLMReviewerAdapter(trace_id="test-trace")
 
         assert adapter.llm_client is not None
+        # Issue #3640: Updated to include escalation_count and retry_count parameters
         mock_get_client.assert_called_once_with(
             task_type=TaskType.REVIEW,
-            risk_level="medium"
+            risk_level="medium",
+            escalation_count=0,
+            retry_count=0
         )
 
     @patch('llm_reviewer_adapter.get_client_for_task')
