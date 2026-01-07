@@ -1,25 +1,22 @@
-# File: probe0_lint_error.py
+# Importing necessary modules
+import sys
+import pylint.lint
 
-# Following is a generic function, replace it with the actual code that needs linting fixes.
+def check_lint(file_path: str) -> None:
+    """
+    Function to check lint errors
+    :param file_path: str: path to the Python file
+    """
+    # Run pylint
+    pylint_output = pylint.lint.Run([file_path], do_exit=False)
 
-def sample_function(arg1: str, arg2: int) -> bool:
-    """This is a sample function for demonstration."""
-    
-    # Indentation fixes
-    # Use 4 spaces per indentation level.
-    
-    # Maximum Line Length fixes
-    # Limit all lines to a maximum of 79 characters.
+    # If there are any errors
+    if pylint_output.linter.stats['global_note'] < 10.0:
+        print(f"Lint errors detected in {file_path}. Please fix them.")
+        sys.exit(1)
+    else:
+        print(f"No lint errors detected in {file_path}. File is clean.")
 
-    # Blank Lines fixes
-    # Surround top-level function and class definitions with two blank lines.
 
-    # Imports fixes
-    # Imports should usually be on separate lines.
-    
-    # White space in Expressions and Statements fixes
-    # Avoid extraneous whitespace.
-
-    # And so on...
-    
-    return True
+if __name__ == "__main__":
+    check_lint('handoff/20250928/40_App/api-backend/src/probe0_lint_error.py')
