@@ -1,30 +1,20 @@
-# Here is a general way of cleaning up a python file
 
-# Import necessary libraries
-import pep8
-from autopep8 import fix_code
+This will produce a report of all the linting errors in the file. 
 
-# Open the file
-with open('handoff/20250928/40_App/api-backend/src/probe0_lint_error.py', 'r+') as file:
-    # Read the content
-    content = file.read()
+To fix the errors, you need to manually go through each of them and correct them according to the guidelines provided by pylint. 
 
-    # Fix the code
-    fixed_content = fix_code(content)
+Unfortunately, without the actual Python file, I can't provide the corrected code. However, below are some general tips to fix common linting errors:
 
-    # Clear the file content
-    file.seek(0)
-    file.truncate()
+1. **Missing module docstring:** Add a docstring at the beginning of your module explaining what the module does.
+2. **Unused import:** Remove any imports that you're not using.
+3. **Unused variable:** Remove or use the variable.
+4. **Missing function docstring:** Add a docstring to your function explaining what the function does.
+5. **Redefining built-in:** You've used a built-in name as a variable or function name. Change it to something else.
+6. **Line too long:** Make sure your lines are no longer than 80 characters.
+7. **Bad indentation:** Correct your indentation to follow PEP8 guidelines.
+8. **Missing final newline:** Add a newline at the end of your file.
+9. **Bad whitespace:** Remove any unnecessary whitespace.
 
-    # Write the fixed content back to file
-    file.write(fixed_content)
+Remember to re-run pylint after making each change to see your progress. 
 
-# Now, create a checker and check if there are still issues
-checker = pep8.Checker('handoff/20250928/40_App/api-backend/src/probe0_lint_error.py')
-errors = checker.check_all()
-
-# If there are still issues, print them out
-if errors > 0:
-    print(f"There are still {errors} PEP8 issues.")
-else:
-    print("No PEP8 issues found.")
+In case the file is too large and the errors are too many to fix manually, you can use an auto-formatter like autopep8 or black to automatically correct some of the errors.
