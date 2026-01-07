@@ -1,2 +1,3 @@
 
-2. Run pylint and flake8 on the target file:
+Step 3: Commit the changes
+Commit the changes with a clear, descriptive message. Run the following command:
