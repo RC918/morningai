@@ -40,6 +40,14 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_EMBEDDING_MODEL_OPENAI = "text-embedding-3-small"
 DEFAULT_EMBEDDING_MODEL_ALICLOUD = "text-embedding-v3"
+
+# Provider-specific dimension defaults
+# - OpenAI text-embedding-3-small: supports up to 1536 dimensions
+# - AliCloud text-embedding-v3: supports only [512, 768, 1024]
+DEFAULT_EMBEDDING_DIMENSIONS_OPENAI = 1536
+DEFAULT_EMBEDDING_DIMENSIONS_ALICLOUD = 1024
+
+# Legacy constant for backward compatibility (used when provider is unknown)
 DEFAULT_EMBEDDING_DIMENSIONS = 1536
 
 _EMBEDDING_PROVIDER_PRIORITY = ["alicloud", "openai"]
@@ -87,6 +95,24 @@ def _get_default_model(provider: str) -> str:
     return DEFAULT_EMBEDDING_MODEL_OPENAI
 
 
+def _get_default_dimensions(provider: str) -> int:
+    """Get default embedding dimensions for provider.
+
+    Different providers support different dimension ranges:
+    - OpenAI text-embedding-3-small: supports up to 1536 dimensions
+    - AliCloud text-embedding-v3: supports only [512, 768, 1024]
+
+    Args:
+        provider: Provider name
+
+    Returns:
+        Default dimensions for the provider
+    """
+    if provider == "alicloud":
+        return DEFAULT_EMBEDDING_DIMENSIONS_ALICLOUD
+    return DEFAULT_EMBEDDING_DIMENSIONS_OPENAI
+
+
 class EmbeddingClient:
     """
     Unified embedding client supporting multiple providers.
@@ -103,7 +129,7 @@ class EmbeddingClient:
         self,
         model: Optional[str] = None,
         provider: str = "auto",
-        dimensions: int = DEFAULT_EMBEDDING_DIMENSIONS
+        dimensions: Optional[int] = None
     ):
         """
         Initialize embedding client.
@@ -113,11 +139,13 @@ class EmbeddingClient:
             provider: Embedding provider ("auto", "alicloud", "openai").
                       Note: When called via get_embedding_client(), provider is
                       already resolved. Direct instantiation will still resolve.
-            dimensions: Embedding dimensions (default: 1536 for DB compatibility)
+            dimensions: Embedding dimensions (auto-selected based on provider if None)
+                        - OpenAI: 1536 (text-embedding-3-small default)
+                        - AliCloud: 1024 (text-embedding-v3 max supported)
         """
         self._provider = provider if provider != "auto" else _resolve_provider(provider)
         self._model = model or _get_default_model(self._provider)
-        self._dimensions = dimensions
+        self._dimensions = dimensions if dimensions is not None else _get_default_dimensions(self._provider)
         self._client = None
 
         logger.info(
@@ -199,10 +227,9 @@ class EmbeddingClient:
         try:
             params = {
                 "model": self._model,
-                "input": text
+                "input": text,
+                "dimensions": self._dimensions
             }
-            if self._provider == "alicloud":
-                params["dimensions"] = self._dimensions
 
             response = self.client.embeddings.create(**params)
             embedding = response.data[0].embedding
@@ -247,10 +274,9 @@ class EmbeddingClient:
         try:
             params = {
                 "model": self._model,
-                "input": texts
+                "input": texts,
+                "dimensions": self._dimensions
             }
-            if self._provider == "alicloud":
-                params["dimensions"] = self._dimensions
 
             response = self.client.embeddings.create(**params)
 
@@ -305,7 +331,7 @@ def _get_cached_client(
 def get_embedding_client(
     model: Optional[str] = None,
     provider: str = "auto",
-    dimensions: int = DEFAULT_EMBEDDING_DIMENSIONS
+    dimensions: Optional[int] = None
 ) -> EmbeddingClient:
     """
     Get an EmbeddingClient instance (thread-safe singleton per resolved provider/model).
@@ -317,14 +343,17 @@ def get_embedding_client(
     Args:
         model: Embedding model to use (auto-selected based on provider if None)
         provider: Embedding provider ("auto", "alicloud", "openai")
-        dimensions: Embedding dimensions (default: 1536 for DB compatibility)
+        dimensions: Embedding dimensions (auto-selected based on provider if None)
+                    - OpenAI: 1536 (text-embedding-3-small default)
+                    - AliCloud: 1024 (text-embedding-v3 max supported)
 
     Returns:
         EmbeddingClient instance
     """
     resolved_provider = _resolve_provider(provider)
     resolved_model = model or _get_default_model(resolved_provider)
-    return _get_cached_client(resolved_provider, resolved_model, dimensions)
+    resolved_dimensions = dimensions if dimensions is not None else _get_default_dimensions(resolved_provider)
+    return _get_cached_client(resolved_provider, resolved_model, resolved_dimensions)
 
 
 def embed(text: str) -> Optional[List[float]]:
