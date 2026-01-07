@@ -1,37 +1,41 @@
+import pylint.lint
 import subprocess
-import sys
-from typing import List
+from typing import List, Tuple
 
-def git_commit(file: str, commit_message: str) -> None:
+def fix_lint(file_path: str) -> Tuple[int, str]:
     """
-    This function stages and commits a file using git.
-    Args:
-        file (str): The file to commit.
-        commit_message (str): The commit message.
+    Runs pylint on the given file and returns the score and output.
+    """
+    pylint_output = pylint.lint.Run([file_path], exit=False)
+    return pylint_output.linter.stats['global_note'], pylint_output.linter.msg_status
+
+def commit_changes(file_path: str, commit_message: str) -> None:
+    """
+    Commits changes using git commit command.
     """
     try:
-        # Stage the file
-        subprocess.check_output(['git', 'add', file])
-        # Commit the file
-        subprocess.check_output(['git', 'commit', '-m', commit_message])
+        subprocess.check_call(['git', 'add', file_path])
+        subprocess.check_call(['git', 'commit', '-m', commit_message])
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred while committing the file: {e.output}", file=sys.stderr)
+        print(f"Error during git commit: {e.output}")
 
-def fix_lint(target_files: List[str]) -> None:
+def git_push(branch: str) -> None:
     """
-    This function fixes lint issues and commits the changes to the repository.
-    Args:
-        target_files (List[str]): The list of files to fix and commit.
+    Pushes committed changes to the given branch using git push command.
     """
-    for file in target_files:
-        try:
-            # Fix lint issues
-            subprocess.check_output(['autopep8', '--in-place', '--aggressive', file])
-            # Commit the changes
-            git_commit(file, "Fixed lint errors")
-        except subprocess.CalledProcessError as e:
-            print(f"An error occurred while fixing lint errors in the file: {e.output}", file=sys.stderr)
+    try:
+        subprocess.check_call(['git', 'push', 'origin', branch])
+    except subprocess.CalledProcessError as e:
+        print(f"Error during git push: {e.output}")
 
-if __name__ == "__main__":
-    target_files = ['handoff/20250928/40_App/api-backend/src/probe0_lint_error.py']
-    fix_lint(target_files)
+# specify the file
+file_path = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
+
+# fix_lint and commit changes
+score, output = fix_lint(file_path)
+commit_message = f"fix lint issues, pylint score: {score}"
+commit_changes(file_path, commit_message)
+
+# git push
+branch = "PR_branch"
+git_push(branch)
