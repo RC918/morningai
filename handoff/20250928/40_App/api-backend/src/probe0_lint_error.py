@@ -1,2 +1,6 @@
+import os, math # unused import 'math'
 
-Then, run Pylint on your Python file to see the linting issues:
+def calculate_area(radius):
+    PI = 3.14159
+    return PI * radius**2
+  print("This line is indented incorrectly") # Incorrect indentation
