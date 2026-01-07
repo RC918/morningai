@@ -1,6 +1,5 @@
 
-This command will trigger the "lint" job defined in your GitHub Actions workflow.
+In the above commands, 'git add' stages the changes for commit, and 'git commit' commits the changes with a clear message explaining what was done.
 
-For this task, I assume the lint error is unknown. Therefore, I will give a generic example on how you can fix linting errors in Python:
-
-Here is an example of how you could refactor `probe0_lint_error.py`:
+Step 3: Push the changes
+Next, you need to push these changes to the repository. If you are working on the 'master' branch, here is how you do it:
