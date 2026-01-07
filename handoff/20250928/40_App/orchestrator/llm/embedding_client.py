@@ -10,16 +10,25 @@ This abstraction layer enables:
 Usage:
     from llm.embedding_client import EmbeddingClient, get_embedding_client
 
-    # Default provider (OpenAI)
+    # Default provider (auto-selects based on available API keys)
     client = get_embedding_client()
     embedding = client.embed("Some text to embed")
 
     # Specify provider explicitly
-    client = get_embedding_client(provider="openai")
+    client = get_embedding_client(provider="alicloud")
     embedding = client.embed("Text")
+
+Supported Providers:
+- alicloud: AliCloud DashScope (text-embedding-v3, OpenAI-compatible)
+- openai: OpenAI (text-embedding-3-small)
+
+Provider Selection (auto mode):
+1. alicloud (if DASHSCOPE_API_KEY is set)
+2. openai (if OPENAI_API_KEY is set)
 
 Related Issues:
 - #1812: LLMProvider abstraction layer
+- Sentry a23d853a: OpenAI billing_not_active error - add AliCloud fallback
 """
 import logging
 from functools import lru_cache
@@ -29,51 +38,108 @@ from common.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
+DEFAULT_EMBEDDING_MODEL_OPENAI = "text-embedding-3-small"
+DEFAULT_EMBEDDING_MODEL_ALICLOUD = "text-embedding-v3"
+DEFAULT_EMBEDDING_DIMENSIONS = 1536
+
+_EMBEDDING_PROVIDER_PRIORITY = ["alicloud", "openai"]
+
+
+def _resolve_provider(provider: str) -> str:
+    """
+    Resolve 'auto' provider to actual provider based on available API keys.
+
+    Priority order: alicloud > openai (to avoid OpenAI billing issues)
+
+    Args:
+        provider: Provider name or 'auto'
+
+    Returns:
+        Resolved provider name
+    """
+    if provider != "auto":
+        return provider
+
+    for p in _EMBEDDING_PROVIDER_PRIORITY:
+        if p == "alicloud" and settings.dashscope_api_key:
+            logger.info(
+                "[EmbeddingClient] Auto-selected provider=alicloud "
+                "(DASHSCOPE_API_KEY available)"
+            )
+            return "alicloud"
+        elif p == "openai" and settings.openai_api_key:
+            logger.info(
+                "[EmbeddingClient] Auto-selected provider=openai "
+                "(OPENAI_API_KEY available)"
+            )
+            return "openai"
+
+    logger.warning(
+        "[EmbeddingClient] No embedding API keys available, defaulting to openai"
+    )
+    return "openai"
+
+
+def _get_default_model(provider: str) -> str:
+    """Get default embedding model for provider."""
+    if provider == "alicloud":
+        return DEFAULT_EMBEDDING_MODEL_ALICLOUD
+    return DEFAULT_EMBEDDING_MODEL_OPENAI
 
 
 class EmbeddingClient:
     """
     Unified embedding client supporting multiple providers.
 
-    Currently supports:
-    - OpenAI text-embedding-3-small (default)
+    Supports:
+    - alicloud: AliCloud DashScope (text-embedding-v3, OpenAI-compatible)
+    - openai: OpenAI (text-embedding-3-small)
 
-    Future providers (e.g., Gemini) can be added by extending
-    the _create_client method with provider-specific logic.
+    Provider selection in 'auto' mode prioritizes alicloud over openai
+    to avoid OpenAI billing issues (Sentry a23d853a).
     """
 
     def __init__(
         self,
         model: Optional[str] = None,
-        provider: str = "openai"
+        provider: str = "auto",
+        dimensions: int = DEFAULT_EMBEDDING_DIMENSIONS
     ):
         """
         Initialize embedding client.
 
         Args:
-            model: Embedding model to use (default: text-embedding-3-small)
-            provider: Embedding provider ("openai", "gemini")
+            model: Embedding model to use (auto-selected based on provider if None)
+            provider: Embedding provider ("auto", "alicloud", "openai")
+            dimensions: Embedding dimensions (default: 1536 for DB compatibility)
         """
-        self._model = model or DEFAULT_EMBEDDING_MODEL
-        self._provider = provider
+        self._provider = _resolve_provider(provider)
+        self._model = model or _get_default_model(self._provider)
+        self._dimensions = dimensions
         self._client = None
 
-        logger.debug(
-            "[EmbeddingClient] Initialized with provider=%s model=%s",
+        logger.info(
+            "[EmbeddingClient] Initialized with provider=%s model=%s dimensions=%d",
             self._provider,
-            self._model
+            self._model,
+            self._dimensions
         )
 
     def _create_client(self):
-        """Create provider-specific client"""
-        if self._provider == "openai":
+        """Create provider-specific client using OpenAI SDK"""
+        from openai import OpenAI
+
+        if self._provider == "alicloud":
+            if not settings.dashscope_api_key:
+                return None
+            return OpenAI(
+                api_key=settings.dashscope_api_key,
+                base_url=settings.dashscope_base_url
+            )
+        elif self._provider == "openai":
             if not settings.openai_api_key:
                 return None
-            from openai import OpenAI
             return OpenAI(api_key=settings.openai_api_key)
-        elif self._provider == "gemini":
-            raise NotImplementedError("Gemini embeddings not yet supported")
         else:
             raise ValueError("Unsupported embedding provider: %s" % self._provider)
 
@@ -98,9 +164,16 @@ class EmbeddingClient:
         """Get the current provider name"""
         return self._provider
 
+    @property
+    def dimensions(self) -> int:
+        """Get the embedding dimensions"""
+        return self._dimensions
+
     def is_available(self) -> bool:
         """Check if embedding generation is available"""
-        if self._provider == "openai":
+        if self._provider == "alicloud":
+            return bool(settings.dashscope_api_key)
+        elif self._provider == "openai":
             return bool(settings.openai_api_key)
         return False
 
@@ -122,10 +195,14 @@ class EmbeddingClient:
             return None
 
         try:
-            response = self.client.embeddings.create(
-                model=self._model,
-                input=text
-            )
+            params = {
+                "model": self._model,
+                "input": text
+            }
+            if self._provider == "alicloud":
+                params["dimensions"] = self._dimensions
+
+            response = self.client.embeddings.create(**params)
             embedding = response.data[0].embedding
 
             logger.debug(
@@ -166,10 +243,14 @@ class EmbeddingClient:
             return [None] * len(texts)
 
         try:
-            response = self.client.embeddings.create(
-                model=self._model,
-                input=texts
-            )
+            params = {
+                "model": self._model,
+                "input": texts
+            }
+            if self._provider == "alicloud":
+                params["dimensions"] = self._dimensions
+
+            response = self.client.embeddings.create(**params)
 
             embeddings = [item.embedding for item in response.data]
 
@@ -197,7 +278,7 @@ class EmbeddingClient:
 @lru_cache(maxsize=None)
 def get_embedding_client(
     model: Optional[str] = None,
-    provider: str = "openai"
+    provider: str = "auto"
 ) -> EmbeddingClient:
     """
     Get an EmbeddingClient instance (thread-safe singleton per provider/model).
@@ -206,8 +287,8 @@ def get_embedding_client(
     (provider, model) combination gets its own cached instance.
 
     Args:
-        model: Embedding model to use (default: text-embedding-3-small)
-        provider: Embedding provider ("openai", "gemini")
+        model: Embedding model to use (auto-selected based on provider if None)
+        provider: Embedding provider ("auto", "alicloud", "openai")
 
     Returns:
         EmbeddingClient instance

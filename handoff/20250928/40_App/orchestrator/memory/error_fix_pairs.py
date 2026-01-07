@@ -24,8 +24,8 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 
 from supabase import create_client
-from openai import OpenAI
 from common.config.settings import settings
+from llm.embedding_client import get_embedding_client
 
 logger = logging.getLogger(__name__)
 
@@ -135,18 +135,19 @@ def _parse_json_fields(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def _embed(text: str) -> Optional[List[float]]:
-    """Generate embedding vector for text using OpenAI."""
+    """
+    Generate embedding vector for text using unified EmbeddingClient.
+
+    Uses auto provider selection (alicloud > openai) to avoid OpenAI billing
+    issues (Sentry a23d853a). Dimensions are fixed at 1536 to match DB schema.
+    """
     try:
-        api_key = settings.openai_api_key
-        if not api_key:
-            logger.debug("[ErrorFixPairs] OpenAI API key not available")
+        client = get_embedding_client()
+        embedding = client.embed(text)
+        if embedding is None:
+            logger.debug("[ErrorFixPairs] Embedding client returned None")
             return None
-        cl = OpenAI(api_key=api_key)
-        emb = cl.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
-        ).data[0].embedding
-        return emb
+        return embedding
     except Exception as e:
         logger.warning(f"[ErrorFixPairs] Failed to get embedding: {e}")
         return None
