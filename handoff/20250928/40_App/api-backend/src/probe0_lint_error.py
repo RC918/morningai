@@ -1,2 +1,2 @@
 
-Then, you can run pylint on your file:
+2. Then, you can stage the changes for commit:
