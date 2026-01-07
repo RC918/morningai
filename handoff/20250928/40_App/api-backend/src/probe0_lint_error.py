@@ -1,15 +1,2 @@
-# handoff/20250928/40_App/api-backend/src/probe0_lint_error.py
 
-def add_numbers(num1: int, num2: int) -> int:
-    """
-    Function to add two numbers
-    :param num1: First number
-    :param num2: Second number
-    :return: The sum of the two numbers
-    """
-    try:
-        result = num1 + num2
-        return result
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
+2. Open the file `probe0_lint_error.py` in your preferred text editor and fix the lint errors. You can use a linter like pylint to help identify and fix lint errors:
