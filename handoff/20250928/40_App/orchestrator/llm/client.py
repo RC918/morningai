@@ -13,7 +13,7 @@ This abstraction layer enables:
 Usage:
     from llm.client import LLMClient, get_client_for_component, get_client_for_task
 
-    # Default provider (OpenAI)
+    # Default provider (auto-selects based on availability, Qwen-first)
     client = LLMClient()
     response = client.generate("Explain dependency injection")
 
@@ -61,11 +61,12 @@ _default_client_lock = threading.Lock()
 
 # Provider registry for availability checks
 # Order determines priority for auto-selection
+# Qwen providers (alicloud, siliconflow) are prioritized per EPIC #2594 cost optimization
 _PROVIDER_REGISTRY = [
-    ("openai", OpenAIProvider),
-    ("gemini", GeminiProvider),
     ("alicloud", AliCloudProvider),
     ("siliconflow", SiliconFlowProvider),
+    ("openai", OpenAIProvider),
+    ("gemini", GeminiProvider),
 ]
 
 
@@ -534,7 +535,7 @@ class LLMClient:
 def get_client_for_component(
     component: str,
     trace_id: str,
-    default_provider: str = "openai",
+    default_provider: str = "auto",
     model: Optional[str] = None
 ) -> LLMClient:
     """
