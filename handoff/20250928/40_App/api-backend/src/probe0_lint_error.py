@@ -1,1 +1,1 @@
-As an AI, I need to have the code in question in order to fix the lint error. Please provide the content of "probe0_lint_error.py".
+As an AI model, I can't run tests locally or access your files. However, you can provide the code that contains the lint error, and I can help you fix it. Please provide the code from 'probe0_lint_error.py' file that contains the lint error.
