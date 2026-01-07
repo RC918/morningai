@@ -15,6 +15,30 @@ from knowledge_graph import (
 )
 
 
+def is_embedding_available(kg_manager) -> bool:
+    """
+    Check if embedding functionality is available on the KnowledgeGraphManager.
+
+    Supports both legacy (openai_api_key) and new (_embedding_client) APIs
+    for backward compatibility during the EmbeddingClient migration (PR #3652).
+
+    Args:
+        kg_manager: KnowledgeGraphManager instance
+
+    Returns:
+        bool: True if embedding is configured and available
+    """
+    if hasattr(kg_manager, '_embedding_client'):
+        # New EmbeddingClient abstraction (PR #3652+)
+        return (
+            kg_manager._embedding_client is not None and
+            kg_manager._embedding_client.is_available()
+        )
+    else:
+        # Legacy OpenAI-only implementation
+        return kg_manager.openai_api_key is not None
+
+
 class TestEmbeddingsCache:
     """Test embeddings cache functionality"""
 
@@ -83,16 +107,7 @@ class TestKnowledgeGraphManager:
 
         result = kg_manager.generate_embedding(test_code)
 
-        # Check if embedding is available - supports both old (openai_api_key) and new (_embedding_client) APIs
-        if hasattr(kg_manager, '_embedding_client'):
-            # New EmbeddingClient abstraction (PR #3652+)
-            embedding_available = (
-                kg_manager._embedding_client is not None and
-                kg_manager._embedding_client.is_available()
-            )
-        else:
-            # Legacy OpenAI-only implementation
-            embedding_available = kg_manager.openai_api_key is not None
+        embedding_available = is_embedding_available(kg_manager)
 
         if not embedding_available:
             assert not result.get('success')
@@ -204,16 +219,7 @@ def function():
         """Test indexing behavior without API credentials"""
         result = indexer.index_directory(temp_code_dir)
 
-        # Check if embedding is available - supports both old (openai_api_key) and new (_embedding_client) APIs
-        if hasattr(indexer.kg_manager, '_embedding_client'):
-            # New EmbeddingClient abstraction (PR #3652+)
-            embedding_available = (
-                indexer.kg_manager._embedding_client is not None and
-                indexer.kg_manager._embedding_client.is_available()
-            )
-        else:
-            # Legacy OpenAI-only implementation
-            embedding_available = indexer.kg_manager.openai_api_key is not None
+        embedding_available = is_embedding_available(indexer.kg_manager)
 
         if not embedding_available:
             if 'data' in result:
@@ -341,16 +347,7 @@ class TestKnowledgeGraphIntegration:
         assert 'success' in health or 'error' in health
 
         print("✓ Knowledge Graph system components initialized")
-        # Support both old (openai_api_key) and new (_embedding_client) APIs
-        if hasattr(kg_manager, '_embedding_client'):
-            # New EmbeddingClient abstraction (PR #3652+)
-            embedding_available = (
-                kg_manager._embedding_client is not None and
-                kg_manager._embedding_client.is_available()
-            )
-        else:
-            # Legacy OpenAI-only implementation
-            embedding_available = kg_manager.openai_api_key is not None
+        embedding_available = is_embedding_available(kg_manager)
         print(f"  - Embedding configured: {embedding_available}")
         print(f"  - Database configured: {kg_manager.db_pool is not None}")
         print(f"  - Cache enabled: {cache.enabled if cache else False}")
