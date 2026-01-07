@@ -66,15 +66,25 @@ from core.agents import BaseAgent, AgentInput, AgentOutput
 logger = logging.getLogger(__name__)
 
 
-# P6: Dialogue detection patterns - phrases that indicate LLM returned dialogue instead of code
-# These patterns are used to detect when the LLM ignores JSON format instructions
-DIALOGUE_PATTERNS = [
-    r"^(here|let me|i'll|i will|i can|sure|okay|ok,)",  # Common dialogue starters
-    r"(run the linter|run linter|check the|please run|you should|you can|try running)",  # Instructions
-    r"(to fix this|to identify|to resolve|the issue is|the problem is)",  # Explanations
-    r"(```|~~~)",  # Markdown code blocks (should be raw JSON)
+# P6: Dialogue detection for raw LLM responses.
+# These patterns are anchored to the start to avoid false positives on valid JSON.
+# Note: Markdown code blocks (```) are NOT included here because we have separate
+# logic to extract JSON from markdown blocks (lines 410-415).
+RESPONSE_DIALOGUE_PATTERNS = [
+    r"^\s*(here|let me|i'll|i will|i can|sure|okay|ok,)",  # Common dialogue starters
+    r"^\s*(run the linter|run linter|check the|please run|you should|you can|try running)",  # Instructions
+    r"^\s*(to fix this|to identify|to resolve|the issue is|the problem is)",  # Explanations
 ]
-DIALOGUE_REGEX = re.compile("|".join(DIALOGUE_PATTERNS), re.IGNORECASE)
+RESPONSE_DIALOGUE_REGEX = re.compile("|".join(RESPONSE_DIALOGUE_PATTERNS), re.IGNORECASE)
+
+# P6: Dialogue detection for patch content.
+# This is more conservative to avoid rejecting valid code that contains these phrases
+# in comments or strings.
+PATCH_DIALOGUE_PATTERNS = [
+    r"^\s*(here is the fix|here's the code|i have fixed the code)",
+    r"^\s*the corrected code is as follows",
+]
+PATCH_DIALOGUE_REGEX = re.compile("|".join(PATCH_DIALOGUE_PATTERNS), re.IGNORECASE)
 
 
 class CoderStatus(str, Enum):
@@ -392,7 +402,7 @@ class SimpleCoder(BaseAgent):
         """
         # P6: First check if response looks like dialogue instead of JSON
         response_stripped = response.strip()
-        if DIALOGUE_REGEX.search(response_stripped):
+        if RESPONSE_DIALOGUE_REGEX.search(response_stripped):
             # Log the first 100 chars for debugging
             preview = response_stripped[:100].replace('\n', ' ')
             logger.warning(
@@ -453,7 +463,7 @@ class SimpleCoder(BaseAgent):
 
             # P6: Check if patch content looks like dialogue instead of code
             # This catches cases where JSON parsing succeeded but patch contains instructions
-            if DIALOGUE_REGEX.search(patch_content):
+            if PATCH_DIALOGUE_REGEX.search(patch_content):
                 preview = patch_content[:100].replace('\n', ' ')
                 logger.warning(
                     f"[CODER_PATCH_DIALOGUE_ABORT] {file_path}: patch field contains "
