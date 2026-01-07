@@ -1,9 +1,14 @@
-# handoff/20250928/40_App/api-backend/src/probe0_lint_error_v2.py
+import os
 
-from django.utils import timezone
-from django.core.exceptions import ValidationError
+# Ensure all environment variables used are defined
+API_KEY = os.getenv("API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
+DEBUG_MODE = os.getenv("DEBUG_MODE")
 
-def validate_timestamp(timestamp):
-    if timestamp > timezone.now():
-        raise ValidationError("Timestamp cannot be in the future.")
-    return timestamp
+def configure_app():
+    config = {
+        "API_KEY": API_KEY,
+        "DATABASE_URL": DATABASE_URL,
+        "DEBUG_MODE": DEBUG_MODE,
+    }
+    return config
