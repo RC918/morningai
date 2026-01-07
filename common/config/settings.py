@@ -1200,6 +1200,46 @@ class Settings(BaseSettings):
         description="Weight for provider preference in model selection (0-1). Higher values prefer configured provider order."
     )
 
+    # Cost Optimization: Escalation Ladder Hard Cap
+    # Prevents runaway costs from unlimited tier escalation
+    routing_max_escalations: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        alias="ROUTING_MAX_ESCALATIONS",
+        description="Maximum number of tier escalations allowed per task (0-3). Default: 1. Set to 0 to disable escalation entirely."
+    )
+
+    routing_max_retries: int = Field(
+        default=2,
+        ge=1,
+        le=5,
+        alias="ROUTING_MAX_RETRIES",
+        description="Maximum number of retries allowed per task (1-5). Default: 2. When exceeded, RoutingEngine returns the lowest-cost available model (starting from Tier 3, falling back upward if unavailable) instead of failing. This ensures graceful degradation during cost control."
+    )
+
+    routing_default_tier: int = Field(
+        default=2,
+        ge=0,
+        le=3,
+        alias="ROUTING_DEFAULT_TIER",
+        description="Default tier for tasks without explicit routing config (0-3). Default: 2 (Tier 2 = qwen-turbo). Lower tiers are more expensive."
+    )
+
+    routing_force_tier_floor: bool = Field(
+        default=True,
+        alias="ROUTING_FORCE_TIER_FLOOR",
+        description="If true, tasks cannot escalate below the minimum tier (Tier 2) unless explicitly marked as high-risk. This forces 90%+ traffic to Tier 2-3."
+    )
+
+    routing_tier_floor: int = Field(
+        default=2,
+        ge=0,
+        le=3,
+        alias="ROUTING_TIER_FLOOR",
+        description="Minimum tier floor (0-3). Tasks cannot escalate below this tier unless high-risk. Default: 2."
+    )
+
     # Issue #3234: Configurable auto-fix confidence threshold (EPIC D)
     autofix_confidence_threshold: float = Field(
         default=0.8,
