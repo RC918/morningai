@@ -1,1 +1,3 @@
-As an AI, I need to see the code to provide the solution. Please provide the code which has lint error.
+def calculate_sum(a, b):
+    result = a + b
+    return reuslt
