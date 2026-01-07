@@ -1,1 +1,1 @@
-or
+4. Commit the changes with a clear commit message:
