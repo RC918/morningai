@@ -1,2 +1,2 @@
 
-Step 2: Run the GitHub workflow locally.
+2. Add the file to the staging area:
