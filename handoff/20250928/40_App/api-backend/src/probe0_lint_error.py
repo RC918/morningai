@@ -1,2 +1,7 @@
+# before
+def some_function(value):
+  return value+1
 
-Then, you can run pylint to check for issues:
+# after
+def some_function(value: int) -> int:
+  return value + 1
