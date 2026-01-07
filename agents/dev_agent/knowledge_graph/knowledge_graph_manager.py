@@ -6,6 +6,7 @@ Phase 1 Week 5: Knowledge Graph System
 import logging
 import os
 import time
+from enum import Enum
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import psycopg2
@@ -24,6 +25,47 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class EmbeddingProvider(str, Enum):
+    """
+    Standardized embedding provider names for health checks and monitoring.
+
+    Using an enum ensures consistent naming across the codebase and prevents
+    breaking changes when provider names are used in external contracts
+    (e.g., monitoring dashboards, alerting systems).
+    """
+    ALICLOUD = "alicloud"
+    OPENAI = "openai"
+    UNKNOWN = "unknown"
+
+    @classmethod
+    def from_string(cls, provider_name: Optional[str]) -> "EmbeddingProvider":
+        """Convert provider name string to enum, with fallback to UNKNOWN."""
+        if not provider_name:
+            return cls.UNKNOWN
+        try:
+            return cls(provider_name.lower())
+        except ValueError:
+            return cls.UNKNOWN
+
+
+# Provider-specific embedding costs per 1K tokens (USD)
+# These costs should be updated when provider pricing changes
+EMBEDDING_COSTS_PER_1K_TOKENS: Dict[str, Dict[str, float]] = {
+    "alicloud": {
+        "text-embedding-v3": 0.0007,  # AliCloud DashScope pricing
+        "text-embedding-v2": 0.0007,
+    },
+    "openai": {
+        "text-embedding-3-small": 0.00002,  # OpenAI pricing
+        "text-embedding-3-large": 0.00013,
+        "text-embedding-ada-002": 0.0001,
+    },
+}
+
+# Default cost when provider/model not found in pricing table
+DEFAULT_COST_PER_1K_TOKENS = 0.0001
+
+
 class KnowledgeGraphManager:
     """Manages code knowledge graph with embeddings and patterns
 
@@ -39,7 +81,6 @@ class KnowledgeGraphManager:
     MAX_TOKENS_PER_MINUTE = 1_000_000
 
     EMBEDDING_DIMENSIONS = 1536
-    COST_PER_1K_TOKENS = 0.00002
 
     def __init__(
         self,
@@ -178,6 +219,76 @@ class KnowledgeGraphManager:
 
         return None
 
+    def _get_cost_per_1k_tokens(self) -> float:
+        """
+        Get the cost per 1K tokens for the current embedding provider and model.
+
+        Uses the EMBEDDING_COSTS_PER_1K_TOKENS lookup table for accurate cost
+        tracking across different providers. Falls back to DEFAULT_COST_PER_1K_TOKENS
+        if the provider/model combination is not found.
+
+        Returns:
+            Cost per 1K tokens in USD
+        """
+        if not self._embedding_client:
+            return DEFAULT_COST_PER_1K_TOKENS
+
+        provider = self._embedding_client.provider_name
+        model = self._embedding_client.model
+
+        provider_costs = EMBEDDING_COSTS_PER_1K_TOKENS.get(provider, {})
+        cost = provider_costs.get(model, DEFAULT_COST_PER_1K_TOKENS)
+
+        if cost == DEFAULT_COST_PER_1K_TOKENS and model not in provider_costs:
+            logger.warning(
+                f"[KnowledgeGraphManager] Unknown model {model} for provider {provider}, "
+                f"using default cost ${DEFAULT_COST_PER_1K_TOKENS}/1K tokens"
+            )
+
+        return cost
+
+    def _estimate_token_count(self, content: str) -> int:
+        """
+        Estimate token count for content using tiktoken when available.
+
+        Uses tiktoken for accurate token counting when the model is supported,
+        with a fallback to len(content) // 4 heuristic for unsupported models
+        or when tiktoken is not available.
+
+        Args:
+            content: Text content to count tokens for
+
+        Returns:
+            Estimated token count
+        """
+        if not self._embedding_client:
+            return len(content) // 4
+
+        model = self._embedding_client.model
+
+        try:
+            import tiktoken
+            try:
+                encoding = tiktoken.encoding_for_model(model)
+                return len(encoding.encode(content))
+            except KeyError:
+                # Model not supported by tiktoken, try cl100k_base (GPT-4/3.5 encoding)
+                # which is a reasonable approximation for most modern models
+                encoding = tiktoken.get_encoding("cl100k_base")
+                return len(encoding.encode(content))
+        except ImportError:
+            # tiktoken not installed, use heuristic
+            logger.debug(
+                "[KnowledgeGraphManager] tiktoken not available, using len//4 heuristic"
+            )
+            return len(content) // 4
+        except Exception as e:
+            # Any other error, fall back to heuristic
+            logger.debug(
+                f"[KnowledgeGraphManager] Token counting failed ({e}), using len//4 heuristic"
+            )
+            return len(content) // 4
+
     def generate_embedding(
             self, content: str, max_retries: int = 3) -> Dict[str, Any]:
         """
@@ -211,7 +322,8 @@ class KnowledgeGraphManager:
                 return create_success(
                     {'embedding': cached_embedding, 'cached': True})
 
-        token_count = len(content) // 4
+        token_count = self._estimate_token_count(content)
+        cost_per_1k = self._get_cost_per_1k_tokens()
 
         for attempt in range(max_retries):
             try:
@@ -222,7 +334,7 @@ class KnowledgeGraphManager:
                 if embedding is None:
                     raise RuntimeError("Embedding generation returned None")
 
-                cost = (token_count / 1000) * self.COST_PER_1K_TOKENS
+                cost = (token_count / 1000) * cost_per_1k
 
                 if self.cache:
                     self.cache.set(content, embedding, embedding_model)
@@ -470,17 +582,28 @@ class KnowledgeGraphManager:
                 self._return_connection(conn)
 
     def health_check(self) -> Dict[str, Any]:
-        """Check system health"""
+        """
+        Check system health.
+
+        Returns standardized provider names via EmbeddingProvider enum to ensure
+        consistent naming across the codebase and prevent breaking changes when
+        provider names are used in external contracts (e.g., monitoring dashboards).
+        """
+        # Use EmbeddingProvider enum for standardized provider names
+        provider_enum = EmbeddingProvider.from_string(
+            self._embedding_client.provider_name if self._embedding_client else None
+        )
+
         health = {
             'timestamp': datetime.now().isoformat(),
             'embedding_configured': (
                 self._embedding_client is not None and
                 self._embedding_client.is_available()
             ),
-            'embedding_provider': (
-                self._embedding_client.provider_name
-                if self._embedding_client else None
-            ),
+            # Standardized provider name via enum (prevents contract breakage)
+            'embedding_provider': provider_enum.value,
+            # Include version for future compatibility
+            'health_check_version': '2.0',
             'database_configured': self.db_pool is not None,
             'cache_enabled': self.cache is not None
         }
