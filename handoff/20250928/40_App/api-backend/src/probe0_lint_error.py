@@ -1,2 +1,4 @@
 
-3. Now, push the changes to the PR #3627. Since PR's are usually associated with branches, you'll need to know the branch name associated with PR #3627. Assuming the branch name is `branch-name`, you would use the following command:
+2. The output from pylint will show you the issues with your code. Go through the issues and fix them. 
+
+3. After fixing the issues, you can run pylint again to ensure there are no more linting errors.
