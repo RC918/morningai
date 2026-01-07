@@ -18,7 +18,7 @@ def calculate_sum(a: int, b: int) -> int:
     result = a + b
     # INTENTIONAL ERROR: 'reuslt' is undefined (should be 'result')
     # This should trigger F821: undefined name 'reuslt'
-    return reuslt  # noqa: F821 is expected here
+    return reuslt  # INTENTIONAL: F821 error to trigger SimpleCoder
 
 
 def main():
