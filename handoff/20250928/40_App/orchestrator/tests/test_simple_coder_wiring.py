@@ -439,7 +439,7 @@ def create_mock_loop_protection():
 class TestFixerNodeIntegration:
     """Tests for fixer_node integration with SimpleCoder"""
 
-    @patch("langgraph_orchestrator.AutoFixLoopProtection")
+    @patch("utils.auto_fix_policy.AutoFixLoopProtection")
     @patch("langgraph_orchestrator._attempt_simple_coder_fix")
     @patch("langgraph_orchestrator._get_metrics")
     @patch("langgraph_orchestrator._get_agent_eval")
@@ -461,7 +461,7 @@ class TestFixerNodeIntegration:
         mock_attempt.assert_called_once()
         assert result["retry_count"] == 1
 
-    @patch("langgraph_orchestrator.AutoFixLoopProtection")
+    @patch("utils.auto_fix_policy.AutoFixLoopProtection")
     @patch("langgraph_orchestrator._attempt_simple_coder_fix")
     @patch("langgraph_orchestrator._get_metrics")
     @patch("langgraph_orchestrator._get_agent_eval")
@@ -486,7 +486,7 @@ class TestFixerNodeIntegration:
             if hasattr(msg, "content")
         )
 
-    @patch("langgraph_orchestrator.AutoFixLoopProtection")
+    @patch("utils.auto_fix_policy.AutoFixLoopProtection")
     @patch("langgraph_orchestrator._attempt_simple_coder_fix")
     @patch("langgraph_orchestrator._get_metrics")
     @patch("langgraph_orchestrator._get_agent_eval")
