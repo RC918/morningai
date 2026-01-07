@@ -28,6 +28,41 @@
 -- ============================================================================
 
 -- ============================================================================
+-- Step 0: Safety Check - Require explicit confirmation
+-- ============================================================================
+-- This migration will TRUNCATE all embedding data. To prevent accidental
+-- execution, you must first set the confirmation flag:
+--
+--   SET LOCAL morningai.confirm_embedding_migration = 'I_UNDERSTAND_DATA_WILL_BE_DELETED';
+--
+-- Example usage in Supabase SQL Editor:
+--   BEGIN;
+--   SET LOCAL morningai.confirm_embedding_migration = 'I_UNDERSTAND_DATA_WILL_BE_DELETED';
+--   \i migrations/041_migrate_embedding_dimensions_to_1024.sql
+--   COMMIT;
+-- ============================================================================
+
+DO $$
+BEGIN
+    IF current_setting('morningai.confirm_embedding_migration', true) IS DISTINCT FROM 'I_UNDERSTAND_DATA_WILL_BE_DELETED' THEN
+        RAISE EXCEPTION '
+============================================================================
+  MIGRATION BLOCKED: Safety confirmation required
+============================================================================
+  This migration will TRUNCATE all embedding data in the following tables:
+  - embeddings, vector_queries, error_fix_pairs, memory, failure_memory, code_embeddings
+  
+  To proceed, run this command first:
+  SET LOCAL morningai.confirm_embedding_migration = ''I_UNDERSTAND_DATA_WILL_BE_DELETED'';
+  
+  Then re-run this migration.
+============================================================================
+';
+    END IF;
+    RAISE NOTICE 'Safety check passed. Proceeding with migration...';
+END $$;
+
+-- ============================================================================
 -- Step 1: Truncate existing embedding data
 -- ============================================================================
 -- WARNING: This will delete all existing embeddings!
@@ -223,8 +258,13 @@ COMMENT ON COLUMN failure_memory.embedding IS 'Vector embedding (1024 dimensions
 DO $$
 DECLARE
     embeddings_dim INTEGER;
+    vector_queries_dim INTEGER;
+    error_embedding_dim INTEGER;
+    fix_embedding_dim INTEGER;
     memory_dim INTEGER;
-    error_fix_dim INTEGER;
+    failure_memory_dim INTEGER;
+    code_embeddings_dim INTEGER;
+    all_passed BOOLEAN := TRUE;
 BEGIN
     RAISE NOTICE '
 ============================================================================
@@ -238,25 +278,90 @@ BEGIN
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'embeddings' AND a.attname = 'embedding';
     
+    -- Check vector_queries table dimension
+    SELECT atttypmod INTO vector_queries_dim
+    FROM pg_attribute a
+    JOIN pg_class c ON a.attrelid = c.oid
+    WHERE c.relname = 'vector_queries' AND a.attname = 'query_embedding';
+    
+    -- Check error_fix_pairs table dimensions (both columns)
+    SELECT atttypmod INTO error_embedding_dim
+    FROM pg_attribute a
+    JOIN pg_class c ON a.attrelid = c.oid
+    WHERE c.relname = 'error_fix_pairs' AND a.attname = 'error_embedding';
+    
+    SELECT atttypmod INTO fix_embedding_dim
+    FROM pg_attribute a
+    JOIN pg_class c ON a.attrelid = c.oid
+    WHERE c.relname = 'error_fix_pairs' AND a.attname = 'fix_embedding';
+    
     -- Check memory table dimension
     SELECT atttypmod INTO memory_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
     WHERE c.relname = 'memory' AND a.attname = 'embedding';
     
-    -- Check error_fix_pairs table dimension
-    SELECT atttypmod INTO error_fix_dim
+    -- Check failure_memory table dimension
+    SELECT atttypmod INTO failure_memory_dim
     FROM pg_attribute a
     JOIN pg_class c ON a.attrelid = c.oid
-    WHERE c.relname = 'error_fix_pairs' AND a.attname = 'error_embedding';
+    WHERE c.relname = 'failure_memory' AND a.attname = 'embedding';
+    
+    -- Check code_embeddings table dimension (if exists)
+    SELECT atttypmod INTO code_embeddings_dim
+    FROM pg_attribute a
+    JOIN pg_class c ON a.attrelid = c.oid
+    WHERE c.relname = 'code_embeddings' AND a.attname = 'embedding';
 
-    RAISE NOTICE '  embeddings.embedding dimension: %', embeddings_dim;
-    RAISE NOTICE '  memory.embedding dimension: %', memory_dim;
-    RAISE NOTICE '  error_fix_pairs.error_embedding dimension: %', error_fix_dim;
+    -- Report all dimensions
+    RAISE NOTICE '  Verification Results:';
+    RAISE NOTICE '  ----------------------';
+    RAISE NOTICE '  embeddings.embedding:              % (expected: 1024)', embeddings_dim;
+    RAISE NOTICE '  vector_queries.query_embedding:    % (expected: 1024)', vector_queries_dim;
+    RAISE NOTICE '  error_fix_pairs.error_embedding:   % (expected: 1024)', error_embedding_dim;
+    RAISE NOTICE '  error_fix_pairs.fix_embedding:     % (expected: 1024)', fix_embedding_dim;
+    RAISE NOTICE '  memory.embedding:                  % (expected: 1024)', memory_dim;
+    RAISE NOTICE '  failure_memory.embedding:          % (expected: 1024)', failure_memory_dim;
+    IF code_embeddings_dim IS NOT NULL THEN
+        RAISE NOTICE '  code_embeddings.embedding:         % (expected: 1024)', code_embeddings_dim;
+    ELSE
+        RAISE NOTICE '  code_embeddings.embedding:         (table not found - OK if not using Knowledge Graph)';
+    END IF;
 
-    RAISE NOTICE '
+    -- Validate all dimensions are 1024
+    IF embeddings_dim != 1024 THEN
+        RAISE WARNING 'embeddings.embedding dimension mismatch: expected 1024, got %', embeddings_dim;
+        all_passed := FALSE;
+    END IF;
+    IF vector_queries_dim != 1024 THEN
+        RAISE WARNING 'vector_queries.query_embedding dimension mismatch: expected 1024, got %', vector_queries_dim;
+        all_passed := FALSE;
+    END IF;
+    IF error_embedding_dim != 1024 THEN
+        RAISE WARNING 'error_fix_pairs.error_embedding dimension mismatch: expected 1024, got %', error_embedding_dim;
+        all_passed := FALSE;
+    END IF;
+    IF fix_embedding_dim != 1024 THEN
+        RAISE WARNING 'error_fix_pairs.fix_embedding dimension mismatch: expected 1024, got %', fix_embedding_dim;
+        all_passed := FALSE;
+    END IF;
+    IF memory_dim != 1024 THEN
+        RAISE WARNING 'memory.embedding dimension mismatch: expected 1024, got %', memory_dim;
+        all_passed := FALSE;
+    END IF;
+    IF failure_memory_dim != 1024 THEN
+        RAISE WARNING 'failure_memory.embedding dimension mismatch: expected 1024, got %', failure_memory_dim;
+        all_passed := FALSE;
+    END IF;
+    IF code_embeddings_dim IS NOT NULL AND code_embeddings_dim != 1024 THEN
+        RAISE WARNING 'code_embeddings.embedding dimension mismatch: expected 1024, got %', code_embeddings_dim;
+        all_passed := FALSE;
+    END IF;
+
+    IF all_passed THEN
+        RAISE NOTICE '
 ============================================================================
-  Migration 041: COMPLETE
+  Migration 041: COMPLETE - ALL VERIFICATIONS PASSED
 ============================================================================
   Changes Applied:
   - All vector columns changed from vector(1536) to vector(1024)
@@ -269,4 +374,14 @@ BEGIN
   3. Error-fix pairs will accumulate automatically from new failures
 ============================================================================
 ';
+    ELSE
+        RAISE EXCEPTION '
+============================================================================
+  Migration 041: VERIFICATION FAILED
+============================================================================
+  Some vector columns were not properly updated to 1024 dimensions.
+  Please check the warnings above and investigate.
+============================================================================
+';
+    END IF;
 END $$;
