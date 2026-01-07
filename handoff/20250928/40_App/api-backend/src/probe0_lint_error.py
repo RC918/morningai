@@ -1,2 +1,22 @@
+# Before linting
+import os, sys
+def foo(): 
+    var='hello, world'
+    print(var)
+    return 1
 
-Step 2: Run pylint on the python file
+# After linting
+import os
+import sys
+
+
+def foo() -> int: 
+    """
+    Prints a greeting and returns 1.
+
+    Returns:
+        int: The return value. Always returns 1.
+    """
+    var = 'hello, world'
+    print(var)
+    return 1
