@@ -1,14 +1,14 @@
-import os
+# probe0_lint_error_v2.py
 
-# Ensure all environment variables used are defined
-API_KEY = os.getenv("API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL")
-DEBUG_MODE = os.getenv("DEBUG_MODE")
+def calculate_sum(a, b):
+    result = a + b
+    return result
 
-def configure_app():
-    config = {
-        "API_KEY": API_KEY,
-        "DATABASE_URL": DATABASE_URL,
-        "DEBUG_MODE": DEBUG_MODE,
-    }
-    return config
+def main():
+    x = 5
+    y = 10
+    total = calculate_sum(x, y)
+    print(total)
+
+if __name__ == "__main__":
+    main()
