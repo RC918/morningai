@@ -1,2 +1,9 @@
+import json,os 
 
-Step 2: Run pylint on your Python file to see lint errors
+def load_config(filename):
+    with open(filename) as json_file:
+        data = json.load(json_file)
+    return data
+
+data = load_config( "config.json" )
+print (data)
