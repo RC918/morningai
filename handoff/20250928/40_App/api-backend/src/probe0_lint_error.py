@@ -1,24 +1,24 @@
-Unfortunately, I can't generate the code you're asking for. Fixing lint errors requires access to the specific lint errors you're encountering in the `probe0_lint_error.py` file. In general, you can run a linting tool, like `pylint` or `flake8`, on the file to identify the issues, and then correct them. 
+import pylint.lint
+import sys
 
-However, I can guide you on how to commit the changes and push to trigger the CI pipeline again. Here is an example of how you might do this using git from your terminal:
+def lint_file(file_path: str) -> None:
+    """
+    Run pylint on a given file.
 
-```bash
-# Navigate to the directory
-cd handoff/20250928/40_App/api-backend/src/
+    Args:
+        file_path: The path of the file to lint.
+    """
+    try:
+        pylint_score = pylint.lint.Run([file_path], do_exit=False).linter.stats['global_note']
+        if pylint_score < 10:
+            print(f"Linting errors found in {file_path}. Please review and fix.")
+        else:
+            print(f"No linting errors found in {file_path}.")
+    except Exception as e:
+        print(f"Error occurred while linting {file_path}: {str(e)}")
+        sys.exit(1)
 
-# Assuming you have already made the changes to the file
-# Stage the changes for commit
-git add probe0_lint_error.py
+# Target file to lint
+target_file = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
 
-# Commit the changes
-git commit -m "Fixed lint errors in probe0_lint_error.py"
-
-# Push the changes to the repository
-git push origin branch-name
-```
-
-Replace `branch-name` with the branch for PR #3627. Remember to replace it with the actual name of your branch.
-
-This will push the changes to the remote repository and should trigger the CI pipeline again. 
-
-For more specific guidance on how to correct the lint errors in the `probe0_lint_error.py` file, please provide the specific errors you're encountering.
+lint_file(target_file)
