@@ -136,11 +136,14 @@ class AgentEvalIntegration:
     generating evaluation tasks from failure records.
     """
 
+    DEFAULT_REGRESSION_ALERT_COOLDOWN_SECONDS = 1800
+
     def __init__(
         self,
         redis_client: Optional[Any] = None,
         enabled: bool = True,
-        key_prefix: str = EVAL_KEY_PREFIX
+        key_prefix: str = EVAL_KEY_PREFIX,
+        regression_alert_cooldown_seconds: int = DEFAULT_REGRESSION_ALERT_COOLDOWN_SECONDS
     ):
         """
         Initialize agent eval integration
@@ -149,12 +152,16 @@ class AgentEvalIntegration:
             redis_client: Redis client instance (optional, disabled if None)
             enabled: Whether metrics collection is enabled
             key_prefix: Prefix for all Redis keys
+            regression_alert_cooldown_seconds: Cooldown period for regression alerts (default 30 min)
         """
         self.redis = redis_client
         self.enabled = enabled and redis_client is not None
         self.key_prefix = key_prefix
         self.metrics_key = f"{key_prefix}:metrics"
         self.tasks_key = f"{key_prefix}:tasks"
+        self.health_status_key = f"{key_prefix}:health_status"
+        self.regression_alert_key = f"{key_prefix}:regression_alert"
+        self.regression_alert_cooldown_seconds = regression_alert_cooldown_seconds
         self._active_metrics: Dict[str, EvalMetrics] = {}
 
     def start_workflow_metrics(
@@ -676,6 +683,132 @@ class AgentEvalIntegration:
 
         return "\n".join(lines)
 
+    def _get_last_health_status(self) -> str:
+        """
+        Get the last recorded health status from Redis.
+
+        Returns:
+            Last health status ("healthy", "degraded", "critical") or "unknown" if not set
+        """
+        if not self.enabled or not self.redis:
+            return "unknown"
+
+        try:
+            status = self.redis.get(self.health_status_key)
+            if status:
+                return status.decode("utf-8") if isinstance(status, bytes) else status
+            return "unknown"
+        except Exception as e:
+            logger.debug(f"[AgentEval] Failed to get last health status: {e}")
+            return "unknown"
+
+    def _update_health_status_if_changed(self, new_status: str) -> bool:
+        """
+        Update the health status in Redis if it has changed.
+
+        Args:
+            new_status: New health status to set
+
+        Returns:
+            True if status was updated, False otherwise
+        """
+        if not self.enabled or not self.redis:
+            return False
+
+        try:
+            old_status = self._get_last_health_status()
+            if old_status != new_status:
+                self.redis.set(self.health_status_key, new_status)
+                logger.debug(
+                    f"[AgentEval] Health status changed: {old_status} -> {new_status}"
+                )
+                return True
+            return False
+        except Exception as e:
+            logger.debug(f"[AgentEval] Failed to update health status: {e}")
+            return False
+
+    def _is_within_alert_cooldown(self) -> bool:
+        """
+        Check if we're within the alert cooldown period.
+
+        Returns:
+            True if within cooldown (should suppress alert), False otherwise
+        """
+        if not self.enabled or not self.redis:
+            return False
+
+        try:
+            last_alert = self.redis.get(self.regression_alert_key)
+            return last_alert is not None
+        except Exception as e:
+            logger.debug(f"[AgentEval] Failed to check alert cooldown: {e}")
+            return False
+
+    def _update_regression_alert_state(self, health_status: str) -> None:
+        """
+        Update the regression alert state in Redis (sets cooldown timer).
+
+        Args:
+            health_status: Current health status being alerted
+        """
+        if not self.enabled or not self.redis:
+            return
+
+        try:
+            alert_data = json.dumps({
+                "health_status": health_status,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            self.redis.set(
+                self.regression_alert_key,
+                alert_data,
+                ex=self.regression_alert_cooldown_seconds
+            )
+            self._update_health_status_if_changed(health_status)
+        except Exception as e:
+            logger.debug(f"[AgentEval] Failed to update alert state: {e}")
+
+    def _should_emit_regression_alert(
+        self,
+        current_health_status: str,
+        has_critical: bool
+    ) -> tuple:
+        """
+        Determine if a regression alert should be emitted.
+
+        Uses edge-trigger + cooldown logic:
+        1. Always alert on state transition from healthy -> degraded/critical (edge-trigger)
+        2. Always alert on escalation from degraded -> critical
+        3. For same-state regression, only alert if cooldown has expired
+        4. Critical regressions have shorter effective cooldown (always alert on escalation)
+
+        Args:
+            current_health_status: Current health status ("healthy", "degraded", "critical")
+            has_critical: Whether current regression is critical
+
+        Returns:
+            Tuple of (should_alert: bool, reason: str)
+        """
+        if current_health_status == "healthy":
+            return (False, "no_regression")
+
+        last_status = self._get_last_health_status()
+
+        if last_status == "unknown":
+            return (True, "first_detection")
+
+        if last_status == "healthy":
+            return (True, "state_transition_from_healthy")
+
+        if last_status == "degraded" and current_health_status == "critical":
+            return (True, "escalation_to_critical")
+
+        if self._is_within_alert_cooldown():
+            return (False, "within_cooldown")
+
+        return (True, "cooldown_expired")
+
     def detect_capability_regression(
         self,
         success_rate_threshold: float = 70.0,
@@ -787,6 +920,10 @@ class AgentEvalIntegration:
             has_regression = len(regressions) > 0
             has_critical = any(r["severity"] == "critical" for r in regressions)
 
+            current_health_status = "healthy"
+            if has_regression:
+                current_health_status = "critical" if has_critical else "degraded"
+
             result = {
                 "has_regression": has_regression,
                 "has_critical_regression": has_critical,
@@ -810,27 +947,50 @@ class AgentEvalIntegration:
                 "timestamp": datetime.utcnow().isoformat()
             }
 
+            should_alert, alert_reason = self._should_emit_regression_alert(
+                current_health_status, has_critical
+            )
+
             if has_regression:
-                logger.warning(
-                    "[AgentEval] Capability regression detected",
-                    extra={
-                        "operation": "detect_regression",
-                        "regressions": len(regressions),
-                        "regression_details": regressions,
-                        "has_critical": has_critical,
-                        "success_rate": success_rate,
-                        "ci_pass_rate": ci_pass_rate,
-                        "ci_observed_rate": ci_observed_rate,
-                        "code_changing_count": len(code_changing_workflows),
-                        "total_count": total,
-                        "metrics": result["metrics"]
-                    }
-                )
+                if should_alert:
+                    logger.warning(
+                        "[AgentEval] Capability regression detected",
+                        extra={
+                            "operation": "agent_eval_integration",
+                            "alert_reason": alert_reason,
+                            "regressions": len(regressions),
+                            "regression_details": regressions,
+                            "has_critical": has_critical,
+                            "health_status": current_health_status,
+                            "success_rate": success_rate,
+                            "ci_pass_rate": ci_pass_rate,
+                            "ci_observed_rate": ci_observed_rate,
+                            "code_changing_count": len(code_changing_workflows),
+                            "total_count": total,
+                            "metrics": result["metrics"]
+                        }
+                    )
+                    self._update_regression_alert_state(current_health_status)
+                else:
+                    logger.debug(
+                        "[AgentEval] Capability regression detected (alert suppressed)",
+                        extra={
+                            "operation": "agent_eval_integration",
+                            "suppression_reason": alert_reason,
+                            "health_status": current_health_status,
+                            "success_rate": success_rate,
+                            "ci_pass_rate": ci_pass_rate,
+                            "metrics": result["metrics"]
+                        }
+                    )
             else:
+                if current_health_status == "healthy":
+                    self._update_health_status_if_changed(current_health_status)
                 logger.info(
                     "[AgentEval] No capability regression detected",
                     extra={
-                        "operation": "detect_regression",
+                        "operation": "agent_eval_integration",
+                        "health_status": current_health_status,
                         "success_rate": success_rate,
                         "ci_pass_rate": ci_pass_rate,
                         "ci_observed_rate": ci_observed_rate,
@@ -840,6 +1000,8 @@ class AgentEvalIntegration:
                     }
                 )
 
+            result["alert_emitted"] = should_alert
+            result["alert_reason"] = alert_reason
             return result
 
         except Exception as e:
