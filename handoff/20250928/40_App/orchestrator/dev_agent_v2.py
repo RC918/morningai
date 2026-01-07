@@ -25,8 +25,8 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 
 from redis import Redis
-from openai import OpenAI
 from common.config.settings import settings
+from llm.client import LLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -200,17 +200,24 @@ class SessionStore:
 class DevAgentV2:
     """
     Dev_Agent Phase 2 with OODA Loop and Session State
+
+    EPIC D Fix: Migrated from hardcoded OpenAI to LLMClient abstraction layer.
+    This allows DevAgentV2 to use the configured LLM provider (e.g., Qwen via
+    alicloud) instead of always using OpenAI. The provider is determined by:
+    1. LLM_PROVIDER environment variable (e.g., "alicloud", "siliconflow")
+    2. ROUTING_ALLOWED_PROVIDERS for governance filtering
+    3. Auto-selection based on available API keys (Qwen-first per EPIC #2594)
     """
-    
+
     def __init__(
         self,
-        openai_client: OpenAI,
+        llm_client: LLMClient,
         session_store: SessionStore,
-        model: str = "gpt-4-turbo-preview"
+        model: str = None
     ):
-        self.openai = openai_client
+        self._llm_client = llm_client
         self.session_store = session_store
-        self.model = model
+        self.model = model or llm_client.model
     
     def observe(self, state: SessionState) -> SessionState:
         """
@@ -285,17 +292,14 @@ Analyze the situation and provide:
 Keep response concise and actionable."""
         
         try:
-            response = self.openai.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are an expert development agent analyzing task progress."},
-                    {"role": "user", "content": orientation_prompt}
-                ],
+            response = self._llm_client.generate(
+                prompt=orientation_prompt,
+                system_prompt="You are an expert development agent analyzing task progress.",
                 temperature=0.3,
                 max_tokens=1000
             )
-            
-            analysis = response.choices[0].message.content
+
+            analysis = response.content
             
             state.context["orientation_analysis"] = analysis
             state.conversation_history.append({
@@ -476,18 +480,21 @@ Keep response concise and actionable."""
 def create_dev_agent_v2(redis_client: Redis) -> DevAgentV2:
     """
     Factory function to create Dev_Agent V2 instance
-    
+
+    EPIC D Fix: Now uses LLMClient which respects LLM_PROVIDER setting,
+    allowing DevAgentV2 to use Qwen or other configured providers.
+
     Args:
         redis_client: Redis client for session storage
-    
+
     Returns:
         Configured DevAgentV2 instance
     """
-    openai_client = OpenAI(api_key=settings.openai_api_key)
+    llm_client = LLMClient()
     session_store = SessionStore(redis_client)
-    
+
     return DevAgentV2(
-        openai_client=openai_client,
+        llm_client=llm_client,
         session_store=session_store,
-        model=settings.dev_agent_model or "gpt-4-turbo-preview"
+        model=settings.dev_agent_model
     )
