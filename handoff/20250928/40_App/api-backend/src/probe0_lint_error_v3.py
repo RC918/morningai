@@ -1,33 +1,14 @@
-"""
-Probe 0 v3: EPIC D CI Failure Path Validation - Post Embedding Migration
+# handoff/20250928/40_App/api-backend/src/probe0_lint_error_v3.py
 
-This file contains an INTENTIONAL lint error to validate the CI failure path:
-- CI should fail with F821 (undefined name 'reuslt')
-- AutoFixer should detect the failure and trigger SimpleCoder
-- SimpleCoder should fix 'reuslt' -> 'result'
+def calculate_probe_data(data):
+    intermediate_value = process_data(data)
+    final_result = intermediate_value * 2
+    return final_result
 
-DO NOT MERGE THIS FILE - it is a test vehicle only.
+def process_data(data):
+    processed = data + 10
+    return processed
 
-This test validates the complete SimpleCoder pipeline after:
-- PR #3660: EmbeddingClient dimension fix (alicloud -> 1024)
-- PR #3661: Database migration (vector columns -> 1024)
-- PR #3659: P5/P6 prompt strengthening and dialogue detection
-"""
-
-
-def calculate_sum(a: int, b: int) -> int:
-    """Calculate the sum of two integers."""
-    result = a + b
-    return reuslt  # Intentional typo: should be 'result'
-
-
-def main() -> None:
-    """Main function to demonstrate the calculation."""
-    x = 10
-    y = 20
-    total = calculate_sum(x, y)
-    print(f"The sum of {x} and {y} is {total}")
-
-
-if __name__ == "__main__":
-    main()
+data_input = 5
+output = calculate_probe_data(data_input)
+print(output)
