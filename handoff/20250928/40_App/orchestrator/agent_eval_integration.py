@@ -732,6 +732,10 @@ class AgentEvalIntegration:
         """
         Check if we're within the alert cooldown period.
 
+        Uses timestamp-based validation instead of relying solely on Redis TTL
+        to prevent silent suppression if TTL is lost (e.g., Redis restart).
+        Fail-open: if parsing fails, allow the alert (return False).
+
         Returns:
             True if within cooldown (should suppress alert), False otherwise
         """
@@ -739,8 +743,24 @@ class AgentEvalIntegration:
             return False
 
         try:
-            last_alert = self.redis.get(self.regression_alert_key)
-            return last_alert is not None
+            last_alert_data = self.redis.get(self.regression_alert_key)
+            if last_alert_data is None:
+                return False
+
+            if isinstance(last_alert_data, bytes):
+                last_alert_data = last_alert_data.decode("utf-8")
+
+            alert_info = json.loads(last_alert_data)
+            timestamp_str = alert_info.get("timestamp")
+            if not timestamp_str:
+                return False
+
+            last_alert_time = datetime.fromisoformat(timestamp_str)
+            elapsed_seconds = (datetime.utcnow() - last_alert_time).total_seconds()
+            return elapsed_seconds < self.regression_alert_cooldown_seconds
+        except (json.JSONDecodeError, ValueError, KeyError, TypeError) as e:
+            logger.debug(f"[AgentEval] Failed to parse alert cooldown data, allowing alert: {e}")
+            return False
         except Exception as e:
             logger.debug(f"[AgentEval] Failed to check alert cooldown: {e}")
             return False
@@ -984,8 +1004,7 @@ class AgentEvalIntegration:
                         }
                     )
             else:
-                if current_health_status == "healthy":
-                    self._update_health_status_if_changed(current_health_status)
+                self._update_health_status_if_changed(current_health_status)
                 logger.info(
                     "[AgentEval] No capability regression detected",
                     extra={
