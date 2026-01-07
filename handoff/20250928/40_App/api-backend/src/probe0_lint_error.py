@@ -1,24 +1,21 @@
-# api-backend/src/probe0_lint_error.py
+# Step 1: Install pylint
+# You can install pylint via pip
+# Open your terminal and type:
+pip install pylint
 
-def calculate_sum(a: int, b: int) -> int:
-    """
-    Function to calculate the sum of two numbers
-    """
-    # Check if the inputs are integers
-    if not isinstance(a, int) or not isinstance(b, int):
-        raise ValueError("Both inputs must be integers")
-    # Return the sum
-    return a + b
+# Step 2: Run pylint on your python file
+# In your terminal, navigate to the directory where your python file is located, then type:
+pylint probe0_lint_error.py
 
-def main() -> None:
-    """
-    Main function to run the script
-    """
-    try:
-        result = calculate_sum(5, 6)
-        print(f"The result is {result}")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
+# pylint will now provide a detailed report of all linting errors
 
-if __name__ == "__main__":
-    main()
+# Step 3: Fix the errors
+# pylint will provide a detailed list of errors in your code, along with their location and a brief description.
+# Go through each error and fix it in your code. This might involve things like:
+# - removing unused variables or imports
+# - fixing indentation errors
+# - adding docstrings to your functions
+# - etc.
+
+# Step 4: Re-run pylint until you receive a 10/10 score
+# Keep fixing errors and re-running pylint until you get a 10 out of 10 score. This means your code is now lint-free.
