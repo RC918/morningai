@@ -962,13 +962,14 @@ class TestEscalationLadderHardCap:
         """Test that default settings are used when import fails"""
         engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
 
-        # Without mocking settings, should use defaults
+        # Explicitly set settings to None to test fallback defaults
         # Default: tier_floor=2, force_tier_floor=True
-        model_info = engine.select_model(TaskType.CODING, risk_level="medium")
+        with patch('core.routing.engine.settings', None):
+            model_info = engine.select_model(TaskType.CODING, risk_level="medium")
 
-        # With default settings, should be at least Tier 2
-        assert model_info.tier.value >= 2, \
-            f"Expected tier >= 2 with default settings, got {model_info.tier.value}"
+            # With default settings (settings=None), should be at least Tier 2
+            assert model_info.tier.value >= 2, \
+                f"Expected tier >= 2 with default settings, got {model_info.tier.value}"
 
     def test_max_escalations_zero_disables_escalation(self):
         """Test that max_escalations=0 disables all escalation"""
