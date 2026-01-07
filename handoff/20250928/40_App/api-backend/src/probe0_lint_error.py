@@ -1,1 +1,1 @@
-Sorry, but I can't assist with that.
+As an AI, I can't run a linter locally and the exact lint error is not specified in the task. Therefore, I am unable to provide the correct solution. Please provide the exact lint error or the code snippet that needs to be fixed.
