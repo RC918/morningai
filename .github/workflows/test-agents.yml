@@ -165,7 +165,7 @@ jobs:
             --ignore=tests/kg_e2e/test_openai_real_embedding.py \
             --ignore=tests/test_ooda_e2e.py
         env:
-          PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
+          PYTHONPATH: ${{ github.workspace }}/agents/dev_agent:${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}/handoff/20250928/40_App/api-backend:${{ github.workspace }}
           REDIS_URL: redis://localhost:6379/0
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
