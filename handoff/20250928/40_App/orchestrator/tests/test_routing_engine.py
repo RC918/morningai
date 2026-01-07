@@ -833,3 +833,189 @@ class TestSoftWeighting:
         # SiliconFlow should be selected because alicloud has CRITICAL state
         assert model_info.provider == "siliconflow", \
             f"Expected siliconflow due to alicloud CRITICAL state, got {model_info.provider}"
+
+
+class TestEscalationLadderHardCap:
+    """Tests for Escalation Ladder Hard Cap (Cost Optimization)"""
+
+    def test_tier_floor_enforced_for_medium_risk(self):
+        """Test that tier floor is enforced for medium-risk tasks"""
+        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 1
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = True
+            mock_settings.routing_tier_floor = 2
+
+            # Coding is normally Tier 1, but tier floor should enforce Tier 2
+            model_info = engine.select_model(TaskType.CODING, risk_level="medium")
+
+            # Should be at least Tier 2 due to tier floor
+            assert model_info.tier.value >= 2, \
+                f"Expected tier >= 2 due to tier floor, got {model_info.tier.value}"
+
+    def test_tier_floor_bypassed_for_high_risk(self):
+        """Test that tier floor is bypassed for high-risk tasks"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 1
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = True
+            mock_settings.routing_tier_floor = 2
+
+            # High-risk tasks should bypass tier floor
+            model_info = engine.select_model(TaskType.CODING, risk_level="high")
+
+            # Should be Tier 0 (high-risk bypasses floor)
+            assert model_info.tier == Tier.TIER_0, \
+                f"Expected Tier 0 for high-risk, got {model_info.tier}"
+
+    def test_escalation_cap_blocks_further_escalation(self):
+        """Test that escalation cap blocks further tier escalation"""
+        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 1
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = False  # Disable floor for this test
+            mock_settings.routing_tier_floor = 2
+
+            # With escalation_count=1 (already escalated once), should not escalate further
+            model_info = engine.select_model(
+                TaskType.CODING,
+                risk_level="high",
+                escalation_count=1
+            )
+
+            # Should stay at original tier (Tier 1 for coding) due to escalation cap
+            assert model_info.tier == Tier.TIER_1, \
+                f"Expected Tier 1 due to escalation cap, got {model_info.tier}"
+
+    def test_retry_cap_returns_lowest_cost_tier(self):
+        """Test that retry cap returns lowest-cost tier (Tier 3)"""
+        engine = RoutingEngine(available_providers=["siliconflow"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 1
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = False
+            mock_settings.routing_tier_floor = 2
+
+            # With retry_count=2 (at max), should return Tier 3
+            model_info = engine.select_model(
+                TaskType.PLANNING,
+                retry_count=2
+            )
+
+            # Should be Tier 3 (lowest cost) due to retry cap
+            assert model_info.tier == Tier.TIER_3, \
+                f"Expected Tier 3 due to retry cap, got {model_info.tier}"
+            assert "Retry cap reached" in model_info.reason
+
+    def test_escalation_count_zero_allows_escalation(self):
+        """Test that escalation_count=0 allows normal escalation"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 1
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = False
+            mock_settings.routing_tier_floor = 2
+
+            # With escalation_count=0, high-risk should escalate to Tier 0
+            model_info = engine.select_model(
+                TaskType.CODING,
+                risk_level="high",
+                escalation_count=0
+            )
+
+            # Should escalate to Tier 0
+            assert model_info.tier == Tier.TIER_0, \
+                f"Expected Tier 0 with escalation_count=0, got {model_info.tier}"
+
+    def test_tier_floor_disabled_allows_escalation(self):
+        """Test that tier floor can be disabled via settings"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 3
+            mock_settings.routing_max_retries = 5
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = False  # Disabled
+            mock_settings.routing_tier_floor = 2
+
+            # With floor disabled, medium-risk coding should stay at Tier 1
+            model_info = engine.select_model(TaskType.CODING, risk_level="medium")
+
+            # Should be Tier 1 (no floor enforcement)
+            assert model_info.tier == Tier.TIER_1, \
+                f"Expected Tier 1 with floor disabled, got {model_info.tier}"
+
+    def test_default_settings_when_import_fails(self):
+        """Test that default settings are used when import fails"""
+        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+
+        # Explicitly set settings to None to test fallback defaults
+        # Default: tier_floor=2, force_tier_floor=True
+        with patch('core.routing.engine.settings', None):
+            model_info = engine.select_model(TaskType.CODING, risk_level="medium")
+
+            # With default settings (settings=None), should be at least Tier 2
+            assert model_info.tier.value >= 2, \
+                f"Expected tier >= 2 with default settings, got {model_info.tier.value}"
+
+    def test_max_escalations_zero_disables_escalation(self):
+        """Test that max_escalations=0 disables all escalation"""
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 0
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = False
+            mock_settings.routing_tier_floor = 2
+
+            # With max_escalations=0, even high-risk should not escalate
+            model_info = engine.select_model(
+                TaskType.CODING,
+                risk_level="high",
+                escalation_count=0
+            )
+
+            # Should stay at original tier (Tier 1 for coding)
+            assert model_info.tier == Tier.TIER_1, \
+                f"Expected Tier 1 with max_escalations=0, got {model_info.tier}"
+
+    def test_retry_cap_fallback_when_tier3_unavailable(self):
+        """Test that retry cap falls back to higher tiers when Tier 3 is unavailable"""
+        # Only alicloud available (has Tier 0-2, but no Tier 3)
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 1
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = False
+            mock_settings.routing_tier_floor = 2
+
+            # With retry_count=2 (at max), should fall back upward since Tier 3 unavailable
+            model_info = engine.select_model(
+                TaskType.PLANNING,
+                retry_count=2
+            )
+
+            # Should fall back to Tier 2 (next available) since Tier 3 has no alicloud model
+            assert model_info is not None, "Expected a model to be returned"
+            assert model_info.tier.value <= 2, \
+                f"Expected tier <= 2 as fallback, got {model_info.tier}"
+            assert "Retry cap reached" in model_info.reason
+            # is_fallback should be True since we couldn't use Tier 3
+            assert model_info.is_fallback is True, \
+                "Expected is_fallback=True when falling back from Tier 3"

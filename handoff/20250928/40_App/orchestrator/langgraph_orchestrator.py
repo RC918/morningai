@@ -2454,6 +2454,12 @@ class AgentState(TypedDict):
     # this flag ensures ci_monitor makes actual API call to check real CI status
     # instead of forcing ci_state="failure" again.
     ci_failure_fast_path_consumed: Optional[bool]
+    # Issue #3640: Escalation Ladder Hard Cap State Tracking
+    # Tracks the number of tier escalations for cost optimization.
+    # Used by RoutingEngine.select_model() to enforce max_escalations limit.
+    # Incremented when a task escalates to a higher tier (lower tier number).
+    # Default: 0 (no escalations yet)
+    escalation_count: int
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -5105,6 +5111,11 @@ def fixer_node(state: AgentState) -> AgentState:
     Issue #3564 Enhancement:
     - Synthesizes comment_body from ci_failure_context for CI failure scenarios
     - Ensures coders don't skip due to missing comment_body
+
+    Cost Optimization Enhancement:
+    - Adds AutoFixLoopProtection to prevent infinite retry loops
+    - Tracks attempts per PR in Redis to enforce max_retries across webhook triggers
+    - Adds CI signature deduplication to avoid re-processing identical failures
     """
     from common.config.settings import settings
 
@@ -5113,6 +5124,116 @@ def fixer_node(state: AgentState) -> AgentState:
 
     trace_id = state["trace_id"]
     retry_count = state.get("retry_count", 0)
+
+    # Cost Optimization: Check loop protection BEFORE any LLM calls
+    # This prevents infinite loops where CI failure → fix attempt → CI failure → ...
+    repo = state.get("repo", "")
+    pr_number = state.get("pr_number")
+    pr_id = f"{repo}#{pr_number}" if repo and pr_number else trace_id
+
+    try:
+        from utils.auto_fix_policy import AutoFixLoopProtection
+        loop_protection = AutoFixLoopProtection(settings)
+        loop_allowed, current_attempts = loop_protection.check_and_increment(pr_id)
+
+        if not loop_allowed:
+            max_retries = getattr(settings, 'auto_fix_max_retries', 3)
+            logger.warning(
+                f"[Fixer] Loop protection triggered - max retries exceeded. "
+                f"pr_id={pr_id}, attempts={current_attempts}, max={max_retries}, trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_loop_protection",
+                    "trace_id": trace_id,
+                    "pr_id": pr_id,
+                    "current_attempts": current_attempts,
+                    "max_retries": max_retries,
+                    "loop_protection_triggered": True,
+                }
+            )
+            state["error"] = f"Loop protection: max retries ({max_retries}) exceeded after {current_attempts} attempts"
+            state["messages"] = state.get("messages", []) + [
+                AIMessage(content=f"AutoFixer stopped by loop protection after {current_attempts} attempts")
+            ]
+            latency_ms = (time.time() - start_time) * 1000
+            metrics.record_fixer_attempt(trace_id, retry_count, success=False)
+            metrics.record_node_complete("fixer", trace_id, success=False, latency_ms=latency_ms)
+            return state
+
+        logger.info(
+            f"[Fixer] Loop protection check passed. pr_id={pr_id}, attempt={current_attempts}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer_loop_protection_passed",
+                "trace_id": trace_id,
+                "pr_id": pr_id,
+                "current_attempts": current_attempts,
+            }
+        )
+    except ImportError as e:
+        logger.warning(
+            f"[Fixer] AutoFixLoopProtection not available, proceeding without loop protection: {e}",
+            extra={"trace_id": trace_id, "error": str(e)}
+        )
+    except Exception as e:
+        # Fail-open: if loop protection fails, continue with fix attempt
+        # but log for observability
+        logger.error(
+            f"[Fixer] Loop protection check failed, proceeding (fail-open): {e}",
+            extra={"trace_id": trace_id, "error": str(e), "pr_id": pr_id}
+        )
+
+    # Cost Optimization: CI signature deduplication
+    # Prevents re-processing the EXACT SAME CI failure within 24 hours
+    ci_context_for_dedup = state.get("ci_failure_context")
+    if ci_context_for_dedup and isinstance(ci_context_for_dedup, dict):
+        try:
+            from utils.auto_fix_policy import CISignatureDeduplication
+            dedup = CISignatureDeduplication(settings)
+            failed_check_name = ci_context_for_dedup.get("failed_check_name", "unknown")
+            error_summary = ci_context_for_dedup.get("error_summary", "")
+
+            is_new, signature = dedup.check_and_mark(pr_id, failed_check_name, error_summary)
+
+            if not is_new:
+                logger.warning(
+                    f"[Fixer] CI signature deduplication triggered - identical failure already processed. "
+                    f"pr_id={pr_id}, signature={signature}, trace_id={trace_id}",
+                    extra={
+                        "operation": "fixer_ci_signature_dedup",
+                        "trace_id": trace_id,
+                        "pr_id": pr_id,
+                        "signature": signature,
+                        "failed_check_name": failed_check_name,
+                        "ci_signature_duplicate": True,
+                    }
+                )
+                state["error"] = f"CI signature deduplication: identical failure already processed (signature={signature})"
+                state["messages"] = state.get("messages", []) + [
+                    AIMessage(content="AutoFixer skipped - identical CI failure already processed within 24h")
+                ]
+                latency_ms = (time.time() - start_time) * 1000
+                metrics.record_fixer_attempt(trace_id, retry_count, success=False)
+                metrics.record_node_complete("fixer", trace_id, success=False, latency_ms=latency_ms)
+                return state
+
+            logger.debug(
+                f"[Fixer] CI signature deduplication passed. signature={signature}, trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_ci_signature_dedup_passed",
+                    "trace_id": trace_id,
+                    "signature": signature,
+                }
+            )
+        except ImportError as e:
+            logger.warning(
+                f"[Fixer] CISignatureDeduplication not available: {e}",
+                extra={"trace_id": trace_id, "error": str(e)}
+            )
+        except Exception as e:
+            # Fail-open: if dedup fails, continue with fix attempt
+            logger.error(
+                f"[Fixer] CI signature deduplication failed, proceeding (fail-open): {e}",
+                extra={"trace_id": trace_id, "error": str(e)}
+            )
 
     # Issue #3567: Diagnostic log for coder prerequisites debugging
     # This log helps diagnose why coders skip in CI failure scenarios
@@ -5661,6 +5782,7 @@ def reviewer_node(state: AgentState) -> AgentState:
 
                 # Issue #3379: diff_content is now fetched BEFORE this block
                 # and stored in state, so LLM review can use it directly
+                # Issue #3640: Pass escalation/retry counts for cost optimization hard cap
                 llm_review = generate_llm_review(
                     pr_number=pr_number,
                     pr_url=pr_url,
@@ -5672,7 +5794,9 @@ def reviewer_node(state: AgentState) -> AgentState:
                     base_severity=ci_review["review_severity"],
                     diff=diff_content,
                     diff_truncated=diff_truncated,
-                    diff_files=diff_files
+                    diff_files=diff_files,
+                    escalation_count=state.get("escalation_count", 0),
+                    retry_count=state.get("retry_count", 0)
                 )
 
                 if llm_review.get("llm_used", False):
@@ -8123,6 +8247,8 @@ def _create_base_initial_state(
         "ci_checks": {},
         "error": None,
         "retry_count": 0,
+        # Issue #3640: Escalation Ladder Hard Cap State Tracking
+        "escalation_count": 0,
         "final_result": {},
         "review_result": {},
         "review_comments": [],
