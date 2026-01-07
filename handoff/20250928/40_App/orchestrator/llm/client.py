@@ -286,10 +286,20 @@ class LLMClient:
     3. Default: openai
     """
 
+    # Default timeout values per provider (in seconds)
+    # These can be overridden via constructor or per-call
+    DEFAULT_TIMEOUTS = {
+        "openai": 30,
+        "gemini": 60,
+        "alicloud": 60,
+        "siliconflow": 60,
+    }
+
     def __init__(
         self,
         provider: Optional[ProviderType] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        timeout: Optional[int] = None
     ):
         """
         Initialize LLM client with specified provider
@@ -299,14 +309,17 @@ class LLMClient:
                      If None, uses LLM_PROVIDER env var or defaults to openai
             model: Model to use (provider-specific)
                    If None, uses provider's default model
+            timeout: Request timeout in seconds (Issue #3653)
+                    If None, uses provider-specific default from DEFAULT_TIMEOUTS
         """
         self._provider_name = self._resolve_provider(provider)
         self._model = model
+        self._timeout = timeout
         self._provider = self._create_provider()
 
         logger.info(
             f"[LLMClient] Initialized with provider={self._provider_name}, "
-            f"model={self._model or 'default'}"
+            f"model={self._model or 'default'}, timeout={self._timeout or 'default'}"
         )
 
     def _resolve_provider(self, provider: Optional[ProviderType]) -> str:
@@ -365,6 +378,7 @@ class LLMClient:
         temperature: float = 0.7,
         max_tokens: int = 1000,
         json_mode: bool = False,
+        timeout: Optional[int] = None,
         **kwargs
     ) -> LLMResponse:
         """
@@ -376,6 +390,8 @@ class LLMClient:
             temperature: Sampling temperature (0.0-2.0)
             max_tokens: Maximum tokens to generate
             json_mode: If True, request JSON-formatted response
+            timeout: Request timeout in seconds (Issue #3653)
+                    If None, uses instance timeout or provider default
             **kwargs: Provider-specific parameters
 
         Returns:
@@ -391,6 +407,16 @@ class LLMClient:
                 f"Check API key configuration."
             )
 
+        # Issue #3653: Resolve timeout with priority:
+        # 1. Per-call timeout parameter
+        # 2. Instance-level timeout (from __init__)
+        # 3. Provider-specific default from DEFAULT_TIMEOUTS
+        effective_timeout = (
+            timeout
+            or self._timeout
+            or self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
+        )
+
         # EPIC I-2: Record request timing for health scoring
         start_time = time.time()
         success = False
@@ -403,6 +429,7 @@ class LLMClient:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 json_mode=json_mode,
+                timeout=effective_timeout,
                 **kwargs
             )
             success = True
@@ -511,6 +538,11 @@ class LLMClient:
         """Get the current model name"""
         return self._provider.model
 
+    @property
+    def timeout(self) -> int:
+        """Get the effective timeout in seconds (Issue #3653)"""
+        return self._timeout or self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
+
     @classmethod
     def get_default_client(cls) -> "LLMClient":
         """
@@ -536,7 +568,8 @@ def get_client_for_component(
     component: str,
     trace_id: str,
     default_provider: str = "auto",
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    timeout: Optional[int] = None
 ) -> LLMClient:
     """
     Get an LLMClient configured based on active experiments for a component.
@@ -552,14 +585,19 @@ def get_client_for_component(
         trace_id: Unique trace identifier for consistent variant assignment
         default_provider: Default provider if no experiment is active
         model: Optional model override (takes precedence over experiment model)
+        timeout: Optional timeout in seconds (Issue #3653)
 
     Returns:
-        LLMClient configured with the appropriate provider and model
+        LLMClient configured with the appropriate provider, model, and timeout
 
     Usage:
         # In reviewer code:
         client = get_client_for_component("reviewer", trace_id)
         response = client.generate("Review this code...")
+
+        # With custom timeout:
+        client = get_client_for_component("reviewer", trace_id, timeout=120)
+        response = client.generate("Review this large codebase...")
     """
     try:
         from experiment_manager import get_experiment_manager
@@ -588,7 +626,7 @@ def get_client_for_component(
                 }
             )
 
-            return LLMClient(provider=provider, model=final_model)
+            return LLMClient(provider=provider, model=final_model, timeout=timeout)
         else:
             logger.info(
                 f"[LLMClient] No active experiment for component={component}, "
@@ -600,19 +638,19 @@ def get_client_for_component(
                     "trace_id": trace_id
                 }
             )
-            return LLMClient(provider=default_provider, model=model)
+            return LLMClient(provider=default_provider, model=model, timeout=timeout)
 
     except ImportError:
         logger.debug(
             "[LLMClient] ExperimentManager not available, using default provider"
         )
-        return LLMClient(provider=default_provider, model=model)
+        return LLMClient(provider=default_provider, model=model, timeout=timeout)
     except Exception as e:
         logger.warning(
             f"[LLMClient] Failed to get experiment provider: {e}, "
             f"using default provider={default_provider}"
         )
-        return LLMClient(provider=default_provider, model=model)
+        return LLMClient(provider=default_provider, model=model, timeout=timeout)
 
 
 def get_client_for_task(
@@ -620,7 +658,8 @@ def get_client_for_task(
     risk_level: str = "medium",
     context_size: int = 0,
     escalation_count: int = 0,
-    retry_count: int = 0
+    retry_count: int = 0,
+    timeout: Optional[int] = None
 ) -> LLMClient:
     """
     Get an LLMClient configured based on task type using the RoutingEngine.
@@ -639,9 +678,10 @@ def get_client_for_task(
         context_size: Estimated context size in tokens
         escalation_count: Number of tier escalations already performed (Issue #3640)
         retry_count: Number of retries already attempted (Issue #3640)
+        timeout: Optional timeout in seconds (Issue #3653)
 
     Returns:
-        LLMClient configured with the appropriate provider and model
+        LLMClient configured with the appropriate provider, model, and timeout
 
     Raises:
         ValueError: If no suitable model is available
@@ -707,17 +747,21 @@ def get_client_for_task(
             }
         )
 
-        return LLMClient(provider=model_info.provider, model=model_info.model_name)
+        return LLMClient(
+            provider=model_info.provider,
+            model=model_info.model_name,
+            timeout=timeout
+        )
 
     except ImportError as e:
         logger.warning(
             f"[LLMClient] RoutingEngine not available: {e}, "
             f"falling back to auto provider selection"
         )
-        return LLMClient(provider="auto")
+        return LLMClient(provider="auto", timeout=timeout)
     except Exception as e:
         logger.warning(
             f"[LLMClient] Task-based routing failed: {e}, "
             f"falling back to auto provider selection"
         )
-        return LLMClient(provider="auto")
+        return LLMClient(provider="auto", timeout=timeout)
