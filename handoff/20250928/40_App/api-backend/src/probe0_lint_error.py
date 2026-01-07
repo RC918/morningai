@@ -1,22 +1,24 @@
-# Before linting
-import os, sys
-def foo(): 
-    var='hello, world'
-    print(var)
-    return 1
+# api-backend/src/probe0_lint_error.py
 
-# After linting
-import os
-import sys
-
-
-def foo() -> int: 
+def calculate_sum(a: int, b: int) -> int:
     """
-    Prints a greeting and returns 1.
-
-    Returns:
-        int: The return value. Always returns 1.
+    Function to calculate the sum of two numbers
     """
-    var = 'hello, world'
-    print(var)
-    return 1
+    # Check if the inputs are integers
+    if not isinstance(a, int) or not isinstance(b, int):
+        raise ValueError("Both inputs must be integers")
+    # Return the sum
+    return a + b
+
+def main() -> None:
+    """
+    Main function to run the script
+    """
+    try:
+        result = calculate_sum(5, 6)
+        print(f"The result is {result}")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+if __name__ == "__main__":
+    main()
