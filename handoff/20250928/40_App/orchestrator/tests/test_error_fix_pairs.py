@@ -4,7 +4,7 @@ Tests for Error-Fix Pairs Store
 Phase 2: Brain Layer - pgvector similarity search for error-fix pairs
 """
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 
 from orchestrator.memory.error_fix_pairs import (
     ErrorFixPair,
@@ -619,24 +619,36 @@ class TestGetErrorFixPairsStats:
 
 
 class TestEmbed:
-    """Test _embed function"""
+    """Test _embed function using unified EmbeddingClient"""
 
-    @patch('orchestrator.memory.error_fix_pairs.OpenAI')
-    @patch('orchestrator.memory.error_fix_pairs.settings')
-    def test_embed_success(self, mock_settings, mock_openai_class, mock_openai_client):
-        """Test embedding generation success"""
-        mock_settings.openai_api_key = "test-key"
-        mock_openai_class.return_value = mock_openai_client
+    @patch('orchestrator.memory.error_fix_pairs.get_embedding_client')
+    def test_embed_success(self, mock_get_client):
+        """Test embedding generation success via EmbeddingClient"""
+        mock_client = MagicMock()
+        mock_client.embed.return_value = [0.1] * 1536
+        mock_get_client.return_value = mock_client
 
         embedding = _embed("Test text")
 
         assert embedding is not None
         assert len(embedding) == 1536
+        mock_client.embed.assert_called_once_with("Test text")
 
-    @patch('orchestrator.memory.error_fix_pairs.settings')
-    def test_embed_no_api_key(self, mock_settings):
-        """Test _embed handles missing API key"""
-        mock_settings.openai_api_key = None
+    @patch('orchestrator.memory.error_fix_pairs.get_embedding_client')
+    def test_embed_returns_none_on_client_failure(self, mock_get_client):
+        """Test _embed handles EmbeddingClient returning None"""
+        mock_client = MagicMock()
+        mock_client.embed.return_value = None
+        mock_get_client.return_value = mock_client
+
+        embedding = _embed("Test text")
+
+        assert embedding is None
+
+    @patch('orchestrator.memory.error_fix_pairs.get_embedding_client')
+    def test_embed_handles_exception(self, mock_get_client):
+        """Test _embed handles exceptions from EmbeddingClient"""
+        mock_get_client.side_effect = Exception("API error")
 
         embedding = _embed("Test text")
 
