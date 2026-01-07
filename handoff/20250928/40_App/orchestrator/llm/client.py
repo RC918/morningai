@@ -411,11 +411,30 @@ class LLMClient:
         # 1. Per-call timeout parameter
         # 2. Instance-level timeout (from __init__)
         # 3. Provider-specific default from DEFAULT_TIMEOUTS
-        effective_timeout = (
-            timeout
-            or self._timeout
-            or self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
-        )
+        # Note: Use explicit `is not None` checks to preserve timeout=0 if specified
+        user_specified_timeout = timeout is not None or self._timeout is not None
+        if timeout is not None:
+            effective_timeout = timeout
+        elif self._timeout is not None:
+            effective_timeout = self._timeout
+        else:
+            effective_timeout = self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
+
+        # Issue #3653: Gemini provider compatibility warning
+        # GeminiProvider uses google-genai SDK which doesn't support timeout parameter
+        # in the same way as OpenAI-compatible providers. Log warning for transparency.
+        if self._provider_name == "gemini" and user_specified_timeout:
+            logger.warning(
+                f"[LLMClient] Gemini provider does not enforce timeout parameter. "
+                f"Specified timeout={effective_timeout}s will be passed but may not be honored. "
+                f"Consider using OpenAI/AliCloud/SiliconFlow for strict timeout enforcement.",
+                extra={
+                    "operation": "llm_generate",
+                    "provider": self._provider_name,
+                    "timeout": effective_timeout,
+                    "timeout_enforced": False
+                }
+            )
 
         # EPIC I-2: Record request timing for health scoring
         start_time = time.time()
@@ -541,7 +560,9 @@ class LLMClient:
     @property
     def timeout(self) -> int:
         """Get the effective timeout in seconds (Issue #3653)"""
-        return self._timeout or self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
+        if self._timeout is not None:
+            return self._timeout
+        return self.DEFAULT_TIMEOUTS.get(self._provider_name, 60)
 
     @classmethod
     def get_default_client(cls) -> "LLMClient":
