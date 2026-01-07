@@ -1,31 +1,20 @@
-import pylint.lint
+# Step 1: Import necessary modules
+import subprocess
 import sys
 
-def lint_and_fix_errors(file_path: str):
-    # Run the linter on the target file
+# Step 2: Define the target file
+target_file = "handoff/20250928/40_App/api-backend/src/probe0_lint_error.py"
+
+# Step 3: Define a function to execute pylint and capture the output
+def run_pylint(target_file: str) -> str:
     try:
-        pylint_output = pylint.lint.Run([file_path], do_exit=False)
-    except Exception as e:
-        print(f"An error occurred while linting: {e}")
+        lint_output = subprocess.check_output(["pylint", target_file])
+        return lint_output.decode("utf-8")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while running pylint: {str(e)}", file=sys.stderr)
         sys.exit(1)
 
-    # Check if there are any messages (linting errors)
-    if pylint_output.linter.msg_status > 0:
-        print("Linting errors detected. Attempting to fix...")
-
-        # Loop over each of the messages
-        for msg in pylint_output.linter.reporter.messages:
-            print(f"Error: {msg.msg} on line {msg.line}, at column {msg.column}.")
-
-            # TODO: Error handling logic here. This depends on what errors you're encountering.
-            # This could be as simple as replacing certain patterns with regex, or as complex
-            # as needing to refactor significant portions of the code.
-            
-        print("All errors fixed.")
-    else:
-        print("No linting errors detected.")
-
-
+# Step 4: Run the function and print the output
 if __name__ == "__main__":
-    file_path = 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py'
-    lint_and_fix_errors(file_path)
+    lint_output = run_pylint(target_file)
+    print(lint_output)
