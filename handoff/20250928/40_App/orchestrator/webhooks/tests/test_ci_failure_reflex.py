@@ -196,8 +196,13 @@ class TestCIFailureReflex:
 
         assert normalizer.is_actionable(event) is False
 
-    def test_ci_cancelled_not_actionable(self, normalizer):
-        """Test that CI cancelled events are not actionable"""
+    def test_ci_cancelled_is_actionable(self, normalizer):
+        """Test that CI cancelled events are actionable.
+
+        Issue #3633/#3644: Expanded failure_conclusions to include 'cancelled'
+        because cancelled CI runs may indicate issues that need attention
+        (e.g., resource exhaustion, timeout, manual cancellation due to issues).
+        """
         event = WebhookEvent(
             event_id="test-ci-cancelled",
             source=WebhookSource.GITHUB,
@@ -215,7 +220,83 @@ class TestCIFailureReflex:
             },
         )
 
-        assert normalizer.is_actionable(event) is False
+        assert normalizer.is_actionable(event) is True
+
+    def test_ci_timed_out_is_actionable(self, normalizer):
+        """Test that CI timed_out events are actionable.
+
+        Issue #3633/#3644: Expanded failure_conclusions to include 'timed_out'
+        because timed out CI runs indicate issues that need attention.
+        """
+        event = WebhookEvent(
+            event_id="test-ci-timed-out",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.CI_CHECK_COMPLETED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            actor_name="github-actions[bot]",
+            repo_owner="test-owner",
+            repo_name="test-repo",
+            metadata={
+                "ci_conclusion": "timed_out",
+                "ci_head_branch": "feature/test",
+                "ci_head_sha": "abc123def456",
+                "ci_pr_numbers": [123],
+            },
+        )
+
+        assert normalizer.is_actionable(event) is True
+
+    def test_ci_startup_failure_is_actionable(self, normalizer):
+        """Test that CI startup_failure events are actionable.
+
+        Issue #3633/#3644: Expanded failure_conclusions to include 'startup_failure'
+        because startup failures indicate infrastructure issues that need attention.
+        """
+        event = WebhookEvent(
+            event_id="test-ci-startup-failure",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.CI_CHECK_COMPLETED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            actor_name="github-actions[bot]",
+            repo_owner="test-owner",
+            repo_name="test-repo",
+            metadata={
+                "ci_conclusion": "startup_failure",
+                "ci_head_branch": "feature/test",
+                "ci_head_sha": "abc123def456",
+                "ci_pr_numbers": [123],
+            },
+        )
+
+        assert normalizer.is_actionable(event) is True
+
+    def test_ci_action_required_is_actionable(self, normalizer):
+        """Test that CI action_required events are actionable.
+
+        Issue #3633/#3644: Expanded failure_conclusions to include 'action_required'
+        because action_required indicates the check is paused awaiting manual intervention,
+        which if unaddressed represents a stalled workflow.
+        """
+        event = WebhookEvent(
+            event_id="test-ci-action-required",
+            source=WebhookSource.GITHUB,
+            event_type=WebhookEventType.CI_CHECK_COMPLETED,
+            timestamp=datetime.now(timezone.utc),
+            raw_payload={},
+            actor_name="github-actions[bot]",
+            repo_owner="test-owner",
+            repo_name="test-repo",
+            metadata={
+                "ci_conclusion": "action_required",
+                "ci_head_branch": "feature/test",
+                "ci_head_sha": "abc123def456",
+                "ci_pr_numbers": [123],
+            },
+        )
+
+        assert normalizer.is_actionable(event) is True
 
     def test_ci_failure_no_pr_not_actionable(self, normalizer):
         """Test that CI failure without associated PR is not actionable"""
