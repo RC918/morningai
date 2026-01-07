@@ -991,3 +991,30 @@ class TestEscalationLadderHardCap:
             # Should stay at original tier (Tier 1 for coding)
             assert model_info.tier == Tier.TIER_1, \
                 f"Expected Tier 1 with max_escalations=0, got {model_info.tier}"
+
+    def test_retry_cap_fallback_when_tier3_unavailable(self):
+        """Test that retry cap falls back to higher tiers when Tier 3 is unavailable"""
+        # Only alicloud available (has Tier 0-2, but no Tier 3)
+        engine = RoutingEngine(available_providers=["alicloud"])
+
+        with patch('core.routing.engine.settings') as mock_settings:
+            mock_settings.routing_max_escalations = 1
+            mock_settings.routing_max_retries = 2
+            mock_settings.routing_default_tier = 2
+            mock_settings.routing_force_tier_floor = False
+            mock_settings.routing_tier_floor = 2
+
+            # With retry_count=2 (at max), should fall back upward since Tier 3 unavailable
+            model_info = engine.select_model(
+                TaskType.PLANNING,
+                retry_count=2
+            )
+
+            # Should fall back to Tier 2 (next available) since Tier 3 has no alicloud model
+            assert model_info is not None, "Expected a model to be returned"
+            assert model_info.tier.value <= 2, \
+                f"Expected tier <= 2 as fallback, got {model_info.tier}"
+            assert "Retry cap reached" in model_info.reason
+            # is_fallback should be True since we couldn't use Tier 3
+            assert model_info.is_fallback is True, \
+                "Expected is_fallback=True when falling back from Tier 3"

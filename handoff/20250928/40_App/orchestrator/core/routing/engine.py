@@ -263,20 +263,25 @@ class RoutingEngine:
         # Cost Optimization: Check retry hard cap
         if retry_count >= max_retries:
             logger.warning(
-                f"[RoutingEngine] Retry hard cap reached: retry_count={retry_count}, "
-                f"max_retries={max_retries}. Returning lowest-cost model.",
+                f"[RoutingEngine] RETRY_CAP_TRIGGERED: retry_count={retry_count}, "
+                f"max_retries={max_retries}. Returning lowest-cost available model.",
                 extra={
                     "operation": "routing_retry_cap",
+                    "event": "RETRY_CAP_TRIGGERED",
                     "task_type": task_type.value,
                     "retry_count": retry_count,
                     "max_retries": max_retries,
                 }
             )
-            # Return lowest-cost model (Tier 3) when retry cap reached
-            model_info = self._find_available_model(Tier.TIER_3)
-            if model_info:
-                model_info.reason = f"Retry cap reached ({retry_count}/{max_retries}), using lowest-cost tier"
-                return model_info
+            # Return lowest-cost available model when retry cap reached
+            # Start from Tier 3 (lowest cost) and fall back upward if unavailable
+            for tier in [Tier.TIER_3, Tier.TIER_2, Tier.TIER_1, Tier.TIER_0]:
+                model_info = self._find_available_model(tier)
+                if model_info:
+                    model_info.reason = f"Retry cap reached ({retry_count}/{max_retries}), using tier {tier.value}"
+                    model_info.is_fallback = tier != Tier.TIER_3
+                    return model_info
+            # If no model available at all, continue to normal flow which will raise ValueError
 
         task_key = task_type.value
         routing_config = self._task_routing.get(task_key, {"tier": default_tier, "fallback": 3})

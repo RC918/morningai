@@ -1215,7 +1215,7 @@ class Settings(BaseSettings):
         ge=1,
         le=5,
         alias="ROUTING_MAX_RETRIES",
-        description="Maximum number of retries allowed per task before giving up (1-5). Default: 2."
+        description="Maximum number of retries allowed per task (1-5). Default: 2. When exceeded, RoutingEngine returns the lowest-cost available model (starting from Tier 3, falling back upward if unavailable) instead of failing. This ensures graceful degradation during cost control."
     )
 
     routing_default_tier: int = Field(
