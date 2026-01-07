@@ -18,7 +18,8 @@ from coder.simple_coder import (
 
 
 # Anchor text used to locate JSON schema section in prompts
-PROMPT_JSON_SCHEMA_ANCHOR = "You MUST respond with ONLY a JSON object"
+# Updated for P5 prompt strengthening - the anchor is now in the CRITICAL section
+PROMPT_JSON_SCHEMA_ANCHOR = "REQUIRED JSON FORMAT"
 
 
 def extract_prompt_schema_section(prompt: str) -> Optional[str]:
