@@ -129,7 +129,7 @@ class EmbeddingClient:
         self,
         model: Optional[str] = None,
         provider: str = "auto",
-        dimensions: int = DEFAULT_EMBEDDING_DIMENSIONS
+        dimensions: Optional[int] = None
     ):
         """
         Initialize embedding client.
@@ -139,11 +139,13 @@ class EmbeddingClient:
             provider: Embedding provider ("auto", "alicloud", "openai").
                       Note: When called via get_embedding_client(), provider is
                       already resolved. Direct instantiation will still resolve.
-            dimensions: Embedding dimensions (default: 1536 for DB compatibility)
+            dimensions: Embedding dimensions (auto-selected based on provider if None)
+                        - OpenAI: 1536 (text-embedding-3-small default)
+                        - AliCloud: 1024 (text-embedding-v3 max supported)
         """
         self._provider = provider if provider != "auto" else _resolve_provider(provider)
         self._model = model or _get_default_model(self._provider)
-        self._dimensions = dimensions
+        self._dimensions = dimensions if dimensions is not None else _get_default_dimensions(self._provider)
         self._client = None
 
         logger.info(
@@ -225,10 +227,9 @@ class EmbeddingClient:
         try:
             params = {
                 "model": self._model,
-                "input": text
+                "input": text,
+                "dimensions": self._dimensions
             }
-            if self._provider == "alicloud":
-                params["dimensions"] = self._dimensions
 
             response = self.client.embeddings.create(**params)
             embedding = response.data[0].embedding
@@ -273,10 +274,9 @@ class EmbeddingClient:
         try:
             params = {
                 "model": self._model,
-                "input": texts
+                "input": texts,
+                "dimensions": self._dimensions
             }
-            if self._provider == "alicloud":
-                params["dimensions"] = self._dimensions
 
             response = self.client.embeddings.create(**params)
 

@@ -17,6 +17,8 @@ from llm.embedding_client import (
     _get_default_model,
     _get_cached_client,
     DEFAULT_EMBEDDING_DIMENSIONS,
+    DEFAULT_EMBEDDING_DIMENSIONS_OPENAI,
+    DEFAULT_EMBEDDING_DIMENSIONS_ALICLOUD,
 )
 
 
@@ -80,24 +82,24 @@ class TestEmbeddingClient:
 
     @patch('llm.embedding_client.settings')
     def test_init_with_explicit_alicloud_provider(self, mock_settings):
-        """Test initialization with explicit alicloud provider"""
+        """Test initialization with explicit alicloud provider auto-selects 1024 dimensions"""
         mock_settings.dashscope_api_key = "test-key"
         mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 
         client = EmbeddingClient(provider="alicloud")
         assert client.provider_name == "alicloud"
         assert client.model == "text-embedding-v3"
-        assert client.dimensions == DEFAULT_EMBEDDING_DIMENSIONS
+        assert client.dimensions == DEFAULT_EMBEDDING_DIMENSIONS_ALICLOUD  # 1024
 
     @patch('llm.embedding_client.settings')
     def test_init_with_explicit_openai_provider(self, mock_settings):
-        """Test initialization with explicit openai provider"""
+        """Test initialization with explicit openai provider auto-selects 1536 dimensions"""
         mock_settings.openai_api_key = "test-key"
 
         client = EmbeddingClient(provider="openai")
         assert client.provider_name == "openai"
         assert client.model == "text-embedding-3-small"
-        assert client.dimensions == DEFAULT_EMBEDDING_DIMENSIONS
+        assert client.dimensions == DEFAULT_EMBEDDING_DIMENSIONS_OPENAI  # 1536
 
     @patch('llm.embedding_client.settings')
     def test_init_with_auto_selects_alicloud(self, mock_settings):
@@ -119,13 +121,21 @@ class TestEmbeddingClient:
         assert client.dimensions == 512
 
     @patch('llm.embedding_client.settings')
-    def test_default_dimensions_is_1536(self, mock_settings):
-        """Test default dimensions is 1536 for DB compatibility"""
+    def test_provider_specific_default_dimensions(self, mock_settings):
+        """Test provider-specific default dimensions are auto-selected"""
         mock_settings.dashscope_api_key = "test-key"
         mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+        mock_settings.openai_api_key = "test-key"
 
-        client = EmbeddingClient(provider="alicloud")
-        assert client.dimensions == 1536
+        # AliCloud defaults to 1024
+        alicloud_client = EmbeddingClient(provider="alicloud")
+        assert alicloud_client.dimensions == DEFAULT_EMBEDDING_DIMENSIONS_ALICLOUD  # 1024
+
+        # OpenAI defaults to 1536
+        openai_client = EmbeddingClient(provider="openai")
+        assert openai_client.dimensions == DEFAULT_EMBEDDING_DIMENSIONS_OPENAI  # 1536
+
+        # Legacy constant still exists for backward compatibility
         assert DEFAULT_EMBEDDING_DIMENSIONS == 1536
 
     @patch('llm.embedding_client.settings')
@@ -169,12 +179,12 @@ class TestEmbeddingClientEmbed:
     @patch('openai.OpenAI')
     @patch('llm.embedding_client.settings')
     def test_embed_alicloud_with_dimensions(self, mock_settings, mock_openai_class):
-        """Test embed with alicloud includes dimensions parameter"""
+        """Test embed with alicloud includes dimensions parameter (default 1024)"""
         mock_settings.dashscope_api_key = "test-key"
         mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 
         mock_embedding = MagicMock()
-        mock_embedding.embedding = [0.1] * 1536
+        mock_embedding.embedding = [0.1] * 1024
         mock_response = MagicMock()
         mock_response.data = [mock_embedding]
 
@@ -186,15 +196,15 @@ class TestEmbeddingClientEmbed:
         result = client.embed("test text")
 
         assert result is not None
-        assert len(result) == 1536
+        assert len(result) == 1024
         mock_openai_client.embeddings.create.assert_called_once()
         call_kwargs = mock_openai_client.embeddings.create.call_args.kwargs
-        assert call_kwargs["dimensions"] == 1536
+        assert call_kwargs["dimensions"] == DEFAULT_EMBEDDING_DIMENSIONS_ALICLOUD  # 1024
 
     @patch('openai.OpenAI')
     @patch('llm.embedding_client.settings')
-    def test_embed_openai_without_dimensions(self, mock_settings, mock_openai_class):
-        """Test embed with openai does NOT include dimensions parameter (OpenAI-specific)"""
+    def test_embed_openai_with_dimensions(self, mock_settings, mock_openai_class):
+        """Test embed with openai includes dimensions parameter (default 1536)"""
         mock_settings.openai_api_key = "test-key"
 
         mock_embedding = MagicMock()
@@ -213,7 +223,7 @@ class TestEmbeddingClientEmbed:
         assert len(result) == 1536
         mock_openai_client.embeddings.create.assert_called_once()
         call_kwargs = mock_openai_client.embeddings.create.call_args.kwargs
-        assert "dimensions" not in call_kwargs
+        assert call_kwargs["dimensions"] == DEFAULT_EMBEDDING_DIMENSIONS_OPENAI  # 1536
 
     @patch('llm.embedding_client.settings')
     def test_embed_returns_none_when_not_available(self, mock_settings):
@@ -233,18 +243,21 @@ class TestGetEmbeddingClient:
     @patch('llm.embedding_client._get_cached_client')
     @patch('llm.embedding_client._resolve_provider')
     @patch('llm.embedding_client._get_default_model')
+    @patch('llm.embedding_client._get_default_dimensions')
     def test_resolves_provider_before_caching(
-        self, mock_get_model, mock_resolve, mock_cached
+        self, mock_get_dimensions, mock_get_model, mock_resolve, mock_cached
     ):
         """Test that provider is resolved before calling cached client factory"""
         mock_resolve.return_value = "alicloud"
         mock_get_model.return_value = "text-embedding-v3"
+        mock_get_dimensions.return_value = 1024
         mock_cached.return_value = MagicMock()
 
         get_embedding_client(provider="auto")
 
         mock_resolve.assert_called_once_with("auto")
-        mock_cached.assert_called_once_with("alicloud", "text-embedding-v3", 1536)
+        mock_get_dimensions.assert_called_once_with("alicloud")
+        mock_cached.assert_called_once_with("alicloud", "text-embedding-v3", 1024)
 
     @patch('llm.embedding_client._get_cached_client')
     @patch('llm.embedding_client._resolve_provider')
@@ -263,14 +276,16 @@ class TestGetEmbeddingClient:
 
     @patch('llm.embedding_client._get_cached_client')
     @patch('llm.embedding_client._resolve_provider')
-    def test_uses_provided_model(self, mock_resolve, mock_cached):
+    @patch('llm.embedding_client._get_default_dimensions')
+    def test_uses_provided_model(self, mock_get_dimensions, mock_resolve, mock_cached):
         """Test that provided model is used instead of default"""
         mock_resolve.return_value = "alicloud"
+        mock_get_dimensions.return_value = 1024
         mock_cached.return_value = MagicMock()
 
         get_embedding_client(model="custom-model", provider="auto")
 
-        mock_cached.assert_called_once_with("alicloud", "custom-model", 1536)
+        mock_cached.assert_called_once_with("alicloud", "custom-model", 1024)
 
 
 class TestCacheCorrectness:
