@@ -1,13 +1,9 @@
-#!/usr/bin/env python3
+# Bad code
+def some_function(some_arg1,some_arg2):
+    result=some_arg1+some_arg2;return result
 
-import pylint.lint
-
-def main():
-    try:
-        pylint_opts = ['--errors-only', 'handoff/20250928/40_App/api-backend/src/probe0_lint_error.py']
-        pylint.lint.Run(pylint_opts)
-    except Exception as e:
-        print(f"An error occurred when running pylint: {e}")
-
-if __name__ == "__main__":
-    main()
+# Good code
+def some_function(some_arg1: int, some_arg2: int) -> int:
+    """Add two numbers."""
+    result = some_arg1 + some_arg2
+    return result
