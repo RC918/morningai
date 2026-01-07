@@ -1,4 +1,2 @@
-def lint_error():
-    unused_variable = "I'm not used"
 
-lint_error()
+Step 2: Run pylint on the python file
