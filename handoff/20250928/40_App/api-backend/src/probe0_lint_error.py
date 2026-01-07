@@ -1,1 +1,2 @@
-As an AI, I need the content of the file "probe0_lint_error.py" with the lint error to fix it. I cannot physically perform actions such as pushing changes to a PR or monitoring GitHub Actions CI check results. However, I can certainly help you fix the lint error in the Python code if you provide the erroneous code.
+
+Create a `.pre-commit-config.yaml` file in your project root:
