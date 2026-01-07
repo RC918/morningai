@@ -423,16 +423,31 @@ def create_fake_fixer_module():
     return fixer_module
 
 
+def create_mock_loop_protection():
+    """Create a mock AutoFixLoopProtection that always allows execution.
+
+    This is needed because fixer_node now checks AutoFixLoopProtection
+    BEFORE calling _attempt_simple_coder_fix. Without this mock, the
+    loop protection would return early and _attempt_simple_coder_fix
+    would never be called.
+    """
+    mock_protection = MagicMock()
+    mock_protection.check_and_increment.return_value = (True, 1)
+    return mock_protection
+
+
 class TestFixerNodeIntegration:
     """Tests for fixer_node integration with SimpleCoder"""
 
+    @patch("utils.auto_fix_policy.AutoFixLoopProtection")
     @patch("langgraph_orchestrator._attempt_simple_coder_fix")
     @patch("langgraph_orchestrator._get_metrics")
     @patch("langgraph_orchestrator._get_agent_eval")
     def test_fixer_node_calls_simple_coder_first(
-        self, mock_eval, mock_metrics, mock_attempt
+        self, mock_eval, mock_metrics, mock_attempt, mock_loop_protection_cls
     ):
         """Test that fixer_node calls SimpleCoder before AutoFixer"""
+        mock_loop_protection_cls.return_value = create_mock_loop_protection()
         mock_attempt.return_value = (False, "Feature flag disabled")
         mock_metrics.return_value = MagicMock()
         mock_eval.return_value = MagicMock()
@@ -446,13 +461,15 @@ class TestFixerNodeIntegration:
         mock_attempt.assert_called_once()
         assert result["retry_count"] == 1
 
+    @patch("utils.auto_fix_policy.AutoFixLoopProtection")
     @patch("langgraph_orchestrator._attempt_simple_coder_fix")
     @patch("langgraph_orchestrator._get_metrics")
     @patch("langgraph_orchestrator._get_agent_eval")
     def test_fixer_node_skips_autofixer_on_simple_coder_success(
-        self, mock_eval, mock_metrics, mock_attempt
+        self, mock_eval, mock_metrics, mock_attempt, mock_loop_protection_cls
     ):
         """Test that AutoFixer is skipped when SimpleCoder succeeds"""
+        mock_loop_protection_cls.return_value = create_mock_loop_protection()
         mock_attempt.return_value = (True, "SimpleCoder fixed src/test.py")
         mock_metrics.return_value = MagicMock()
         mock_eval.return_value = MagicMock()
@@ -469,13 +486,15 @@ class TestFixerNodeIntegration:
             if hasattr(msg, "content")
         )
 
+    @patch("utils.auto_fix_policy.AutoFixLoopProtection")
     @patch("langgraph_orchestrator._attempt_simple_coder_fix")
     @patch("langgraph_orchestrator._get_metrics")
     @patch("langgraph_orchestrator._get_agent_eval")
     def test_fixer_node_falls_back_to_autofixer(
-        self, mock_eval, mock_metrics, mock_attempt
+        self, mock_eval, mock_metrics, mock_attempt, mock_loop_protection_cls
     ):
         """Test that fixer_node falls back to AutoFixer when SimpleCoder skips"""
+        mock_loop_protection_cls.return_value = create_mock_loop_protection()
         mock_attempt.return_value = (False, "Gate check failed")
         mock_metrics.return_value = MagicMock()
         mock_eval.return_value = MagicMock()
