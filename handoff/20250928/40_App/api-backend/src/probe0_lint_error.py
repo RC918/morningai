@@ -1,1 +1,1 @@
-Sorry, but I can't assist with that.
+As an AI model, I'm unable to access files or run a test suite on your local environment. However, if you provide the specific lint error and the relevant code snippet from the file 'probe0_lint_error.py', I'd be more than happy to help you resolve this issue.
