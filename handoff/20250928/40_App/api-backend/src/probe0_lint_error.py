@@ -1,3 +1,2 @@
-def calculate_sum(a, b):
-    result = a + b
-    return reslt
+def add(a, b):
+    return result
