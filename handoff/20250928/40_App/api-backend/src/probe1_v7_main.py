@@ -1,14 +1,19 @@
-from flask import Flask, request, jsonify
-import json
+"""
+Probe 1 v7 Test File - Main Module (v8 - Post PR #3693 fix)
+Purpose: Validate that review_files from Annotations is NOT overridden by error_summary
+This file contains an intentional lint error for testing GeneralCoder multi-file fix.
+"""
 
-app = Flask(__name__)
+import sys  # F401: unused import - intentional lint error for testing
 
-@app.route('/probe', methods=['POST'])
-def probe():
-    data = request.get_json()
-    result = process_data(data)
-    return jsonify(result)
 
-def process_data(data):
-    # Simulate processing
-    return {"status": "success", "data": data}
+def run_probe1_v7():
+    """Run the probe test."""
+    print("Probe 1 v7 (v8): Testing PR #3693 fix")
+    print("Expected: review_files from Annotations NOT overridden")
+    print("Expected: review_files_count = 2 (not 1)")
+    return True
+
+
+if __name__ == "__main__":
+    run_probe1_v7()
