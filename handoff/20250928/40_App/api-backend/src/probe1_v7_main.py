@@ -1,16 +1,14 @@
-# handoff/20250928/40_App/api-backend/src/probe1_v7_main.py
-
+from flask import Flask, request, jsonify
 import json
-import logging
-import time
 
-# Remove the unused import below
-# import sys
+app = Flask(__name__)
 
-def main():
-    logging.info("Starting probe1_v7_main")
-    data = {"status": "ok", "timestamp": time.time()}
-    print(json.dumps(data))
+@app.route('/probe', methods=['POST'])
+def probe():
+    data = request.get_json()
+    result = process_data(data)
+    return jsonify(result)
 
-if __name__ == "__main__":
-    main()
+def process_data(data):
+    # Simulate processing
+    return {"status": "success", "data": data}
