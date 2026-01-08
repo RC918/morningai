@@ -1,24 +1,17 @@
-"""
-Probe 1 v8 Test File - Main Module
-Purpose: Validate PR #3693 fix - review_files from Annotations NOT overridden by error_summary
-This file contains an intentional lint error for testing GeneralCoder multi-file fix.
+# handoff/20250928/40_App/api-backend/src/probe1_v8_main.py
 
-Expected behavior after PR #3693:
-- Fixer should log: '[Fixer] Skipping error_summary extraction - review_files already set from Annotations'
-- review_files_count should be 2 (not 1)
-- GeneralCoder should detect both files
-"""
+import json
+import logging
+import time
+# Remove the unused 'sys' import below
+# import sys
+from flask import Flask, request
 
-import sys  # F401: unused import - intentional lint error for testing
+app = Flask(__name__)
 
+@app.route('/probe', methods=['GET'])
+def probe():
+    return json.dumps({"status": "ok"})
 
-def run_probe1_v8():
-    """Run the probe test."""
-    print("Probe 1 v8: Testing PR #3693 fix")
-    print("Expected: review_files from Annotations NOT overridden")
-    print("Expected: review_files_count = 2 (not 1)")
-    return True
-
-
-if __name__ == "__main__":
-    run_probe1_v8()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
