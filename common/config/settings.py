@@ -2218,6 +2218,15 @@ class Settings(BaseSettings):
         description="Maximum number of inline comments to post per review (prevents notification spam)"
     )
 
+    # EPIC B Optimization: Filter non-diff file comments
+    # When enabled, review comments for files NOT in the PR diff are filtered out
+    # This reduces noise from pre-existing issues in unchanged files
+    reviewer_filter_non_diff_files: bool = Field(
+        default=True,
+        alias="REVIEWER_FILTER_NON_DIFF_FILES",
+        description="Filter out review comments for files not in the PR diff (reduces noise from pre-existing issues)"
+    )
+
     vite_api_base_url: str = Field(
         default="http://localhost:5001",
         description="Frontend API base URL"

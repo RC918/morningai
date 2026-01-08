@@ -1020,3 +1020,87 @@ def get_diff_coverage_info(
         "total_allowed_lines": total_lines,
         "files": list(allowed_lines_map.keys())
     }
+
+
+# =============================================================================
+# EPIC B Optimization: Filter Non-Diff File Comments
+# =============================================================================
+# This function filters out review comments for files that are NOT in the PR diff.
+# This reduces noise from pre-existing issues in unchanged files.
+#
+# Blueprint Alignment:
+# - Telemetry v2: Tracks filtered_count for observability
+# - Diff-Aware Review: Focuses review on changed files only
+# - Feature Flag: Controlled by REVIEWER_FILTER_NON_DIFF_FILES setting
+# =============================================================================
+
+
+def filter_non_diff_file_comments(
+    comments: List[ReviewComment],
+    allowed_lines_map: Dict[str, DiffFileInfo]
+) -> Tuple[List[ReviewComment], List[ReviewComment], Dict[str, Any]]:
+    """
+    Filter out review comments for files NOT in the PR diff.
+
+    EPIC B Optimization: Reduces noise from pre-existing issues in unchanged files.
+    This is controlled by the REVIEWER_FILTER_NON_DIFF_FILES feature flag.
+
+    Blueprint Alignment:
+    - Telemetry v2: Returns filter_stats for observability
+    - Diff-Aware Review: Focuses review on changed files only
+
+    Args:
+        comments: List of normalized ReviewComment objects
+        allowed_lines_map: Result from parse_diff_allowed_lines (files in diff)
+
+    Returns:
+        Tuple of (kept_comments, filtered_comments, filter_stats)
+        - kept_comments: Comments for files in the diff (or file-level without path)
+        - filtered_comments: Comments for files NOT in the diff
+        - filter_stats: Dict with telemetry data:
+          - filtered_count: Number of comments filtered
+          - kept_count: Number of comments kept
+          - filtered_files: Set of file paths that had comments filtered
+    """
+    kept: List[ReviewComment] = []
+    filtered: List[ReviewComment] = []
+    filtered_files: Set[str] = set()
+
+    # Get the set of files in the diff for O(1) lookup
+    diff_files = set(allowed_lines_map.keys())
+
+    for comment in comments:
+        file_path = comment.get("file")
+
+        # Comments without file path are kept (general comments)
+        if not file_path:
+            kept.append(comment)
+            continue
+
+        # Check if file is in the diff
+        if file_path in diff_files:
+            kept.append(comment)
+        else:
+            filtered.append(comment)
+            filtered_files.add(file_path)
+
+    filter_stats = {
+        "filtered_count": len(filtered),
+        "kept_count": len(kept),
+        "filtered_files": list(filtered_files),
+        "filtered_file_count": len(filtered_files),
+    }
+
+    if filtered:
+        logger.info(
+            f"[ReviewCommentSchema] Filtered {len(filtered)} comments for "
+            f"{len(filtered_files)} files not in PR diff",
+            extra={
+                "operation": "filter_non_diff_file_comments",
+                "filtered_count": len(filtered),
+                "kept_count": len(kept),
+                "filtered_files": list(filtered_files)[:10],  # Limit for log size
+            }
+        )
+
+    return kept, filtered, filter_stats
