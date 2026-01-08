@@ -1380,6 +1380,14 @@ class EventNormalizer:
             # Issue #3510: Pass CiFailureContext for structured CI error propagation
             if ci_context := event.metadata.get("ci_failure_context"):
                 context["ci_failure_context"] = ci_context
+            # Issue #3689: Pass ci_check_suite_id for Annotations API access in worker
+            # Without this, the worker cannot fetch annotations to extract file paths
+            if ci_check_suite_id := event.metadata.get("ci_check_suite_id"):
+                context["ci_check_suite_id"] = ci_check_suite_id
+            # Issue #3676: Pass ci_error_file_paths for GeneralCoder multi-file support
+            # These file paths are extracted from GitHub Annotations API in normalizer
+            if ci_error_file_paths := event.metadata.get("ci_error_file_paths"):
+                context["ci_error_file_paths"] = ci_error_file_paths
 
         return context
 
