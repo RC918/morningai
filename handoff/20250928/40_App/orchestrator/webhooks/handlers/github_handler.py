@@ -474,6 +474,14 @@ class GitHubWebhookHandler(BaseWebhookHandler):
                     int(raw_check_run_id) if raw_check_run_id is not None else None
                 )
             except (ValueError, TypeError):
+                logger.warning(
+                    "[GitHubWebhookHandler] Invalid check_run_id in check_run event",
+                    extra={
+                        "event_id": event_id,
+                        "repo": f"{repo_owner}/{repo_name}",
+                        "raw_check_run_id": str(raw_check_run_id)[:50],
+                    },
+                )
                 metadata["ci_check_run_id"] = None
             # Extract check_suite_id from nested check_suite for dedup and annotations
             raw_check_suite_id = check_suite.get("id")
