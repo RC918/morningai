@@ -4922,6 +4922,79 @@ def _extract_file_path_from_error(error_summary: str) -> str:
     return ""
 
 
+def _extract_file_paths_from_error(error_summary: str) -> list:
+    """Extract ALL file paths from CI error summary for multi-file support.
+
+    Issue #3675: D-1b GeneralCoder needs multiple file paths for multi-file fixes.
+    This function extracts all unique file paths from CI error output, enabling
+    GeneralCoder to handle multi-file lint errors.
+
+    Parses common lint error formats:
+    - "path/to/file.py:123:45: E501 line too long"
+    - "path/to/file.py(123): error"
+    - "Error in path/to/file.py"
+
+    Args:
+        error_summary: CI error output text
+
+    Returns:
+        List of unique file paths (max 5 for D-1b limit), empty list if none found
+
+    Event Codes (greppable):
+        [MULTI_FILE_EXTRACT_SUCCESS] - Successfully extracted multiple file paths
+        [MULTI_FILE_EXTRACT_SINGLE] - Only one file path found
+        [MULTI_FILE_EXTRACT_NONE] - No file paths found
+    """
+    if not error_summary:
+        logger.debug("[MULTI_FILE_EXTRACT_NONE] Empty error_summary")
+        return []
+
+    file_paths = set()
+
+    # Pattern 1: "path/file.py:line:col: error" (flake8, pylint, eslint)
+    pattern1_matches = re.findall(
+        fr'^([^\s:]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS})):',
+        error_summary,
+        re.MULTILINE
+    )
+    file_paths.update(pattern1_matches)
+
+    # Pattern 2: "path/file.py(line): error" (some compilers)
+    pattern2_matches = re.findall(
+        fr'^([^\s(]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))\(',
+        error_summary,
+        re.MULTILINE
+    )
+    file_paths.update(pattern2_matches)
+
+    # Pattern 3: "Error in path/file.py" or "File path/file.py"
+    pattern3_matches = re.findall(
+        fr'(?:Error in|File|in file)\s+([^\s:]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))',
+        error_summary,
+        re.IGNORECASE
+    )
+    file_paths.update(pattern3_matches)
+
+    # Convert to list and limit to 5 files (D-1b limit)
+    result = list(file_paths)[:5]
+
+    if len(result) == 0:
+        logger.debug("[MULTI_FILE_EXTRACT_NONE] No file paths found in error_summary")
+    elif len(result) == 1:
+        logger.debug(f"[MULTI_FILE_EXTRACT_SINGLE] Found 1 file: {result[0]}")
+    else:
+        logger.info(
+            f"[MULTI_FILE_EXTRACT_SUCCESS] Found {len(result)} files: {result}",
+            extra={
+                "operation": "multi_file_extract",
+                "file_count": len(result),
+                "file_paths": result,
+            }
+        )
+
+    return result
+
+
 def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
     """Synthesize comment_body and review_outcome from ci_failure_context for CI failure scenarios.
 
@@ -5058,7 +5131,24 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
         error_summary_truncated = error_summary[:500]
         synthesized = f"Fix CI failure in {failed_check}: {error_summary_truncated}"
 
-        # Issue #3567: Extract file path for SimpleCoder
+        # Issue #3675: Extract ALL file paths for GeneralCoder multi-file support
+        # This enables D-1b GeneralCoder to handle multi-file lint errors
+        extracted_file_paths = _extract_file_paths_from_error(error_summary)
+        if extracted_file_paths and not state.get("review_files"):
+            # Set review_files for GeneralCoder (multi-file support)
+            state["review_files"] = [{"path": fp} for fp in extracted_file_paths]
+            logger.info(
+                f"[Fixer] Extracted review_files from error_summary for GeneralCoder. "
+                f"file_count={len(extracted_file_paths)}, files={extracted_file_paths}, trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_extract_review_files",
+                    "trace_id": trace_id,
+                    "file_count": len(extracted_file_paths),
+                    "file_paths": extracted_file_paths,
+                }
+            )
+
+        # Issue #3567: Extract single file path for SimpleCoder (backward compatibility)
         extracted_file_path = _extract_file_path_from_error(error_summary)
         if extracted_file_path and not state.get("review_file_path"):
             state["review_file_path"] = extracted_file_path
@@ -5084,6 +5174,7 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
             "trace_id": trace_id,
             "failed_check": failed_check,
             "has_error_summary": bool(error_summary),
+            "review_files_count": len(state.get("review_files", [])),
         }
     )
 
