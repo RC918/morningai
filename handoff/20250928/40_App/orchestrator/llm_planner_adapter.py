@@ -19,7 +19,8 @@ import time
 from typing import Dict, List, Any, Optional
 
 from common.config.settings import settings
-from llm.client import LLMClient, get_client_for_component
+from llm.client import get_client_for_task
+from core.routing import TaskType
 
 try:
     from openai import OpenAI
@@ -43,45 +44,46 @@ class LLMPlannerAdapter:
     - Planner accuracy metric recording
     """
 
-    def __init__(self, trace_id: Optional[str] = None, provider: Optional[str] = None):
+    def __init__(
+        self,
+        trace_id: Optional[str] = None,
+        risk_level: str = "medium",
+        escalation_count: int = 0,
+        retry_count: int = 0
+    ):
         """
         Initialize LLM planner adapter
 
         Args:
-            trace_id: Trace ID for experiment assignment and logging.
-                     If provided, uses get_client_for_component for A/B testing.
-            provider: LLM provider to use (openai, gemini, auto).
-                     Only used if trace_id is not provided (legacy mode).
-                     If None, uses LLM_PROVIDER env var or defaults to openai.
+            trace_id: Trace ID for logging
+            risk_level: Risk level for routing decision ("high", "medium", "low")
+            escalation_count: Number of tier escalations already performed (Issue #3640)
+            retry_count: Number of retries already attempted (Issue #3640)
         """
         self.trace_id = trace_id
         self.llm_client = None
         self._openai_client = None
         try:
-            if trace_id:
-                # Use experiment-aware client creation for A/B testing
-                # Default to alicloud (Qwen) to ensure all traffic goes through Qwen providers
-                # per routing_policy.json governance (EPIC #2594)
-                self.llm_client = get_client_for_component(
-                    component="planner",
-                    trace_id=trace_id,
-                    default_provider="alicloud"
-                )
-                logger.info(
-                    f"[LLM Planner] Initialized with experiment routing, "
-                    f"provider={self.llm_client.provider_name}",
-                    extra={
-                        "operation": "llm_planner_init",
-                        "trace_id": trace_id,
-                        "provider": self.llm_client.provider_name
-                    }
-                )
-            else:
-                # Legacy mode: direct provider specification
-                self.llm_client = LLMClient(provider=provider)
-                logger.info(
-                    f"[LLM Planner] Initialized with provider={self.llm_client.provider_name} (legacy mode)"
-                )
+            # Use task-based routing via RoutingEngine instead of component-based
+            # This ensures Routing Policy is respected, not bypassed by ExperimentManager
+            # Planning tasks use Tier 0 (highest capability) per routing_policy.json
+            self.llm_client = get_client_for_task(
+                task_type=TaskType.PLANNING,
+                risk_level=risk_level,
+                escalation_count=escalation_count,
+                retry_count=retry_count
+            )
+            logger.info(
+                f"[LLM Planner] Initialized with provider={self.llm_client.provider_name} via task-based routing",
+                extra={
+                    "operation": "llm_planner_init",
+                    "trace_id": trace_id,
+                    "provider": self.llm_client.provider_name,
+                    "routing_method": "task_based",
+                    "task_type": TaskType.PLANNING.value,
+                    "risk_level": risk_level
+                }
+            )
             if self.llm_client.provider_name == "openai" and OpenAI and settings.openai_api_key:
                 self._openai_client = OpenAI(api_key=settings.openai_api_key)
         except ValueError as e:
