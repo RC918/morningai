@@ -203,7 +203,7 @@ const Dashboard = (): React.ReactElement => {
       console.error('Failed to load dashboard layout:', error)
       setDashboardLayout(getDefaultWidgets())
     }
-  }, [])
+  }, [setDashboardLayout])
 
   const loadAvailableWidgets = useCallback(async (): Promise<void> => {
     try {
