@@ -12,17 +12,22 @@ class TestLLMPlannerAdapter:
     """Test suite for LLM Planner Adapter"""
 
     @patch('llm_planner_adapter.OpenAI')
-    @patch('llm_planner_adapter.LLMClient')
+    @patch('llm_planner_adapter.get_client_for_task')
     @patch('llm_planner_adapter.settings')
-    def test_init_with_api_key(self, mock_settings, mock_llmclient_cls, mock_openai_cls):
-        """Test initialization with OpenAI API key when explicitly requesting OpenAI provider"""
+    def test_init_with_api_key(self, mock_settings, mock_get_client, mock_openai_cls):
+        """Test initialization with OpenAI API key via RoutingEngine task-based routing"""
         mock_settings.openai_api_key = "test-key"
         mock_llm = MagicMock()
         mock_llm.provider_name = "openai"
-        mock_llmclient_cls.return_value = mock_llm
+        mock_get_client.return_value = mock_llm
 
+        # Note: provider parameter is deprecated and ignored
+        # RoutingEngine now handles provider selection via get_client_for_task
         adapter = LLMPlannerAdapter(provider="openai")
 
+        # Verify get_client_for_task was called with TaskType.PLANNING
+        mock_get_client.assert_called_once()
+        # OpenAI client is created when provider_name is "openai" and API key exists
         mock_openai_cls.assert_called_once_with(api_key="test-key")
         assert adapter.client is mock_openai_cls.return_value
 
@@ -486,7 +491,7 @@ Hope this helps!'''
 
 class TestReasoningModeEnabled:
     """Test suite for reasoning_mode_enabled feature (Phase 3)
-    
+
     Uses pytest.mark.parametrize to consolidate duplicate test patterns.
     """
 

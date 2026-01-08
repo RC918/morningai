@@ -91,6 +91,8 @@ class LLMPlannerAdapter:
                 escalation_count=escalation_count,
                 retry_count=retry_count
             )
+            # Sanitize risk_level for logging to prevent log injection (gemini-code-assist security review)
+            sanitized_risk_level = risk_level.replace('\n', ' ').replace('\r', ' ') if risk_level else "medium"
             logger.info(
                 f"[LLM Planner] Initialized with provider={self.llm_client.provider_name} via task-based routing",
                 extra={
@@ -99,7 +101,7 @@ class LLMPlannerAdapter:
                     "provider": self.llm_client.provider_name,
                     "routing_method": "task_based",
                     "task_type": TaskType.PLANNING.value,
-                    "risk_level": risk_level
+                    "risk_level": sanitized_risk_level
                 }
             )
             if self.llm_client.provider_name == "openai" and OpenAI and settings.openai_api_key:
