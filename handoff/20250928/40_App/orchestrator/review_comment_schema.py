@@ -1060,7 +1060,8 @@ def filter_non_diff_file_comments(
         - filter_stats: Dict with telemetry data:
           - filtered_count: Number of comments filtered
           - kept_count: Number of comments kept
-          - filtered_files: Set of file paths that had comments filtered
+          - filtered_files: List of file paths that had comments filtered
+          - filtered_file_count: Number of unique files that had comments filtered
     """
     kept: List[ReviewComment] = []
     filtered: List[ReviewComment] = []
