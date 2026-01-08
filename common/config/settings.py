@@ -1915,6 +1915,13 @@ class Settings(BaseSettings):
         description="Enable querying Knowledge Graph for code patterns in Planner learning context (Tier 3 Knowledge Graph Integration)"
     )
 
+    # Issue #3578: SSOT Telemetry Schema v3 Migration
+    enable_ssot_telemetry: bool = Field(
+        default=False,
+        alias="ENABLE_SSOT_TELEMETRY",
+        description="Enable SSOT Telemetry Schema v3 spans in node_metrics decorator (Issue #3578 Spine First)"
+    )
+
     knowledge_graph_max_patterns: int = Field(
         default=3,
         ge=1,
