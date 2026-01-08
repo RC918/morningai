@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@morningai/shared-ui'
 import { Badge } from '@morningai/shared-ui'
 import { AppleButton } from '@/components/ui/apple-button'
@@ -60,11 +60,7 @@ const CostAnalysis = (): React.ReactElement => {
   const [costData, setCostData] = useState<CostData | null>(null)
   const [period, setPeriod] = useState<PeriodType>('daily')
 
-  useEffect(() => {
-    loadCostData()
-  }, [period])
-
-  const loadCostData = async (): Promise<void> => {
+  const loadCostData = useCallback(async (): Promise<void> => {
     try {
       setLoading(true)
       const data: CostData = await customFetch({ 
@@ -77,7 +73,11 @@ const CostAnalysis = (): React.ReactElement => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [period])
+
+  useEffect(() => {
+    loadCostData()
+  }, [loadCostData])
 
   const mockCostData: CostData = {
     currentMonth: 1245.50,

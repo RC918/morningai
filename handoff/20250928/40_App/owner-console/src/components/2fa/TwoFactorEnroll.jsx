@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -23,13 +23,7 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (open && tmpLoginToken && !enrollData) {
-      handleEnrollStart();
-    }
-  }, [open, tmpLoginToken]);
-
-  const handleEnrollStart = async () => {
+  const handleEnrollStart = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -43,7 +37,13 @@ export function TwoFactorEnroll({ open, onClose, onComplete, tmpLoginToken }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tmpLoginToken]);
+
+  useEffect(() => {
+    if (open && tmpLoginToken && !enrollData) {
+      handleEnrollStart();
+    }
+  }, [open, tmpLoginToken, enrollData, handleEnrollStart]);
 
   const handleVerifySubmit = async (e) => {
     e.preventDefault();

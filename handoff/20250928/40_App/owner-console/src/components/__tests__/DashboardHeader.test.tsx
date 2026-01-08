@@ -178,14 +178,14 @@ describe('DashboardHeader', () => {
     it('should not show notification badge when count is 0', () => {
       renderDashboardHeader({ notificationCount: 0 })
       const notificationsButton = screen.getByLabelText('header.notifications')
-      const badge = notificationsButton.querySelector('.bg-pink-500')
+      const badge = notificationsButton.querySelector('.bg-accent-500')
       expect(badge).not.toBeInTheDocument()
     })
 
     it('should show notification badge when count is greater than 0', () => {
       renderDashboardHeader({ notificationCount: 5 })
       const notificationsButton = screen.getByLabelText('header.notifications')
-      const badge = notificationsButton.querySelector('.bg-pink-500')
+      const badge = notificationsButton.querySelector('.bg-accent-500')
       expect(badge).toBeInTheDocument()
     })
   })
