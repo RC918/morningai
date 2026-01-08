@@ -8561,6 +8561,20 @@ def run_orchestrator(
         # Issue #3510: Pass CiFailureContext for structured CI error propagation
         if context and (ci_context := context.get("ci_failure_context")):
             initial_state["ci_failure_context"] = ci_context
+        # Issue #3676: Pass ci_error_file_paths for D-1b GeneralCoder multi-file support
+        # These file paths are extracted from GitHub Annotations API in normalizer
+        if context and (ci_error_file_paths := context.get("ci_error_file_paths")):
+            initial_state["review_files"] = [{"path": fp} for fp in ci_error_file_paths]
+            logger.info(
+                f"[Orchestrator] Set review_files from ci_error_file_paths for GeneralCoder. "
+                f"file_count={len(ci_error_file_paths)}, trace_id={trace_id}",
+                extra={
+                    "operation": "set_review_files_from_annotations",
+                    "trace_id": trace_id,
+                    "file_count": len(ci_error_file_paths),
+                    "ci_error_file_paths": ci_error_file_paths,
+                }
+            )
 
     config = _get_workflow_config(trace_id)
 
