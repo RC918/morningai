@@ -323,11 +323,7 @@ class TestNoGitHubToken:
     def test_no_github_token_returns_empty(self, normalizer):
         """Test that missing GITHUB_TOKEN returns empty results"""
         with patch.dict("os.environ", {}, clear=True):
-            # Ensure GITHUB_TOKEN is not set
-            import os
-            if "GITHUB_TOKEN" in os.environ:
-                del os.environ["GITHUB_TOKEN"]
-
+            # patch.dict with clear=True ensures GITHUB_TOKEN is not set
             failed_names, error_summary, file_paths = normalizer._fetch_failed_check_runs(
                 "test-owner/test-repo", 12345, "test-event-no-token"
             )
