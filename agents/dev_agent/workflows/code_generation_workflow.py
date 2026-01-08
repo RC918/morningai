@@ -531,6 +531,9 @@ class CodeGenerationWorkflow:
 
         return state
 
+    # Issue #3697: Maximum retry attempts for syntax validation
+    MAX_SYNTAX_RETRY_ATTEMPTS = 2
+
     def _validate_python_syntax(self, code: str, file_path: str) -> tuple:
         """
         Validate Python code syntax using ast.parse.
@@ -540,12 +543,17 @@ class CodeGenerationWorkflow:
         "As an AI model, I need to see..."), this validation catches it before
         the invalid content is written to disk.
 
+        Issue #3697: Added [CODER_SYNTAX_ERROR] event code for greppable logging.
+
         Args:
             code: The generated code to validate
             file_path: The target file path (for error messages)
 
         Returns:
             Tuple of (is_valid: bool, error_message: str or None)
+
+        Event Codes (greppable):
+            [CODER_SYNTAX_ERROR] - Generated code failed Python syntax validation
         """
         try:
             ast.parse(code)
@@ -556,22 +564,107 @@ class CodeGenerationWorkflow:
                 f"{e.msg} at line {e.lineno}, column {e.offset}"
             )
             logger.error(
-                f"[Stage 5] {error_msg}",
+                f"[CODER_SYNTAX_ERROR] {file_path}: {e.msg} at line {e.lineno}",
                 extra={
+                    "event_type": "coder_syntax_error",
                     "operation": "apply_code_syntax_validation",
                     "file_path": file_path,
                     "syntax_error_line": e.lineno,
+                    "syntax_error_column": e.offset,
                     "syntax_error_msg": e.msg,
                     "code_preview": code[:200] if code else "",
                 }
             )
             return (False, error_msg)
 
+    async def _regenerate_code_with_syntax_feedback(
+        self,
+        state: CodeGenState,
+        syntax_error: str,
+        attempt: int
+    ) -> Optional[str]:
+        """
+        Regenerate code with syntax error feedback to the LLM.
+
+        Issue #3697: When the LLM generates syntactically invalid Python code,
+        this method retries code generation with explicit feedback about the
+        syntax error, giving the LLM a chance to correct its output.
+
+        Args:
+            state: Current workflow state
+            syntax_error: The syntax error message from ast.parse
+            attempt: Current retry attempt number (1-based)
+
+        Returns:
+            Regenerated code string if successful, None if LLM unavailable
+
+        Event Codes (greppable):
+            [CODER_SYNTAX_RETRY] - Attempting to regenerate code after syntax error
+            [CODER_SYNTAX_RETRY_SUCCESS] - Successfully regenerated valid code
+            [CODER_SYNTAX_RETRY_FAIL] - Retry also produced invalid code
+        """
+        task_type = state.get("task_type", "unknown")
+        task_desc = state.get("task_description", "")
+        target_files = state.get("target_files", [])
+        original_code = state.get("generated_code", "")
+
+        logger.info(
+            f"[CODER_SYNTAX_RETRY] Attempt {attempt}/{self.MAX_SYNTAX_RETRY_ATTEMPTS} "
+            f"for task #{state['task_id']}",
+            extra={
+                "event_type": "coder_syntax_retry",
+                "task_id": state["task_id"],
+                "attempt": attempt,
+                "max_attempts": self.MAX_SYNTAX_RETRY_ATTEMPTS,
+                "syntax_error": syntax_error,
+            }
+        )
+
+        # Build retry prompt with syntax error feedback
+        retry_prompt = f"""The previous code generation attempt produced invalid Python syntax.
+
+SYNTAX ERROR: {syntax_error}
+
+ORIGINAL CODE (first 500 chars):
+{original_code[:500] if original_code else "(empty)"}
+
+Please regenerate the code, ensuring it has valid Python syntax.
+
+Task Type: {task_type}
+Description: {task_desc}
+Target Files: {', '.join(target_files) if target_files else 'Not specified'}
+
+IMPORTANT:
+1. The code MUST be syntactically valid Python
+2. Do NOT include conversational text or explanations in the code
+3. Ensure all brackets, parentheses, and quotes are properly matched
+4. Check for proper indentation
+
+Generate ONLY the corrected code:"""
+
+        if hasattr(self.agent, 'llm') and self.agent.llm:
+            try:
+                response = await self.agent.llm.generate(retry_prompt)
+                regenerated_code = self._extract_code_from_response(response)
+                return regenerated_code
+            except Exception as e:
+                logger.warning(
+                    f"[CODER_SYNTAX_RETRY] LLM call failed on attempt {attempt}: {e}"
+                )
+                return None
+        else:
+            logger.warning("[CODER_SYNTAX_RETRY] LLM not available for retry")
+            return None
+
     async def apply_code(self, state: CodeGenState) -> CodeGenState:
         """Stage 5: Apply generated code to files with atomic writes
 
         Issue #3629: Added fail-closed validation for Python files using ast.parse.
         This prevents writing invalid code (e.g., LLM conversational text) to disk.
+
+        Issue #3697: Added retry mechanism with syntax error feedback to LLM.
+        When syntax validation fails, we retry up to MAX_SYNTAX_RETRY_ATTEMPTS times,
+        providing the LLM with feedback about the syntax error.
         """
         logger.info(f"[Stage 5] Applying code for task #{state['task_id']}")
 
@@ -596,20 +689,64 @@ class CodeGenerationWorkflow:
                 return state
 
             # Issue #3629: P4 fail-closed validation for Python files
+            # Issue #3697: Added retry mechanism with syntax error feedback
             # Validate syntax BEFORE writing to prevent corrupting files with
             # invalid LLM output (e.g., conversational text instead of code)
             if target_file.endswith(".py"):
                 is_valid, syntax_error = self._validate_python_syntax(
                     generated_code, target_file
                 )
+
+                # Issue #3697: Retry with syntax error feedback if validation fails
+                retry_attempt = 0
+                while not is_valid and retry_attempt < self.MAX_SYNTAX_RETRY_ATTEMPTS:
+                    retry_attempt += 1
+                    regenerated_code = await self._regenerate_code_with_syntax_feedback(
+                        state, syntax_error, retry_attempt
+                    )
+
+                    if regenerated_code:
+                        # Validate the regenerated code
+                        is_valid, syntax_error = self._validate_python_syntax(
+                            regenerated_code, target_file
+                        )
+                        if is_valid:
+                            # Update state with valid regenerated code
+                            generated_code = regenerated_code
+                            state["generated_code"] = regenerated_code
+                            logger.info(
+                                f"[CODER_SYNTAX_RETRY_SUCCESS] Valid code on attempt {retry_attempt}",
+                                extra={
+                                    "event_type": "coder_syntax_retry_success",
+                                    "task_id": state["task_id"],
+                                    "attempt": retry_attempt,
+                                    "file_path": target_file,
+                                }
+                            )
+                        else:
+                            logger.warning(
+                                f"[CODER_SYNTAX_RETRY_FAIL] Attempt {retry_attempt} still invalid",
+                                extra={
+                                    "event_type": "coder_syntax_retry_fail",
+                                    "task_id": state["task_id"],
+                                    "attempt": retry_attempt,
+                                    "syntax_error": syntax_error,
+                                }
+                            )
+                    else:
+                        # LLM unavailable or failed, stop retrying
+                        break
+
                 if not is_valid:
                     state["error"] = syntax_error
                     logger.error(
-                        f"[Stage 5] Refusing to write invalid Python code to {target_file}",
+                        f"[Stage 5] Refusing to write invalid Python code to {target_file} "
+                        f"after {retry_attempt} retry attempts",
                         extra={
                             "operation": "apply_code_fail_closed",
                             "file_path": target_file,
                             "task_id": state["task_id"],
+                            "retry_attempts": retry_attempt,
                         }
                     )
                     return state
