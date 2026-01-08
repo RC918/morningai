@@ -8585,6 +8585,20 @@ def run_orchestrator(
         # Issue #3510: Pass CiFailureContext for structured CI error propagation
         if context and (ci_context := context.get("ci_failure_context")):
             initial_state["ci_failure_context"] = ci_context
+            # Issue #3695: Extract branch from ci_failure_context for GeneralCoder
+            # Without this, GeneralCoder gate fails with "Missing repo or branch"
+            # because branch is not passed from normalizer to initial_state
+            if head_branch := ci_context.get("head_branch"):
+                initial_state["branch"] = head_branch
+                logger.info(
+                    f"[Orchestrator] Set branch from ci_failure_context for GeneralCoder. "
+                    f"branch={head_branch}, trace_id={trace_id}",
+                    extra={
+                        "operation": "set_branch_from_ci_context",
+                        "trace_id": trace_id,
+                        "branch": head_branch,
+                    }
+                )
         # Issue #3676: Pass ci_error_file_paths for D-1b GeneralCoder multi-file support
         # These file paths are extracted from GitHub Annotations API in normalizer
         if context and (ci_error_file_paths := context.get("ci_error_file_paths")):
