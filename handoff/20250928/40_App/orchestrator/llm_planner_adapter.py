@@ -49,7 +49,8 @@ class LLMPlannerAdapter:
         trace_id: Optional[str] = None,
         risk_level: str = "medium",
         escalation_count: int = 0,
-        retry_count: int = 0
+        retry_count: int = 0,
+        provider: Optional[str] = None
     ):
         """
         Initialize LLM planner adapter
@@ -59,10 +60,27 @@ class LLMPlannerAdapter:
             risk_level: Risk level for routing decision ("high", "medium", "low")
             escalation_count: Number of tier escalations already performed (Issue #3640)
             retry_count: Number of retries already attempted (Issue #3640)
+            provider: DEPRECATED - This parameter is ignored. Provider selection is now
+                     handled by RoutingEngine via get_client_for_task(TaskType.PLANNING).
+                     Planning tasks use Tier 0 (highest capability) per routing_policy.json.
         """
         self.trace_id = trace_id
         self.llm_client = None
         self._openai_client = None
+
+        # Deprecation warning for legacy 'provider' parameter
+        if provider is not None:
+            logger.warning(
+                f"[LLM Planner] DEPRECATED: 'provider' parameter is ignored. "
+                f"Provider selection is now handled by RoutingEngine via routing_policy.json. "
+                f"Requested provider='{provider}' will be ignored.",
+                extra={
+                    "operation": "llm_planner_init_deprecated",
+                    "trace_id": trace_id,
+                    "deprecated_provider": provider
+                }
+            )
+
         try:
             # Use task-based routing via RoutingEngine instead of component-based
             # This ensures Routing Policy is respected, not bypassed by ExperimentManager
