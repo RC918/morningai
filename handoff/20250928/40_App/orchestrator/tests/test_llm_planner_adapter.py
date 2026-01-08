@@ -122,10 +122,10 @@ class TestLLMPlannerAdapter:
         estimated_tokens = len(context) // 4
         assert estimated_tokens <= 2100  # Allow some buffer for token estimation
 
-    @patch('llm_planner_adapter.LLMClient')
-    def test_generate_plan_no_client(self, mock_llm_client_class):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_generate_plan_no_client(self, mock_get_client):
         """Test plan generation without LLM client"""
-        mock_llm_client_class.side_effect = ValueError("No LLM provider available")
+        mock_get_client.side_effect = ValueError("No LLM provider available")
         adapter = LLMPlannerAdapter()
 
         result = adapter.generate_plan("test goal", "RC918/morningai", "trace-123")
@@ -133,11 +133,11 @@ class TestLLMPlannerAdapter:
         assert result["planner_type"] == "static"
         assert isinstance(result["plan"], list)
 
-    @patch('llm_planner_adapter.LLMClient')
-    def test_generate_plan_with_llm_success(self, mock_llm_client_class):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_generate_plan_with_llm_success(self, mock_get_client):
         """Test successful LLM plan generation"""
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -161,11 +161,11 @@ class TestLLMPlannerAdapter:
         assert len(result["plan"]) == 3
         assert "planning_time_ms" in result
 
-    @patch('llm_planner_adapter.LLMClient')
-    def test_generate_plan_with_llm_invalid_response(self, mock_llm_client_class):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_generate_plan_with_llm_invalid_response(self, mock_get_client):
         """Test LLM plan generation with invalid response"""
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -185,11 +185,11 @@ class TestLLMPlannerAdapter:
 
         assert result["planner_type"] == "static"
 
-    @patch('llm_planner_adapter.LLMClient')
-    def test_generate_plan_with_llm_exception(self, mock_llm_client_class):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_generate_plan_with_llm_exception(self, mock_get_client):
         """Test LLM plan generation with exception"""
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -212,11 +212,11 @@ class TestLLMPlannerAdapter:
             assert "planner_type" in result
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
-    def test_classifier_import_failure(self, mock_llm_client_class, mock_settings):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_classifier_import_failure(self, mock_get_client, mock_settings):
         """Test classifier import failure fallback to unknown"""
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -325,13 +325,13 @@ Hope this helps!'''
         assert len(parsed) == 3
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
-    def test_json_mode_enabled(self, mock_llm_client_class, mock_settings):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_json_mode_enabled(self, mock_get_client, mock_settings):
         """Test LLM plan generation with JSON mode enabled"""
         mock_settings.planner_json_mode = True
 
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -358,13 +358,13 @@ Hope this helps!'''
         assert call_args.kwargs["json_mode"] is True
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
-    def test_json_mode_disabled(self, mock_llm_client_class, mock_settings):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_json_mode_disabled(self, mock_get_client, mock_settings):
         """Test LLM plan generation with JSON mode disabled"""
         mock_settings.planner_json_mode = False
 
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -391,13 +391,13 @@ Hope this helps!'''
         assert call_args.kwargs["json_mode"] is False
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
-    def test_parse_json_with_retry_success_first_attempt(self, mock_llm_client_class, mock_settings):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_parse_json_with_retry_success_first_attempt(self, mock_get_client, mock_settings):
         """Test JSON parsing succeeds on first attempt"""
         mock_settings.planner_json_mode = False
 
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -421,13 +421,13 @@ Hope this helps!'''
         assert len(result["plan"]) == 3
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
-    def test_parse_json_with_retry_success_second_attempt(self, mock_llm_client_class, mock_settings):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_parse_json_with_retry_success_second_attempt(self, mock_get_client, mock_settings):
         """Test JSON parsing succeeds on second attempt after cleaning"""
         mock_settings.planner_json_mode = False
 
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -455,13 +455,13 @@ Hope this helps!'''
         assert len(result["plan"]) == 3
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
-    def test_parse_json_mode_with_retry(self, mock_llm_client_class, mock_settings):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_parse_json_mode_with_retry(self, mock_get_client, mock_settings):
         """Test JSON mode parsing with retry logic"""
         mock_settings.planner_json_mode = True
 
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
@@ -504,9 +504,9 @@ class TestReasoningModeEnabled:
         ids=["reasoning_disabled_low", "reasoning_enabled_high"]
     )
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
+    @patch('llm_planner_adapter.get_client_for_task')
     def test_gemini_thinking_level(
-        self, mock_llm_client_class, mock_settings,
+        self, mock_get_client, mock_settings,
         reasoning_mode_enabled, expected_thinking_level
     ):
         """Test Gemini thinking_level based on reasoning_mode_enabled setting"""
@@ -514,7 +514,7 @@ class TestReasoningModeEnabled:
         mock_settings.reasoning_mode_enabled = reasoning_mode_enabled
 
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "gemini"
 
@@ -538,14 +538,14 @@ class TestReasoningModeEnabled:
         assert call_args.kwargs["thinking_level"] == expected_thinking_level
 
     @patch('llm_planner_adapter.settings')
-    @patch('llm_planner_adapter.LLMClient')
-    def test_openai_no_thinking_level(self, mock_llm_client_class, mock_settings):
+    @patch('llm_planner_adapter.get_client_for_task')
+    def test_openai_no_thinking_level(self, mock_get_client, mock_settings):
         """Test that OpenAI provider does not receive thinking_level parameter"""
         mock_settings.planner_json_mode = True
         mock_settings.reasoning_mode_enabled = True
 
         mock_client = MagicMock()
-        mock_llm_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         mock_client.is_available.return_value = True
         mock_client.provider_name = "openai"
 
