@@ -1796,18 +1796,24 @@ class EventNormalizer:
         generic "GitHub Actions". This enables the LLM to receive actual error
         context (e.g., "lint" check failed with F821 error).
 
+        Issue #3676: D-1b fix - Extract file paths from check_run annotations
+        for GeneralCoder multi-file support. Annotations provide structured
+        data with path, start_line, end_line, message - no regex parsing needed.
+
         Args:
             repo: Repository in owner/repo format
             check_suite_id: GitHub check_suite ID
             event_id: Event ID for logging
 
         Returns:
-            Tuple of (failed_check_names: List[str], error_summary: str or None)
+            Tuple of (failed_check_names: List[str], error_summary: str or None, ci_error_file_paths: List[str])
             - failed_check_names: List of specific check names that failed
             - error_summary: Truncated error output from failed checks (max 500 chars)
+            - ci_error_file_paths: List of unique file paths from annotations (max 5 for D-1b limit)
         """
         failed_check_names = []
         error_summary_parts = []
+        ci_error_file_paths = set()  # Use set for dedup
 
         try:
             import os
@@ -1824,7 +1830,7 @@ class EventNormalizer:
                         "repo": repo,
                     }
                 )
-                return ([], None)
+                return ([], None, [])
 
             gh = Github(github_token)
             github_repo = gh.get_repo(repo)
@@ -1852,15 +1858,57 @@ class EventNormalizer:
                 # Check for any failure-like conclusion (not just "failure")
                 if check_run.conclusion in failure_conclusions:
                     failed_check_names.append(check_run.name)
-                    # Extract error summary from check_run output
-                    # PyGithub returns output as a dict-like object
-                    output = check_run.output
-                    if output:
-                        summary = output.get("summary") if isinstance(output, dict) else getattr(output, "summary", None)
-                        if summary:
-                            # Truncate to avoid huge payloads
-                            summary_text = str(summary)[:200]
-                            error_summary_parts.append(f"{check_run.name}: {summary_text}")
+
+                    # Issue #3676: Extract file paths from annotations for D-1b GeneralCoder
+                    # Annotations provide structured data: path, start_line, end_line, message
+                    # This is more reliable than parsing output.summary with regex
+                    try:
+                        annotations = list(check_run.get_annotations())
+                        for ann in annotations:
+                            # Filter out non-source file annotations (e.g., .github workflow files)
+                            ann_path = ann.path if hasattr(ann, 'path') else None
+                            if ann_path and not ann_path.startswith('.github'):
+                                ci_error_file_paths.add(ann_path)
+                                # Also build error summary from annotation messages
+                                ann_message = ann.message if hasattr(ann, 'message') else None
+                                if ann_message:
+                                    # Format: "path:line - message" for better context
+                                    ann_line = ann.start_line if hasattr(ann, 'start_line') else 0
+                                    error_summary_parts.append(
+                                        f"{ann_path}:{ann_line}: {ann_message[:100]}"
+                                    )
+
+                        logger.info(
+                            "[EventNormalizer] Extracted annotations from failed check_run",
+                            extra={
+                                "operation": "fetch_annotations_success",
+                                "event_id": event_id,
+                                "check_run_name": check_run.name,
+                                "annotations_count": len(annotations),
+                                "file_paths_count": len(ci_error_file_paths),
+                            }
+                        )
+                    except Exception as ann_err:
+                        # Fail-open: if annotations fetch fails, continue with other checks
+                        logger.warning(
+                            "[EventNormalizer] Failed to fetch annotations for check_run",
+                            extra={
+                                "operation": "fetch_annotations_error",
+                                "event_id": event_id,
+                                "check_run_name": check_run.name,
+                                "error": str(ann_err)[:100],
+                            }
+                        )
+
+                    # Fallback: Extract error summary from check_run output.summary
+                    # (kept for backward compatibility if annotations are empty)
+                    if not error_summary_parts:
+                        output = check_run.output
+                        if output:
+                            summary = output.get("summary") if isinstance(output, dict) else getattr(output, "summary", None)
+                            if summary:
+                                summary_text = str(summary)[:200]
+                                error_summary_parts.append(f"{check_run.name}: {summary_text}")
 
             # Log all check_runs for debugging (helps diagnose P3 issues)
             logger.info(
@@ -1881,6 +1929,9 @@ class EventNormalizer:
                 combined = "; ".join(error_summary_parts)
                 error_summary = combined[:500] if len(combined) > 500 else combined
 
+            # Convert file paths set to list, limit to 5 for D-1b
+            ci_error_file_paths_list = list(ci_error_file_paths)[:5]
+
             logger.info(
                 "[EventNormalizer] Fetched failed check_runs from GitHub API",
                 extra={
@@ -1890,10 +1941,12 @@ class EventNormalizer:
                     "check_suite_id": check_suite_id,
                     "failed_check_count": len(failed_check_names),
                     "failed_check_names": failed_check_names[:5],  # Log first 5
+                    "ci_error_file_paths": ci_error_file_paths_list,
+                    "ci_error_file_paths_count": len(ci_error_file_paths_list),
                 }
             )
 
-            return (failed_check_names, error_summary)
+            return (failed_check_names, error_summary, ci_error_file_paths_list)
 
         except Exception as e:
             # Fail-open: if API call fails, return empty results
@@ -1909,7 +1962,7 @@ class EventNormalizer:
                     "error_type": type(e).__name__,
                 }
             )
-            return ([], None)
+            return ([], None, [])
 
     def _handle_ci_check_completed(self, event: WebhookEvent) -> bool:
         """
@@ -2051,8 +2104,12 @@ class EventNormalizer:
             failed_check_name = "unknown"
             ci_error_summary = metadata.get("ci_error_summary")
 
+            # Issue #3676: Track ci_error_file_paths for D-1b GeneralCoder multi-file support
+            ci_error_file_paths = []
+
             if check_suite_id:
-                failed_check_names, api_error_summary = self._fetch_failed_check_runs(
+                # Issue #3676: Now returns 3-tuple with ci_error_file_paths from annotations
+                failed_check_names, api_error_summary, ci_error_file_paths = self._fetch_failed_check_runs(
                     repo, check_suite_id, event.event_id
                 )
                 if failed_check_names:
@@ -2066,6 +2123,7 @@ class EventNormalizer:
                             "event_id": event.event_id,
                             "failed_check_name": failed_check_name,
                             "total_failed": len(failed_check_names),
+                            "ci_error_file_paths": ci_error_file_paths,
                         }
                     )
                 if api_error_summary:
@@ -2101,6 +2159,20 @@ class EventNormalizer:
             # Use to_dict() for JSON serialization compatibility with RQ queue
             # The worker will use CiFailureContext.from_dict() to reconstruct
             event.metadata["ci_failure_context"] = ci_failure_context.to_dict()
+
+            # Issue #3676: Store ci_error_file_paths for D-1b GeneralCoder multi-file support
+            # These file paths are extracted from GitHub Annotations API
+            if ci_error_file_paths:
+                event.metadata["ci_error_file_paths"] = ci_error_file_paths
+                logger.info(
+                    "[EventNormalizer] Stored ci_error_file_paths from annotations",
+                    extra={
+                        "operation": "ci_error_file_paths_stored",
+                        "event_id": event.event_id,
+                        "ci_error_file_paths": ci_error_file_paths,
+                        "file_count": len(ci_error_file_paths),
+                    }
+                )
         else:
             logger.warning(
                 "[EventNormalizer] Skipping CiFailureContext - missing required fields",
