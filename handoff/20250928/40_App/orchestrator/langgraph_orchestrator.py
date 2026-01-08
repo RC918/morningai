@@ -7059,7 +7059,9 @@ class FileLevelComment(TypedDict):
 def _build_file_level_appendix(
     file_level_comments: list[FileLevelComment],
     line_drift_detected: bool = False,
-    max_comments: int = 10
+    max_comments: int = 10,
+    non_diff_filtered_count: int = 0,
+    non_diff_filtered_files: int = 0
 ) -> str:
     """
     Build markdown appendix for file-level comments.
@@ -7071,11 +7073,13 @@ def _build_file_level_appendix(
         file_level_comments: List of file-level comment dicts (see FileLevelComment TypedDict)
         line_drift_detected: Whether line drift was detected (adds note)
         max_comments: Maximum comments to include (default: 10)
+        non_diff_filtered_count: Number of comments filtered for non-diff files (EPIC B Optimization)
+        non_diff_filtered_files: Number of files that had comments filtered (EPIC B Optimization)
 
     Returns:
         Markdown string for file-level comments appendix
     """
-    if not file_level_comments:
+    if not file_level_comments and non_diff_filtered_count == 0:
         return ""
 
     # Use list + join for efficient string building (Gemini feedback)
@@ -7084,7 +7088,15 @@ def _build_file_level_appendix(
     if line_drift_detected:
         parts.append("\n\n*Note: New commits detected since review. Comments delivered as file-level for safety.*")
 
-    parts.append("\n\n### File-Level Comments\n\n")
+    # EPIC B Optimization: Add transparency note for filtered non-diff comments
+    if non_diff_filtered_count > 0:
+        parts.append(
+            f"\n\n*Note: {non_diff_filtered_count} comments for {non_diff_filtered_files} "
+            f"files not in this PR diff were filtered to reduce noise from pre-existing issues.*"
+        )
+
+    if file_level_comments:
+        parts.append("\n\n### File-Level Comments\n\n")
 
     # Limit comments to prevent overly long review bodies
     comments_to_show = file_level_comments[:max_comments]
@@ -7305,7 +7317,8 @@ def publisher_node(state: AgentState) -> AgentState:
     from review_comment_schema import (
         is_inline_comment,
         parse_diff_allowed_lines,
-        validate_inline_comments
+        validate_inline_comments,
+        filter_non_diff_file_comments
     )
 
     inline_comments = [c for c in review_comments if is_inline_comment(c)]
@@ -7352,6 +7365,36 @@ def publisher_node(state: AgentState) -> AgentState:
     if diff_content and inline_comments:
         allowed_lines_map = parse_diff_allowed_lines(diff_content)
 
+        # EPIC B Optimization: Filter comments for files NOT in the PR diff
+        # This reduces noise from pre-existing issues in unchanged files
+        # Controlled by REVIEWER_FILTER_NON_DIFF_FILES feature flag (default: True)
+        non_diff_filtered_count = 0
+        if settings.reviewer_filter_non_diff_files:
+            kept_comments, filtered_comments, filter_stats = filter_non_diff_file_comments(
+                inline_comments,
+                allowed_lines_map
+            )
+            non_diff_filtered_count = filter_stats["filtered_count"]
+
+            if non_diff_filtered_count > 0:
+                logger.info(
+                    f"[Publisher] EPIC B Optimization: Filtered {non_diff_filtered_count} "
+                    f"comments for {filter_stats['filtered_file_count']} files not in PR diff",
+                    extra={
+                        "operation": "publisher",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "filtered_count": non_diff_filtered_count,
+                        "kept_count": filter_stats["kept_count"],
+                        "filtered_files": filter_stats["filtered_files"][:5],
+                    }
+                )
+                inline_comments = kept_comments
+
+            # Store filter stats in publish_result for telemetry
+            state["publish_result"]["non_diff_filtered_count"] = non_diff_filtered_count
+            state["publish_result"]["non_diff_filtered_files"] = filter_stats["filtered_file_count"]
+
         # DIAGNOSTIC: Log allowed_lines_map summary for 422 debugging
         # Uses diagnostic_helper for consistent formatting, fallback, and size limits
         from diagnostic_helper import format_diagnostic
@@ -7364,7 +7407,8 @@ def publisher_node(state: AgentState) -> AgentState:
             "sanitized_diff_length": _diff_len,
             "diff_content_length": _diff_len,  # Legacy key for backward compatibility
             "diff_truncated": diff_truncated,
-            "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None
+            "stored_head_sha": stored_head_sha[:8] if stored_head_sha else None,
+            "non_diff_filtered_count": non_diff_filtered_count
         }
         logger.info(
             f"[Publisher] DIAGNOSTIC: Diff coverage for validation{format_diagnostic(coverage_diagnostic)}",
@@ -7515,10 +7559,15 @@ def publisher_node(state: AgentState) -> AgentState:
                 from tools.github_api import get_repo, post_pr_review
 
                 # EPIC B Phase 3 P2: Use unified helper for file-level appendix
+                # EPIC B Optimization: Include filtered non-diff comments count for transparency
+                _non_diff_filtered = state["publish_result"].get("non_diff_filtered_count", 0)
+                _non_diff_files = state["publish_result"].get("non_diff_filtered_files", 0)
                 file_level_body = "## MorningAI Code Review"
                 file_level_body += _build_file_level_appendix(
                     file_level_comments,
-                    line_drift_detected=line_drift_detected
+                    line_drift_detected=line_drift_detected,
+                    non_diff_filtered_count=_non_diff_filtered,
+                    non_diff_filtered_files=_non_diff_files
                 )
 
                 repo = get_repo()

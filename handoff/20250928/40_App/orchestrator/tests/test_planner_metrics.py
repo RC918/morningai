@@ -122,9 +122,9 @@ class TestPlannerMetrics:
             events_file = os.path.join(tmpdir, "planner_runs.jsonl")
 
             with patch.dict(os.environ, {'PLANNER_EVENTS_FILE': events_file}):
-                with patch('llm_planner_adapter.LLMClient') as mock_llm_client_class:
+                with patch('llm_planner_adapter.get_client_for_task') as mock_get_client:
                     mock_client = MagicMock()
-                    mock_llm_client_class.return_value = mock_client
+                    mock_get_client.return_value = mock_client
                     mock_client.is_available.return_value = True
                     mock_client.provider_name = "openai"
 
