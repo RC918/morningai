@@ -4447,7 +4447,7 @@ def _attempt_general_coder_fix(
     try:
         from coder.autofix_gate import is_autofix_allowed, is_senior_coder_required
         from coder.general_coder import get_general_coder, CoderStatus
-        from common.agents.base_agent import AgentInput
+        from core.agents import AgentInput
         from tools.github_api import get_repo, commit_files
     except ImportError as e:
         logger.info(f"[GENERAL_CODER_DISABLED] Import failed: {e}")
@@ -4721,7 +4721,7 @@ def _attempt_simple_coder_fix(
     try:
         from coder.autofix_gate import is_autofix_allowed, is_path_excluded
         from coder.simple_coder import get_simple_coder, CoderStatus
-        from common.agents.base_agent import AgentInput
+        from core.agents import AgentInput
         from tools.github_api import get_repo, commit_file
     except ImportError as e:
         logger.debug(f"[SIMPLE_CODER_DISABLED] Import failed: {e}")
