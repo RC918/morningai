@@ -2460,6 +2460,12 @@ class AgentState(TypedDict):
     # Incremented when a task escalates to a higher tier (lower tier number).
     # Default: 0 (no escalations yet)
     escalation_count: int
+    # Issue #3693: review_files for D-1b GeneralCoder multi-file support
+    # Set by run_orchestrator() from ci_error_file_paths (extracted from GitHub Annotations API)
+    # Used by GeneralCoder to know which files to fix in multi-file CI failures.
+    # Format: List of dicts with "path" key, e.g., [{"path": "src/foo.py"}, {"path": "src/bar.py"}]
+    # IMPORTANT: This field must be defined in AgentState for LangGraph to properly propagate it.
+    review_files: Optional[list]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -5133,20 +5139,38 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
 
         # Issue #3675: Extract ALL file paths for GeneralCoder multi-file support
         # This enables D-1b GeneralCoder to handle multi-file lint errors
-        extracted_file_paths = _extract_file_paths_from_error(error_summary)
-        if extracted_file_paths and not state.get("review_files"):
-            # Set review_files for GeneralCoder (multi-file support)
-            state["review_files"] = [{"path": fp} for fp in extracted_file_paths]
+        # Issue #3693: Only extract from error_summary if review_files is not already set
+        # from Annotations API (high precision). This prevents fallback (error_summary)
+        # from overriding the high-precision Annotations extraction.
+        existing_review_files = state.get("review_files")
+        if existing_review_files and len(existing_review_files) > 0:
+            # review_files already set from Annotations API - do NOT override
             logger.info(
-                f"[Fixer] Extracted review_files from error_summary for GeneralCoder. "
-                f"file_count={len(extracted_file_paths)}, files={extracted_file_paths}, trace_id={trace_id}",
+                f"[Fixer] Skipping error_summary extraction - review_files already set from Annotations. "
+                f"existing_count={len(existing_review_files)}, trace_id={trace_id}",
                 extra={
-                    "operation": "fixer_extract_review_files",
+                    "operation": "fixer_skip_error_summary_extraction",
                     "trace_id": trace_id,
-                    "file_count": len(extracted_file_paths),
-                    "file_paths": extracted_file_paths,
+                    "existing_review_files_count": len(existing_review_files),
+                    "existing_review_files": existing_review_files,
                 }
             )
+        else:
+            # Fallback: extract from error_summary text
+            extracted_file_paths = _extract_file_paths_from_error(error_summary)
+            if extracted_file_paths:
+                # Set review_files for GeneralCoder (multi-file support)
+                state["review_files"] = [{"path": fp} for fp in extracted_file_paths]
+                logger.info(
+                    f"[Fixer] Extracted review_files from error_summary for GeneralCoder (fallback). "
+                    f"file_count={len(extracted_file_paths)}, files={extracted_file_paths}, trace_id={trace_id}",
+                    extra={
+                        "operation": "fixer_extract_review_files",
+                        "trace_id": trace_id,
+                        "file_count": len(extracted_file_paths),
+                        "file_paths": extracted_file_paths,
+                    }
+                )
 
         # Issue #3567: Extract single file path for SimpleCoder (backward compatibility)
         extracted_file_path = _extract_file_path_from_error(error_summary)
