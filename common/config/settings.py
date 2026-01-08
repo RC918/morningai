@@ -2498,9 +2498,21 @@ class Settings(BaseSettings):
         description=(
             "Enable GeneralCoder multi-file auto-fix in fixer_node (EPIC D Phase 1b). "
             "Default False = GeneralCoder disabled, only SimpleCoder/AutoFixer runs. "
-            "When True, GeneralCoder attempts multi-file fix (<=5 files) with atomic commits, "
+            "When True, GeneralCoder attempts multi-file fix with atomic commits, "
             "falling back to SimpleCoder if GeneralCoder skips or fails. "
             "Requires ENABLE_SIMPLE_CODER=True for fallback chain."
+        )
+    )
+
+    general_coder_max_files: int = Field(
+        default=5,
+        alias="GENERAL_CODER_MAX_FILES",
+        ge=1,
+        le=20,
+        description=(
+            "Maximum number of files GeneralCoder can process in a single multi-file fix. "
+            "Default 5 (D-1b design limit). Higher values may increase LLM token usage "
+            "and processing time. Recommended range: 3-10 for most projects."
         )
     )
 

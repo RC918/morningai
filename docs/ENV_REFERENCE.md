@@ -6,9 +6,9 @@
 ## Overview
 
 - **Schema Version**: 1.1
-- **Total Variables**: 269
+- **Total Variables**: 270
 - **Required**: 21
-- **Optional**: 248
+- **Optional**: 249
 - **Last Updated**: 2025-12-18
 
 ## Security Levels
@@ -33,7 +33,7 @@
 - [Worker](#worker) (8 variables)
 - [Application](#application) (28 variables)
 - [Feature Flags](#feature-flags) (64 variables)
-- [Orchestrator](#orchestrator) (6 variables)
+- [Orchestrator](#orchestrator) (7 variables)
 - [Frontend](#frontend) (6 variables)
 - [Testing](#testing) (17 variables)
 - [Payment](#payment) (3 variables)
@@ -2678,6 +2678,7 @@ Fallback rate threshold for automatic rollback (0.0-1.0)
 | Variable | Type | Required | Default | Security |
 |----------|------|----------|---------|----------|
 | `USE_LLM_REVIEWER` | boolean | No | false | LOW |
+| `GENERAL_CODER_MAX_FILES` | integer | No | 5 | LOW |
 | `REASONING_MODE_ENABLED` | boolean | No | false | LOW |
 | `DISABLE_GEMINI3` | boolean | No | false | LOW |
 | `SECURITY_ENFORCEMENT_MODE` | string (advisory, block_critical, block_high, block_all) | No | advisory | LOW |
@@ -2702,6 +2703,22 @@ Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)
 > LLM review provides risk assessment based on PR metadata and CI status.
 > CI score acts as ceiling - LLM cannot claim higher quality than CI.
 > Graceful fallback to CI-only review if LLM unavailable.
+
+#### `GENERAL_CODER_MAX_FILES`
+
+Maximum number of files GeneralCoder can process in a single multi-file fix (EPIC D-1b)
+
+- **Type**: integer
+- **Required**: No
+- **Default**: `5`
+- **Security Level**: LOW
+
+**Notes**:
+> Controls the file limit for GeneralCoder multi-file operations:
+> - Default 5 (D-1b design limit for balanced performance)
+> - Higher values (up to 20) may increase LLM token usage and processing time
+> - Recommended range: 3-10 for most projects
+> Related: Issue #3678, PR #3677 (GeneralCoder multi-file extraction)
 
 #### `REASONING_MODE_ENABLED`
 
