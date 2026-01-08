@@ -60,11 +60,11 @@ class ErrorBoundary extends React.Component {
     const { t } = this.props
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-error-50 to-orange-100 flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl">
             <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="w-8 h-8 text-red-600" />
+              <div className="mx-auto w-16 h-16 bg-error-100 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="w-8 h-8 text-error-600" />
               </div>
               <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-white">
                 {t('errorBoundary.title')}
@@ -81,7 +81,7 @@ class ErrorBoundary extends React.Component {
                   {t('errorBoundary.errorIdLabel')} <code className="bg-neutral-200 dark:bg-neutral-700 px-2 py-1 rounded text-xs">{this.state.errorId}</code>
                 </p>
                 {this.state.error && (
-                  <p className="text-sm text-red-600 font-mono bg-red-50 p-2 rounded">
+                  <p className="text-sm text-error-600 font-mono bg-error-50 p-2 rounded">
                     {this.state.error.toString()}
                   </p>
                 )}

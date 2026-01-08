@@ -62,7 +62,7 @@ const DashboardHeader = ({ user, title, subtitle, notificationCount = 0, onLogou
           >
             <Bell className="w-5 h-5" />
             {hasNotifications && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-accent-500 rounded-full"></span>
             )}
           </Button>
 
