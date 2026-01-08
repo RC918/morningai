@@ -26,18 +26,36 @@ from llm.client import LLMClient, get_client_for_component
 MAX_GOAL_LENGTH = 2000
 MAX_CODE_CONTEXT_LENGTH = 4000
 
-# Patterns that may indicate prompt injection attempts
-INJECTION_PATTERNS = [
-    r"ignore\s+(all\s+)?(previous|prior|above)\s+instructions?",
-    r"disregard\s+(all\s+)?(previous|prior|above)",
-    r"forget\s+(all\s+)?(previous|prior|above)",
-    r"new\s+instructions?:",
+# Pre-compiled patterns for input injection detection (log-only, not blocking)
+# These patterns detect common prompt injection attempts in user input
+_INJECTION_PATTERNS_RAW = [
+    r"ignore\s+(all\s+)?(previous|prior|above)?\s*instructions?",
+    r"disregard\s+(all\s+)?(previous|prior|above)?",
+    r"forget\s+(all\s+)?(previous|prior|above)?",
+    r"new\s+(set\s+of\s+)?instructions?:",
     r"system\s*prompt",
     r"print\s+(your\s+)?instructions",
-    r"reveal\s+(your\s+)?prompt",
+    r"reveal\s+(your\s+)?(prompt|instructions)",
     r"dump\s+(env|environment|secrets?|credentials?)",
     r"output\s+(your\s+)?system",
+    r"(show|display|print)\s+(me\s+)?(your\s+)?(hidden|initial|developer)\s+(prompt|instructions|message)",
 ]
+INJECTION_PATTERNS = [re.compile(p, re.IGNORECASE) for p in _INJECTION_PATTERNS_RAW]
+
+# Pre-compiled patterns for output injection detection (blocking - causes fallback to static plan)
+# These patterns use intent-based detection (verb + target) to reduce false positives
+# on legitimate plans like "password reset" or "JWT token validation"
+_OUTPUT_INJECTION_PATTERNS_RAW = [
+    r"(reveal|show|print|dump|display|leak|output)\s+(your\s+)?(the\s+)?(system\s*prompt|instructions|hidden\s+prompt)",
+    r"(reveal|show|print|dump|display|leak)\s+(your\s+)?(the\s+)?(api[_\s]?key|credentials?|secrets?|env\s*vars?)",
+    r"my\s+(hidden\s+)?instructions\s+(are|say|tell)",
+    r"ignore\s+(all\s+)?previous\s+(instructions?|prompts?)",
+    r"(exfiltrate|steal|extract)\s+(the\s+)?(api[_\s]?key|credentials?|secrets?|tokens?)",
+]
+OUTPUT_INJECTION_PATTERNS = [re.compile(p, re.IGNORECASE) for p in _OUTPUT_INJECTION_PATTERNS_RAW]
+
+# Pre-compiled pattern for control character removal
+_CONTROL_CHAR_PATTERN = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
 try:
     from openai import OpenAI
@@ -82,18 +100,18 @@ def _sanitize_untrusted_input(
             extra={"operation": "prompt_injection_protection", "input_name": input_name}
         )
 
-    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+    text = _CONTROL_CHAR_PATTERN.sub('', text)
 
     injection_detected = False
     for pattern in INJECTION_PATTERNS:
-        if re.search(pattern, text, re.IGNORECASE):
+        if pattern.search(text):
             injection_detected = True
             logger.warning(
                 f"[Security] Potential prompt injection detected in {input_name}",
                 extra={
                     "operation": "prompt_injection_detection",
                     "input_name": input_name,
-                    "pattern_matched": pattern
+                    "pattern_matched": pattern.pattern
                 }
             )
             break
@@ -106,9 +124,12 @@ def _check_output_for_injection(plan: List[Dict[str, Any]]) -> bool:
     Check LLM output for signs of successful prompt injection.
 
     This validates that the LLM response doesn't contain:
-    1. Attempts to exfiltrate system information
-    2. Steps that reference "system prompt" or "instructions"
+    1. Attempts to exfiltrate system information (using intent-based patterns)
+    2. Steps that reference revealing system prompts or instructions
     3. Unusually long step descriptions (potential prompt stuffing)
+
+    Note: Uses intent-based patterns (verb + target) to reduce false positives
+    on legitimate plans like "password reset" or "JWT token validation".
 
     Args:
         plan: The parsed plan from LLM
@@ -116,17 +137,6 @@ def _check_output_for_injection(plan: List[Dict[str, Any]]) -> bool:
     Returns:
         True if suspicious content detected, False otherwise
     """
-    suspicious_output_patterns = [
-        r"system\s*prompt",
-        r"my\s+instructions",
-        r"ignore\s+previous",
-        r"api[_\s]?key",
-        r"credentials?",
-        r"secret",
-        r"password",
-        r"token",
-    ]
-
     max_step_length = 500
     max_rationale_length = 500
 
@@ -141,12 +151,12 @@ def _check_output_for_injection(plan: List[Dict[str, Any]]) -> bool:
             )
             return True
 
-        combined_text = f"{step_text} {rationale_text}".lower()
-        for pattern in suspicious_output_patterns:
-            if re.search(pattern, combined_text, re.IGNORECASE):
+        combined_text = f"{step_text} {rationale_text}"
+        for pattern in OUTPUT_INJECTION_PATTERNS:
+            if pattern.search(combined_text):
                 logger.warning(
-                    f"[Security] Suspicious pattern in LLM output: {pattern}",
-                    extra={"operation": "output_injection_detection", "pattern": pattern}
+                    f"[Security] Suspicious pattern in LLM output: {pattern.pattern}",
+                    extra={"operation": "output_injection_detection", "pattern": pattern.pattern}
                 )
                 return True
 
