@@ -136,6 +136,12 @@ GITHUB_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
     "check_suite": {
         "completed": WebhookEventType.CI_CHECK_COMPLETED,
     },
+    # Issue: #3684 - Add check_run event support for annotations extraction
+    # GitHub sends check_run events for individual CI jobs (e.g., lint, test)
+    # These contain check_run.check_suite.id needed for annotations API
+    "check_run": {
+        "completed": WebhookEventType.CI_CHECK_COMPLETED,
+    },
 }
 
 
@@ -374,6 +380,31 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             description = f"Check suite completed with conclusion: {conclusion}"
             url = check_suite.get("url", "")
 
+        # Issue: #3684 - Add check_run event support for annotations extraction
+        # Handle check_run events to extract PR information and check_suite_id
+        # GitHub sends check_run events for individual CI jobs (e.g., lint, test)
+        elif github_event == "check_run":
+            check_run = payload.get("check_run", {})
+            conclusion = check_run.get("conclusion", "")
+            # check_run has nested check_suite with head_branch
+            check_suite = check_run.get("check_suite", {})
+            head_branch = check_suite.get("head_branch", "")
+
+            # Extract PR number from check_run.pull_requests array
+            pull_requests = check_run.get("pull_requests", [])
+            if pull_requests and isinstance(pull_requests, list) and len(pull_requests) > 0:
+                first_pr = pull_requests[0]
+                if isinstance(first_pr, dict):
+                    pr_number = first_pr.get("number")
+                    resource_id = str(pr_number) if pr_number is not None else None
+                    resource_url = first_pr.get("url", "")
+
+            check_run_name = check_run.get("name", "unknown")
+            resource_type = "check_run"
+            title = f"CI Check Run: {check_run_name} - {conclusion} on {head_branch}"
+            description = f"Check run '{check_run_name}' completed with conclusion: {conclusion}"
+            url = check_run.get("html_url", "")
+
         # Build metadata
         metadata: Dict[str, Any] = {
             "github_event": github_event,
@@ -426,6 +457,48 @@ class GitHubWebhookHandler(BaseWebhookHandler):
                 pr.get("number") for pr in pull_requests
                 if isinstance(pr, dict) and pr.get("number") is not None
             ]
+
+        # Issue: #3684 - Add CI-specific metadata for check_run events
+        # check_run events contain nested check_suite with the check_suite_id needed for annotations API
+        if github_event == "check_run":
+            check_run = payload.get("check_run", {})
+            check_suite = check_run.get("check_suite", {})
+            metadata["ci_conclusion"] = check_run.get("conclusion", "")
+            metadata["ci_head_branch"] = check_suite.get("head_branch", "")
+            metadata["ci_head_sha"] = check_suite.get("head_sha", "")
+            metadata["ci_app_name"] = check_run.get("app", {}).get("name", "")
+            # Extract check_run_id for annotations API
+            raw_check_run_id = check_run.get("id")
+            try:
+                metadata["ci_check_run_id"] = (
+                    int(raw_check_run_id) if raw_check_run_id is not None else None
+                )
+            except (ValueError, TypeError):
+                metadata["ci_check_run_id"] = None
+            # Extract check_suite_id from nested check_suite for dedup and annotations
+            raw_check_suite_id = check_suite.get("id")
+            try:
+                metadata["ci_check_suite_id"] = (
+                    int(raw_check_suite_id) if raw_check_suite_id is not None else None
+                )
+            except (ValueError, TypeError):
+                logger.warning(
+                    "[GitHubWebhookHandler] Invalid check_suite_id in check_run, using fallback dedup",
+                    extra={
+                        "event_id": event_id,
+                        "repo": f"{repo_owner}/{repo_name}",
+                        "raw_check_suite_id": str(raw_check_suite_id)[:50],
+                    }
+                )
+                metadata["ci_check_suite_id"] = None
+            # Store PR numbers for dedup and multi-PR handling
+            pull_requests = check_run.get("pull_requests", [])
+            metadata["ci_pr_numbers"] = [
+                pr.get("number") for pr in pull_requests
+                if isinstance(pr, dict) and pr.get("number") is not None
+            ]
+            # Store check_run name for better logging
+            metadata["ci_check_run_name"] = check_run.get("name", "")
 
         # Create normalized event
         event = WebhookEvent(
