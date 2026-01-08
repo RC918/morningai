@@ -4495,7 +4495,7 @@ def _attempt_general_coder_fix(
     # Build files list from review_files or single file
     files_to_fix = []
     if review_files:
-        files_to_fix = review_files[:5]  # D-1b limit: max 5 files
+        files_to_fix = review_files[:settings.general_coder_max_files]
     elif file_path:
         files_to_fix = [{"path": file_path}]
 
@@ -4975,8 +4975,8 @@ def _extract_file_paths_from_error(error_summary: str) -> list:
     )
     file_paths.update(pattern3_matches)
 
-    # Convert to list and limit to 5 files (D-1b limit)
-    result = list(file_paths)[:5]
+    # Convert to list and limit to configurable max files (D-1b default: 5)
+    result = list(file_paths)[:settings.general_coder_max_files]
 
     if len(result) == 0:
         logger.debug("[MULTI_FILE_EXTRACT_NONE] No file paths found in error_summary")
