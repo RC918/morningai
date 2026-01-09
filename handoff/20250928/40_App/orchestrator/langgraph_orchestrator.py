@@ -4804,9 +4804,25 @@ def _attempt_general_coder_fix(
             from resource_telemetry import log_multi_file_hitl_escalation
 
             # Extract file count from reason (e.g., "Too many files: 7 > 5")
+            # Robust parsing with explicit handling of parse failures
             match = re.search(r"Too many files: (\d+) > (\d+)", reason)
-            file_count = int(match.group(1)) if match else 0
-            max_files = int(match.group(2)) if match else 5
+            if match:
+                file_count = int(match.group(1))
+                max_files = int(match.group(2))
+            else:
+                # Sanitize reason string to prevent log injection
+                sanitized_reason = reason.replace('\n', '\\n').replace('\r', '\\r')
+                logger.warning(
+                    f"[GENERAL_CODER_HITL_PARSE_WARNING] Could not parse file count from "
+                    f"skip reason: '{sanitized_reason}'. Using defaults. trace_id={trace_id}",
+                    extra={
+                        "operation": "general_coder_hitl_parse",
+                        "trace_id": trace_id,
+                        "event_code": "GENERAL_CODER_HITL_PARSE_WARNING",
+                    }
+                )
+                file_count = 0
+                max_files = settings.general_coder_max_files
 
             # Set HITL escalation flags in state
             state["requires_hitl_approval"] = True
