@@ -2617,6 +2617,12 @@ class AgentState(TypedDict):
     # Used to establish parent-child relationships between node spans.
     # Each node creates a child span with this as parent_span_id, then updates this field.
     current_span_id: Optional[str]
+    # PR #3741: Loop Protection State Flag
+    # Set by fixer_node when AutoFixLoopProtection triggers (max retries exceeded).
+    # Read by should_proceed_after_fixer to route to finalizer instead of ci_monitor.
+    # CRITICAL: This field MUST be defined in AgentState for LangGraph to properly
+    # propagate it between nodes. Without this definition, the flag may be lost.
+    loop_protection_triggered: Optional[bool]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
