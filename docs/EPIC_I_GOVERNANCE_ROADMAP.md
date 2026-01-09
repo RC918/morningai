@@ -2,8 +2,8 @@
 
 **Issue**: [#3342](https://github.com/RC918/morningai/issues/3342)  
 **Blueprint Reference**: Section 4.3 (Model Governance Framework v2) + Section 4.4 (Autonomous Provisioning v2)  
-**Status**: Phase 1 Active, Phase 2+ gated by #3249  
-**Last Updated**: 2026-01-02
+**Status**: Phase I-1 Complete, Phase I-2a Complete (observe-only), Phase I-2b+ gated by #3249  
+**Last Updated**: 2026-01-09
 
 ## Executive Summary
 
@@ -16,9 +16,9 @@ EPIC I transforms MorningAI from a "static code system" to a "dynamic governance
 | Layer | Current State | Target State | Key Change |
 |-------|---------------|--------------|------------|
 | Drift Detection | Code exists, wired to LLMClient | Active monitoring with metrics | Already operational |
-| Health Scoring | CanaryMetrics in Redis | Periodic evaluation with alerting | Needs heartbeat scheduling |
-| Alerting | HealthAlertService library | Scheduled checks with Slack/webhook | Needs heartbeat scheduling |
-| Degradation | DegradationAdvisor observe-only | Soft weighting affects routing | Needs flag enablement |
+| Health Scoring | CanaryMetrics in Redis | Periodic evaluation with alerting | **COMPLETE** - heartbeat_handler.py |
+| Alerting | HealthAlertService library | Scheduled checks with Slack/webhook | **COMPLETE** - heartbeat_handler.py |
+| Degradation | DegradationAdvisor observe-only | Soft weighting affects routing | **COMPLETE** (observe-only) - needs DEGRADATION_ENFORCEMENT_ENABLED=true |
 
 ### Existing Components Analysis
 
@@ -26,11 +26,12 @@ EPIC I transforms MorningAI from a "static code system" to a "dynamic governance
 |-----------|------|-------|----------------|
 | DriftDetector | `governance/drift_detector.py` | 450 | Wired to LLMClient, observe-only |
 | CanaryMetrics | `metrics.py` | 1000+ | Redis-based, health scoring active |
-| HealthAlertService | `governance/health_alerter.py` | 530 | Library-only, needs scheduling |
-| DegradationAdvisor | `governance/degradation_advisor.py` | 792 | Phase A complete, Phase B partial |
+| HealthAlertService | `governance/health_alerter.py` | 530 | **COMPLETE** - scheduled via heartbeat_handler.py |
+| DegradationAdvisor | `governance/degradation_advisor.py` | 792 | **Phase A+B-1 complete** - hard gating in llm/client.py |
 | DegradationTypes | `governance/degradation_types.py` | 150 | Data structures defined |
+| HeartbeatHandler | `governance/heartbeat_handler.py` | 519 | **NEW** - distributed lock + health snapshot |
 
-**Key Finding**: Substantial code exists but is not fully "activated" - the system has muscles but no heartbeat.
+**Key Finding**: ~~Substantial code exists but is not fully "activated" - the system has muscles but no heartbeat.~~ **UPDATE 2026-01-09**: The heartbeat is now implemented in `heartbeat_handler.py` with distributed locking and health snapshot publishing.
 
 ---
 
@@ -174,13 +175,15 @@ def run_governance_heartbeat():
 | `governance:alert_cooldown:{provider}` | configurable | Per-provider alert cooldown |
 
 **Acceptance Criteria**:
-- [ ] Governance heartbeat runs every 60 seconds
-- [ ] Distributed lock prevents duplicate execution across workers
-- [ ] Health alerts sent to Slack when thresholds breached
-- [ ] Global health snapshot updated in Redis
-- [ ] Metrics emitted: `governance_heartbeat_success_total`, `governance_heartbeat_duration_seconds`
+- [x] Governance heartbeat runs every 60 seconds *(implemented in `heartbeat_handler.py:295-484`)*
+- [x] Distributed lock prevents duplicate execution across workers *(implemented in `heartbeat_handler.py:92-227`)*
+- [x] Health alerts sent to Slack when thresholds breached *(implemented in `health_alerter.py:190-230`)*
+- [x] Global health snapshot updated in Redis *(implemented in `heartbeat_handler.py:230-292`)*
+- [x] Metrics emitted: `governance_heartbeat_success_total`, `governance_heartbeat_duration_seconds`
 
 **Success Metric**: Slack receives first automated "Provider Latency Warning" alert.
+
+> **Implementation Note (2026-01-09)**: Phase I-1 is fully implemented. The heartbeat runs via `run_governance_cycle()` with distributed lock (`governance:evaluator_lock`, 50s TTL) and publishes health snapshots to `governance:health_snapshot` (120s TTL). Health alerting requires `HEALTH_ALERTING_ENABLED=true` to activate.
 
 ---
 
@@ -254,11 +257,17 @@ def _apply_soft_weighting(self, provider: str) -> float:
 | #3249 Status | Merged | Test refactor complete |
 
 **Acceptance Criteria**:
-- [ ] `DEGRADATION_ENFORCEMENT_ENABLED` flag implemented
-- [ ] Routing engine reads from global health snapshot
-- [ ] Soft weighting applied to provider scores
-- [ ] Floor provider protection prevents total provider exclusion
-- [ ] Metrics emitted: `routing_soft_weighting_applied_total`
+- [x] `DEGRADATION_ENFORCEMENT_ENABLED` flag implemented *(in `llm/client.py:139` - controls Hard Gating only)*
+- [x] Routing engine consumes degradation state from the governance heartbeat *(via `degradation_advisor.py`)*
+- [x] Soft weighting applied to provider scores *(in `core/routing/engine.py:564-616` - `_get_degradation_multiplier()`)*
+- [x] Floor provider protection prevents total provider exclusion *(in `llm/client.py:145-269` - `_apply_hard_gating()`)*
+- [ ] Metrics emitted: `routing_soft_weighting_applied_total` *(pending - needs follow-up issue)*
+
+> **Implementation Note (2026-01-09)**: Phase I-2a has two distinct mechanisms:
+> 1. **Soft Weighting** (`core/routing/engine.py:_get_degradation_multiplier`): Always active, applies score multipliers based on `DegradationAdvisor` state. Currently returns 1.0 (no effect) because `DegradationAdvisor` operates in observe-only mode (`dry_run=True`).
+> 2. **Hard Gating** (`llm/client.py:_apply_hard_gating`): Controlled by `DEGRADATION_ENFORCEMENT_ENABLED`. When enabled, filters out AVOID providers with floor protection.
+>
+> To fully activate degradation enforcement, set `DEGRADATION_ENFORCEMENT_ENABLED=true` in staging first.
 
 ---
 
