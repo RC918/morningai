@@ -4670,9 +4670,30 @@ def _attempt_general_coder_fix(
         )
 
     # Build files list from review_files or single file
+    # Issue: HITL 6+ files escalation requires passing all files to GeneralCoder
+    # so it can detect "Too many files" and trigger HITL escalation (PR #3732).
+    # Previously this was limited to settings.general_coder_max_files (5), which
+    # prevented GeneralCoder from ever seeing 6+ files and triggering HITL.
+    # Use MAX_FILES_FOR_GENERAL_CODER (20) as upper limit to prevent extreme edge cases.
+    MAX_FILES_FOR_GENERAL_CODER = 20
     files_to_fix = []
     if review_files:
-        files_to_fix = review_files[:settings.general_coder_max_files]
+        total_files = len(review_files)
+        files_to_fix = review_files[:MAX_FILES_FOR_GENERAL_CODER]
+        # Telemetry: Log when files are truncated (Blueprint 4.2 observability)
+        if total_files > MAX_FILES_FOR_GENERAL_CODER:
+            logger.warning(
+                f"[GENERAL_CODER_FILES_TRUNCATED] Files truncated for GeneralCoder. "
+                f"total_files={total_files}, max_files={MAX_FILES_FOR_GENERAL_CODER}, "
+                f"trace_id={trace_id}",
+                extra={
+                    "operation": "general_coder_files_truncated",
+                    "trace_id": trace_id,
+                    "event_code": "GENERAL_CODER_FILES_TRUNCATED",
+                    "total_files": total_files,
+                    "max_files": MAX_FILES_FOR_GENERAL_CODER,
+                }
+            )
     elif file_path:
         files_to_fix = [{"path": file_path}]
 
