@@ -2570,6 +2570,53 @@ class Settings(BaseSettings):
         )
     )
 
+    # ==========================================================================
+    # Configurable HITL Thresholds (P3 Feature)
+    # ==========================================================================
+    # These settings allow operators to tune HITL escalation behavior based on
+    # their team's capacity and risk tolerance. Blueprint Section 4.1 alignment.
+    # ==========================================================================
+
+    hitl_multi_file_threshold: int = Field(
+        default=6,
+        ge=2,
+        le=50,
+        alias="HITL_MULTI_FILE_THRESHOLD",
+        description=(
+            "File count threshold for HITL escalation (P3 feature). "
+            "When GeneralCoder encounters more files than this threshold, "
+            "trigger HITL escalation instead of proceeding. "
+            "Default 6 = Tasks affecting 6+ files require human review. "
+            "Lower values = more conservative (more HITL escalations). "
+            "Higher values = more permissive (fewer HITL escalations). "
+            "Recommended range: 5-10 for most teams."
+        )
+    )
+
+    hitl_complexity_escalation_enabled: bool = Field(
+        default=True,
+        alias="HITL_COMPLEXITY_ESCALATION_ENABLED",
+        description=(
+            "Enable HITL escalation for complex tasks (P3 feature). "
+            "Default True = When SeniorCoder classifies a task as 'complex', "
+            "trigger HITL escalation for human review before proceeding. "
+            "When False, complex tasks proceed without human review. "
+            "Blueprint Section 4.1 Safety Governor v2 alignment."
+        )
+    )
+
+    hitl_design_doc_gate_enabled: bool = Field(
+        default=True,
+        alias="HITL_DESIGN_DOC_GATE_ENABLED",
+        description=(
+            "Enable HITL escalation when Design Doc Gate fails (P3 feature). "
+            "Default True = When ArchitectureSpec is missing or invalid, "
+            "trigger HITL escalation instead of proceeding without design review. "
+            "When False, missing/invalid specs log a warning but don't block. "
+            "Blueprint Section 4.1 Safety Governor v2 alignment."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""

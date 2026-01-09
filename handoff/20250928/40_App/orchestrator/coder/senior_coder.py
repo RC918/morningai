@@ -89,6 +89,7 @@ Usage:
 """
 import json
 import logging
+import re
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
@@ -97,6 +98,80 @@ from typing import Optional, Dict, Any, List
 from core.agents import BaseAgent, AgentInput, AgentOutput
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Output Sanitization Helper (P3 Feature)
+# =============================================================================
+# This helper provides consistent sanitization for untrusted LLM output
+# to prevent log injection attacks. Used throughout the coder agents.
+#
+# Security context: LLM output is untrusted and may contain:
+# - Newlines that could break log structure
+# - Control characters that could manipulate terminal output
+# - Excessively long strings that could cause log bloat
+# =============================================================================
+
+# Control characters pattern (excludes printable ASCII and common whitespace)
+_CONTROL_CHAR_PATTERN = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+
+
+def sanitize_llm_output(
+    value: Any,
+    max_length: int = 200,
+    context: str = "output"
+) -> str:
+    """Sanitize untrusted LLM output for safe logging.
+
+    This function provides consistent sanitization for LLM output to prevent:
+    1. Log injection attacks via newlines/control characters
+    2. Log bloat from excessively long strings
+    3. Type confusion from non-string values
+
+    Args:
+        value: The untrusted value to sanitize (any type)
+        max_length: Maximum length of output (default: 200)
+        context: Description of the value for logging (default: "output")
+
+    Returns:
+        Sanitized string safe for logging
+
+    Usage:
+        # In error messages with LLM data
+        logger.error(f"Invalid value: {sanitize_llm_output(llm_response)}")
+
+        # In schema validation
+        errors.append(f"value {sanitize_llm_output(data)} not in {schema['enum']}")
+
+    Event Codes (greppable):
+        [SANITIZE_LLM_OUTPUT_TRUNCATED] - Output was truncated due to length
+        [SANITIZE_LLM_OUTPUT_CONTROL_CHARS] - Control characters were removed
+    """
+    # Use repr() for type safety and to escape special characters
+    sanitized = repr(value)
+
+    # Remove control characters (except common whitespace like \n, \t)
+    original_len = len(sanitized)
+    sanitized = _CONTROL_CHAR_PATTERN.sub('', sanitized)
+    if len(sanitized) < original_len:
+        logger.debug(
+            f"[SANITIZE_LLM_OUTPUT_CONTROL_CHARS] Removed control chars from {context}",
+            extra={"operation": "sanitize_llm_output", "context": context}
+        )
+
+    # Replace newlines with escaped representation for single-line logging
+    sanitized = sanitized.replace('\n', '\\n').replace('\r', '\\r')
+
+    # Truncate if too long
+    if len(sanitized) > max_length:
+        truncated = sanitized[:max_length] + "..."
+        logger.debug(
+            f"[SANITIZE_LLM_OUTPUT_TRUNCATED] Truncated {context} from {len(sanitized)} to {max_length} chars",
+            extra={"operation": "sanitize_llm_output", "context": context}
+        )
+        return truncated
+
+    return sanitized
 
 
 class TaskComplexity(str, Enum):
@@ -237,9 +312,9 @@ def validate_against_schema(
             return SchemaValidationResult(is_valid=False, errors=errors)
 
     # Check enum constraint
-    # Use repr() to sanitize data and prevent log injection from malformed LLM output
+    # Use sanitize_llm_output() to prevent log injection from malformed LLM output
     if "enum" in schema and data not in schema["enum"]:
-        errors.append(f"{path or 'root'}: value {repr(data)} not in allowed values {schema['enum']}")
+        errors.append(f"{path or 'root'}: value {sanitize_llm_output(data, context='enum_value')} not in allowed values {schema['enum']}")
 
     # For objects, check required fields and validate properties
     if expected_type == "object" and isinstance(data, dict):
