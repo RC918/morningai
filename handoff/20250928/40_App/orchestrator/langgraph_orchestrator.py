@@ -5528,6 +5528,9 @@ def fixer_node(state: AgentState) -> AgentState:
             state["messages"] = state.get("messages", []) + [
                 AIMessage(content=f"AutoFixer stopped by loop protection after {current_attempts} attempts")
             ]
+            # Set flag to signal should_proceed_after_fixer to route to finalizer
+            # This prevents infinite recursion: fixer → ci_monitor → reviewer → fixer → ...
+            state["loop_protection_triggered"] = True
             latency_ms = (time.time() - start_time) * 1000
             metrics.record_fixer_attempt(trace_id, retry_count, success=False)
             metrics.record_node_complete("fixer", trace_id, success=False, latency_ms=latency_ms)
@@ -7260,6 +7263,7 @@ def should_proceed_after_fixer(state: AgentState) -> str:
     EPIC D Issue #3487: SeniorCoder HITL Gate
 
     Routes based on HITL requirement:
+    - finalizer: If loop_protection_triggered is True (prevents infinite recursion)
     - hitl_gate: If requires_hitl_approval is True and hitl_approved is False
       (SeniorCoder determined task complexity is too high)
     - ci_monitor: If ci_failure_trigger is True (CI failure auto-fix flow)
@@ -7280,7 +7284,24 @@ def should_proceed_after_fixer(state: AgentState) -> str:
     hitl_approved = state.get("hitl_approved") is True
     hitl_reason = state.get("hitl_reason", "")
     ci_failure_trigger = state.get("ci_failure_trigger") is True
+    loop_protection_triggered = state.get("loop_protection_triggered") is True
     metrics = _get_metrics()
+
+    # CRITICAL: Route to finalizer if loop protection triggered
+    # This prevents infinite recursion: fixer → ci_monitor → reviewer → fixer → ...
+    if loop_protection_triggered:
+        logger.warning(
+            f"[FIXER_ROUTING] Loop protection triggered, routing to finalizer to prevent recursion. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "fixer_routing",
+                "trace_id": trace_id,
+                "event_code": "FIXER_LOOP_PROTECTION_TO_FINALIZER",
+                "loop_protection_triggered": True,
+            }
+        )
+        metrics.record_transition("fixer", "finalizer", trace_id)
+        return "finalizer"
 
     # Route to HITL gate if approval is required and not yet approved
     if requires_hitl and not hitl_approved:
@@ -8619,19 +8640,21 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
         }
     )
 
-    # fixer → (executor | hitl_gate | ci_monitor)
+    # fixer → (executor | hitl_gate | ci_monitor | finalizer)
     # EPIC D Issue #3487: SeniorCoder HITL Gate
     # Changed from direct edge to conditional edge to support HITL escalation
     # when SeniorCoder determines task complexity is too high
     # Issue #3541: Added ci_monitor route for CI failure auto-fix to bypass
     # executor_node (which calls graph.execute with ValueGate)
+    # Fix: Added finalizer route for loop protection to prevent infinite recursion
     workflow.add_conditional_edges(
         "fixer",
         should_proceed_after_fixer,
         {
             "executor": "executor",
             "hitl_gate": "hitl_gate",
-            "ci_monitor": "ci_monitor"
+            "ci_monitor": "ci_monitor",
+            "finalizer": "finalizer"
         }
     )
 
