@@ -256,7 +256,7 @@ def _update_span_id_in_state(
     )
 
 
-def node_metrics(node_name: str) -> Callable:
+def node_metrics(node_name: str, epic_tag: str = "EPIC-C") -> Callable:
     """
     Decorator to extract common node boilerplate for metrics recording.
 
@@ -270,17 +270,39 @@ def node_metrics(node_name: str) -> Callable:
     Issue #3578 SSOT Telemetry v3: When ENABLE_SSOT_TELEMETRY=true, also emits
     TelemetryRecordV3 spans with proper parent-child hierarchy via current_span_id.
 
+    Issue #3706: epic_tag is now configurable for more granular telemetry
+    categorization per node. Defaults to "EPIC-C" for backward compatibility.
+
     Issue #3707: State mutation for span_id is handled via _update_span_id_in_state()
     helper function with proper documentation and safety measures.
 
-    Usage:
-        @node_metrics("pm_advisor")
-        def pm_advisor_node(state: AgentState) -> AgentState:
-            # Node logic here - set success[0] = True on success
-            return state
+    Args:
+        node_name: Name of the node for metrics identification.
+        epic_tag: Epic tag for telemetry categorization (default: "EPIC-C").
 
-    The decorated function receives an additional 'success' parameter
-    (a mutable list [False]) that should be set to [True] on success.
+    Returns:
+        Callable: A decorator that wraps the node function.
+
+    Examples:
+        The decorated function must accept a `success` keyword argument, which is a
+        mutable list `[False]`. The function should set `success[0] = True` upon
+        successful execution.
+
+        Basic usage::
+
+            @node_metrics("pm_advisor")
+            def pm_advisor_node(state: AgentState, success: list) -> AgentState:
+                # Node logic here
+                success[0] = True
+                return state
+
+        With a custom epic tag::
+
+            @node_metrics("review_node", epic_tag="EPIC-D")
+            def review_node(state: AgentState, success: list) -> AgentState:
+                # Node logic here
+                success[0] = True
+                return state
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
@@ -345,7 +367,7 @@ def node_metrics(node_name: str) -> Callable:
                             status_code=status_code,
                             status_message=error_message,
                             node_name=node_name,
-                            epic_tag="EPIC-C",
+                            epic_tag=epic_tag,
                             metrics={"latency_ms": latency_ms},
                             attributes={
                                 "trace_id": trace_id,
