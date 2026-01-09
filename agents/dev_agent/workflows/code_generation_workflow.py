@@ -559,10 +559,16 @@ class CodeGenerationWorkflow:
             ast.parse(code)
             return (True, None)
         except SyntaxError as e:
+            # Issue #3697: Include e.text (the erroneous line) for better LLM feedback
+            # gemini-code-assist suggestion: e.text helps LLM understand exact error location
+            error_line_text = e.text.strip() if e.text else ""
             error_msg = (
                 f"Generated code has invalid Python syntax: "
                 f"{e.msg} at line {e.lineno}, column {e.offset}"
             )
+            if error_line_text:
+                error_msg += f"\nErroneous line: {error_line_text}"
+
             logger.error(
                 f"[CODER_SYNTAX_ERROR] {file_path}: {e.msg} at line {e.lineno}",
                 extra={
@@ -572,6 +578,7 @@ class CodeGenerationWorkflow:
                     "syntax_error_line": e.lineno,
                     "syntax_error_column": e.offset,
                     "syntax_error_msg": e.msg,
+                    "syntax_error_text": error_line_text,
                     "code_preview": code[:200] if code else "",
                 }
             )
