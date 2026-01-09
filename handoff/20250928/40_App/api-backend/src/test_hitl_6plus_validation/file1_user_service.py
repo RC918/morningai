@@ -1,47 +1,41 @@
 # Corrected code for file1_user_service.py
-def get_user(user_id):
+def validate_user(user_id):
     if not user_id:
         raise ValueError("user_id cannot be empty")
-    return {"user_id": user_id, "name": "John Doe"}
-
+    return f"User {user_id} is valid"
 
 # Corrected code for file2_order_service.py
-def create_order(order_data):
-    if not order_data or "items" not in order_data:
-        raise ValueError("Invalid order data")
-    return {"order_id": 12345, "status": "created"}
-
+def process_order(order_id):
+    if not order_id:
+        raise ValueError("order_id cannot be empty")
+    return f"Order {order_id} processed successfully"
 
 # Corrected code for file3_payment_service.py
-def process_payment(payment_info):
-    if not payment_info or "amount" not in payment_info:
-        raise ValueError("Invalid payment info")
-    return {"payment_id": 67890, "status": "success"}
-
+def handle_payment(payment_id):
+    if not payment_id:
+        raise ValueError("payment_id cannot be empty")
+    return f"Payment {payment_id} completed"
 
 # Corrected code for file4_inventory_service.py
 def check_inventory(product_id):
     if not product_id:
         raise ValueError("product_id cannot be empty")
-    return {"product_id": product_id, "available": True}
-
+    return f"Inventory checked for product {product_id}"
 
 # Corrected code for file5_shipping_service.py
-def schedule_shipping(order_id):
+def ship_order(order_id):
     if not order_id:
         raise ValueError("order_id cannot be empty")
-    return {"order_id": order_id, "shipping_status": "scheduled"}
-
+    return f"Order {order_id} shipped"
 
 # Corrected code for file6_notification_service.py
 def send_notification(user_id, message):
     if not user_id or not message:
-        raise ValueError("user_id and message are required")
-    return {"user_id": user_id, "message": message, "status": "sent"}
-
+        raise ValueError("user_id and message cannot be empty")
+    return f"Notification sent to user {user_id}: {message}"
 
 # Corrected code for file7_analytics_service.py
-def log_event(event_data):
-    if not event_data or "event_type" not in event_data:
-        raise ValueError("Invalid event data")
-    return {"event_id": 99999, "status": "logged"}
+def log_event(event_name, event_data):
+    if not event_name or not event_data:
+        raise ValueError("event_name and event_data cannot be empty")
+    return f"Event {event_name} logged with data: {event_data}"
