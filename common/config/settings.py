@@ -2544,6 +2544,18 @@ class Settings(BaseSettings):
         )
     )
 
+    enable_multi_file_hitl_escalation: bool = Field(
+        default=True,
+        alias="ENABLE_MULTI_FILE_HITL_ESCALATION",
+        description=(
+            "Enable HITL escalation when GeneralCoder skips due to 6+ files (P1 feature). "
+            "Default True = When GeneralCoder cannot handle 6+ files, trigger HITL escalation "
+            "to request human review instead of silently falling back to SimpleCoder/AutoFixer. "
+            "This improves user experience by surfacing complex multi-file issues that require "
+            "human oversight. Depends on Context Manager Telemetry for file selection data."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""

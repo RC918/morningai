@@ -4795,6 +4795,73 @@ def _attempt_general_coder_fix(
     if not output.success:
         reason = output.data.get("reason", "Unknown") if output.data else "Unknown"
         logger.info(f"[GENERAL_CODER_SKIP] {reason}. trace_id={trace_id}")
+
+        # P1 Feature: HITL escalation for 6+ files
+        # When GeneralCoder skips due to too many files, trigger HITL escalation
+        # instead of silently falling back to SimpleCoder/AutoFixer
+        if "Too many files" in reason and settings.enable_multi_file_hitl_escalation:
+            import re
+            from resource_telemetry import log_multi_file_hitl_escalation
+
+            # Extract file count from reason (e.g., "Too many files: 7 > 5")
+            # Robust parsing with explicit handling of parse failures
+            match = re.search(r"Too many files: (\d+) > (\d+)", reason)
+            if match:
+                file_count = int(match.group(1))
+                max_files = int(match.group(2))
+            else:
+                # Sanitize reason string to prevent log injection
+                sanitized_reason = reason.replace('\n', '\\n').replace('\r', '\\r')
+                logger.warning(
+                    f"[GENERAL_CODER_HITL_PARSE_WARNING] Could not parse file count from "
+                    f"skip reason: '{sanitized_reason}'. Using defaults. trace_id={trace_id}",
+                    extra={
+                        "operation": "general_coder_hitl_parse",
+                        "trace_id": trace_id,
+                        "event_code": "GENERAL_CODER_HITL_PARSE_WARNING",
+                    }
+                )
+                file_count = 0
+                max_files = settings.general_coder_max_files
+
+            # Set HITL escalation flags in state
+            state["requires_hitl_approval"] = True
+            state["hitl_approved"] = False
+            state["hitl_reason"] = "multi_file_limit_exceeded"
+            state["hitl_details"] = {
+                "version": "1.0",
+                "escalation_reason": reason,
+                "file_count": file_count,
+                "max_files_limit": max_files,
+                "recommendation": (
+                    f"GeneralCoder cannot handle {file_count} files (limit: {max_files}). "
+                    "Consider breaking down the task into smaller chunks or "
+                    "manually reviewing the multi-file changes."
+                ),
+            }
+
+            # Log telemetry event
+            pr_number = state.get("pr_number")
+            log_multi_file_hitl_escalation(
+                file_count=file_count,
+                max_files=max_files,
+                skip_reason=reason,
+                trace_id=trace_id,
+                pr_number=pr_number,
+            )
+
+            logger.warning(
+                f"[GENERAL_CODER_MULTI_FILE_HITL_ESCALATION] "
+                f"HITL escalation triggered for {file_count} files. trace_id={trace_id}",
+                extra={
+                    "operation": "general_coder_multi_file_hitl_escalation",
+                    "trace_id": trace_id,
+                    "event_code": "GENERAL_CODER_MULTI_FILE_HITL_ESCALATION",
+                    "file_count": file_count,
+                    "max_files_limit": max_files,
+                }
+            )
+
         return False, f"GeneralCoder skipped: {reason}"
 
     coder_data = output.data or {}
@@ -7140,6 +7207,22 @@ def should_proceed_after_hitl_gate(state: AgentState) -> str:
                 "operation": "hitl_gate_routing",
                 "trace_id": trace_id,
                 "event_code": "SENIOR_CODER_HITL_APPROVED",
+                "hitl_reason": hitl_reason,
+            }
+        )
+        metrics.record_transition("hitl_gate", "executor", trace_id)
+        return "executor"
+
+    # P1 Feature: After HITL approval for multi-file limit exceeded,
+    # route directly to executor (human has acknowledged the limitation)
+    if hitl_reason == "multi_file_limit_exceeded" and hitl_approved:
+        logger.info(
+            f"[HITL_GATE_ROUTING] Multi-file limit exceeded approved, routing to executor. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "hitl_gate_routing",
+                "trace_id": trace_id,
+                "event_code": "MULTI_FILE_HITL_APPROVED",
                 "hitl_reason": hitl_reason,
             }
         )
