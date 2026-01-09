@@ -15,6 +15,7 @@ The syntax validation is the last line of defense before code is committed.
 If an LLM generates syntactically invalid Python, this guardrail catches it.
 """
 import json
+import logging
 import pytest
 from unittest.mock import patch
 
@@ -329,13 +330,10 @@ def process_data(items):
 
     def test_catches_mixed_indentation(self):
         """Should catch mixed tabs/spaces (common LLM failure)."""
-        code = "def foo():\n\tif True:\n        pass"
-        # Note: This might pass in some Python versions, but the test
-        # documents the expected behavior
+        code = "def foo():\n\tif True:\n        pass"  # Mixed tab and spaces
         is_valid, error = validate_python_syntax(code)
-        # Mixed indentation may or may not be a syntax error depending on context
-        # The important thing is that we test it
-        assert isinstance(is_valid, bool)
+        assert is_valid is False
+        assert "TabError" in error
 
     def test_catches_incomplete_string(self):
         """Should catch incomplete string literal."""
@@ -352,13 +350,12 @@ def process_data(items):
         assert "SyntaxError" in error
 
     def test_catches_invalid_escape_sequence(self):
-        """Should catch invalid escape in non-raw string."""
-        # Note: Invalid escape sequences are warnings in Python 3.6+,
-        # but may become errors in future versions
-        code = r'x = "\q"'  # \q is not a valid escape
+        """Should catch invalid escape sequence that is a SyntaxError."""
+        # An unterminated unicode escape like '\u' is a hard SyntaxError.
+        code = "'\\u'"
         is_valid, error = validate_python_syntax(code)
-        # This is actually valid syntax (just a warning), so it should pass
-        assert is_valid is True
+        assert is_valid is False
+        assert "SyntaxError" in error
 
     def test_catches_mismatched_brackets(self):
         """Should catch mismatched brackets."""
@@ -431,7 +428,6 @@ def format_nested(outer, inner):
             })
         }
 
-        import logging
         with caplog.at_level(logging.WARNING):
             result = coder.generate_fix(
                 file_path="test.py",
@@ -515,7 +511,6 @@ class TestGeneralCoderSyntaxIntegration:
             })
         }
 
-        import logging
         with caplog.at_level(logging.WARNING):
             result = coder.generate_multi_file_fix(
                 files=[{"path": "bad.py", "content": "# bad"}],
