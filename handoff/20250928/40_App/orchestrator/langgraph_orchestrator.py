@@ -4600,6 +4600,7 @@ def _attempt_general_coder_fix(
         [GENERAL_CODER_PATCH_APPLIED] - Patches successfully applied via GitHub API
         [GENERAL_CODER_PATCH_FAILED] - Patch application failed
         [GENERAL_CODER_DISABLED] - Feature flag disabled
+        [SENIOR_CODER_SINGLE_FILE_CI_FAILURE] - Single file CI failure, SeniorCoder invoked
     """
     try:
         from coder.autofix_gate import is_autofix_allowed, is_senior_coder_required
@@ -4641,13 +4642,32 @@ def _attempt_general_coder_fix(
     review_files = state.get("review_files", [])
     file_path = state.get("review_file_path", "")
 
-    # If only single file, let SimpleCoder handle it
-    if len(review_files) <= 1 and file_path:
+    # Issue #3720: For CI failure scenarios, do NOT skip SeniorCoder for single files
+    # SeniorCoder should evaluate complexity regardless of file count for CI failures
+    # This aligns with CTO directive in Issue #3366: "如果 ci_failure_trigger 為 True，
+    # 無視 severity == 'low' 的限制" - same principle applies to single-file bypass
+    # Blueprint alignment: SeniorCoder (Tier 1) is for "Deep reasoning" - complexity
+    # detection IS deep reasoning, regardless of file count
+    if len(review_files) <= 1 and file_path and not ci_failure_trigger:
         logger.info(
             f"[GENERAL_CODER_GATE_FAIL] Single file detected, deferring to SimpleCoder. "
             f"review_files_count={len(review_files)}, file_path={file_path}, trace_id={trace_id}"
         )
         return False, "Single file - deferring to SimpleCoder"
+
+    # Log when SeniorCoder is invoked for single-file CI failure (Probe 2 scenario)
+    if len(review_files) <= 1 and file_path and ci_failure_trigger:
+        logger.info(
+            f"[SENIOR_CODER_SINGLE_FILE_CI_FAILURE] Single file CI failure, "
+            f"invoking SeniorCoder for complexity evaluation. "
+            f"file_path={file_path}, trace_id={trace_id}",
+            extra={
+                "operation": "senior_coder_single_file_ci_failure",
+                "trace_id": trace_id,
+                "event_code": "SENIOR_CODER_SINGLE_FILE_CI_FAILURE",
+                "file_path": file_path,
+            }
+        )
 
     # Build files list from review_files or single file
     files_to_fix = []
