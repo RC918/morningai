@@ -237,7 +237,7 @@ def validate_against_schema(
             return SchemaValidationResult(is_valid=False, errors=errors)
 
     # Check enum constraint
-    # Use repr() to sanitize data and prevent log injection (gemini-code-assist HIGH priority fix)
+    # Use repr() to sanitize data and prevent log injection from malformed LLM output
     if "enum" in schema and data not in schema["enum"]:
         errors.append(f"{path or 'root'}: value {repr(data)} not in allowed values {schema['enum']}")
 
