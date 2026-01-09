@@ -233,9 +233,11 @@ def _update_span_id_in_state(
     Event Codes (greppable):
         [SPAN_STATE_UPDATE] - Span ID updated in state for hierarchy tracking
     """
-    if not isinstance(state, dict):
+    # Issue #3707: gemini-code-assist suggestion - use MutableMapping for robustness
+    from collections.abc import MutableMapping
+    if not isinstance(state, MutableMapping):
         logger.warning(
-            f"[SPAN_STATE_UPDATE] Cannot update span_id: state is not a dict "
+            f"[SPAN_STATE_UPDATE] Cannot update span_id: state is not a mutable mapping "
             f"(type={type(state).__name__}, node={node_name})"
         )
         return
