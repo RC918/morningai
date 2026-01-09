@@ -4674,7 +4674,7 @@ def _attempt_general_coder_fix(
     # so it can detect "Too many files" and trigger HITL escalation (PR #3732).
     # Previously this was limited to settings.general_coder_max_files (5), which
     # prevented GeneralCoder from ever seeing 6+ files and triggering HITL.
-    # Use MAX_CI_ERROR_FILE_PATHS (20) as upper limit to prevent extreme edge cases.
+    # Use MAX_FILES_FOR_GENERAL_CODER (20) as upper limit to prevent extreme edge cases.
     MAX_FILES_FOR_GENERAL_CODER = 20
     files_to_fix = []
     if review_files:
