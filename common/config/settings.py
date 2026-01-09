@@ -2556,6 +2556,20 @@ class Settings(BaseSettings):
         )
     )
 
+    require_design_doc_gate: bool = Field(
+        default=True,
+        alias="REQUIRE_DESIGN_DOC_GATE",
+        description=(
+            "Enforce mandatory architecture review before GeneralCoder execution (P2 feature). "
+            "Blueprint Section 4.1 Safety Governor v2 alignment - 強制架構審查. "
+            "Default True = When SeniorCoder is enabled, GeneralCoder MUST have a valid "
+            "ArchitectureSpec before proceeding. If SeniorCoder planning fails or is disabled, "
+            "trigger HITL escalation instead of proceeding without design review. "
+            "This ensures all code changes have proper architecture planning and review. "
+            "Only effective when ENABLE_SENIOR_CODER=True."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""
