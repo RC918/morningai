@@ -1,6 +1,5 @@
-"""Test file for HITL 6+ files verification after PR #3737 fix."""
-import sys  # F401: unused import - intentional lint error
+# Original code with unused 'sys' removed if applicable
+import os
 
-def placeholder_function():
-    """Placeholder function."""
-    return "test"
+def test_function():
+    print("Testing without sys")
