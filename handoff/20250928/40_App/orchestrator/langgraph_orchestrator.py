@@ -195,6 +195,65 @@ def _get_agent_eval() -> AgentEvalIntegration:
     return _agent_eval
 
 
+def _update_span_id_in_state(
+    state: "AgentState",
+    span_id: str,
+    node_name: str
+) -> None:
+    """
+    Safely update current_span_id in LangGraph state for span hierarchy tracking.
+
+    Issue #3707: This helper function encapsulates the intentional direct state
+    mutation pattern used for span_id propagation in the node_metrics decorator.
+
+    WHY DIRECT MUTATION IS INTENTIONAL HERE:
+    =========================================
+    In LangGraph, the standard convention is for nodes to return partial state
+    updates that get merged after node completion. However, for span hierarchy
+    tracking, we need to update current_span_id BEFORE the wrapped node runs,
+    so that any child spans created during node execution can reference the
+    correct parent span_id.
+
+    This is a decorator pattern, not a node pattern - decorators that need to
+    modify state before the wrapped function runs have different constraints
+    than regular nodes.
+
+    SAFETY MEASURES:
+    ================
+    1. Only mutates when ENABLE_SSOT_TELEMETRY=true (feature flag protection)
+    2. Only mutates the current_span_id field (minimal scope)
+    3. Logs the mutation for debugging and audit trail
+    4. Validates state is a mutable mapping before mutation
+
+    Args:
+        state: The LangGraph AgentState to update
+        span_id: The new span_id to set
+        node_name: The node name (for logging)
+
+    Event Codes (greppable):
+        [SPAN_STATE_UPDATE] - Span ID updated in state for hierarchy tracking
+    """
+    if not isinstance(state, dict):
+        logger.warning(
+            f"[SPAN_STATE_UPDATE] Cannot update span_id: state is not a dict "
+            f"(type={type(state).__name__}, node={node_name})"
+        )
+        return
+
+    old_span_id = state.get("current_span_id")
+    state["current_span_id"] = span_id
+
+    logger.debug(
+        f"[SPAN_STATE_UPDATE] {node_name}: {old_span_id} -> {span_id}",
+        extra={
+            "event_type": "span_state_update",
+            "node_name": node_name,
+            "old_span_id": old_span_id,
+            "new_span_id": span_id,
+        }
+    )
+
+
 def node_metrics(node_name: str) -> Callable:
     """
     Decorator to extract common node boilerplate for metrics recording.
@@ -208,6 +267,9 @@ def node_metrics(node_name: str) -> Callable:
 
     Issue #3578 SSOT Telemetry v3: When ENABLE_SSOT_TELEMETRY=true, also emits
     TelemetryRecordV3 spans with proper parent-child hierarchy via current_span_id.
+
+    Issue #3707: State mutation for span_id is handled via _update_span_id_in_state()
+    helper function with proper documentation and safety measures.
 
     Usage:
         @node_metrics("pm_advisor")
@@ -253,9 +315,10 @@ def node_metrics(node_name: str) -> Callable:
             success = [False]
             error_message = None
             try:
-                # Update current_span_id in state for child spans
+                # Issue #3707: Update current_span_id in state for child spans
+                # Uses _update_span_id_in_state() helper for safe, documented mutation
                 if span_context is not None:
-                    state["current_span_id"] = span_context.span_id
+                    _update_span_id_in_state(state, span_context.span_id, node_name)
                 result = func(state, success)
             except Exception as e:
                 error_message = str(e)
