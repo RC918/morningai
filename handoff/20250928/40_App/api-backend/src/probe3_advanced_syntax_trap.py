@@ -7,9 +7,13 @@ def calculate_sum(a, b):
 def process_data(data):
     total = 0
     for item in data:
-        total += item
+        value = item.get('value', 0)
+        total += value
     return total
 
-data_list = [1, 2, 3, 4, 5]
-output = process_data(data_list)
-print(output)
+# Lint error: F841 unused variable 'unused_var'
+def example_function():
+    used_var = 42
+    print(used_var)
+
+example_function()
