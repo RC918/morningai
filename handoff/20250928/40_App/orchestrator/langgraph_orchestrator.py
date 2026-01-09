@@ -206,6 +206,9 @@ def node_metrics(node_name: str) -> Callable:
     - latency_ms calculation
     - metrics.record_node_complete()
 
+    Issue #3578 SSOT Telemetry v3: When ENABLE_SSOT_TELEMETRY=true, also emits
+    TelemetryRecordV3 spans with proper parent-child hierarchy via current_span_id.
+
     Usage:
         @node_metrics("pm_advisor")
         def pm_advisor_node(state: AgentState) -> AgentState:
@@ -224,9 +227,39 @@ def node_metrics(node_name: str) -> Callable:
 
             metrics.record_node_start(node_name, trace_id)
 
+            # Issue #3578: SSOT Telemetry v3 span creation
+            span_context = None
+            TelemetryRecordV3 = None
+            StatusCode = None
+            if settings.enable_ssot_telemetry:
+                try:
+                    from core.telemetry import (
+                        TelemetryRecordV3,
+                        create_span_context,
+                        StatusCode,
+                    )
+                except ImportError as import_err:
+                    logger.debug(
+                        f"[node_metrics] core.telemetry not available, skipping SSOT spans: {import_err}"
+                    )
+                else:
+                    # Only create span context if import succeeded
+                    parent_span_id = state.get("current_span_id")
+                    span_context = create_span_context(
+                        trace_id=trace_id if trace_id != "unknown" else None,
+                        parent_span_id=parent_span_id,
+                    )
+
             success = [False]
+            error_message = None
             try:
+                # Update current_span_id in state for child spans
+                if span_context is not None:
+                    state["current_span_id"] = span_context.span_id
                 result = func(state, success)
+            except Exception as e:
+                error_message = str(e)
+                raise
             finally:
                 latency_ms = (time.time() - start_time) * 1000
                 metrics.record_node_complete(
@@ -234,6 +267,32 @@ def node_metrics(node_name: str) -> Callable:
                 )
                 # P1 瘦身計畫 (#3197): Log RSS after each node for resource profiling
                 log_resource_peak(node_name, trace_id)
+
+                # Issue #3578: Emit SSOT telemetry span on completion
+                # Note: span_context is only non-None if enable_ssot_telemetry was True
+                if span_context is not None:
+                    try:
+                        status_code = StatusCode.OK if success[0] else StatusCode.ERROR
+                        record = TelemetryRecordV3.create(
+                            name=f"node.{node_name}",
+                            span_context=span_context,
+                            component="LangGraphOrchestrator",
+                            status_code=status_code,
+                            status_message=error_message,
+                            node_name=node_name,
+                            epic_tag="EPIC-C",
+                            metrics={"latency_ms": latency_ms},
+                            attributes={
+                                "trace_id": trace_id,
+                                "success": success[0],
+                            },
+                        )
+                        record.emit()
+                    except Exception as emit_err:
+                        logger.debug(
+                            f"[node_metrics] Failed to emit SSOT span: {emit_err}",
+                            exc_info=True
+                        )
 
             return result
         return wrapper
@@ -2466,6 +2525,11 @@ class AgentState(TypedDict):
     # Format: List of dicts with "path" key, e.g., [{"path": "src/foo.py"}, {"path": "src/bar.py"}]
     # IMPORTANT: This field must be defined in AgentState for LangGraph to properly propagate it.
     review_files: Optional[list]
+    # Issue #3578: SSOT Telemetry Schema v3 - Span hierarchy tracking
+    # Set by node_metrics decorator when ENABLE_SSOT_TELEMETRY=true.
+    # Used to establish parent-child relationships between node spans.
+    # Each node creates a child span with this as parent_span_id, then updates this field.
+    current_span_id: Optional[str]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
