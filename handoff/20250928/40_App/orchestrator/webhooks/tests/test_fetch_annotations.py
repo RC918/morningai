@@ -228,13 +228,18 @@ class TestAnnotationAPIRateLimit:
 
 
 class TestMaxFilesLimit:
-    """Tests for D-1b 5-file limit"""
+    """Tests for MAX_CI_ERROR_FILE_PATHS limit (20 files for HITL 6+ files support)"""
 
-    def test_max_5_files_limit(self, normalizer):
-        """Test that only 5 files are returned (D-1b limit)"""
+    def test_max_20_files_limit(self, normalizer):
+        """Test that files are limited to MAX_CI_ERROR_FILE_PATHS (20)
+
+        Originally limited to 5 for D-1b, increased to 20 to support HITL 6+ files
+        escalation path (PR #3737). GeneralCoder needs to receive all files to
+        detect "Too many files" condition and trigger HITL escalation.
+        """
         annotations = [
             MockAnnotation(f"src/file{i}.py", i, f"Error in file {i}")
-            for i in range(10)  # 10 files
+            for i in range(25)  # 25 files, should be limited to 20
         ]
         check_run = MockCheckRun("lint", "failure", annotations)
         check_suite = MockCheckSuite([check_run])
@@ -251,8 +256,32 @@ class TestMaxFilesLimit:
                     "test-owner/test-repo", 12345, "test-event-limit"
                 )
 
-        # Should be limited to 5 files (D-1b limit)
-        assert len(file_paths) == 5
+        # Should be limited to 20 files (MAX_CI_ERROR_FILE_PATHS for HITL 6+ files)
+        assert len(file_paths) == 20
+
+    def test_files_under_limit_not_truncated(self, normalizer):
+        """Test that files under the limit are not truncated"""
+        annotations = [
+            MockAnnotation(f"src/file{i}.py", i, f"Error in file {i}")
+            for i in range(10)  # 10 files, under limit
+        ]
+        check_run = MockCheckRun("lint", "failure", annotations)
+        check_suite = MockCheckSuite([check_run])
+
+        mock_repo = MagicMock()
+        mock_repo.get_check_suite.return_value = check_suite
+
+        mock_github = MagicMock()
+        mock_github.get_repo.return_value = mock_repo
+
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "test-token"}):
+            with patch("github.Github", return_value=mock_github):
+                _, _, file_paths = normalizer._fetch_failed_check_runs(
+                    "test-owner/test-repo", 12345, "test-event-under-limit"
+                )
+
+        # All 10 files should be returned (under limit)
+        assert len(file_paths) == 10
 
 
 class TestDuplicateFilePaths:

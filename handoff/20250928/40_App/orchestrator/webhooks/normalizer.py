@@ -1937,8 +1937,27 @@ class EventNormalizer:
                 combined = "; ".join(error_summary_parts)
                 error_summary = combined[:500] if len(combined) > 500 else combined
 
-            # Convert file paths set to list, limit to 5 for D-1b
-            ci_error_file_paths_list = list(ci_error_file_paths)[:5]
+            # Convert file paths set to list
+            # Issue: HITL 6+ files escalation requires passing all files to GeneralCoder
+            # so it can detect "Too many files" and trigger HITL escalation.
+            # Use a reasonable upper limit (20) to prevent extreme edge cases.
+            MAX_CI_ERROR_FILE_PATHS = 20
+            total_file_paths = len(ci_error_file_paths)
+            ci_error_file_paths_list = list(ci_error_file_paths)[:MAX_CI_ERROR_FILE_PATHS]
+
+            # Telemetry: Log when file paths are truncated (Blueprint 4.2 observability)
+            if total_file_paths > MAX_CI_ERROR_FILE_PATHS:
+                logger.warning(
+                    "[EventNormalizer] CI error file paths truncated for HITL processing",
+                    extra={
+                        "operation": "ci_error_file_paths_truncated",
+                        "event_id": event_id,
+                        "repo": repo,
+                        "total_file_paths": total_file_paths,
+                        "max_file_paths": MAX_CI_ERROR_FILE_PATHS,
+                        "truncated_count": total_file_paths - MAX_CI_ERROR_FILE_PATHS,
+                    }
+                )
 
             logger.info(
                 "[EventNormalizer] Fetched failed check_runs from GitHub API",
@@ -1951,6 +1970,7 @@ class EventNormalizer:
                     "failed_check_names": failed_check_names[:5],  # Log first 5
                     "ci_error_file_paths": ci_error_file_paths_list,
                     "ci_error_file_paths_count": len(ci_error_file_paths_list),
+                    "total_file_paths_before_limit": total_file_paths,
                 }
             )
 
