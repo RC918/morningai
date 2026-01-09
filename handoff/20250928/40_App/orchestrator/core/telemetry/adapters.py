@@ -86,6 +86,7 @@ class PolicyTelemetryEventDict:
 POLICY_EVENT_KNOWN_KEYS = frozenset([
     "event_type", "timestamp", "component", "action",
     "current_tokens", "max_tokens", "current_usd", "max_usd",
+    "trace_id", "parent_span_id",  # Issue #3712: Already in span_context
 ])
 
 POLICY_EVENT_METRIC_KEYS = frozenset([
@@ -320,6 +321,7 @@ def from_policy_telemetry_event(
             metrics[key] = float(event_dict[key])
 
     # Filter out known keys from attributes using defined constant
+    # Issue #3712: trace_id/parent_span_id already in span_context
     attributes = {k: v for k, v in event_dict.items() if k not in POLICY_EVENT_KNOWN_KEYS}
 
     return TelemetryRecordV3.create(
