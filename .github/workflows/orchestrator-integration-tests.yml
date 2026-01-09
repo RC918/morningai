@@ -10,6 +10,7 @@ name: Orchestrator Integration Tests
 #   - Remove continue-on-error: true
 #   - Tests become observable but still non-required
 #   - Monitor flake rate in CI summary
+#   - NOTE (2026-01-09): Target date passed, evaluate graduation readiness
 #
 # Stage 2 (Target: flake rate < 1% over 2 weeks, 20+ consecutive greens):
 #   - Add to required checks in branch protection
