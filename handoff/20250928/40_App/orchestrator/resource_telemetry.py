@@ -7,6 +7,9 @@ Provides per-workflow resource measurement and telemetry events:
 - [PROMPT_BUILD_BYTES]: LLM prompt size before call
 - [CHECKPOINT_PUT_BYTES]: Checkpoint payload size
 - [LLM_RESPONSE_BYTES]: LLM response size
+- [CONTEXT_FILE_SCAN]: Files scanned during context extraction
+- [CONTEXT_FILE_SELECT]: Files selected for context (with scores)
+- [CONTEXT_TOKEN_BUDGET]: Token budget usage during context building
 
 All events include trace_id for correlation.
 
@@ -291,6 +294,142 @@ def log_checkpoint_put_bytes(
             "checkpoint_count": checkpoint_count,
             "thread_id": thread_id,
             "is_degraded": is_degraded,
+            "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
+            "timestamp_ms": _get_timestamp_ms()
+        }
+    )
+
+
+def log_context_file_scan(
+    goal: str,
+    files_scanned: int,
+    search_dirs: list[str],
+    max_scan: int,
+    trace_id: Optional[str] = None,
+    operation: str = "context_manager"
+) -> None:
+    """
+    Log [CONTEXT_FILE_SCAN] event during context extraction file scanning.
+
+    Args:
+        goal: User's goal (truncated for logging)
+        files_scanned: Number of files scanned
+        search_dirs: Directories searched
+        max_scan: Maximum files to scan limit
+        trace_id: Trace ID for correlation (optional)
+        operation: Operation name for log filtering
+    """
+    if not _is_telemetry_enabled():
+        return
+
+    rss_mb, rss_available = get_current_rss_mb()
+
+    logger.info(
+        f"[CONTEXT_FILE_SCAN] Scanned {files_scanned} files for context",
+        extra={
+            "operation": operation,
+            "trace_id": trace_id,
+            "event_code": "CONTEXT_FILE_SCAN",
+            "goal_preview": goal[:100] if goal else "",
+            "files_scanned": files_scanned,
+            "search_dirs": search_dirs,
+            "max_scan_limit": max_scan,
+            "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
+            "timestamp_ms": _get_timestamp_ms()
+        }
+    )
+
+
+def log_context_file_select(
+    selected_files: list[tuple[str, float]],
+    max_files: int,
+    trace_id: Optional[str] = None,
+    operation: str = "context_manager"
+) -> None:
+    """
+    Log [CONTEXT_FILE_SELECT] event when files are selected for context.
+
+    Args:
+        selected_files: List of (file_path, score) tuples
+        max_files: Maximum files limit
+        trace_id: Trace ID for correlation (optional)
+        operation: Operation name for log filtering
+    """
+    if not _is_telemetry_enabled():
+        return
+
+    rss_mb, rss_available = get_current_rss_mb()
+
+    file_details = [
+        {"path": path, "score": round(score, 4)}
+        for path, score in selected_files
+    ]
+
+    logger.info(
+        f"[CONTEXT_FILE_SELECT] Selected {len(selected_files)} files for context",
+        extra={
+            "operation": operation,
+            "trace_id": trace_id,
+            "event_code": "CONTEXT_FILE_SELECT",
+            "selected_count": len(selected_files),
+            "max_files_limit": max_files,
+            "selected_files": file_details,
+            "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
+            "timestamp_ms": _get_timestamp_ms()
+        }
+    )
+
+
+def log_context_token_budget(
+    files_included: int,
+    files_excluded: int,
+    tokens_used: int,
+    max_tokens: int,
+    budget_exceeded: bool,
+    excluded_files: Optional[list[str]] = None,
+    trace_id: Optional[str] = None,
+    operation: str = "context_manager"
+) -> None:
+    """
+    Log [CONTEXT_TOKEN_BUDGET] event showing token budget usage.
+
+    Args:
+        files_included: Number of files included in context
+        files_excluded: Number of files excluded due to budget
+        tokens_used: Estimated tokens used
+        max_tokens: Maximum token budget
+        budget_exceeded: Whether budget was exceeded
+        excluded_files: List of file paths excluded (optional)
+        trace_id: Trace ID for correlation (optional)
+        operation: Operation name for log filtering
+    """
+    if not _is_telemetry_enabled():
+        return
+
+    rss_mb, rss_available = get_current_rss_mb()
+
+    log_level = logging.WARNING if budget_exceeded else logging.INFO
+    msg = f"[CONTEXT_TOKEN_BUDGET] Used {tokens_used}/{max_tokens} tokens"
+    if budget_exceeded:
+        msg += f" (exceeded, {files_excluded} files excluded)"
+
+    logger.log(
+        log_level,
+        msg,
+        extra={
+            "operation": operation,
+            "trace_id": trace_id,
+            "event_code": "CONTEXT_TOKEN_BUDGET",
+            "files_included": files_included,
+            "files_excluded": files_excluded,
+            "tokens_used": tokens_used,
+            "max_tokens": max_tokens,
+            "budget_exceeded": budget_exceeded,
+            "excluded_files": excluded_files or [],
+            "utilization_pct": round((tokens_used / max_tokens) * 100, 1) if max_tokens > 0 else 0,
             "current_rss_mb": round(rss_mb, 2),
             "rss_available": rss_available,
             "timestamp_ms": _get_timestamp_ms()

@@ -18,6 +18,11 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 
 from common.config.settings import settings
+from resource_telemetry import (
+    log_context_file_scan,
+    log_context_file_select,
+    log_context_token_budget,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -263,7 +268,22 @@ def find_relevant_files(
                 break
 
     scored_files.sort(key=lambda x: x[1], reverse=True)
-    return [(path, score) for path, score, _ in scored_files[:max_files]]
+
+    log_context_file_scan(
+        goal=goal,
+        files_scanned=scanned,
+        search_dirs=search_dirs,
+        max_scan=max_scan,
+    )
+
+    selected = [(path, score) for path, score, _ in scored_files[:max_files]]
+
+    log_context_file_select(
+        selected_files=selected,
+        max_files=max_files,
+    )
+
+    return selected
 
 
 def build_context_string(
@@ -284,6 +304,9 @@ def build_context_string(
     """
     context_parts = []
     estimated_tokens = 0
+    included_files = []
+    excluded_files = []
+    budget_exceeded = False
 
     for file_path, score in relevant_files:
         full_path = os.path.join(repo_path, file_path)
@@ -306,10 +329,13 @@ def build_context_string(
             block_tokens = _estimate_tokens(file_block)
 
             if estimated_tokens + block_tokens > max_tokens:
-                break
+                excluded_files.append(file_path)
+                budget_exceeded = True
+                continue
 
             context_parts.append(file_block)
             estimated_tokens += block_tokens
+            included_files.append(file_path)
 
         except Exception as e:
             logger.warning(f"Error building context for {file_path}: {e}")
@@ -319,6 +345,15 @@ def build_context_string(
     if estimated_tokens > max_tokens:
         char_limit = max_tokens * 4
         context = context[:char_limit]
+
+    log_context_token_budget(
+        files_included=len(included_files),
+        files_excluded=len(excluded_files),
+        tokens_used=estimated_tokens,
+        max_tokens=max_tokens,
+        budget_exceeded=budget_exceeded,
+        excluded_files=excluded_files if excluded_files else None,
+    )
 
     return context
 
