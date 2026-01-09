@@ -15,13 +15,20 @@ Usage:
     python scripts/audit_rls_health.py --json             # Output JSON for CI parsing
     python scripts/audit_rls_health.py --table agent_tasks # Audit specific table
 
+    # Environment comparison (Issue #3326):
+    python scripts/audit_rls_health.py --compare-env \\
+      --staging-url $STAGING_DATABASE_URL \\
+      --production-url $PRODUCTION_DATABASE_URL
+
 Exit Codes:
     0 - All checks passed (or no critical issues in report-only mode)
     1 - Critical issues found (when --fail-on-critical is set)
     2 - Configuration or connection error
 
 Environment Variables:
-    DATABASE_URL: PostgreSQL connection string (required)
+    DATABASE_URL: PostgreSQL connection string (required for single-env audit)
+    STAGING_DATABASE_URL: Staging PostgreSQL connection string (for --compare-env)
+    PRODUCTION_DATABASE_URL: Production PostgreSQL connection string (for --compare-env)
 """
 
 import os
@@ -83,6 +90,32 @@ class AuditReport:
     info_count: int = 0
     table_results: list = field(default_factory=list)
     all_issues: list = field(default_factory=list)
+
+
+@dataclass
+class PolicyDiff:
+    """Represents a difference in a policy between environments"""
+    table_name: str
+    policy_name: str
+    diff_type: str  # "staging_only", "production_only", "semantic_diff"
+    staging_value: Optional[str] = None
+    production_value: Optional[str] = None
+    details: Optional[str] = None
+
+
+@dataclass
+class EnvironmentComparisonReport:
+    """Report comparing RLS policies between two environments"""
+    version: str = "1.0"
+    staging_database: str = ""
+    production_database: str = ""
+    staging_only_policies: list = field(default_factory=list)
+    production_only_policies: list = field(default_factory=list)
+    semantic_differences: list = field(default_factory=list)
+    staging_only_tables: list = field(default_factory=list)
+    production_only_tables: list = field(default_factory=list)
+    total_differences: int = 0
+    is_aligned: bool = True
 
 
 class RLSAuditor:
@@ -408,6 +441,286 @@ class RLSAuditor:
         print("=" * 70 + "\n")
 
 
+class RLSEnvironmentComparator:
+    """
+    Compare RLS policies between two environments (e.g., staging and production).
+
+    Issue #3326: Environment Alignment - Fourth layer of RLS Gate 分層 plan.
+
+    This class performs:
+    1. Policy Diff Report: Compare pg_policies views between environments
+    2. Drift Detection: Identify policies that exist in one environment but not the other
+    3. Semantic Comparison: Detect policies with same name but different USING/WITH CHECK clauses
+    """
+
+    def __init__(self, staging_url: str, production_url: str, verbose: bool = False):
+        self.staging_url = staging_url
+        self.production_url = production_url
+        self.verbose = verbose
+        self.staging_conn = None
+        self.production_conn = None
+        self.staging_database = None
+        self.production_database = None
+
+    def _mask_url(self, url: str) -> str:
+        """Mask credentials in database URL for safe logging"""
+        if '@' in url:
+            parts = url.split('@')
+            return f"***@{parts[-1]}"
+        return "***"
+
+    def connect(self) -> bool:
+        """Establish connections to both environments"""
+        try:
+            self.staging_conn = psycopg2.connect(
+                self.staging_url,
+                cursor_factory=RealDictCursor
+            )
+            self.staging_conn.autocommit = True
+
+            with self.staging_conn.cursor() as cur:
+                cur.execute("SELECT current_database()")
+                self.staging_database = cur.fetchone()['current_database']
+
+            if self.verbose:
+                print(f"Connected to staging: {self.staging_database}")
+
+        except Exception as e:
+            print(f"ERROR: Failed to connect to staging database: {e}")
+            return False
+
+        try:
+            self.production_conn = psycopg2.connect(
+                self.production_url,
+                cursor_factory=RealDictCursor
+            )
+            self.production_conn.autocommit = True
+
+            with self.production_conn.cursor() as cur:
+                cur.execute("SELECT current_database()")
+                self.production_database = cur.fetchone()['current_database']
+
+            if self.verbose:
+                print(f"Connected to production: {self.production_database}")
+
+        except Exception as e:
+            print(f"ERROR: Failed to connect to production database: {e}")
+            if self.staging_conn:
+                self.staging_conn.close()
+            return False
+
+        return True
+
+    def disconnect(self):
+        """Close database connections"""
+        if self.staging_conn:
+            self.staging_conn.close()
+        if self.production_conn:
+            self.production_conn.close()
+
+    def _get_tables(self, conn) -> set:
+        """Get all tables in public schema"""
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT tablename
+                FROM pg_tables
+                WHERE schemaname = 'public'
+            """)
+            return {row['tablename'] for row in cur.fetchall()}
+
+    def _get_all_policies(self, conn) -> dict:
+        """
+        Get all RLS policies from a database.
+
+        Returns a dict keyed by (table_name, policy_name) with policy details.
+        """
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    tablename,
+                    policyname,
+                    cmd as operation,
+                    roles,
+                    qual::text as using_clause,
+                    with_check::text as with_check_clause
+                FROM pg_policies
+                WHERE schemaname = 'public'
+                ORDER BY tablename, policyname
+            """)
+            policies = {}
+            for row in cur.fetchall():
+                key = (row['tablename'], row['policyname'])
+                policies[key] = {
+                    'table_name': row['tablename'],
+                    'policy_name': row['policyname'],
+                    'operation': row['operation'],
+                    'roles': row['roles'],
+                    'using_clause': row['using_clause'],
+                    'with_check_clause': row['with_check_clause'],
+                }
+            return policies
+
+    def _normalize_clause(self, clause: Optional[str]) -> str:
+        """Normalize SQL clause for comparison (remove whitespace variations)"""
+        if clause is None:
+            return ""
+        normalized = ' '.join(clause.split())
+        return normalized.lower().strip()
+
+    def compare(self) -> EnvironmentComparisonReport:
+        """
+        Compare RLS policies between staging and production.
+
+        Returns an EnvironmentComparisonReport with all differences found.
+        """
+        staging_tables = self._get_tables(self.staging_conn)
+        production_tables = self._get_tables(self.production_conn)
+
+        staging_policies = self._get_all_policies(self.staging_conn)
+        production_policies = self._get_all_policies(self.production_conn)
+
+        staging_only_tables = staging_tables - production_tables
+        production_only_tables = production_tables - staging_tables
+
+        staging_only_policies = []
+        production_only_policies = []
+        semantic_differences = []
+
+        staging_keys = set(staging_policies.keys())
+        production_keys = set(production_policies.keys())
+
+        for key in staging_keys - production_keys:
+            table_name, policy_name = key
+            reason = ""
+            if table_name in staging_only_tables:
+                reason = f"(table '{table_name}' only exists in staging)"
+            staging_only_policies.append(PolicyDiff(
+                table_name=table_name,
+                policy_name=policy_name,
+                diff_type="staging_only",
+                staging_value=staging_policies[key].get('using_clause'),
+                details=reason
+            ))
+
+        for key in production_keys - staging_keys:
+            table_name, policy_name = key
+            reason = ""
+            if table_name in production_only_tables:
+                reason = f"(table '{table_name}' only exists in production)"
+            production_only_policies.append(PolicyDiff(
+                table_name=table_name,
+                policy_name=policy_name,
+                diff_type="production_only",
+                production_value=production_policies[key].get('using_clause'),
+                details=reason
+            ))
+
+        for key in staging_keys & production_keys:
+            staging_policy = staging_policies[key]
+            production_policy = production_policies[key]
+
+            staging_using = self._normalize_clause(staging_policy.get('using_clause'))
+            production_using = self._normalize_clause(production_policy.get('using_clause'))
+
+            staging_with_check = self._normalize_clause(staging_policy.get('with_check_clause'))
+            production_with_check = self._normalize_clause(production_policy.get('with_check_clause'))
+
+            differences = []
+            if staging_using != production_using:
+                differences.append("USING clause differs")
+            if staging_with_check != production_with_check:
+                differences.append("WITH CHECK clause differs")
+
+            if differences:
+                table_name, policy_name = key
+                # Build comprehensive diff values showing both clauses
+                staging_clauses = []
+                production_clauses = []
+                if staging_using != production_using:
+                    staging_clauses.append(f"USING: {staging_policy.get('using_clause') or 'NULL'}")
+                    production_clauses.append(f"USING: {production_policy.get('using_clause') or 'NULL'}")
+                if staging_with_check != production_with_check:
+                    staging_clauses.append(f"WITH CHECK: {staging_policy.get('with_check_clause') or 'NULL'}")
+                    production_clauses.append(f"WITH CHECK: {production_policy.get('with_check_clause') or 'NULL'}")
+
+                semantic_differences.append(PolicyDiff(
+                    table_name=table_name,
+                    policy_name=policy_name,
+                    diff_type="semantic_diff",
+                    staging_value=" | ".join(staging_clauses),
+                    production_value=" | ".join(production_clauses),
+                    details="; ".join(differences)
+                ))
+
+        total_differences = (
+            len(staging_only_policies) +
+            len(production_only_policies) +
+            len(semantic_differences)
+        )
+
+        return EnvironmentComparisonReport(
+            staging_database=self.staging_database,
+            production_database=self.production_database,
+            staging_only_policies=[asdict(p) for p in staging_only_policies],
+            production_only_policies=[asdict(p) for p in production_only_policies],
+            semantic_differences=[asdict(p) for p in semantic_differences],
+            staging_only_tables=list(staging_only_tables),
+            production_only_tables=list(production_only_tables),
+            total_differences=total_differences,
+            is_aligned=(total_differences == 0)
+        )
+
+    def print_report(self, report: EnvironmentComparisonReport):
+        """Print human-readable environment comparison report"""
+        print("\n" + "=" * 70)
+        print("ENVIRONMENT ALIGNMENT REPORT")
+        print("=" * 70)
+        print(f"Staging Database: {report.staging_database}")
+        print(f"Production Database: {report.production_database}")
+        print("-" * 70)
+
+        if report.staging_only_tables:
+            print(f"\nTables only in Staging ({len(report.staging_only_tables)}):")
+            for table in sorted(report.staging_only_tables):
+                print(f"  - {table}")
+
+        if report.production_only_tables:
+            print(f"\nTables only in Production ({len(report.production_only_tables)}):")
+            for table in sorted(report.production_only_tables):
+                print(f"  - {table}")
+
+        print("\n" + "-" * 70)
+        print("POLICY DIFFERENCES")
+        print("-" * 70)
+
+        if report.staging_only_policies:
+            print(f"\nPolicies only in Staging ({len(report.staging_only_policies)}):")
+            for diff in report.staging_only_policies:
+                details = f" {diff['details']}" if diff.get('details') else ""
+                print(f"  - {diff['table_name']}.{diff['policy_name']}{details}")
+
+        if report.production_only_policies:
+            print(f"\nPolicies only in Production ({len(report.production_only_policies)}):")
+            for diff in report.production_only_policies:
+                details = f" {diff['details']}" if diff.get('details') else ""
+                print(f"  - {diff['table_name']}.{diff['policy_name']}{details}")
+
+        if report.semantic_differences:
+            print(f"\nPolicies with semantic differences ({len(report.semantic_differences)}):")
+            for diff in report.semantic_differences:
+                print(f"  - {diff['table_name']}.{diff['policy_name']}: {diff['details']}")
+                if self.verbose:
+                    print(f"    Staging:    {diff.get('staging_value', 'N/A')}")
+                    print(f"    Production: {diff.get('production_value', 'N/A')}")
+
+        print("\n" + "=" * 70)
+        if report.is_aligned:
+            print("RESULT: ALIGNED - No policy differences between environments")
+        else:
+            print(f"RESULT: DRIFT DETECTED - {report.total_differences} difference(s) found")
+        print("=" * 70 + "\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description="RLS Health Audit Script")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
@@ -418,8 +731,67 @@ def main():
     )
     parser.add_argument("--table", type=str, help="Audit specific table only")
 
+    # Issue #3326: Environment comparison arguments
+    parser.add_argument(
+        "--compare-env", action="store_true",
+        help="Compare RLS policies between staging and production environments"
+    )
+    parser.add_argument(
+        "--staging-url", type=str,
+        help="Staging database URL (or use STAGING_DATABASE_URL env var)"
+    )
+    parser.add_argument(
+        "--production-url", type=str,
+        help="Production database URL (or use PRODUCTION_DATABASE_URL env var)"
+    )
+    parser.add_argument(
+        "--fail-on-drift", action="store_true",
+        help="Exit with code 1 if environment drift is detected (for CI)"
+    )
+
     args = parser.parse_args()
 
+    # Issue #3326: Handle environment comparison mode
+    if args.compare_env:
+        staging_url = args.staging_url or os.environ.get("STAGING_DATABASE_URL")
+        production_url = args.production_url or os.environ.get("PRODUCTION_DATABASE_URL")
+
+        if not staging_url:
+            print("ERROR: Staging database URL not provided.")
+            print("Use --staging-url or set STAGING_DATABASE_URL environment variable.")
+            sys.exit(2)
+
+        if not production_url:
+            print("ERROR: Production database URL not provided.")
+            print("Use --production-url or set PRODUCTION_DATABASE_URL environment variable.")
+            sys.exit(2)
+
+        comparator = RLSEnvironmentComparator(
+            staging_url=staging_url,
+            production_url=production_url,
+            verbose=args.verbose
+        )
+
+        if not comparator.connect():
+            sys.exit(2)
+
+        try:
+            report = comparator.compare()
+
+            if args.json:
+                print(json.dumps(asdict(report), indent=2, default=str))
+            else:
+                comparator.print_report(report)
+
+            if args.fail_on_drift and not report.is_aligned:
+                sys.exit(1)
+
+            sys.exit(0)
+
+        finally:
+            comparator.disconnect()
+
+    # Standard single-environment audit mode
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         print("ERROR: DATABASE_URL environment variable not set")
