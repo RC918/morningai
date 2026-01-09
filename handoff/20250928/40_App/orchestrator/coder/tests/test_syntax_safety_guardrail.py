@@ -333,7 +333,9 @@ def process_data(items):
         code = "def foo():\n\tif True:\n        pass"  # Mixed tab and spaces
         is_valid, error = validate_python_syntax(code)
         assert is_valid is False
-        assert "TabError" in error
+        # Python 3.12+ reports this as SyntaxError with "inconsistent use of tabs and spaces"
+        # Earlier versions report it as TabError
+        assert "TabError" in error or "inconsistent use of tabs and spaces" in error
 
     def test_catches_incomplete_string(self):
         """Should catch incomplete string literal."""
