@@ -1,10 +1,15 @@
 # handoff/20250928/40_App/api-backend/src/probe3_advanced_syntax_trap.py
 
-# ... (previous code unchanged)
+def calculate_sum(a, b):
+    result = a + b
+    return result
 
 def process_data(data):
-    intermediate = transform_data(data)
-    output = finalize_output(intermediate)
-    return output  # Fixed typo here (original: reutrn output)
+    total = 0
+    for item in data:
+        total += item
+    return total
 
-# ... (remaining code unchanged)
+data_list = [1, 2, 3, 4, 5]
+output = process_data(data_list)
+print(output)
