@@ -16,9 +16,14 @@ Usage:
     # Convert existing event to SSOT format
     old_event = TelemetryEvent(...)
     ssot_record = from_agent_telemetry_event(old_event, trace_id="abc-123")
+
+Type Safety (Issue #3575):
+    This module uses Protocol classes to define expected interfaces for
+    telemetry events, improving type safety while maintaining backward
+    compatibility with varying event shapes.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 from .schema import (
     TelemetryRecordV3,
@@ -29,8 +34,87 @@ from .schema import (
 )
 
 
+@runtime_checkable
+class AgentTelemetryEventProtocol(Protocol):
+    """
+    Protocol defining the expected interface for agent telemetry events.
+
+    Issue #3575: This Protocol improves type safety by explicitly declaring
+    expected fields, enabling static analysis tools to catch typos and
+    type mismatches while maintaining backward compatibility.
+
+    Required fields:
+        event_type: Event type (enum or string)
+        agent_id: Agent identifier
+
+    Optional fields (may not exist on all event variants):
+        success: Whether the operation succeeded
+        error: Error message if failed
+        latency_ms: Operation latency in milliseconds
+        tokens_in: Input token count
+        tokens_out: Output token count
+        task_type: Type of task being performed
+        model_selected: Selected model name
+        provider: Model provider name
+        metadata: Additional metadata dictionary
+    """
+    event_type: Any
+    agent_id: str
+
+
+class PolicyTelemetryEventDict:
+    """
+    TypedDict-like documentation for policy telemetry event dictionaries.
+
+    Issue #3575: While we use Dict[str, Any] for flexibility, this class
+    documents the expected structure for policy events.
+
+    Expected keys:
+        event_type (str): Event type (e.g., "budget_check", "hitl_gate")
+        action (str): Action taken ("allow", "block", "require_approval")
+        timestamp (str, optional): ISO timestamp
+        component (str, optional): Component name
+        error (str, optional): Error message
+        current_tokens (float, optional): Current token usage
+        max_tokens (float, optional): Maximum allowed tokens
+        current_usd (float, optional): Current USD cost
+        max_usd (float, optional): Maximum allowed USD cost
+    """
+    pass
+
+
+POLICY_EVENT_KNOWN_KEYS = frozenset([
+    "event_type", "timestamp", "component", "action",
+    "current_tokens", "max_tokens", "current_usd", "max_usd",
+])
+
+POLICY_EVENT_METRIC_KEYS = frozenset([
+    "current_tokens", "max_tokens", "current_usd", "max_usd",
+])
+
+
+def _get_optional_attr(obj: Any, name: str, default: Any = None) -> Any:
+    """
+    Safely get an optional attribute from an object.
+
+    Issue #3575: This helper centralizes optional attribute access,
+    making it explicit that certain fields may not exist on all event variants.
+    Using a dedicated function instead of scattered getattr calls improves
+    maintainability and makes the optional nature of fields explicit.
+
+    Args:
+        obj: Object to get attribute from
+        name: Attribute name
+        default: Default value if attribute doesn't exist
+
+    Returns:
+        Attribute value or default
+    """
+    return getattr(obj, name, default)
+
+
 def from_agent_telemetry_event(
-    event: Any,
+    event: AgentTelemetryEventProtocol,
     trace_id: str,
     parent_span_id: Optional[str] = None,
     epic_tag: str = "EPIC-D",
@@ -38,8 +122,12 @@ def from_agent_telemetry_event(
     """
     Convert a BaseAgent TelemetryEvent to TelemetryRecordV3.
 
+    Issue #3575: The event parameter now uses AgentTelemetryEventProtocol
+    to improve type safety. Required fields (event_type, agent_id) are
+    accessed directly, while optional fields use _get_optional_attr.
+
     Args:
-        event: TelemetryEvent from core.agents.base
+        event: TelemetryEvent conforming to AgentTelemetryEventProtocol
         trace_id: Trace ID for correlation
         parent_span_id: Optional parent span ID
         epic_tag: EPIC tag (default: EPIC-D for agent events)
@@ -52,7 +140,8 @@ def from_agent_telemetry_event(
         parent_span_id=parent_span_id,
     )
 
-    event_type = getattr(event, "event_type", None)
+    # Required field: event_type (accessed directly per Protocol)
+    event_type = event.event_type
     if event_type:
         event_type_value = event_type.value if hasattr(event_type, "value") else str(event_type)
     else:
@@ -60,8 +149,9 @@ def from_agent_telemetry_event(
 
     name = f"agent.{event_type_value}"
 
-    success = getattr(event, "success", None)
-    error = getattr(event, "error", None)
+    # Optional fields: use _get_optional_attr for fields that may not exist
+    success = _get_optional_attr(event, "success")
+    error = _get_optional_attr(event, "error")
 
     if success is True:
         status_code = StatusCode.OK
@@ -70,36 +160,39 @@ def from_agent_telemetry_event(
     else:
         status_code = StatusCode.UNSET
 
+    # Build metrics from optional numeric fields
     metrics: Dict[str, float] = {}
-    latency_ms = getattr(event, "latency_ms", None)
+    latency_ms = _get_optional_attr(event, "latency_ms")
     if latency_ms is not None:
         metrics["latency_ms"] = float(latency_ms)
 
-    tokens_in = getattr(event, "tokens_in", None)
+    tokens_in = _get_optional_attr(event, "tokens_in")
     if tokens_in is not None:
         metrics["tokens_in"] = float(tokens_in)
 
-    tokens_out = getattr(event, "tokens_out", None)
+    tokens_out = _get_optional_attr(event, "tokens_out")
     if tokens_out is not None:
         metrics["tokens_out"] = float(tokens_out)
 
+    # Build attributes from optional string fields
     attributes: Dict[str, Any] = {}
-    task_type = getattr(event, "task_type", None)
+    task_type = _get_optional_attr(event, "task_type")
     if task_type:
         attributes["task_type"] = task_type
 
-    model_selected = getattr(event, "model_selected", None)
+    model_selected = _get_optional_attr(event, "model_selected")
     if model_selected:
         attributes["model_selected"] = model_selected
 
-    provider = getattr(event, "provider", None)
+    provider = _get_optional_attr(event, "provider")
     if provider:
         attributes["provider"] = provider
 
-    metadata = getattr(event, "metadata", None)
+    metadata = _get_optional_attr(event, "metadata")
     if metadata:
         attributes["metadata"] = metadata
 
+    # Build version info if model/provider available
     versions = None
     if model_selected or provider:
         versions = VersionInfo(
@@ -109,6 +202,7 @@ def from_agent_telemetry_event(
             }
         )
 
+    # Required field: agent_id (accessed directly per Protocol)
     return TelemetryRecordV3.create(
         name=name,
         span_context=span_context,
@@ -116,7 +210,7 @@ def from_agent_telemetry_event(
         kind=SpanKind.INTERNAL,
         status_code=status_code,
         status_message=error,
-        agent_id=getattr(event, "agent_id", None),
+        agent_id=event.agent_id,
         epic_tag=epic_tag,
         versions=versions,
         metrics=metrics,
@@ -188,8 +282,13 @@ def from_policy_telemetry_event(
     """
     Convert a RuntimePolicyEnforcer telemetry event to TelemetryRecordV3.
 
+    Issue #3575: Uses POLICY_EVENT_KNOWN_KEYS and POLICY_EVENT_METRIC_KEYS
+    constants to improve maintainability. See PolicyTelemetryEventDict for
+    documentation of expected event_dict structure.
+
     Args:
         event_dict: Event dictionary from RuntimePolicyEnforcer
+                   (see PolicyTelemetryEventDict for expected structure)
         trace_id: Trace ID for correlation
         parent_span_id: Optional parent span ID
         epic_tag: EPIC tag (default: EPIC-I for governance events)
@@ -205,25 +304,23 @@ def from_policy_telemetry_event(
     event_type = event_dict.get("event_type", "policy_check")
     name = f"governance.{event_type}"
 
+    # Map action to status code
     action = event_dict.get("action", "unknown")
-    if action == "allow":
-        status_code = StatusCode.OK
-    elif action == "block":
-        status_code = StatusCode.ERROR
-    elif action == "require_approval":
-        status_code = StatusCode.SKIPPED
-    else:
-        status_code = StatusCode.UNSET
+    action_to_status = {
+        "allow": StatusCode.OK,
+        "block": StatusCode.ERROR,
+        "require_approval": StatusCode.SKIPPED,
+    }
+    status_code = action_to_status.get(action, StatusCode.UNSET)
 
+    # Extract metrics using defined constant keys
     metrics: Dict[str, float] = {}
-    for key in ["current_tokens", "max_tokens", "current_usd", "max_usd"]:
+    for key in POLICY_EVENT_METRIC_KEYS:
         if key in event_dict and event_dict[key] is not None:
             metrics[key] = float(event_dict[key])
 
-    attributes = {k: v for k, v in event_dict.items() if k not in [
-        "event_type", "timestamp", "component", "action",
-        "current_tokens", "max_tokens", "current_usd", "max_usd",
-    ]}
+    # Filter out known keys from attributes using defined constant
+    attributes = {k: v for k, v in event_dict.items() if k not in POLICY_EVENT_KNOWN_KEYS}
 
     return TelemetryRecordV3.create(
         name=name,
