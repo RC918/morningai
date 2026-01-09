@@ -220,9 +220,12 @@ def from_policy_telemetry_event(
         if key in event_dict and event_dict[key] is not None:
             metrics[key] = float(event_dict[key])
 
+    # Issue #3712: Filter trace_id/parent_span_id from attributes since they are
+    # already handled by span_context. This prevents data duplication.
     attributes = {k: v for k, v in event_dict.items() if k not in [
         "event_type", "timestamp", "component", "action",
         "current_tokens", "max_tokens", "current_usd", "max_usd",
+        "trace_id", "parent_span_id",  # Already in span_context
     ]}
 
     return TelemetryRecordV3.create(
