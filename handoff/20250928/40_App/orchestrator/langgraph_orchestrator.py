@@ -229,6 +229,8 @@ def node_metrics(node_name: str) -> Callable:
 
             # Issue #3578: SSOT Telemetry v3 span creation
             span_context = None
+            TelemetryRecordV3 = None
+            StatusCode = None
             if settings.enable_ssot_telemetry:
                 try:
                     from core.telemetry import (
@@ -236,14 +238,16 @@ def node_metrics(node_name: str) -> Callable:
                         create_span_context,
                         StatusCode,
                     )
+                except ImportError as import_err:
+                    logger.debug(
+                        f"[node_metrics] core.telemetry not available, skipping SSOT spans: {import_err}"
+                    )
+                else:
+                    # Only create span context if import succeeded
                     parent_span_id = state.get("current_span_id")
                     span_context = create_span_context(
                         trace_id=trace_id if trace_id != "unknown" else None,
                         parent_span_id=parent_span_id,
-                    )
-                except ImportError:
-                    logger.debug(
-                        "[node_metrics] core.telemetry not available, skipping SSOT spans"
                     )
 
             success = [False]
@@ -265,7 +269,8 @@ def node_metrics(node_name: str) -> Callable:
                 log_resource_peak(node_name, trace_id)
 
                 # Issue #3578: Emit SSOT telemetry span on completion
-                if span_context is not None and settings.enable_ssot_telemetry:
+                # Note: span_context is only non-None if enable_ssot_telemetry was True
+                if span_context is not None:
                     try:
                         status_code = StatusCode.OK if success[0] else StatusCode.ERROR
                         record = TelemetryRecordV3.create(
@@ -285,7 +290,8 @@ def node_metrics(node_name: str) -> Callable:
                         record.emit()
                     except Exception as emit_err:
                         logger.debug(
-                            f"[node_metrics] Failed to emit SSOT span: {emit_err}"
+                            f"[node_metrics] Failed to emit SSOT span: {emit_err}",
+                            exc_info=True
                         )
 
             return result
