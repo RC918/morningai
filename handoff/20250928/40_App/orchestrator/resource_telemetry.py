@@ -41,6 +41,27 @@ def _is_telemetry_enabled() -> bool:
     return value not in ("false", "0", "no", "off", "")
 
 
+def _sanitize_for_log(value: str) -> str:
+    """
+    Sanitize string for safe logging (remove newlines, control chars).
+
+    This provides defense-in-depth against log injection attacks by removing
+    characters that could be used to forge log entries or inject malicious
+    content into log aggregators.
+
+    Issue #3729: Log sanitization helper for user-controlled data.
+
+    Args:
+        value: String to sanitize (may contain user-controlled data)
+
+    Returns:
+        Sanitized string with newlines and carriage returns replaced by spaces
+    """
+    if not value:
+        return ""
+    return value.replace('\n', ' ').replace('\r', ' ')
+
+
 def _get_timestamp_ms() -> int:
     """Get current timestamp in milliseconds (UTC) for cross-service correlation."""
     return time.time_ns() // 1_000_000
@@ -325,13 +346,15 @@ def log_context_file_scan(
 
     rss_mb, rss_available = get_current_rss_mb()
 
+    goal_preview = _sanitize_for_log(goal[:100]) if goal else ""
+
     logger.info(
         f"[CONTEXT_FILE_SCAN] Scanned {files_scanned} files for context",
         extra={
             "operation": operation,
             "trace_id": trace_id,
             "event_code": "CONTEXT_FILE_SCAN",
-            "goal_preview": goal[:100] if goal else "",
+            "goal_preview": goal_preview,
             "files_scanned": files_scanned,
             "search_dirs": search_dirs,
             "max_scan_limit": max_scan,
@@ -363,7 +386,7 @@ def log_context_file_select(
     rss_mb, rss_available = get_current_rss_mb()
 
     file_details = [
-        {"path": path, "score": round(score, 4)}
+        {"path": _sanitize_for_log(path), "score": round(score, 4)}
         for path, score in selected_files
     ]
 
@@ -416,6 +439,8 @@ def log_context_token_budget(
     if budget_exceeded:
         msg += f" (exceeded, {files_excluded} files excluded)"
 
+    sanitized_excluded = [_sanitize_for_log(f) for f in (excluded_files or [])]
+
     logger.log(
         log_level,
         msg,
@@ -428,7 +453,7 @@ def log_context_token_budget(
             "tokens_used": tokens_used,
             "max_tokens": max_tokens,
             "budget_exceeded": budget_exceeded,
-            "excluded_files": excluded_files or [],
+            "excluded_files": sanitized_excluded,
             "utilization_pct": round((tokens_used / max_tokens) * 100, 1) if max_tokens > 0 else 0,
             "current_rss_mb": round(rss_mb, 2),
             "rss_available": rss_available,
