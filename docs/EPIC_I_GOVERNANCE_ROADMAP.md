@@ -257,13 +257,17 @@ def _apply_soft_weighting(self, provider: str) -> float:
 | #3249 Status | Merged | Test refactor complete |
 
 **Acceptance Criteria**:
-- [x] `DEGRADATION_ENFORCEMENT_ENABLED` flag implemented *(in `llm/client.py:139`)*
-- [x] Routing engine reads from global health snapshot *(in `heartbeat_handler.py:487-518`)*
-- [x] Soft weighting applied to provider scores *(in `degradation_advisor.py:275-355`)*
+- [x] `DEGRADATION_ENFORCEMENT_ENABLED` flag implemented *(in `llm/client.py:139` - controls Hard Gating only)*
+- [x] Routing engine consumes degradation state from the governance heartbeat *(via `degradation_advisor.py`)*
+- [x] Soft weighting applied to provider scores *(in `core/routing/engine.py:564-616` - `_get_degradation_multiplier()`)*
 - [x] Floor provider protection prevents total provider exclusion *(in `llm/client.py:145-269` - `_apply_hard_gating()`)*
-- [ ] Metrics emitted: `routing_soft_weighting_applied_total` *(pending)*
+- [ ] Metrics emitted: `routing_soft_weighting_applied_total` *(pending - needs follow-up issue)*
 
-> **Implementation Note (2026-01-09)**: Phase I-2a is implemented but in **observe-only mode** (Phase A). To activate soft weighting, set `DEGRADATION_ENFORCEMENT_ENABLED=true` in staging first. Hard gating with floor protection is implemented in `llm/client.py:_apply_hard_gating()`.
+> **Implementation Note (2026-01-09)**: Phase I-2a has two distinct mechanisms:
+> 1. **Soft Weighting** (`core/routing/engine.py:_get_degradation_multiplier`): Always active, applies score multipliers based on `DegradationAdvisor` state. Currently returns 1.0 (no effect) because `DegradationAdvisor` operates in observe-only mode (`dry_run=True`).
+> 2. **Hard Gating** (`llm/client.py:_apply_hard_gating`): Controlled by `DEGRADATION_ENFORCEMENT_ENABLED`. When enabled, filters out AVOID providers with floor protection.
+>
+> To fully activate degradation enforcement, set `DEGRADATION_ENFORCEMENT_ENABLED=true` in staging first.
 
 ---
 
