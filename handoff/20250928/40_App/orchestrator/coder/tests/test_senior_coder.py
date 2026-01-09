@@ -20,6 +20,10 @@ from coder.senior_coder import (
     ARCHITECTURE_SPEC_SCHEMA_VERSION,
     REVIEW_RESULT_SCHEMA_VERSION,
     MAX_FILES_IN_PLAN,
+    ARCHITECTURE_SPEC_SCHEMA,
+    REVIEW_RESULT_SCHEMA,
+    SchemaValidationResult,
+    validate_against_schema,
 )
 from core.agents import AgentInput
 
@@ -497,3 +501,138 @@ class TestSchemaVersions:
     def test_max_files_in_plan(self):
         """Test max files constant matches GeneralCoder."""
         assert MAX_FILES_IN_PLAN == 5
+
+
+class TestSchemaValidation:
+    """Tests for JSON schema validation.
+
+    Issue: [P2] SeniorCoder JSON Schema - 驗證 spec 格式，增加決策可靠性
+    """
+
+    def test_validate_valid_architecture_spec(self):
+        """Test validation of valid architecture spec."""
+        valid_spec = {
+            "task_analysis": {
+                "complexity": "simple",
+                "reasoning": "Simple variable rename"
+            },
+            "architecture": {
+                "files_to_modify": ["src/utils.py"],
+                "files_to_create": [],
+                "dependencies": {}
+            },
+            "implementation_plan": [
+                {
+                    "file_path": "src/utils.py",
+                    "action": "modify",
+                    "description": "Rename variable"
+                }
+            ],
+            "constraints": ["Keep backward compatibility"]
+        }
+        result = validate_against_schema(valid_spec, ARCHITECTURE_SPEC_SCHEMA)
+        assert result.is_valid is True
+        assert len(result.errors) == 0
+
+    def test_validate_missing_required_field(self):
+        """Test validation fails when required field is missing."""
+        invalid_spec = {
+            "architecture": {}
+        }
+        result = validate_against_schema(invalid_spec, ARCHITECTURE_SPEC_SCHEMA)
+        assert result.is_valid is False
+        assert any("task_analysis" in err for err in result.errors)
+
+    def test_validate_invalid_complexity_enum(self):
+        """Test validation fails for invalid complexity enum value."""
+        invalid_spec = {
+            "task_analysis": {
+                "complexity": "invalid_value",
+                "reasoning": "Test"
+            }
+        }
+        result = validate_against_schema(invalid_spec, ARCHITECTURE_SPEC_SCHEMA)
+        assert result.is_valid is False
+        assert any("not in allowed values" in err for err in result.errors)
+
+    def test_validate_invalid_type(self):
+        """Test validation fails for invalid type."""
+        invalid_spec = {
+            "task_analysis": "should be object"
+        }
+        result = validate_against_schema(invalid_spec, ARCHITECTURE_SPEC_SCHEMA)
+        assert result.is_valid is False
+        assert any("expected object" in err for err in result.errors)
+
+    def test_validate_valid_review_result(self):
+        """Test validation of valid review result."""
+        valid_review = {
+            "approved": True,
+            "feedback": "Implementation looks good"
+        }
+        result = validate_against_schema(valid_review, REVIEW_RESULT_SCHEMA)
+        assert result.is_valid is True
+        assert len(result.errors) == 0
+
+    def test_validate_review_missing_approved(self):
+        """Test validation fails when approved field is missing."""
+        invalid_review = {
+            "feedback": "Some feedback"
+        }
+        result = validate_against_schema(invalid_review, REVIEW_RESULT_SCHEMA)
+        assert result.is_valid is False
+        assert any("approved" in err for err in result.errors)
+
+    def test_validate_review_invalid_approved_type(self):
+        """Test validation fails when approved is not boolean."""
+        invalid_review = {
+            "approved": "yes",
+            "feedback": "Some feedback"
+        }
+        result = validate_against_schema(invalid_review, REVIEW_RESULT_SCHEMA)
+        assert result.is_valid is False
+        assert any("expected boolean" in err for err in result.errors)
+
+    def test_validate_nested_array_items(self):
+        """Test validation of nested array items."""
+        spec_with_invalid_plan = {
+            "task_analysis": {
+                "complexity": "simple",
+                "reasoning": "Test"
+            },
+            "implementation_plan": [
+                {
+                    "file_path": "test.py",
+                    "action": "invalid_action",
+                    "description": "Test"
+                }
+            ]
+        }
+        result = validate_against_schema(spec_with_invalid_plan, ARCHITECTURE_SPEC_SCHEMA)
+        assert result.is_valid is False
+        assert any("not in allowed values" in err for err in result.errors)
+
+    def test_validate_complex_spec_with_abort(self):
+        """Test validation of complex spec with abort reason."""
+        complex_spec = {
+            "task_analysis": {
+                "complexity": "complex",
+                "reasoning": "Requires architectural changes"
+            },
+            "abort_reason": "Task too complex for automated handling"
+        }
+        result = validate_against_schema(complex_spec, ARCHITECTURE_SPEC_SCHEMA)
+        assert result.is_valid is True
+
+    def test_schema_validation_result_dataclass(self):
+        """Test SchemaValidationResult dataclass."""
+        result = SchemaValidationResult(is_valid=True, errors=[])
+        assert result.is_valid is True
+        assert result.errors == []
+
+        result_with_errors = SchemaValidationResult(
+            is_valid=False,
+            errors=["error1", "error2"]
+        )
+        assert result_with_errors.is_valid is False
+        assert len(result_with_errors.errors) == 2
