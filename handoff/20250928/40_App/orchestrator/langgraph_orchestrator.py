@@ -4571,6 +4571,139 @@ def _attempt_senior_coder_review(
         return True, f"SeniorCoder review failed: {e}"
 
 
+# Required fields for a valid ArchitectureSpec (Design Doc Gate validation)
+# These fields must be present and non-empty for the gate to pass
+_DESIGN_DOC_REQUIRED_FIELDS = [
+    "task_analysis",
+    "architecture",
+    "implementation_plan",
+]
+
+
+def _validate_design_doc_gate(
+    spec_dict: Optional[dict],
+    trace_id: str,
+    state: AgentState,
+    task_description: str,
+    file_count: int,
+) -> tuple[bool, str]:
+    """Validate Design Doc Gate - 強制架構審查 (Blueprint Section 4.1 Safety Governor v2).
+
+    This gate ensures that GeneralCoder cannot proceed without a valid ArchitectureSpec
+    from SeniorCoder. This implements mandatory architecture review as part of the
+    Safety Governor v2 governance layer.
+
+    Args:
+        spec_dict: ArchitectureSpec dictionary from SeniorCoder planning phase
+        trace_id: Trace ID for logging
+        state: AgentState for setting HITL flags on gate failure
+        task_description: Description of the task for HITL details
+        file_count: Number of files being processed
+
+    Returns:
+        Tuple of (gate_passed, reason):
+        - (True, reason) if gate passed (valid spec exists)
+        - (False, reason) if gate failed (no spec or invalid spec)
+
+    Event Codes (greppable):
+        [DESIGN_DOC_GATE_PASS] - Gate passed, valid ArchitectureSpec exists
+        [DESIGN_DOC_GATE_FAIL] - Gate failed, no valid ArchitectureSpec
+        [DESIGN_DOC_GATE_HITL_ESCALATION] - Gate failure triggers HITL escalation
+    """
+    # Case 1: No spec_dict at all (SeniorCoder disabled or failed)
+    if spec_dict is None:
+        reason = "No ArchitectureSpec available (SeniorCoder may be disabled or failed)"
+
+        # Set HITL escalation flags for missing design doc
+        state["requires_hitl_approval"] = True
+        state["hitl_approved"] = False
+        state["hitl_reason"] = "design_doc_gate_missing_spec"
+        state["hitl_details"] = {
+            "version": "1.0",
+            "gate_failure_reason": reason,
+            "task_description": task_description,
+            "file_count": file_count,
+            "escalation_source": "DesignDocGate",
+            "recommendation": (
+                "GeneralCoder cannot proceed without architecture review. "
+                "Please ensure SeniorCoder is enabled and functioning, or "
+                "manually approve this task after reviewing the changes."
+            ),
+        }
+
+        logger.warning(
+            f"[DESIGN_DOC_GATE_HITL_ESCALATION] Missing ArchitectureSpec triggers HITL gate. "
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "design_doc_gate_hitl_escalation",
+                "trace_id": trace_id,
+                "event_code": "DESIGN_DOC_GATE_HITL_ESCALATION",
+                "failure_reason": "missing_spec",
+            }
+        )
+
+        return False, reason
+
+    # Case 2: spec_dict exists but may be invalid (missing required fields)
+    missing_fields = []
+    for field in _DESIGN_DOC_REQUIRED_FIELDS:
+        if field not in spec_dict or not spec_dict[field]:
+            missing_fields.append(field)
+
+    if missing_fields:
+        reason = f"ArchitectureSpec missing required fields: {', '.join(missing_fields)}"
+
+        # Set HITL escalation flags for invalid design doc
+        state["requires_hitl_approval"] = True
+        state["hitl_approved"] = False
+        state["hitl_reason"] = "design_doc_gate_invalid_spec"
+        state["hitl_details"] = {
+            "version": "1.0",
+            "gate_failure_reason": reason,
+            "missing_fields": missing_fields,
+            "task_description": task_description,
+            "file_count": file_count,
+            "escalation_source": "DesignDocGate",
+            "recommendation": (
+                f"ArchitectureSpec is incomplete (missing: {', '.join(missing_fields)}). "
+                "Please review the SeniorCoder output and ensure proper architecture "
+                "planning before proceeding with implementation."
+            ),
+        }
+
+        logger.warning(
+            f"[DESIGN_DOC_GATE_HITL_ESCALATION] Invalid ArchitectureSpec triggers HITL gate. "
+            f"missing_fields={missing_fields}, trace_id={trace_id}",
+            extra={
+                "operation": "design_doc_gate_hitl_escalation",
+                "trace_id": trace_id,
+                "event_code": "DESIGN_DOC_GATE_HITL_ESCALATION",
+                "failure_reason": "invalid_spec",
+                "missing_fields": missing_fields,
+            }
+        )
+
+        return False, reason
+
+    # Case 3: Valid spec_dict with all required fields
+    complexity = spec_dict.get("task_analysis", {}).get("complexity", "unknown")
+    step_count = len(spec_dict.get("implementation_plan", []))
+
+    logger.info(
+        f"[DESIGN_DOC_GATE_PASS] Valid ArchitectureSpec found. "
+        f"complexity={complexity}, steps={step_count}, trace_id={trace_id}",
+        extra={
+            "operation": "design_doc_gate_pass",
+            "trace_id": trace_id,
+            "event_code": "DESIGN_DOC_GATE_PASS",
+            "complexity": complexity,
+            "step_count": step_count,
+        }
+    )
+
+    return True, f"Valid ArchitectureSpec (complexity={complexity}, steps={step_count})"
+
+
 def _attempt_general_coder_fix(
     state: AgentState,
     trace_id: str
@@ -4796,6 +4929,29 @@ def _attempt_general_coder_fix(
             f"reason={plan_msg}, trace_id={trace_id}"
         )
         return False, f"SeniorCoder aborted: {plan_msg}"
+
+    # P2 Feature: Design Doc Gate - 強制架構審查 (Blueprint Section 4.1 Safety Governor v2)
+    # When require_design_doc_gate is enabled, GeneralCoder MUST have a valid ArchitectureSpec
+    # before proceeding. This ensures all code changes have proper architecture planning.
+    if settings.require_design_doc_gate and settings.enable_senior_coder:
+        gate_passed, gate_reason = _validate_design_doc_gate(
+            spec_dict=spec_dict,
+            trace_id=trace_id,
+            state=state,
+            task_description=task_description,
+            file_count=len(files_with_content),
+        )
+        if not gate_passed:
+            logger.info(
+                f"[DESIGN_DOC_GATE_FAIL] {gate_reason}. trace_id={trace_id}",
+                extra={
+                    "operation": "design_doc_gate_fail",
+                    "trace_id": trace_id,
+                    "event_code": "DESIGN_DOC_GATE_FAIL",
+                    "reason": gate_reason,
+                }
+            )
+            return False, f"Design Doc Gate failed: {gate_reason}"
 
     general_coder = get_general_coder()
 
