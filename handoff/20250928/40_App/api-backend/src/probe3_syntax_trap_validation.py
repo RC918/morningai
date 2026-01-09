@@ -1,8 +1,12 @@
-import sys
+# handoff/20250928/40_App/api-backend/src/probe3_syntax_trap_validation.py
 
-def validate_syntax():
+import json
+
+def validate_probe3_syntax(data):
     try:
-        # Some code that might raise an exception
-        pass
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        parsed_data = json.loads(data)
+        if "probe3" not in parsed_data:
+            return False
+        return True
+    except json.JSONDecodeError:
+        return False
