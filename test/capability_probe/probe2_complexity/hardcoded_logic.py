@@ -20,7 +20,17 @@ Log keywords to search:
 - [SENIOR_CODER_PLAN_ATTEMPT]
 - [SENIOR_CODER_PLAN_COMPLEX]
 - [SENIOR_CODER_HITL_ESCALATION]
+
+Probe 2 Validation Run: 2026-01-09
+This comment triggers CI to re-evaluate this file.
+The hardcoded if-else logic below should be refactored to Strategy Pattern.
 """
+
+# TODO: Refactor this entire module to use Strategy Pattern
+# This requires creating: PaymentStrategy interface, CreditCardStrategy,
+# PayPalStrategy, BankTransferStrategy, CryptoStrategy classes
+# and a PaymentStrategyFactory - this is a COMPLEX architectural change
+import sys  # Intentional unused import to trigger lint error
 
 
 class PaymentProcessor:
