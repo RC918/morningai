@@ -818,6 +818,10 @@ class RuntimePolicyEnforcer:
             **kwargs,
         }
         # Issue #3578 Phase 2: Extract trace_id and parent_span_id from context
+        # Priority: current_span_id > parent_span_id
+        # current_span_id comes from node_metrics decorator (Phase 1) and represents
+        # the current node's span. Policy spans should be children of node spans,
+        # so current_span_id becomes the parent_span_id for policy events.
         if context:
             if "trace_id" in context:
                 event["trace_id"] = context["trace_id"]
