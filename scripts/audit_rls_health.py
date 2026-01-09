@@ -633,12 +633,22 @@ class RLSEnvironmentComparator:
 
             if differences:
                 table_name, policy_name = key
+                # Build comprehensive diff values showing both clauses
+                staging_clauses = []
+                production_clauses = []
+                if staging_using != production_using:
+                    staging_clauses.append(f"USING: {staging_policy.get('using_clause') or 'NULL'}")
+                    production_clauses.append(f"USING: {production_policy.get('using_clause') or 'NULL'}")
+                if staging_with_check != production_with_check:
+                    staging_clauses.append(f"WITH CHECK: {staging_policy.get('with_check_clause') or 'NULL'}")
+                    production_clauses.append(f"WITH CHECK: {production_policy.get('with_check_clause') or 'NULL'}")
+
                 semantic_differences.append(PolicyDiff(
                     table_name=table_name,
                     policy_name=policy_name,
                     diff_type="semantic_diff",
-                    staging_value=staging_policy.get('using_clause'),
-                    production_value=production_policy.get('using_clause'),
+                    staging_value=" | ".join(staging_clauses),
+                    production_value=" | ".join(production_clauses),
                     details="; ".join(differences)
                 ))
 
