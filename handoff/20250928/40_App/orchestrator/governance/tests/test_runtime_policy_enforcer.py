@@ -19,7 +19,6 @@ from unittest.mock import MagicMock, patch
 from governance.runtime_policy_enforcer import (
     RuntimePolicyEnforcer,
     PolicyCheckResult,
-    CostCheckResult,
     EnforcementAction,
     PolicyViolationType,
     get_runtime_policy_enforcer,
@@ -392,3 +391,157 @@ class TestGlobalInstance:
         assert enforcer1 is enforcer2
 
         module._runtime_policy_enforcer = None
+
+
+class TestSSOTTelemetryPhase2:
+    """
+    Issue #3578 Phase 2: SSOT Telemetry Schema v3 integration tests.
+
+    Validates that RuntimePolicyEnforcer correctly emits TelemetryRecordV3 spans
+    when ENABLE_SSOT_TELEMETRY is enabled.
+    """
+
+    def test_telemetry_event_includes_trace_id_from_context(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """Telemetry event should include trace_id from context"""
+        mock_settings.enable_ssot_telemetry = False
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {
+            "trace_id": "test-trace-123",
+            "current_span_id": "parent-span-456",
+        }
+
+        result = enforcer.check_resource_access("read", "./docs/test.md", context=context)
+
+        assert result.telemetry_event.get("trace_id") == "test-trace-123"
+        assert result.telemetry_event.get("parent_span_id") == "parent-span-456"
+
+    def test_telemetry_event_includes_parent_span_id_from_context(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """Telemetry event should include parent_span_id from context"""
+        mock_settings.enable_ssot_telemetry = False
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {
+            "trace_id": "test-trace-789",
+            "parent_span_id": "explicit-parent-span",
+        }
+
+        result = enforcer.check_resource_access("read", "./docs/test.md", context=context)
+
+        assert result.telemetry_event.get("trace_id") == "test-trace-789"
+        assert result.telemetry_event.get("parent_span_id") == "explicit-parent-span"
+
+    def test_cost_check_telemetry_includes_trace_id(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """Cost check telemetry should include trace_id from context"""
+        mock_settings.enable_ssot_telemetry = False
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {
+            "trace_id": "cost-trace-123",
+            "current_span_id": "cost-parent-span",
+        }
+
+        result = enforcer.check_cost("task-123", 500, "gpt-4", context=context)
+
+        assert result.telemetry_event.get("trace_id") == "cost-trace-123"
+        assert result.telemetry_event.get("parent_span_id") == "cost-parent-span"
+
+    def test_ssot_telemetry_emits_when_enabled(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """SSOT telemetry should emit TelemetryRecordV3 when enabled"""
+        mock_settings.enable_ssot_telemetry = True
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {
+            "trace_id": "ssot-trace-123",
+            "current_span_id": "ssot-parent-span",
+        }
+
+        with patch("core.telemetry.from_policy_telemetry_event") as mock_adapter:
+            mock_record = MagicMock()
+            mock_adapter.return_value = mock_record
+
+            enforcer.check_resource_access("read", "./docs/test.md", context=context)
+
+            mock_adapter.assert_called()
+            call_args = mock_adapter.call_args
+            assert call_args.kwargs["trace_id"] == "ssot-trace-123"
+            assert call_args.kwargs["parent_span_id"] == "ssot-parent-span"
+            mock_record.emit.assert_called_once()
+
+    def test_ssot_telemetry_skipped_without_trace_id(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """SSOT telemetry should be skipped if no trace_id in context"""
+        mock_settings.enable_ssot_telemetry = True
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {}
+
+        with patch("core.telemetry.from_policy_telemetry_event") as mock_adapter:
+            enforcer.check_resource_access("read", "./docs/test.md", context=context)
+
+            mock_adapter.assert_not_called()
+
+    def test_ssot_telemetry_graceful_degradation_on_import_error(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """SSOT telemetry should gracefully degrade if core.telemetry is unavailable"""
+        mock_settings.enable_ssot_telemetry = True
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {
+            "trace_id": "test-trace-123",
+            "current_span_id": "parent-span-456",
+        }
+
+        with patch.dict("sys.modules", {"core.telemetry": None}):
+            with patch("governance.runtime_policy_enforcer.logger"):
+                result = enforcer.check_resource_access("read", "./docs/test.md", context=context)
+
+                assert result.allowed
+
+    def test_ssot_telemetry_graceful_degradation_on_emit_error(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """SSOT telemetry should gracefully degrade if emit fails"""
+        mock_settings.enable_ssot_telemetry = True
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {
+            "trace_id": "test-trace-123",
+            "current_span_id": "parent-span-456",
+        }
+
+        with patch("core.telemetry.from_policy_telemetry_event") as mock_adapter:
+            mock_record = MagicMock()
+            mock_record.emit.side_effect = Exception("Emit failed")
+            mock_adapter.return_value = mock_record
+
+            result = enforcer.check_resource_access("read", "./docs/test.md", context=context)
+
+            assert result.allowed
+
+    def test_current_span_id_takes_precedence_over_parent_span_id(self, mock_settings, mock_policy_guard, mock_cost_tracker):
+        """current_span_id should take precedence over parent_span_id in context"""
+        mock_settings.enable_ssot_telemetry = False
+        enforcer = RuntimePolicyEnforcer(settings=mock_settings)
+        enforcer._policy_guard = mock_policy_guard
+        enforcer._cost_tracker = mock_cost_tracker
+
+        context = {
+            "trace_id": "test-trace-123",
+            "current_span_id": "current-span-from-node",
+            "parent_span_id": "explicit-parent-span",
+        }
+
+        result = enforcer.check_resource_access("read", "./docs/test.md", context=context)
+
+        assert result.telemetry_event.get("parent_span_id") == "current-span-from-node"
