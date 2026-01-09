@@ -10,6 +10,7 @@ Provides per-workflow resource measurement and telemetry events:
 - [CONTEXT_FILE_SCAN]: Files scanned during context extraction
 - [CONTEXT_FILE_SELECT]: Files selected for context (with scores)
 - [CONTEXT_TOKEN_BUDGET]: Token budget usage during context building
+- [GENERAL_CODER_MULTI_FILE_HITL_ESCALATION]: HITL escalation when 6+ files detected
 
 All events include trace_id for correlation.
 
@@ -430,6 +431,53 @@ def log_context_token_budget(
             "budget_exceeded": budget_exceeded,
             "excluded_files": excluded_files or [],
             "utilization_pct": round((tokens_used / max_tokens) * 100, 1) if max_tokens > 0 else 0,
+            "current_rss_mb": round(rss_mb, 2),
+            "rss_available": rss_available,
+            "timestamp_ms": _get_timestamp_ms()
+        }
+    )
+
+
+def log_multi_file_hitl_escalation(
+    file_count: int,
+    max_files: int,
+    skip_reason: str,
+    trace_id: Optional[str] = None,
+    pr_number: Optional[int] = None,
+    operation: str = "langgraph_orchestrator"
+) -> None:
+    """
+    Log [GENERAL_CODER_MULTI_FILE_HITL_ESCALATION] event when 6+ files trigger HITL.
+
+    This event is logged when GeneralCoder skips due to too many files (> MAX_FILES_PER_OPERATION)
+    and HITL escalation is triggered to request human review instead of silently falling back
+    to SimpleCoder/AutoFixer.
+
+    Args:
+        file_count: Number of files that triggered the escalation
+        max_files: Maximum files limit (typically 5)
+        skip_reason: Original skip reason from GeneralCoder
+        trace_id: Trace ID for correlation (optional)
+        pr_number: PR number being processed (optional)
+        operation: Operation name for log filtering
+    """
+    if not _is_telemetry_enabled():
+        return
+
+    rss_mb, rss_available = get_current_rss_mb()
+
+    logger.warning(
+        f"[GENERAL_CODER_MULTI_FILE_HITL_ESCALATION] "
+        f"HITL escalation triggered: {file_count} files > {max_files} limit",
+        extra={
+            "operation": operation,
+            "trace_id": trace_id,
+            "event_code": "GENERAL_CODER_MULTI_FILE_HITL_ESCALATION",
+            "file_count": file_count,
+            "max_files_limit": max_files,
+            "skip_reason": skip_reason,
+            "pr_number": pr_number,
+            "escalation_type": "multi_file_limit_exceeded",
             "current_rss_mb": round(rss_mb, 2),
             "rss_available": rss_available,
             "timestamp_ms": _get_timestamp_ms()
