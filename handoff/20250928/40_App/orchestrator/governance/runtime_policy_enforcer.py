@@ -794,15 +794,42 @@ class RuntimePolicyEnforcer:
     def _create_telemetry_event(
         self,
         event_type: str,
+        context: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Dict[str, Any]:
-        """Create a telemetry event for Owner Console Policy Dashboard"""
-        return {
+        """
+        Create a telemetry event for Owner Console Policy Dashboard.
+
+        Issue #3578 Phase 2: Extracts trace_id and parent_span_id from context
+        to enable SSOT span hierarchy when ENABLE_SSOT_TELEMETRY is enabled.
+
+        Args:
+            event_type: Type of event (e.g., "resource_access_check", "cost_check")
+            context: Optional context dict containing trace_id and parent_span_id
+            **kwargs: Additional event attributes
+
+        Returns:
+            Dict containing the telemetry event
+        """
+        event = {
             "event_type": event_type,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "component": "RuntimePolicyEnforcer",
             **kwargs,
         }
+        # Issue #3578 Phase 2: Extract trace_id and parent_span_id from context
+        # Priority: current_span_id > parent_span_id
+        # current_span_id comes from node_metrics decorator (Phase 1) and represents
+        # the current node's span. Policy spans should be children of node spans,
+        # so current_span_id becomes the parent_span_id for policy events.
+        if context:
+            if "trace_id" in context:
+                event["trace_id"] = context["trace_id"]
+            if "current_span_id" in context:
+                event["parent_span_id"] = context["current_span_id"]
+            elif "parent_span_id" in context:
+                event["parent_span_id"] = context["parent_span_id"]
+        return event
 
     def _log_policy_check(
         self,
@@ -883,6 +910,9 @@ class RuntimePolicyEnforcer:
 
         This method sends events to the telemetry system for visualization
         in the Owner Console's Policy Dashboard.
+
+        Issue #3578 Phase 2: When ENABLE_SSOT_TELEMETRY is enabled, also emits
+        TelemetryRecordV3 spans using the from_policy_telemetry_event adapter.
         """
         logger.info(
             "[RuntimePolicyEnforcer] Telemetry event: %s",
@@ -892,6 +922,29 @@ class RuntimePolicyEnforcer:
                 "telemetry_event": event,
             }
         )
+
+        # Issue #3578 Phase 2: Emit SSOT TelemetryRecordV3 span
+        if self.settings.enable_ssot_telemetry:
+            try:
+                from core.telemetry import from_policy_telemetry_event
+                trace_id = event.get("trace_id")
+                parent_span_id = event.get("parent_span_id")
+                if trace_id:
+                    record = from_policy_telemetry_event(
+                        event_dict=event,
+                        trace_id=trace_id,
+                        parent_span_id=parent_span_id,
+                    )
+                    record.emit()
+            except ImportError as import_err:
+                logger.debug(
+                    f"[RuntimePolicyEnforcer] core.telemetry not available, skipping SSOT spans: {import_err}"
+                )
+            except Exception as emit_err:
+                logger.debug(
+                    f"[RuntimePolicyEnforcer] Failed to emit SSOT span: {emit_err}",
+                    exc_info=True
+                )
 
 
 _runtime_policy_enforcer: Optional[RuntimePolicyEnforcer] = None
