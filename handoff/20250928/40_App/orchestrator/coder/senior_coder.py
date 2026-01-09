@@ -123,6 +123,149 @@ MAX_FILES_IN_PLAN = 5
 MAX_FILE_CONTEXT_LENGTH = 2000
 
 
+# =============================================================================
+# JSON Schema Definitions for SeniorCoder Output Validation
+# Issue: [P2] SeniorCoder JSON Schema - 驗證 spec 格式，增加決策可靠性
+# Blueprint: Section 9.1 可預測性 - Makes output format predictable
+# =============================================================================
+
+ARCHITECTURE_SPEC_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["task_analysis"],
+    "properties": {
+        "task_analysis": {
+            "type": "object",
+            "required": ["complexity", "reasoning"],
+            "properties": {
+                "complexity": {
+                    "type": "string",
+                    "enum": ["simple", "moderate", "complex"]
+                },
+                "reasoning": {"type": "string"}
+            }
+        },
+        "architecture": {
+            "type": "object",
+            "properties": {
+                "files_to_modify": {"type": "array", "items": {"type": "string"}},
+                "files_to_create": {"type": "array", "items": {"type": "string"}},
+                "dependencies": {"type": "object"}
+            }
+        },
+        "implementation_plan": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["file_path", "action", "description"],
+                "properties": {
+                    "file_path": {"type": "string"},
+                    "action": {"type": "string", "enum": ["modify", "create"]},
+                    "description": {"type": "string"},
+                    "function_signatures": {"type": "array", "items": {"type": "string"}},
+                    "test_cases": {"type": "array", "items": {"type": "string"}}
+                }
+            }
+        },
+        "constraints": {"type": "array", "items": {"type": "string"}},
+        "abort_reason": {"type": "string"}
+    }
+}
+
+REVIEW_RESULT_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["approved", "feedback"],
+    "properties": {
+        "approved": {"type": "boolean"},
+        "feedback": {"type": "string"},
+        "required_changes": {"type": "array", "items": {"type": "string"}}
+    }
+}
+
+
+@dataclass
+class SchemaValidationResult:
+    """Result of JSON schema validation.
+
+    Attributes:
+        is_valid: Whether the data passed validation
+        errors: List of validation error messages
+    """
+    is_valid: bool
+    errors: List[str] = field(default_factory=list)
+
+
+def validate_against_schema(
+    data: Dict[str, Any],
+    schema: Dict[str, Any],
+    path: str = ""
+) -> SchemaValidationResult:
+    """Validate data against a JSON schema definition.
+
+    This is a lightweight schema validator that checks:
+    - Required fields presence
+    - Type correctness (string, boolean, array, object)
+    - Enum value constraints
+
+    Args:
+        data: The data to validate
+        schema: The JSON schema definition
+        path: Current path in the data structure (for error messages)
+
+    Returns:
+        SchemaValidationResult with validation status and errors
+
+    Event Codes (greppable):
+        [SENIOR_CODER_SCHEMA_VALID] - Schema validation passed
+        [SENIOR_CODER_SCHEMA_INVALID] - Schema validation failed
+    """
+    errors: List[str] = []
+
+    # Check if data is the expected type
+    expected_type = schema.get("type")
+    if expected_type:
+        if expected_type == "object" and not isinstance(data, dict):
+            errors.append(f"{path or 'root'}: expected object, got {type(data).__name__}")
+            return SchemaValidationResult(is_valid=False, errors=errors)
+        elif expected_type == "array" and not isinstance(data, list):
+            errors.append(f"{path or 'root'}: expected array, got {type(data).__name__}")
+            return SchemaValidationResult(is_valid=False, errors=errors)
+        elif expected_type == "string" and not isinstance(data, str):
+            errors.append(f"{path or 'root'}: expected string, got {type(data).__name__}")
+            return SchemaValidationResult(is_valid=False, errors=errors)
+        elif expected_type == "boolean" and not isinstance(data, bool):
+            errors.append(f"{path or 'root'}: expected boolean, got {type(data).__name__}")
+            return SchemaValidationResult(is_valid=False, errors=errors)
+
+    # Check enum constraint
+    if "enum" in schema and data not in schema["enum"]:
+        errors.append(f"{path or 'root'}: value '{data}' not in allowed values {schema['enum']}")
+
+    # For objects, check required fields and validate properties
+    if expected_type == "object" and isinstance(data, dict):
+        required_fields = schema.get("required", [])
+        for field_name in required_fields:
+            if field_name not in data:
+                errors.append(f"{path or 'root'}: missing required field '{field_name}'")
+
+        properties = schema.get("properties", {})
+        for prop_name, prop_schema in properties.items():
+            if prop_name in data:
+                prop_path = f"{path}.{prop_name}" if path else prop_name
+                prop_result = validate_against_schema(data[prop_name], prop_schema, prop_path)
+                errors.extend(prop_result.errors)
+
+    # For arrays, validate items
+    if expected_type == "array" and isinstance(data, list):
+        items_schema = schema.get("items")
+        if items_schema:
+            for i, item in enumerate(data):
+                item_path = f"{path}[{i}]" if path else f"[{i}]"
+                item_result = validate_against_schema(item, items_schema, item_path)
+                errors.extend(item_result.errors)
+
+    return SchemaValidationResult(is_valid=len(errors) == 0, errors=errors)
+
+
 @dataclass
 class TaskAnalysis:
     """Analysis of task complexity.
@@ -542,7 +685,15 @@ class SeniorCoder(BaseAgent):
         return "\n".join(context_parts)
 
     def _parse_plan_response(self, response: str) -> ArchitectureSpec:
-        """Parse LLM planning response."""
+        """Parse LLM planning response with JSON schema validation.
+
+        Validates the response against ARCHITECTURE_SPEC_SCHEMA before parsing.
+        On validation failure, logs warning but continues with graceful degradation.
+
+        Event Codes (greppable):
+            [SENIOR_CODER_SCHEMA_VALID] - Schema validation passed
+            [SENIOR_CODER_SCHEMA_INVALID] - Schema validation failed
+        """
         try:
             data = json.loads(response)
         except json.JSONDecodeError as e:
@@ -550,6 +701,29 @@ class SeniorCoder(BaseAgent):
             return ArchitectureSpec.create_abort(
                 reason=f"Failed to parse planning response: {str(e)}",
                 reasoning="JSON parsing failed"
+            )
+
+        # Validate against schema (observe-only, graceful degradation)
+        validation_result = validate_against_schema(data, ARCHITECTURE_SPEC_SCHEMA)
+        if validation_result.is_valid:
+            logger.info(
+                "[SENIOR_CODER_SCHEMA_VALID] Architecture spec schema validation passed",
+                extra={
+                    "operation": "schema_validation",
+                    "schema_type": "architecture_spec",
+                    "event_code": "SENIOR_CODER_SCHEMA_VALID",
+                }
+            )
+        else:
+            logger.warning(
+                f"[SENIOR_CODER_SCHEMA_INVALID] Architecture spec schema validation failed: "
+                f"{validation_result.errors}",
+                extra={
+                    "operation": "schema_validation",
+                    "schema_type": "architecture_spec",
+                    "event_code": "SENIOR_CODER_SCHEMA_INVALID",
+                    "validation_errors": validation_result.errors,
+                }
             )
 
         # Parse task analysis
@@ -628,7 +802,15 @@ class SeniorCoder(BaseAgent):
         )
 
     def _parse_review_response(self, response: str) -> ReviewResult:
-        """Parse LLM review response."""
+        """Parse LLM review response with JSON schema validation.
+
+        Validates the response against REVIEW_RESULT_SCHEMA before parsing.
+        On validation failure, logs warning but continues with graceful degradation.
+
+        Event Codes (greppable):
+            [SENIOR_CODER_SCHEMA_VALID] - Schema validation passed
+            [SENIOR_CODER_SCHEMA_INVALID] - Schema validation failed
+        """
         try:
             data = json.loads(response)
         except json.JSONDecodeError as e:
@@ -637,6 +819,29 @@ class SeniorCoder(BaseAgent):
                 approved=False,
                 feedback=f"Failed to parse review response: {str(e)}",
                 required_changes=["Review parsing failed"]
+            )
+
+        # Validate against schema (observe-only, graceful degradation)
+        validation_result = validate_against_schema(data, REVIEW_RESULT_SCHEMA)
+        if validation_result.is_valid:
+            logger.info(
+                "[SENIOR_CODER_SCHEMA_VALID] Review result schema validation passed",
+                extra={
+                    "operation": "schema_validation",
+                    "schema_type": "review_result",
+                    "event_code": "SENIOR_CODER_SCHEMA_VALID",
+                }
+            )
+        else:
+            logger.warning(
+                f"[SENIOR_CODER_SCHEMA_INVALID] Review result schema validation failed: "
+                f"{validation_result.errors}",
+                extra={
+                    "operation": "schema_validation",
+                    "schema_type": "review_result",
+                    "event_code": "SENIOR_CODER_SCHEMA_INVALID",
+                    "validation_errors": validation_result.errors,
+                }
             )
 
         approved = data.get("approved", False)
