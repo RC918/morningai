@@ -940,8 +940,8 @@ def process(value):
 Rules for actionable suggestions:
 1. Every criticism MUST include a code snippet showing the fix
 2. The code snippet should be copy-paste ready (not pseudocode)
-3. If you cannot provide a specific fix, explain the approach in detail
-4. Use the `suggested_fix` field in your JSON output for the code snippet
+3. If you cannot provide a specific code snippet, explain the recommended approach in detail within the `message` field after the IMPACT statement
+4. The code snippet for the fix MUST be placed in the `suggested_fix` field
 
 Comments without actionable suggestions will be considered low-value and should be omitted.
 
