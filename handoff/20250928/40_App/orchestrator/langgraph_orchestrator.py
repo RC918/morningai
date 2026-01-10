@@ -2388,6 +2388,115 @@ def prune_messages_reducer(
     return first_system + other_msgs
 
 
+class AgentStateKeys:
+    """
+    Issue #3742: Define AgentState keys as constants to avoid magic strings.
+
+    This class provides type-safe constants for all AgentState keys, organized
+    by functional category. Use these constants instead of string literals
+    when accessing or setting AgentState fields.
+
+    Example usage:
+        state[AgentStateKeys.LOOP_PROTECTION_TRIGGERED] = True
+        if state.get(AgentStateKeys.CI_STATE) == "failure":
+            ...
+    """
+
+    MESSAGES = "messages"
+    GOAL = "goal"
+    TRACE_ID = "trace_id"
+    REPO = "repo"
+    BRANCH = "branch"
+    PLAN = "plan"
+    CURRENT_STEP = "current_step"
+    PR_URL = "pr_url"
+    PR_NUMBER = "pr_number"
+    CI_STATE = "ci_state"
+    CI_CHECKS = "ci_checks"
+    ERROR = "error"
+    RETRY_COUNT = "retry_count"
+    FINAL_RESULT = "final_result"
+
+    REVIEW_RESULT = "review_result"
+    REVIEW_COMMENTS = "review_comments"
+    REVIEW_SEVERITY = "review_severity"
+    MERGE_DECISION = "merge_decision"
+    CODE_QUALITY_SCORE = "code_quality_score"
+
+    SECURITY_ADVISORY = "security_advisory"
+    SECURITY_RISK = "security_risk"
+    SECURITY_FINDINGS = "security_findings"
+    SECURITY_IS_SAFE = "security_is_safe"
+
+    GOVERNANCE_ADVISORY = "governance_advisory"
+    GOVERNANCE_RISK = "governance_risk"
+    GOVERNANCE_FINDINGS = "governance_findings"
+    GOVERNANCE_IS_COMPLIANT = "governance_is_compliant"
+
+    COST_ADVISORY = "cost_advisory"
+    COST_RISK = "cost_risk"
+    COST_WITHIN_BUDGET = "cost_within_budget"
+
+    PERMISSION_ADVISORY = "permission_advisory"
+    PERMISSION_RISK = "permission_risk"
+    PERMISSION_GRANTED = "permission_granted"
+
+    REPUTATION_ADVISORY = "reputation_advisory"
+    REPUTATION_SCORE = "reputation_score"
+    REPUTATION_LEVEL = "reputation_level"
+
+    POLICY_BLOCKED = "policy_blocked"
+    POLICY_BLOCK_REASON = "policy_block_reason"
+
+    EVALUATION_RESULT = "evaluation_result"
+    EVALUATION_HEALTH_STATUS = "evaluation_health_status"
+    EVALUATION_HAS_REGRESSION = "evaluation_has_regression"
+
+    PM_ADVISORY = "pm_advisory"
+    PM_SUB_TASKS = "pm_sub_tasks"
+    PM_CONFIDENCE_SCORE = "pm_confidence_score"
+    PM_RISK = "pm_risk"
+
+    OPS_ADVISORY = "ops_advisory"
+    OPS_HEALTH_STATUS = "ops_health_status"
+    OPS_RISK = "ops_risk"
+    OPS_RECOMMENDED_ACTIONS = "ops_recommended_actions"
+
+    TASK_TYPE = "task_type"
+    ORIGINAL_PR_NUMBER = "original_pr_number"
+    COMMENT_URL = "comment_url"
+    COMMENT_BODY = "comment_body"
+    REVIEW_FILE_PATH = "review_file_path"
+    REVIEW_LINE_NUMBER = "review_line_number"
+    TRIAGE_RESULT = "triage_result"
+    PR_CONTEXT = "pr_context"
+    REVIEW_FOLLOW_UP_ACTION = "review_follow_up_action"
+    REQUIRES_HITL_APPROVAL = "requires_hitl_approval"
+
+    INTERNAL_REVIEW_MODE = "internal_review_mode"
+    INITIAL_AI_REVIEW = "initial_ai_review"
+    FOLLOW_UP_SUMMARY = "follow_up_summary"
+    INTERNAL_REVIEW_RESULT = "internal_review_result"
+    INTERNAL_REVIEW_DECISION = "internal_review_decision"
+    AI_REVIEWER_AGREEMENT = "ai_reviewer_agreement"
+
+    DIFF_HEAD_SHA = "diff_head_sha"
+    DIFF_CONTENT = "diff_content"
+    DIFF_TRUNCATED = "diff_truncated"
+
+    REVIEW_OUTCOME = "review_outcome"
+    HITL_APPROVED = "hitl_approved"
+
+    CI_FAILURE_TRIGGER = "ci_failure_trigger"
+    CI_FAILURE_CONTEXT = "ci_failure_context"
+    CI_FAILURE_FAST_PATH_CONSUMED = "ci_failure_fast_path_consumed"
+
+    ESCALATION_COUNT = "escalation_count"
+    REVIEW_FILES = "review_files"
+    CURRENT_SPAN_ID = "current_span_id"
+    LOOP_PROTECTION_TRIGGERED = "loop_protection_triggered"
+
+
 class AgentState(TypedDict):
     """
     State of the agent workflow
@@ -8967,6 +9076,10 @@ def _create_base_initial_state(
         "requires_hitl_approval": False,
         # Issue #3366: CI Failure Reflex Integration
         "ci_failure_trigger": None,
+        # Issue #3745: Initialize loop_protection_triggered for proper LangGraph propagation
+        # This field MUST be initialized to prevent state key errors when fixer_node
+        # sets it to True after AutoFixLoopProtection triggers.
+        "loop_protection_triggered": False,
     }
 
 
