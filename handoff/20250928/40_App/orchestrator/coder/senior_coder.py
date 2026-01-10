@@ -134,7 +134,7 @@ def sanitize_llm_output(
         context: Description of the value for logging (default: "output")
 
     Returns:
-        Sanitized string safe for logging
+        Sanitized string safe for logging (wrapped in quotes via repr())
 
     Usage:
         # In error messages with LLM data
@@ -147,31 +147,32 @@ def sanitize_llm_output(
         [SANITIZE_LLM_OUTPUT_TRUNCATED] - Output was truncated due to length
         [SANITIZE_LLM_OUTPUT_CONTROL_CHARS] - Control characters were removed
     """
-    # Use repr() for type safety and to escape special characters
-    sanitized = repr(value)
+    # 1. Convert to string first to handle any type
+    s = str(value)
 
-    # Remove control characters (except common whitespace like \n, \t)
-    original_len = len(sanitized)
-    sanitized = _CONTROL_CHAR_PATTERN.sub('', sanitized)
-    if len(sanitized) < original_len:
+    # 2. Remove control characters (except common whitespace like \n, \t, \r)
+    original_len = len(s)
+    s = _CONTROL_CHAR_PATTERN.sub('', s)
+    if len(s) < original_len:
         logger.debug(
             f"[SANITIZE_LLM_OUTPUT_CONTROL_CHARS] Removed control chars from {context}",
             extra={"operation": "sanitize_llm_output", "context": context}
         )
 
-    # Replace newlines with escaped representation for single-line logging
-    sanitized = sanitized.replace('\n', '\\n').replace('\r', '\\r')
+    # 3. Replace newlines with escaped representation for single-line logging
+    s = s.replace('\n', '\\n').replace('\r', '\\r')
 
-    # Truncate if too long
-    if len(sanitized) > max_length:
-        truncated = sanitized[:max_length] + "..."
+    # 4. Truncate the content string before quoting
+    if len(s) > max_length:
+        original_content_len = len(s)
+        s = s[:max_length] + "..."
         logger.debug(
-            f"[SANITIZE_LLM_OUTPUT_TRUNCATED] Truncated {context} from {len(sanitized)} to {max_length} chars",
+            f"[SANITIZE_LLM_OUTPUT_TRUNCATED] Truncated {context} from {original_content_len} to {max_length} chars",
             extra={"operation": "sanitize_llm_output", "context": context}
         )
-        return truncated
 
-    return sanitized
+    # 5. Finally, use repr() for safe quoting and escaping any remaining special chars
+    return repr(s)
 
 
 class TaskComplexity(str, Enum):
