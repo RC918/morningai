@@ -289,14 +289,30 @@ class SimpleGitTool:
             if target_files:
                 # Validate and filter target_files to only include existing files
                 valid_files = []
+                # MorningAI Reviewer: Use abspath to prevent directory traversal
+                cwd_abs = os.path.abspath(cwd)
                 for f in target_files:
-                    # Security: Normalize path to prevent directory traversal
+                    # Security: Normalize and get absolute path to prevent directory traversal
                     normalized = os.path.normpath(f)
-                    if os.path.exists(os.path.join(cwd, normalized)):
-                        valid_files.append(normalized)
+                    abs_path = os.path.abspath(os.path.join(cwd, normalized))
+
+                    # Verify file is within repo root (prevent ../../../etc/passwd attacks)
+                    if not abs_path.startswith(cwd_abs + os.sep) and abs_path != cwd_abs:
+                        logger.warning(
+                            f"[SimpleGitTool] target_file outside repo root, skipping: {f}"
+                        )
+                        continue
+
+                    # Use relative path for git add
+                    rel_path = os.path.relpath(abs_path, cwd)
+
+                    # MorningAI Reviewer: Check both existence and read permission
+                    if os.path.exists(abs_path) and os.access(abs_path, os.R_OK):
+                        valid_files.append(rel_path)
                     else:
                         logger.warning(
-                            f"[SimpleGitTool] target_file does not exist, skipping: {f}"
+                            f"[SimpleGitTool] target_file does not exist or not readable, "
+                            f"skipping: {f}"
                         )
 
                 if not valid_files:
@@ -339,11 +355,14 @@ class SimpleGitTool:
                 text=True,
                 cwd=cwd
             )
-            staged_files = (
-                staged_files_result.stdout.strip().split('\n')
-                if staged_files_result.returncode == 0 and staged_files_result.stdout.strip()
-                else []
-            )
+            # MorningAI Reviewer: More robust parsing that handles empty lines
+            # and different line endings (CRLF vs LF)
+            staged_files = []
+            if staged_files_result.returncode == 0 and staged_files_result.stdout.strip():
+                staged_files = [
+                    line.strip() for line in staged_files_result.stdout.splitlines()
+                    if line.strip()
+                ]
             logger.info(f"[SimpleGitTool] Staged files for commit: {staged_files}")
 
             # Issue #3584: Use git -c options to set author identity
