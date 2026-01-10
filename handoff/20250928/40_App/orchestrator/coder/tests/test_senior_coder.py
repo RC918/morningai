@@ -968,6 +968,30 @@ class TestRedactSensitiveData:
         assert "[REDACTED_PRIVATE_KEY]" in result
         assert was_redacted is True
 
+    def test_api_key_with_equals_separator(self):
+        """Test api_key= format is redacted (requires = or : separator)."""
+        text = "api_key=abcdefghijklmnop1234"
+        result, was_redacted = redact_sensitive_data(text)
+        assert "abcdefghijklmnop1234" not in result
+        assert "[REDACTED_API_KEY]" in result
+        assert was_redacted is True
+
+    def test_api_key_with_colon_separator(self):
+        """Test api_key: format is redacted."""
+        text = "api_key: abcdefghijklmnop1234"
+        result, was_redacted = redact_sensitive_data(text)
+        assert "abcdefghijklmnop1234" not in result
+        assert "[REDACTED_API_KEY]" in result
+        assert was_redacted is True
+
+    def test_api_key_without_separator_not_redacted(self):
+        """Test api_key without = or : is not redacted (reduces false positives)."""
+        text = "apikey_somefunction_name"
+        result, was_redacted = redact_sensitive_data(text)
+        # This should NOT be redacted because it lacks = or : separator
+        assert result == text
+        assert was_redacted is False
+
     def test_multiple_sensitive_items(self):
         """Test multiple sensitive items in same text are all redacted."""
         text = "password=secret123 and api_key=sk-abcdefghijklmnopqrstuvwxyz"

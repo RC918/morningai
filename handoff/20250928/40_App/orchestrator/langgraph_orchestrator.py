@@ -4714,7 +4714,7 @@ def _validate_design_doc_gate(
                 "Please review the SeniorCoder output and ensure proper architecture "
                 "planning before proceeding with implementation."
             ),
-            log_message=f"Invalid ArchitectureSpec triggers HITL gate. missing_fields={missing_fields},",
+            log_message=f"Invalid ArchitectureSpec triggers HITL gate. missing_fields={missing_fields}",
             extra_details={"missing_fields": missing_fields},
         )
 

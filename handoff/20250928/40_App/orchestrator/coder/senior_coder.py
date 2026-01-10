@@ -118,9 +118,11 @@ _CONTROL_CHAR_PATTERN = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 # Sensitive data patterns for redaction (Issue #3749)
 # These patterns match common sensitive data formats that should not appear in logs
 _SENSITIVE_PATTERNS = [
-    # API keys (common formats: sk-xxx, api-xxx, key-xxx with 20+ chars)
+    # API keys (common formats: sk-xxx with 20+ chars, api_key=xxx with 16+ chars)
+    # sk- prefix is specific to OpenAI-style keys
     (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), '[REDACTED_API_KEY]'),
-    (re.compile(r'\b(api[-_]?key[-_:]?\s*["\']?[a-zA-Z0-9]{16,})\b', re.IGNORECASE), '[REDACTED_API_KEY]'),
+    # Generic api_key pattern requires = or : separator to reduce false positives
+    (re.compile(r'(api[-_]?key\s*[:=]\s*["\']?)[a-zA-Z0-9_-]{16,}(["\']?)', re.IGNORECASE), r'\1[REDACTED_API_KEY]\2'),
     # Bearer tokens
     (re.compile(r'\b(Bearer\s+[a-zA-Z0-9._-]{20,})\b'), '[REDACTED_BEARER_TOKEN]'),
     # JWT tokens (three base64 parts separated by dots)
@@ -162,10 +164,9 @@ def redact_sensitive_data(text: str) -> tuple[str, bool]:
     was_redacted = False
 
     for pattern, replacement in _SENSITIVE_PATTERNS:
-        new_text = pattern.sub(replacement, redacted)
-        if new_text != redacted:
+        redacted, num_replacements = pattern.subn(replacement, redacted)
+        if num_replacements > 0:
             was_redacted = True
-            redacted = new_text
 
     return redacted, was_redacted
 
