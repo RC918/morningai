@@ -980,6 +980,29 @@ Flag these as CRITICAL severity if the code could cause infinite loops.
 - If you have no high-impact issues to report, say so in the summary
 - DO NOT pad the review with low-value suggestions
 
+=== ACTIONABLE SUGGESTIONS REQUIRED (Issue #3768) ===
+When pointing out an issue, you MUST provide a concrete code fix, not just criticism.
+
+**BAD (criticism without solution):**
+"This function doesn't handle null values" - unhelpful, leaves developer guessing
+
+**GOOD (actionable with code snippet):**
+"This function doesn't handle null values. Suggested fix:
+```python
+def process(value):
+    if value is None:
+        return default_value
+    return transform(value)
+```"
+
+Rules for actionable suggestions:
+1. Every criticism MUST include a code snippet showing the fix
+2. The code snippet should be copy-paste ready (not pseudocode)
+3. If you cannot provide a specific code snippet, explain the recommended approach in detail within the `message` field after the IMPACT statement
+4. The code snippet for the fix MUST be placed in the `suggested_fix` field
+
+Comments without actionable suggestions will be considered low-value and should be omitted.
+
 === LINE NUMBER FORMAT ===
 The diff is annotated with explicit line numbers in this format:
   + (Line 50) print("hello")    <- Addition at line 50 (VALID target)
@@ -1003,7 +1026,8 @@ If you cannot see "(Line N)" for a piece of code, omit line fields entirely.
       "start_line": 50,
       "end_line": 50,
       "quote": "the exact code you're commenting on",
-      "message": "IMPACT: [why this matters]. SUGGESTED FIX: [concrete fix]."
+      "message": "IMPACT: [why this matters].",
+      "suggested_fix": "```python\n# Copy-paste ready code fix\ndef fixed_function():\n    pass\n```"
     }
   ]
 }
@@ -1013,6 +1037,7 @@ IMPORTANT:
 - "style" category is REMOVED - do not use it
 - "contract" category is NEW - use for API/schema/timestamp changes
 - "quote" field is NEW - include the code snippet you're referencing
+- "suggested_fix" field is REQUIRED (Issue #3768) - include copy-paste ready code
 - Only use start_line/end_line for "+" lines you can see in the diff
 
 === SCORING GUIDELINES ===
@@ -1162,6 +1187,9 @@ IMPORTANT:
                 )
             truncation_warning = "\n\n" + " ".join(warning_parts)
 
+        # Issue #3774: Sanitize goal input to prevent prompt injection
+        sanitized_goal = self._sanitize_prompt_input(goal)
+
         # Issue #3767: Build PR context section for context-aware review
         pr_context_section = ""
         if pr_title or pr_description:
@@ -1184,7 +1212,7 @@ IMPORTANT:
 {file_summary}{allowed_files_section}{pr_context_section}
 
 **Task Goal/Description:**
-{goal}
+{sanitized_goal}
 {truncation_warning}
 
 **Code Diff (with line numbers annotated):**
@@ -1267,6 +1295,9 @@ Guidelines for scoring:
         Returns:
             User prompt string for LLM
         """
+        # Issue #3774: Sanitize goal input to prevent prompt injection
+        sanitized_goal = self._sanitize_prompt_input(goal)
+
         return f"""**Pull Request Information**
 - Repository: {repo}
 - PR Number: {pr_number or "Unknown"}
@@ -1274,7 +1305,7 @@ Guidelines for scoring:
 - CI Status: {ci_state}
 
 **Task Goal/Description**:
-{goal}
+{sanitized_goal}
 
 Based on this information, provide your code review assessment as JSON.
 Remember: You cannot see the actual code changes, so focus on risk assessment based on CI status and task complexity."""
@@ -1388,6 +1419,32 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                 }
             )
             return None
+
+    def _sanitize_prompt_input(self, content: str) -> str:
+        """
+        Sanitize user-controlled input to prevent prompt injection attacks.
+
+        Issue #3774: The goal variable is user-controlled and directly embedded
+        into the LLM prompt. This method sanitizes it to prevent prompt injection.
+
+        Uses pre-compiled regex patterns from PROMPT_INJECTION_PATTERNS for performance.
+        Patterns include common instruction overrides, role manipulation attempts,
+        and model-specific control tokens (Llama [INST], Mistral <<SYS>>, ChatML <|im_start|>).
+
+        Args:
+            content: User-controlled input string (e.g., goal, task description)
+
+        Returns:
+            Sanitized string safe for embedding in LLM prompts
+        """
+        if not content:
+            return content
+
+        sanitized = content
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            sanitized = pattern.sub('[SANITIZED]', sanitized)
+
+        return sanitized
 
     def _sanitize_json_input(self, content: str) -> str:
         """
