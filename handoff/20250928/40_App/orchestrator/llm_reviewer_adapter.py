@@ -1075,10 +1075,15 @@ IMPORTANT:
                     allowed_file_names.append(f['filename'])
 
             # Issue #3765: Explicit ALLOWED FILES section for scope enforcement
+            # Sanitize filenames to prevent prompt injection (gemini-code-assist review)
+            def sanitize_filename(fn: str) -> str:
+                """Escape backticks and newlines to prevent prompt injection."""
+                return fn.replace('`', '').replace('\n', ' ').replace('\r', ' ')
+
             allowed_files_section = (
                 "\n\n**ALLOWED FILES (Issue #3765 - Scope Enforcement):**\n"
                 "You may ONLY comment on these files. Any comment on a file not in this list will be REJECTED.\n"
-                + "\n".join(f"  - {fn}" for fn in allowed_file_names)
+                + "\n".join(f"  - `{sanitize_filename(fn)}`" for fn in allowed_file_names)
             )
 
         # Build truncation warning if applicable (enhanced for #3080)
