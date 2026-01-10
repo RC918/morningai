@@ -251,3 +251,31 @@ services:
       - key: ENVIRONMENT
         value: production
     autoDeploy: false  # Disabled to reduce bandwidth/pipeline costs (#2897)
+
+  # CI Failure Scanner - Webhook backup mechanism (Issue #3519)
+  # Runs every 15 minutes to catch CI failures missed by webhooks
+  - type: cron
+    name: morningai-ci-failure-scanner
+    env: python
+    runtime: python
+    schedule: "*/15 * * * *"  # Every 15 minutes
+    buildCommand: |
+      cd handoff/20250928/40_App/orchestrator &&
+      pip install --upgrade pip &&
+      pip install -r requirements.txt &&
+      pip install -e . --no-deps
+    startCommand: cd handoff/20250928/40_App/orchestrator && python -m scanner.ci_failure_scanner
+    envVars:
+      - key: PYTHONPATH
+        value: /opt/render/project/src:/opt/render/project/src/handoff/20250928/40_App:/opt/render/project/src/handoff/20250928/40_App/api-backend/src
+      - key: REDIS_URL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        value: RC918/morningai
+      - key: ENVIRONMENT
+        value: production
+      - key: SENTRY_DSN
+        sync: false
+    autoDeploy: false  # Disabled to reduce bandwidth/pipeline costs (#2897)
