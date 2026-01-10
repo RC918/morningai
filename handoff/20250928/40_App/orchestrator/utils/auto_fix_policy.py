@@ -402,9 +402,13 @@ class AutoFixRateLimiter:
             current_time = time.time()
             window_start = current_time - AUTO_FIX_RATE_LIMIT_WINDOW
 
+            # Issue #3794: Sanitize pr_id and repo for Redis key safety
+            safe_pr_id = _sanitize_pr_id(pr_id)
+            safe_repo = _sanitize_pr_id(repo)  # repo has same format constraints
+
             dimensions = [
-                ('pr', f"auto_fix:rate:pr:{pr_id}", self.settings.auto_fix_per_pr_per_hour),
-                ('repo', f"auto_fix:rate:repo:{repo}", self.settings.auto_fix_per_repo_per_hour),
+                ('pr', f"auto_fix:rate:pr:{safe_pr_id}", self.settings.auto_fix_per_pr_per_hour),
+                ('repo', f"auto_fix:rate:repo:{safe_repo}", self.settings.auto_fix_per_repo_per_hour),
                 ('global', "auto_fix:rate:global", self.settings.auto_fix_global_per_hour),
             ]
 
