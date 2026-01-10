@@ -490,10 +490,13 @@ class AutoFixLoopProtection:
             )
             return None
 
-    def check_and_increment(self, pr_id: str) -> Tuple[bool, int]:
+    def check_only(self, pr_id: str) -> Tuple[bool, int]:
         """
         Check if auto-fix attempts for a PR have exceeded the max retry limit.
-        If allowed, increments the attempt counter.
+        Does NOT increment the counter - use increment() after actual fix attempt.
+
+        Issue #3792: Separating check and increment prevents race condition where
+        PR_OPENED webhook exhausts the counter before CI_FAILURE webhook arrives.
 
         Args:
             pr_id: Pull request identifier (e.g., "owner/repo#123")
@@ -535,19 +538,7 @@ class AutoFixLoopProtection:
                 )
                 return False, current_attempts
 
-            new_count = r.incr(key)
-            r.expire(key, 86400 * 7)
-
-            logger.debug(
-                "[AutoFixLoopProtection] Attempt recorded",
-                extra={
-                    "operation": "auto_fix_attempt_recorded",
-                    "pr_id": pr_id,
-                    "attempt_number": new_count,
-                    "max_retries": max_retries,
-                }
-            )
-            return True, new_count
+            return True, current_attempts
 
         except redis.ConnectionError as e:
             logger.warning(
@@ -563,6 +554,73 @@ class AutoFixLoopProtection:
                 extra={"operation": "auto_fix_loop_protection_error"}
             )
             return True, 0
+
+    def increment(self, pr_id: str) -> int:
+        """
+        Increment the auto-fix attempt counter for a PR.
+        Should be called AFTER an actual fix attempt is made.
+
+        Issue #3792: Only increment after actual fix attempt to prevent
+        race condition where early returns exhaust the counter.
+
+        Args:
+            pr_id: Pull request identifier (e.g., "owner/repo#123")
+
+        Returns:
+            New attempt count, or 0 if increment failed
+        """
+        r = self._get_redis_client()
+        if r is None:
+            return 0
+
+        try:
+            key = f"auto_fix:attempts:{pr_id}"
+            max_retries = self.settings.auto_fix_max_retries
+
+            new_count = r.incr(key)
+            r.expire(key, 86400 * 7)
+
+            logger.info(
+                "[AutoFixLoopProtection] Attempt recorded after fix",
+                extra={
+                    "operation": "auto_fix_attempt_recorded",
+                    "pr_id": pr_id,
+                    "attempt_number": new_count,
+                    "max_retries": max_retries,
+                }
+            )
+            return new_count
+
+        except Exception as e:
+            logger.warning(
+                "[AutoFixLoopProtection] Failed to increment counter: %s",
+                str(e),
+                extra={"operation": "auto_fix_loop_protection_increment_error"}
+            )
+            return 0
+
+    def check_and_increment(self, pr_id: str) -> Tuple[bool, int]:
+        """
+        Check if auto-fix attempts for a PR have exceeded the max retry limit.
+        If allowed, increments the attempt counter.
+
+        DEPRECATED: Use check_only() + increment() for better control.
+        This method is kept for backward compatibility.
+
+        Args:
+            pr_id: Pull request identifier (e.g., "owner/repo#123")
+
+        Returns:
+            Tuple of (allowed: bool, current_attempts: int)
+        """
+        allowed, current_attempts = self.check_only(pr_id)
+        if allowed:
+            new_count = self.increment(pr_id)
+            # Issue #3793: Return actual Redis state on increment failure
+            # If increment fails (returns 0), return current_attempts to reflect
+            # the actual state rather than an optimistic estimate
+            return True, new_count if new_count > 0 else current_attempts
+        return False, current_attempts
 
     def get_attempts(self, pr_id: str) -> int:
         """

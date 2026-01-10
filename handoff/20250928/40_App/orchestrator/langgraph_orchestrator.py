@@ -6040,10 +6040,14 @@ def fixer_node(state: AgentState) -> AgentState:
     pr_number = state.get("pr_number")
     pr_id = f"{repo}#{pr_number}" if repo and pr_number else trace_id
 
+    # Issue #3792: Use check_only() instead of check_and_increment() to prevent
+    # race condition where PR_OPENED webhook exhausts counter before CI_FAILURE arrives.
+    # The counter is only incremented AFTER an actual fix attempt is made.
+    loop_protection = None
     try:
         from utils.auto_fix_policy import AutoFixLoopProtection
         loop_protection = AutoFixLoopProtection(settings)
-        loop_allowed, current_attempts = loop_protection.check_and_increment(pr_id)
+        loop_allowed, current_attempts = loop_protection.check_only(pr_id)
 
         if not loop_allowed:
             max_retries = getattr(settings, 'auto_fix_max_retries', 3)
@@ -6092,6 +6096,11 @@ def fixer_node(state: AgentState) -> AgentState:
             f"[Fixer] Loop protection check failed, proceeding (fail-open): {e}",
             extra={"trace_id": trace_id, "error": str(e), "pr_id": pr_id}
         )
+
+    # Store loop_protection in state for later increment after actual fix attempt
+    # This is used by _attempt_self_correction_fix and coder functions
+    state["_loop_protection"] = loop_protection
+    state["_loop_protection_pr_id"] = pr_id
 
     # Cost Optimization: CI signature deduplication
     # Prevents re-processing the EXACT SAME CI failure within 24 hours
@@ -6422,6 +6431,30 @@ def fixer_node(state: AgentState) -> AgentState:
     agent_eval = _get_agent_eval()
     agent_eval.record_node_latency(trace_id, "fixer", latency_ms)
     agent_eval.record_fixer_iteration(trace_id, retry_count + 1, success)
+
+    # Issue #3792: Increment loop protection counter AFTER actual fix attempt
+    # This prevents race condition where PR_OPENED webhook exhausts counter
+    # before CI_FAILURE webhook arrives with proper context
+    _loop_protection = state.get("_loop_protection")
+    _loop_protection_pr_id = state.get("_loop_protection_pr_id")
+    if _loop_protection and _loop_protection_pr_id:
+        try:
+            new_count = _loop_protection.increment(_loop_protection_pr_id)
+            logger.info(
+                f"[Fixer] Loop protection counter incremented after fix attempt. "
+                f"pr_id={_loop_protection_pr_id}, new_count={new_count}, trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_loop_protection_increment",
+                    "trace_id": trace_id,
+                    "pr_id": _loop_protection_pr_id,
+                    "new_count": new_count,
+                }
+            )
+        except Exception as e:
+            logger.warning(
+                f"[Fixer] Failed to increment loop protection counter: {e}",
+                extra={"trace_id": trace_id, "error": str(e)}
+            )
 
     return state
 
