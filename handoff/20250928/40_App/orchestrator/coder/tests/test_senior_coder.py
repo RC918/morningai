@@ -1108,7 +1108,7 @@ class TestInterfaceSpec:
         )
         result = spec.to_dict()
         assert result["name"] == "process_data"
-        assert result["interface_type"] == "function"
+        assert result["type"] == "function"
         assert result["signature"] == "def process_data(data: dict) -> dict"
         assert result["description"] == "Process input data"
 
@@ -1116,7 +1116,7 @@ class TestInterfaceSpec:
         """Test InterfaceSpec deserialization."""
         data = {
             "name": "DataProcessor",
-            "interface_type": "class",
+            "type": "class",
             "signature": "class DataProcessor:",
             "description": "Data processing class"
         }
@@ -1130,7 +1130,7 @@ class TestInterfaceSpec:
         """Test InterfaceSpec with invalid type defaults to function."""
         data = {
             "name": "test",
-            "interface_type": "invalid_type",
+            "type": "invalid_type",
             "signature": "def test():"
         }
         spec = InterfaceSpec.from_dict(data)
@@ -1148,14 +1148,14 @@ class TestTestCaseSpec:
         spec = TestCaseSpec(
             name="test_process_valid_data",
             description="Test processing valid data",
-            input_data={"key": "value"},
-            expected_output={"result": "success"}
+            input_data='{"key": "value"}',
+            expected_output='{"result": "success"}'
         )
         result = spec.to_dict()
         assert result["name"] == "test_process_valid_data"
         assert result["description"] == "Test processing valid data"
-        assert result["input_data"] == {"key": "value"}
-        assert result["expected_output"] == {"result": "success"}
+        assert result["input_data"] == '{"key": "value"}'
+        assert result["expected_output"] == '{"result": "success"}'
 
     def test_from_dict(self):
         """Test TestCaseSpec deserialization."""
@@ -1203,7 +1203,7 @@ class TestTaskSpec:
             interfaces=[InterfaceSpec(
                 "new_func", InterfaceType.FUNCTION, "def new_func():", "New"
             )],
-            test_cases=[TestCaseSpec("test_new", "Test new", {}, {})],
+            test_cases=[TestCaseSpec("test_new", "Test new", "{}", "{}")],
             acceptance_criteria=["Feature works correctly"]
         )
         result = spec.to_dict()
@@ -1274,14 +1274,16 @@ class TestSpecParser:
         result = SpecParser.parse("not valid json")
         assert result.success is False
         assert result.spec is None
-        assert "parse" in result.error.lower() or "json" in result.error.lower()
+        assert len(result.errors) > 0
+        assert "parse" in result.errors[0].lower() or "json" in result.errors[0].lower()
 
     def test_parse_missing_required_fields(self):
         """Test parsing JSON with missing required fields."""
         json_str = json.dumps({"title": "Only title"})
         result = SpecParser.parse(json_str)
         assert result.success is False
-        assert "description" in result.error.lower()
+        assert len(result.errors) > 0
+        assert "description" in result.errors[0].lower()
 
     def test_parse_dict_valid(self):
         """Test parsing valid dictionary."""
@@ -1290,7 +1292,7 @@ class TestSpecParser:
             "description": "Test description",
             "interfaces": [{
                 "name": "test_func",
-                "interface_type": "function",
+                "type": "function",
                 "signature": "def test_func():",
                 "description": "Test function"
             }]
@@ -1313,53 +1315,81 @@ class TestSpecValidator:
     """
 
     def test_validate_valid_spec(self):
-        """Test validation of valid TaskSpec."""
+        """Test validation of valid TaskSpec with matching implementation."""
         spec = TaskSpec(
             title="Valid task",
             description="Valid description",
             files_to_create=[FileSpec("src/new.py", "New file")],
             acceptance_criteria=["Works correctly"]
         )
-        result = SpecValidator.validate(spec)
+        implementation_files = [
+            {"path": "src/new.py", "content": "# New file content"}
+        ]
+        result = SpecValidator.validate(spec, implementation_files)
         assert result.is_valid is True
-        assert len(result.errors) == 0
+        assert len(result.missing_files) == 0
 
-    def test_validate_invalid_empty_title(self):
-        """Test validation fails for empty title."""
-        spec = TaskSpec(title="", description="Description")
-        result = SpecValidator.validate(spec)
-        assert result.is_valid is False
-        assert any("title" in err.lower() for err in result.errors)
-
-    def test_validate_invalid_empty_description(self):
-        """Test validation fails for empty description."""
-        spec = TaskSpec(title="Title", description="")
-        result = SpecValidator.validate(spec)
-        assert result.is_valid is False
-        assert any("description" in err.lower() for err in result.errors)
-
-    def test_validate_too_many_files(self):
-        """Test validation warns for too many files."""
+    def test_validate_missing_files(self):
+        """Test validation fails when files are missing."""
         spec = TaskSpec(
-            title="Large task",
-            description="Task with many files",
-            files_to_create=[FileSpec(f"f{i}.py", "") for i in range(10)]
+            title="Task",
+            description="Description",
+            files_to_create=[FileSpec("src/new.py", "New file")]
         )
-        result = SpecValidator.validate(spec)
-        # Should still be valid but may have warnings
-        assert result.is_valid is True or len(result.warnings) > 0
+        implementation_files = []  # No files implemented
+        result = SpecValidator.validate(spec, implementation_files)
+        assert result.is_valid is False
+        assert "src/new.py" in result.missing_files
+
+    def test_validate_missing_interfaces(self):
+        """Test validation fails when interfaces are missing."""
+        spec = TaskSpec(
+            title="Task",
+            description="Description",
+            interfaces=[InterfaceSpec(
+                "my_function", InterfaceType.FUNCTION, "def my_function():", "Test"
+            )]
+        )
+        implementation_files = [
+            {"path": "src/file.py", "content": "# No function here"}
+        ]
+        result = SpecValidator.validate(spec, implementation_files)
+        assert result.is_valid is False
+        assert "my_function" in result.missing_interfaces
+
+    def test_validate_matched_interfaces(self):
+        """Test validation passes when interfaces are found."""
+        spec = TaskSpec(
+            title="Task",
+            description="Description",
+            interfaces=[InterfaceSpec(
+                "my_function", InterfaceType.FUNCTION, "def my_function():", "Test"
+            )]
+        )
+        implementation_files = [
+            {"path": "src/file.py", "content": "def my_function(): pass"}
+        ]
+        result = SpecValidator.validate(spec, implementation_files)
+        assert result.is_valid is True
+        assert "my_function" in result.matched_interfaces
 
     def test_validation_result_to_dict(self):
         """Test SpecValidationResult serialization."""
         result = SpecValidationResult(
             is_valid=False,
-            errors=["Error 1", "Error 2"],
-            warnings=["Warning 1"]
+            matched_interfaces=["func1"],
+            missing_interfaces=["func2"],
+            matched_files=["file1.py"],
+            missing_files=["file2.py"],
+            feedback="Partial match"
         )
         data = result.to_dict()
         assert data["is_valid"] is False
-        assert len(data["errors"]) == 2
-        assert len(data["warnings"]) == 1
+        assert len(data["matched_interfaces"]) == 1
+        assert len(data["missing_interfaces"]) == 1
+        assert len(data["matched_files"]) == 1
+        assert len(data["missing_files"]) == 1
+        assert data["feedback"] == "Partial match"
 
 
 class TestConvertArchitectureSpecToTaskSpec:
