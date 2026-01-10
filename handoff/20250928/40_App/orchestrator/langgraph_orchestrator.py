@@ -4880,18 +4880,29 @@ def _attempt_self_correction_fix(
     """
     # Check feature flag
     if not getattr(settings, 'enable_self_correction', False):
-        logger.debug(
+        logger.info(
             f"[SELF_CORRECTION_INTEGRATION_DISABLED] Feature flag disabled. "
-            f"trace_id={trace_id}"
+            f"trace_id={trace_id}",
+            extra={
+                "operation": "self_correction_integration",
+                "trace_id": trace_id,
+                "event_code": "SELF_CORRECTION_INTEGRATION_DISABLED",
+            }
         )
         return False, "Self-correction feature flag disabled"
 
     # Check if we have CI failure context with test output
     ci_context = state.get("ci_failure_context")
     if not ci_context or not isinstance(ci_context, dict):
-        logger.debug(
-            f"[SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] No CI failure context. "
-            f"trace_id={trace_id}"
+        logger.info(
+            f"[SELF_CORRECTION_INTEGRATION_NO_CI_CONTEXT] No CI failure context. "
+            f"ci_context_type={type(ci_context).__name__}, trace_id={trace_id}",
+            extra={
+                "operation": "self_correction_integration",
+                "trace_id": trace_id,
+                "event_code": "SELF_CORRECTION_INTEGRATION_NO_CI_CONTEXT",
+                "ci_context_type": type(ci_context).__name__,
+            }
         )
         return False, "No CI failure context available"
 
@@ -4899,9 +4910,15 @@ def _attempt_self_correction_fix(
     # CI context may contain: error_summary, failed_check_name, log_excerpt, etc.
     test_output = ci_context.get("log_excerpt", "") or ci_context.get("error_summary", "")
     if not test_output:
-        logger.debug(
+        logger.info(
             f"[SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] No test output in CI context. "
-            f"trace_id={trace_id}"
+            f"ci_context_keys={list(ci_context.keys())}, trace_id={trace_id}",
+            extra={
+                "operation": "self_correction_integration",
+                "trace_id": trace_id,
+                "event_code": "SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT",
+                "ci_context_keys": list(ci_context.keys()),
+            }
         )
         return False, "No test output in CI failure context"
 
@@ -4916,9 +4933,15 @@ def _attempt_self_correction_fix(
     )
 
     if not is_test_failure:
-        logger.debug(
-            f"[SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] Not a test failure. "
-            f"failed_check_name={failed_check_name}, trace_id={trace_id}"
+        logger.info(
+            f"[SELF_CORRECTION_INTEGRATION_NOT_TEST_FAILURE] Not a test failure. "
+            f"failed_check_name={failed_check_name}, trace_id={trace_id}",
+            extra={
+                "operation": "self_correction_integration",
+                "trace_id": trace_id,
+                "event_code": "SELF_CORRECTION_INTEGRATION_NOT_TEST_FAILURE",
+                "failed_check_name": failed_check_name,
+            }
         )
         return False, "CI failure is not a test failure"
 
@@ -6225,9 +6248,15 @@ def fixer_node(state: AgentState) -> AgentState:
         agent_eval.record_fixer_iteration(trace_id, retry_count + 1, True)
         return state
 
-    logger.debug(
+    logger.info(
         f"[Fixer] SelfCorrectionLoop did not apply fix, trying GeneralCoder. "
-        f"reason={self_correction_msg}, trace_id={trace_id}"
+        f"reason={self_correction_msg}, trace_id={trace_id}",
+        extra={
+            "operation": "fixer",
+            "trace_id": trace_id,
+            "event_code": "SELF_CORRECTION_FIXER_SKIP",
+            "self_correction_reason": self_correction_msg,
+        }
     )
 
     # D-1b: Try GeneralCoder first for multi-file issues
