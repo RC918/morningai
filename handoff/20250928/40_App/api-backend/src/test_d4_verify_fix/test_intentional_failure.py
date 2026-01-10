@@ -11,7 +11,6 @@ Expected behavior after fix:
 
 Issue: #3792, #3793
 """
-import pytest
 
 
 def test_d4_verification_intentional_failure():
