@@ -1103,6 +1103,11 @@ IMPORTANT:
             annotated_diff, max_chars=max_diff_chars
         )
 
+        # Issue #3790: Sanitize diff content to prevent prompt injection attacks
+        # Diff is user-controllable (attackers can craft malicious diffs with injection payloads)
+        # Apply same sanitization as other user-controlled inputs (goal, pr_title, pr_description)
+        truncated_diff = self._sanitize_prompt_input(truncated_diff)
+
         # Log truncation telemetry (WARNING level for visibility per Blueprint Telemetry v2)
         if truncation_telemetry["was_truncated"]:
             logger.warning(
