@@ -4851,7 +4851,10 @@ def _attempt_self_correction_fix(
                 ref = diff_head_sha if diff_head_sha else branch
                 files_to_fetch = review_files if review_files else ([{"path": file_path}] if file_path else [])
 
-                for f in files_to_fetch[:10]:  # Limit to 10 files
+                # D-4: Limit files for self-correction (similar to MAX_FILES_FOR_GENERAL_CODER)
+                # This prevents excessive API calls and token usage for large file sets
+                MAX_FILES_FOR_SELF_CORRECTION = 10
+                for f in files_to_fetch[:MAX_FILES_FOR_SELF_CORRECTION]:
                     f_path = f.get("path", "") if isinstance(f, dict) else f
                     if not f_path:
                         continue
