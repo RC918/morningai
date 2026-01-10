@@ -443,8 +443,8 @@ class TestSelfCorrectionLoop:
             assert result.escalated is True
             assert result.attempts == 3
 
-    def test_success_on_first_attempt(self):
-        """Test success on first attempt."""
+    def test_unverified_fix_without_callback(self):
+        """Test that fix without callback returns success=False (unverified)."""
         mock_correction = {
             "coder": "simple_coder",
             "patches": [{"file_path": "foo.py", "patch": "fixed"}],
@@ -457,9 +457,11 @@ class TestSelfCorrectionLoop:
                 test_output="FAILED test_foo.py::test_bar - SyntaxError",
                 files=[{"path": "foo.py", "content": "def foo( pass"}]
             )
-            assert result.success is True
+            # Without callback, fix is unverified so success=False
+            assert result.success is False
             assert result.attempts == 1
             assert len(result.corrections_applied) == 1
+            assert "unverified" in result.feedback.lower()
 
     def test_success_on_second_attempt(self):
         """Test success on second attempt with callback."""
@@ -505,8 +507,8 @@ class TestSelfCorrectionLoop:
         assert "Expected: 2" in comment
         assert "Actual: 1" in comment
 
-    @patch('coder.self_correction.get_general_coder')
-    @patch('coder.self_correction.get_simple_coder')
+    @patch('coder.general_coder.get_general_coder')
+    @patch('coder.simple_coder.get_simple_coder')
     def test_generate_fix_with_general_coder(
         self, mock_get_simple, mock_get_general
     ):
@@ -532,8 +534,8 @@ class TestSelfCorrectionLoop:
         assert fix is not None
         assert fix["coder"] == "general_coder"
 
-    @patch('coder.self_correction.get_general_coder')
-    @patch('coder.self_correction.get_simple_coder')
+    @patch('coder.general_coder.get_general_coder')
+    @patch('coder.simple_coder.get_simple_coder')
     def test_generate_fix_with_simple_coder(
         self, mock_get_simple, mock_get_general
     ):
@@ -561,10 +563,7 @@ class TestSelfCorrectionLoop:
 
     def test_generate_fix_import_error(self):
         """Test that ImportError in coder is handled gracefully."""
-        with patch(
-            'coder.self_correction.get_general_coder',
-            side_effect=ImportError("Coder not available")
-        ):
+        with patch.dict('sys.modules', {'coder.general_coder': None}):
             failure = ParsedTestFailure(
                 test_name="test_foo",
                 error_type=ErrorType.SYNTAX,

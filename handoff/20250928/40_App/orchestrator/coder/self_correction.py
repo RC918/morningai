@@ -271,9 +271,16 @@ class TestLogParser:
         """Detect the test framework from output."""
         output_lower = output.lower()
 
+        # Check for pytest first - look for pytest-specific patterns
+        # FAILED with .py:: is a strong pytest indicator
         if "pytest" in output_lower or "====" in output and ".py::" in output:
             return "pytest"
-        elif "jest" in output_lower or "PASS " in output or "FAIL " in output:
+        # Also check for FAILED pattern with .py:: which is pytest-specific
+        if "FAILED" in output and ".py::" in output:
+            return "pytest"
+        elif "jest" in output_lower or ("PASS " in output and ".test." in output):
+            return "jest"
+        elif "FAIL " in output and (".test." in output or ".spec." in output):
             return "jest"
         elif "mocha" in output_lower:
             return "mocha"
@@ -703,12 +710,13 @@ class SelfCorrectionLoop:
                         # Update failures for next attempt
                         parse_result = new_parse
                     else:
-                        # Without callback, assume success if we generated a fix
-                        logger.info(
-                            "[SELF_CORRECTION_SUCCESS] Generated fix (no test callback)"
+                        # Without callback, we can't verify the fix.
+                        # Report success=False but provide the patch for manual review.
+                        logger.warning(
+                            "[SELF_CORRECTION_UNVERIFIED] Generated fix but cannot verify (no test callback)"
                         )
-                        result.success = True
-                        result.feedback = f"Generated fix after {attempt} attempt(s)"
+                        result.success = False
+                        result.feedback = f"Generated unverified fix after {attempt} attempt(s). Please review."
                         return result
 
             except Exception as e:
@@ -897,6 +905,8 @@ _loop_lock = __import__("threading").Lock()
 def get_self_correction_loop() -> SelfCorrectionLoop:
     """Get or create the singleton SelfCorrectionLoop instance.
 
+    Uses settings.self_correction_max_attempts from config if available.
+
     Returns:
         SelfCorrectionLoop instance
     """
@@ -904,7 +914,13 @@ def get_self_correction_loop() -> SelfCorrectionLoop:
     if _self_correction_loop is None:
         with _loop_lock:
             if _self_correction_loop is None:
-                _self_correction_loop = SelfCorrectionLoop()
+                # Try to get max_attempts from settings
+                try:
+                    from common.config.settings import settings
+                    max_attempts = settings.self_correction_max_attempts
+                except (ImportError, AttributeError):
+                    max_attempts = MAX_CORRECTION_ATTEMPTS
+                _self_correction_loop = SelfCorrectionLoop(max_attempts=max_attempts)
     return _self_correction_loop
 
 
