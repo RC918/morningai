@@ -976,6 +976,29 @@ Flag these as CRITICAL severity if the code could cause infinite loops.
 - If you have no high-impact issues to report, say so in the summary
 - DO NOT pad the review with low-value suggestions
 
+=== ACTIONABLE SUGGESTIONS REQUIRED (Issue #3768) ===
+When pointing out an issue, you MUST provide a concrete code fix, not just criticism.
+
+**BAD (criticism without solution):**
+"This function doesn't handle null values" - unhelpful, leaves developer guessing
+
+**GOOD (actionable with code snippet):**
+"This function doesn't handle null values. Suggested fix:
+```python
+def process(value):
+    if value is None:
+        return default_value
+    return transform(value)
+```"
+
+Rules for actionable suggestions:
+1. Every criticism MUST include a code snippet showing the fix
+2. The code snippet should be copy-paste ready (not pseudocode)
+3. If you cannot provide a specific code snippet, explain the recommended approach in detail within the `message` field after the IMPACT statement
+4. The code snippet for the fix MUST be placed in the `suggested_fix` field
+
+Comments without actionable suggestions will be considered low-value and should be omitted.
+
 === LINE NUMBER FORMAT ===
 The diff is annotated with explicit line numbers in this format:
   + (Line 50) print("hello")    <- Addition at line 50 (VALID target)
@@ -999,7 +1022,8 @@ If you cannot see "(Line N)" for a piece of code, omit line fields entirely.
       "start_line": 50,
       "end_line": 50,
       "quote": "the exact code you're commenting on",
-      "message": "IMPACT: [why this matters]. SUGGESTED FIX: [concrete fix]."
+      "message": "IMPACT: [why this matters].",
+      "suggested_fix": "```python\n# Copy-paste ready code fix\ndef fixed_function():\n    pass\n```"
     }
   ]
 }
@@ -1009,6 +1033,7 @@ IMPORTANT:
 - "style" category is REMOVED - do not use it
 - "contract" category is NEW - use for API/schema/timestamp changes
 - "quote" field is NEW - include the code snippet you're referencing
+- "suggested_fix" field is REQUIRED (Issue #3768) - include copy-paste ready code
 - Only use start_line/end_line for "+" lines you can see in the diff
 
 === SCORING GUIDELINES ===
