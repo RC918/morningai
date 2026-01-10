@@ -26,8 +26,8 @@ const appleInputVariants = cva(
       },
       state: {
         default: "",
-        error: "border-red-600 focus:border-red-600 focus:ring-red-600/20",
-        success: "border-green-500 focus:border-green-500 focus:ring-green-500/20",
+        error: "border-error-600 focus:border-error-600 focus:ring-error-600/20",
+        success: "border-success-500 focus:border-success-500 focus:ring-success-500/20",
       },
     },
     defaultVariants: {
@@ -130,7 +130,7 @@ function AppleInput({
           )}
         >
           {label}
-          {required && <span className="text-red-600 ml-1">*</span>}
+          {required && <span className="text-error-600 ml-1">*</span>}
         </label>
       )}
 
@@ -177,7 +177,7 @@ function AppleInput({
                 transition={springConfig}
                 className="[transform:none] [filter:none]"
               >
-                <AlertCircle className="w-5 h-5 text-red-600 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
+                <AlertCircle className="w-5 h-5 text-error-600 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
             {state === "success" && successText && (
@@ -188,7 +188,7 @@ function AppleInput({
                 transition={springConfig}
                 className="[transform:none] [filter:none]"
               >
-                <CheckCircle2 className="w-5 h-5 text-green-500 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
+                <CheckCircle2 className="w-5 h-5 text-success-500 [vector-effect:non-scaling-stroke] [shape-rendering:geometricPrecision] [stroke-width:1.75]" />
               </motion.div>
             )}
           </AnimatePresence>
@@ -232,8 +232,8 @@ function AppleInput({
             transition={springConfig}
             className={cn(
               "text-xs mt-1.5 ml-1",
-              state === "error" && errorText && "text-red-600",
-              state === "success" && successText && "text-green-600",
+              state === "error" && errorText && "text-error-600",
+              state === "success" && successText && "text-success-600",
               !errorText && !successText && "text-gray-500"
             )}
             role={state === "error" ? "alert" : undefined}
