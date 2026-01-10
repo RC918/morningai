@@ -21,4 +21,7 @@ Re-trigger: 2026-01-10T17:57:00Z
 def test_d4_logs_verification_intentional_failure():
     """This test intentionally fails to trigger D-4 Self-Correction Loop."""
     # Intentional failure to trigger CI failure and D-4
-    assert 1 == 2, "Intentional failure to verify D-4 CI logs fetch from PR #3803"
+    # Using unique timestamp to bypass CI signature deduplication
+    import time
+    unique_id = int(time.time())
+    assert 1 == 2, f"Intentional failure #{unique_id} to verify PR #3805 Azure Blob auth fix"
