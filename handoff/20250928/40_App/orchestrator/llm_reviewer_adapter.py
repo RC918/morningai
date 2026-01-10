@@ -1103,6 +1103,11 @@ IMPORTANT:
             annotated_diff, max_chars=max_diff_chars
         )
 
+        # Issue #3790: Sanitize diff content to prevent prompt injection attacks
+        # Diff is user-controllable (attackers can craft malicious diffs with injection payloads)
+        # Apply same sanitization as other user-controlled inputs (goal, pr_title, pr_description)
+        truncated_diff = self._sanitize_prompt_input(truncated_diff)
+
         # Log truncation telemetry (WARNING level for visibility per Blueprint Telemetry v2)
         if truncation_telemetry["was_truncated"]:
             logger.warning(
@@ -1194,15 +1199,18 @@ IMPORTANT:
         sanitized_goal = self._sanitize_prompt_input(goal)
 
         # Issue #3767: Build PR context section for context-aware review
+        # Issue #3783: Sanitize pr_title and pr_description to prevent prompt injection
         pr_context_section = ""
         if pr_title or pr_description:
+            sanitized_pr_title = self._sanitize_prompt_input(pr_title or "")
+            sanitized_pr_description = self._sanitize_prompt_input(pr_description or "")
             pr_context_section = "\n**PR Context (Issue #3767):**"
-            if pr_title:
-                pr_context_section += f"\n- Title: {pr_title}"
-            if pr_description:
+            if sanitized_pr_title:
+                pr_context_section += f"\n- Title: {sanitized_pr_title}"
+            if sanitized_pr_description:
                 # Issue #3775: Use constant for truncation limit
-                desc_preview = pr_description[:MAX_PR_DESCRIPTION_CHARS]
-                if len(pr_description) > MAX_PR_DESCRIPTION_CHARS:
+                desc_preview = sanitized_pr_description[:MAX_PR_DESCRIPTION_CHARS]
+                if len(sanitized_pr_description) > MAX_PR_DESCRIPTION_CHARS:
                     desc_preview += "... (truncated)"
                 pr_context_section += f"\n- Description: {desc_preview}"
             pr_context_section += "\n"
