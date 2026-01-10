@@ -2151,8 +2151,24 @@ def get_ci_test_logs(
 
             # Sanity check: ensure logs_url is a valid HTTP(S) URL string
             if logs_url and isinstance(logs_url, str) and logs_url.startswith(("http://", "https://")):
-                # Download logs using GitHub token
-                headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+                # Issue #3805: Azure Blob Storage URLs don't need GitHub token
+                # GitHub Actions logs_url may point to Azure Blob Storage with pre-signed SAS token.
+                # Sending GitHub token to Azure causes HTTP 403 "AuthenticationFailed" error.
+                # Only include Authorization header for GitHub API URLs.
+                is_azure_blob = "blob.core.windows.net" in logs_url
+                if is_azure_blob:
+                    headers = {}
+                    logger.debug(
+                        "[GitHub] get_ci_test_logs: Using Azure Blob Storage URL (no auth header)",
+                        extra={
+                            "operation": "get_ci_test_logs",
+                            "trace_id": trace_id,
+                            "pr_number": pr_number,
+                            "url_type": "azure_blob"
+                        }
+                    )
+                else:
+                    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
                 response = requests.get(logs_url, headers=headers, timeout=30)
 
                 if response.status_code == 200:
