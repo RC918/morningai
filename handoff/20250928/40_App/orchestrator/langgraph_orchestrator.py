@@ -4848,6 +4848,212 @@ def _validate_design_doc_gate(
     return True, f"Valid ArchitectureSpec (complexity={complexity}, steps={step_count})"
 
 
+def _attempt_self_correction_fix(
+    state: AgentState,
+    trace_id: str
+) -> tuple[bool, Optional[str]]:
+    """Attempt to fix test failures using the D-4 Self-Correction Loop.
+
+    Issue #2764: D-4 Self-Correction Loop Integration
+    This implements autonomous test failure recovery by:
+    1. Parsing test output from CI failure context
+    2. Analyzing error types (syntax, assertion, import, type, runtime)
+    3. Generating fixes using GeneralCoder/SimpleCoder
+    4. Retrying up to max_attempts times before escalating
+
+    Args:
+        state: Current AgentState with ci_failure_context
+        trace_id: Trace ID for logging
+
+    Returns:
+        Tuple of (success, message):
+        - (True, message) if SelfCorrectionLoop successfully applied fixes
+        - (False, message) if SelfCorrectionLoop skipped, failed, or escalated
+
+    Event Codes (greppable):
+        [SELF_CORRECTION_INTEGRATION_START] - Integration started
+        [SELF_CORRECTION_INTEGRATION_DISABLED] - Feature flag disabled
+        [SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] - No test output in CI context
+        [SELF_CORRECTION_INTEGRATION_SUCCESS] - Fix applied successfully
+        [SELF_CORRECTION_INTEGRATION_ESCALATE] - Escalated to Reviewer
+        [SELF_CORRECTION_INTEGRATION_FAIL] - Failed to apply fix
+    """
+    # Check feature flag
+    if not getattr(settings, 'enable_self_correction', False):
+        logger.debug(
+            f"[SELF_CORRECTION_INTEGRATION_DISABLED] Feature flag disabled. "
+            f"trace_id={trace_id}"
+        )
+        return False, "Self-correction feature flag disabled"
+
+    # Check if we have CI failure context with test output
+    ci_context = state.get("ci_failure_context")
+    if not ci_context or not isinstance(ci_context, dict):
+        logger.debug(
+            f"[SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] No CI failure context. "
+            f"trace_id={trace_id}"
+        )
+        return False, "No CI failure context available"
+
+    # Extract test output from CI context
+    # CI context may contain: error_summary, failed_check_name, log_excerpt, etc.
+    test_output = ci_context.get("log_excerpt", "") or ci_context.get("error_summary", "")
+    if not test_output:
+        logger.debug(
+            f"[SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] No test output in CI context. "
+            f"trace_id={trace_id}"
+        )
+        return False, "No test output in CI failure context"
+
+    # Check if this looks like a test failure (not lint, build, etc.)
+    failed_check_name = ci_context.get("failed_check_name", "").lower()
+    is_test_failure = any(
+        keyword in failed_check_name
+        for keyword in ("test", "pytest", "jest", "mocha", "unittest", "spec")
+    ) or any(
+        keyword in test_output.lower()
+        for keyword in ("failed", "error", "assert", "expect")
+    )
+
+    if not is_test_failure:
+        logger.debug(
+            f"[SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] Not a test failure. "
+            f"failed_check_name={failed_check_name}, trace_id={trace_id}"
+        )
+        return False, "CI failure is not a test failure"
+
+    logger.info(
+        f"[SELF_CORRECTION_INTEGRATION_START] Starting self-correction for test failure. "
+        f"failed_check_name={failed_check_name}, trace_id={trace_id}",
+        extra={
+            "operation": "self_correction_integration_start",
+            "trace_id": trace_id,
+            "event_code": "SELF_CORRECTION_INTEGRATION_START",
+            "failed_check_name": failed_check_name,
+        }
+    )
+
+    try:
+        from coder.self_correction import get_self_correction_loop
+        from tools.github_api import get_repo
+    except ImportError as e:
+        logger.warning(
+            f"[SELF_CORRECTION_INTEGRATION_FAIL] Import failed: {e}. "
+            f"trace_id={trace_id}"
+        )
+        return False, f"Self-correction not available: {e}"
+
+    # Get files from state
+    review_files = state.get("review_files", [])
+    file_path = state.get("review_file_path", "")
+
+    # Build files list with content
+    files_with_content = []
+    repo_name = state.get("repo", "")
+    branch = state.get("branch", "")
+    diff_head_sha = state.get("diff_head_sha", "")
+
+    if repo_name and branch:
+        try:
+            repo = get_repo()
+            if repo:
+                ref = diff_head_sha if diff_head_sha else branch
+                files_to_fetch = review_files if review_files else ([{"path": file_path}] if file_path else [])
+
+                # D-4: Limit files for self-correction (similar to MAX_FILES_FOR_GENERAL_CODER)
+                # This prevents excessive API calls and token usage for large file sets
+                MAX_FILES_FOR_SELF_CORRECTION = 10
+                for f in files_to_fetch[:MAX_FILES_FOR_SELF_CORRECTION]:
+                    f_path = f.get("path", "") if isinstance(f, dict) else f
+                    if not f_path:
+                        continue
+                    try:
+                        file_obj = repo.get_contents(f_path, ref=ref)
+                        if hasattr(file_obj, 'decoded_content'):
+                            content = file_obj.decoded_content.decode('utf-8')
+                            files_with_content.append({"path": f_path, "content": content})
+                    except Exception as e:
+                        logger.debug(f"Failed to fetch file {f_path}: {e}")
+        except Exception as e:
+            logger.warning(
+                f"[SELF_CORRECTION_INTEGRATION_FAIL] Failed to fetch files: {e}. "
+                f"trace_id={trace_id}"
+            )
+
+    if not files_with_content:
+        logger.debug(
+            f"[SELF_CORRECTION_INTEGRATION_FAIL] No files available for correction. "
+            f"trace_id={trace_id}"
+        )
+        return False, "No files available for self-correction"
+
+    # Attempt self-correction
+    try:
+        loop = get_self_correction_loop()
+        result = loop.attempt_correction(
+            test_output=test_output,
+            files=files_with_content,
+            run_tests_callback=None  # No callback - we'll verify via CI
+        )
+
+        if result.success:
+            logger.info(
+                f"[SELF_CORRECTION_INTEGRATION_SUCCESS] Self-correction succeeded. "
+                f"attempts={result.attempts}, trace_id={trace_id}",
+                extra={
+                    "operation": "self_correction_integration_success",
+                    "trace_id": trace_id,
+                    "event_code": "SELF_CORRECTION_INTEGRATION_SUCCESS",
+                    "attempts": result.attempts,
+                    "corrections_count": len(result.corrections_applied),
+                }
+            )
+            return True, f"Self-correction applied fix after {result.attempts} attempt(s)"
+
+        if result.escalated:
+            logger.info(
+                f"[SELF_CORRECTION_INTEGRATION_ESCALATE] Self-correction escalated. "
+                f"attempts={result.attempts}, feedback={result.feedback}, trace_id={trace_id}",
+                extra={
+                    "operation": "self_correction_integration_escalate",
+                    "trace_id": trace_id,
+                    "event_code": "SELF_CORRECTION_INTEGRATION_ESCALATE",
+                    "attempts": result.attempts,
+                    "feedback": result.feedback,
+                }
+            )
+            return False, f"Self-correction escalated: {result.feedback}"
+
+        # Not successful but not escalated - may have generated unverified fix
+        if result.corrections_applied:
+            logger.info(
+                f"[SELF_CORRECTION_INTEGRATION_UNVERIFIED] Generated unverified fix. "
+                f"attempts={result.attempts}, trace_id={trace_id}",
+                extra={
+                    "operation": "self_correction_integration_unverified",
+                    "trace_id": trace_id,
+                    "event_code": "SELF_CORRECTION_INTEGRATION_UNVERIFIED",
+                    "attempts": result.attempts,
+                }
+            )
+            # Continue to other coders for verification
+            return False, f"Self-correction generated unverified fix: {result.feedback}"
+
+        logger.debug(
+            f"[SELF_CORRECTION_INTEGRATION_FAIL] Self-correction failed. "
+            f"attempts={result.attempts}, error={result.final_error}, trace_id={trace_id}"
+        )
+        return False, f"Self-correction failed: {result.final_error or 'No fix generated'}"
+
+    except Exception as e:
+        logger.error(
+            f"[SELF_CORRECTION_INTEGRATION_FAIL] Exception during self-correction: {e}. "
+            f"trace_id={trace_id}",
+            exc_info=True
+        )
+        return False, f"Self-correction error: {e}"
+
+
 def _attempt_general_coder_fix(
     state: AgentState,
     trace_id: str
@@ -5989,6 +6195,40 @@ def fixer_node(state: AgentState) -> AgentState:
         )
 
     metrics.record_node_start("fixer", trace_id)
+
+    # D-4: Try Self-Correction Loop first for test failures
+    # This is the autonomous test failure recovery mechanism that parses test output,
+    # analyzes errors, and attempts fixes before escalating to Reviewer.
+    self_correction_success, self_correction_msg = _attempt_self_correction_fix(state, trace_id)
+    if self_correction_success:
+        logger.info(
+            f"[Fixer] SelfCorrectionLoop fix succeeded, skipping other coders. "
+            f"message={self_correction_msg}, trace_id={trace_id}",
+            extra={
+                "operation": "fixer",
+                "trace_id": trace_id,
+                "self_correction_success": True,
+                "event_code": "SELF_CORRECTION_FIXER_SUCCESS",
+            }
+        )
+        state["messages"] = state.get("messages", []) + [
+            AIMessage(content=f"SelfCorrectionLoop fix applied: {self_correction_msg}")
+        ]
+        state["retry_count"] = retry_count + 1
+        latency_ms = (time.time() - start_time) * 1000
+        metrics.record_fixer_attempt(trace_id, retry_count, success=True)
+        metrics.record_node_complete("fixer", trace_id, success=True, latency_ms=latency_ms)
+        metrics.record_transition("fixer", "executor", trace_id)
+
+        agent_eval = _get_agent_eval()
+        agent_eval.record_node_latency(trace_id, "fixer", latency_ms)
+        agent_eval.record_fixer_iteration(trace_id, retry_count + 1, True)
+        return state
+
+    logger.debug(
+        f"[Fixer] SelfCorrectionLoop did not apply fix, trying GeneralCoder. "
+        f"reason={self_correction_msg}, trace_id={trace_id}"
+    )
 
     # D-1b: Try GeneralCoder first for multi-file issues
     general_coder_success, general_coder_msg = _attempt_general_coder_fix(state, trace_id)
