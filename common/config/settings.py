@@ -1741,6 +1741,18 @@ class Settings(BaseSettings):
         description="Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)"
     )
 
+    senior_coder_strict_schema_validation: bool = Field(
+        default=False,
+        alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
+        description="Enable strict schema validation for SeniorCoder output (Issue #3748). When True, abort/reject on schema validation failure. When False, observe-only mode (log warnings, continue)."
+    )
+
+    max_ci_error_file_paths: int = Field(
+        default=20,
+        alias="MAX_CI_ERROR_FILE_PATHS",
+        description="Maximum number of CI error file paths to pass to GeneralCoder (Issue #3738). Increased from 5 to 20 to support HITL 6+ files escalation."
+    )
+
     enable_llm_json_repair: bool = Field(
         default=False,
         alias="ENABLE_LLM_JSON_REPAIR",
