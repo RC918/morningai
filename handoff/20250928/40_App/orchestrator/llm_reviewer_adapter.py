@@ -547,7 +547,9 @@ class LLMReviewerAdapter:
         base_severity: str,
         diff: Optional[str] = None,
         diff_truncated: bool = False,
-        diff_files: Optional[list] = None
+        diff_files: Optional[list] = None,
+        pr_title: Optional[str] = None,
+        pr_description: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate LLM-powered code review
@@ -563,6 +565,8 @@ class LLMReviewerAdapter:
             diff: PR diff content (EPIC B Phase B-1)
             diff_truncated: Whether diff was truncated (EPIC B Phase B-2)
             diff_files: List of changed files metadata (EPIC B Phase B-1)
+            pr_title: Pull request title (Issue #3767)
+            pr_description: Pull request description/body (Issue #3767)
 
         Returns:
             Dict with review results:
@@ -604,7 +608,9 @@ class LLMReviewerAdapter:
                 repo=repo,
                 diff=diff,
                 diff_truncated=diff_truncated,
-                diff_files=diff_files
+                diff_files=diff_files,
+                pr_title=pr_title,
+                pr_description=pr_description
             )
 
             llm_score = review_data.get("quality_score", base_quality_score)
@@ -687,7 +693,9 @@ class LLMReviewerAdapter:
         repo: str,
         diff: Optional[str] = None,
         diff_truncated: bool = False,
-        diff_files: Optional[list] = None
+        diff_files: Optional[list] = None,
+        pr_title: Optional[str] = None,
+        pr_description: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Call LLM to generate review
@@ -701,6 +709,8 @@ class LLMReviewerAdapter:
             diff: PR diff content (EPIC B)
             diff_truncated: Whether diff was truncated (EPIC B)
             diff_files: List of changed files metadata (EPIC B)
+            pr_title: Pull request title (Issue #3767)
+            pr_description: Pull request description/body (Issue #3767)
 
         Returns:
             Dict with review data and timing
@@ -719,7 +729,9 @@ class LLMReviewerAdapter:
                 goal=goal,
                 diff=diff,
                 diff_truncated=diff_truncated,
-                diff_files=diff_files
+                diff_files=diff_files,
+                pr_title=pr_title,
+                pr_description=pr_description
             )
         else:
             # Fallback to metadata-only review (original behavior)
@@ -851,6 +863,16 @@ While you ignore style, you MUST flag code that is:
 
 These are NOT style nitpicks - they are architectural concerns that impact system reliability.
 
+=== PR CONTEXT AWARENESS (Issue #3767) ===
+You will receive the PR Title and Description in the user prompt. Use this context to:
+1. **Understand Intent**: What is the PR trying to achieve? What problem does it solve?
+2. **Validate Alignment**: Do the code changes actually accomplish the stated goal?
+3. **Goal-Oriented Feedback**: Provide feedback relevant to the PR's purpose, not generic observations
+4. **Flag Misalignment**: If code changes don't match the PR description, flag this as a concern
+
+Example: If PR title says "Add rate limiting" but code only adds logging, flag the discrepancy.
+Do NOT provide generic feedback that ignores the PR's stated purpose.
+
 === REVIEW METHODOLOGY: QUOTE-FIRST (Chain of Thought) ===
 For EVERY issue you find, you MUST follow this process:
 1. QUOTE: First, find the problematic code and copy it exactly as shown in the diff
@@ -974,7 +996,9 @@ IMPORTANT:
         goal: str,
         diff: str,
         diff_truncated: bool,
-        diff_files: Optional[list]
+        diff_files: Optional[list],
+        pr_title: Optional[str] = None,
+        pr_description: Optional[str] = None
     ) -> str:
         """
         Build user prompt for diff-aware code review (EPIC B Phase B-3)
@@ -988,6 +1012,8 @@ IMPORTANT:
             diff: PR diff content
             diff_truncated: Whether diff was truncated
             diff_files: List of changed files metadata
+            pr_title: Pull request title (Issue #3767)
+            pr_description: Pull request description/body (Issue #3767)
 
         Returns:
             User prompt string for LLM
@@ -1081,12 +1107,26 @@ IMPORTANT:
                 )
             truncation_warning = "\n\n" + " ".join(warning_parts)
 
+        # Issue #3767: Build PR context section for context-aware review
+        pr_context_section = ""
+        if pr_title or pr_description:
+            pr_context_section = "\n**PR Context (Issue #3767):**"
+            if pr_title:
+                pr_context_section += f"\n- Title: {pr_title}"
+            if pr_description:
+                # Truncate long descriptions to avoid token bloat
+                desc_preview = pr_description[:500]
+                if len(pr_description) > 500:
+                    desc_preview += "... (truncated)"
+                pr_context_section += f"\n- Description: {desc_preview}"
+            pr_context_section += "\n"
+
         return f"""**Pull Request Information**
 - Repository: {repo}
 - PR Number: {pr_number or "Unknown"}
 - PR URL: {pr_url or "Not available"}
 - CI Status: {ci_state}
-{file_summary}
+{file_summary}{pr_context_section}
 
 **Task Goal/Description:**
 {goal}
@@ -1098,7 +1138,8 @@ IMPORTANT:
 ```
 
 Please review the code changes above and provide your assessment as JSON.
-Remember: Only comment on lines marked with "+" (additions). Copy line numbers from "(Line N)" annotations."""
+Remember: Only comment on lines marked with "+" (additions). Copy line numbers from "(Line N)" annotations.
+IMPORTANT: Consider the PR Title and Description when reviewing - validate if the code changes align with the stated intent."""
 
     def _get_metadata_only_system_prompt(self) -> str:
         """
@@ -1519,7 +1560,9 @@ def generate_llm_review(
     diff_truncated: bool = False,
     diff_files: Optional[list] = None,
     escalation_count: int = 0,
-    retry_count: int = 0
+    retry_count: int = 0,
+    pr_title: Optional[str] = None,
+    pr_description: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Convenience function to generate LLM-powered code review
@@ -1538,6 +1581,8 @@ def generate_llm_review(
         diff_files: List of changed files metadata (EPIC B Phase B-1)
         escalation_count: Number of tier escalations already performed (Issue #3640)
         retry_count: Number of retries already attempted (Issue #3640)
+        pr_title: Pull request title (Issue #3767)
+        pr_description: Pull request description/body (Issue #3767)
 
     Returns:
         Dict with review results
@@ -1557,5 +1602,7 @@ def generate_llm_review(
         base_severity=base_severity,
         diff=diff,
         diff_truncated=diff_truncated,
-        diff_files=diff_files
+        diff_files=diff_files,
+        pr_title=pr_title,
+        pr_description=pr_description
     )
