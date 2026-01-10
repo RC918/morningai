@@ -1940,13 +1940,18 @@ class EventNormalizer:
             # Convert file paths set to list
             # Issue: HITL 6+ files escalation requires passing all files to GeneralCoder
             # so it can detect "Too many files" and trigger HITL escalation.
-            # Use a reasonable upper limit (20) to prevent extreme edge cases.
-            MAX_CI_ERROR_FILE_PATHS = 20
+            # Issue #3738: Use configurable setting instead of hardcoded constant.
+            try:
+                from common.config.settings import settings
+                max_ci_error_file_paths = settings.max_ci_error_file_paths
+            except ImportError:
+                max_ci_error_file_paths = 20  # Default fallback
+
             total_file_paths = len(ci_error_file_paths)
-            ci_error_file_paths_list = list(ci_error_file_paths)[:MAX_CI_ERROR_FILE_PATHS]
+            ci_error_file_paths_list = list(ci_error_file_paths)[:max_ci_error_file_paths]
 
             # Telemetry: Log when file paths are truncated (Blueprint 4.2 observability)
-            if total_file_paths > MAX_CI_ERROR_FILE_PATHS:
+            if total_file_paths > max_ci_error_file_paths:
                 logger.warning(
                     "[EventNormalizer] CI error file paths truncated for HITL processing",
                     extra={
@@ -1954,8 +1959,8 @@ class EventNormalizer:
                         "event_id": event_id,
                         "repo": repo,
                         "total_file_paths": total_file_paths,
-                        "max_file_paths": MAX_CI_ERROR_FILE_PATHS,
-                        "truncated_count": total_file_paths - MAX_CI_ERROR_FILE_PATHS,
+                        "max_file_paths": max_ci_error_file_paths,
+                        "truncated_count": total_file_paths - max_ci_error_file_paths,
                     }
                 )
 
