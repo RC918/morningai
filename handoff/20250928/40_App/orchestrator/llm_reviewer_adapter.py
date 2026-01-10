@@ -39,6 +39,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# Issue #3775: PR description truncation limit constant
+# Extracted from magic number to improve maintainability (gemini-code-assist review of PR #3771)
+MAX_PR_DESCRIPTION_CHARS = 500
+
 # EPIC B Phase 3: Pre-compiled prompt injection patterns (MorningAI Code Review feedback)
 # These patterns detect common prompt injection attempts to prevent hijacking LLM repair prompts
 # Pre-compiled at module level for performance (avoids re-compilation on each call)
@@ -1184,6 +1188,7 @@ IMPORTANT:
             truncation_warning = "\n\n" + " ".join(warning_parts)
 
         # Issue #3780: Sanitize externally-sourced inputs to prevent prompt injection
+        # (supersedes #3774 which only sanitized goal)
         sanitized_repo = self._sanitize_prompt_input(repo)
         sanitized_pr_url = self._sanitize_prompt_input(pr_url or "")
         sanitized_goal = self._sanitize_prompt_input(goal)
@@ -1195,9 +1200,9 @@ IMPORTANT:
             if pr_title:
                 pr_context_section += f"\n- Title: {pr_title}"
             if pr_description:
-                # Truncate long descriptions to avoid token bloat
-                desc_preview = pr_description[:500]
-                if len(pr_description) > 500:
+                # Issue #3775: Use constant for truncation limit
+                desc_preview = pr_description[:MAX_PR_DESCRIPTION_CHARS]
+                if len(pr_description) > MAX_PR_DESCRIPTION_CHARS:
                     desc_preview += "... (truncated)"
                 pr_context_section += f"\n- Description: {desc_preview}"
             pr_context_section += "\n"
@@ -1294,6 +1299,7 @@ Guidelines for scoring:
             User prompt string for LLM
         """
         # Issue #3780: Sanitize externally-sourced inputs to prevent prompt injection
+        # (supersedes #3774 which only sanitized goal)
         sanitized_repo = self._sanitize_prompt_input(repo)
         sanitized_pr_url = self._sanitize_prompt_input(pr_url or "")
         sanitized_goal = self._sanitize_prompt_input(goal)
