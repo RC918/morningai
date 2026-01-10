@@ -12,6 +12,7 @@ Components:
 3. AutoFixLoopProtection - Commit marking and max retry tracking
 """
 import logging
+import re
 import redis
 import time
 import uuid
@@ -26,6 +27,30 @@ logger = logging.getLogger(__name__)
 
 AUTO_FIX_COMMIT_MARKER = "[auto-fix]"
 AUTO_FIX_RATE_LIMIT_WINDOW = 3600
+
+# Issue #3794: Pre-compiled regex for Redis key sanitization
+# Allows alphanumeric, underscore, forward slash, hash, and hyphen
+_REDIS_KEY_SANITIZE_PATTERN = re.compile(r'[^a-zA-Z0-9_/#-]')
+
+
+def _sanitize_pr_id(pr_id: str) -> str:
+    """
+    Sanitize pr_id for use in Redis keys.
+
+    Issue #3794: Defense-in-depth sanitization to prevent Redis key manipulation.
+    Although pr_id components (repo, pr_number, trace_id) come from trusted sources
+    (GitHub API, internal UUID generation), this sanitization provides an additional
+    safety layer against potential injection attacks.
+
+    Args:
+        pr_id: Pull request identifier (e.g., "owner/repo#123" or trace_id UUID)
+
+    Returns:
+        Sanitized string safe for use in Redis keys
+    """
+    if not pr_id:
+        return pr_id
+    return _REDIS_KEY_SANITIZE_PATTERN.sub('_', pr_id)
 
 
 @dataclass
@@ -517,7 +542,9 @@ class AutoFixLoopProtection:
             return True, 0
 
         try:
-            key = f"auto_fix:attempts:{pr_id}"
+            # Issue #3794: Sanitize pr_id for Redis key safety
+            safe_pr_id = _sanitize_pr_id(pr_id)
+            key = f"auto_fix:attempts:{safe_pr_id}"
             max_retries = self.settings.auto_fix_max_retries
 
             current_attempts = r.get(key)
@@ -579,7 +606,9 @@ class AutoFixLoopProtection:
             return 0
 
         try:
-            key = f"auto_fix:attempts:{pr_id}"
+            # Issue #3794: Sanitize pr_id for Redis key safety
+            safe_pr_id = _sanitize_pr_id(pr_id)
+            key = f"auto_fix:attempts:{safe_pr_id}"
             count = r.get(key)
             return int(count) if count else 0
         except Exception:
@@ -600,7 +629,9 @@ class AutoFixLoopProtection:
             return False
 
         try:
-            key = f"auto_fix:attempts:{pr_id}"
+            # Issue #3794: Sanitize pr_id for Redis key safety
+            safe_pr_id = _sanitize_pr_id(pr_id)
+            key = f"auto_fix:attempts:{safe_pr_id}"
             r.delete(key)
             logger.info(
                 "[AutoFixLoopProtection] Attempts reset",
@@ -690,7 +721,9 @@ class CISignatureDeduplication:
             SHA256 hash of the combined signature
         """
         import hashlib
-        signature_input = f"{pr_id}:{failed_check_name}:{error_digest}"
+        # Issue #3794: Sanitize pr_id for Redis key safety
+        safe_pr_id = _sanitize_pr_id(pr_id)
+        signature_input = f"{safe_pr_id}:{failed_check_name}:{error_digest}"
         return hashlib.sha256(signature_input.encode()).hexdigest()[:16]
 
     def check_and_mark(
