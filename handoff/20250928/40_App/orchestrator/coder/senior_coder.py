@@ -851,10 +851,16 @@ class SeniorCoder(BaseAgent):
                 }
             )
             return strict_mode
-        except ImportError:
+        except (ImportError, AttributeError, Exception) as e:
+            # Catch broader exceptions to handle:
+            # - ImportError: settings module not available
+            # - AttributeError: setting not defined
+            # - Other exceptions: config loading/validation failures
+            # Default to False (observe-only mode) for fail-open behavior
             logger.debug(
-                "[SENIOR_CODER_STRICT_MODE_CHECK] Settings not available, defaulting to False",
-                extra={"operation": "strict_mode_check", "strict_mode": False}
+                f"[SENIOR_CODER_STRICT_MODE_CHECK] Settings not available ({type(e).__name__}), "
+                "defaulting to False",
+                extra={"operation": "strict_mode_check", "strict_mode": False, "error": str(e)}
             )
             return False
 
