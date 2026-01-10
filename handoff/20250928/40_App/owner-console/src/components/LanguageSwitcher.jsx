@@ -55,7 +55,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
                 >
                   <span>{lang.name}</span>
                   {i18n.language === lang.code && (
-                    <Check className="w-4 h-4 text-green-600" />
+                    <Check className="w-4 h-4 text-success-600" />
                   )}
                 </DropdownMenuItem>
               </motion.div>
@@ -99,7 +99,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }) => {
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
-                    <Check className="w-4 h-4 text-green-600" />
+                    <Check className="w-4 h-4 text-success-600" />
                   </motion.div>
                 )}
               </DropdownMenuItem>
