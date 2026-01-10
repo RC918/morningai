@@ -14,4 +14,4 @@ def test_intentional_failure_for_d4_ignition():
     """This test intentionally fails to trigger D-4 Self-Correction Loop."""
     # Intentional failure: expected value is wrong
     result = 1 + 1
-    assert result == 3, "Intentional failure: 1 + 1 should equal 2, not 3"
+    assert result == 3, "INTENTIONAL FAILURE for D-4 ignition test: 1 + 1 should equal 2, not 3"
