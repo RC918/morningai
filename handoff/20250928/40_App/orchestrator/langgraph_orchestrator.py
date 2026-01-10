@@ -4580,6 +4580,66 @@ _DESIGN_DOC_REQUIRED_FIELDS = [
 ]
 
 
+def _escalate_design_doc_gate_failure(
+    state: AgentState,
+    trace_id: str,
+    hitl_reason: str,
+    failure_reason: str,
+    task_description: str,
+    file_count: int,
+    recommendation: str,
+    log_message: str,
+    extra_details: Optional[dict] = None,
+) -> None:
+    """Set HITL escalation flags for Design Doc Gate failure.
+
+    This helper encapsulates the common HITL escalation logic for both
+    missing spec and invalid spec cases, reducing code duplication.
+
+    Issue #3750: [P3] Refactor Design Doc Gate HITL escalation logic
+
+    Args:
+        state: AgentState for setting HITL flags
+        trace_id: Trace ID for logging
+        hitl_reason: HITL reason code (e.g., "design_doc_gate_missing_spec")
+        failure_reason: Human-readable failure reason for hitl_details
+        task_description: Description of the task
+        file_count: Number of files being processed
+        recommendation: Recommendation message for hitl_details
+        log_message: Message for the warning log
+        extra_details: Optional additional fields for hitl_details
+    """
+    state["requires_hitl_approval"] = True
+    state["hitl_approved"] = False
+    state["hitl_reason"] = hitl_reason
+
+    hitl_details = {
+        "version": "1.0",
+        "gate_failure_reason": failure_reason,
+        "task_description": task_description,
+        "file_count": file_count,
+        "escalation_source": "DesignDocGate",
+        "recommendation": recommendation,
+    }
+    if extra_details:
+        hitl_details.update(extra_details)
+    state["hitl_details"] = hitl_details
+
+    # Extract failure type from hitl_reason for logging
+    failure_type = hitl_reason.replace("design_doc_gate_", "")
+
+    logger.warning(
+        f"[DESIGN_DOC_GATE_HITL_ESCALATION] {log_message} trace_id={trace_id}",
+        extra={
+            "operation": "design_doc_gate_hitl_escalation",
+            "trace_id": trace_id,
+            "event_code": "DESIGN_DOC_GATE_HITL_ESCALATION",
+            "failure_reason": failure_type,
+            **(extra_details or {}),
+        }
+    )
+
+
 def _validate_design_doc_gate(
     spec_dict: Optional[dict],
     trace_id: str,
@@ -4614,32 +4674,20 @@ def _validate_design_doc_gate(
     if spec_dict is None:
         reason = "No ArchitectureSpec available (SeniorCoder may be disabled or failed)"
 
-        # Set HITL escalation flags for missing design doc
-        state["requires_hitl_approval"] = True
-        state["hitl_approved"] = False
-        state["hitl_reason"] = "design_doc_gate_missing_spec"
-        state["hitl_details"] = {
-            "version": "1.0",
-            "gate_failure_reason": reason,
-            "task_description": task_description,
-            "file_count": file_count,
-            "escalation_source": "DesignDocGate",
-            "recommendation": (
+        # Use helper to set HITL escalation flags (Issue #3750 refactor)
+        _escalate_design_doc_gate_failure(
+            state=state,
+            trace_id=trace_id,
+            hitl_reason="design_doc_gate_missing_spec",
+            failure_reason=reason,
+            task_description=task_description,
+            file_count=file_count,
+            recommendation=(
                 "GeneralCoder cannot proceed without architecture review. "
                 "Please ensure SeniorCoder is enabled and functioning, or "
                 "manually approve this task after reviewing the changes."
             ),
-        }
-
-        logger.warning(
-            f"[DESIGN_DOC_GATE_HITL_ESCALATION] Missing ArchitectureSpec triggers HITL gate. "
-            f"trace_id={trace_id}",
-            extra={
-                "operation": "design_doc_gate_hitl_escalation",
-                "trace_id": trace_id,
-                "event_code": "DESIGN_DOC_GATE_HITL_ESCALATION",
-                "failure_reason": "missing_spec",
-            }
+            log_message="Missing ArchitectureSpec triggers HITL gate.",
         )
 
         return False, reason
@@ -4653,34 +4701,21 @@ def _validate_design_doc_gate(
     if missing_fields:
         reason = f"ArchitectureSpec missing required fields: {', '.join(missing_fields)}"
 
-        # Set HITL escalation flags for invalid design doc
-        state["requires_hitl_approval"] = True
-        state["hitl_approved"] = False
-        state["hitl_reason"] = "design_doc_gate_invalid_spec"
-        state["hitl_details"] = {
-            "version": "1.0",
-            "gate_failure_reason": reason,
-            "missing_fields": missing_fields,
-            "task_description": task_description,
-            "file_count": file_count,
-            "escalation_source": "DesignDocGate",
-            "recommendation": (
+        # Use helper to set HITL escalation flags (Issue #3750 refactor)
+        _escalate_design_doc_gate_failure(
+            state=state,
+            trace_id=trace_id,
+            hitl_reason="design_doc_gate_invalid_spec",
+            failure_reason=reason,
+            task_description=task_description,
+            file_count=file_count,
+            recommendation=(
                 f"ArchitectureSpec is incomplete (missing: {', '.join(missing_fields)}). "
                 "Please review the SeniorCoder output and ensure proper architecture "
                 "planning before proceeding with implementation."
             ),
-        }
-
-        logger.warning(
-            f"[DESIGN_DOC_GATE_HITL_ESCALATION] Invalid ArchitectureSpec triggers HITL gate. "
-            f"missing_fields={missing_fields}, trace_id={trace_id}",
-            extra={
-                "operation": "design_doc_gate_hitl_escalation",
-                "trace_id": trace_id,
-                "event_code": "DESIGN_DOC_GATE_HITL_ESCALATION",
-                "failure_reason": "invalid_spec",
-                "missing_fields": missing_fields,
-            }
+            log_message=f"Invalid ArchitectureSpec triggers HITL gate. missing_fields={missing_fields}",
+            extra_details={"missing_fields": missing_fields},
         )
 
         return False, reason
