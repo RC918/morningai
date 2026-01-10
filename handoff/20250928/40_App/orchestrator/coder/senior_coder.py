@@ -1448,6 +1448,41 @@ class SeniorCoder(BaseAgent):
             context_parts.append(f"--- File: {path} ---\n```\n{content}\n```\n")
         return "\n".join(context_parts)
 
+    def _get_strict_schema_validation_setting(self) -> bool:
+        """Get the strict schema validation setting from config.
+
+        Issue #3748: Configurable strict mode for SeniorCoder schema validation.
+
+        Returns:
+            True if strict mode is enabled, False otherwise (default).
+
+        Event Codes (greppable):
+            [SENIOR_CODER_STRICT_MODE_CHECK] - Checked strict mode setting
+        """
+        try:
+            from common.config.settings import settings
+            strict_mode = settings.senior_coder_strict_schema_validation
+            logger.debug(
+                f"[SENIOR_CODER_STRICT_MODE_CHECK] Strict schema validation: {strict_mode}",
+                extra={
+                    "operation": "strict_mode_check",
+                    "strict_mode": strict_mode,
+                }
+            )
+            return strict_mode
+        except (ImportError, AttributeError, Exception) as e:
+            # Catch broader exceptions to handle:
+            # - ImportError: settings module not available
+            # - AttributeError: setting not defined
+            # - Other exceptions: config loading/validation failures
+            # Default to False (observe-only mode) for fail-open behavior
+            logger.debug(
+                f"[SENIOR_CODER_STRICT_MODE_CHECK] Settings not available ({type(e).__name__}), "
+                "defaulting to False",
+                extra={"operation": "strict_mode_check", "strict_mode": False, "error": str(e)}
+            )
+            return False
+
     def _parse_plan_response(self, response: str) -> ArchitectureSpec:
         """Parse LLM planning response with JSON schema validation.
 
@@ -1467,8 +1502,11 @@ class SeniorCoder(BaseAgent):
                 reasoning="JSON parsing failed"
             )
 
-        # Validate against schema (observe-only, graceful degradation)
+        # Validate against schema
+        # Issue #3748: Configurable strict mode - abort on validation failure when enabled
         validation_result = validate_against_schema(data, ARCHITECTURE_SPEC_SCHEMA)
+        strict_mode = self._get_strict_schema_validation_setting()
+
         if validation_result.is_valid:
             logger.info(
                 "[SENIOR_CODER_SCHEMA_VALID] Architecture spec schema validation passed",
@@ -1476,6 +1514,7 @@ class SeniorCoder(BaseAgent):
                     "operation": "schema_validation",
                     "schema_type": "architecture_spec",
                     "event_code": "SENIOR_CODER_SCHEMA_VALID",
+                    "strict_mode": strict_mode,
                 }
             )
         else:
@@ -1487,8 +1526,25 @@ class SeniorCoder(BaseAgent):
                     "schema_type": "architecture_spec",
                     "event_code": "SENIOR_CODER_SCHEMA_INVALID",
                     "validation_errors": validation_result.errors,
+                    "strict_mode": strict_mode,
                 }
             )
+            # Issue #3748: In strict mode, abort on schema validation failure
+            if strict_mode:
+                logger.error(
+                    "[SENIOR_CODER_SCHEMA_STRICT_ABORT] Aborting due to schema validation "
+                    "failure (strict mode enabled)",
+                    extra={
+                        "operation": "schema_validation_strict",
+                        "schema_type": "architecture_spec",
+                        "event_code": "SENIOR_CODER_SCHEMA_STRICT_ABORT",
+                        "validation_errors": validation_result.errors,
+                    }
+                )
+                return ArchitectureSpec.create_abort(
+                    reason=f"Schema validation failed (strict mode): {validation_result.errors}",
+                    reasoning="LLM output did not conform to expected schema"
+                )
 
         # Parse task analysis
         analysis_data = data.get("task_analysis", {})
@@ -1585,8 +1641,11 @@ class SeniorCoder(BaseAgent):
                 required_changes=["Review parsing failed"]
             )
 
-        # Validate against schema (observe-only, graceful degradation)
+        # Validate against schema
+        # Issue #3748: Configurable strict mode - reject on validation failure when enabled
         validation_result = validate_against_schema(data, REVIEW_RESULT_SCHEMA)
+        strict_mode = self._get_strict_schema_validation_setting()
+
         if validation_result.is_valid:
             logger.info(
                 "[SENIOR_CODER_SCHEMA_VALID] Review result schema validation passed",
@@ -1594,6 +1653,7 @@ class SeniorCoder(BaseAgent):
                     "operation": "schema_validation",
                     "schema_type": "review_result",
                     "event_code": "SENIOR_CODER_SCHEMA_VALID",
+                    "strict_mode": strict_mode,
                 }
             )
         else:
@@ -1605,8 +1665,26 @@ class SeniorCoder(BaseAgent):
                     "schema_type": "review_result",
                     "event_code": "SENIOR_CODER_SCHEMA_INVALID",
                     "validation_errors": validation_result.errors,
+                    "strict_mode": strict_mode,
                 }
             )
+            # Issue #3748: In strict mode, reject on schema validation failure
+            if strict_mode:
+                logger.error(
+                    "[SENIOR_CODER_SCHEMA_STRICT_REJECT] Rejecting review due to schema "
+                    "validation failure (strict mode enabled)",
+                    extra={
+                        "operation": "schema_validation_strict",
+                        "schema_type": "review_result",
+                        "event_code": "SENIOR_CODER_SCHEMA_STRICT_REJECT",
+                        "validation_errors": validation_result.errors,
+                    }
+                )
+                return ReviewResult(
+                    approved=False,
+                    feedback=f"Schema validation failed (strict mode): {validation_result.errors}",
+                    required_changes=["LLM output did not conform to expected schema"]
+                )
 
         approved = data.get("approved", False)
         feedback = data.get("feedback", "No feedback provided")
