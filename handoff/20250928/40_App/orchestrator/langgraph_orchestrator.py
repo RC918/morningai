@@ -6174,8 +6174,13 @@ def fixer_node(state: AgentState) -> AgentState:
             dedup = CISignatureDeduplication(settings)
             failed_check_name = ci_context_for_dedup.get("failed_check_name", "unknown")
             error_summary = ci_context_for_dedup.get("error_summary", "")
+            # Issue #3806: Include commit_sha for Self-Correction Loop support
+            # New code (new commit) = new retry opportunity, even if error message is identical
+            commit_sha = ci_context_for_dedup.get("head_sha", "")
 
-            is_new, signature = dedup.check_and_mark(pr_id, failed_check_name, error_summary)
+            is_new, signature = dedup.check_and_mark(
+                pr_id, failed_check_name, error_summary, commit_sha=commit_sha
+            )
 
             if not is_new:
                 logger.warning(

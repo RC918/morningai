@@ -32,6 +32,16 @@ AUTO_FIX_RATE_LIMIT_WINDOW = 3600
 # Allows alphanumeric, underscore, forward slash, hash, and hyphen
 _REDIS_KEY_SANITIZE_PATTERN = re.compile(r'[^a-zA-Z0-9_/#-]')
 
+# Issue #3806: Pre-compiled regex patterns for timestamp sanitization in error messages
+# These patterns match common timestamp formats that cause deduplication to fail
+# Note: Using {0,30} limit on character classes to prevent ReDoS (catastrophic backtracking)
+_TIMESTAMP_PATTERNS = [
+    re.compile(r'\[\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\]]{0,30}\]'),  # [2024-01-11T10:00:00Z] or [2024-01-11 10:00:00]
+    re.compile(r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?'),  # ISO 8601 timestamps
+    re.compile(r'\[\d{2}:\d{2}:\d{2}\]'),  # [10:00:00] time only
+    re.compile(r'\d{2}:\d{2}:\d{2}\.\d+'),  # 10:00:00.123 with milliseconds
+]
+
 
 def _sanitize_pr_id(pr_id: str) -> str:
     """
@@ -51,6 +61,40 @@ def _sanitize_pr_id(pr_id: str) -> str:
     if not pr_id:
         return pr_id
     return _REDIS_KEY_SANITIZE_PATTERN.sub('_', pr_id)
+
+
+def _sanitize_error_for_signature(error_summary: str) -> str:
+    """
+    Sanitize error summary for CI signature computation.
+
+    Issue #3806: Removes timestamps and extracts meaningful error content
+    to prevent deduplication failures due to:
+    1. Timestamp sensitivity - timestamps cause unique hashes every run
+    2. Truncation blindness - important error details may be after char 500
+
+    Args:
+        error_summary: Raw error summary text from CI logs
+
+    Returns:
+        Sanitized error digest suitable for signature computation
+    """
+    if not error_summary:
+        return ""
+
+    clean_error = error_summary
+
+    # Strip timestamps that would cause unique hashes every run
+    for pattern in _TIMESTAMP_PATTERNS:
+        clean_error = pattern.sub('', clean_error)
+
+    # Take head + tail to capture both context and specific error
+    # Stack traces often have generic framework calls first, real error at end
+    if len(clean_error) > 1500:
+        error_digest = clean_error[:1000] + "..." + clean_error[-500:]
+    else:
+        error_digest = clean_error
+
+    return error_digest
 
 
 @dataclass
@@ -768,24 +812,31 @@ class CISignatureDeduplication:
     def _compute_signature(
         self,
         pr_id: str,
+        commit_sha: str,
         failed_check_name: str,
         error_digest: str,
     ) -> str:
         """
         Compute a unique signature for a CI failure.
 
+        Issue #3806: Added commit_sha to signature to enable Self-Correction Loop.
+        Without commit_sha, identical error messages after code changes would be
+        treated as duplicates, blocking valid retry attempts.
+
         Args:
             pr_id: Pull request identifier
+            commit_sha: Git commit SHA (new code = new retry opportunity)
             failed_check_name: Name of the failed CI check
-            error_digest: Hash/digest of the error message (first 500 chars)
+            error_digest: Sanitized error message digest
 
         Returns:
-            SHA256 hash of the combined signature
+            SHA256 hash of the combined signature (16 hex chars = 64 bits)
         """
         import hashlib
         # Issue #3794: Sanitize pr_id for Redis key safety
         safe_pr_id = _sanitize_pr_id(pr_id)
-        signature_input = f"{safe_pr_id}:{failed_check_name}:{error_digest}"
+        # Issue #3806: Include commit_sha so new code gets new retry opportunity
+        signature_input = f"{safe_pr_id}:{commit_sha}:{failed_check_name}:{error_digest}"
         return hashlib.sha256(signature_input.encode()).hexdigest()[:16]
 
     def check_and_mark(
@@ -794,16 +845,21 @@ class CISignatureDeduplication:
         failed_check_name: str,
         error_summary: str,
         ttl: int = None,
+        commit_sha: str = "",
     ) -> tuple:
         """
         Check if this CI failure signature has been processed recently.
         If not, mark it as processed.
 
+        Issue #3806: Added commit_sha parameter to enable Self-Correction Loop.
+        New code (new commit) = new retry opportunity, even if error message is identical.
+
         Args:
             pr_id: Pull request identifier
             failed_check_name: Name of the failed CI check
-            error_summary: Error summary text (will be hashed)
+            error_summary: Error summary text (will be sanitized and hashed)
             ttl: Time-to-live in seconds (default: 24 hours)
+            commit_sha: Git commit SHA (required for proper deduplication)
 
         Returns:
             Tuple of (is_new: bool, signature: str)
@@ -813,10 +869,10 @@ class CISignatureDeduplication:
         if ttl is None:
             ttl = self.DEFAULT_TTL
 
-        # Create error digest from first 500 chars of error summary
-        error_digest = error_summary[:500] if error_summary else ""
+        # Issue #3806: Sanitize error summary (strip timestamps, take head+tail)
+        error_digest = _sanitize_error_for_signature(error_summary)
 
-        signature = self._compute_signature(pr_id, failed_check_name, error_digest)
+        signature = self._compute_signature(pr_id, commit_sha, failed_check_name, error_digest)
 
         r = self._get_redis_client()
         if r is None:
