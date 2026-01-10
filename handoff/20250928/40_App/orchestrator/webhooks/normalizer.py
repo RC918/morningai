@@ -1941,11 +1941,10 @@ class EventNormalizer:
             # Issue: HITL 6+ files escalation requires passing all files to GeneralCoder
             # so it can detect "Too many files" and trigger HITL escalation.
             # Issue #3738: Use configurable setting instead of hardcoded constant.
-            try:
-                from common.config.settings import settings
-                max_ci_error_file_paths = settings.max_ci_error_file_paths
-            except ImportError:
-                max_ci_error_file_paths = 20  # Default fallback
+            # Use module-level settings object (imported at lines 45-48 with fallback to None)
+            max_ci_error_file_paths = (
+                settings.max_ci_error_file_paths if settings else 20
+            )
 
             total_file_paths = len(ci_error_file_paths)
             ci_error_file_paths_list = list(ci_error_file_paths)[:max_ci_error_file_paths]
