@@ -4909,6 +4909,69 @@ def _attempt_self_correction_fix(
     # Extract test output from CI context
     # CI context may contain: error_summary, failed_check_name, log_excerpt, etc.
     test_output = ci_context.get("log_excerpt", "") or ci_context.get("error_summary", "")
+
+    # Issue #3803: Fetch CI logs from GitHub Actions if error_summary is empty
+    # GitHub Actions annotations (source of error_summary) are not automatically
+    # created by pytest. We need to fetch the actual CI logs using get_ci_test_logs().
+    if not test_output:
+        pr_number = ci_context.get("pr_number")
+        head_sha = ci_context.get("head_sha")
+        if pr_number:
+            try:
+                from tools.github_api import get_ci_test_logs, get_repo
+                repo = get_repo()
+                if repo:
+                    logger.info(
+                        f"[SELF_CORRECTION_INTEGRATION_FETCH_LOGS] Fetching CI logs from GitHub Actions. "
+                        f"pr_number={pr_number}, trace_id={trace_id}",
+                        extra={
+                            "operation": "self_correction_fetch_logs",
+                            "trace_id": trace_id,
+                            "event_code": "SELF_CORRECTION_INTEGRATION_FETCH_LOGS",
+                            "pr_number": pr_number,
+                        }
+                    )
+                    ci_logs_result = get_ci_test_logs(
+                        repo=repo,
+                        pr_number=pr_number,
+                        head_sha=head_sha,
+                        trace_id=trace_id
+                    )
+                    if ci_logs_result.get("success"):
+                        test_output = ci_logs_result.get("logs", "")
+                        logger.info(
+                            f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCHED] Successfully fetched CI logs. "
+                            f"logs_length={len(test_output)}, trace_id={trace_id}",
+                            extra={
+                                "operation": "self_correction_logs_fetched",
+                                "trace_id": trace_id,
+                                "event_code": "SELF_CORRECTION_INTEGRATION_LOGS_FETCHED",
+                                "logs_length": len(test_output),
+                            }
+                        )
+                    else:
+                        logger.warning(
+                            f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCH_FAILED] Failed to fetch CI logs. "
+                            f"error={ci_logs_result.get('error', 'unknown')}, trace_id={trace_id}",
+                            extra={
+                                "operation": "self_correction_logs_fetch_failed",
+                                "trace_id": trace_id,
+                                "event_code": "SELF_CORRECTION_INTEGRATION_LOGS_FETCH_FAILED",
+                                "error": ci_logs_result.get("error", "unknown"),
+                            }
+                        )
+            except Exception as fetch_err:
+                logger.warning(
+                    f"[SELF_CORRECTION_INTEGRATION_LOGS_FETCH_ERROR] Error fetching CI logs: {fetch_err}. "
+                    f"trace_id={trace_id}",
+                    extra={
+                        "operation": "self_correction_logs_fetch_error",
+                        "trace_id": trace_id,
+                        "event_code": "SELF_CORRECTION_INTEGRATION_LOGS_FETCH_ERROR",
+                        "error": str(fetch_err)[:100],
+                    }
+                )
+
     if not test_output:
         logger.info(
             f"[SELF_CORRECTION_INTEGRATION_NO_TEST_OUTPUT] No test output in CI context. "
