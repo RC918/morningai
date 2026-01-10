@@ -2556,6 +2556,35 @@ class Settings(BaseSettings):
         )
     )
 
+    enable_self_correction: bool = Field(
+        default=False,
+        alias="ENABLE_SELF_CORRECTION",
+        description=(
+            "Enable D-4 Self-Correction Loop for autonomous test failure recovery (Issue #2764). "
+            "Default False = Self-correction disabled, test failures escalate to Reviewer. "
+            "When True, the system attempts to automatically fix test failures by: "
+            "1. Parsing test output (pytest/npm test) to identify failure types "
+            "2. Analyzing errors (syntax, assertion, import, type, runtime) "
+            "3. Generating fixes using GeneralCoder/SimpleCoder "
+            "4. Retrying up to 3 times before escalating to Reviewer. "
+            "Requires ENABLE_GENERAL_CODER=True or ENABLE_SIMPLE_CODER=True for fix generation."
+        )
+    )
+
+    self_correction_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        alias="SELF_CORRECTION_MAX_ATTEMPTS",
+        description=(
+            "Maximum retry attempts for D-4 Self-Correction Loop before escalating to Reviewer. "
+            "Default 3 = Try to fix test failures up to 3 times before giving up. "
+            "Lower values = faster escalation (more conservative). "
+            "Higher values = more retry attempts (more aggressive). "
+            "Recommended range: 2-5 for most projects."
+        )
+    )
+
     enable_multi_file_hitl_escalation: bool = Field(
         default=True,
         alias="ENABLE_MULTI_FILE_HITL_ESCALATION",
