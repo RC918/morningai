@@ -616,7 +616,10 @@ class AutoFixLoopProtection:
         allowed, current_attempts = self.check_only(pr_id)
         if allowed:
             new_count = self.increment(pr_id)
-            return True, new_count if new_count > 0 else current_attempts + 1
+            # Issue #3793: Return actual Redis state on increment failure
+            # If increment fails (returns 0), return current_attempts to reflect
+            # the actual state rather than an optimistic estimate
+            return True, new_count if new_count > 0 else current_attempts
         return False, current_attempts
 
     def get_attempts(self, pr_id: str) -> int:
