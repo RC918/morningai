@@ -1109,6 +1109,9 @@ IMPORTANT:
                 )
             truncation_warning = "\n\n" + " ".join(warning_parts)
 
+        # Issue #3774: Sanitize goal input to prevent prompt injection
+        sanitized_goal = self._sanitize_prompt_input(goal)
+
         return f"""**Pull Request Information**
 - Repository: {repo}
 - PR Number: {pr_number or "Unknown"}
@@ -1117,7 +1120,7 @@ IMPORTANT:
 {file_summary}{allowed_files_section}
 
 **Task Goal/Description:**
-{goal}
+{sanitized_goal}
 {truncation_warning}
 
 **Code Diff (with line numbers annotated):**
@@ -1199,6 +1202,9 @@ Guidelines for scoring:
         Returns:
             User prompt string for LLM
         """
+        # Issue #3774: Sanitize goal input to prevent prompt injection
+        sanitized_goal = self._sanitize_prompt_input(goal)
+
         return f"""**Pull Request Information**
 - Repository: {repo}
 - PR Number: {pr_number or "Unknown"}
@@ -1206,7 +1212,7 @@ Guidelines for scoring:
 - CI Status: {ci_state}
 
 **Task Goal/Description**:
-{goal}
+{sanitized_goal}
 
 Based on this information, provide your code review assessment as JSON.
 Remember: You cannot see the actual code changes, so focus on risk assessment based on CI status and task complexity."""
@@ -1320,6 +1326,32 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                 }
             )
             return None
+
+    def _sanitize_prompt_input(self, content: str) -> str:
+        """
+        Sanitize user-controlled input to prevent prompt injection attacks.
+
+        Issue #3774: The goal variable is user-controlled and directly embedded
+        into the LLM prompt. This method sanitizes it to prevent prompt injection.
+
+        Uses pre-compiled regex patterns from PROMPT_INJECTION_PATTERNS for performance.
+        Patterns include common instruction overrides, role manipulation attempts,
+        and model-specific control tokens (Llama [INST], Mistral <<SYS>>, ChatML <|im_start|>).
+
+        Args:
+            content: User-controlled input string (e.g., goal, task description)
+
+        Returns:
+            Sanitized string safe for embedding in LLM prompts
+        """
+        if not content:
+            return content
+
+        sanitized = content
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            sanitized = pattern.sub('[SANITIZED]', sanitized)
+
+        return sanitized
 
     def _sanitize_json_input(self, content: str) -> str:
         """
