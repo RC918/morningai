@@ -24,11 +24,11 @@ const appleInputVariants = cva(
         default: "h-11 px-4 py-3",
         lg: "h-13 px-5 py-4 text-base",
       },
-            state: {
-              default: "",
-              error: "border-error-600 focus:border-error-600 focus:ring-error-600/20",
-              success: "border-success-500 focus:border-success-500 focus:ring-success-500/20",
-            },
+      state: {
+        default: "",
+        error: "border-error-600 focus:border-error-600 focus:ring-error-600/20",
+        success: "border-success-500 focus:border-success-500 focus:ring-success-500/20",
+      },
     },
     defaultVariants: {
       variant: "default",
