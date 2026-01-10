@@ -259,6 +259,7 @@ class FileAction(str, Enum):
 # Schema version for backward-compatible evolution
 ARCHITECTURE_SPEC_SCHEMA_VERSION = 1
 REVIEW_RESULT_SCHEMA_VERSION = 1
+TASK_SPEC_SCHEMA_VERSION = 1  # D-3: Spec-Driven Development
 
 # Maximum files SeniorCoder can plan for (aligned with GeneralCoder limit)
 MAX_FILES_IN_PLAN = 5
@@ -564,6 +565,624 @@ class ReviewResult:
     def to_json(self) -> str:
         """Convert to JSON string."""
         return json.dumps(self.to_dict())
+
+
+# =============================================================================
+# D-3: Spec-Driven Development - TaskSpec Schema and Parser
+# Issue #2762: D-3 Spec-Driven Development - Planner-Coder Integration
+# Parent EPIC #2759: EPIC D - Autonomous Coder Agent Family
+#
+# This section implements structured TaskSpec for Planner-Coder integration:
+# 1. TaskSpec Schema - Structured format for Planner output
+# 2. SpecParser - Parse and validate TaskSpec from Planner
+# 3. SpecValidator - Verify generated code matches spec
+# =============================================================================
+
+
+class InterfaceType(str, Enum):
+    """Type of interface definition."""
+    FUNCTION = "function"
+    CLASS = "class"
+    API = "api"
+
+
+@dataclass
+class FileSpec:
+    """Specification for a file to be created or modified.
+
+    Issue #2762: D-3 Spec-Driven Development
+
+    Attributes:
+        path: File path relative to project root
+        purpose: Description of the file's purpose
+        dependencies: List of files this file depends on
+    """
+    path: str
+    purpose: str
+    dependencies: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "path": self.path,
+            "purpose": self.purpose,
+            "dependencies": self.dependencies,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FileSpec":
+        """Create FileSpec from dictionary."""
+        return cls(
+            path=data.get("path", ""),
+            purpose=data.get("purpose", ""),
+            dependencies=data.get("dependencies", []),
+        )
+
+
+@dataclass
+class InterfaceSpec:
+    """Specification for an interface (function, class, or API).
+
+    Issue #2762: D-3 Spec-Driven Development
+
+    Attributes:
+        name: Interface name
+        interface_type: function/class/api
+        signature: Function signature or class definition
+        description: Description of the interface
+    """
+    name: str
+    interface_type: InterfaceType
+    signature: str
+    description: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "name": self.name,
+            "type": self.interface_type.value,
+            "signature": self.signature,
+            "description": self.description,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "InterfaceSpec":
+        """Create InterfaceSpec from dictionary."""
+        type_str = data.get("type", "function").lower()
+        try:
+            interface_type = InterfaceType(type_str)
+        except ValueError:
+            interface_type = InterfaceType.FUNCTION
+        return cls(
+            name=data.get("name", ""),
+            interface_type=interface_type,
+            signature=data.get("signature", ""),
+            description=data.get("description", ""),
+        )
+
+
+@dataclass
+class TestCaseSpec:
+    """Specification for a test case.
+
+    Issue #2762: D-3 Spec-Driven Development
+
+    Attributes:
+        name: Test case name
+        description: What the test verifies
+        input_data: Example input data (optional)
+        expected_output: Expected output description
+    """
+    name: str
+    description: str
+    input_data: Optional[str] = None
+    expected_output: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result: Dict[str, Any] = {
+            "name": self.name,
+            "description": self.description,
+        }
+        if self.input_data:
+            result["input_data"] = self.input_data
+        if self.expected_output:
+            result["expected_output"] = self.expected_output
+        return result
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "TestCaseSpec":
+        """Create TestCaseSpec from dictionary."""
+        return cls(
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            input_data=data.get("input_data"),
+            expected_output=data.get("expected_output"),
+        )
+
+
+@dataclass
+class TaskSpec:
+    """Complete task specification from Planner for Coder.
+
+    Issue #2762: D-3 Spec-Driven Development - Planner-Coder Integration
+
+    This is the structured format that Planner produces and Coder consumes.
+    It enables "Spec-Driven Development" where Coder follows a precise spec
+    rather than interpreting free-form text.
+
+    Attributes:
+        title: Task title
+        description: Detailed task description
+        files_to_create: List of new files to create
+        files_to_modify: List of existing files to modify
+        files_to_delete: List of files to delete
+        interfaces: List of interface definitions
+        test_cases: List of test case specifications
+        acceptance_criteria: List of acceptance criteria
+    """
+    title: str
+    description: str
+    files_to_create: List[FileSpec] = field(default_factory=list)
+    files_to_modify: List[FileSpec] = field(default_factory=list)
+    files_to_delete: List[str] = field(default_factory=list)
+    interfaces: List[InterfaceSpec] = field(default_factory=list)
+    test_cases: List[TestCaseSpec] = field(default_factory=list)
+    acceptance_criteria: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "schema_version": TASK_SPEC_SCHEMA_VERSION,
+            "title": self.title,
+            "description": self.description,
+            "files_to_create": [f.to_dict() for f in self.files_to_create],
+            "files_to_modify": [f.to_dict() for f in self.files_to_modify],
+            "files_to_delete": self.files_to_delete,
+            "interfaces": [i.to_dict() for i in self.interfaces],
+            "test_cases": [t.to_dict() for t in self.test_cases],
+            "acceptance_criteria": self.acceptance_criteria,
+        }
+
+    def to_json(self) -> str:
+        """Convert to JSON string."""
+        return json.dumps(self.to_dict())
+
+    @property
+    def total_file_count(self) -> int:
+        """Total number of files affected by this spec."""
+        return (
+            len(self.files_to_create) +
+            len(self.files_to_modify) +
+            len(self.files_to_delete)
+        )
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if the spec has minimum required fields."""
+        return bool(self.title and self.description)
+
+
+# JSON Schema for TaskSpec validation
+TASK_SPEC_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "required": ["title", "description"],
+    "properties": {
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "files_to_create": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["path", "purpose"],
+                "properties": {
+                    "path": {"type": "string"},
+                    "purpose": {"type": "string"},
+                    "dependencies": {"type": "array", "items": {"type": "string"}}
+                }
+            }
+        },
+        "files_to_modify": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["path", "purpose"],
+                "properties": {
+                    "path": {"type": "string"},
+                    "purpose": {"type": "string"},
+                    "dependencies": {"type": "array", "items": {"type": "string"}}
+                }
+            }
+        },
+        "files_to_delete": {"type": "array", "items": {"type": "string"}},
+        "interfaces": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["name", "type", "signature"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "type": {"type": "string", "enum": ["function", "class", "api"]},
+                    "signature": {"type": "string"},
+                    "description": {"type": "string"}
+                }
+            }
+        },
+        "test_cases": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["name", "description"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "input_data": {"type": "string"},
+                    "expected_output": {"type": "string"}
+                }
+            }
+        },
+        "acceptance_criteria": {"type": "array", "items": {"type": "string"}}
+    }
+}
+
+
+@dataclass
+class SpecParseResult:
+    """Result of parsing a TaskSpec.
+
+    Attributes:
+        success: Whether parsing succeeded
+        spec: The parsed TaskSpec (None if failed)
+        errors: List of parsing errors
+    """
+    success: bool
+    spec: Optional[TaskSpec] = None
+    errors: List[str] = field(default_factory=list)
+
+
+class SpecParser:
+    """Parser for TaskSpec from Planner output.
+
+    Issue #2762: D-3 Spec-Driven Development
+
+    This class parses and validates TaskSpec from Planner's JSON output.
+
+    Event Codes (greppable):
+        [SPEC_PARSE_SUCCESS] - TaskSpec parsed successfully
+        [SPEC_PARSE_FAILED] - TaskSpec parsing failed
+        [SPEC_VALIDATION_PASSED] - TaskSpec schema validation passed
+        [SPEC_VALIDATION_FAILED] - TaskSpec schema validation failed
+    """
+
+    @staticmethod
+    def parse(json_str: str) -> SpecParseResult:
+        """Parse TaskSpec from JSON string.
+
+        Args:
+            json_str: JSON string containing TaskSpec
+
+        Returns:
+            SpecParseResult with parsed spec or errors
+        """
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logger.warning(
+                f"[SPEC_PARSE_FAILED] JSON parsing failed: {e}",
+                extra={
+                    "operation": "spec_parse",
+                    "event_code": "SPEC_PARSE_FAILED",
+                    "error": str(e),
+                }
+            )
+            return SpecParseResult(
+                success=False,
+                errors=[f"JSON parsing failed: {str(e)}"]
+            )
+
+        return SpecParser.parse_dict(data)
+
+    @staticmethod
+    def parse_dict(data: Dict[str, Any]) -> SpecParseResult:
+        """Parse TaskSpec from dictionary.
+
+        Args:
+            data: Dictionary containing TaskSpec fields
+
+        Returns:
+            SpecParseResult with parsed spec or errors
+        """
+        # Validate against schema
+        validation_result = validate_against_schema(data, TASK_SPEC_SCHEMA)
+        if not validation_result.is_valid:
+            logger.warning(
+                f"[SPEC_VALIDATION_FAILED] TaskSpec schema validation failed: "
+                f"{validation_result.errors}",
+                extra={
+                    "operation": "spec_validation",
+                    "event_code": "SPEC_VALIDATION_FAILED",
+                    "validation_errors": validation_result.errors,
+                }
+            )
+            return SpecParseResult(
+                success=False,
+                errors=validation_result.errors
+            )
+
+        logger.info(
+            "[SPEC_VALIDATION_PASSED] TaskSpec schema validation passed",
+            extra={
+                "operation": "spec_validation",
+                "event_code": "SPEC_VALIDATION_PASSED",
+            }
+        )
+
+        # Parse files_to_create
+        files_to_create = [
+            FileSpec.from_dict(f)
+            for f in data.get("files_to_create", [])
+        ]
+
+        # Parse files_to_modify
+        files_to_modify = [
+            FileSpec.from_dict(f)
+            for f in data.get("files_to_modify", [])
+        ]
+
+        # Parse interfaces
+        interfaces = [
+            InterfaceSpec.from_dict(i)
+            for i in data.get("interfaces", [])
+        ]
+
+        # Parse test_cases
+        test_cases = [
+            TestCaseSpec.from_dict(t)
+            for t in data.get("test_cases", [])
+        ]
+
+        spec = TaskSpec(
+            title=data.get("title", ""),
+            description=data.get("description", ""),
+            files_to_create=files_to_create,
+            files_to_modify=files_to_modify,
+            files_to_delete=data.get("files_to_delete", []),
+            interfaces=interfaces,
+            test_cases=test_cases,
+            acceptance_criteria=data.get("acceptance_criteria", []),
+        )
+
+        logger.info(
+            f"[SPEC_PARSE_SUCCESS] TaskSpec parsed: title={sanitize_llm_output(spec.title, max_length=50)}, "
+            f"files={spec.total_file_count}, interfaces={len(spec.interfaces)}, "
+            f"test_cases={len(spec.test_cases)}",
+            extra={
+                "operation": "spec_parse",
+                "event_code": "SPEC_PARSE_SUCCESS",
+                "title": spec.title,
+                "file_count": spec.total_file_count,
+                "interface_count": len(spec.interfaces),
+                "test_case_count": len(spec.test_cases),
+            }
+        )
+
+        return SpecParseResult(success=True, spec=spec)
+
+
+@dataclass
+class SpecValidationResult:
+    """Result of validating implementation against TaskSpec.
+
+    Attributes:
+        is_valid: Whether implementation matches spec
+        matched_interfaces: List of interfaces that were implemented
+        missing_interfaces: List of interfaces that were not implemented
+        matched_files: List of files that were created/modified as expected
+        missing_files: List of files that were not created/modified
+        feedback: Overall validation feedback
+    """
+    is_valid: bool
+    matched_interfaces: List[str] = field(default_factory=list)
+    missing_interfaces: List[str] = field(default_factory=list)
+    matched_files: List[str] = field(default_factory=list)
+    missing_files: List[str] = field(default_factory=list)
+    feedback: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "is_valid": self.is_valid,
+            "matched_interfaces": self.matched_interfaces,
+            "missing_interfaces": self.missing_interfaces,
+            "matched_files": self.matched_files,
+            "missing_files": self.missing_files,
+            "feedback": self.feedback,
+        }
+
+
+class SpecValidator:
+    """Validator for checking implementation against TaskSpec.
+
+    Issue #2762: D-3 Spec-Driven Development
+
+    This class validates that generated code matches the TaskSpec.
+
+    Event Codes (greppable):
+        [SPEC_IMPL_VALID] - Implementation matches spec
+        [SPEC_IMPL_INVALID] - Implementation does not match spec
+        [SPEC_IMPL_PARTIAL] - Implementation partially matches spec
+    """
+
+    @staticmethod
+    def validate(
+        spec: TaskSpec,
+        implementation_files: List[Dict[str, str]]
+    ) -> SpecValidationResult:
+        """Validate implementation against TaskSpec.
+
+        Args:
+            spec: The TaskSpec to validate against
+            implementation_files: List of dicts with "path" and "content" keys
+
+        Returns:
+            SpecValidationResult with validation details
+        """
+        impl_paths = {f.get("path", "") for f in implementation_files}
+
+        # Check files_to_create
+        expected_create_paths = {f.path for f in spec.files_to_create}
+        matched_create = expected_create_paths & impl_paths
+        missing_create = expected_create_paths - impl_paths
+
+        # Check files_to_modify
+        expected_modify_paths = {f.path for f in spec.files_to_modify}
+        matched_modify = expected_modify_paths & impl_paths
+        missing_modify = expected_modify_paths - impl_paths
+
+        matched_files = list(matched_create | matched_modify)
+        missing_files = list(missing_create | missing_modify)
+
+        # Check interfaces (basic signature matching)
+        matched_interfaces: List[str] = []
+        missing_interfaces: List[str] = []
+
+        for interface in spec.interfaces:
+            found = False
+            for impl_file in implementation_files:
+                content = impl_file.get("content", "")
+                # Basic check: look for the interface name in the content
+                if interface.name in content:
+                    found = True
+                    break
+            if found:
+                matched_interfaces.append(interface.name)
+            else:
+                missing_interfaces.append(interface.name)
+
+        # Determine overall validity
+        is_valid = len(missing_files) == 0 and len(missing_interfaces) == 0
+
+        # Generate feedback
+        if is_valid:
+            feedback = (
+                f"Implementation matches spec: {len(matched_files)} files, "
+                f"{len(matched_interfaces)} interfaces"
+            )
+            event_code = "SPEC_IMPL_VALID"
+        elif matched_files or matched_interfaces:
+            feedback = (
+                f"Partial match: {len(matched_files)}/{len(matched_files) + len(missing_files)} files, "
+                f"{len(matched_interfaces)}/{len(matched_interfaces) + len(missing_interfaces)} interfaces"
+            )
+            event_code = "SPEC_IMPL_PARTIAL"
+        else:
+            feedback = "Implementation does not match spec"
+            event_code = "SPEC_IMPL_INVALID"
+
+        logger.info(
+            f"[{event_code}] {feedback}",
+            extra={
+                "operation": "spec_validation",
+                "event_code": event_code,
+                "matched_files": len(matched_files),
+                "missing_files": len(missing_files),
+                "matched_interfaces": len(matched_interfaces),
+                "missing_interfaces": len(missing_interfaces),
+            }
+        )
+
+        return SpecValidationResult(
+            is_valid=is_valid,
+            matched_interfaces=matched_interfaces,
+            missing_interfaces=missing_interfaces,
+            matched_files=matched_files,
+            missing_files=missing_files,
+            feedback=feedback,
+        )
+
+
+def convert_architecture_spec_to_task_spec(
+    arch_spec: ArchitectureSpec,
+    task_description: str
+) -> TaskSpec:
+    """Convert ArchitectureSpec to TaskSpec for D-3 compatibility.
+
+    Issue #2762: D-3 Spec-Driven Development
+
+    This function bridges the existing ArchitectureSpec (D-2) with the new
+    TaskSpec format (D-3), enabling gradual migration to spec-driven development.
+
+    Args:
+        arch_spec: The ArchitectureSpec from SeniorCoder
+        task_description: Original task description
+
+    Returns:
+        TaskSpec equivalent of the ArchitectureSpec
+
+    Event Codes (greppable):
+        [SPEC_CONVERSION] - ArchitectureSpec converted to TaskSpec
+    """
+    # Convert files_to_create
+    files_to_create = [
+        FileSpec(path=path, purpose="New file")
+        for path in arch_spec.architecture.files_to_create
+    ]
+
+    # Convert files_to_modify
+    files_to_modify = [
+        FileSpec(path=path, purpose="Modify existing file")
+        for path in arch_spec.architecture.files_to_modify
+    ]
+
+    # Convert implementation_plan to interfaces
+    interfaces: List[InterfaceSpec] = []
+    test_cases: List[TestCaseSpec] = []
+
+    for step in arch_spec.implementation_plan:
+        # Extract function signatures as interfaces
+        for sig in step.function_signatures:
+            # Extract function name from signature
+            name_match = re.match(r'def\s+(\w+)', sig)
+            name = name_match.group(1) if name_match else sig[:30]
+            interfaces.append(InterfaceSpec(
+                name=name,
+                interface_type=InterfaceType.FUNCTION,
+                signature=sig,
+                description=step.description,
+            ))
+
+        # Convert test_cases
+        for i, test_desc in enumerate(step.test_cases):
+            test_cases.append(TestCaseSpec(
+                name=f"test_{step.file_path.replace('/', '_').replace('.', '_')}_{i}",
+                description=test_desc,
+            ))
+
+    task_spec = TaskSpec(
+        title=task_description[:100] if task_description else "Untitled Task",
+        description=task_description,
+        files_to_create=files_to_create,
+        files_to_modify=files_to_modify,
+        files_to_delete=[],
+        interfaces=interfaces,
+        test_cases=test_cases,
+        acceptance_criteria=arch_spec.constraints,
+    )
+
+    logger.info(
+        f"[SPEC_CONVERSION] ArchitectureSpec converted to TaskSpec: "
+        f"files={task_spec.total_file_count}, interfaces={len(interfaces)}, "
+        f"test_cases={len(test_cases)}",
+        extra={
+            "operation": "spec_conversion",
+            "event_code": "SPEC_CONVERSION",
+            "file_count": task_spec.total_file_count,
+            "interface_count": len(interfaces),
+            "test_case_count": len(test_cases),
+        }
+    )
+
+    return task_spec
 
 
 SENIOR_CODER_SYSTEM_PROMPT = """You are a senior software architect. Your job is to analyze coding tasks and create implementation plans.
