@@ -9,7 +9,7 @@ import logging
 import subprocess
 import tempfile
 import stat
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from knowledge_graph.knowledge_graph_manager import (
     KnowledgeGraphManager
@@ -225,7 +225,8 @@ class SimpleGitTool:
             return {'success': False, 'error': str(e)}
 
     async def commit_and_push(
-        self, title: str, body: str = "", target_branch: Optional[str] = None
+        self, title: str, body: str = "", target_branch: Optional[str] = None,
+        target_files: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Commit and push changes to the current branch.
@@ -236,7 +237,7 @@ class SimpleGitTool:
 
         Steps:
         1. Check for uncommitted changes
-        2. Stage all modified files
+        2. Stage files (scoped to target_files if provided, otherwise all)
         3. Commit with the provided title/body as commit message
         4. Push to the current branch
 
@@ -247,9 +248,13 @@ class SimpleGitTool:
                           Used when in detached HEAD state to specify which
                           remote branch to push to. If not provided, uses
                           the current branch name or GITHUB_HEAD_REF env var.
+            target_files: Optional list of file paths to stage (Issue #3538).
+                         When provided, only these files are staged instead of
+                         using 'git add -A'. This prevents accidentally committing
+                         unintended files in a dirty working tree.
 
         Returns:
-            Dict with success status, commit_sha, and branch name.
+            Dict with success status, commit_sha, branch name, and staged_files list.
         """
         try:
             cwd = os.getcwd()
@@ -279,8 +284,43 @@ class SimpleGitTool:
             )
             base_sha = base_sha_result.stdout.strip() if base_sha_result.returncode == 0 else None
 
+            # Issue #3538: Scoped git add - only stage target_files if provided
+            # This prevents accidentally committing unintended files in a dirty working tree
+            if target_files:
+                # Validate and filter target_files to only include existing files
+                valid_files = []
+                for f in target_files:
+                    # Security: Normalize path to prevent directory traversal
+                    normalized = os.path.normpath(f)
+                    if os.path.exists(os.path.join(cwd, normalized)):
+                        valid_files.append(normalized)
+                    else:
+                        logger.warning(
+                            f"[SimpleGitTool] target_file does not exist, skipping: {f}"
+                        )
+
+                if not valid_files:
+                    logger.warning(
+                        "[SimpleGitTool] No valid target_files found, "
+                        "falling back to git add -A"
+                    )
+                    add_cmd = ['git', 'add', '-A']
+                else:
+                    add_cmd = ['git', 'add', '--'] + valid_files
+                    logger.info(
+                        f"[SimpleGitTool] Staging {len(valid_files)} target file(s): "
+                        f"{valid_files}"
+                    )
+            else:
+                # Fallback to git add -A when target_files is not provided
+                logger.warning(
+                    "[SimpleGitTool] target_files not provided, using git add -A. "
+                    "Consider passing target_files for safer scoped staging."
+                )
+                add_cmd = ['git', 'add', '-A']
+
             add_result = subprocess.run(
-                ['git', 'add', '-A'],
+                add_cmd,
                 capture_output=True,
                 text=True,
                 cwd=cwd
@@ -291,6 +331,20 @@ class SimpleGitTool:
                     'success': False,
                     'error': f'git add failed: {add_result.stderr}'
                 }
+
+            # Issue #3538: Capture staged files for audit trail
+            staged_files_result = subprocess.run(
+                ['git', 'diff', '--cached', '--name-only'],
+                capture_output=True,
+                text=True,
+                cwd=cwd
+            )
+            staged_files = (
+                staged_files_result.stdout.strip().split('\n')
+                if staged_files_result.returncode == 0 and staged_files_result.stdout.strip()
+                else []
+            )
+            logger.info(f"[SimpleGitTool] Staged files for commit: {staged_files}")
 
             # Issue #3584: Use git -c options to set author identity
             # This prevents "Author identity unknown" errors in CI/CD environments
@@ -775,6 +829,7 @@ class SimpleGitTool:
                 'commit_pushed': True,
                 'commit_sha': commit_sha,
                 'branch': branch,
+                'staged_files': staged_files,
                 'output': f'Committed and pushed {commit_sha_short} to {branch}'
             }
 
