@@ -255,12 +255,12 @@ class CIFailureScanner:
             self._api_requests_used += 1
 
             # Get open PRs, sorted by updated_at descending
+            # Note: get_pulls() returns a PaginatedList, iterating fetches pages (not one API call per PR)
+            # The initial API call is counted above; pagination is handled by PyGithub internally
             prs = []
             cutoff_time = datetime.now(timezone.utc) - timedelta(hours=self.lookback_hours)
 
             for pr in github_repo.get_pulls(state="open", sort="updated", direction="desc"):
-                self._api_requests_used += 1
-
                 # Check if PR was updated within lookback window
                 updated_at = pr.updated_at
                 if updated_at.tzinfo is None:
