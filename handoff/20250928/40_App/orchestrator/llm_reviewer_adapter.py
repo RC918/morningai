@@ -848,6 +848,15 @@ class LLMReviewerAdapter:
         return """You are a SENIOR SOFTWARE ARCHITECT performing code review for a pull request.
 You will be shown the actual code diff for this PR with line numbers annotated.
 
+=== SCOPE RESTRICTION (CRITICAL - Issue #3765) ===
+You may ONLY comment on files that are explicitly shown in the diff below.
+- NEVER comment on files that are not in the diff
+- NEVER reference files from your training data or memory
+- If a file path is not visible in the diff, you CANNOT comment on it
+- The "ALLOWED FILES" list in the user prompt defines your ENTIRE scope
+
+Violation of this rule will cause your comments to be rejected by the validation system.
+
 === PERSONA: SENIOR ARCHITECT (NOT INTERN) ===
 You are a seasoned architect who focuses on IMPACT, not style.
 - You DO NOT comment on formatting, naming conventions, or cosmetic issues
@@ -1073,16 +1082,35 @@ IMPORTANT:
             )
 
         # Build file summary if available
+        # Issue #3765: Build explicit ALLOWED FILES list for scope enforcement
         file_summary = ""
+        allowed_files_section = ""
         if diff_files:
             file_list = []
+            allowed_file_names = []
             for f in diff_files[:10]:  # Limit to first 10 files
                 file_list.append(
                     f"  - {f['filename']} (+{f['additions']}/-{f['deletions']})"
                 )
+                allowed_file_names.append(f['filename'])
             file_summary = "\n**Changed Files:**\n" + "\n".join(file_list)
             if len(diff_files) > 10:
                 file_summary += f"\n  ... and {len(diff_files) - 10} more files"
+                # Add remaining file names to allowed list
+                for f in diff_files[10:]:
+                    allowed_file_names.append(f['filename'])
+
+            # Issue #3765: Explicit ALLOWED FILES section for scope enforcement
+            # Sanitize filenames to prevent prompt injection (gemini-code-assist review)
+            def sanitize_filename(fn: str) -> str:
+                """Escape backticks and newlines to prevent prompt injection."""
+                return fn.replace('`', '').replace('\n', ' ').replace('\r', ' ')
+
+            allowed_files_section = (
+                "\n\n**ALLOWED FILES (Issue #3765 - Scope Enforcement):**\n"
+                "You may ONLY comment on these files. Any comment on a file not in this list will be REJECTED.\n"
+                + "\n".join(f"  - `{sanitize_filename(fn)}`" for fn in allowed_file_names)
+            )
 
         # Build truncation warning if applicable (enhanced for #3080)
         truncation_warning = ""
@@ -1126,7 +1154,7 @@ IMPORTANT:
 - PR Number: {pr_number or "Unknown"}
 - PR URL: {pr_url or "Not available"}
 - CI Status: {ci_state}
-{file_summary}{pr_context_section}
+{file_summary}{allowed_files_section}{pr_context_section}
 
 **Task Goal/Description:**
 {goal}
@@ -1139,6 +1167,7 @@ IMPORTANT:
 
 Please review the code changes above and provide your assessment as JSON.
 Remember: Only comment on lines marked with "+" (additions). Copy line numbers from "(Line N)" annotations.
+CRITICAL: Only comment on files listed in ALLOWED FILES above. Comments on other files will be rejected.
 IMPORTANT: Consider the PR Title and Description when reviewing - validate if the code changes align with the stated intent."""
 
     def _get_metadata_only_system_prompt(self) -> str:
