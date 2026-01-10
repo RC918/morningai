@@ -34,8 +34,9 @@ _REDIS_KEY_SANITIZE_PATTERN = re.compile(r'[^a-zA-Z0-9_/#-]')
 
 # Issue #3806: Pre-compiled regex patterns for timestamp sanitization in error messages
 # These patterns match common timestamp formats that cause deduplication to fail
+# Note: Using {0,30} limit on character classes to prevent ReDoS (catastrophic backtracking)
 _TIMESTAMP_PATTERNS = [
-    re.compile(r'\[\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\]]*\]'),  # [2024-01-11T10:00:00Z] or [2024-01-11 10:00:00]
+    re.compile(r'\[\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\]]{0,30}\]'),  # [2024-01-11T10:00:00Z] or [2024-01-11 10:00:00]
     re.compile(r'\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?'),  # ISO 8601 timestamps
     re.compile(r'\[\d{2}:\d{2}:\d{2}\]'),  # [10:00:00] time only
     re.compile(r'\d{2}:\d{2}:\d{2}\.\d+'),  # 10:00:00.123 with milliseconds
