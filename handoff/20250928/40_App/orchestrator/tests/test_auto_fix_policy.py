@@ -443,8 +443,9 @@ class TestCISignatureDeduplication:
             redis_class.return_value = MagicMock()
             dedup = CISignatureDeduplication(mock_settings)
 
-            sig1 = dedup._compute_signature("owner/repo#123", "lint", "error msg")
-            sig2 = dedup._compute_signature("owner/repo#123", "lint", "error msg")
+            # Issue #3806: Added commit_sha parameter for Self-Correction Loop
+            sig1 = dedup._compute_signature("owner/repo#123", "abc123", "lint", "error msg")
+            sig2 = dedup._compute_signature("owner/repo#123", "abc123", "lint", "error msg")
             assert sig1 == sig2
             assert len(sig1) == 16  # SHA256 truncated to 16 chars
 
@@ -454,14 +455,17 @@ class TestCISignatureDeduplication:
             redis_class.return_value = MagicMock()
             dedup = CISignatureDeduplication(mock_settings)
 
-            sig1 = dedup._compute_signature("owner/repo#123", "lint", "error A")
-            sig2 = dedup._compute_signature("owner/repo#123", "lint", "error B")
-            sig3 = dedup._compute_signature("owner/repo#123", "test", "error A")
-            sig4 = dedup._compute_signature("owner/repo#456", "lint", "error A")
+            # Issue #3806: Added commit_sha parameter for Self-Correction Loop
+            sig1 = dedup._compute_signature("owner/repo#123", "abc123", "lint", "error A")
+            sig2 = dedup._compute_signature("owner/repo#123", "abc123", "lint", "error B")
+            sig3 = dedup._compute_signature("owner/repo#123", "abc123", "test", "error A")
+            sig4 = dedup._compute_signature("owner/repo#456", "abc123", "lint", "error A")
+            sig5 = dedup._compute_signature("owner/repo#123", "def456", "lint", "error A")
 
             assert sig1 != sig2  # Different error
             assert sig1 != sig3  # Different check name
             assert sig1 != sig4  # Different PR
+            assert sig1 != sig5  # Different commit_sha (Self-Correction Loop)
 
     def test_check_and_mark_new_failure(self, mock_settings):
         """Test check_and_mark returns True for new failure"""
@@ -545,7 +549,7 @@ class TestCISignatureDeduplication:
             assert call_args[0][1] == 3600  # TTL is second positional arg
 
     def test_error_digest_truncation(self, mock_settings):
-        """Test error summary is truncated to 500 chars for digest"""
+        """Test error summary is truncated for digest"""
         mock_redis = MagicMock()
         mock_redis.get.return_value = None
 
@@ -553,12 +557,14 @@ class TestCISignatureDeduplication:
             redis_class.return_value = mock_redis
             dedup = CISignatureDeduplication(mock_settings)
 
-            # Long error message
+            # Issue #3806: Added commit_sha parameter for Self-Correction Loop
+            # Note: truncation now happens in _sanitize_error_for_signature() via check_and_mark()
+            # _compute_signature() expects pre-sanitized error_digest
             long_error = "x" * 1000
             short_error = "x" * 500
 
-            sig_long = dedup._compute_signature("pr#1", "lint", long_error[:500])
-            sig_short = dedup._compute_signature("pr#1", "lint", short_error)
+            sig_long = dedup._compute_signature("pr#1", "abc123", "lint", long_error[:500])
+            sig_short = dedup._compute_signature("pr#1", "abc123", "lint", short_error)
 
-            # Both should produce same signature (truncated to 500)
+            # Both should produce same signature (same first 500 chars)
             assert sig_long == sig_short
