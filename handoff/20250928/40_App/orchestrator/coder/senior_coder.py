@@ -115,11 +115,66 @@ logger = logging.getLogger(__name__)
 # Control characters pattern (excludes printable ASCII and common whitespace)
 _CONTROL_CHAR_PATTERN = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
+# Sensitive data patterns for redaction (Issue #3749)
+# These patterns match common sensitive data formats that should not appear in logs
+_SENSITIVE_PATTERNS = [
+    # API keys (common formats: sk-xxx, api-xxx, key-xxx with 20+ chars)
+    (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), '[REDACTED_API_KEY]'),
+    (re.compile(r'\b(api[-_]?key[-_:]?\s*["\']?[a-zA-Z0-9]{16,})\b', re.IGNORECASE), '[REDACTED_API_KEY]'),
+    # Bearer tokens
+    (re.compile(r'\b(Bearer\s+[a-zA-Z0-9._-]{20,})\b'), '[REDACTED_BEARER_TOKEN]'),
+    # JWT tokens (three base64 parts separated by dots)
+    (re.compile(r'\b(eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*)\b'), '[REDACTED_JWT]'),
+    # Password patterns in config/env format
+    (re.compile(r'(password\s*[=:]\s*["\']?)[^\s"\']{8,}(["\']?)', re.IGNORECASE), r'\1[REDACTED]\2'),
+    (re.compile(r'(passwd\s*[=:]\s*["\']?)[^\s"\']{8,}(["\']?)', re.IGNORECASE), r'\1[REDACTED]\2'),
+    (re.compile(r'(secret\s*[=:]\s*["\']?)[^\s"\']{8,}(["\']?)', re.IGNORECASE), r'\1[REDACTED]\2'),
+    # AWS access keys
+    (re.compile(r'\b(AKIA[0-9A-Z]{16})\b'), '[REDACTED_AWS_KEY]'),
+    # GitHub tokens
+    (re.compile(r'\b(ghp_[a-zA-Z0-9]{36})\b'), '[REDACTED_GITHUB_TOKEN]'),
+    (re.compile(r'\b(gho_[a-zA-Z0-9]{36})\b'), '[REDACTED_GITHUB_TOKEN]'),
+    (re.compile(r'\b(ghu_[a-zA-Z0-9]{36})\b'), '[REDACTED_GITHUB_TOKEN]'),
+    # Private keys (PEM format markers)
+    (re.compile(r'-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----'), '[REDACTED_PRIVATE_KEY]'),
+]
+
+
+def redact_sensitive_data(text: str) -> tuple[str, bool]:
+    """Redact sensitive data patterns from text.
+
+    Issue #3749: [P3] Implement sensitive data sanitization for SeniorCoder logs
+
+    This function scans text for common sensitive data patterns (API keys,
+    passwords, tokens, etc.) and replaces them with redaction markers.
+
+    Args:
+        text: The text to scan for sensitive data
+
+    Returns:
+        Tuple of (redacted_text, was_redacted) where was_redacted is True
+        if any sensitive data was found and redacted.
+
+    Event Codes (greppable):
+        [SANITIZE_SENSITIVE_DATA_REDACTED] - Sensitive data was redacted
+    """
+    redacted = text
+    was_redacted = False
+
+    for pattern, replacement in _SENSITIVE_PATTERNS:
+        new_text = pattern.sub(replacement, redacted)
+        if new_text != redacted:
+            was_redacted = True
+            redacted = new_text
+
+    return redacted, was_redacted
+
 
 def sanitize_llm_output(
     value: Any,
     max_length: int = 200,
-    context: str = "output"
+    context: str = "output",
+    redact_sensitive: bool = True
 ) -> str:
     """Sanitize untrusted LLM output for safe logging.
 
@@ -127,11 +182,13 @@ def sanitize_llm_output(
     1. Log injection attacks via newlines/control characters
     2. Log bloat from excessively long strings
     3. Type confusion from non-string values
+    4. Sensitive data exposure (API keys, passwords, tokens) - Issue #3749
 
     Args:
         value: The untrusted value to sanitize (any type)
         max_length: Maximum length of output (default: 200)
         context: Description of the value for logging (default: "output")
+        redact_sensitive: Whether to redact sensitive data patterns (default: True)
 
     Returns:
         Sanitized string safe for logging (wrapped in quotes via repr())
@@ -146,11 +203,21 @@ def sanitize_llm_output(
     Event Codes (greppable):
         [SANITIZE_LLM_OUTPUT_TRUNCATED] - Output was truncated due to length
         [SANITIZE_LLM_OUTPUT_CONTROL_CHARS] - Control characters were removed
+        [SANITIZE_SENSITIVE_DATA_REDACTED] - Sensitive data was redacted
     """
     # 1. Convert to string first to handle any type
     s = str(value)
 
-    # 2. Remove control characters (except common whitespace like \n, \t, \r)
+    # 2. Redact sensitive data patterns (Issue #3749)
+    if redact_sensitive:
+        s, was_redacted = redact_sensitive_data(s)
+        if was_redacted:
+            logger.debug(
+                f"[SANITIZE_SENSITIVE_DATA_REDACTED] Redacted sensitive data from {context}",
+                extra={"operation": "sanitize_llm_output", "context": context}
+            )
+
+    # 3. Remove control characters (except common whitespace like \n, \t, \r)
     original_len = len(s)
     s = _CONTROL_CHAR_PATTERN.sub('', s)
     if len(s) < original_len:
@@ -159,10 +226,10 @@ def sanitize_llm_output(
             extra={"operation": "sanitize_llm_output", "context": context}
         )
 
-    # 3. Replace newlines with escaped representation for single-line logging
+    # 4. Replace newlines with escaped representation for single-line logging
     s = s.replace('\n', '\\n').replace('\r', '\\r')
 
-    # 4. Truncate the content string before quoting
+    # 5. Truncate the content string before quoting
     if len(s) > max_length:
         original_content_len = len(s)
         s = s[:max_length] + "..."
@@ -171,7 +238,7 @@ def sanitize_llm_output(
             extra={"operation": "sanitize_llm_output", "context": context}
         )
 
-    # 5. Finally, use repr() for safe quoting and escaping any remaining special chars
+    # 6. Finally, use repr() for safe quoting and escaping any remaining special chars
     return repr(s)
 
 
