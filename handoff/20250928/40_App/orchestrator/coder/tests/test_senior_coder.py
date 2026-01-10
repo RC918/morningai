@@ -26,6 +26,18 @@ from coder.senior_coder import (
     validate_against_schema,
     sanitize_llm_output,
     redact_sensitive_data,
+    # D-3: Spec-Driven Development imports
+    TASK_SPEC_SCHEMA_VERSION,
+    TASK_SPEC_SCHEMA,
+    InterfaceType,
+    FileSpec,
+    InterfaceSpec,
+    TestCaseSpec,
+    TaskSpec,
+    SpecParser,
+    SpecValidationResult,
+    SpecValidator,
+    convert_architecture_spec_to_task_spec,
 )
 from core.agents import AgentInput
 
@@ -1014,3 +1026,454 @@ class TestRedactSensitiveData:
         assert "Config:" in result
         assert "and other settings" in result
         assert was_redacted is True
+
+
+# =============================================================================
+# D-3: Spec-Driven Development Tests
+# Issue #2762: D-3 Spec-Driven Development - Planner-Coder Integration
+# =============================================================================
+
+
+class TestInterfaceType:
+    """Tests for InterfaceType enum.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_interface_type_values(self):
+        """Test all InterfaceType enum values."""
+        assert InterfaceType.FUNCTION.value == "function"
+        assert InterfaceType.CLASS.value == "class"
+        assert InterfaceType.API.value == "api"
+
+
+class TestFileSpec:
+    """Tests for FileSpec dataclass.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_to_dict(self):
+        """Test FileSpec serialization."""
+        spec = FileSpec(
+            path="src/utils.py",
+            purpose="Utility functions",
+            dependencies=["src/config.py"]
+        )
+        result = spec.to_dict()
+        assert result["path"] == "src/utils.py"
+        assert result["purpose"] == "Utility functions"
+        assert result["dependencies"] == ["src/config.py"]
+
+    def test_to_dict_empty_dependencies(self):
+        """Test FileSpec with empty dependencies."""
+        spec = FileSpec(path="src/main.py", purpose="Entry point")
+        result = spec.to_dict()
+        assert result["dependencies"] == []
+
+    def test_from_dict(self):
+        """Test FileSpec deserialization."""
+        data = {
+            "path": "src/helpers.py",
+            "purpose": "Helper functions",
+            "dependencies": ["src/utils.py"]
+        }
+        spec = FileSpec.from_dict(data)
+        assert spec.path == "src/helpers.py"
+        assert spec.purpose == "Helper functions"
+        assert spec.dependencies == ["src/utils.py"]
+
+    def test_from_dict_missing_optional(self):
+        """Test FileSpec deserialization with missing optional fields."""
+        data = {"path": "src/test.py"}
+        spec = FileSpec.from_dict(data)
+        assert spec.path == "src/test.py"
+        assert spec.purpose == ""
+        assert spec.dependencies == []
+
+
+class TestInterfaceSpec:
+    """Tests for InterfaceSpec dataclass.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_to_dict(self):
+        """Test InterfaceSpec serialization."""
+        spec = InterfaceSpec(
+            name="process_data",
+            interface_type=InterfaceType.FUNCTION,
+            signature="def process_data(data: dict) -> dict",
+            description="Process input data"
+        )
+        result = spec.to_dict()
+        assert result["name"] == "process_data"
+        assert result["interface_type"] == "function"
+        assert result["signature"] == "def process_data(data: dict) -> dict"
+        assert result["description"] == "Process input data"
+
+    def test_from_dict(self):
+        """Test InterfaceSpec deserialization."""
+        data = {
+            "name": "DataProcessor",
+            "interface_type": "class",
+            "signature": "class DataProcessor:",
+            "description": "Data processing class"
+        }
+        spec = InterfaceSpec.from_dict(data)
+        assert spec.name == "DataProcessor"
+        assert spec.interface_type == InterfaceType.CLASS
+        assert spec.signature == "class DataProcessor:"
+        assert spec.description == "Data processing class"
+
+    def test_from_dict_invalid_type_defaults_to_function(self):
+        """Test InterfaceSpec with invalid type defaults to function."""
+        data = {
+            "name": "test",
+            "interface_type": "invalid_type",
+            "signature": "def test():"
+        }
+        spec = InterfaceSpec.from_dict(data)
+        assert spec.interface_type == InterfaceType.FUNCTION
+
+
+class TestTestCaseSpec:
+    """Tests for TestCaseSpec dataclass.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_to_dict(self):
+        """Test TestCaseSpec serialization."""
+        spec = TestCaseSpec(
+            name="test_process_valid_data",
+            description="Test processing valid data",
+            input_data={"key": "value"},
+            expected_output={"result": "success"}
+        )
+        result = spec.to_dict()
+        assert result["name"] == "test_process_valid_data"
+        assert result["description"] == "Test processing valid data"
+        assert result["input_data"] == {"key": "value"}
+        assert result["expected_output"] == {"result": "success"}
+
+    def test_from_dict(self):
+        """Test TestCaseSpec deserialization."""
+        data = {
+            "name": "test_error_handling",
+            "description": "Test error handling",
+            "input_data": None,
+            "expected_output": "error"
+        }
+        spec = TestCaseSpec.from_dict(data)
+        assert spec.name == "test_error_handling"
+        assert spec.description == "Test error handling"
+        assert spec.input_data is None
+        assert spec.expected_output == "error"
+
+
+class TestTaskSpec:
+    """Tests for TaskSpec dataclass.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_to_dict_minimal(self):
+        """Test minimal TaskSpec serialization."""
+        spec = TaskSpec(
+            title="Add logging",
+            description="Add logging to the application"
+        )
+        result = spec.to_dict()
+        assert result["schema_version"] == TASK_SPEC_SCHEMA_VERSION
+        assert result["title"] == "Add logging"
+        assert result["description"] == "Add logging to the application"
+        assert result["files_to_create"] == []
+        assert result["files_to_modify"] == []
+        assert result["files_to_delete"] == []
+
+    def test_to_dict_full(self):
+        """Test full TaskSpec serialization."""
+        spec = TaskSpec(
+            title="Implement feature",
+            description="Implement new feature",
+            files_to_create=[FileSpec("src/new.py", "New file")],
+            files_to_modify=[FileSpec("src/existing.py", "Modify existing")],
+            files_to_delete=["src/old.py"],
+            interfaces=[InterfaceSpec(
+                "new_func", InterfaceType.FUNCTION, "def new_func():", "New"
+            )],
+            test_cases=[TestCaseSpec("test_new", "Test new", {}, {})],
+            acceptance_criteria=["Feature works correctly"]
+        )
+        result = spec.to_dict()
+        assert len(result["files_to_create"]) == 1
+        assert len(result["files_to_modify"]) == 1
+        assert result["files_to_delete"] == ["src/old.py"]
+        assert len(result["interfaces"]) == 1
+        assert len(result["test_cases"]) == 1
+        assert result["acceptance_criteria"] == ["Feature works correctly"]
+
+    def test_to_json(self):
+        """Test TaskSpec JSON serialization."""
+        spec = TaskSpec(title="Test", description="Test task")
+        json_str = spec.to_json()
+        data = json.loads(json_str)
+        assert data["title"] == "Test"
+        assert data["schema_version"] == TASK_SPEC_SCHEMA_VERSION
+
+    def test_total_file_count(self):
+        """Test total_file_count property."""
+        spec = TaskSpec(
+            title="Test",
+            description="Test",
+            files_to_create=[FileSpec("a.py", ""), FileSpec("b.py", "")],
+            files_to_modify=[FileSpec("c.py", "")],
+            files_to_delete=["d.py", "e.py"]
+        )
+        assert spec.total_file_count == 5
+
+    def test_is_valid_true(self):
+        """Test is_valid returns True for valid spec."""
+        spec = TaskSpec(title="Valid", description="Valid task")
+        assert spec.is_valid is True
+
+    def test_is_valid_false_empty_title(self):
+        """Test is_valid returns False for empty title."""
+        spec = TaskSpec(title="", description="Description")
+        assert spec.is_valid is False
+
+    def test_is_valid_false_empty_description(self):
+        """Test is_valid returns False for empty description."""
+        spec = TaskSpec(title="Title", description="")
+        assert spec.is_valid is False
+
+
+class TestSpecParser:
+    """Tests for SpecParser class.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_parse_valid_json(self):
+        """Test parsing valid TaskSpec JSON."""
+        json_str = json.dumps({
+            "title": "Add feature",
+            "description": "Add new feature to app",
+            "files_to_create": [{"path": "src/new.py", "purpose": "New file"}],
+            "acceptance_criteria": ["Feature works"]
+        })
+        result = SpecParser.parse(json_str)
+        assert result.success is True
+        assert result.spec is not None
+        assert result.spec.title == "Add feature"
+        assert len(result.spec.files_to_create) == 1
+
+    def test_parse_invalid_json(self):
+        """Test parsing invalid JSON returns error."""
+        result = SpecParser.parse("not valid json")
+        assert result.success is False
+        assert result.spec is None
+        assert "parse" in result.error.lower() or "json" in result.error.lower()
+
+    def test_parse_missing_required_fields(self):
+        """Test parsing JSON with missing required fields."""
+        json_str = json.dumps({"title": "Only title"})
+        result = SpecParser.parse(json_str)
+        assert result.success is False
+        assert "description" in result.error.lower()
+
+    def test_parse_dict_valid(self):
+        """Test parsing valid dictionary."""
+        data = {
+            "title": "Test task",
+            "description": "Test description",
+            "interfaces": [{
+                "name": "test_func",
+                "interface_type": "function",
+                "signature": "def test_func():",
+                "description": "Test function"
+            }]
+        }
+        result = SpecParser.parse_dict(data)
+        assert result.success is True
+        assert result.spec.title == "Test task"
+        assert len(result.spec.interfaces) == 1
+
+    def test_parse_dict_empty(self):
+        """Test parsing empty dictionary."""
+        result = SpecParser.parse_dict({})
+        assert result.success is False
+
+
+class TestSpecValidator:
+    """Tests for SpecValidator class.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_validate_valid_spec(self):
+        """Test validation of valid TaskSpec."""
+        spec = TaskSpec(
+            title="Valid task",
+            description="Valid description",
+            files_to_create=[FileSpec("src/new.py", "New file")],
+            acceptance_criteria=["Works correctly"]
+        )
+        result = SpecValidator.validate(spec)
+        assert result.is_valid is True
+        assert len(result.errors) == 0
+
+    def test_validate_invalid_empty_title(self):
+        """Test validation fails for empty title."""
+        spec = TaskSpec(title="", description="Description")
+        result = SpecValidator.validate(spec)
+        assert result.is_valid is False
+        assert any("title" in err.lower() for err in result.errors)
+
+    def test_validate_invalid_empty_description(self):
+        """Test validation fails for empty description."""
+        spec = TaskSpec(title="Title", description="")
+        result = SpecValidator.validate(spec)
+        assert result.is_valid is False
+        assert any("description" in err.lower() for err in result.errors)
+
+    def test_validate_too_many_files(self):
+        """Test validation warns for too many files."""
+        spec = TaskSpec(
+            title="Large task",
+            description="Task with many files",
+            files_to_create=[FileSpec(f"f{i}.py", "") for i in range(10)]
+        )
+        result = SpecValidator.validate(spec)
+        # Should still be valid but may have warnings
+        assert result.is_valid is True or len(result.warnings) > 0
+
+    def test_validation_result_to_dict(self):
+        """Test SpecValidationResult serialization."""
+        result = SpecValidationResult(
+            is_valid=False,
+            errors=["Error 1", "Error 2"],
+            warnings=["Warning 1"]
+        )
+        data = result.to_dict()
+        assert data["is_valid"] is False
+        assert len(data["errors"]) == 2
+        assert len(data["warnings"]) == 1
+
+
+class TestConvertArchitectureSpecToTaskSpec:
+    """Tests for convert_architecture_spec_to_task_spec function.
+
+    Issue #2762: D-3 Spec-Driven Development - D-2 to D-3 Migration
+    """
+
+    def test_convert_simple_spec(self):
+        """Test converting simple ArchitectureSpec to TaskSpec."""
+        arch_spec = ArchitectureSpec(
+            task_analysis=TaskAnalysis(
+                complexity=TaskComplexity.SIMPLE,
+                reasoning="Simple task"
+            ),
+            architecture=ArchitecturePlan(
+                files_to_modify=["src/utils.py"],
+                files_to_create=["src/helpers.py"]
+            ),
+            implementation_plan=[
+                ImplementationStep(
+                    file_path="src/utils.py",
+                    action=FileAction.MODIFY,
+                    description="Add helper function",
+                    function_signatures=["def helper(x: int) -> str"],
+                    test_cases=["test helper returns string"]
+                )
+            ],
+            constraints=["Keep backward compatibility"]
+        )
+        task_spec = convert_architecture_spec_to_task_spec(
+            arch_spec, "Add helper function"
+        )
+        assert task_spec.title == "Add helper function"
+        assert task_spec.description == "Add helper function"
+        assert len(task_spec.files_to_modify) == 1
+        assert len(task_spec.files_to_create) == 1
+        assert len(task_spec.interfaces) == 1
+        assert len(task_spec.acceptance_criteria) == 1
+
+    def test_convert_complex_spec(self):
+        """Test converting complex ArchitectureSpec to TaskSpec."""
+        arch_spec = ArchitectureSpec(
+            task_analysis=TaskAnalysis(
+                complexity=TaskComplexity.MODERATE,
+                reasoning="Moderate complexity"
+            ),
+            architecture=ArchitecturePlan(
+                files_to_modify=["a.py", "b.py"],
+                files_to_create=["c.py"],
+                dependencies={"a.py": ["b.py"]}
+            ),
+            implementation_plan=[
+                ImplementationStep(
+                    file_path="a.py",
+                    action=FileAction.MODIFY,
+                    description="Modify A",
+                    function_signatures=["def func_a():", "def func_b():"],
+                    test_cases=["test A", "test B"]
+                ),
+                ImplementationStep(
+                    file_path="c.py",
+                    action=FileAction.CREATE,
+                    description="Create C",
+                    function_signatures=["class MyClass:"],
+                    test_cases=["test C"]
+                )
+            ],
+            constraints=["Constraint 1", "Constraint 2"]
+        )
+        task_spec = convert_architecture_spec_to_task_spec(
+            arch_spec, "Complex task"
+        )
+        assert len(task_spec.files_to_modify) == 2
+        assert len(task_spec.files_to_create) == 1
+        assert len(task_spec.interfaces) == 3  # 2 from a.py + 1 from c.py
+        assert len(task_spec.test_cases) == 3  # test A, test B, test C
+        assert len(task_spec.acceptance_criteria) == 2
+
+    def test_convert_empty_spec(self):
+        """Test converting minimal ArchitectureSpec."""
+        arch_spec = ArchitectureSpec(
+            task_analysis=TaskAnalysis(
+                complexity=TaskComplexity.SIMPLE,
+                reasoning="Minimal"
+            )
+        )
+        task_spec = convert_architecture_spec_to_task_spec(
+            arch_spec, "Minimal task"
+        )
+        assert task_spec.title == "Minimal task"
+        assert task_spec.is_valid is True
+        assert len(task_spec.files_to_create) == 0
+        assert len(task_spec.files_to_modify) == 0
+
+
+class TestTaskSpecSchemaVersion:
+    """Tests for TaskSpec schema version constant.
+
+    Issue #2762: D-3 Spec-Driven Development
+    """
+
+    def test_task_spec_schema_version(self):
+        """Test TaskSpec schema version is set correctly."""
+        assert TASK_SPEC_SCHEMA_VERSION == 1
+
+    def test_task_spec_schema_exists(self):
+        """Test TASK_SPEC_SCHEMA is defined."""
+        assert TASK_SPEC_SCHEMA is not None
+        assert "type" in TASK_SPEC_SCHEMA
+        assert TASK_SPEC_SCHEMA["type"] == "object"
+
+    def test_task_spec_schema_has_required_fields(self):
+        """Test TASK_SPEC_SCHEMA has required fields defined."""
+        assert "required" in TASK_SPEC_SCHEMA
+        assert "title" in TASK_SPEC_SCHEMA["required"]
+        assert "description" in TASK_SPEC_SCHEMA["required"]
