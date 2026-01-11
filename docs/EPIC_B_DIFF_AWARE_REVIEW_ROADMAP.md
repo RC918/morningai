@@ -352,7 +352,10 @@ This schema follows **additive-only evolution**:
 
 ### Overview
 
-Phase 7 focuses on **integration gaps** - capabilities that already exist in `agents/dev_agent/` but are NOT integrated with the Reviewer Agent (`orchestrator/llm_reviewer_adapter.py`).
+Phase 7 focuses on **integration gaps** and **new components** to enhance Reviewer Agent capabilities:
+- **B-7**: Integration gap - CodeIndexer/KnowledgeGraphManager exist but not integrated with Reviewer
+- **B-8**: New component - BugFixWorkflow is NOT suitable (see Component Audit Note below), requires new SemanticAnalyzer
+- **B-9**: New capability - Multi-Specialist Review
 
 ### Gap Analysis (Reviewer-Appropriate Scope)
 
@@ -367,11 +370,16 @@ Phase 7 focuses on **integration gaps** - capabilities that already exist in `ag
 
 ### Existing Components (Integration Targets)
 
-| Component | Location | Lines | Current Usage |
-|-----------|----------|-------|---------------|
-| CodeIndexer | `agents/dev_agent/knowledge_graph/code_indexer.py` | 384 | dev_agent only |
-| KnowledgeGraphManager | `agents/dev_agent/knowledge_graph/knowledge_graph_manager.py` | 659 | dev_agent only |
-| BugFixWorkflow (LSP/AST) | `agents/dev_agent/workflows/bug_fix_workflow.py` | 974 | dev_agent only |
+| Component | Location | Lines | Current Usage | B-7/B-8 Suitability |
+|-----------|----------|-------|---------------|---------------------|
+| CodeIndexer | `agents/dev_agent/knowledge_graph/code_indexer.py` | 385 | dev_agent only | ✓ B-7 suitable (READ-ONLY) |
+| KnowledgeGraphManager | `agents/dev_agent/knowledge_graph/knowledge_graph_manager.py` | 660 | dev_agent only | ✓ B-7 suitable (READ-ONLY) |
+| BugFixWorkflow | `agents/dev_agent/workflows/bug_fix_workflow.py` | 975 | dev_agent only | ❌ NOT suitable for B-8 |
+
+> **Component Audit Note (2026-01-11)**:
+> - **CodeIndexer**: READ-ONLY perception component. Parses code using AST/regex, generates embeddings. Safe for Reviewer Agent integration.
+> - **KnowledgeGraphManager**: READ-ONLY search/retrieval component. Handles embeddings, vector similarity search. Safe for Reviewer Agent integration.
+> - **BugFixWorkflow**: ❌ **NOT suitable for B-8**. This is a full **Coder Agent workflow** (Parse Issue → Reproduce → Analyze → Generate Fix → Apply Fix → Test → Create PR). The LSP/AST capabilities are tightly coupled with fix generation. **B-8 requires a new, standalone LSP/AST component** that is READ-ONLY and respects Agent Separation Principle.
 
 ---
 
@@ -414,13 +422,15 @@ Phase 7 focuses on **integration gaps** - capabilities that already exist in `ag
 
 ### B-8: Semantic Understanding Integration
 
-> **Type**: Integration Gap
+> **Type**: New Component (NOT Integration Gap)
 > **Issue**: TBD
-> **Effort**: Medium (3-5 days)
+> **Effort**: Medium-High (5-7 days)
 
 **Problem**: Reviewer cannot detect breaking changes, unused imports, or type mismatches.
 
-**Solution**: Integrate LSP/AST analysis from `dev_agent/workflows/bug_fix_workflow.py`.
+**Solution**: ~~Integrate LSP/AST analysis from `dev_agent/workflows/bug_fix_workflow.py`.~~ **REVISED**: Create a new, standalone `SemanticAnalyzer` component that is READ-ONLY and respects Agent Separation Principle.
+
+> **Audit Finding (2026-01-11)**: BugFixWorkflow is NOT suitable for B-8 integration. It is a full Coder Agent workflow (Parse Issue → Reproduce → Analyze → Generate Fix → Apply Fix → Test → Create PR). The LSP/AST capabilities are tightly coupled with fix generation, violating Blueprint Section 3.3 Agent Separation Principle.
 
 **Implementation Plan**:
 
@@ -753,19 +763,19 @@ Cross-Agent Handoffs (Blueprint Sequential Collaboration):
 
 ## Timeline Estimate (Revised)
 
-| Phase | Estimated Duration | Dependencies | Status |
-|-------|-------------------|--------------|--------|
-| B-7 | 3-5 days | None | Planning |
-| B-8 | 3-5 days | B-7 | Planning |
-| B-9 | 5-7 days | B-7, B-8 | Planning |
-| ~~B-10~~ | ~~3-5 days~~ | ~~B-7~~ | REMOVED (OUT OF SCOPE) |
-| B-11 | 3-5 days | Phase 7 | Planning (flagging only) |
-| B-12 | 3-5 days | Phase 7 | Planning (flagging only) |
-| B-13 | 7-10 days | Phase 7, EPIC G | Planning |
+| Phase | Estimated Duration | Dependencies | Status | Type |
+|-------|-------------------|--------------|--------|------|
+| B-7 | 3-5 days | None | Planning | Integration Gap |
+| B-8 | 5-7 days | B-7 | Planning | **New Component** |
+| B-9 | 5-7 days | B-7, B-8 | Planning | New Capability |
+| ~~B-10~~ | ~~3-5 days~~ | ~~B-7~~ | REMOVED (OUT OF SCOPE) | - |
+| B-11 | 3-5 days | Phase 7 | Planning (flagging only) | New Capability |
+| B-12 | 3-5 days | Phase 7 | Planning (flagging only) | New Capability |
+| B-13 | 7-10 days | Phase 7, EPIC G | Planning | New Capability |
 
-**Total Estimated Duration**: 4-7 weeks (can start immediately)
+**Total Estimated Duration**: 5-8 weeks (can start immediately)
 
-**Note**: Duration reduced because B-10 (Auto-Fix) removed and B-11 scope reduced to flagging only. No EPIC E prerequisite - B-7/B-8/B-9 are READ-ONLY perception enhancements that don't require Safety Governor gating.
+**Note**: B-8 duration increased from 3-5 to 5-7 days because it requires a **new SemanticAnalyzer component** (BugFixWorkflow is NOT suitable per Component Audit 2026-01-11). No EPIC E prerequisite - B-7/B-8/B-9 are READ-ONLY perception enhancements that don't require Safety Governor gating.
 
 **Cross-Agent Dependencies** (for full Blueprint vision):
 - EPIC D (Fixer Agent): Receives fix suggestions from Reviewer, generates actual code fixes
