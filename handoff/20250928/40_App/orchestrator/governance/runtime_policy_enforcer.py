@@ -392,8 +392,8 @@ class RuntimePolicyEnforcer:
         "curl", "wget", "ping", "dig", "nslookup", "host",
         # Docker (read-only operations)
         "docker",
-        # Misc safe utilities
-        "jq", "yq", "sed", "awk", "sort", "uniq", "tr", "cut", "xargs",
+        # Misc safe utilities (xargs/sed/awk removed - can execute arbitrary commands)
+        "jq", "yq", "sort", "uniq", "tr", "cut",
     })
 
     # Commands that are always blocked regardless of allowlist
@@ -411,12 +411,9 @@ class RuntimePolicyEnforcer:
         "eval", "exec", "source",
     })
 
-    # Dangerous flag combinations that should be blocked
-    DANGEROUS_FLAG_PATTERNS = {
-        "rm": {"-rf", "-fr", "--recursive --force", "--force --recursive"},
-        "chmod": {"777", "666", "+s", "u+s", "g+s"},
-        "docker": {"--privileged", "-v /:/"},
-    }
+    # Note: Dangerous flag patterns for rm/chmod/docker are now validated
+    # in _validate_command_args() with proper argument parsing instead of
+    # substring matching (which can be bypassed). See gemini-code-assist review.
 
     def _check_shell_execution(
         self,
@@ -504,28 +501,8 @@ class RuntimePolicyEnforcer:
                 telemetry_event,
             )
 
-        if base_cmd in self.DANGEROUS_FLAG_PATTERNS:
-            dangerous_patterns = self.DANGEROUS_FLAG_PATTERNS[base_cmd]
-            cmd_lower = command.lower()
-            args_str = " ".join(parts[1:]).lower()
-
-            for pattern in dangerous_patterns:
-                if pattern in cmd_lower or pattern in args_str:
-                    telemetry_event["action"] = "block"
-                    telemetry_event["dangerous_pattern"] = pattern
-                    telemetry_event["security_reason"] = "dangerous_flags"
-                    self._log_policy_check(
-                        "shell_execution", command, "block", context,
-                        f"Dangerous flag pattern: {pattern}"
-                    )
-                    self._emit_telemetry(telemetry_event)
-
-                    return self._create_blocked_result(
-                        f"Shell execution blocked: dangerous flag pattern '{pattern}' detected",
-                        PolicyViolationType.SHELL_EXECUTION,
-                        telemetry_event,
-                    )
-
+        # Validate command-specific dangerous flag combinations
+        # (using proper argument parsing instead of substring matching)
         validation_result = self._validate_command_args(base_cmd, parts[1:], context, telemetry_event)
         if validation_result is not None:
             return validation_result
@@ -577,6 +554,7 @@ class RuntimePolicyEnforcer:
         if base_cmd == "docker":
             args_lower = [a.lower() for a in args]
             if "run" in args_lower or "exec" in args_lower:
+                # Check for --privileged flag
                 if "--privileged" in args_lower:
                     telemetry_event["action"] = "block"
                     telemetry_event["dangerous_pattern"] = "docker --privileged"
@@ -592,6 +570,47 @@ class RuntimePolicyEnforcer:
                         PolicyViolationType.SHELL_EXECUTION,
                         telemetry_event,
                     )
+
+                # Check for dangerous volume mounts (root filesystem access)
+                # Handles both "-v /:/host" and "-v=/:/host" syntax patterns
+                for i, arg in enumerate(args):
+                    arg_lower = arg.lower()
+                    # Check for -v=/:/... or --volume=/:/... patterns
+                    if arg_lower.startswith("-v=") or arg_lower.startswith("--volume="):
+                        volume_spec = arg.split("=", 1)[1] if "=" in arg else ""
+                        if volume_spec.startswith("/:/"):
+                            telemetry_event["action"] = "block"
+                            telemetry_event["dangerous_pattern"] = "docker root volume mount"
+                            telemetry_event["security_reason"] = "root_volume_mount"
+                            self._log_policy_check(
+                                "shell_execution", f"docker {' '.join(args)}", "block", context,
+                                "docker with root filesystem volume mount"
+                            )
+                            self._emit_telemetry(telemetry_event)
+
+                            return self._create_blocked_result(
+                                "Shell execution blocked: docker with root filesystem volume mount is not permitted",
+                                PolicyViolationType.SHELL_EXECUTION,
+                                telemetry_event,
+                            )
+                    # Check for -v /:/... or --volume /:/... patterns (space-separated)
+                    elif arg_lower in ("-v", "--volume") and i + 1 < len(args):
+                        next_arg = args[i + 1]
+                        if next_arg.startswith("/:/"):
+                            telemetry_event["action"] = "block"
+                            telemetry_event["dangerous_pattern"] = "docker root volume mount"
+                            telemetry_event["security_reason"] = "root_volume_mount"
+                            self._log_policy_check(
+                                "shell_execution", f"docker {' '.join(args)}", "block", context,
+                                "docker with root filesystem volume mount"
+                            )
+                            self._emit_telemetry(telemetry_event)
+
+                            return self._create_blocked_result(
+                                "Shell execution blocked: docker with root filesystem volume mount is not permitted",
+                                PolicyViolationType.SHELL_EXECUTION,
+                                telemetry_event,
+                            )
 
         return None
 
