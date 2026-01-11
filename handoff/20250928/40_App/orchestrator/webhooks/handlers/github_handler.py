@@ -174,13 +174,22 @@ def _safe_parse_int_id(
     try:
         return int(raw_id)
     except (ValueError, TypeError):
+        # Issue #3686: Sanitize raw_value to prevent log injection (CWE-117)
+        # Replace control characters and newlines that could inject fake log entries
+        sanitized_value = str(raw_id)[:50]
+        sanitized_value = sanitized_value.replace('\n', '\\n').replace('\r', '\\r')
+        # Remove other control characters (ASCII 0-31 except tab)
+        sanitized_value = ''.join(
+            c if ord(c) >= 32 or c == '\t' else f'\\x{ord(c):02x}'
+            for c in sanitized_value
+        )
         logger.warning(
             "[GitHubWebhookHandler] Invalid %s, using fallback dedup",
             field_name,
             extra={
                 "event_id": event_id,
                 "repo": repo,
-                "raw_value": str(raw_id)[:50],
+                "raw_value": sanitized_value,
             }
         )
         return None
