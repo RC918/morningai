@@ -604,12 +604,14 @@ ReviewOutcome {                        │
    - Parse existing test files to understand coverage patterns
 
 2. **B-11.2 Review Integration**:
-   - Add "Missing Test Coverage" section to review
-   - Flag uncovered code with text descriptions
+   - Add `missing_test_coverage: List[CoverageGap]` to the `ReviewOutcome` schema to formalize the agent handoff
+   - Populate this structured data with uncovered code
+   - Generate a "Missing Test Coverage" section in the review from this data
    - Suggest what types of tests are needed (unit, integration, etc.)
 
 **Acceptance Criteria**:
 - [ ] Test coverage analyzer detects uncovered code
+- [ ] `ReviewOutcome` schema is extended with a structured `missing_test_coverage` field
 - [ ] Review flags missing coverage with descriptions
 - [ ] Suggestions describe what tests are needed (not actual code)
 
