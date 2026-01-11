@@ -196,7 +196,7 @@ class TestCoverageAnalyzer:
 
         for file_path in source_files:
             file_diff = file_diffs[file_path]
-            gaps = self._find_coverage_gaps(file_path, file_diff, test_files)
+            gaps = self._find_coverage_gaps(file_path, file_diff, test_files, file_diffs)
             coverage_gaps.extend(gaps)
 
         # Generate summary
@@ -267,6 +267,7 @@ class TestCoverageAnalyzer:
         file_path: str,
         file_diff: str,
         test_files: List[str],
+        file_diffs: Dict[str, str],
     ) -> List[CoverageGap]:
         """Find functions/classes in the diff that lack test coverage."""
         gaps: List[CoverageGap] = []
@@ -276,9 +277,9 @@ class TestCoverageAnalyzer:
         is_typescript = file_path.endswith(('.ts', '.tsx', '.js', '.jsx'))
 
         if is_python:
-            gaps.extend(self._find_python_gaps(file_path, file_diff, test_files))
+            gaps.extend(self._find_python_gaps(file_path, file_diff, test_files, file_diffs))
         elif is_typescript:
-            gaps.extend(self._find_typescript_gaps(file_path, file_diff, test_files))
+            gaps.extend(self._find_typescript_gaps(file_path, file_diff, test_files, file_diffs))
 
         return gaps
 
@@ -287,6 +288,7 @@ class TestCoverageAnalyzer:
         file_path: str,
         file_diff: str,
         test_files: List[str],
+        file_diffs: Dict[str, str],
     ) -> List[CoverageGap]:
         """Find Python functions/classes without test coverage."""
         gaps: List[CoverageGap] = []
@@ -297,7 +299,7 @@ class TestCoverageAnalyzer:
             # Skip private/dunder methods (usually tested indirectly)
             if func_name.startswith('__') and func_name.endswith('__'):
                 continue
-            if not self._has_test_for_function(func_name, test_files, file_diff):
+            if not self._has_test_for_function(func_name, test_files, file_diffs):
                 gaps.append(CoverageGap(
                     function_name=func_name,
                     file_path=file_path,
@@ -309,7 +311,7 @@ class TestCoverageAnalyzer:
         # Find new classes
         for match in self.PYTHON_CLASS_PATTERN.finditer(file_diff):
             class_name = match.group(1)
-            if not self._has_test_for_function(class_name, test_files, file_diff):
+            if not self._has_test_for_function(class_name, test_files, file_diffs):
                 gaps.append(CoverageGap(
                     function_name=class_name,
                     file_path=file_path,
@@ -325,6 +327,7 @@ class TestCoverageAnalyzer:
         file_path: str,
         file_diff: str,
         test_files: List[str],
+        file_diffs: Dict[str, str],
     ) -> List[CoverageGap]:
         """Find TypeScript/JavaScript functions/classes without test coverage."""
         gaps: List[CoverageGap] = []
@@ -332,7 +335,7 @@ class TestCoverageAnalyzer:
         # Find new functions
         for match in self.TS_FUNCTION_PATTERN.finditer(file_diff):
             func_name = match.group(3)
-            if not self._has_test_for_function(func_name, test_files, file_diff):
+            if not self._has_test_for_function(func_name, test_files, file_diffs):
                 gaps.append(CoverageGap(
                     function_name=func_name,
                     file_path=file_path,
@@ -344,7 +347,7 @@ class TestCoverageAnalyzer:
         # Find new arrow functions
         for match in self.TS_ARROW_FUNCTION_PATTERN.finditer(file_diff):
             func_name = match.group(3)
-            if not self._has_test_for_function(func_name, test_files, file_diff):
+            if not self._has_test_for_function(func_name, test_files, file_diffs):
                 gaps.append(CoverageGap(
                     function_name=func_name,
                     file_path=file_path,
@@ -356,7 +359,7 @@ class TestCoverageAnalyzer:
         # Find new classes
         for match in self.TS_CLASS_PATTERN.finditer(file_diff):
             class_name = match.group(2)
-            if not self._has_test_for_function(class_name, test_files, file_diff):
+            if not self._has_test_for_function(class_name, test_files, file_diffs):
                 gaps.append(CoverageGap(
                     function_name=class_name,
                     file_path=file_path,
@@ -371,16 +374,20 @@ class TestCoverageAnalyzer:
         self,
         func_name: str,
         test_files: List[str],
-        file_diff: str,
+        file_diffs: Dict[str, str],
     ) -> bool:
         """
-        Check if a function/class has a corresponding test.
+        Check if a function/class has a corresponding test in any of the test file diffs.
 
         This is a heuristic check that looks for:
         1. Test files with the function name in the diff
         2. Test function names like test_<func_name> in the diff
+
+        Args:
+            func_name: Name of the function/class to check
+            test_files: List of test file paths in the diff
+            file_diffs: Dictionary mapping file paths to their diff content
         """
-        # Check if any test file mentions this function
         test_patterns = [
             f'test_{func_name}',
             f'Test{func_name}',
@@ -392,9 +399,15 @@ class TestCoverageAnalyzer:
             f'it("{func_name}',
         ]
 
-        for pattern in test_patterns:
-            if pattern.lower() in file_diff.lower():
-                return True
+        for test_file_path in test_files:
+            test_file_diff = file_diffs.get(test_file_path, "")
+            if not test_file_diff:
+                continue
+
+            test_file_diff_lower = test_file_diff.lower()
+            for pattern in test_patterns:
+                if pattern.lower() in test_file_diff_lower:
+                    return True
 
         return False
 
