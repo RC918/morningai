@@ -417,12 +417,6 @@ class TestSanitizeForLog:
         from core.planner.consumer import _sanitize_for_log
         assert _sanitize_for_log("") == ""
 
-    def test_none_value(self):
-        """Test sanitization of None-like falsy value"""
-        from core.planner.consumer import _sanitize_for_log
-        # Empty string is falsy, should return empty
-        assert _sanitize_for_log("") == ""
-
     def test_newline_replacement(self):
         """Test that newlines are escaped"""
         from core.planner.consumer import _sanitize_for_log
