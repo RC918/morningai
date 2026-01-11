@@ -19,6 +19,7 @@ from utils.auto_fix_policy import (  # noqa: E402
     AutoFixPolicy,
     AutoFixRateLimiter,
     CISignatureDeduplication,
+    _sanitize_error_for_signature,
     check_auto_fix_safety,
     get_allowed_categories,
     get_allowed_repos,
@@ -568,3 +569,164 @@ class TestCISignatureDeduplication:
 
             # Both should produce same signature (same first 500 chars)
             assert sig_long == sig_short
+
+
+class TestSanitizeErrorForSignature:
+    """Tests for _sanitize_error_for_signature() helper function (Issue #3809)"""
+
+    def test_empty_string(self):
+        """Test empty string returns empty string"""
+        assert _sanitize_error_for_signature("") == ""
+
+    def test_none_like_empty(self):
+        """Test None-like falsy values return empty string"""
+        assert _sanitize_error_for_signature(None) == ""
+
+    def test_passthrough_short_string(self):
+        """Test strings shorter than 1500 chars pass through unchanged (after timestamp removal)"""
+        error = "Error: undefined variable 'foo' at line 42"
+        result = _sanitize_error_for_signature(error)
+        assert result == error
+
+    def test_timestamp_strip_bracketed_iso(self):
+        """Test [2024-01-11T10:00:00Z] format is stripped"""
+        error = "[2024-01-11T10:00:00Z] Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "[2024-01-11T10:00:00Z]" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_bracketed_space(self):
+        """Test [2024-01-11 10:00:00] format is stripped"""
+        error = "[2024-01-11 10:00:00] Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "[2024-01-11 10:00:00]" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_iso8601_basic(self):
+        """Test 2024-01-11T10:00:00Z ISO 8601 format is stripped"""
+        error = "2024-01-11T10:00:00Z Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "2024-01-11T10:00:00Z" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_iso8601_with_milliseconds(self):
+        """Test 2024-01-11T10:00:00.123Z ISO 8601 with milliseconds is stripped"""
+        error = "2024-01-11T10:00:00.123Z Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "2024-01-11T10:00:00.123Z" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_iso8601_with_timezone_offset(self):
+        """Test 2024-01-11T10:00:00+08:00 ISO 8601 with timezone offset is stripped"""
+        error = "2024-01-11T10:00:00+08:00 Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "2024-01-11T10:00:00+08:00" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_time_only_bracketed(self):
+        """Test [10:00:00] time only format is stripped"""
+        error = "[10:00:00] Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "[10:00:00]" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_time_with_milliseconds(self):
+        """Test 10:00:00.123 time with milliseconds is stripped"""
+        error = "10:00:00.123 Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "10:00:00.123" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_multiple(self):
+        """Test multiple timestamps in same string are all stripped"""
+        error = "[2024-01-11T10:00:00Z] First log [2024-01-11T10:00:01Z] Second log"
+        result = _sanitize_error_for_signature(error)
+        assert "[2024-01-11T10:00:00Z]" not in result
+        assert "[2024-01-11T10:00:01Z]" not in result
+        assert "First log" in result
+        assert "Second log" in result
+
+    def test_timestamp_only_string(self):
+        """Test string with only timestamps returns mostly empty"""
+        error = "[2024-01-11T10:00:00Z]"
+        result = _sanitize_error_for_signature(error)
+        assert result.strip() == ""
+
+    def test_head_tail_truncation_long_string(self):
+        """Test strings > 1500 chars are truncated to head(1000) + '...' + tail(500)"""
+        head = "H" * 1000
+        middle = "M" * 500
+        tail = "T" * 500
+        error = head + middle + tail  # 2000 chars total
+        result = _sanitize_error_for_signature(error)
+        assert len(result) == 1503  # 1000 + 3 + 500
+        assert result.startswith("H" * 1000)
+        assert "..." in result
+        assert result.endswith("T" * 500)
+
+    def test_head_tail_truncation_preserves_boundaries(self):
+        """Test truncation preserves first 1000 and last 500 chars exactly"""
+        error = "A" * 1000 + "B" * 1000 + "C" * 500  # 2500 chars
+        result = _sanitize_error_for_signature(error)
+        assert result[:1000] == "A" * 1000
+        assert result[-500:] == "C" * 500
+        assert result[1000:1003] == "..."
+
+    def test_exactly_1500_chars_no_truncation(self):
+        """Test string of exactly 1500 chars is not truncated"""
+        error = "X" * 1500
+        result = _sanitize_error_for_signature(error)
+        assert result == error
+        assert len(result) == 1500
+
+    def test_1501_chars_triggers_truncation(self):
+        """Test string of 1501 chars triggers truncation"""
+        error = "X" * 1501
+        result = _sanitize_error_for_signature(error)
+        assert len(result) == 1503  # 1000 + 3 + 500
+        assert "..." in result
+
+    def test_timestamp_removal_then_truncation(self):
+        """Test timestamps are removed before truncation is applied"""
+        timestamp = "[2024-01-11T10:00:00Z]"
+        content = "E" * 1600
+        error = timestamp + content
+        result = _sanitize_error_for_signature(error)
+        assert timestamp not in result
+        assert len(result) == 1503  # Still truncated because content > 1500
+
+    def test_timestamp_removal_avoids_truncation(self):
+        """Test timestamp removal can bring string under truncation threshold"""
+        timestamp = "[2024-01-11T10:00:00Z]"  # ~24 chars
+        content = "E" * 1490
+        error = timestamp + content  # > 1500 total
+        result = _sanitize_error_for_signature(error)
+        assert timestamp not in result
+        assert result == content  # No truncation needed after timestamp removal
+
+    def test_real_world_stack_trace(self):
+        """Test with realistic stack trace format"""
+        error = """[2024-01-11T10:00:00Z] FAILED tests/test_example.py::test_foo
+Traceback (most recent call last):
+  File "/app/tests/test_example.py", line 42, in test_foo
+    assert result == expected
+AssertionError: assert 1 == 2"""
+        result = _sanitize_error_for_signature(error)
+        assert "[2024-01-11T10:00:00Z]" not in result
+        assert "FAILED tests/test_example.py::test_foo" in result
+        assert "AssertionError: assert 1 == 2" in result
+
+    def test_deterministic_output(self):
+        """Test same input always produces same output"""
+        error = "[2024-01-11T10:00:00Z] Error: test failed"
+        result1 = _sanitize_error_for_signature(error)
+        result2 = _sanitize_error_for_signature(error)
+        assert result1 == result2
+
+    def test_different_timestamps_same_error_same_output(self):
+        """Test different timestamps with same error content produce same output"""
+        error1 = "[2024-01-11T10:00:00Z] Error: test failed"
+        error2 = "[2024-01-11T11:30:45Z] Error: test failed"
+        result1 = _sanitize_error_for_signature(error1)
+        result2 = _sanitize_error_for_signature(error2)
+        assert result1 == result2
