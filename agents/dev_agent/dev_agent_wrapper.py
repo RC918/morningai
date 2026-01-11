@@ -136,6 +136,16 @@ class SimpleGitTool:
         # Strip leading/trailing whitespace
         text = text.strip()
 
+        # Issue #3540: Prevent command argument injection (gemini-code-assist feedback)
+        # If the sanitized string starts with a hyphen, it could be interpreted as a
+        # git command-line option (e.g., --amend, --author). Prepend a safe character.
+        if text.startswith('-'):
+            text = '_' + text
+            logger.warning(
+                f"[SimpleGitTool] Commit {field_name} started with hyphen, "
+                "prepended underscore to prevent argument injection"
+            )
+
         return text
 
     def _get_git_auth_env(self) -> Dict[str, str]:
