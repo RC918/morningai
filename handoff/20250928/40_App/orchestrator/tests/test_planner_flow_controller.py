@@ -352,6 +352,62 @@ class TestFlowController:
         assert "task-1" in unique_tasks
         assert "task-2" in unique_tasks
 
+    def test_execute_plan_skip_dependent_on_failed(self):
+        """Test that tasks dependent on failed tasks are skipped (not executed)"""
+        executed_tasks = []
+
+        def mock_execute(task, context):
+            executed_tasks.append(task.task_id)
+            if task.task_id == "task-A":
+                return TaskResult(
+                    task_id=task.task_id,
+                    status=ExecutionStatus.FAILED,
+                    outputs={},
+                    error_message="Task A failed",
+                )
+            return TaskResult(
+                task_id=task.task_id,
+                status=ExecutionStatus.COMPLETED,
+                outputs={},
+            )
+
+        mock_executor = MagicMock()
+        mock_executor.execute.side_effect = mock_execute
+
+        controller = FlowController(task_executor=mock_executor, stop_on_failure=False)
+
+        # Create plan with dependencies: A -> B -> C
+        # If A fails, B and C should be skipped (not executed)
+        nodes = [
+            TaskNode(task_id="task-A", task_type=TaskType.CODE, description="Task A"),
+            TaskNode(task_id="task-B", task_type=TaskType.CODE, description="Task B"),
+            TaskNode(task_id="task-C", task_type=TaskType.CODE, description="Task C"),
+        ]
+        edges = [
+            TaskEdge(from_task="task-A", to_task="task-B"),
+            TaskEdge(from_task="task-B", to_task="task-C"),
+        ]
+        plan = PlannerOutput(
+            plan_id="test-plan",
+            goal="Test failed dependency skipping",
+            task_tree=TaskTree(nodes=nodes, edges=edges),
+        )
+        result = controller.execute_plan(plan)
+
+        # Only task-A should have been executed (B and C should be skipped)
+        assert "task-A" in executed_tasks
+        assert "task-B" not in executed_tasks
+        assert "task-C" not in executed_tasks
+
+        # Verify B and C were marked as SKIPPED
+        task_b_result = next((r for r in result.task_results if r.task_id == "task-B"), None)
+        task_c_result = next((r for r in result.task_results if r.task_id == "task-C"), None)
+        assert task_b_result is not None
+        assert task_b_result.status == ExecutionStatus.SKIPPED
+        assert "failed dependency" in task_b_result.error_message.lower()
+        assert task_c_result is not None
+        assert task_c_result.status == ExecutionStatus.SKIPPED
+
     def test_flow_template_routing(self):
         """Test that different flow templates are handled correctly"""
         controller = FlowController()

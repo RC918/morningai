@@ -582,6 +582,57 @@ class FlowController(BasePlanConsumer):
             total_duration_minutes=duration,
         )
 
+    def _has_failed_dependency(
+        self,
+        task: TaskNode,
+        plan: PlannerOutput,
+        state: FlowState,
+    ) -> bool:
+        """
+        Check if a task has any failed or skipped dependencies.
+
+        A task should be skipped if any of its dependencies:
+        - Failed directly
+        - Were skipped due to their own failed dependencies
+
+        Args:
+            task: The task to check
+            plan: The parent plan
+            state: Current flow state
+
+        Returns:
+            True if any dependency has failed or was skipped due to failure
+        """
+        deps = plan.task_tree.get_dependencies(task.task_id)
+        # Check both failed_tasks and skipped_tasks (skipped due to failed deps)
+        blocked_tasks = state.failed_tasks | state.skipped_tasks
+        return any(dep in blocked_tasks for dep in deps)
+
+    def _skip_task_due_to_failed_dependency(
+        self,
+        task: TaskNode,
+        state: FlowState,
+    ) -> TaskResult:
+        """
+        Create a SKIPPED result for a task with failed dependencies.
+
+        Args:
+            task: The task to skip
+            state: Current flow state
+
+        Returns:
+            TaskResult with SKIPPED status
+        """
+        result = TaskResult(
+            task_id=task.task_id,
+            status=ExecutionStatus.SKIPPED,
+            outputs={},
+            error_message="Skipped due to failed dependency",
+        )
+        state.task_results.append(result)
+        state.mark_skipped(task.task_id)
+        return result
+
     def _execute_and_update_state(
         self,
         task: TaskNode,
@@ -599,6 +650,10 @@ class FlowController(BasePlanConsumer):
         Returns:
             TaskResult from execution
         """
+        # Check for failed dependencies first
+        if self._has_failed_dependency(task, plan, state):
+            return self._skip_task_due_to_failed_dependency(task, state)
+
         result = self.execute_task(task, plan)
         state.task_results.append(result)
 
