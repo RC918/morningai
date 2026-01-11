@@ -2133,26 +2133,27 @@ class AutonomousExecutor:
         execution_task_types = {"setup_environment", "run_test", "verification"}
         if task_type_value in execution_task_types:
             command = task.outputs.get("command", "") if task.outputs else ""
-            if not command:
-                command = task.description[:100]
-
-            check_result = self._runtime_policy_enforcer.check_resource_access(
-                operation="execute",
-                resource=command,
-                context=context,
-            )
-            if not check_result.allowed:
-                if self.audit_logger:
-                    self.audit_logger.log_policy_violation(
-                        violation_type="runtime_policy_execute_denied",
-                        details=check_result.reason,
-                        task_id=task.task_id,
-                        task_type=task_type_value,
-                    )
-                return {
-                    "action": check_result.action.value if EnforcementAction else "block",
-                    "reason": check_result.reason,
-                }
+            # Only validate shell execution if there's an explicit command in task.outputs
+            # Task descriptions are natural language, not shell commands, so we skip
+            # validation when falling back to description (Issue #3717 fix)
+            if command:
+                check_result = self._runtime_policy_enforcer.check_resource_access(
+                    operation="execute",
+                    resource=command,
+                    context=context,
+                )
+                if not check_result.allowed:
+                    if self.audit_logger:
+                        self.audit_logger.log_policy_violation(
+                            violation_type="runtime_policy_execute_denied",
+                            details=check_result.reason,
+                            task_id=task.task_id,
+                            task_type=task_type_value,
+                        )
+                    return {
+                        "action": check_result.action.value if EnforcementAction else "block",
+                        "reason": check_result.reason,
+                    }
 
         estimated_tokens = task.outputs.get("estimated_tokens", 1000) if task.outputs else 1000
         model = task.outputs.get("model", "gpt-4") if task.outputs else "gpt-4"
