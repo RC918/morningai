@@ -307,29 +307,33 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 
 
 # =============================================================================
-# Smart PR Filtering - Trigger Threshold Layer (Dec 2025)
+# Smart PR Filtering - Trigger Threshold Layer (Dec 2025, Updated Jan 2026)
 # =============================================================================
 # These filters determine if a PR event is "worth documenting" based on:
-# 1. Semantic title prefix (chore/ci/test/docs/style = skip)
+# 1. Semantic title prefix (ci/test/style/build = skip)
 # 2. File path patterns (config/docs/tests/CI only = skip)
 #
 # This is separate from the "orchestrator self-loop prevention" layer above.
 # The goal is to reduce noise by only generating docs PRs for meaningful changes.
+#
+# Blueprint Alignment (Jan 2026):
+# - docs: and chore: PRs are now reviewed to align with Blueprint North Star
+#   "讓 AI 自己規劃、自己寫程式、自己審查、自己測試、自己部屬、自己監控、自己修復"
+# - docs: PRs can contain bugs (e.g., incorrect line references, outdated API docs)
+# - chore: PRs can contain security-sensitive configuration changes
+# - See: MorningAI_Ecosystem_Blueprint_2025_Final.md, ECOSYSTEM_WISHPOOL_V2.md
 # =============================================================================
 
-# Title prefixes that indicate non-actionable changes (skip docs generation)
-# Only feat:, fix:, refactor: should trigger docs PR creation
+# Title prefixes that indicate non-actionable changes (skip review)
+# Blueprint alignment: docs: and chore: are now reviewed (removed from skip list)
+# Only ci/test/style/build PRs are skipped as they are typically auto-generated or trivial
 SKIP_TITLE_PREFIXES = (
-    "chore:",
-    "chore(",
     "ci:",
     "ci(",
     "test:",
     "test(",
     "tests:",
     "tests(",
-    "docs:",
-    "docs(",
     "style:",
     "style(",
     "build:",
