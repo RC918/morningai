@@ -6060,6 +6060,22 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
     )
 
 
+def get_auto_fix_loop_protection():
+    """
+    Factory for AutoFixLoopProtection - provides stable test boundary.
+
+    Issue #3643: This factory provides a stable seam for testing without
+    coupling tests to internal module structure. Future refactoring of
+    module layout won't break tests if behavior remains unchanged.
+
+    Returns:
+        AutoFixLoopProtection instance configured with global settings
+    """
+    from common.config.settings import settings
+    from utils.auto_fix_policy import AutoFixLoopProtection
+    return AutoFixLoopProtection(settings)
+
+
 def fixer_node(state: AgentState) -> AgentState:
     """
     Fixer node: Attempts to fix CI failures
@@ -6108,8 +6124,8 @@ def fixer_node(state: AgentState) -> AgentState:
     # The counter is only incremented AFTER an actual fix attempt is made.
     loop_protection = None
     try:
-        from utils.auto_fix_policy import AutoFixLoopProtection
-        loop_protection = AutoFixLoopProtection(settings)
+        # Issue #3643: Use factory function for stable test boundary
+        loop_protection = get_auto_fix_loop_protection()
         loop_allowed, current_attempts = loop_protection.check_only(pr_id)
 
         if not loop_allowed:

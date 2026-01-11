@@ -30,6 +30,32 @@ from langgraph_orchestrator import (
     MAX_FIXER_RETRIES
 )
 
+from utils.auto_fix_policy import AutoFixLoopProtection
+
+
+def create_mock_loop_protection(
+    allowed: bool = True,
+    attempts: int = 1
+) -> MagicMock:
+    """
+    Create a mock AutoFixLoopProtection with spec enforcement.
+
+    Issue #3642: Using spec_set ensures tests fail loudly if the
+    AutoFixLoopProtection interface changes, preventing silent mock drift.
+
+    Args:
+        allowed: Whether the loop protection should allow execution
+        attempts: Current attempt count to return
+
+    Returns:
+        MagicMock with spec_set=AutoFixLoopProtection
+
+    Return signature of check_and_increment: Tuple[bool, int] = (allowed, current_attempts)
+    """
+    mock_protection = MagicMock(spec_set=AutoFixLoopProtection)
+    mock_protection.check_and_increment.return_value = (allowed, attempts)
+    return mock_protection
+
 
 @pytest.fixture(autouse=True)
 def mock_loop_protection():
@@ -45,12 +71,13 @@ def mock_loop_protection():
 
     Note: We patch utils.auto_fix_policy.AutoFixLoopProtection because fixer_node
     imports it inside the function with `from utils.auto_fix_policy import ...`
+
+    Issue #3642: Now uses create_mock_loop_protection() with spec_set to
+    prevent silent signature drift.
     """
     with patch("utils.auto_fix_policy.AutoFixLoopProtection") as MockLoopProtection:
-        mock_instance = MagicMock()
-        # Always allow: return (True, 1) meaning "allowed, first attempt"
-        mock_instance.check_and_increment.return_value = (True, 1)
-        MockLoopProtection.return_value = mock_instance
+        # Issue #3642: Use helper with spec_set for type safety
+        MockLoopProtection.return_value = create_mock_loop_protection()
         yield MockLoopProtection
 
 

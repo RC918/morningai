@@ -94,6 +94,28 @@ POLICY_EVENT_METRIC_KEYS = frozenset([
 ])
 
 
+def _sanitize_event_type(event_type: str) -> str:
+    """
+    Sanitize event_type to prevent log injection.
+
+    Issue #3718: Defense-in-depth sanitization to prevent log forging,
+    misleading monitoring systems, or corrupting log data through
+    newline characters or other control characters in event_type values.
+
+    Args:
+        event_type: Event type string to sanitize
+
+    Returns:
+        Sanitized string safe for use in span names
+    """
+    if not event_type:
+        return "unknown"
+    # Remove control characters (ASCII 0-31) including newlines and carriage returns
+    sanitized = ''.join(c if ord(c) >= 32 else '_' for c in event_type)
+    # Limit length to prevent log flooding
+    return sanitized[:100]
+
+
 def _get_optional_attr(obj: Any, name: str, default: Any = None) -> Any:
     """
     Safely get an optional attribute from an object.
@@ -148,7 +170,8 @@ def from_agent_telemetry_event(
     else:
         event_type_value = "unknown"
 
-    name = f"agent.{event_type_value}"
+    # Issue #3718: Sanitize event_type to prevent log injection
+    name = f"agent.{_sanitize_event_type(event_type_value)}"
 
     # Optional fields: use _get_optional_attr for fields that may not exist
     success = _get_optional_attr(event, "success")
@@ -303,7 +326,8 @@ def from_policy_telemetry_event(
     )
 
     event_type = event_dict.get("event_type", "policy_check")
-    name = f"governance.{event_type}"
+    # Issue #3718: Sanitize event_type to prevent log injection
+    name = f"governance.{_sanitize_event_type(event_type)}"
 
     # Map action to status code
     action = event_dict.get("action", "unknown")
