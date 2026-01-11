@@ -23,28 +23,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 import uuid
 
-
-def _sanitize_task_id(task_id: str, max_length: int = 100) -> str:
-    """
-    Sanitize task_id for safe inclusion in error messages.
-
-    Prevents log injection by:
-    - Replacing newlines and carriage returns
-    - Truncating to max_length
-
-    Args:
-        task_id: The task_id to sanitize
-        max_length: Maximum length of output (default 100)
-
-    Returns:
-        Sanitized string safe for error messages
-    """
-    if not task_id:
-        return ""
-    sanitized = task_id.replace('\n', '\\n').replace('\r', '\\r')
-    if len(sanitized) > max_length:
-        sanitized = sanitized[:max_length] + "..."
-    return sanitized
+from utils.sanitization import sanitize_task_id as _sanitize_task_id
 
 
 class TaskType(Enum):

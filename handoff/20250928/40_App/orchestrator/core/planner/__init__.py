@@ -58,6 +58,18 @@ from .parallel_executor import (
     ParallelExecutor,
 )
 
+from .flow_controller import (
+    FlowTemplate,
+    FlowStage,
+    FlowDefinition,
+    FlowState,
+    FlowController,
+    TaskExecutor as FlowTaskExecutor,
+    DefaultTaskExecutor,
+    create_flow_controller,
+    FLOW_DEFINITIONS,
+)
+
 __all__ = [
     # Planner types
     "TaskType",
@@ -94,4 +106,14 @@ __all__ = [
     "TaskExecutor",
     "SimpleTaskExecutor",
     "ParallelExecutor",
+    # Flow Controller (Phase F-2)
+    "FlowTemplate",
+    "FlowStage",
+    "FlowDefinition",
+    "FlowState",
+    "FlowController",
+    "FlowTaskExecutor",
+    "DefaultTaskExecutor",
+    "create_flow_controller",
+    "FLOW_DEFINITIONS",
 ]
