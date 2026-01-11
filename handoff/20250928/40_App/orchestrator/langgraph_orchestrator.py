@@ -6503,9 +6503,12 @@ def fixer_node(state: AgentState) -> AgentState:
     # Issue #3792: Increment loop protection counter AFTER actual fix attempt
     # This prevents race condition where PR_OPENED webhook exhausts counter
     # before CI_FAILURE webhook arrives with proper context
+    # Issue #3816: Only increment counter for CI failure events (ci_failure_trigger=True)
+    # to prevent PR_OPENED events from consuming D-4 Self-Correction Loop attempts
+    ci_failure_trigger = state.get("ci_failure_trigger")
     _loop_protection = state.get("_loop_protection")
     _loop_protection_pr_id = state.get("_loop_protection_pr_id")
-    if _loop_protection and _loop_protection_pr_id:
+    if ci_failure_trigger and _loop_protection and _loop_protection_pr_id:
         try:
             new_count = _loop_protection.increment(_loop_protection_pr_id)
             logger.info(
