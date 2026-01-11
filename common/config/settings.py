@@ -2658,6 +2658,37 @@ class Settings(BaseSettings):
         )
     )
 
+    # ==========================================================================
+    # EPIC F - Planner v3 Feature Flags (Phase F-3c)
+    # Issue #3864: FlowController integration into LangGraph orchestrator
+    # ==========================================================================
+
+    enable_flow_controller_v3: bool = Field(
+        default=False,
+        alias="ENABLE_FLOW_CONTROLLER_V3",
+        description=(
+            "Enable FlowController v3 for unified plan execution (EPIC F Phase F-3c). "
+            "Default False = FlowController disabled, uses existing executor_node. "
+            "When True, plans are executed via FlowController with AgentTaskExecutor, "
+            "providing unified task execution, dependency management, and state mapping. "
+            "This is the foundation for Planner v3 architecture."
+        )
+    )
+
+    flow_controller_sample_rate: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+        alias="FLOW_CONTROLLER_SAMPLE_RATE",
+        description=(
+            "Percentage of workflows to route through FlowController v3 (canary gating). "
+            "Default 0 = No canary traffic, use ENABLE_FLOW_CONTROLLER_V3 flag only. "
+            "When > 0, uses hash-based bucketing of trace_id for deterministic assignment. "
+            "Example: 10 = 10% of workflows use FlowController, 90% use legacy executor. "
+            "Recommended: Start with 5-10% in staging, gradually increase to 100%."
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment"""

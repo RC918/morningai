@@ -2,8 +2,10 @@
 Tests for Flow Integration Module
 
 EPIC F Phase F-3b: Flow Integration Layer Tests
+EPIC F Phase F-3c: Feature Flag + Node Integration Tests
 
-This module tests the integration layer between FlowController and AgentState.
+This module tests the integration layer between FlowController and AgentState,
+including the feature flag routing and orchestrator node integration.
 """
 
 import pytest
@@ -462,3 +464,207 @@ class TestIntegrationWithRealComponents:
 
         assert update["flow_execution_status"] == "completed"
         assert update["final_result"]["status"] == "success"
+
+
+try:
+    import langgraph
+    HAS_LANGGRAPH = True
+except ImportError:
+    HAS_LANGGRAPH = False
+
+
+@pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+class TestPhaseF3cFeatureFlagRouting:
+    """
+    EPIC F Phase F-3c: Tests for feature flag routing functions.
+
+    These tests verify the conditional routing logic that determines
+    whether to use FlowController v3 or the legacy executor.
+    """
+
+    def test_should_use_flow_controller_flag_disabled(self):
+        """Test routing returns 'executor' when feature flag is disabled"""
+        from langgraph_orchestrator import should_use_flow_controller
+
+        state = {"trace_id": "test-trace-123"}
+
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_flow_controller_v3 = False
+            mock_settings.flow_controller_sample_rate = 0
+
+            result = should_use_flow_controller(state)
+
+            assert result == "executor"
+
+    def test_should_use_flow_controller_flag_enabled(self):
+        """Test routing returns 'flow_executor' when feature flag is enabled"""
+        from langgraph_orchestrator import should_use_flow_controller
+
+        state = {"trace_id": "test-trace-123"}
+
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_flow_controller_v3 = True
+            mock_settings.flow_controller_sample_rate = 0
+
+            result = should_use_flow_controller(state)
+
+            assert result == "flow_executor"
+
+    def test_should_use_flow_controller_canary_gating(self):
+        """Test canary gating routes based on trace_id hash"""
+        from langgraph_orchestrator import should_use_flow_controller
+
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_flow_controller_v3 = False
+            mock_settings.flow_controller_sample_rate = 50
+
+            flow_count = 0
+            executor_count = 0
+            for i in range(100):
+                state = {"trace_id": f"test-trace-{i}"}
+                result = should_use_flow_controller(state)
+                if result == "flow_executor":
+                    flow_count += 1
+                else:
+                    executor_count += 1
+
+            assert flow_count > 0, "Should route some to flow_executor"
+            assert executor_count > 0, "Should route some to executor"
+
+    def test_should_use_flow_controller_deterministic(self):
+        """Test that same trace_id always routes to same path"""
+        from langgraph_orchestrator import should_use_flow_controller
+
+        state = {"trace_id": "deterministic-test-trace"}
+
+        with patch("langgraph_orchestrator.settings") as mock_settings:
+            mock_settings.enable_flow_controller_v3 = False
+            mock_settings.flow_controller_sample_rate = 50
+
+            results = [should_use_flow_controller(state) for _ in range(10)]
+
+            assert all(r == results[0] for r in results), "Same trace_id should always route to same path"
+
+    def test_should_proceed_after_policy_with_flow_controller_blocked(self):
+        """Test routing returns 'finalize' when policy blocked"""
+        from langgraph_orchestrator import should_proceed_after_policy_with_flow_controller
+
+        state = {"policy_blocked": True, "trace_id": "test-trace"}
+
+        result = should_proceed_after_policy_with_flow_controller(state)
+
+        assert result == "finalize"
+
+    def test_should_proceed_after_policy_with_flow_controller_not_blocked(self):
+        """Test routing delegates to should_use_flow_controller when not blocked"""
+        from langgraph_orchestrator import should_proceed_after_policy_with_flow_controller
+
+        state = {"policy_blocked": False, "trace_id": "test-trace"}
+
+        with patch("langgraph_orchestrator.should_use_flow_controller") as mock_routing:
+            mock_routing.return_value = "flow_executor"
+
+            result = should_proceed_after_policy_with_flow_controller(state)
+
+            assert result == "flow_executor"
+            mock_routing.assert_called_once_with(state)
+
+
+@pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+class TestPhaseF3cFlowExecutorNode:
+    """
+    EPIC F Phase F-3c: Tests for flow_executor_node in orchestrator.
+
+    These tests verify the flow_executor_node function that executes
+    plans via FlowController.
+    """
+
+    def test_flow_executor_node_success(self):
+        """Test flow_executor_node updates state on successful execution"""
+        from langgraph_orchestrator import flow_executor_node
+
+        state = {
+            "plan": ["Step 1: Analyze", "Step 2: Code"],
+            "goal": "Fix bug",
+            "trace_id": "test-trace",
+        }
+
+        with patch("langgraph_orchestrator.execute_with_flow_controller") as mock_execute:
+            mock_execute.return_value = {
+                "flow_execution_result": {"plan_id": "test"},
+                "flow_execution_status": "completed",
+                "flow_completed_tasks": ["task-1", "task-2"],
+                "flow_failed_tasks": [],
+                "current_step": 2,
+            }
+
+            result = flow_executor_node(state)
+
+            assert result["flow_execution_status"] == "completed"
+            assert result["flow_completed_tasks"] == ["task-1", "task-2"]
+            assert result["current_step"] == 2
+
+    def test_flow_executor_node_failure(self):
+        """Test flow_executor_node handles execution failure"""
+        from langgraph_orchestrator import flow_executor_node
+
+        state = {
+            "plan": ["Step 1: Analyze"],
+            "goal": "Fix bug",
+            "trace_id": "test-trace",
+        }
+
+        with patch("langgraph_orchestrator.execute_with_flow_controller") as mock_execute:
+            mock_execute.return_value = {
+                "flow_execution_status": "failed",
+                "flow_completed_tasks": [],
+                "flow_failed_tasks": ["task-1"],
+                "error": "Task failed",
+            }
+
+            result = flow_executor_node(state)
+
+            assert result["flow_execution_status"] == "failed"
+            assert result["error"] == "Task failed"
+
+    def test_flow_executor_node_exception(self):
+        """Test flow_executor_node handles exceptions gracefully"""
+        from langgraph_orchestrator import flow_executor_node
+
+        state = {
+            "plan": ["Step 1"],
+            "goal": "Test",
+            "trace_id": "test-trace",
+        }
+
+        with patch("langgraph_orchestrator.execute_with_flow_controller") as mock_execute:
+            mock_execute.side_effect = RuntimeError("Unexpected error")
+
+            result = flow_executor_node(state)
+
+            assert result["flow_execution_status"] == "failed"
+            assert "FlowController execution failed" in result["error"]
+
+
+@pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
+class TestPhaseF3cAgentStateFields:
+    """
+    EPIC F Phase F-3c: Tests for AgentState flow controller fields.
+
+    These tests verify that the new AgentState fields for flow controller
+    are properly defined and can be used.
+    """
+
+    def test_agent_state_keys_defined(self):
+        """Test that AgentStateKeys includes flow controller keys"""
+        from langgraph_orchestrator import AgentStateKeys
+
+        assert hasattr(AgentStateKeys, "FLOW_EXECUTION_RESULT")
+        assert hasattr(AgentStateKeys, "FLOW_EXECUTION_STATUS")
+        assert hasattr(AgentStateKeys, "FLOW_COMPLETED_TASKS")
+        assert hasattr(AgentStateKeys, "FLOW_FAILED_TASKS")
+
+        assert AgentStateKeys.FLOW_EXECUTION_RESULT == "flow_execution_result"
+        assert AgentStateKeys.FLOW_EXECUTION_STATUS == "flow_execution_status"
+        assert AgentStateKeys.FLOW_COMPLETED_TASKS == "flow_completed_tasks"
+        assert AgentStateKeys.FLOW_FAILED_TASKS == "flow_failed_tasks"
