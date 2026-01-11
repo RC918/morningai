@@ -16,7 +16,7 @@ import hmac
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from ..bot_protocol import (
     BaseWebhookHandler,
@@ -143,6 +143,91 @@ GITHUB_EVENT_MAP: Dict[str, Dict[str, WebhookEventType]] = {
         "completed": WebhookEventType.CI_CHECK_COMPLETED,
     },
 }
+
+
+# =============================================================================
+# Helper functions for check_suite/check_run event parsing (Issue #3686)
+# =============================================================================
+# These helpers reduce code duplication and complexity in parse_event()
+
+
+def _safe_parse_int_id(
+    raw_id: Any,
+    field_name: str,
+    event_id: str,
+    repo: str
+) -> Optional[int]:
+    """
+    Safely parse an integer ID with warning logging on failure.
+
+    Args:
+        raw_id: The raw value to parse (may be int, str, or None)
+        field_name: Name of the field for logging (e.g., "check_suite_id")
+        event_id: Event ID for logging context
+        repo: Repository name for logging context
+
+    Returns:
+        Parsed integer ID, or None if parsing fails or raw_id is None
+    """
+    if raw_id is None:
+        return None
+    try:
+        return int(raw_id)
+    except (ValueError, TypeError):
+        logger.warning(
+            "[GitHubWebhookHandler] Invalid %s, using fallback dedup",
+            field_name,
+            extra={
+                "event_id": event_id,
+                "repo": repo,
+                "raw_value": str(raw_id)[:50],
+            }
+        )
+        return None
+
+
+def _extract_pr_numbers(pull_requests: Any) -> List[int]:
+    """
+    Extract PR numbers from pull_requests array with type safety.
+
+    Args:
+        pull_requests: The pull_requests array from check_suite/check_run payload
+
+    Returns:
+        List of PR numbers (integers), empty list if input is invalid
+    """
+    if not pull_requests or not isinstance(pull_requests, list):
+        return []
+    return [
+        pr.get("number") for pr in pull_requests
+        if isinstance(pr, dict) and pr.get("number") is not None
+    ]
+
+
+def _extract_first_pr_info(
+    pull_requests: Any
+) -> tuple[Optional[str], Optional[str]]:
+    """
+    Extract resource_id and resource_url from the first PR in pull_requests array.
+
+    Args:
+        pull_requests: The pull_requests array from check_suite/check_run payload
+
+    Returns:
+        Tuple of (resource_id, resource_url), both None if no valid PR found
+    """
+    if not pull_requests or not isinstance(pull_requests, list) or len(pull_requests) == 0:
+        return None, None
+
+    first_pr = pull_requests[0]
+    if not isinstance(first_pr, dict):
+        return None, None
+
+    pr_number = first_pr.get("number")
+    resource_id = str(pr_number) if pr_number is not None else None
+    resource_url = first_pr.get("url", "")
+
+    return resource_id, resource_url
 
 
 class GitHubWebhookHandler(BaseWebhookHandler):
@@ -360,20 +445,15 @@ class GitHubWebhookHandler(BaseWebhookHandler):
 
         # Issue: #3366 - CI Failure Reflex Integration
         # Handle check_suite events to extract PR information for CI failure triggering
+        # Issue: #3686 - Refactored to use helper functions
         elif github_event == "check_suite":
             check_suite = payload.get("check_suite", {})
             conclusion = check_suite.get("conclusion", "")
             head_branch = check_suite.get("head_branch", "")
-            # head_sha is extracted in metadata section below
 
-            # Extract PR number from check_suite.pull_requests array
+            # Extract PR info using helper function (Issue #3686)
             pull_requests = check_suite.get("pull_requests", [])
-            if pull_requests and isinstance(pull_requests, list) and len(pull_requests) > 0:
-                first_pr = pull_requests[0]
-                if isinstance(first_pr, dict):
-                    pr_number = first_pr.get("number")
-                    resource_id = str(pr_number) if pr_number is not None else None
-                    resource_url = first_pr.get("url", "")
+            resource_id, resource_url = _extract_first_pr_info(pull_requests)
 
             resource_type = "check_suite"
             title = f"CI Check Suite: {conclusion} on {head_branch}"
@@ -383,6 +463,7 @@ class GitHubWebhookHandler(BaseWebhookHandler):
         # Issue: #3684 - Add check_run event support for annotations extraction
         # Handle check_run events to extract PR information and check_suite_id
         # GitHub sends check_run events for individual CI jobs (e.g., lint, test)
+        # Issue: #3686 - Refactored to use helper functions
         elif github_event == "check_run":
             check_run = payload.get("check_run", {})
             conclusion = check_run.get("conclusion", "")
@@ -390,14 +471,9 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             check_suite = check_run.get("check_suite", {})
             head_branch = check_suite.get("head_branch", "")
 
-            # Extract PR number from check_run.pull_requests array
+            # Extract PR info using helper function (Issue #3686)
             pull_requests = check_run.get("pull_requests", [])
-            if pull_requests and isinstance(pull_requests, list) and len(pull_requests) > 0:
-                first_pr = pull_requests[0]
-                if isinstance(first_pr, dict):
-                    pr_number = first_pr.get("number")
-                    resource_id = str(pr_number) if pr_number is not None else None
-                    resource_url = first_pr.get("url", "")
+            resource_id, resource_url = _extract_first_pr_info(pull_requests)
 
             check_run_name = check_run.get("name", "unknown")
             resource_type = "check_run"
@@ -425,6 +501,7 @@ class GitHubWebhookHandler(BaseWebhookHandler):
 
         # Issue: #3366 - CI Failure Reflex Integration
         # Add CI-specific metadata for check_suite events
+        # Issue: #3686 - Refactored to use helper functions
         if github_event == "check_suite":
             check_suite = payload.get("check_suite", {})
             metadata["ci_conclusion"] = check_suite.get("conclusion", "")
@@ -432,34 +509,18 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             metadata["ci_head_sha"] = check_suite.get("head_sha", "")
             metadata["ci_app_name"] = check_suite.get("app", {}).get("name", "")
             # Issue: #3513 - Add check_suite_id for dedup refinement
-            # GitHub sends multiple check_suite webhooks per SHA (different workflows)
-            # Each workflow has a unique check_suite_id that we need for proper dedup
-            # Defensive int conversion with try-except (MorningAI review feedback)
-            raw_check_suite_id = check_suite.get("id")
-            try:
-                metadata["ci_check_suite_id"] = (
-                    int(raw_check_suite_id) if raw_check_suite_id is not None else None
-                )
-            except (ValueError, TypeError):
-                # Fallback to None if conversion fails - will use old dedup key format
-                logger.warning(
-                    "[GitHubWebhookHandler] Invalid check_suite_id, using fallback dedup",
-                    extra={
-                        "event_id": event_id,
-                        "repo": f"{repo_owner}/{repo_name}",
-                        "raw_check_suite_id": str(raw_check_suite_id)[:50],
-                    }
-                )
-                metadata["ci_check_suite_id"] = None
-            # Store PR numbers for dedup and multi-PR handling
+            # Issue: #3686 - Use helper function for safe int parsing
+            repo = f"{repo_owner}/{repo_name}"
+            metadata["ci_check_suite_id"] = _safe_parse_int_id(
+                check_suite.get("id"), "check_suite_id", event_id, repo
+            )
+            # Store PR numbers for dedup and multi-PR handling (Issue #3686)
             pull_requests = check_suite.get("pull_requests", [])
-            metadata["ci_pr_numbers"] = [
-                pr.get("number") for pr in pull_requests
-                if isinstance(pr, dict) and pr.get("number") is not None
-            ]
+            metadata["ci_pr_numbers"] = _extract_pr_numbers(pull_requests)
 
         # Issue: #3684 - Add CI-specific metadata for check_run events
         # check_run events contain nested check_suite with the check_suite_id needed for annotations API
+        # Issue: #3686 - Refactored to use helper functions
         if github_event == "check_run":
             check_run = payload.get("check_run", {})
             check_suite = check_run.get("check_suite", {})
@@ -467,44 +528,17 @@ class GitHubWebhookHandler(BaseWebhookHandler):
             metadata["ci_head_branch"] = check_suite.get("head_branch", "")
             metadata["ci_head_sha"] = check_suite.get("head_sha", "")
             metadata["ci_app_name"] = check_run.get("app", {}).get("name", "")
-            # Extract check_run_id for annotations API
-            raw_check_run_id = check_run.get("id")
-            try:
-                metadata["ci_check_run_id"] = (
-                    int(raw_check_run_id) if raw_check_run_id is not None else None
-                )
-            except (ValueError, TypeError):
-                logger.warning(
-                    "[GitHubWebhookHandler] Invalid check_run_id in check_run event",
-                    extra={
-                        "event_id": event_id,
-                        "repo": f"{repo_owner}/{repo_name}",
-                        "raw_check_run_id": str(raw_check_run_id)[:50],
-                    },
-                )
-                metadata["ci_check_run_id"] = None
-            # Extract check_suite_id from nested check_suite for dedup and annotations
-            raw_check_suite_id = check_suite.get("id")
-            try:
-                metadata["ci_check_suite_id"] = (
-                    int(raw_check_suite_id) if raw_check_suite_id is not None else None
-                )
-            except (ValueError, TypeError):
-                logger.warning(
-                    "[GitHubWebhookHandler] Invalid check_suite_id in check_run, using fallback dedup",
-                    extra={
-                        "event_id": event_id,
-                        "repo": f"{repo_owner}/{repo_name}",
-                        "raw_check_suite_id": str(raw_check_suite_id)[:50],
-                    }
-                )
-                metadata["ci_check_suite_id"] = None
-            # Store PR numbers for dedup and multi-PR handling
+            # Issue: #3686 - Use helper functions for safe int parsing
+            repo = f"{repo_owner}/{repo_name}"
+            metadata["ci_check_run_id"] = _safe_parse_int_id(
+                check_run.get("id"), "check_run_id", event_id, repo
+            )
+            metadata["ci_check_suite_id"] = _safe_parse_int_id(
+                check_suite.get("id"), "check_suite_id", event_id, repo
+            )
+            # Store PR numbers for dedup and multi-PR handling (Issue #3686)
             pull_requests = check_run.get("pull_requests", [])
-            metadata["ci_pr_numbers"] = [
-                pr.get("number") for pr in pull_requests
-                if isinstance(pr, dict) and pr.get("number") is not None
-            ]
+            metadata["ci_pr_numbers"] = _extract_pr_numbers(pull_requests)
             # Store check_run name for better logging
             metadata["ci_check_run_name"] = check_run.get("name", "")
 
