@@ -247,6 +247,9 @@ class BasePlanConsumer(ABC):
 
                 if result.status == ExecutionStatus.COMPLETED:
                     completed.add(task.task_id)
+                elif result.status == ExecutionStatus.SKIPPED:
+                    # Skipped tasks should not block dependents
+                    completed.add(task.task_id)
                 elif result.status == ExecutionStatus.FAILED:
                     # Stop on failure (could be configurable)
                     end_time = datetime.now(timezone.utc)
