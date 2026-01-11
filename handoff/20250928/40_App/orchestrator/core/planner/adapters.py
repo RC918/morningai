@@ -381,11 +381,11 @@ def _infer_task_type_from_description(description: str) -> TaskType:
     # Check for keywords in order of specificity
     if any(kw in description_lower for kw in ["setup", "install", "configure", "environment"]):
         return TaskType.SETUP
-    if any(kw in description_lower for kw in ["analyze", "investigate", "examine", "review code", "understand"]):
+    if any(kw in description_lower for kw in ["analyze", "investigate", "examine", "understand"]):
         return TaskType.ANALYZE
     if any(kw in description_lower for kw in ["test", "spec", "coverage", "unit test", "integration test"]):
         return TaskType.TEST
-    if any(kw in description_lower for kw in ["review", "code review", "self-review", "peer review"]):
+    if any(kw in description_lower for kw in ["review", "code review", "self-review", "peer review", "review code"]):
         return TaskType.REVIEW
     if any(kw in description_lower for kw in ["document", "readme", "comment", "doc"]):
         return TaskType.DOCUMENT
