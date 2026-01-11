@@ -310,7 +310,7 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 # Smart PR Filtering - Trigger Threshold Layer (Dec 2025, Updated Jan 2026)
 # =============================================================================
 # These filters determine if a PR event is "worth documenting" based on:
-# 1. Semantic title prefix (ci/test/style/build = skip)
+# 1. Semantic title prefix (ci/test/tests/style/build = skip)
 # 2. File path patterns (config/docs/tests/CI only = skip)
 #
 # This is separate from the "orchestrator self-loop prevention" layer above.
@@ -326,7 +326,7 @@ def should_skip_orchestrator_pr_event(event: "WebhookEvent") -> bool:
 
 # Title prefixes that indicate non-actionable changes (skip review)
 # Blueprint alignment: docs: and chore: are now reviewed (removed from skip list)
-# Only ci/test/style/build PRs are skipped as they are typically auto-generated or trivial
+# Only ci/test/tests/style/build PRs are skipped as they are typically auto-generated or trivial
 SKIP_TITLE_PREFIXES = (
     "ci:",
     "ci(",
