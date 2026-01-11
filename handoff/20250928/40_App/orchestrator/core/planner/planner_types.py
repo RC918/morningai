@@ -24,6 +24,29 @@ from typing import Any, Dict, List, Optional, Set
 import uuid
 
 
+def _sanitize_task_id(task_id: str, max_length: int = 100) -> str:
+    """
+    Sanitize task_id for safe inclusion in error messages.
+
+    Prevents log injection by:
+    - Replacing newlines and carriage returns
+    - Truncating to max_length
+
+    Args:
+        task_id: The task_id to sanitize
+        max_length: Maximum length of output (default 100)
+
+    Returns:
+        Sanitized string safe for error messages
+    """
+    if not task_id:
+        return ""
+    sanitized = task_id.replace('\n', '\\n').replace('\r', '\\r')
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "..."
+    return sanitized
+
+
 class TaskType(Enum):
     """
     Types of tasks in a plan
@@ -276,9 +299,13 @@ class TaskTree:
         node_ids = {node.task_id for node in self.nodes}
         for edge in self.edges:
             if edge.from_task not in node_ids:
-                errors.append(f"Edge references unknown source task: {edge.from_task}")
+                # Sanitize task_id to prevent log injection (Issue #3833)
+                safe_from = _sanitize_task_id(edge.from_task)
+                errors.append(f"Edge references unknown source task: {safe_from}")
             if edge.to_task not in node_ids:
-                errors.append(f"Edge references unknown target task: {edge.to_task}")
+                # Sanitize task_id to prevent log injection (Issue #3833)
+                safe_to = _sanitize_task_id(edge.to_task)
+                errors.append(f"Edge references unknown target task: {safe_to}")
 
         # Check for cycles using DFS
         if not errors:

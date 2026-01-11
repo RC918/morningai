@@ -84,6 +84,17 @@ jobs:
           cd ../api-backend
           pip install -r requirements.txt
       
+      - name: Run orchestrator unit tests
+        run: |
+          pytest handoff/20250928/40_App/orchestrator/tests/ \
+            -v --tb=short --disable-warnings \
+            --timeout=60 \
+            --junitxml=unit-test-results.xml
+        env:
+          PYTHONPATH: ${{ github.workspace }}/handoff/20250928/40_App/orchestrator:${{ github.workspace }}/handoff/20250928/40_App/api-backend/src:${{ github.workspace }}
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
+      
       - name: Run redis_queue integration tests
         run: |
           pytest handoff/20250928/40_App/orchestrator/redis_queue/tests/ \
@@ -114,6 +125,7 @@ jobs:
         with:
           name: integration-test-results
           path: |
+            unit-test-results.xml
             integration-test-results.xml
             fault-injection-test-results.xml
           retention-days: 30
