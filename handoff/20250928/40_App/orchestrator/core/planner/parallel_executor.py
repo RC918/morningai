@@ -201,7 +201,6 @@ class ParallelExecutor:
         if max_parallel < 1:
             raise ValueError("max_parallel must be at least 1")
         self.max_parallel = max_parallel
-        self._thread_pool: Optional[ThreadPoolExecutor] = None
 
     def get_executable_batch(
         self,

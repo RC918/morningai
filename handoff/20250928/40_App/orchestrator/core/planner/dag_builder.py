@@ -9,6 +9,8 @@ including linear task lists, explicit dependencies, and automatic parallelism in
 Blueprint Reference: Section 3.1 (Planner v3 - Intelligent Planner)
 """
 
+import heapq
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
@@ -159,11 +161,6 @@ class DAGBuilder:
         if not tree.nodes:
             return tree
 
-        # Build dependency graph for analysis
-        task_deps: Dict[str, Set[str]] = {}
-        for node in tree.nodes:
-            task_deps[node.task_id] = set(tree.get_dependencies(node.task_id))
-
         # Calculate depth (level) for each task
         depths = self._calculate_depths(tree)
 
@@ -223,10 +220,10 @@ class DAGBuilder:
         for task_id in root_tasks:
             depths[task_id] = 0
 
-        # BFS to calculate depths
-        queue = list(root_tasks)
+        # BFS to calculate depths (using deque for O(1) popleft)
+        queue = deque(root_tasks)
         while queue:
-            current = queue.pop(0)
+            current = queue.popleft()
             current_depth = depths[current]
 
             for dependent in tree.get_dependents(current):
@@ -398,17 +395,19 @@ class DAGBuilder:
             if edge.edge_type == EdgeType.DEPENDS_ON:
                 in_degree[edge.to_task] = in_degree.get(edge.to_task, 0) + 1
 
-        # Start with nodes that have no dependencies
-        queue = [
-            node for node in tree.nodes
+        # Start with nodes that have no dependencies (using heapq for O(log N) priority)
+        # Heap entries: (priority, task_id, node) - task_id for deterministic tie-breaking
+        heap: List[tuple] = [
+            (node.priority, node.task_id, node)
+            for node in tree.nodes
             if in_degree[node.task_id] == 0
         ]
+        heapq.heapify(heap)
         result: List[TaskNode] = []
 
-        while queue:
-            # Sort by priority for deterministic ordering
-            queue.sort(key=lambda n: n.priority)
-            node = queue.pop(0)
+        while heap:
+            # Pop highest priority (lowest value) node in O(log N)
+            _, _, node = heapq.heappop(heap)
             result.append(node)
 
             for dependent_id in tree.get_dependents(node.task_id):
@@ -416,7 +415,7 @@ class DAGBuilder:
                 if in_degree[dependent_id] == 0:
                     dependent_node = tree.get_node(dependent_id)
                     if dependent_node:
-                        queue.append(dependent_node)
+                        heapq.heappush(heap, (dependent_node.priority, dependent_node.task_id, dependent_node))
 
         if len(result) != len(tree.nodes):
             raise ValueError("Cannot topologically sort a DAG with cycles")
