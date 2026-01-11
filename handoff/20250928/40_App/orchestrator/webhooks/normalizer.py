@@ -2029,6 +2029,22 @@ class EventNormalizer:
         # Issue: #3513 - Extract check_suite_id for dedup refinement
         check_suite_id = metadata.get("ci_check_suite_id")
 
+        # Issue #3818: Diagnostic log for check_suite_id to debug D-4 file path extraction
+        # This helps identify why _fetch_failed_check_runs might not be called
+        logger.info(
+            "[EventNormalizer] CI failure check_suite_id diagnostic",
+            extra={
+                "operation": "ci_failure_check_suite_id_diagnostic",
+                "event_id": event.event_id,
+                "repo": repo,
+                "check_suite_id": check_suite_id,
+                "check_suite_id_type": type(check_suite_id).__name__ if check_suite_id is not None else "NoneType",
+                "check_suite_id_truthy": bool(check_suite_id),
+                "conclusion": conclusion,
+                "head_branch": head_branch,
+            }
+        )
+
         # P0: Skip if conclusion is not a failure-like state
         # Issue #3633: Expanded to include cancelled, timed_out, startup_failure, action_required
         # GitHub check_run conclusions: success, failure, neutral, cancelled,
@@ -2141,8 +2157,46 @@ class EventNormalizer:
 
             if check_suite_id:
                 # Issue #3676: Now returns 3-tuple with ci_error_file_paths from annotations
+                # Issue #3818: Log before calling _fetch_failed_check_runs for debugging
+                pass  # Log below
+            else:
+                # Issue #3818: Log when check_suite_id is missing - this prevents error_summary extraction
+                logger.warning(
+                    "[EventNormalizer] Skipping _fetch_failed_check_runs - check_suite_id is missing",
+                    extra={
+                        "operation": "fetch_failed_check_runs_skip_no_suite_id",
+                        "event_id": event.event_id,
+                        "repo": repo,
+                        "pr_number": pr_number,
+                        "head_sha": head_sha[:8] if head_sha else "unknown",
+                    }
+                )
+
+            if check_suite_id:
+                logger.info(
+                    "[EventNormalizer] Calling _fetch_failed_check_runs for error summary",
+                    extra={
+                        "operation": "fetch_failed_check_runs_call",
+                        "event_id": event.event_id,
+                        "check_suite_id": check_suite_id,
+                        "repo": repo,
+                    }
+                )
                 failed_check_names, api_error_summary, ci_error_file_paths = self._fetch_failed_check_runs(
                     repo, check_suite_id, event.event_id
+                )
+                # Issue #3818: Log results of _fetch_failed_check_runs
+                logger.info(
+                    "[EventNormalizer] _fetch_failed_check_runs results",
+                    extra={
+                        "operation": "fetch_failed_check_runs_result",
+                        "event_id": event.event_id,
+                        "check_suite_id": check_suite_id,
+                        "failed_check_names_count": len(failed_check_names),
+                        "api_error_summary_present": bool(api_error_summary),
+                        "api_error_summary_len": len(api_error_summary) if api_error_summary else 0,
+                        "ci_error_file_paths_count": len(ci_error_file_paths),
+                    }
                 )
                 if failed_check_names:
                     # Use first failed check name (most specific)
