@@ -34,6 +34,12 @@ from .consumer import (
     DryRunPlanConsumer,
 )
 
+from .adapters import (
+    adapt_llm_planner_output,
+    adapt_task_planner_output,
+    adapt_pm_agent_output,
+)
+
 __all__ = [
     # Planner types
     "TaskType",
@@ -54,4 +60,8 @@ __all__ = [
     "PlanConsumer",
     "BasePlanConsumer",
     "DryRunPlanConsumer",
+    # Adapters (Phase F-1)
+    "adapt_llm_planner_output",
+    "adapt_task_planner_output",
+    "adapt_pm_agent_output",
 ]
