@@ -40,6 +40,18 @@ from .adapters import (
     adapt_pm_agent_output,
 )
 
+from .flow_controller import (
+    FlowTemplate,
+    FlowStage,
+    FlowDefinition,
+    FlowState,
+    FlowController,
+    TaskExecutor,
+    DefaultTaskExecutor,
+    create_flow_controller,
+    FLOW_DEFINITIONS,
+)
+
 __all__ = [
     # Planner types
     "TaskType",
@@ -64,4 +76,14 @@ __all__ = [
     "adapt_llm_planner_output",
     "adapt_task_planner_output",
     "adapt_pm_agent_output",
+    # Flow Controller (Phase F-2)
+    "FlowTemplate",
+    "FlowStage",
+    "FlowDefinition",
+    "FlowState",
+    "FlowController",
+    "TaskExecutor",
+    "DefaultTaskExecutor",
+    "create_flow_controller",
+    "FLOW_DEFINITIONS",
 ]
