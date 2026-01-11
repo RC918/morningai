@@ -6,7 +6,7 @@
 
 EPIC B focuses on implementing intelligent PR review with inline comments, ensuring reviews are generated correctly and posted reliably to GitHub.
 
-**North Star Goal**: 讓 MorningAI Reviewer Agent 達到並超越 GitHub Copilot 和 Gemini Code Assist 的審查能力，實現 Blueprint 的「自己審查」願景。
+**North Star Goal**: Enable the MorningAI Reviewer Agent to achieve and surpass the review capabilities of GitHub Copilot and Gemini Code Assist, realizing the Blueprint's "self-review" vision. (讓 MorningAI Reviewer Agent 達到並超越 GitHub Copilot 和 Gemini Code Assist 的審查能力，實現 Blueprint 的「自己審查」願景。)
 
 ## Status Summary
 
@@ -366,9 +366,9 @@ Phase 7 focuses on **integration gaps** - capabilities that already exist in `ag
 
 | Component | Location | Lines | Current Usage |
 |-----------|----------|-------|---------------|
-| CodeIndexer | `agents/dev_agent/knowledge_graph/code_indexer.py` | 385 | dev_agent only |
-| KnowledgeGraphManager | `agents/dev_agent/knowledge_graph/knowledge_graph_manager.py` | 24030 | dev_agent only |
-| BugFixWorkflow (LSP/AST) | `agents/dev_agent/workflows/bug_fix_workflow.py` | 975 | dev_agent only |
+| CodeIndexer | `agents/dev_agent/knowledge_graph/code_indexer.py` | 384 | dev_agent only |
+| KnowledgeGraphManager | `agents/dev_agent/knowledge_graph/knowledge_graph_manager.py` | 659 | dev_agent only |
+| BugFixWorkflow (LSP/AST) | `agents/dev_agent/workflows/bug_fix_workflow.py` | 974 | dev_agent only |
 
 ---
 
@@ -644,11 +644,11 @@ EPIC E (Safety Governor v2) - PREREQUISITE
     ▼
 Phase 7: Copilot/Gemini Parity
     │
-    ├── B-7 (Codebase Context) ──┐
+    ├── B-7 (Codebase Context) ──┬──► B-9 (Multi-Agent)
     │                            │
-    ├── B-8 (Semantic)      ─────┼──► B-9 (Multi-Agent)
-    │                            │
-    └── B-10 (Auto-Fix) ─────────┘
+    ├── B-8 (Semantic)      ─────┘
+    │
+    └── B-10 (Auto-Fix)
                                  │
                                  ▼
 Phase 8: Copilot/Gemini Superiority
