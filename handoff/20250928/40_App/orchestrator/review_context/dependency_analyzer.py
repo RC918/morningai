@@ -448,13 +448,17 @@ class DependencyAnalyzer:
         removed_deps: List[str] = []
 
         # Pattern for pyproject.toml dependency lines
-        dep_pattern = re.compile(r'^([+-])\s*"?([a-zA-Z0-9_-]+)"?\s*[=<>]')
+        # Matches: "package" = "^1.0.0" or package = ">=1.0.0" or "package" = "*"
+        dep_pattern = re.compile(
+            r'^([+-])\s*"?([a-zA-Z0-9_-]+)"?\s*=\s*"?([^"]+)"?'
+        )
 
         for line in file_diff.split('\n'):
             match = dep_pattern.match(line.strip())
             if match:
                 change_type = match.group(1)
                 package_name = match.group(2)
+                version_spec = match.group(3).strip('"\'') if match.group(3) else ""
 
                 if change_type == '+':
                     added_deps.append(package_name)
@@ -467,7 +471,20 @@ class DependencyAnalyzer:
                             severity="medium",
                             message=f"Package '{package_name}' is deprecated",
                             file_path=file_path,
+                            current_version=version_spec,
                             recommended_action=self.DEPRECATED_PACKAGES[package_name.lower()],
+                        ))
+
+                    # Check for unpinned versions (consistency with package.json/requirements.txt)
+                    if self._is_unpinned_version(version_spec):
+                        issues.append(DependencyIssue(
+                            package_name=package_name,
+                            issue_type=DependencyIssueType.UNPINNED,
+                            severity="low",
+                            message=f"Package '{package_name}' has unpinned version '{version_spec}'",
+                            file_path=file_path,
+                            current_version=version_spec,
+                            recommended_action="Consider pinning to a specific version for reproducible builds",
                         ))
 
                 elif change_type == '-':
