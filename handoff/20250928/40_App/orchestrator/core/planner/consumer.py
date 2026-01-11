@@ -19,6 +19,29 @@ from typing import Any, Dict, List, Optional, Protocol, Set
 from .planner_types import PlannerOutput, TaskNode
 
 
+def _sanitize_for_log(value: str, max_length: int = 200) -> str:
+    """
+    Sanitize untrusted data for safe inclusion in log messages.
+
+    Prevents log injection by:
+    - Replacing newlines and carriage returns
+    - Truncating to max_length
+
+    Args:
+        value: The untrusted string to sanitize
+        max_length: Maximum length of output (default 200)
+
+    Returns:
+        Sanitized string safe for logging
+    """
+    if not value:
+        return ""
+    sanitized = value.replace('\n', '\\n').replace('\r', '\\r')
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "..."
+    return sanitized
+
+
 class ExecutionStatus(Enum):
     """Status of task or plan execution"""
     PENDING = "pending"
@@ -229,7 +252,7 @@ class BasePlanConsumer(ABC):
                 plan_id=plan.plan_id,
                 status=ExecutionStatus.FAILED,
                 task_results=[],
-                error_summary=f"Plan validation failed: {'; '.join(errors)}",
+                error_summary=f"Plan validation failed: {'; '.join(_sanitize_for_log(e) for e in errors)}",
             )
 
         completed: Set[str] = set()
@@ -251,12 +274,15 @@ class BasePlanConsumer(ABC):
                     # Stop on failure (could be configurable)
                     end_time = datetime.now(timezone.utc)
                     duration = int((end_time - start_time).total_seconds() / 60)
+                    # Sanitize task_id and error_message to prevent log injection
+                    safe_task_id = _sanitize_for_log(task.task_id)
+                    safe_error = _sanitize_for_log(result.error_message or "")
                     return ExecutionResult(
                         plan_id=plan.plan_id,
                         status=ExecutionStatus.FAILED,
                         task_results=task_results,
                         total_duration_minutes=duration,
-                        error_summary=f"Task {task.task_id} failed: {result.error_message}",
+                        error_summary=f"Task {safe_task_id} failed: {safe_error}",
                     )
 
         end_time = datetime.now(timezone.utc)
