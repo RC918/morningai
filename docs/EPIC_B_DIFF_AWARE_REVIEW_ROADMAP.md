@@ -486,11 +486,11 @@ Phase 7 focuses on **integration gaps** - capabilities that already exist in `ag
 
 ---
 
-### ~~B-10: Auto-Fix Integration~~ → MOVED TO EPIC D (Fixer Agent)
+### ~~B-10: Auto-Fix Integration~~ → REMOVED (OUT OF SCOPE)
 
 > **Status**: REMOVED FROM EPIC B
-> **Reason**: Violates Blueprint Agent Separation Principle
-> **Follow-up**: See EPIC D (Autonomous Coder Agent Family) or create new Fixer Agent EPIC
+> **Reason**: Violates Blueprint Agent Separation Principle - Fixer capability already exists in EPIC D
+> **Note**: This is NOT a "move" - EPIC D already has Self-Correction Loop (D-4) for auto-fix
 
 **Blueprint Violation Analysis**:
 
@@ -714,7 +714,7 @@ Phase 7: Copilot/Gemini Parity (Reviewer-appropriate scope)
     │                            │
     └── B-8 (Semantic)      ─────┘
     
-    ╳ B-10 (Auto-Fix) → MOVED TO EPIC D (Fixer Agent)
+    ╳ B-10 (Auto-Fix) → REMOVED (OUT OF SCOPE - already in EPIC D)
                                  │
                                  ▼
 Phase 8: Copilot/Gemini Superiority (Reviewer-appropriate scope)
@@ -757,7 +757,7 @@ Cross-Agent Handoffs (Blueprint Sequential Collaboration):
 | B-7 | 3-5 days | EPIC E | Planning |
 | B-8 | 3-5 days | B-7 | Planning |
 | B-9 | 5-7 days | B-7, B-8 | Planning |
-| ~~B-10~~ | ~~3-5 days~~ | ~~B-7~~ | MOVED TO EPIC D |
+| ~~B-10~~ | ~~3-5 days~~ | ~~B-7~~ | REMOVED (OUT OF SCOPE) |
 | B-11 | 3-5 days | Phase 7 | Planning (flagging only) |
 | B-12 | 3-5 days | Phase 7 | Planning (flagging only) |
 | B-13 | 7-10 days | Phase 7, EPIC G | Planning |

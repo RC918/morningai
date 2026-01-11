@@ -117,7 +117,7 @@ EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C
 | B-7 | Codebase Context Integration (CodeIndexer → reviewer_node) | Planning |
 | B-8 | Semantic Understanding Integration (LSP/AST → reviewer_node) | Planning |
 | B-9 | Multi-Specialist Review (Parallel Collaboration, NOT Debate Engine) | Planning |
-| ~~B-10~~ | ~~Auto-Fix Integration~~ → **Moved to EPIC D** (Fixer Agent) | N/A |
+| ~~B-10~~ | ~~Auto-Fix Integration~~ → **REMOVED** (OUT OF SCOPE - already in EPIC D) | N/A |
 | **Phase 8** | Copilot/Gemini Superiority (B-11 to B-13) - Blueprint-aligned | **Planning** |
 | B-11 | Test Coverage Flagging (Reviewer flags only, Test Agent v2 generates) | Planning |
 | B-12 | Dependency Analysis (Flagging Only, no fixes) | Planning |
@@ -251,4 +251,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 1.9 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Created EPIC E and EPIC F detailed roadmap documents with JSON Schema definitions. Updated EPIC E/F status from "Placeholder" to "Planning" with roadmap links. |
 | 2.0 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Created EPIC I detailed roadmap document with JSON Schema definitions (GlobalHealthSnapshot, DriftRetryPolicy, RuntimeTrustScore). Updated EPIC I status from "Planning (after #3249)" to "Phase 1 Active, Phase 2+ gated by #3249". Added phase breakdown table and Cross-EPIC Integration (E+I+F closed loop). |
 | 2.1 | 2026-01-11 | Devin AI | Updated EPIC D status to **Stage 1-2 Completed**: D-3 Spec-Driven Development (#3756), D-4 Self-Correction Loop (#3821 verified on staging 2026-01-11). Updated EPIC table and cross-reference section. |
-| 2.2 | 2026-01-11 | Devin AI | Added EPIC B Phase 7-8 Planning ([PR #3850](https://github.com/RC918/morningai/pull/3850)): B-7 Codebase Context, B-8 Semantic Understanding, B-9 Multi-Specialist Review. **Blueprint Alignment**: B-10 (Auto-Fix) moved to EPIC D (Fixer Agent), B-11 scope reduced to Test Coverage Flagging (Test Agent v2 generates tests). Updated EPIC table, phase table, and cross-reference section. |
+| 2.2 | 2026-01-11 | Devin AI | Added EPIC B Phase 7-8 Planning ([PR #3850](https://github.com/RC918/morningai/pull/3850)): B-7 Codebase Context, B-8 Semantic Understanding, B-9 Multi-Specialist Review. **Blueprint Alignment**: B-10 (Auto-Fix) REMOVED (OUT OF SCOPE - Fixer capability already exists in EPIC D), B-11 scope reduced to Test Coverage Flagging (Test Agent v2 generates tests). Updated EPIC table, phase table, and cross-reference section. |
