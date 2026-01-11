@@ -9177,6 +9177,9 @@ def should_use_flow_controller(state: AgentState) -> str:
        for deterministic assignment (same trace_id always routes to same path)
     2. If FLOW_CONTROLLER_SAMPLE_RATE == 0: Use ENABLE_FLOW_CONTROLLER_V3 flag
 
+    Uses SHA-256 based bucketing (via compute_bucket) for cross-process determinism,
+    consistent with the existing canary_gating module pattern.
+
     Args:
         state: The current AgentState
 
@@ -9184,13 +9187,15 @@ def should_use_flow_controller(state: AgentState) -> str:
         "flow_executor" to use FlowController v3, "executor" for legacy executor
     """
     from common.config.settings import settings
+    from core.flow.canary_gating import compute_bucket
 
     trace_id = state.get("trace_id", "unknown")
     sample_rate = getattr(settings, 'flow_controller_sample_rate', 0)
     enable_flag = getattr(settings, 'enable_flow_controller_v3', False)
 
     if sample_rate > 0:
-        bucket = hash(trace_id) % 100
+        # Use SHA-256 based bucketing for cross-process determinism
+        bucket = compute_bucket(trace_id)
         use_flow_controller = bucket < sample_rate
         logger.info(
             f"[FlowController] Canary routing: trace_id={trace_id[:8]}..., "
