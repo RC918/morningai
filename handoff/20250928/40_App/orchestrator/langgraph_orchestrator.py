@@ -7056,6 +7056,164 @@ def reviewer_node(state: AgentState) -> AgentState:
             AIMessage(content=f"Code review completed ({review_method}). Quality score: {state['code_quality_score']}, Severity: {state['review_severity']}")
         ]
 
+        # EPIC B Phase 7-8: Enhanced Review Capabilities (B-9/B-11/B-12)
+        # These modules provide additional review insights beyond LLM review
+        # Each is gated by its own feature flag and fails open (non-blocking)
+
+        # B-9: Multi-Specialist Review (Security/Performance/Architecture)
+        if getattr(settings, 'use_multi_specialist_review', False) and diff_content:
+            try:
+                from review_context.multi_specialist_reviewer import (
+                    review_with_specialists
+                )
+
+                logger.info("[Reviewer] B-9: Starting multi-specialist review", extra={
+                    "operation": "reviewer",
+                    "trace_id": trace_id
+                })
+
+                specialist_result = review_with_specialists(diff_content)
+
+                if specialist_result and specialist_result.findings:
+                    state["multi_specialist_review_v1"] = specialist_result.to_dict()
+
+                    for finding in specialist_result.findings:
+                        specialist_comment = {
+                            "severity": finding.severity,
+                            "message": f"[{finding.specialist.upper()}] {finding.message}",
+                            "source": f"multi_specialist_{finding.specialist}",
+                            "category": finding.category
+                        }
+                        state["review_comments"] = state.get("review_comments", []) + [specialist_comment]
+
+                        if finding.severity in ("high", "critical"):
+                            current_severity = state.get("review_severity", "none")
+                            if current_severity in ("none", "low", "medium"):
+                                state["review_severity"] = finding.severity
+
+                    logger.info(
+                        f"[Reviewer] B-9: Multi-specialist review completed: {len(specialist_result.findings)} findings",
+                        extra={
+                            "operation": "reviewer",
+                            "trace_id": trace_id,
+                            "finding_count": len(specialist_result.findings),
+                            "specialists": list(set(f.specialist for f in specialist_result.findings))
+                        }
+                    )
+
+            except Exception as specialist_error:
+                logger.warning(
+                    f"[Reviewer] B-9: Multi-specialist review failed (non-blocking): {specialist_error}",
+                    extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id,
+                        "error": str(specialist_error)
+                    }
+                )
+
+        # B-11: Test Coverage Flagging (READ-ONLY - flags gaps, does NOT generate tests)
+        if getattr(settings, 'use_test_coverage_flagging', False) and diff_content:
+            try:
+                from review_context.test_coverage_analyzer import (
+                    analyze_test_coverage
+                )
+
+                logger.info("[Reviewer] B-11: Starting test coverage analysis", extra={
+                    "operation": "reviewer",
+                    "trace_id": trace_id
+                })
+
+                coverage_result = analyze_test_coverage(diff_content)
+
+                if coverage_result and coverage_result.coverage_gaps:
+                    state["test_coverage_analysis_v1"] = coverage_result.to_dict()
+
+                    for gap in coverage_result.coverage_gaps:
+                        coverage_comment = {
+                            "severity": "medium",
+                            "message": f"[TEST COVERAGE] {gap.function_type.capitalize()} '{gap.function_name}' in {gap.file_path} lacks test coverage. {gap.reason}",
+                            "source": "test_coverage_analyzer",
+                            "file_path": gap.file_path,
+                            "function_name": gap.function_name,
+                            "suggested_test_types": gap.suggested_test_types
+                        }
+                        state["review_comments"] = state.get("review_comments", []) + [coverage_comment]
+
+                    logger.info(
+                        f"[Reviewer] B-11: Test coverage analysis completed: {len(coverage_result.coverage_gaps)} gaps found",
+                        extra={
+                            "operation": "reviewer",
+                            "trace_id": trace_id,
+                            "gap_count": len(coverage_result.coverage_gaps),
+                            "source_files_analyzed": coverage_result.source_files_count,
+                            "test_files_found": coverage_result.test_files_count
+                        }
+                    )
+
+            except Exception as coverage_error:
+                logger.warning(
+                    f"[Reviewer] B-11: Test coverage analysis failed (non-blocking): {coverage_error}",
+                    extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id,
+                        "error": str(coverage_error)
+                    }
+                )
+
+        # B-12: Dependency Analysis (READ-ONLY - flags issues, does NOT fix them)
+        if getattr(settings, 'use_dependency_analysis', False) and diff_content:
+            try:
+                from review_context.dependency_analyzer import (
+                    analyze_dependencies
+                )
+
+                logger.info("[Reviewer] B-12: Starting dependency analysis", extra={
+                    "operation": "reviewer",
+                    "trace_id": trace_id
+                })
+
+                dependency_result = analyze_dependencies(diff_content)
+
+                if dependency_result and dependency_result.issues:
+                    state["dependency_analysis_v1"] = dependency_result.to_dict()
+
+                    for issue in dependency_result.issues:
+                        dep_comment = {
+                            "severity": issue.severity,
+                            "message": f"[DEPENDENCY] {issue.issue_type}: {issue.package_name} - {issue.message}",
+                            "source": "dependency_analyzer",
+                            "package_name": issue.package_name,
+                            "issue_type": issue.issue_type,
+                            "file_path": issue.file_path
+                        }
+                        state["review_comments"] = state.get("review_comments", []) + [dep_comment]
+
+                        if issue.severity in ("high", "critical"):
+                            current_severity = state.get("review_severity", "none")
+                            if current_severity in ("none", "low", "medium"):
+                                state["review_severity"] = issue.severity
+
+                    logger.info(
+                        f"[Reviewer] B-12: Dependency analysis completed: {len(dependency_result.issues)} issues found",
+                        extra={
+                            "operation": "reviewer",
+                            "trace_id": trace_id,
+                            "issue_count": len(dependency_result.issues),
+                            "deprecated_count": sum(1 for i in dependency_result.issues if i.issue_type == "deprecated"),
+                            "unpinned_count": sum(1 for i in dependency_result.issues if i.issue_type == "unpinned_version")
+                        }
+                    )
+
+            except Exception as dependency_error:
+                logger.warning(
+                    f"[Reviewer] B-12: Dependency analysis failed (non-blocking): {dependency_error}",
+                    extra={
+                        "operation": "reviewer",
+                        "trace_id": trace_id,
+                        "error": str(dependency_error)
+                    }
+                )
+
         # Issue #3222: Deterministic Signals Ingestion - CI/Linters integration
         # Fetch deterministic signals from check runs and workflow annotations
         # This runs AFTER the LLM review to augment review_comments with factual data

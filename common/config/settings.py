@@ -1741,6 +1741,26 @@ class Settings(BaseSettings):
         description="Enable LLM-powered reviewer in LangGraph orchestrator (Phase 6 PR-3)"
     )
 
+    # EPIC B Phase 7-8: Enhanced Reviewer Capabilities
+    # Blueprint Section 3.3: Agent Separation Principle - Reviewer can FLAG but NOT fix
+    use_multi_specialist_review: bool = Field(
+        default=False,
+        alias="USE_MULTI_SPECIALIST_REVIEW",
+        description="Enable B-9 Multi-Specialist Review: parallel security/performance/architecture analysis. Requires USE_LLM_REVIEWER=True."
+    )
+
+    use_test_coverage_flagging: bool = Field(
+        default=False,
+        alias="USE_TEST_COVERAGE_FLAGGING",
+        description="Enable B-11 Test Coverage Flagging: identify missing test coverage in PRs. READ-ONLY - flags issues but does NOT generate tests (that's Test Agent v2's job)."
+    )
+
+    use_dependency_analysis: bool = Field(
+        default=False,
+        alias="USE_DEPENDENCY_ANALYSIS",
+        description="Enable B-12 Dependency Analysis: identify outdated/vulnerable dependencies in PRs. READ-ONLY - flags issues but does NOT fix them (that's Fixer Agent's job)."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
