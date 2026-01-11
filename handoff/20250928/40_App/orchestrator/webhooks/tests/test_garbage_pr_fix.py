@@ -609,11 +609,15 @@ from ..normalizer import (  # noqa: E402
 class TestTitleIsNonActionable:
     """Tests for _title_is_non_actionable() semantic title filter"""
 
-    def test_chore_prefix_is_non_actionable(self):
-        """Test that chore: prefix is non-actionable"""
-        assert _title_is_non_actionable("chore: update dependencies") is True
-        assert _title_is_non_actionable("chore(deps): bump version") is True
-        assert _title_is_non_actionable("Chore: Update something") is True
+    def test_chore_prefix_is_actionable(self):
+        """Test that chore: prefix is actionable (Blueprint alignment Jan 2026)
+        
+        chore: PRs are now reviewed because they can contain security-sensitive
+        configuration changes. See: MorningAI_Ecosystem_Blueprint_2025_Final.md
+        """
+        assert _title_is_non_actionable("chore: update dependencies") is False
+        assert _title_is_non_actionable("chore(deps): bump version") is False
+        assert _title_is_non_actionable("Chore: Update something") is False
 
     def test_ci_prefix_is_non_actionable(self):
         """Test that ci: prefix is non-actionable"""
@@ -627,10 +631,14 @@ class TestTitleIsNonActionable:
         assert _title_is_non_actionable("tests: improve coverage") is True
         assert _title_is_non_actionable("test(api): add integration tests") is True
 
-    def test_docs_prefix_is_non_actionable(self):
-        """Test that docs: prefix is non-actionable"""
-        assert _title_is_non_actionable("docs: update README") is True
-        assert _title_is_non_actionable("docs(api): add examples") is True
+    def test_docs_prefix_is_actionable(self):
+        """Test that docs: prefix is actionable (Blueprint alignment Jan 2026)
+        
+        docs: PRs are now reviewed because they can contain bugs like incorrect
+        line references or outdated API docs. See: MorningAI_Ecosystem_Blueprint_2025_Final.md
+        """
+        assert _title_is_non_actionable("docs: update README") is False
+        assert _title_is_non_actionable("docs(api): add examples") is False
 
     def test_style_prefix_is_non_actionable(self):
         """Test that style: prefix is non-actionable"""
@@ -830,15 +838,19 @@ class TestShouldSkipPrBySmartFilters:
         assert should_skip is False
         assert reason == "not_pr_event"
 
-    def test_pr_opened_with_chore_title_skipped(self):
-        """Test that PR_OPENED with chore: title is skipped"""
+    def test_pr_opened_with_chore_title_not_skipped(self):
+        """Test that PR_OPENED with chore: title is NOT skipped (Blueprint alignment Jan 2026)
+        
+        chore: PRs are now reviewed because they can contain security-sensitive
+        configuration changes. See: MorningAI_Ecosystem_Blueprint_2025_Final.md
+        """
         event = create_mock_event(
             event_type=WebhookEventType.PR_OPENED,
             title="chore: update dependencies",
         )
         should_skip, reason, details = should_skip_pr_by_smart_filters(event)
-        assert should_skip is True
-        assert reason == "semantic_title_skip"
+        # chore: is no longer skipped - it will either pass all filters or fail open on API error
+        assert should_skip is False or "api_error" in reason
 
     def test_pr_merged_with_ci_title_skipped(self):
         """Test that PR_MERGED with ci: title is skipped"""
@@ -876,23 +888,31 @@ class TestShouldSkipPrBySmartFilters:
 class TestSmartFilterIntegration:
     """Integration tests for smart filtering in is_actionable()"""
 
-    def test_pr_opened_with_chore_title_not_actionable(self, event_normalizer):
-        """Test that PR_OPENED with chore: title is not actionable"""
+    def test_pr_opened_with_chore_title_is_actionable(self, event_normalizer):
+        """Test that PR_OPENED with chore: title IS actionable (Blueprint alignment Jan 2026)
+        
+        chore: PRs are now reviewed because they can contain security-sensitive
+        configuration changes. See: MorningAI_Ecosystem_Blueprint_2025_Final.md
+        """
         event = create_mock_event(
             event_type=WebhookEventType.PR_OPENED,
             title="chore: update dependencies",
             raw_payload={"pull_request": {"head": {"ref": "feature/update-deps"}}},
         )
-        assert event_normalizer.is_actionable(event) is False
+        assert event_normalizer.is_actionable(event) is True
 
-    def test_pr_merged_with_docs_title_not_actionable(self, event_normalizer):
-        """Test that PR_MERGED with docs: title is not actionable"""
+    def test_pr_merged_with_docs_title_is_actionable(self, event_normalizer):
+        """Test that PR_MERGED with docs: title IS actionable (Blueprint alignment Jan 2026)
+        
+        docs: PRs are now reviewed because they can contain bugs like incorrect
+        line references or outdated API docs. See: MorningAI_Ecosystem_Blueprint_2025_Final.md
+        """
         event = create_mock_event(
             event_type=WebhookEventType.PR_MERGED,
             title="docs: update README",
             raw_payload={"pull_request": {"head": {"ref": "docs/update-readme"}}},
         )
-        assert event_normalizer.is_actionable(event) is False
+        assert event_normalizer.is_actionable(event) is True
 
     def test_pr_opened_with_test_title_not_actionable(self, event_normalizer):
         """Test that PR_OPENED with test: title is not actionable"""
@@ -926,13 +946,16 @@ class TestSmartFilterLogging:
     """Tests for smart filter logging"""
 
     def test_semantic_title_skip_logging(self, caplog):
-        """Test that semantic title skip logs contain required fields"""
+        """Test that semantic title skip logs contain required fields
+        
+        Note: Using ci: prefix since chore: is no longer skipped (Blueprint alignment Jan 2026)
+        """
         import logging
         caplog.set_level(logging.INFO)
 
         event = create_mock_event(
             event_type=WebhookEventType.PR_OPENED,
-            title="chore: update dependencies",
+            title="ci: update workflow",  # Changed from chore: to ci: since chore: is no longer skipped
         )
         event.resource_id = "123"
 
