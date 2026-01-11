@@ -14,8 +14,9 @@ IMPORTANT: This test uses a `test/*` branch instead of `devin/*` because
 the normalizer skips CI failures from `devin/*` and `orchestrator/*` branches
 to prevent self-trigger loops.
 
-Issue: #3805, #3807
+Issue: #3805, #3807, #3815
 Created: 2026-01-11T03:20:00Z
+Re-trigger: 2026-01-11T04:40:00Z (after PR #3815 ci_failure_context fix merged)
 """
 
 
@@ -23,4 +24,5 @@ def test_d4_azure_blob_auth_verification():
     """This test intentionally fails to trigger D-4 Self-Correction Loop."""
     # Intentional failure to trigger CI failure and D-4
     # This is a fresh test file to bypass CI signature deduplication
-    assert 1 == 2, "Intentional failure to verify PR #3805 Azure Blob Storage auth fix"
+    # Re-triggered after PR #3815 fix for ci_failure_context extraction
+    assert 1 == 2, "Intentional failure to verify PR #3805 + #3815 D-4 fixes"
