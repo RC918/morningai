@@ -202,6 +202,9 @@ class CiFailureContext:
     logs_url: Optional[str] = None  # URL to CI logs for reference
     error_summary: Optional[str] = None  # Top N error lines/annotations (if available)
     check_run_id: Optional[int] = None  # GitHub check_run ID for API lookups
+    # Issue #3821: Add check_suite_id for D-4 Self-Correction Loop
+    # This is needed to fetch failed check runs from GitHub API to extract error_summary
+    check_suite_id: Optional[int] = None  # GitHub check_suite ID for API lookups
 
     def to_dict(self) -> dict:
         """Convert to JSON-serializable dict for RQ queue serialization.
@@ -219,6 +222,7 @@ class CiFailureContext:
             "logs_url": self.logs_url,
             "error_summary": self.error_summary,
             "check_run_id": self.check_run_id,
+            "check_suite_id": self.check_suite_id,  # Issue #3821
         }
 
     @classmethod
@@ -241,6 +245,7 @@ class CiFailureContext:
             logs_url=data.get("logs_url"),
             error_summary=data.get("error_summary"),
             check_run_id=data.get("check_run_id"),
+            check_suite_id=data.get("check_suite_id"),  # Issue #3821
         )
 
 

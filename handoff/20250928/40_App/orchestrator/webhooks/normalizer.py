@@ -2241,6 +2241,7 @@ class EventNormalizer:
                 logs_url=metadata.get("ci_logs_url"),
                 error_summary=ci_error_summary,
                 check_run_id=metadata.get("ci_check_run_id"),
+                check_suite_id=check_suite_id,  # Issue #3821: Pass check_suite_id for D-4
             )
             # Use to_dict() for JSON serialization compatibility with RQ queue
             # The worker will use CiFailureContext.from_dict() to reconstruct
