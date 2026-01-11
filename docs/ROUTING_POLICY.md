@@ -97,7 +97,7 @@ This strategy ensures service continuity even if the primary provider experience
 
 ## Provider Selection Logic
 
-The routing engine (`engine.py:216-299`) implements the following selection logic:
+The routing engine (see `RoutingEngine.select_model()` in `core/routing/engine.py`) implements the following selection logic:
 
 ```python
 # Simplified illustration of select_model() logic
@@ -124,11 +124,11 @@ def select_model(task_type: TaskType, risk_level: RiskLevel) -> ModelInfo:
     return find_available_model(Tier(fallback_tier))
 ```
 
-Note: The risk adjustment values in `routing_policy.json` (`risk_adjustments` section) document the intended behavior but the actual implementation uses hardcoded if/else logic in `engine.py:246-251`.
+Note: The risk adjustment values in `routing_policy.json` (`risk_adjustments` section) document the intended behavior but the actual implementation uses hardcoded if/else logic in `RoutingEngine.select_model()` (see risk level adjustment section in `core/routing/engine.py`).
 
 ## Supported Providers
 
-The following LLM providers are supported (`settings.py:54`):
+The following LLM providers are supported (see `VALID_PROVIDERS` in `common/config/settings.py`):
 
 | Provider | Environment Variable | Description |
 |----------|---------------------|-------------|
