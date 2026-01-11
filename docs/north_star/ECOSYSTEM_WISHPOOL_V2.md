@@ -50,11 +50,11 @@
 | Layer | Wish Pool v2 Component | EPIC | Status |
 |-------|------------------------|------|--------|
 | **Governance Layer** | Safety Governor v2 + Compliance Radar v2 | [EPIC E: Safety Governor v2 + Compliance Radar v2 (#3489)](https://github.com/RC918/morningai/issues/3489) | **Planning** - [Roadmap](../EPIC_E_SAFETY_GOVERNOR_V2_ROADMAP.md) |
-| **Intelligence Layer** | Planner v3 | [EPIC F: Planner v3 (#3490)](https://github.com/RC918/morningai/issues/3490) | **Phase F-2 Completed** - [Roadmap](../EPIC_F_PLANNER_V3_ROADMAP.md) |
+| **Intelligence Layer** | Planner v3 | [EPIC F: Planner v3 (#3490)](https://github.com/RC918/morningai/issues/3490) | **Phase F-2 Completed** ([PR #3854](https://github.com/RC918/morningai/pull/3854)) - [Roadmap](../EPIC_F_PLANNER_V3_ROADMAP.md) |
 | **Infrastructure Layer** | Memory v2 | [EPIC G: Memory v2 (#3491)](https://github.com/RC918/morningai/issues/3491) | Placeholder |
 | **Infrastructure Layer** | Simulation Suite v1 | [EPIC H: Simulation Suite v1 (#3492)](https://github.com/RC918/morningai/issues/3492) | Placeholder |
-| **Infrastructure Layer** | Owner Console v3 | EPIC J: Owner Console v3 | **Placeholder** (Blueprint Section 5.2) |
-| **Intelligence Layer** | UI/UX Agent Family | EPIC K: UI/UX Agent Family | **Placeholder** (Blueprint Section 3.3) |
+| **Infrastructure Layer** | Owner Console v3 | EPIC J: Owner Console v3 | **Placeholder** - Visualization dashboard for system monitoring (Blueprint Section 5.2) |
+| **Intelligence Layer** | UI/UX Agent Family | EPIC K: UI/UX Agent Family | **Placeholder** - UI Consistency, UX Heuristic, Visual Regression, Design Token Governance agents (Blueprint Section 3.3) |
 
 ### EPIC Dependencies
 

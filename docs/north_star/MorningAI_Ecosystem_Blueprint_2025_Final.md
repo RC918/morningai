@@ -157,7 +157,7 @@ Flow Controller 代表整個 MorningAI 的 **Runtime Engine**。
 
 ---
 
-### 核心治理模組（4.1-4.4）
+**核心治理模組（4.1-4.4）**
 
 ---
 
