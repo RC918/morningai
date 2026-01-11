@@ -187,7 +187,23 @@ class TestLogParser:
     """
 
     # Pytest patterns
+    # Issue #3761: Improved regex pattern for pytest FAILED output
+    # Pytest format: "FAILED tests/test_file.py::TestClass::test_method - ErrorMessage"
+    # The test identifier uses :: as separator between file, class, and method
+    # Pattern breakdown:
+    # - FAILED\s+ : Match "FAILED " prefix
+    # - ([^\s]+\.py(?:::[^\s:]+)+) : Capture test identifier:
+    #   - [^\s]+\.py : File path ending in .py (no spaces)
+    #   - (?:::[^\s:]+)+ : One or more ::name segments (class::method)
+    # - \s+-\s+ : Match " - " separator
+    # - (.+) : Capture error message
+    # Fallback: If no .py:: pattern, use simpler [^\s]+ for non-standard formats
     PYTEST_FAILED_PATTERN = re.compile(
+        r"FAILED\s+([^\s]+\.py(?:::[^\s:]+)+)\s+-\s+(.+)",
+        re.MULTILINE
+    )
+    # Fallback pattern for non-standard pytest output (e.g., pytest-xdist, custom plugins)
+    PYTEST_FAILED_PATTERN_FALLBACK = re.compile(
         r"FAILED\s+([^\s]+)\s+-\s+(.+)",
         re.MULTILINE
     )
@@ -209,7 +225,21 @@ class TestLogParser:
     )
 
     # Jest/npm test patterns
+    # Issue #3761: Improved regex pattern for Jest FAIL output
+    # Jest format: "FAIL src/components/Button.test.tsx" or "FAIL ./tests/unit/app.spec.js"
+    # Pattern breakdown:
+    # - FAIL\s+ : Match "FAIL " prefix
+    # - (\.?\.?/?[^\s]+\.(?:test|spec)\.(?:js|jsx|ts|tsx|mjs|cjs)) : Capture test file:
+    #   - \.?\.?/? : Optional ./ or ../ prefix
+    #   - [^\s]+ : File path (no spaces)
+    #   - \.(?:test|spec) : Must contain .test or .spec
+    #   - \.(?:js|jsx|ts|tsx|mjs|cjs) : Must end with JS/TS extension
     JEST_FAILED_PATTERN = re.compile(
+        r"FAIL\s+(\.?\.?/?[^\s]+\.(?:test|spec)\.(?:js|jsx|ts|tsx|mjs|cjs))",
+        re.MULTILINE
+    )
+    # Fallback pattern for non-standard Jest output (e.g., custom reporters)
+    JEST_FAILED_PATTERN_FALLBACK = re.compile(
         r"FAIL\s+([^\s]+)",
         re.MULTILINE
     )
@@ -291,8 +321,15 @@ class TestLogParser:
 
     def _parse_pytest(self, output: str, result: TestLogParseResult) -> None:
         """Parse pytest output."""
-        # Find failed tests
-        for match in self.PYTEST_FAILED_PATTERN.finditer(output):
+        # Issue #3761: Try primary pattern first, then fallback for non-standard formats
+        # Primary pattern matches: FAILED tests/test_file.py::TestClass::test_method - Error
+        # Fallback matches: FAILED any_identifier - Error (for pytest-xdist, custom plugins)
+        matches = list(self.PYTEST_FAILED_PATTERN.finditer(output))
+        if not matches:
+            # Fallback to simpler pattern for non-standard pytest output
+            matches = list(self.PYTEST_FAILED_PATTERN_FALLBACK.finditer(output))
+
+        for match in matches:
             test_name = match.group(1)
             error_summary = match.group(2)
 
@@ -347,8 +384,15 @@ class TestLogParser:
 
     def _parse_jest(self, output: str, result: TestLogParseResult) -> None:
         """Parse Jest/npm test output."""
-        # Find failed tests
-        for match in self.JEST_FAILED_PATTERN.finditer(output):
+        # Issue #3761: Try primary pattern first, then fallback for non-standard formats
+        # Primary pattern matches: FAIL src/components/Button.test.tsx
+        # Fallback matches: FAIL any_identifier (for custom reporters)
+        matches = list(self.JEST_FAILED_PATTERN.finditer(output))
+        if not matches:
+            # Fallback to simpler pattern for non-standard Jest output
+            matches = list(self.JEST_FAILED_PATTERN_FALLBACK.finditer(output))
+
+        for match in matches:
             test_file = match.group(1)
 
             failure = ParsedTestFailure(
