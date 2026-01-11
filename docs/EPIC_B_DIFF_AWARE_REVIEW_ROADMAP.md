@@ -346,8 +346,9 @@ This schema follows **additive-only evolution**:
 ## Phase 7: Copilot/Gemini Parity (B-7 to B-10) - Planning
 
 > **Status**: Planning
-> **Prerequisite**: EPIC E (Safety Governor v2) should be completed first
+> **Prerequisite**: None - B-7/B-8/B-9 are READ-ONLY perception enhancements, not dangerous operations
 > **Target**: Achieve feature parity with GitHub Copilot and Gemini Code Assist
+> **Blueprint Note**: Safety Governor v2 (EPIC E) is a POST-PROCESSING layer for OUTPUT protection, not a gate for INPUT perception capabilities. B-7/B-8/B-9 enhance Reviewer's ability to "see" and "understand" code - they don't generate code or execute dangerous actions.
 
 ### Overview
 
@@ -705,10 +706,10 @@ ReviewOutcome {                        │
 ## Phase 7-8 Dependencies
 
 ```
-EPIC E (Safety Governor v2) - PREREQUISITE
-    │
-    ▼
 Phase 7: Copilot/Gemini Parity (Reviewer-appropriate scope)
+    │
+    │   ✓ NO EPIC E PREREQUISITE - B-7/B-8/B-9 are READ-ONLY perception enhancements
+    │   (Safety Governor v2 is POST-PROCESSING for OUTPUT, not INPUT gating)
     │
     ├── B-7 (Codebase Context) ──┬──► B-9 (Multi-Specialist Review)
     │                            │
@@ -754,7 +755,7 @@ Cross-Agent Handoffs (Blueprint Sequential Collaboration):
 
 | Phase | Estimated Duration | Dependencies | Status |
 |-------|-------------------|--------------|--------|
-| B-7 | 3-5 days | EPIC E | Planning |
+| B-7 | 3-5 days | None | Planning |
 | B-8 | 3-5 days | B-7 | Planning |
 | B-9 | 5-7 days | B-7, B-8 | Planning |
 | ~~B-10~~ | ~~3-5 days~~ | ~~B-7~~ | REMOVED (OUT OF SCOPE) |
@@ -762,9 +763,9 @@ Cross-Agent Handoffs (Blueprint Sequential Collaboration):
 | B-12 | 3-5 days | Phase 7 | Planning (flagging only) |
 | B-13 | 7-10 days | Phase 7, EPIC G | Planning |
 
-**Total Estimated Duration**: 4-7 weeks (after EPIC E completion)
+**Total Estimated Duration**: 4-7 weeks (can start immediately)
 
-**Note**: Duration reduced because B-10 (Auto-Fix) moved to EPIC D and B-11 scope reduced to flagging only.
+**Note**: Duration reduced because B-10 (Auto-Fix) removed and B-11 scope reduced to flagging only. No EPIC E prerequisite - B-7/B-8/B-9 are READ-ONLY perception enhancements that don't require Safety Governor gating.
 
 **Cross-Agent Dependencies** (for full Blueprint vision):
 - EPIC D (Fixer Agent): Receives fix suggestions from Reviewer, generates actual code fixes
