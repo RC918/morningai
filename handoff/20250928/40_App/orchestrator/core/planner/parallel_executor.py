@@ -207,12 +207,13 @@ class ParallelExecutor:
         tree: TaskTree,
         completed: Set[str],
         in_progress: Set[str],
+        failed: Optional[Set[str]] = None,
     ) -> List[TaskNode]:
         """
         Get batch of tasks that can run in parallel
 
         Returns tasks that:
-        1. Are not completed or in progress
+        1. Are not completed, in progress, or failed
         2. Have all dependencies satisfied (completed)
         3. Are limited to max_parallel count
 
@@ -220,15 +221,17 @@ class ParallelExecutor:
             tree: TaskTree containing all tasks
             completed: Set of completed task_ids
             in_progress: Set of task_ids currently being executed
+            failed: Set of failed task_ids (optional, for backward compatibility)
 
         Returns:
             List of TaskNode objects ready for execution (up to max_parallel)
         """
+        failed = failed or set()
         executable: List[TaskNode] = []
 
         for node in tree.nodes:
-            # Skip completed or in-progress tasks
-            if node.task_id in completed or node.task_id in in_progress:
+            # Skip completed, in-progress, or failed tasks
+            if node.task_id in completed or node.task_id in in_progress or node.task_id in failed:
                 continue
 
             # Check all dependencies are completed
@@ -378,8 +381,8 @@ class ParallelExecutor:
         failed_tasks: Set[str] = set()
 
         while len(completed) + len(failed_tasks) < len(tree.nodes):
-            # Get next batch of executable tasks
-            batch = self.get_executable_batch(tree, completed, in_progress)
+            # Get next batch of executable tasks (pass failed_tasks to skip failed tasks)
+            batch = self.get_executable_batch(tree, completed, in_progress, failed_tasks)
 
             if not batch:
                 # No more tasks can be executed
@@ -454,7 +457,8 @@ class ParallelExecutor:
         failed_tasks: Set[str] = set()
 
         while len(completed) + len(failed_tasks) < len(tree.nodes):
-            batch = self.get_executable_batch(tree, completed, in_progress)
+            # Get next batch of executable tasks (pass failed_tasks to skip failed tasks)
+            batch = self.get_executable_batch(tree, completed, in_progress, failed_tasks)
 
             if not batch:
                 remaining = [
