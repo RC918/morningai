@@ -128,7 +128,7 @@ Note: The risk adjustment values in `routing_policy.json` (`risk_adjustments` se
 
 ## Supported Providers
 
-The following LLM providers are supported (`settings.py:54`):
+The following LLM providers are supported (`settings.py:44`):
 
 | Provider | Environment Variable | Description |
 |----------|---------------------|-------------|
