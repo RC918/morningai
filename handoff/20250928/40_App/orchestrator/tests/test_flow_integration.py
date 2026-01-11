@@ -328,20 +328,19 @@ class TestExecuteWithFlowController:
         config = FlowIntegrationConfig(dry_run=True, max_parallel=5)
 
         with patch("core.planner.flow_integration.create_flow_controller") as mock_controller:
-            with patch("core.planner.flow_integration.create_agent_task_executor") as mock_executor:
-                mock_result = ExecutionResult(
-                    plan_id="test-plan",
-                    status=ExecutionStatus.COMPLETED,
-                    task_results=[],
-                    total_duration_minutes=0,
-                )
-                mock_controller.return_value.execute_plan.return_value = mock_result
+            mock_result = ExecutionResult(
+                plan_id="test-plan",
+                status=ExecutionStatus.COMPLETED,
+                task_results=[],
+                total_duration_minutes=0,
+            )
+            mock_controller.return_value.execute_plan.return_value = mock_result
 
-                execute_with_flow_controller(state, config)
+            execute_with_flow_controller(state, config)
 
-                mock_controller.assert_called_once()
-                call_kwargs = mock_controller.call_args[1]
-                assert call_kwargs["max_parallel"] == 5
+            mock_controller.assert_called_once()
+            call_kwargs = mock_controller.call_args[1]
+            assert call_kwargs["max_parallel"] == 5
 
     def test_execute_handles_exception(self):
         """Test execution handles exceptions gracefully"""
