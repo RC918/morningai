@@ -2,8 +2,8 @@
 
 **Issue**: [#3490](https://github.com/RC918/morningai/issues/3490)  
 **Blueprint Reference**: Section 3.1 (Planner v3 - Intelligent Planner)  
-**Status**: Planning  
-**Last Updated**: 2026-01-02
+**Status**: Phase F-3 Completed (Pilot Ready)  
+**Last Updated**: 2026-01-12
 
 ## Executive Summary
 
@@ -30,11 +30,29 @@ EPIC F transforms MorningAI's planning infrastructure from "task decomposition" 
 
 **Important Note**: Three separate planning mechanisms exist with inconsistent output formats. Flow Controller v3 consumption pattern needs clarification.
 
+## Implementation Status Summary
+
+| Phase | Description | Status | Implementation / PR |
+|-------|-------------|--------|---------------------|
+| F-0 | Planner Output Contract + Schema | **Completed** | `planner_types.py` |
+| F-1 | Single Entrypoint + Adapter | **Completed** | `adapters.py` |
+| F-2 | DAG + Parallelization | **Completed** | [#3854](https://github.com/RC918/morningai/pull/3854) |
+| F-3 | Flow Integration | **Completed** | [#3856](https://github.com/RC918/morningai/pull/3856), [#3864](https://github.com/RC918/morningai/pull/3864), [#3868](https://github.com/RC918/morningai/pull/3868) |
+| F-4 | Agent Assignment + Flow Template | Planning | (原 F-3) |
+| F-5 | Self-refinement Loop | Planning | (原 F-4) |
+| F-6 | Model Tier Selection + Hooks | Planning | (原 F-5) |
+
+**Note**: Phase F-3 was restructured to prioritize Flow Integration (FlowController v3 端到端整合) over Agent Assignment. This enables staging pilot testing with feature flags.
+
+---
+
 ## Phase Breakdown
 
-### Phase F-0: Planner Output Contract + Hierarchical Schema
+### Phase F-0: Planner Output Contract + Hierarchical Schema ✓ COMPLETED
 
 **Objective**: Define unified Planner output schema as the "API specification" for Planner v3, with support for hierarchical planning.
+
+**Implementation**: `handoff/20250928/40_App/orchestrator/core/planner/planner_types.py`
 
 **Deliverables**:
 
@@ -262,9 +280,11 @@ class PlanConsumer(Protocol):
 
 ---
 
-### Phase F-1: Single Entrypoint + Adapter Consolidation
+### Phase F-1: Single Entrypoint + Adapter Consolidation ✓ COMPLETED
 
 **Objective**: Create unified Planner facade wrapping existing three planners with consistent output.
+
+**Implementation**: `handoff/20250928/40_App/orchestrator/core/planner/adapters.py`
 
 **Deliverables**:
 
@@ -362,9 +382,14 @@ class PMAgentOutputAdapter:
 
 ---
 
-### Phase F-2: DAG + Parallelization
+### Phase F-2: DAG + Parallelization ✓ COMPLETED
 
 **Objective**: Upgrade from linear dependencies to true DAG with parallel execution support.
+
+**Implementation**: 
+- `handoff/20250928/40_App/orchestrator/core/planner/dag_builder.py`
+- `handoff/20250928/40_App/orchestrator/core/planner/parallel_executor.py`
+- PR: [#3854](https://github.com/RC918/morningai/pull/3854)
 
 **Deliverables**:
 
@@ -438,7 +463,81 @@ class ParallelExecutor:
 
 ---
 
-### Phase F-3: Agent Assignment + Flow Template Selection
+### Phase F-3: Flow Integration ✓ COMPLETED
+
+**Objective**: Integrate FlowController v3 with LangGraph orchestrator for end-to-end workflow execution with feature flag support for pilot rollout.
+
+**Implementation**:
+- F-3a: `handoff/20250928/40_App/orchestrator/core/planner/agent_task_executor.py` - PR: [#3856](https://github.com/RC918/morningai/pull/3856)
+- F-3b: `handoff/20250928/40_App/orchestrator/core/planner/flow_integration.py` - PR: [#3864](https://github.com/RC918/morningai/pull/3864)
+- F-3c: Feature Flag + Node integration - PR: [#3868](https://github.com/RC918/morningai/pull/3868)
+
+**Note**: This phase was prioritized over the original F-3 (Agent Assignment) to enable staging pilot testing with feature flags.
+
+**Deliverables**:
+
+1. **AgentTaskExecutor (F-3a)**:
+   - Bridges FlowController with individual task execution
+   - Handles task state management and error handling
+   - Provides execution context for flow nodes
+
+2. **Flow Integration Module (F-3b)**:
+   - `flow_integration.py` bridges FlowController with LangGraph's AgentState
+   - Converts PlannerOutput to FlowController-compatible format
+   - Handles state synchronization between systems
+
+3. **Feature Flags + Node Integration (F-3c)**:
+
+```python
+import os
+import hashlib
+
+# Feature flags for pilot rollout
+ENABLE_FLOW_CONTROLLER_V3 = os.getenv("ENABLE_FLOW_CONTROLLER_V3", "false").lower() == "true"
+FLOW_CONTROLLER_SAMPLE_RATE = int(os.getenv("FLOW_CONTROLLER_SAMPLE_RATE", "0"))
+
+# Deterministic bucketing using SHA-256
+def should_use_flow_controller(trace_id: str) -> bool:
+    if ENABLE_FLOW_CONTROLLER_V3:
+        return True
+    if FLOW_CONTROLLER_SAMPLE_RATE > 0:
+        hash_value = int(hashlib.sha256(trace_id.encode()).hexdigest(), 16)
+        return (hash_value % 100) < FLOW_CONTROLLER_SAMPLE_RATE
+    return False
+```
+
+4. **New AgentState Fields**:
+   - `FLOW_EXECUTION_RESULT`: Result from FlowController execution
+   - `FLOW_EXECUTION_STATUS`: Status of flow execution
+   - `FLOW_COMPLETED_TASKS`: List of completed task IDs
+   - `FLOW_FAILED_TASKS`: List of failed task IDs
+
+5. **Conditional Routing**:
+   - `flow_executor_node`: Executes plans via FlowController
+   - `should_proceed_after_policy_with_flow_controller()`: Routes to FlowController or legacy path
+
+**Pilot Testing**:
+```bash
+# Route all workflows to FlowController
+ENABLE_FLOW_CONTROLLER_V3=true
+
+# Route 10% of workflows (deterministic by trace_id)
+FLOW_CONTROLLER_SAMPLE_RATE=10
+```
+
+**Acceptance Criteria**:
+- [x] AgentTaskExecutor implemented
+- [x] Flow integration module bridges FlowController with LangGraph
+- [x] Feature flags for pilot rollout
+- [x] Deterministic bucketing for canary gating
+- [x] New AgentState fields for flow execution tracking
+- [x] Conditional routing in orchestrator graph
+
+**North Star Hook**: Feature flag infrastructure enables safe pilot rollout and A/B testing of FlowController v3.
+
+---
+
+### Phase F-4: Agent Assignment + Flow Template Selection (原 F-3)
 
 **Objective**: Implement intelligent agent assignment and explicit flow template selection.
 
@@ -522,7 +621,7 @@ class FlowTemplateSelector:
 
 ---
 
-### Phase F-4: Self-refinement Loop
+### Phase F-5: Self-refinement Loop (原 F-4)
 
 **Objective**: Implement plan → execute → feedback → replan closed loop.
 
@@ -603,7 +702,7 @@ class Replanner:
 
 ---
 
-### Phase F-5: Model Tier Selection + Decision Hooks
+### Phase F-6: Model Tier Selection + Decision Hooks (原 F-5)
 
 **Objective**: Implement rule-based model tier selection and prepare hooks for advanced features.
 
@@ -751,16 +850,17 @@ These will be tracked as follow-up issues after MVP completion.
 
 ## Dependencies
 
-| Dependency | Type | Status |
-|------------|------|--------|
-| EPIC C (Flow Controller v3) | Consumer | Completed |
-| EPIC D (Autonomous Coder) | Integration | Completed |
-| EPIC E (Safety Governor v2) | Risk Metadata | In Planning |
-| EPIC G (Memory v2) | Future Integration | Placeholder |
-| EPIC I (Governance Layer) | Future Integration | Placeholder |
-| LLMPlannerAdapter | Existing | Available |
-| TaskPlanner | Existing | Available |
-| PMAgent | Existing | Available |
+| Dependency | Type | Status | Notes |
+|------------|------|--------|-------|
+| EPIC C (Flow Controller v3) | Consumer | **Completed** | F-3 integrates with FlowController |
+| EPIC D (Autonomous Coder) | Integration | **Completed** | AgentTaskExecutor bridges to Coder |
+| EPIC E (Safety Governor v2) | Risk Metadata | In Planning | Required for F-4 Agent Assignment |
+| EPIC G (Memory v2) | Future Integration | Placeholder | Memory hook in F-6 |
+| EPIC I (Governance Layer) | Future Integration | Placeholder | Trust score input in F-6 |
+| LLMPlannerAdapter | Existing | Available | Used in F-1 |
+| TaskPlanner | Existing | Available | Used in F-1 |
+| PMAgent | Existing | Available | Used in F-1 |
+| LangGraph Orchestrator | Integration | **Completed** | F-3c integrates feature flags |
 
 ---
 
@@ -810,15 +910,18 @@ When Safety Governor makes decisions:
 
 ## Timeline Estimate
 
-| Phase | Estimated Duration | Dependencies |
-|-------|-------------------|--------------|
-| F-0 | 1-2 days | None |
-| F-1 | 3-5 days | F-0 |
-| F-2 | 5-7 days | F-1 |
-| F-3 | 3-5 days | F-2, EPIC E (partial) |
-| F-4 | 5-7 days | F-2 |
-| F-5 | 3-5 days | F-3, F-4 |
+| Phase | Description | Estimated Duration | Dependencies | Status |
+|-------|-------------|-------------------|--------------|--------|
+| F-0 | Planner Output Contract + Schema | 1-2 days | None | **Completed** |
+| F-1 | Single Entrypoint + Adapter | 3-5 days | F-0 | **Completed** |
+| F-2 | DAG + Parallelization | 5-7 days | F-1 | **Completed** (PR #3854) |
+| F-3 | Flow Integration | 3-5 days | F-2, EPIC C | **Completed** (PRs #3856, #3864, #3868) |
+| F-4 | Agent Assignment + Flow Template | 3-5 days | F-3, EPIC E (partial) | Planning |
+| F-5 | Self-refinement Loop | 5-7 days | F-3 | Planning |
+| F-6 | Model Tier Selection + Hooks | 3-5 days | F-4, F-5 | Planning |
 
+**Completed Duration**: ~2-3 weeks (F-0 through F-3)
+**Remaining Duration**: ~2-3 weeks (F-4 through F-6)
 **Total Estimated Duration**: 4-6 weeks
 
 ---
