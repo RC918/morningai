@@ -109,7 +109,7 @@ Spec-driven development and self-correction capabilities.
 | Issue | Description | Status | PR |
 |-------|-------------|--------|-----|
 | [#2762](https://github.com/RC918/morningai/issues/2762) | D-3: Spec-Driven Development | **Completed** | #3756 |
-| [#2764](https://github.com/RC918/morningai/issues/2764) | D-4: Self-Correction Loop | **Completed** | #3760, #3763, #3793, #3803, #3805, #3807, #3815, #3817, #3821 |
+| [#2764](https://github.com/RC918/morningai/issues/2764) | D-4: Self-Correction Loop | **Completed** | #3821 (and others) |
 
 ### D-3: Spec-Driven Development (Completed)
 
