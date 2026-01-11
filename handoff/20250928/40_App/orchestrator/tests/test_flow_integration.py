@@ -488,9 +488,9 @@ class TestPhaseF3cFeatureFlagRouting:
 
         state = {"trace_id": "test-trace-123"}
 
-        with patch("langgraph_orchestrator.settings") as mock_settings:
-            mock_settings.enable_flow_controller_v3 = False
+        with patch("common.config.settings.settings") as mock_settings:
             mock_settings.flow_controller_sample_rate = 0
+            mock_settings.enable_flow_controller_v3 = False
 
             result = should_use_flow_controller(state)
 
@@ -502,9 +502,9 @@ class TestPhaseF3cFeatureFlagRouting:
 
         state = {"trace_id": "test-trace-123"}
 
-        with patch("langgraph_orchestrator.settings") as mock_settings:
-            mock_settings.enable_flow_controller_v3 = True
+        with patch("common.config.settings.settings") as mock_settings:
             mock_settings.flow_controller_sample_rate = 0
+            mock_settings.enable_flow_controller_v3 = True
 
             result = should_use_flow_controller(state)
 
@@ -514,9 +514,9 @@ class TestPhaseF3cFeatureFlagRouting:
         """Test canary gating routes based on trace_id hash"""
         from langgraph_orchestrator import should_use_flow_controller
 
-        with patch("langgraph_orchestrator.settings") as mock_settings:
-            mock_settings.enable_flow_controller_v3 = False
+        with patch("common.config.settings.settings") as mock_settings:
             mock_settings.flow_controller_sample_rate = 50
+            mock_settings.enable_flow_controller_v3 = False
 
             flow_count = 0
             executor_count = 0
@@ -537,9 +537,9 @@ class TestPhaseF3cFeatureFlagRouting:
 
         state = {"trace_id": "deterministic-test-trace"}
 
-        with patch("langgraph_orchestrator.settings") as mock_settings:
-            mock_settings.enable_flow_controller_v3 = False
+        with patch("common.config.settings.settings") as mock_settings:
             mock_settings.flow_controller_sample_rate = 50
+            mock_settings.enable_flow_controller_v3 = False
 
             results = [should_use_flow_controller(state) for _ in range(10)]
 
@@ -580,7 +580,12 @@ class TestPhaseF3cFlowExecutorNode:
     """
 
     def test_flow_executor_node_success(self):
-        """Test flow_executor_node updates state on successful execution"""
+        """Test flow_executor_node updates state on successful execution.
+
+        Note: flow_executor_node is decorated with @node_metrics which wraps
+        the function. The wrapper only accepts 'state' and internally creates
+        the 'success' list to pass to the inner function.
+        """
         from langgraph_orchestrator import flow_executor_node
 
         state = {
@@ -589,7 +594,7 @@ class TestPhaseF3cFlowExecutorNode:
             "trace_id": "test-trace",
         }
 
-        with patch("langgraph_orchestrator.execute_with_flow_controller") as mock_execute:
+        with patch("core.planner.flow_integration.execute_with_flow_controller") as mock_execute:
             mock_execute.return_value = {
                 "flow_execution_result": {"plan_id": "test"},
                 "flow_execution_status": "completed",
@@ -598,6 +603,7 @@ class TestPhaseF3cFlowExecutorNode:
                 "current_step": 2,
             }
 
+            # Call the decorated function (wrapper only accepts state)
             result = flow_executor_node(state)
 
             assert result["flow_execution_status"] == "completed"
@@ -605,7 +611,12 @@ class TestPhaseF3cFlowExecutorNode:
             assert result["current_step"] == 2
 
     def test_flow_executor_node_failure(self):
-        """Test flow_executor_node handles execution failure"""
+        """Test flow_executor_node handles execution failure.
+
+        Note: flow_executor_node is decorated with @node_metrics which wraps
+        the function. The wrapper only accepts 'state' and internally creates
+        the 'success' list to pass to the inner function.
+        """
         from langgraph_orchestrator import flow_executor_node
 
         state = {
@@ -614,7 +625,7 @@ class TestPhaseF3cFlowExecutorNode:
             "trace_id": "test-trace",
         }
 
-        with patch("langgraph_orchestrator.execute_with_flow_controller") as mock_execute:
+        with patch("core.planner.flow_integration.execute_with_flow_controller") as mock_execute:
             mock_execute.return_value = {
                 "flow_execution_status": "failed",
                 "flow_completed_tasks": [],
@@ -622,13 +633,19 @@ class TestPhaseF3cFlowExecutorNode:
                 "error": "Task failed",
             }
 
+            # Call the decorated function (wrapper only accepts state)
             result = flow_executor_node(state)
 
             assert result["flow_execution_status"] == "failed"
             assert result["error"] == "Task failed"
 
     def test_flow_executor_node_exception(self):
-        """Test flow_executor_node handles exceptions gracefully"""
+        """Test flow_executor_node handles exceptions gracefully.
+
+        Note: flow_executor_node is decorated with @node_metrics which wraps
+        the function. The wrapper only accepts 'state' and internally creates
+        the 'success' list to pass to the inner function.
+        """
         from langgraph_orchestrator import flow_executor_node
 
         state = {
@@ -637,9 +654,10 @@ class TestPhaseF3cFlowExecutorNode:
             "trace_id": "test-trace",
         }
 
-        with patch("langgraph_orchestrator.execute_with_flow_controller") as mock_execute:
+        with patch("core.planner.flow_integration.execute_with_flow_controller") as mock_execute:
             mock_execute.side_effect = RuntimeError("Unexpected error")
 
+            # Call the decorated function (wrapper only accepts state)
             result = flow_executor_node(state)
 
             assert result["flow_execution_status"] == "failed"
