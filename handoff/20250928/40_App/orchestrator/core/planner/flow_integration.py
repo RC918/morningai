@@ -29,7 +29,6 @@ from .adapters import _infer_task_type_from_description
 from .agent_task_executor import (
     AgentTaskExecutor,
     AgentTaskExecutorConfig,
-    create_agent_task_executor,
 )
 from .consumer import ExecutionResult, ExecutionStatus, TaskResult
 from .flow_controller import FlowController, create_flow_controller
