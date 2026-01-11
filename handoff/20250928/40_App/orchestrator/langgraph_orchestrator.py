@@ -9245,8 +9245,8 @@ def evaluation_node(state: AgentState) -> AgentState:
     return state
 
 
-@node_metrics("flow_executor")
-def flow_executor_node(state: AgentState) -> AgentState:
+@node_metrics("flow_executor", epic_tag="EPIC-F")
+def flow_executor_node(state: AgentState, success: list) -> AgentState:
     """
     EPIC F Phase F-3c: FlowController v3 execution node.
 
@@ -9258,6 +9258,7 @@ def flow_executor_node(state: AgentState) -> AgentState:
 
     Args:
         state: The current AgentState
+        success: Mutable list [False] for node_metrics decorator to track success
 
     Returns:
         Updated AgentState with flow execution results
@@ -9298,6 +9299,10 @@ def flow_executor_node(state: AgentState) -> AgentState:
             state["final_result"] = update["final_result"]
         if update.get("current_step") is not None:
             state["current_step"] = update["current_step"]
+
+        # Mark success for node_metrics decorator
+        if update.get("flow_execution_status") == "completed":
+            success[0] = True
 
         logger.info(
             "[FlowExecutor] Flow execution completed",

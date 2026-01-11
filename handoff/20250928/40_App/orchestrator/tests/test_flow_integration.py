@@ -588,6 +588,7 @@ class TestPhaseF3cFlowExecutorNode:
             "goal": "Fix bug",
             "trace_id": "test-trace",
         }
+        success = [False]
 
         with patch("core.planner.flow_integration.execute_with_flow_controller") as mock_execute:
             mock_execute.return_value = {
@@ -598,11 +599,12 @@ class TestPhaseF3cFlowExecutorNode:
                 "current_step": 2,
             }
 
-            result = flow_executor_node(state)
+            result = flow_executor_node(state, success)
 
             assert result["flow_execution_status"] == "completed"
             assert result["flow_completed_tasks"] == ["task-1", "task-2"]
             assert result["current_step"] == 2
+            assert success[0] is True  # Verify success flag is set
 
     def test_flow_executor_node_failure(self):
         """Test flow_executor_node handles execution failure"""
@@ -613,6 +615,7 @@ class TestPhaseF3cFlowExecutorNode:
             "goal": "Fix bug",
             "trace_id": "test-trace",
         }
+        success = [False]
 
         with patch("core.planner.flow_integration.execute_with_flow_controller") as mock_execute:
             mock_execute.return_value = {
@@ -622,10 +625,11 @@ class TestPhaseF3cFlowExecutorNode:
                 "error": "Task failed",
             }
 
-            result = flow_executor_node(state)
+            result = flow_executor_node(state, success)
 
             assert result["flow_execution_status"] == "failed"
             assert result["error"] == "Task failed"
+            assert success[0] is False  # Verify success flag is not set
 
     def test_flow_executor_node_exception(self):
         """Test flow_executor_node handles exceptions gracefully"""
@@ -636,14 +640,16 @@ class TestPhaseF3cFlowExecutorNode:
             "goal": "Test",
             "trace_id": "test-trace",
         }
+        success = [False]
 
         with patch("core.planner.flow_integration.execute_with_flow_controller") as mock_execute:
             mock_execute.side_effect = RuntimeError("Unexpected error")
 
-            result = flow_executor_node(state)
+            result = flow_executor_node(state, success)
 
             assert result["flow_execution_status"] == "failed"
             assert "FlowController execution failed" in result["error"]
+            assert success[0] is False  # Verify success flag is not set
 
 
 @pytest.mark.skipif(not HAS_LANGGRAPH, reason="langgraph not installed")
