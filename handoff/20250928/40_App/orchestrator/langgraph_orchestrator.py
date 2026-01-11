@@ -9500,6 +9500,21 @@ def run_orchestrator(
         # Detect CI failure trigger from webhook context
         ci_failure_trigger = context.get("ci_failure_trigger", False)
 
+    # Issue #3814: Extract ci_failure_trigger for CI check events (check_suite, check_run)
+    # CI failure events have resource_type="check_suite" or "check_run", not "pull_request"
+    # The ci_failure_trigger flag is set by normalizer._handle_ci_check_completed()
+    # Without this fix, ci_failure_context is never passed to initial_state because
+    # ci_failure_trigger remains False for CI check events.
+    if context and context.get("ci_failure_trigger"):
+        ci_failure_trigger = True
+        # Extract PR number from ci_failure_pr_number (set by normalizer)
+        ci_pr_number = context.get("ci_failure_pr_number")
+        if ci_pr_number and pr_number == 0:
+            try:
+                pr_number = int(ci_pr_number)
+            except (ValueError, TypeError):
+                pass
+
     # Observability log: always print pr_number, pr_url, trace_id in message
     # Issue: Phase B-B - Avoid black-box issues where upstream extracts but downstream doesn't receive
     # Note: extra fields are not output by worker.py's basicConfig formatter, so we put key fields in message
