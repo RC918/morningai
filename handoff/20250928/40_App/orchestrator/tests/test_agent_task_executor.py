@@ -242,7 +242,9 @@ class TestAgentTaskExecutor:
 
         assert result.task_id == "task-1"
         assert result.status == ExecutionStatus.FAILED
-        assert "Test error" in result.error_message
+        # Security: error message should not expose raw exception details
+        assert "internal error" in result.error_message
+        assert "Test error" not in result.error_message
 
     def test_execute_multiple_tasks(self):
         """Test executing multiple tasks"""

@@ -356,24 +356,28 @@ class AgentTaskExecutor:
             completed_at = datetime.now(timezone.utc)
             duration_ms = (time.time() - start_time) * 1000
 
+            # Security: Don't log raw exception message (could contain sensitive data)
+            # Log error_type instead for debugging while protecting sensitive info
             logger.error(
-                f"[AgentTaskExecutor] Task failed: {e}",
+                "[AgentTaskExecutor] Task failed due to an internal error",
                 extra={
                     "task_id": task.task_id,
-                    "error": str(e),
+                    "error_type": type(e).__name__,
                     "duration_ms": duration_ms,
                     "operation": "execute",
                 },
                 exc_info=True,
             )
 
+            # Security: Don't expose raw error message to caller
             return TaskResult(
                 task_id=task.task_id,
                 status=ExecutionStatus.FAILED,
                 outputs={},
-                error_message=str(e),
+                error_message="Task failed due to an internal error. Check logs for details.",
                 started_at=started_at,
                 completed_at=completed_at,
+                actual_duration_minutes=int(duration_ms / 60000) or 1,
             )
 
     def _create_dry_run_result(
