@@ -353,14 +353,16 @@ This schema follows **additive-only evolution**:
 
 Phase 7 focuses on **integration gaps** - capabilities that already exist in `agents/dev_agent/` but are NOT integrated with the Reviewer Agent (`orchestrator/llm_reviewer_adapter.py`).
 
-### Gap Analysis
+### Gap Analysis (Reviewer-Appropriate Scope)
 
-| Capability | GitHub Copilot | Gemini Code Assist | MorningAI Current | MorningAI Target |
-|------------|---------------|-------------------|-------------------|------------------|
-| Codebase Context | ✓ Full repo | ✓ Full repo | ❌ PR diff only | ✓ B-7 |
-| Semantic Understanding | ✓ LSP/AST | ✓ LSP/AST | ❌ None | ✓ B-8 |
-| Multi-Agent Review | ✓ Multiple passes | ✓ Multiple passes | ❌ Single pass | ✓ B-9 |
-| Auto-Fix Generation | ✓ One-click fix | ✓ One-click fix | ❌ Text suggestion only | ✓ B-10 |
+| Capability | GitHub Copilot | Gemini Code Assist | MorningAI Current | MorningAI Target | Notes |
+|------------|---------------|-------------------|-------------------|------------------|-------|
+| Codebase Context | ✓ Full repo | ✓ Full repo | ❌ PR diff only | ✓ B-7 | Reviewer scope |
+| Semantic Understanding | ✓ LSP/AST | ✓ LSP/AST | ❌ None | ✓ B-8 | Reviewer scope |
+| Multi-Specialist Review | ✓ Multiple passes | ✓ Multiple passes | ❌ Single pass | ✓ B-9 | Reviewer scope |
+| ~~Auto-Fix Generation~~ | ✓ One-click fix | ✓ One-click fix | ❌ Text only | → EPIC D | **Fixer Agent scope** |
+
+> **Blueprint Alignment Note**: Auto-Fix Generation is NOT a Reviewer Agent capability per Blueprint Section 3.3. This belongs to Fixer Agent (EPIC D). Reviewer Agent can only suggest fixes in text form.
 
 ### Existing Components (Integration Targets)
 
@@ -442,139 +444,191 @@ Phase 7 focuses on **integration gaps** - capabilities that already exist in `ag
 
 ---
 
-### B-9: Multi-Agent Review
+### B-9: Multi-Specialist Review (Parallel Collaboration)
 
 > **Type**: New Capability
 > **Issue**: TBD
 > **Effort**: High (5-7 days)
+> **Blueprint Alignment**: Section 7 "Parallel Collaboration" - Multiple agents work simultaneously
 
 **Problem**: Single LLM call cannot cover all review aspects (security, performance, architecture).
 
-**Solution**: Implement multi-pass review using Debate Engine v2 (Blueprint 3.3).
+**Solution**: Implement parallel multi-specialist review following Blueprint Section 7 "Parallel Collaboration" pattern.
+
+> **Note**: This is NOT Debate Engine v2 (which is "Adversarial Collaboration" for Left vs Right → Judge). This is "Parallel Collaboration" where multiple specialist reviewers work simultaneously and their findings are aggregated.
 
 **Implementation Plan**:
 
-1. **B-9.1 Review Specialist Agents**:
-   - Create `orchestrator/review_agents/security_reviewer.py`
-   - Create `orchestrator/review_agents/performance_reviewer.py`
-   - Create `orchestrator/review_agents/architecture_reviewer.py`
-   - Each agent has specialized prompt and focus area
+1. **B-9.1 Review Specialist Prompts**:
+   - Create specialized prompts for security, performance, architecture review
+   - Each specialist focuses on specific review aspects
+   - All specialists are still Reviewer Agent instances (not separate agent types)
 
-2. **B-9.2 Review Orchestrator**:
-   - Create `orchestrator/review_agents/review_orchestrator.py`
-   - Parallel execution of specialist agents
-   - Aggregation of findings with deduplication
+2. **B-9.2 Parallel Execution**:
+   - Execute specialist reviews in parallel
+   - Each specialist produces `ReviewFindings` for their domain
 
-3. **B-9.3 Judge Agent Integration**:
-   - Use Debate Engine v2 for conflict resolution
-   - Judge synthesizes final review from specialist outputs
+3. **B-9.3 Findings Aggregator**:
+   - Aggregate findings from all specialists
+   - Deduplicate overlapping issues
+   - Prioritize by severity
 
 4. **B-9.4 Feature Flag**:
-   - `USE_MULTI_AGENT_REVIEW` (default: False)
+   - `USE_MULTI_SPECIALIST_REVIEW` (default: False)
    - Gradual rollout with A/B testing
 
 **Acceptance Criteria**:
-- [ ] Three specialist reviewers implemented
-- [ ] Review orchestrator aggregates findings
-- [ ] Judge resolves conflicts between specialists
+- [ ] Three specialist review prompts implemented
+- [ ] Parallel execution of specialist reviews
+- [ ] Findings aggregator deduplicates and prioritizes
 - [ ] Feature flag controls rollout
-- [ ] Telemetry tracks multi-agent vs single-agent performance
+- [ ] Telemetry tracks multi-specialist vs single-pass performance
 
 ---
 
-### B-10: Auto-Fix Integration
+### ~~B-10: Auto-Fix Integration~~ → REMOVED (OUT OF SCOPE)
 
-> **Type**: Integration Gap
-> **Issue**: TBD
-> **Effort**: Medium (3-5 days)
+> **Status**: REMOVED FROM EPIC B
+> **Reason**: Violates Blueprint Agent Separation Principle - Fixer capability already exists in EPIC D
+> **Note**: This is NOT a "move" - EPIC D already has Self-Correction Loop (D-4) for auto-fix
 
-**Problem**: Reviewer suggests fixes in text, but cannot auto-apply them.
+**Blueprint Violation Analysis**:
 
-**Solution**: Integrate reviewer → fixer flow using `dev_agent/workflows/bug_fix_workflow.py`.
+Per Blueprint Section 3.3 "Agent Catalog V2" and Section 7 "Cross-Agent Collaboration Model":
+- **Reviewer Agent** → Reviews code, identifies issues, provides feedback
+- **Coding Agent** → Writes/modifies code
+- **Sequential Collaboration**: Coding → Reviewer → Test → Deploy
 
-**Implementation Plan**:
+Giving Reviewer Agent the ability to generate and apply code fixes violates the separation of concerns principle. The correct architecture is:
 
-1. **B-10.1 Fix Generator Service**:
-   - Create `orchestrator/review_context/fix_generator.py`
-   - Expose `generate_fix(comment: ReviewComment) -> Optional[CodeFix]`
-   - Use LLM to generate copy-paste ready code
+```
+Reviewer Agent                    Fixer Agent (EPIC D)
+     │                                 │
+     ▼                                 │
+識別問題 + 建議修復方向 ──────────────►  接收建議
+(text description only)                │
+     │                                 ▼
+     ▼                            生成實際程式碼
+ReviewOutcome {                        │
+  verdict: "request_changes",          ▼
+  suggested_fixes: [                HITL Gate
+    { description: "..." }             │
+  ]                                    ▼
+}                                 套用修復
+```
 
-2. **B-10.2 ReviewOutcome Extension**:
-   - Add `auto_fixes: List[CodeFix]` to ReviewOutcome schema
-   - Each fix includes: file, line_range, original_code, fixed_code
+**What Reviewer Agent CAN do (within EPIC B scope)**:
+- Identify issues in code
+- Describe what should be fixed (text)
+- Suggest fix direction (text)
+- Output `suggested_fixes` as text descriptions
 
-3. **B-10.3 GitHub Suggestion Integration**:
-   - Use GitHub's suggestion syntax in review comments
-   - Format: ` ```suggestion\nfixed_code\n``` `
-   - Users can apply fix with one click
+**What Reviewer Agent CANNOT do (belongs to Fixer Agent)**:
+- Generate actual code fixes
+- Apply code changes
+- Use GitHub suggestion syntax with code blocks
 
-4. **B-10.4 Fixer Node Integration**:
-   - If `verdict == "request_changes"` and `auto_fixes` available
-   - Router can optionally auto-apply fixes (with HITL gate)
-
-**Acceptance Criteria**:
-- [ ] Fix generator produces valid code fixes
-- [ ] GitHub suggestion syntax used in comments
-- [ ] ReviewOutcome includes auto_fixes
-- [ ] HITL gate for auto-apply (optional)
+**Recommendation**: Create follow-up issue in EPIC D for "Fixer Agent: Review-to-Fix Integration"
 
 ---
 
 ## Phase 8: Copilot/Gemini Superiority (B-11 to B-13) - Planning
 
 > **Status**: Planning
-> **Prerequisite**: Phase 7 (B-7 to B-10) should be completed first
-> **Target**: Exceed GitHub Copilot and Gemini Code Assist capabilities
+> **Prerequisite**: Phase 7 (B-7 to B-9) should be completed first
+> **Target**: Exceed GitHub Copilot and Gemini Code Assist capabilities (within Reviewer Agent scope)
+> **Blueprint Alignment**: All capabilities must respect Agent Separation Principle
 
 ### Overview
 
-Phase 8 focuses on **new capabilities** that don't exist in the current codebase and will differentiate MorningAI from competitors.
+Phase 8 focuses on **new capabilities** within Reviewer Agent's appropriate scope that will differentiate MorningAI from competitors.
+
+> **Blueprint Alignment**: All Phase 8 capabilities must respect the Agent Separation Principle (Blueprint Section 3.3). Reviewer Agent can FLAG issues and SUGGEST actions, but cannot GENERATE code or APPLY fixes. Code generation belongs to Coding Agent/Fixer Agent, test generation belongs to Test Agent v2.
 
 ---
 
-### B-11: Test Generation
+### ~~B-11: Test Generation~~ → MOVED TO Test Agent v2 Roadmap
 
-> **Type**: New Capability
-> **Issue**: TBD
-> **Effort**: High (5-7 days)
+> **Status**: REMOVED FROM EPIC B
+> **Reason**: Violates Blueprint Agent Separation Principle
+> **Follow-up**: See Test Agent v2 roadmap (Blueprint Section 3.3)
 
-**Problem**: Reviewer cannot suggest missing test cases for new code.
+**Blueprint Violation Analysis**:
 
-**Solution**: Implement test generation capability.
+Per Blueprint Section 3.3 "Agent Catalog V2":
+- **Reviewer Agent** → Reviews code, identifies issues, provides feedback
+- **Test Agent v2** → Generates and runs tests
+- **Sequential Collaboration**: Coding → Reviewer → **Test** → Deploy
 
-**Implementation Plan**:
+Giving Reviewer Agent the ability to generate test code violates the separation of concerns principle. The correct architecture is:
+
+```
+Reviewer Agent                    Test Agent v2
+     │                                 │
+     ▼                                 │
+識別測試覆蓋缺口 ─────────────────────►  接收覆蓋缺口報告
+(flag missing coverage)                │
+     │                                 ▼
+     ▼                            生成測試程式碼
+ReviewOutcome {                        │
+  verdict: "request_changes",          ▼
+  missing_test_coverage: [         執行測試
+    { function: "...",                 │
+      reason: "..." }                  ▼
+  ]                               回報結果
+}
+```
+
+**What Reviewer Agent CAN do (within EPIC B scope)**:
+- Detect functions/classes without test coverage
+- Flag missing test coverage in review
+- Describe what tests are needed (text)
+
+**What Reviewer Agent CANNOT do (belongs to Test Agent v2)**:
+- Generate actual test code
+- Execute tests
+- Validate test results
+
+**Recommendation**: Create Test Agent v2 roadmap for "Test Generation from Review Feedback"
+
+**Alternative B-11 for EPIC B**: Test Coverage Flagging (Reviewer-appropriate scope)
+
+> **Type**: New Capability (Reviewer-appropriate)
+> **Effort**: Medium (3-5 days)
+
+**Implementation Plan** (Reviewer-appropriate scope):
 
 1. **B-11.1 Test Coverage Analyzer**:
    - Create `orchestrator/review_context/test_coverage_analyzer.py`
    - Detect functions/classes without test coverage
-   - Parse existing test files to understand test patterns
+   - Parse existing test files to understand coverage patterns
 
-2. **B-11.2 Test Generator**:
-   - Create `orchestrator/review_context/test_generator.py`
-   - Generate test cases for uncovered code
-   - Follow existing test patterns in the repo
-
-3. **B-11.3 Review Integration**:
-   - Add "Missing Test Coverage" section to review
-   - Include generated test code as suggestions
+2. **B-11.2 Review Integration**:
+   - Add `missing_test_coverage: List[CoverageGap]` to the `ReviewOutcome` schema to formalize the agent handoff
+   - Populate this structured data with uncovered code
+   - Generate a "Missing Test Coverage" section in the review from this data
+   - Suggest what types of tests are needed (unit, integration, etc.)
 
 **Acceptance Criteria**:
 - [ ] Test coverage analyzer detects uncovered code
-- [ ] Test generator produces valid test code
-- [ ] Generated tests follow repo conventions
-- [ ] Review includes test suggestions
+- [ ] `ReviewOutcome` schema is extended with a structured `missing_test_coverage` field
+- [ ] Review flags missing coverage with descriptions
+- [ ] Suggestions describe what tests are needed (not actual code)
 
 ---
 
-### B-12: Dependency Analysis Integration
+### B-12: Dependency Analysis (Flagging Only)
 
 > **Type**: Integration + Extension
 > **Issue**: TBD
 > **Effort**: Medium (3-5 days)
+> **Blueprint Alignment**: Reviewer Agent flags issues, does NOT fix them
 
 **Problem**: Reviewer doesn't check for outdated or vulnerable dependencies.
 
-**Solution**: Integrate dependency analysis into review flow.
+**Solution**: Integrate dependency analysis into review flow for **flagging purposes only**.
+
+> **Scope Clarification**: Per Blueprint Agent Separation Principle, Reviewer Agent can only FLAG dependency issues. Actual dependency updates/fixes belong to Coding Agent or dedicated Dependency Agent.
 
 **Implementation Plan**:
 
@@ -586,16 +640,28 @@ Phase 8 focuses on **new capabilities** that don't exist in the current codebase
 2. **B-12.2 Review Integration**:
    - If PR modifies dependency files, trigger analysis
    - Add "Dependency Issues" section to review
+   - **Output is text warnings only, not code changes**
 
 3. **B-12.3 External Service Integration**:
    - Optional: Integrate with npm audit, pip-audit, Snyk API
    - Cache results to avoid repeated API calls
 
+**What Reviewer Agent CAN do**:
+- Flag outdated dependencies
+- Flag known vulnerabilities
+- Flag license issues
+- Recommend actions (text descriptions)
+
+**What Reviewer Agent CANNOT do**:
+- Update package.json/requirements.txt
+- Run npm update/pip install
+- Apply dependency fixes
+
 **Acceptance Criteria**:
 - [ ] Dependency analyzer parses common formats
-- [ ] Outdated dependencies flagged
-- [ ] Known vulnerabilities flagged
-- [ ] Review includes dependency warnings
+- [ ] Outdated dependencies flagged (text warning)
+- [ ] Known vulnerabilities flagged (text warning)
+- [ ] Review includes dependency warnings (not fixes)
 
 ---
 
@@ -642,48 +708,64 @@ Phase 8 focuses on **new capabilities** that don't exist in the current codebase
 EPIC E (Safety Governor v2) - PREREQUISITE
     │
     ▼
-Phase 7: Copilot/Gemini Parity
+Phase 7: Copilot/Gemini Parity (Reviewer-appropriate scope)
     │
-    ├── B-7 (Codebase Context) ──┬──► B-9 (Multi-Agent)
+    ├── B-7 (Codebase Context) ──┬──► B-9 (Multi-Specialist Review)
     │                            │
-    ├── B-8 (Semantic)      ─────┘
-    │
-    └── B-10 (Auto-Fix)
+    └── B-8 (Semantic)      ─────┘
+    
+    ╳ B-10 (Auto-Fix) → REMOVED (OUT OF SCOPE - already in EPIC D)
                                  │
                                  ▼
-Phase 8: Copilot/Gemini Superiority
+Phase 8: Copilot/Gemini Superiority (Reviewer-appropriate scope)
     │
-    ├── B-11 (Test Gen)
+    ├── B-11 (Test Coverage Flagging) - Reviewer flags only, Test Agent v2 generates
+    │   ╳ Test Generation → MOVED TO Test Agent v2 Roadmap
     │
-    ├── B-12 (Deps)
+    ├── B-12 (Dependency Flagging) - Reviewer flags only, no fixes
     │
     └── B-13 (Feedback Loop) ──► EPIC G (Memory v2) dependency
+
+Cross-Agent Handoffs (Blueprint Sequential Collaboration):
+    Reviewer Agent ──► Fixer Agent (EPIC D) for code fixes
+    Reviewer Agent ──► Test Agent v2 for test generation
 ```
 
 ---
 
-## Success Metrics
+## Success Metrics (Reviewer-Appropriate Scope)
 
-| Metric | Current | Phase 7 Target | Phase 8 Target |
-|--------|---------|----------------|----------------|
-| Review Context | PR diff only | Full codebase | Full codebase |
-| Breaking Change Detection | 0% | >80% | >90% |
-| Auto-Fix Applicability | 0% | >50% | >70% |
-| Test Coverage Suggestions | 0% | 0% | >60% |
-| Developer Satisfaction | Baseline | +20% | +40% |
+| Metric | Current | Phase 7 Target | Phase 8 Target | Notes |
+|--------|---------|----------------|----------------|-------|
+| Review Context | PR diff only | Full codebase | Full codebase | B-7 |
+| Breaking Change Detection | 0% | >80% | >90% | B-8 |
+| Multi-Specialist Coverage | 0% | >70% | >85% | B-9 |
+| Test Coverage Flagging | 0% | 0% | >60% | B-11 (flagging only) |
+| Dependency Issue Flagging | 0% | 0% | >80% | B-12 (flagging only) |
+| Developer Satisfaction | Baseline | +20% | +40% | Overall |
+
+**Removed Metrics** (belong to other agents per Blueprint):
+- ~~Auto-Fix Applicability~~ → Fixer Agent (EPIC D) metric
+- ~~Test Generation Quality~~ → Test Agent v2 metric
 
 ---
 
-## Timeline Estimate
+## Timeline Estimate (Revised)
 
-| Phase | Estimated Duration | Dependencies |
-|-------|-------------------|--------------|
-| B-7 | 3-5 days | EPIC E |
-| B-8 | 3-5 days | B-7 |
-| B-9 | 5-7 days | B-7, B-8 |
-| B-10 | 3-5 days | B-7 |
-| B-11 | 5-7 days | Phase 7 |
-| B-12 | 3-5 days | Phase 7 |
-| B-13 | 7-10 days | Phase 7, EPIC G |
+| Phase | Estimated Duration | Dependencies | Status |
+|-------|-------------------|--------------|--------|
+| B-7 | 3-5 days | EPIC E | Planning |
+| B-8 | 3-5 days | B-7 | Planning |
+| B-9 | 5-7 days | B-7, B-8 | Planning |
+| ~~B-10~~ | ~~3-5 days~~ | ~~B-7~~ | REMOVED (OUT OF SCOPE) |
+| B-11 | 3-5 days | Phase 7 | Planning (flagging only) |
+| B-12 | 3-5 days | Phase 7 | Planning (flagging only) |
+| B-13 | 7-10 days | Phase 7, EPIC G | Planning |
 
-**Total Estimated Duration**: 6-10 weeks (after EPIC E completion)
+**Total Estimated Duration**: 4-7 weeks (after EPIC E completion)
+
+**Note**: Duration reduced because B-10 (Auto-Fix) moved to EPIC D and B-11 scope reduced to flagging only.
+
+**Cross-Agent Dependencies** (for full Blueprint vision):
+- EPIC D (Fixer Agent): Receives fix suggestions from Reviewer, generates actual code fixes
+- Test Agent v2: Receives coverage flags from Reviewer, generates actual test code
