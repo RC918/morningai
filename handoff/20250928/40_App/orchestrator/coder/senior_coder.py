@@ -115,30 +115,109 @@ logger = logging.getLogger(__name__)
 # Control characters pattern (excludes printable ASCII and common whitespace)
 _CONTROL_CHAR_PATTERN = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
-# Sensitive data patterns for redaction (Issue #3749)
-# These patterns match common sensitive data formats that should not appear in logs
+# Sensitive data patterns for redaction (Issue #3749, #3754, #3755)
+# These patterns match common sensitive data formats that should not appear in logs.
+#
+# Design principles:
+# 1. Prefer false negatives over false positives (don't redact legitimate content)
+# 2. Use minimum length requirements to reduce false positives
+# 3. Require context (separators, prefixes) where possible
+# 4. Patterns are applied in order; first match wins
+#
+# Known limitations:
+# - Cannot detect obfuscated or encoded secrets
+# - May miss secrets with non-standard formats
+# - Does not redact the full PEM key body, only the header marker
 _SENSITIVE_PATTERNS = [
-    # API keys (common formats: sk-xxx with 20+ chars, api_key=xxx with 16+ chars)
-    # sk- prefix is specific to OpenAI-style keys
+    # ==========================================================================
+    # OpenAI-style API keys (sk-xxx format)
+    # ==========================================================================
+    # Matches: sk-abc123... (20+ alphanumeric chars after sk-)
+    # Limitations: Only matches OpenAI/Anthropic style keys with sk- prefix
+    # False positives: Unlikely due to specific prefix and length requirement
+    # Min length 20 chosen based on typical API key lengths (usually 40-50 chars)
     (re.compile(r'\b(sk-[a-zA-Z0-9]{20,})\b'), '[REDACTED_API_KEY]'),
-    # Generic api_key pattern requires = or : separator to reduce false positives
+
+    # ==========================================================================
+    # Generic API key patterns (api_key=xxx, apikey:xxx)
+    # ==========================================================================
+    # Matches: api_key=value, api-key: "value", apiKey='value'
+    # Limitations: Requires = or : separator; won't match function args like api_key(value)
+    # False positives: May match non-secret config values; min 16 chars reduces this
+    # Preserves the key name and quotes for context in redacted output
     (re.compile(r'(api[-_]?key\s*[:=]\s*["\']?)[a-zA-Z0-9_-]{16,}(["\']?)', re.IGNORECASE), r'\1[REDACTED_API_KEY]\2'),
-    # Bearer tokens
+
+    # ==========================================================================
+    # Bearer tokens (Authorization headers)
+    # ==========================================================================
+    # Matches: Bearer eyJhbGc..., Bearer abc123...
+    # Limitations: Only matches "Bearer " prefix; won't catch other auth schemes
+    # False positives: Unlikely due to Bearer prefix requirement
+    # Min length 20 to avoid matching short placeholder values
     (re.compile(r'\b(Bearer\s+[a-zA-Z0-9._-]{20,})\b'), '[REDACTED_BEARER_TOKEN]'),
-    # JWT tokens (three base64 parts separated by dots)
+
+    # ==========================================================================
+    # JWT tokens (JSON Web Tokens)
+    # ==========================================================================
+    # Matches: eyJhbGciOiJ...eyJzdWIiOiI...signature (three base64url parts)
+    # Limitations: Only matches tokens starting with eyJ (base64 of {"...)
+    # False positives: Very unlikely due to specific three-part structure
+    # Note: eyJ is base64 for '{"' which is how all JWT headers start
     (re.compile(r'\b(eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*)\b'), '[REDACTED_JWT]'),
+
+    # ==========================================================================
     # Password patterns in config/env format
+    # ==========================================================================
+    # Matches: password=xxx, PASSWORD: "xxx", passwd='xxx', secret=xxx
+    # Limitations: Requires = or : separator; won't match passwords in other contexts
+    # False positives: May match non-password values after these keywords
+    # Min length 8 based on typical minimum password requirements
+    # Preserves the keyword and quotes for context
     (re.compile(r'(password\s*[=:]\s*["\']?)[^\s"\']{8,}(["\']?)', re.IGNORECASE), r'\1[REDACTED]\2'),
     (re.compile(r'(passwd\s*[=:]\s*["\']?)[^\s"\']{8,}(["\']?)', re.IGNORECASE), r'\1[REDACTED]\2'),
     (re.compile(r'(secret\s*[=:]\s*["\']?)[^\s"\']{8,}(["\']?)', re.IGNORECASE), r'\1[REDACTED]\2'),
+
+    # ==========================================================================
     # AWS access keys
+    # ==========================================================================
+    # Matches: AKIAIOSFODNN7EXAMPLE (AKIA prefix + 16 uppercase alphanumeric)
+    # Limitations: Only matches access key IDs, not secret access keys
+    # False positives: Very unlikely due to specific AKIA prefix and exact length
+    # AWS access key IDs always start with AKIA and are exactly 20 chars total
     (re.compile(r'\b(AKIA[0-9A-Z]{16})\b'), '[REDACTED_AWS_KEY]'),
-    # GitHub tokens
+
+    # ==========================================================================
+    # GitHub tokens (Personal Access Tokens, OAuth tokens, etc.)
+    # ==========================================================================
+    # Matches: ghp_xxxx (PAT), gho_xxxx (OAuth), ghu_xxxx (user-to-server)
+    # Limitations: Only matches new-format tokens (2021+); old tokens not covered
+    # False positives: Very unlikely due to specific prefix and exact length
+    # GitHub tokens are exactly 40 chars: 4-char prefix + 36 alphanumeric
     (re.compile(r'\b(ghp_[a-zA-Z0-9]{36})\b'), '[REDACTED_GITHUB_TOKEN]'),
     (re.compile(r'\b(gho_[a-zA-Z0-9]{36})\b'), '[REDACTED_GITHUB_TOKEN]'),
     (re.compile(r'\b(ghu_[a-zA-Z0-9]{36})\b'), '[REDACTED_GITHUB_TOKEN]'),
-    # Private keys (PEM format markers)
-    (re.compile(r'-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----'), '[REDACTED_PRIVATE_KEY]'),
+
+    # ==========================================================================
+    # Private keys (PEM format markers) - Issue #3755
+    # ==========================================================================
+    # Matches PEM-encoded private key headers:
+    # - -----BEGIN PRIVATE KEY----- (PKCS#8 generic)
+    # - -----BEGIN RSA PRIVATE KEY----- (PKCS#1 RSA)
+    # - -----BEGIN EC PRIVATE KEY----- (SEC1 Elliptic Curve)
+    # - -----BEGIN DSA PRIVATE KEY----- (DSA keys)
+    # - -----BEGIN ENCRYPTED PRIVATE KEY----- (PKCS#8 encrypted)
+    # - -----BEGIN OPENSSH PRIVATE KEY----- (OpenSSH format)
+    #
+    # Limitations:
+    # - Only redacts the header marker, not the full key body
+    # - Won't match keys without standard PEM headers
+    # - Won't match keys embedded in JSON/XML with escaped characters
+    #
+    # False positives: Very unlikely due to specific PEM header format
+    # Note: \s+ allows for variations like "RSA  PRIVATE" (multiple spaces)
+    (re.compile(
+        r'-----BEGIN\s+(?:RSA\s+|EC\s+|DSA\s+|ENCRYPTED\s+|OPENSSH\s+)?PRIVATE\s+KEY-----'
+    ), '[REDACTED_PRIVATE_KEY]'),
 ]
 
 
