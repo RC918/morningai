@@ -365,35 +365,88 @@ class RuntimePolicyEnforcer:
                 telemetry_event,
             )
 
+    # Allowlist of safe commands for shell execution (Security Fix #3717)
+    # Blueprint Alignment: Section 3.3 Agent Catalog V2 "Safety/Compliance layer gating"
+    # Only these commands are permitted - all others are blocked by default
+    ALLOWED_SHELL_COMMANDS = frozenset({
+        # Version control
+        "git",
+        # Package managers
+        "npm", "npx", "yarn", "pnpm", "pip", "pip3", "poetry", "cargo", "go",
+        # Build tools
+        "make", "cmake", "gradle", "mvn",
+        # Language runtimes
+        "python", "python3", "node", "deno", "bun", "ruby", "java", "javac",
+        # Testing tools
+        "pytest", "jest", "mocha", "vitest", "cargo-test",
+        # Linting/formatting
+        "eslint", "prettier", "black", "ruff", "flake8", "mypy", "tsc",
+        # File operations (read-only or safe)
+        "ls", "cat", "head", "tail", "grep", "rg", "find", "wc", "diff",
+        "pwd", "echo", "env", "which", "whoami", "date", "uname",
+        # Directory navigation and file management
+        "cd", "mkdir", "touch", "rm", "cp", "mv",
+        # Process inspection
+        "ps", "top", "htop",
+        # Network diagnostics (read-only)
+        "curl", "wget", "ping", "dig", "nslookup", "host",
+        # Docker (read-only operations)
+        "docker",
+        # Misc safe utilities
+        "jq", "yq", "sed", "awk", "sort", "uniq", "tr", "cut", "xargs",
+    })
+
+    # Commands that are always blocked regardless of allowlist
+    BLOCKED_SHELL_COMMANDS = frozenset({
+        "sudo", "su", "chown", "chmod", "chgrp",
+        "mkfs", "fdisk", "parted", "mount", "umount",
+        "dd", "shred", "wipefs",
+        "iptables", "ip6tables", "nft", "firewall-cmd",
+        "systemctl", "service", "init",
+        "useradd", "userdel", "usermod", "groupadd", "groupdel",
+        "passwd", "chpasswd",
+        "reboot", "shutdown", "halt", "poweroff",
+        "kill", "killall", "pkill",
+        "nc", "netcat", "ncat",
+        "eval", "exec", "source",
+    })
+
+    # Dangerous flag combinations that should be blocked
+    DANGEROUS_FLAG_PATTERNS = {
+        "rm": {"-rf", "-fr", "--recursive --force", "--force --recursive"},
+        "chmod": {"777", "666", "+s", "u+s", "g+s"},
+        "docker": {"--privileged", "-v /:/"},
+    }
+
     def _check_shell_execution(
         self,
         command: str,
         context: Dict[str, Any],
         telemetry_event: Dict[str, Any],
     ) -> PolicyCheckResult:
-        """Check if shell command execution is allowed"""
-        dangerous_substrings = ["rm -rf", "sudo", "chmod 777", "chown", "> /dev/", "mkfs", "dd if="]
-        lower_cmd = command.lower()
+        """
+        Check if shell command execution is allowed using allowlist-based validation.
 
-        for pattern in dangerous_substrings:
-            if pattern in lower_cmd:
-                telemetry_event["action"] = "block"
-                telemetry_event["dangerous_pattern"] = pattern
-                self._log_policy_check("shell_execution", command, "block", context, f"Dangerous pattern: {pattern}")
-                self._emit_telemetry(telemetry_event)
+        Security Fix #3717: Replaced denylist with allowlist approach.
+        Blueprint Alignment: Section 3.3 Agent Catalog V2 "Safety/Compliance layer gating"
 
-                return self._create_blocked_result(
-                    f"Shell execution blocked: dangerous pattern '{pattern}' detected",
-                    PolicyViolationType.SHELL_EXECUTION,
-                    telemetry_event,
-                )
-
+        Validation Pipeline:
+        1. Parse command using shlex (fail-closed on parse error)
+        2. Check if base command is in blocklist (always block)
+        3. Check if base command is in allowlist (block if not)
+        4. Check for dangerous flag combinations
+        5. Additional validation for specific commands (rm, docker, etc.)
+        """
         try:
             parts = shlex.split(command)
         except ValueError:
             telemetry_event["action"] = "block"
             telemetry_event["error"] = "Failed to parse shell command"
-            self._log_policy_check("shell_execution", command, "block", context, "Unparseable command (fail-closed)")
+            telemetry_event["security_reason"] = "unparseable_command"
+            self._log_policy_check(
+                "shell_execution", command, "block", context,
+                "Unparseable command (fail-closed)"
+            )
             self._emit_telemetry(telemetry_event)
 
             return self._create_blocked_result(
@@ -402,31 +455,145 @@ class RuntimePolicyEnforcer:
                 telemetry_event,
             )
 
-        if parts:
-            base_cmd = parts[0].lower()
-            if base_cmd == "rm":
-                flags = [p for p in parts[1:] if p.startswith("-")]
-                all_flags = "".join(flags).lower()
-                if "r" in all_flags and "f" in all_flags:
+        if not parts:
+            telemetry_event["action"] = "block"
+            telemetry_event["security_reason"] = "empty_command"
+            self._log_policy_check(
+                "shell_execution", command, "block", context,
+                "Empty command"
+            )
+            self._emit_telemetry(telemetry_event)
+
+            return self._create_blocked_result(
+                "Shell execution blocked: empty command",
+                PolicyViolationType.SHELL_EXECUTION,
+                telemetry_event,
+            )
+
+        base_cmd = parts[0].split("/")[-1].lower()
+
+        if base_cmd in self.BLOCKED_SHELL_COMMANDS:
+            telemetry_event["action"] = "block"
+            telemetry_event["blocked_command"] = base_cmd
+            telemetry_event["security_reason"] = "blocklisted_command"
+            self._log_policy_check(
+                "shell_execution", command, "block", context,
+                f"Blocklisted command: {base_cmd}"
+            )
+            self._emit_telemetry(telemetry_event)
+
+            return self._create_blocked_result(
+                f"Shell execution blocked: '{base_cmd}' is not permitted",
+                PolicyViolationType.SHELL_EXECUTION,
+                telemetry_event,
+            )
+
+        if base_cmd not in self.ALLOWED_SHELL_COMMANDS:
+            telemetry_event["action"] = "block"
+            telemetry_event["unknown_command"] = base_cmd
+            telemetry_event["security_reason"] = "not_in_allowlist"
+            self._log_policy_check(
+                "shell_execution", command, "block", context,
+                f"Command not in allowlist: {base_cmd}"
+            )
+            self._emit_telemetry(telemetry_event)
+
+            return self._create_blocked_result(
+                f"Shell execution blocked: '{base_cmd}' is not in the allowed commands list",
+                PolicyViolationType.SHELL_EXECUTION,
+                telemetry_event,
+            )
+
+        if base_cmd in self.DANGEROUS_FLAG_PATTERNS:
+            dangerous_patterns = self.DANGEROUS_FLAG_PATTERNS[base_cmd]
+            cmd_lower = command.lower()
+            args_str = " ".join(parts[1:]).lower()
+
+            for pattern in dangerous_patterns:
+                if pattern in cmd_lower or pattern in args_str:
                     telemetry_event["action"] = "block"
-                    telemetry_event["dangerous_pattern"] = "rm with -r and -f flags"
-                    self._log_policy_check("shell_execution", command, "block", context, "rm with recursive and force flags")
+                    telemetry_event["dangerous_pattern"] = pattern
+                    telemetry_event["security_reason"] = "dangerous_flags"
+                    self._log_policy_check(
+                        "shell_execution", command, "block", context,
+                        f"Dangerous flag pattern: {pattern}"
+                    )
                     self._emit_telemetry(telemetry_event)
 
                     return self._create_blocked_result(
-                        "Shell execution blocked: rm with recursive and force flags detected",
+                        f"Shell execution blocked: dangerous flag pattern '{pattern}' detected",
                         PolicyViolationType.SHELL_EXECUTION,
                         telemetry_event,
                     )
 
+        validation_result = self._validate_command_args(base_cmd, parts[1:], context, telemetry_event)
+        if validation_result is not None:
+            return validation_result
+
         telemetry_event["action"] = "allow"
+        telemetry_event["allowed_command"] = base_cmd
         self._log_policy_check("shell_execution", command, "allow", context)
         self._emit_telemetry(telemetry_event)
 
         return self._create_allowed_result(
-            f"Shell execution allowed: {command[:50]}...",
+            f"Shell execution allowed: {command[:50]}{'...' if len(command) > 50 else ''}",
             telemetry_event,
         )
+
+    def _validate_command_args(
+        self,
+        base_cmd: str,
+        args: list,
+        context: Dict[str, Any],
+        telemetry_event: Dict[str, Any],
+    ) -> Optional[PolicyCheckResult]:
+        """
+        Additional validation for specific commands.
+
+        Returns PolicyCheckResult if blocked, None if allowed.
+        """
+        if base_cmd == "rm":
+            flags = [a for a in args if a.startswith("-")]
+            all_flags = "".join(flags).lower()
+            has_recursive = "r" in all_flags or "--recursive" in [f.lower() for f in flags]
+            has_force = "f" in all_flags or "--force" in [f.lower() for f in flags]
+
+            if has_recursive and has_force:
+                telemetry_event["action"] = "block"
+                telemetry_event["dangerous_pattern"] = "rm with -r and -f flags"
+                telemetry_event["security_reason"] = "dangerous_rm"
+                self._log_policy_check(
+                    "shell_execution", f"rm {' '.join(args)}", "block", context,
+                    "rm with recursive and force flags"
+                )
+                self._emit_telemetry(telemetry_event)
+
+                return self._create_blocked_result(
+                    "Shell execution blocked: rm with recursive and force flags is not permitted",
+                    PolicyViolationType.SHELL_EXECUTION,
+                    telemetry_event,
+                )
+
+        if base_cmd == "docker":
+            args_lower = [a.lower() for a in args]
+            if "run" in args_lower or "exec" in args_lower:
+                if "--privileged" in args_lower:
+                    telemetry_event["action"] = "block"
+                    telemetry_event["dangerous_pattern"] = "docker --privileged"
+                    telemetry_event["security_reason"] = "privileged_docker"
+                    self._log_policy_check(
+                        "shell_execution", f"docker {' '.join(args)}", "block", context,
+                        "docker with --privileged flag"
+                    )
+                    self._emit_telemetry(telemetry_event)
+
+                    return self._create_blocked_result(
+                        "Shell execution blocked: docker with --privileged is not permitted",
+                        PolicyViolationType.SHELL_EXECUTION,
+                        telemetry_event,
+                    )
+
+        return None
 
     def _check_read_access(
         self,
