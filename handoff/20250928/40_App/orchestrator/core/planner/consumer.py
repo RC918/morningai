@@ -17,29 +17,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Protocol, Set
 
 from .planner_types import PlannerOutput, TaskNode
-
-
-def _sanitize_for_log(value: str, max_length: int = 200) -> str:
-    """
-    Sanitize untrusted data for safe inclusion in log messages.
-
-    Prevents log injection by:
-    - Replacing newlines and carriage returns
-    - Truncating to max_length
-
-    Args:
-        value: The untrusted string to sanitize
-        max_length: Maximum length of output (default 200)
-
-    Returns:
-        Sanitized string safe for logging
-    """
-    if not value:
-        return ""
-    sanitized = value.replace('\n', '\\n').replace('\r', '\\r')
-    if len(sanitized) > max_length:
-        sanitized = sanitized[:max_length] + "..."
-    return sanitized
+from utils.sanitization import sanitize_for_log as _sanitize_for_log
 
 
 class ExecutionStatus(Enum):
