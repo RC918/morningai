@@ -980,6 +980,38 @@ class TestRedactSensitiveData:
         assert "[REDACTED_PRIVATE_KEY]" in result
         assert was_redacted is True
 
+    def test_ec_private_key_marker(self):
+        """Test EC (Elliptic Curve) private key markers are redacted (Issue #3755)."""
+        text = "-----BEGIN EC PRIVATE KEY-----\nMHQCAQEEIBYr..."
+        result, was_redacted = redact_sensitive_data(text)
+        assert "-----BEGIN EC PRIVATE KEY-----" not in result
+        assert "[REDACTED_PRIVATE_KEY]" in result
+        assert was_redacted is True
+
+    def test_dsa_private_key_marker(self):
+        """Test DSA private key markers are redacted (Issue #3755)."""
+        text = "-----BEGIN DSA PRIVATE KEY-----\nMIIBuwIBAAKBgQD..."
+        result, was_redacted = redact_sensitive_data(text)
+        assert "-----BEGIN DSA PRIVATE KEY-----" not in result
+        assert "[REDACTED_PRIVATE_KEY]" in result
+        assert was_redacted is True
+
+    def test_encrypted_private_key_marker(self):
+        """Test ENCRYPTED private key markers are redacted (Issue #3755)."""
+        text = "-----BEGIN ENCRYPTED PRIVATE KEY-----\nMIIFHzBJBgkqhkiG9w0BBQ0..."
+        result, was_redacted = redact_sensitive_data(text)
+        assert "-----BEGIN ENCRYPTED PRIVATE KEY-----" not in result
+        assert "[REDACTED_PRIVATE_KEY]" in result
+        assert was_redacted is True
+
+    def test_openssh_private_key_marker(self):
+        """Test OPENSSH private key markers are redacted (Issue #3755)."""
+        text = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA..."
+        result, was_redacted = redact_sensitive_data(text)
+        assert "-----BEGIN OPENSSH PRIVATE KEY-----" not in result
+        assert "[REDACTED_PRIVATE_KEY]" in result
+        assert was_redacted is True
+
     def test_api_key_with_equals_separator(self):
         """Test api_key= format is redacted (requires = or : separator)."""
         text = "api_key=abcdefghijklmnop1234"
