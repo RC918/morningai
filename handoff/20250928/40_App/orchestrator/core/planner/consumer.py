@@ -270,6 +270,12 @@ class BasePlanConsumer(ABC):
 
                 if result.status == ExecutionStatus.COMPLETED:
                     completed.add(task.task_id)
+                elif result.status == ExecutionStatus.SKIPPED:
+                    # SKIPPED tasks are treated as completed for dependency resolution.
+                    # This allows dependent tasks to proceed even when a task is skipped
+                    # (e.g., due to conditional execution or pre-conditions not met).
+                    # See Issue #3834 for the bug this fixes.
+                    completed.add(task.task_id)
                 elif result.status == ExecutionStatus.FAILED:
                     # Stop on failure (could be configurable)
                     end_time = datetime.now(timezone.utc)
