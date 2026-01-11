@@ -142,6 +142,58 @@ Flow Controller 代表整個 MorningAI 的 **Runtime Engine**。
 
 ---
 
+## 3.4 BrowserNode v2 — 瀏覽器自動化與自癒系統
+
+BrowserNode 是 MorningAI 中具有最高「不確定性」的組件，因為它依賴不可控的第三方 UI。
+
+### 核心能力
+
+* **Browser Automation**: Playwright-based 瀏覽器自動化
+  - Navigate, Click, Type, Screenshot
+  - Headless/Headed mode support
+  - Multi-tab management
+  - iframe / shadow DOM navigation
+
+* **CLI Executor**: Shell command execution
+  - Sandboxed execution environment
+  - Output capture and parsing
+
+### Self-Heal Engine（5 階段自癒管線）
+
+1. **Failure Detection**: DOM snapshot + error string + screenshot 封存
+2. **Failure Classification**: Missing/Weak/Ambiguous Selector, Layout Shift, Timing Issue
+3. **Reproduction Engine**: 在 sandbox 中重現行為，生成 Minimal Reproduction Case (MRE)
+4. **Self-Heal Engine**: Selector Strengthening, Fallback Chain, Timing Auto-Adjust
+5. **Regression & Learning**: 自動建立 regression test，更新 Knowledge Base
+
+### Selector Knowledge Base
+
+```json
+{
+  "element": "submit_button",
+  "selectors": ["button[data-testid='submit']", "button[aria-label='Submit']", "text='Submit'"],
+  "fallback_chain": ["aria-label", "data-testid", "text match", "semantic DOM match"],
+  "confidence": 0.92
+}
+```
+
+BrowserNode v2 啟動時會載入 Knowledge Base，實現「越用越準、越跑越穩」。
+
+---
+
+## 3.5 Diagnostic Agent — 錯誤診斷與重現
+
+Diagnostic Agent 負責錯誤的診斷、重現與根因分析：
+
+* **Error Reproduction**: 在隔離環境中重現錯誤
+* **MRE Generation**: 生成 Minimal Reproducible Example
+* **Root Cause Analysis**: 識別錯誤根因
+* **Blast Radius Assessment**: 評估影響範圍
+
+Diagnostic Agent 與 Test Agent v2 協作，將錯誤轉換為 regression test。
+
+---
+
 # 4. Governance & Safety Layer（治理與安全層）
 
 八大治理與安全機制：
@@ -318,6 +370,51 @@ Telemetry v2 能：
 
 ---
 
+## 5.4 Regression Pipeline v1 — 自動回歸測試管線
+
+將任何錯誤轉換為永不再犯的 regression test：
+
+### Error Sources（錯誤來源）
+
+* **Runtime Errors**: Node backend / Python orchestrator logs
+* **BrowserNode Failures**: selector 找不到、DOM 結構變動
+* **Sentry / Datadog Alerts**: stack trace + breadcrumbs
+* **Diagnostic Agent Reports**: root cause + 重現步驟
+
+### Regression Candidate Selection
+
+```
+priority = severity*0.5 + frequency*0.3 + blast_radius*0.2
+```
+
+* **P0**: 立即建立 regression
+* **P1**: 排入 nightly regression cycle
+* **P2**: 觀察是否重複再建立
+
+### Regression Test Generation Flow
+
+```
+Error → Diagnostic Agent → MRE → Test Agent v2 → Regression Test → CI Validation
+```
+
+### CI Enforcement
+
+* 若 regression 測試失敗 → 阻擋 PR
+* 若 regression 測試被修改 → 需要 reviewer 強制審查
+* 若 regression 測試被刪除 → Safety Governor 擋下
+
+### Weekly Regression Cycle
+
+Flow Controller v2 每週執行：
+* 搜集新錯誤
+* 自動生成 regression
+* 重新計算 regression coverage
+* 更新 Risk Heatmap
+
+Regression Pipeline 讓整個系統「越用越穩、越跑越強」。
+
+---
+
 # 6. Core Runtime Pipeline（核心執行生命週期）
 
 以下為 MorningAI 任務從開始到結束的完整生命週期：
@@ -450,5 +547,5 @@ MorningAI 的最終目標：
 |---------|------|--------|---------|
 | 2025-Q4 Final | 2025-12-21 | Ryan Chen (@RC918) | Initial version imported from Ecosystem Wish Pool v2 |
 | 2025-Q4 Final | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Added EPIC I mapping for Blueprint 4.3 (Model Governance Framework v2) + 4.4 (Autonomous Provisioning v2) implementation. See [EPIC I #3342](https://github.com/RC918/morningai/issues/3342). |
-| 2025-Q4 Final | 2026-01-12 | Ryan Chen (@RC918) with Devin AI | **Architecture Gap Fix**: (1) Fixed 4/5 layer inconsistency → unified to 4 layers. (2) Enumerated all 8 governance mechanisms explicitly. (3) Added Section 4.5 AIP v2, Section 4.6 Evidence Ledger, Section 4.7 Capability-Based Security. |
+| 2025-Q4 Final | 2026-01-12 | Ryan Chen (@RC918) with Devin AI | **Architecture Gap Fix**: (1) Fixed 4/5 layer inconsistency → unified to 4 layers. (2) Enumerated all 8 governance mechanisms explicitly. (3) Added Section 4.5 AIP v2, Section 4.6 Evidence Ledger, Section 4.7 Capability-Based Security. (4) Added Section 3.4 BrowserNode v2 with Self-Heal Engine. (5) Added Section 3.5 Diagnostic Agent. (6) Added Section 5.4 Regression Pipeline v1. |
 
