@@ -9630,6 +9630,26 @@ def run_orchestrator(
         # Issue #3510: Pass CiFailureContext for structured CI error propagation
         if context and (ci_context := context.get("ci_failure_context")):
             initial_state["ci_failure_context"] = ci_context
+            # Issue #3818: Diagnostic log for ci_failure_context to debug D-4 file path extraction
+            # This helps identify why error_summary might be empty
+            error_summary = ci_context.get("error_summary", "")
+            check_suite_id = ci_context.get("check_suite_id")
+            logger.info(
+                f"[D4_CI_CONTEXT_DIAGNOSTIC] ci_failure_context received. "
+                f"error_summary_len={len(error_summary) if error_summary else 0}, "
+                f"check_suite_id={check_suite_id}, trace_id={trace_id}",
+                extra={
+                    "operation": "d4_ci_context_diagnostic",
+                    "trace_id": trace_id,
+                    "pr_number": pr_number,
+                    "check_suite_id": check_suite_id,
+                    "check_suite_id_type": type(check_suite_id).__name__ if check_suite_id is not None else "NoneType",
+                    "error_summary_present": bool(error_summary),
+                    "error_summary_len": len(error_summary) if error_summary else 0,
+                    "error_summary_preview": error_summary[:200] if error_summary else "",
+                    "ci_context_keys": list(ci_context.keys()),
+                }
+            )
             # Issue #3695: Extract branch from ci_failure_context for GeneralCoder
             # Without this, GeneralCoder gate fails with "Missing repo or branch"
             # because branch is not passed from normalizer to initial_state
