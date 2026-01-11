@@ -50,9 +50,11 @@
 | Layer | Wish Pool v2 Component | EPIC | Status |
 |-------|------------------------|------|--------|
 | **Governance Layer** | Safety Governor v2 + Compliance Radar v2 | [EPIC E: Safety Governor v2 + Compliance Radar v2 (#3489)](https://github.com/RC918/morningai/issues/3489) | **Planning** - [Roadmap](../EPIC_E_SAFETY_GOVERNOR_V2_ROADMAP.md) |
-| **Intelligence Layer** | Planner v3 | [EPIC F: Planner v3 (#3490)](https://github.com/RC918/morningai/issues/3490) | **Planning** - [Roadmap](../EPIC_F_PLANNER_V3_ROADMAP.md) |
+| **Intelligence Layer** | Planner v3 | [EPIC F: Planner v3 (#3490)](https://github.com/RC918/morningai/issues/3490) | **Phase F-2 Completed** - [Roadmap](../EPIC_F_PLANNER_V3_ROADMAP.md) |
 | **Infrastructure Layer** | Memory v2 | [EPIC G: Memory v2 (#3491)](https://github.com/RC918/morningai/issues/3491) | Placeholder |
 | **Infrastructure Layer** | Simulation Suite v1 | [EPIC H: Simulation Suite v1 (#3492)](https://github.com/RC918/morningai/issues/3492) | Placeholder |
+| **Infrastructure Layer** | Owner Console v3 | EPIC J: Owner Console v3 | **Placeholder** (Blueprint Section 5.2) |
+| **Intelligence Layer** | UI/UX Agent Family | EPIC K: UI/UX Agent Family | **Placeholder** (Blueprint Section 3.3) |
 
 ### EPIC Dependencies
 
@@ -144,7 +146,17 @@ EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C
 - Stage 0: C-5b Validation (from EPIC C)
 - Stage 1: D-1 General Coder MVP, D-2 Senior Coder Logic
 - Stage 2: D-3 Spec-Driven Development, D-4 Self-Correction Loop
-- Stage 3: Future capabilities
+- **Stage 3: Advanced Capabilities (Planning)**
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| D-5 | Review Feedback Handler (General Fixes) | Planning |
+| D-6 | Cross-Service Coordination | Planning |
+| D-7 | Test Generation from Reviewer Flags (B-11 → Test Generator Integration) | **Planning** |
+| D-8 | Debugger Integration (Blueprint Section 3.3) | **Planning** |
+| D-9 | Autonomous Refactoring (Blueprint Section 10) | **Planning** |
+
+**D-7 說明**: 整合 B-11 CoverageGap 輸出與 `llm_test_generator.py`，實現 Reviewer → Coder 的測試生成閉環。
 
 ### 5. Governance & Safety Layer (EPIC I)
 
@@ -163,6 +175,9 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 | I-2a | Defensive Gating (Soft Weighting Activation) | Pending I-1 |
 | I-2b | Active Recovery (Drift-Triggered Retry) | Gated by #3249 |
 | I-3 | Autonomous Evolution (Benchmark & Capability Scoring) | Future |
+| **I-4** | **Self-Evolving Routing (Auto Policy Tuning)** | **Planning** |
+
+**I-4 說明**: 從 observe-only DegradationAdvisor 進化到自動修改 routing policy，實現真正的自我演化。
 
 **現有基礎設施**:
 - `LLMClient.generate()` - 統一 LLM 呼叫入口（已整合 drift detection）
@@ -193,16 +208,20 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 | Wish Pool v2 Section | Current Status | Next Action |
 |---------------------|----------------|-------------|
 | 2. Model Layer | **EPIC A Completed** | Maintenance mode |
-| 3.1 Planner v3 | **Planning** | [EPIC F (#3490)](https://github.com/RC918/morningai/issues/3490) - [Roadmap](../EPIC_F_PLANNER_V3_ROADMAP.md) |
+| 3.1 Planner v3 | **Phase F-2 Completed** (DAG + Parallelization) | [EPIC F (#3490)](https://github.com/RC918/morningai/issues/3490) - F-3 Agent Assignment, F-5 Debate Engine, F-6 Hierarchical Planning |
 | 3.2 Flow Controller v3 | **EPIC C Completed** (Pilot Pending: `ENABLE_DYNAMIC_ROUTING=false`) | Enable Pilot rollout; Alert Evaluator ([#3499](https://github.com/RC918/morningai/issues/3499)) |
-| 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 + B-6 Completed**; Phase 7-8 Planning ([PR #3850](https://github.com/RC918/morningai/pull/3850)); **EPIC D Stage 1-2 Completed** (D-3 #3756, D-4 #3821) | EPIC B: Phase 7-8 (after EPIC E); EPIC D: Stage 3 (D-5, D-6) |
+| 3.3 Agent Catalog V2 | **EPIC B Phase 1-3 + B-6 Completed**; Phase 7-8 Planning; **EPIC D Stage 1-2 Completed** (D-3 #3756, D-4 #3821) | EPIC B: Phase 7-8 (after EPIC E); EPIC D: Stage 3 (D-7 Test Gen, D-8 Debugger, D-9 Auto Refactoring) |
 | 4.1 Safety Governor v2 | **Planning** | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - [Roadmap](../EPIC_E_SAFETY_GOVERNOR_V2_ROADMAP.md) |
 | 4.2 Compliance Radar v2 | **Planning** | [EPIC E (#3489)](https://github.com/RC918/morningai/issues/3489) - [Roadmap](../EPIC_E_SAFETY_GOVERNOR_V2_ROADMAP.md) |
-| 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) |
+| 4.3 Model Governance v2 | **PR #3316 Completed** (ROUTING_ALLOWED_PROVIDERS) | **EPIC I** (#3342) - I-4 Self-Evolving Routing |
 | 4.4 Autonomous Provisioning v2 | Planning | **EPIC I** (#3342) |
+| **4.5 AIP v2** | **Defined in Blueprint** | Future EPIC (Agent Interaction Protocol) |
+| **4.6 Evidence Ledger** | **Defined in Blueprint** | Future EPIC (Decision Audit Trail) |
+| **4.7 Capability-Based Security** | **Defined in Blueprint** | Future EPIC (Permission Model) |
 | 5.1 Memory v2 | Not started | [EPIC G (#3491)](https://github.com/RC918/morningai/issues/3491) - Placeholder |
-| 5.2 Telemetry v2 | **EPIC B Reviewer telemetry Completed**; Full trace reconstruction Pending | Future EPIC |
+| 5.2 Telemetry v2 + Owner Console | **EPIC B Reviewer telemetry Completed**; Full trace reconstruction Pending | Future EPIC; **EPIC J** (Owner Console v3) |
 | 5.3 Simulation Suite v1 | Not started | [EPIC H (#3492)](https://github.com/RC918/morningai/issues/3492) - Placeholder |
+| **UI/UX Agents** | Not started | **EPIC K** (UI/UX Agent Family - Blueprint Section 3.3) |
 
 ---
 
@@ -253,3 +272,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 2.1 | 2026-01-11 | Devin AI | Updated EPIC D status to **Stage 1-2 Completed**: D-3 Spec-Driven Development (#3756), D-4 Self-Correction Loop (#3821 verified on staging 2026-01-11). Updated EPIC table and cross-reference section. |
 | 2.2 | 2026-01-11 | Devin AI | Added EPIC B Phase 7-8 Planning ([PR #3850](https://github.com/RC918/morningai/pull/3850)): B-7 Codebase Context, B-8 Semantic Understanding, B-9 Multi-Specialist Review. **Blueprint Alignment**: B-10 (Auto-Fix) REMOVED (OUT OF SCOPE - Fixer capability already exists in EPIC D), B-11 scope reduced to Test Coverage Flagging (Test Agent v2 generates tests). Updated EPIC table, phase table, and cross-reference section. |
 | 2.3 | 2026-01-11 | Devin AI | **CRITICAL CORRECTION**: B-7 (Codebase Context) and B-8 (Semantic Understanding) **MOVED TO EPIC D** (Coder Agent capabilities). Per Blueprint Section 3.3 Agent Separation Principle: CodeIndexer, KnowledgeGraphManager, and LSP/AST are Coder Agent tools, NOT Reviewer tools. Reviewer Agent only reviews PR diff - does NOT need full codebase understanding. Phase 7 now contains only B-9 (Multi-Specialist Review). |
+| 2.4 | 2026-01-12 | Ryan Chen (@RC918) with Devin AI | **Architecture Gap Fix**: (1) Added EPIC J (Owner Console v3) and EPIC K (UI/UX Agent Family) placeholders. (2) Updated EPIC D Stage 3: D-7 Test Gen from Reviewer Flags, D-8 Debugger, D-9 Auto Refactoring. (3) Updated EPIC F status to Phase F-2 Completed, added F-5 Debate Engine, F-6 Hierarchical Planning. (4) Added EPIC I Phase I-4 Self-Evolving Routing. (5) Added Blueprint Section 4.5-4.7 cross-references. |
