@@ -51,6 +51,103 @@ class SimpleGitTool:
     # Default remote name for git push operations
     DEFAULT_REMOTE_NAME = "origin"
 
+    # Issue #3540: Input validation constants for commit messages
+    # Git commit title should follow conventional commit format (max 72 chars)
+    MAX_COMMIT_TITLE_LENGTH = 72
+    # Git commit body can be longer but should have a reasonable limit
+    MAX_COMMIT_BODY_LENGTH = 4096
+
+    @staticmethod
+    def _sanitize_commit_message(
+        text: str,
+        max_length: int,
+        field_name: str,
+        allow_newlines: bool = False
+    ) -> str:
+        """
+        Sanitize commit message input for git commit.
+
+        Issue #3540: Add input validation for git commit message in SimpleGitTool
+
+        This sanitizes the input by:
+        - Stripping NUL characters and control characters (except newlines if allowed)
+        - Truncating to max_length
+        - Ensuring valid UTF-8 encoding
+
+        Args:
+            text: The input text to sanitize
+            max_length: Maximum allowed length
+            field_name: Name of the field for logging (e.g., "title", "body")
+            allow_newlines: Whether to preserve newline characters (for body)
+
+        Returns:
+            Sanitized text string
+        """
+        if not text:
+            return ""
+
+        original_length = len(text)
+
+        # Ensure valid UTF-8 by encoding and decoding with error handling
+        try:
+            text = text.encode('utf-8', errors='replace').decode('utf-8')
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            logger.warning(
+                f"[SimpleGitTool] Invalid encoding in commit {field_name}, "
+                "replaced invalid characters"
+            )
+
+        # Strip NUL characters (always dangerous for C-based tools like git)
+        text = text.replace('\x00', '')
+
+        # Strip control characters (ASCII 0-31) except:
+        # - \t (tab, 0x09) - sometimes used in commit messages
+        # - \n (newline, 0x0a) - only if allow_newlines is True
+        # - \r (carriage return, 0x0d) - convert to \n if allow_newlines
+        sanitized_chars = []
+        for char in text:
+            code = ord(char)
+            if code == 0x09:  # Tab - keep
+                sanitized_chars.append(char)
+            elif code == 0x0a:  # Newline
+                if allow_newlines:
+                    sanitized_chars.append(char)
+                else:
+                    sanitized_chars.append(' ')  # Replace with space in title
+            elif code == 0x0d:  # Carriage return
+                if allow_newlines:
+                    sanitized_chars.append('\n')  # Convert to newline
+                # else: skip entirely
+            elif code < 0x20 or code == 0x7f:  # Other control chars or DEL
+                pass  # Skip
+            else:
+                sanitized_chars.append(char)
+
+        text = ''.join(sanitized_chars)
+
+        # Truncate to max length
+        if len(text) > max_length:
+            text = text[:max_length]
+            logger.warning(
+                f"[SimpleGitTool] Commit {field_name} truncated from "
+                f"{original_length} to {max_length} characters"
+            )
+
+        # Strip leading/trailing whitespace
+        text = text.strip()
+
+        # Issue #3540: Prevent command argument injection (gemini-code-assist feedback)
+        # If the sanitized string starts with a hyphen, it could be interpreted as a
+        # git command-line option (e.g., --amend, --author). Prepend a safe character.
+        if text.startswith('-'):
+            text = '_' + text
+            logger.warning(
+                f"[SimpleGitTool] Commit {field_name} started with hyphen, "
+                "prepended underscore to prevent argument injection"
+            )
+
+        return text
+
     def _get_git_auth_env(self) -> Dict[str, str]:
         """
         Get environment variables for git authentication using GITHUB_TOKEN.
@@ -365,6 +462,22 @@ class SimpleGitTool:
                 ]
             logger.info(f"[SimpleGitTool] Staged files for commit: {staged_files}")
 
+            # Issue #3540: Sanitize commit message inputs
+            # This prevents issues with NUL characters, control characters, and long strings
+            sanitized_title = self._sanitize_commit_message(
+                title, self.MAX_COMMIT_TITLE_LENGTH, "title", allow_newlines=False
+            )
+            sanitized_body = self._sanitize_commit_message(
+                body, self.MAX_COMMIT_BODY_LENGTH, "body", allow_newlines=True
+            ) if body else ""
+
+            if not sanitized_title:
+                logger.error("[SimpleGitTool] Commit title is empty after sanitization")
+                return {
+                    'success': False,
+                    'error': 'Commit title is empty or invalid'
+                }
+
             # Issue #3584: Use git -c options to set author identity
             # This prevents "Author identity unknown" errors in CI/CD environments
             # where git user.name and user.email are not configured globally
@@ -372,10 +485,10 @@ class SimpleGitTool:
                 'git',
                 '-c', f'user.name={self.DEFAULT_GIT_AUTHOR_NAME}',
                 '-c', f'user.email={self.DEFAULT_GIT_AUTHOR_EMAIL}',
-                'commit', '-m', title
+                'commit', '-m', sanitized_title
             ]
-            if body:
-                commit_cmd.extend(['-m', body])
+            if sanitized_body:
+                commit_cmd.extend(['-m', sanitized_body])
 
             logger.info(
                 f"[SimpleGitTool] Committing with author: "
@@ -412,7 +525,7 @@ class SimpleGitTool:
             branch = branch_result.stdout.strip() if branch_result.returncode == 0 else "unknown"
 
             commit_sha_short = commit_sha[:8] if len(commit_sha) >= 8 else commit_sha
-            logger.info(f"[SimpleGitTool] Committed {commit_sha_short}: {title}")
+            logger.info(f"[SimpleGitTool] Committed {commit_sha_short}: {sanitized_title}")
 
             # Issue #3591: Root Cause #22 - Ensure remote exists before pushing
             # In staging, the workspace may not have 'origin' configured if it was
