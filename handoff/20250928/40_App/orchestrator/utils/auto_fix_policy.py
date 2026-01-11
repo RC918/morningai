@@ -42,6 +42,20 @@ _TIMESTAMP_PATTERNS = [
     re.compile(r'\d{2}:\d{2}:\d{2}\.\d+'),  # 10:00:00.123 with milliseconds
 ]
 
+# Issue #3810: Keywords that indicate important error content for signature extraction
+# These patterns help identify the most relevant parts of error messages
+_ERROR_KEYWORDS = [
+    'Error:', 'Exception:', 'FAILED', 'FAILURE', 'error:', 'exception:',
+    'AssertionError', 'TypeError', 'ValueError', 'KeyError', 'AttributeError',
+    'ImportError', 'ModuleNotFoundError', 'NameError', 'RuntimeError',
+    'SyntaxError', 'IndentationError', 'FileNotFoundError', 'PermissionError',
+    'FATAL', 'CRITICAL', 'Traceback', 'panic:', 'undefined', 'null pointer',
+]
+
+# Issue #3810: Regex patterns for line numbers and file paths in error messages
+_LINE_NUMBER_PATTERN = re.compile(r'(?:line\s+\d+|:\d+:|\[\d+\])')
+_FILE_PATH_PATTERN = re.compile(r'(?:/[\w./\-]+\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|c|h)|[\w./\-]+\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|c|h):\d+)')
+
 
 def _sanitize_pr_id(pr_id: str) -> str:
     """
@@ -63,6 +77,45 @@ def _sanitize_pr_id(pr_id: str) -> str:
     return _REDIS_KEY_SANITIZE_PATTERN.sub('_', pr_id)
 
 
+def _extract_important_lines(error_text: str) -> list:
+    """
+    Extract lines containing important error indicators.
+
+    Issue #3810: Intelligent keyword extraction to identify the most relevant
+    parts of error messages for signature computation.
+
+    Args:
+        error_text: Error text to analyze
+
+    Returns:
+        List of lines containing important error indicators
+    """
+    if not error_text:
+        return []
+
+    lines = error_text.split('\n')
+    important_lines = []
+
+    for line in lines:
+        line_stripped = line.strip()
+        if not line_stripped:
+            continue
+
+        # Check for error keywords
+        has_keyword = any(keyword in line for keyword in _ERROR_KEYWORDS)
+
+        # Check for line numbers (e.g., "line 42", ":42:", "[42]")
+        has_line_number = bool(_LINE_NUMBER_PATTERN.search(line))
+
+        # Check for file paths with error context
+        has_file_path = bool(_FILE_PATH_PATTERN.search(line))
+
+        if has_keyword or has_line_number or has_file_path:
+            important_lines.append(line_stripped)
+
+    return important_lines
+
+
 def _sanitize_error_for_signature(error_summary: str) -> str:
     """
     Sanitize error summary for CI signature computation.
@@ -71,6 +124,9 @@ def _sanitize_error_for_signature(error_summary: str) -> str:
     to prevent deduplication failures due to:
     1. Timestamp sensitivity - timestamps cause unique hashes every run
     2. Truncation blindness - important error details may be after char 500
+
+    Issue #3810: Uses intelligent keyword extraction to identify the most
+    relevant parts of error messages instead of simple head+tail truncation.
 
     Args:
         error_summary: Raw error summary text from CI logs
@@ -87,7 +143,22 @@ def _sanitize_error_for_signature(error_summary: str) -> str:
     for pattern in _TIMESTAMP_PATTERNS:
         clean_error = pattern.sub('', clean_error)
 
-    # Take head + tail to capture both context and specific error
+    # Issue #3810: Try intelligent keyword extraction first
+    important_lines = _extract_important_lines(clean_error)
+
+    if important_lines:
+        # Join important lines and use as digest if sufficient content
+        extracted = '\n'.join(important_lines)
+        # If extracted content is meaningful (at least 50 chars), use it
+        if len(extracted) >= 50:
+            # Still apply truncation if extracted content is too long
+            if len(extracted) > 1500:
+                error_digest = extracted[:1000] + "..." + extracted[-500:]
+            else:
+                error_digest = extracted
+            return error_digest
+
+    # Fallback: Take head + tail to capture both context and specific error
     # Stack traces often have generic framework calls first, real error at end
     if len(clean_error) > 1500:
         error_digest = clean_error[:1000] + "..." + clean_error[-500:]
