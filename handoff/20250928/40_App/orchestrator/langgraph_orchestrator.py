@@ -2496,6 +2496,12 @@ class AgentStateKeys:
     CURRENT_SPAN_ID = "current_span_id"
     LOOP_PROTECTION_TRIGGERED = "loop_protection_triggered"
 
+    # EPIC F Phase F-3c: FlowController v3 Integration Keys
+    FLOW_EXECUTION_RESULT = "flow_execution_result"
+    FLOW_EXECUTION_STATUS = "flow_execution_status"
+    FLOW_COMPLETED_TASKS = "flow_completed_tasks"
+    FLOW_FAILED_TASKS = "flow_failed_tasks"
+
 
 class AgentState(TypedDict):
     """
@@ -2732,6 +2738,17 @@ class AgentState(TypedDict):
     # CRITICAL: This field MUST be defined in AgentState for LangGraph to properly
     # propagate it between nodes. Without this definition, the flag may be lost.
     loop_protection_triggered: Optional[bool]
+    # EPIC F Phase F-3c: FlowController v3 Integration Fields
+    # Set by flow_executor_node when ENABLE_FLOW_CONTROLLER_V3=true.
+    # These fields track the execution state of plans via FlowController.
+    # flow_execution_result: Full ExecutionResult dict from FlowController
+    # flow_execution_status: Status string (completed, failed, pending, skipped)
+    # flow_completed_tasks: List of task IDs that completed successfully
+    # flow_failed_tasks: List of task IDs that failed
+    flow_execution_result: Optional[dict]
+    flow_execution_status: Optional[str]
+    flow_completed_tasks: Optional[list]
+    flow_failed_tasks: Optional[list]
 
 
 def _get_learning_context_for_planner(goal: str, task_type: Optional[str] = None) -> str:
@@ -4206,6 +4223,25 @@ def should_proceed_after_policy(state: AgentState) -> str:
     if state.get("policy_blocked", False):
         return "finalize"
     return "execute"
+
+
+def should_proceed_after_policy_with_flow_controller(state: AgentState) -> str:
+    """
+    EPIC F Phase F-3c: Determines routing after policy enforcement with FlowController support.
+
+    This function combines policy enforcement check with FlowController v3 routing:
+    1. If policy blocked: route to "finalize" (publisher)
+    2. If FlowController enabled: route to "flow_executor"
+    3. Otherwise: route to "execute" (legacy executor)
+
+    Returns:
+        "flow_executor" for FlowController v3, "execute" for legacy, "finalize" if blocked
+    """
+    if state.get("policy_blocked", False):
+        return "finalize"
+
+    flow_route = should_use_flow_controller(state)
+    return flow_route
 
 
 def executor_node(state: AgentState) -> AgentState:
@@ -9209,6 +9245,142 @@ def evaluation_node(state: AgentState) -> AgentState:
     return state
 
 
+@node_metrics("flow_executor", epic_tag="EPIC-F")
+def flow_executor_node(state: AgentState, success: list) -> AgentState:
+    """
+    EPIC F Phase F-3c: FlowController v3 execution node.
+
+    This node executes plans using the FlowController with AgentTaskExecutor,
+    providing unified task execution, dependency management, and state mapping.
+
+    The node is only active when ENABLE_FLOW_CONTROLLER_V3=true or when
+    the workflow is selected via FLOW_CONTROLLER_SAMPLE_RATE canary gating.
+
+    Args:
+        state: The current AgentState
+        success: Mutable list [False] for node_metrics decorator to track success
+
+    Returns:
+        Updated AgentState with flow execution results
+    """
+    from common.config.settings import settings
+    from core.planner.flow_integration import execute_with_flow_controller, FlowIntegrationConfig
+
+    trace_id = state.get("trace_id", "unknown")
+    metrics = _get_metrics()
+
+    logger.info(
+        "[FlowExecutor] Starting flow execution via FlowController v3",
+        extra={
+            "trace_id": trace_id,
+            "operation": "flow_executor_node",
+        }
+    )
+
+    config = FlowIntegrationConfig(
+        dry_run=False,
+        max_parallel=3,
+        stop_on_failure=True,
+        timeout_seconds=300,
+        max_retries=2,
+    )
+
+    try:
+        update = execute_with_flow_controller(dict(state), config)
+
+        state["flow_execution_result"] = update.get("flow_execution_result")
+        state["flow_execution_status"] = update.get("flow_execution_status")
+        state["flow_completed_tasks"] = update.get("flow_completed_tasks", [])
+        state["flow_failed_tasks"] = update.get("flow_failed_tasks", [])
+
+        if update.get("error"):
+            state["error"] = update["error"]
+        if update.get("final_result"):
+            state["final_result"] = update["final_result"]
+        if update.get("current_step") is not None:
+            state["current_step"] = update["current_step"]
+
+        # Mark success for node_metrics decorator
+        if update.get("flow_execution_status") == "completed":
+            success[0] = True
+
+        logger.info(
+            "[FlowExecutor] Flow execution completed",
+            extra={
+                "trace_id": trace_id,
+                "status": update.get("flow_execution_status"),
+                "completed_tasks": len(update.get("flow_completed_tasks", [])),
+                "failed_tasks": len(update.get("flow_failed_tasks", [])),
+                "operation": "flow_executor_node",
+            }
+        )
+
+    except Exception as e:
+        logger.error(
+            "[FlowExecutor] Flow execution failed with exception",
+            extra={
+                "trace_id": trace_id,
+                "error_type": type(e).__name__,
+                "operation": "flow_executor_node",
+            },
+            exc_info=True,
+        )
+        state["error"] = f"FlowController execution failed: {str(e)}"
+        state["flow_execution_status"] = "failed"
+
+    return state
+
+
+def should_use_flow_controller(state: AgentState) -> str:
+    """
+    EPIC F Phase F-3c: Determines whether to use FlowController v3 or legacy executor.
+
+    This routing function implements canary gating for FlowController v3:
+    1. If FLOW_CONTROLLER_SAMPLE_RATE > 0: Use hash-based bucketing of trace_id
+       for deterministic assignment (same trace_id always routes to same path)
+    2. If FLOW_CONTROLLER_SAMPLE_RATE == 0: Use ENABLE_FLOW_CONTROLLER_V3 flag
+
+    Uses SHA-256 based bucketing (via compute_bucket) for cross-process determinism,
+    consistent with the existing canary_gating module pattern.
+
+    Args:
+        state: The current AgentState
+
+    Returns:
+        "flow_executor" to use FlowController v3, "executor" for legacy executor
+    """
+    from common.config.settings import settings
+    from core.flow.canary_gating import compute_bucket
+
+    trace_id = state.get("trace_id", "unknown")
+    sample_rate = getattr(settings, 'flow_controller_sample_rate', 0)
+    enable_flag = getattr(settings, 'enable_flow_controller_v3', False)
+
+    if sample_rate > 0:
+        # Use SHA-256 based bucketing for cross-process determinism
+        bucket = compute_bucket(trace_id)
+        use_flow_controller = bucket < sample_rate
+        logger.info(
+            f"[FlowController] Canary routing: trace_id={trace_id[:8]}..., "
+            f"bucket={bucket}, sample_rate={sample_rate}%, "
+            f"route={'flow_executor' if use_flow_controller else 'executor'}"
+        )
+        return "flow_executor" if use_flow_controller else "executor"
+
+    if enable_flag:
+        logger.info(
+            f"[FlowController] Feature flag routing: ENABLE_FLOW_CONTROLLER_V3=true, "
+            f"trace_id={trace_id[:8]}..., route=flow_executor"
+        )
+        return "flow_executor"
+
+    logger.debug(
+        f"[FlowController] Feature flag routing: ENABLE_FLOW_CONTROLLER_V3=false, "
+        f"trace_id={trace_id[:8]}..., route=executor"
+    )
+    return "executor"
+
+
 def should_continue_execution(state: AgentState) -> str:
     """
     Determines if execution should continue to next step or move to CI monitoring
@@ -9369,6 +9541,9 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     workflow.add_node("evaluation", evaluation_node)
     # EPIC C Phase C-5: HITL Gate node for human-in-the-loop approval (Issue #3155)
     workflow.add_node("hitl_gate", hitl_gate_node)
+    # EPIC F Phase F-3c: FlowController v3 execution node
+    # Added when ENABLE_FLOW_CONTROLLER_V3=true or FLOW_CONTROLLER_SAMPLE_RATE > 0
+    workflow.add_node("flow_executor", flow_executor_node)
 
     # Set entry point (Issue #2211: support review_intake as alternative entry point)
     workflow.set_entry_point(entry_point)
@@ -9408,12 +9583,14 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
     # reputation_advisor → policy_enforcement (PR-2: policy enforcement gate)
     workflow.add_edge("reputation_advisor", "policy_enforcement")
 
-    # policy_enforcement → (executor | publisher) based on policy decision (PR-2)
+    # policy_enforcement → (flow_executor | executor | publisher) based on policy decision (PR-2)
     # EPIC B Phase B-3: Route finalize through publisher for review posting
+    # EPIC F Phase F-3c: Route execute through flow_executor when feature flag enabled
     workflow.add_conditional_edges(
         "policy_enforcement",
-        should_proceed_after_policy,
+        should_proceed_after_policy_with_flow_controller,
         {
+            "flow_executor": "flow_executor",
             "execute": "executor",
             "finalize": "publisher"
         }
@@ -9431,6 +9608,10 @@ def create_orchestrator_graph(entry_point: str = "planner", checkpointer=None):
             "finalize": "publisher"
         }
     )
+
+    # EPIC F Phase F-3c: flow_executor → ci_monitor
+    # After FlowController executes all tasks, go to CI monitoring
+    workflow.add_edge("flow_executor", "ci_monitor")
 
     # ci_monitor → reviewer (Phase 3: always go to reviewer after CI check)
     workflow.add_edge("ci_monitor", "reviewer")
