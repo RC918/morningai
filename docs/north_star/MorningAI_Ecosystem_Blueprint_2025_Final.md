@@ -10,8 +10,8 @@ MorningAI 生態系是一個 **多代理、自主規劃、自動建置、自主�
 
 * 9 大核心引擎
 * 13 種代理角色
-* 8 套治理與安全層
-* 5 層架構（模型→引擎→代理→Flow→治理）
+* 8 套治理與安全機制（詳見 Section 4）
+* 4 層架構（Model → Intelligence → Governance → Infrastructure）
 * 多模型 / 多 Provider / 多 Cloud 的完整協作
 * 自動 Provisioning + Drift 監控
 * Simulation Suite（完整自動 QA 系統）
@@ -142,9 +142,74 @@ Flow Controller 代表整個 MorningAI 的 **Runtime Engine**。
 
 ---
 
+## 3.4 BrowserNode v2 — 瀏覽器自動化與自癒系統
+
+BrowserNode 是 MorningAI 中具有最高「不確定性」的組件，因為它依賴不可控的第三方 UI。
+
+### 核心能力
+
+* **Browser Automation**: Playwright-based 瀏覽器自動化
+  - Navigate, Click, Type, Screenshot
+  - Headless/Headed mode support
+  - Multi-tab management
+  - iframe / shadow DOM navigation
+
+* **CLI Executor**: Shell command execution
+  - Sandboxed execution environment
+  - Output capture and parsing
+
+### Self-Heal Engine（5 階段自癒管線）
+
+1. **Failure Detection**: DOM snapshot + error string + screenshot 封存
+2. **Failure Classification**: Missing/Weak/Ambiguous Selector, Layout Shift, Timing Issue
+3. **Reproduction Engine**: 在 sandbox 中重現行為，生成 Minimal Reproduction Case (MRE)
+4. **Self-Heal Engine**: Selector Strengthening, Fallback Chain, Timing Auto-Adjust
+5. **Regression & Learning**: 自動建立 regression test，更新 Knowledge Base
+
+### Selector Knowledge Base
+
+```json
+{
+  "element": "submit_button",
+  "selectors": ["button[data-testid='submit']", "button[aria-label='Submit']", "text='Submit'"],
+  "fallback_chain": ["aria-label", "data-testid", "text match", "semantic DOM match"],
+  "confidence": 0.92
+}
+```
+
+BrowserNode v2 啟動時會載入 Knowledge Base，實現「越用越準、越跑越穩」。
+
+---
+
+## 3.5 Diagnostic Agent — 錯誤診斷與重現
+
+Diagnostic Agent 負責錯誤的診斷、重現與根因分析：
+
+* **Error Reproduction**: 在隔離環境中重現錯誤
+* **MRE Generation**: 生成 Minimal Reproducible Example
+* **Root Cause Analysis**: 識別錯誤根因
+* **Blast Radius Assessment**: 評估影響範圍
+
+Diagnostic Agent 與 Test Agent v2 協作，將錯誤轉換為 regression test。
+
+---
+
 # 4. Governance & Safety Layer（治理與安全層）
 
-四大核心治理模組：
+八大治理與安全機制：
+
+1. **Safety Governor v2** (Section 4.1) - 風險掃描、Prompt Injection 防護
+2. **Compliance Radar v2** (Section 4.2) - PII 掃描、法規遵循
+3. **Model Governance Framework v2** (Section 4.3) - Drift 監測、Provider 健康
+4. **Autonomous Provisioning v2** (Section 4.4) - 自動模型管理
+5. **Agent Interaction Protocol v2 (AIP v2)** - Agent 間通訊規範（詳見 Section 4.5）
+6. **Memory v2 Write Policies** - 記憶寫入規範（詳見 Section 5.1）
+7. **Evidence Ledger** - 決策證據鏈（詳見 Section 4.6）
+8. **Capability-Based Security** - 基於能力的安全模型（詳見 Section 4.7）
+
+---
+
+**核心治理模組（4.1-4.4）**
 
 ---
 
@@ -202,6 +267,55 @@ MorningAI 具備自我演化能力。
 
 ---
 
+## 4.5 Agent Interaction Protocol v2 (AIP v2)
+
+定義所有 Agent 間的通訊規範：
+
+* **Message Schema**: 統一的 AgentMessage 格式（sender, receiver, payload, trace_id）
+* **Handshake Protocol**: Agent 啟動時的能力宣告與驗證
+* **Error Propagation**: 標準化的錯誤傳遞與回復機制
+* **Context Passing**: 跨 Agent 的上下文傳遞規範
+* **Priority Levels**: 訊息優先級（CRITICAL, HIGH, NORMAL, LOW）
+
+所有 Agent 必須實作 AIP v2 介面才能加入 MorningAI 生態系。
+
+---
+
+## 4.6 Evidence Ledger
+
+記錄所有決策的證據鏈：
+
+* **Decision Record**: 每個重要決策的完整記錄
+* **Reasoning Chain**: 決策推理過程的追蹤
+* **Audit Trail**: 可審計的決策歷史
+* **Rollback Support**: 支援決策回滾的證據保存
+
+用於：
+* 事後分析與除錯
+* 合規審計
+* 模型行為分析
+* 持續改進
+
+---
+
+## 4.7 Capability-Based Security
+
+基於能力的安全模型：
+
+* **Capability Tokens**: Agent 執行特定操作的權限令牌
+* **Least Privilege**: 最小權限原則
+* **Dynamic Revocation**: 動態撤銷能力
+* **Scope Limitation**: 操作範圍限制
+
+安全層級：
+* **Level 0**: 唯讀操作（Read-Only）
+* **Level 1**: 本地修改（Local Modification）
+* **Level 2**: 外部 API 呼叫（External API）
+* **Level 3**: 部署操作（Deployment）
+* **Level 4**: 系統配置（System Configuration）
+
+---
+
 # 5. Infrastructure Layer（基礎層）
 
 ---
@@ -253,6 +367,51 @@ Telemetry v2 能：
 * 可回放、可視覺化
 
 這是 MorningAI「品質」的根基。
+
+---
+
+## 5.4 Regression Pipeline v1 — 自動回歸測試管線
+
+將任何錯誤轉換為永不再犯的 regression test：
+
+### Error Sources（錯誤來源）
+
+* **Runtime Errors**: Node backend / Python orchestrator logs
+* **BrowserNode Failures**: selector 找不到、DOM 結構變動
+* **Sentry / Datadog Alerts**: stack trace + breadcrumbs
+* **Diagnostic Agent Reports**: root cause + 重現步驟
+
+### Regression Candidate Selection
+
+```
+priority = severity*0.5 + frequency*0.3 + blast_radius*0.2
+```
+
+* **P0**: 立即建立 regression
+* **P1**: 排入 nightly regression cycle
+* **P2**: 觀察是否重複再建立
+
+### Regression Test Generation Flow
+
+```
+Error → Diagnostic Agent → MRE → Test Agent v2 → Regression Test → CI Validation
+```
+
+### CI Enforcement
+
+* 若 regression 測試失敗 → 阻擋 PR
+* 若 regression 測試被修改 → 需要 reviewer 強制審查
+* 若 regression 測試被刪除 → Safety Governor 擋下
+
+### Weekly Regression Cycle
+
+Flow Controller v2 每週執行：
+* 搜集新錯誤
+* 自動生成 regression
+* 重新計算 regression coverage
+* 更新 Risk Heatmap
+
+Regression Pipeline 讓整個系統「越用越穩、越跑越強」。
 
 ---
 
@@ -388,4 +547,5 @@ MorningAI 的最終目標：
 |---------|------|--------|---------|
 | 2025-Q4 Final | 2025-12-21 | Ryan Chen (@RC918) | Initial version imported from Ecosystem Wish Pool v2 |
 | 2025-Q4 Final | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Added EPIC I mapping for Blueprint 4.3 (Model Governance Framework v2) + 4.4 (Autonomous Provisioning v2) implementation. See [EPIC I #3342](https://github.com/RC918/morningai/issues/3342). |
+| 2025-Q4 Final | 2026-01-12 | Ryan Chen (@RC918) with Devin AI | **Architecture Gap Fix**: (1) Fixed 4/5 layer inconsistency → unified to 4 layers. (2) Enumerated all 8 governance mechanisms explicitly. (3) Added Section 4.5 AIP v2, Section 4.6 Evidence Ledger, Section 4.7 Capability-Based Security. (4) Added Section 3.4 BrowserNode v2 with Self-Heal Engine. (5) Added Section 3.5 Diagnostic Agent. (6) Added Section 5.4 Regression Pipeline v1. |
 
