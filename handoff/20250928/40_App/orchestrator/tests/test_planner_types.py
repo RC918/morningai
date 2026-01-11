@@ -402,3 +402,361 @@ class TestExecutionResult:
         )
         assert result.get_completed_count() == 2
         assert result.get_progress_percent() == 50.0
+
+
+class TestSanitizeForLog:
+    """
+    Tests for _sanitize_for_log() function in consumer.py
+
+    Issue #3840: Unit tests for sanitization functions
+    Source: Gemini Code Assist (PR #3837, Comment r2679560564)
+    """
+
+    def test_empty_string(self):
+        """Test sanitization of empty string"""
+        from core.planner.consumer import _sanitize_for_log
+        assert _sanitize_for_log("") == ""
+
+    def test_newline_replacement(self):
+        """Test that newlines are escaped"""
+        from core.planner.consumer import _sanitize_for_log
+        assert _sanitize_for_log("line1\nline2") == "line1\\nline2"
+
+    def test_carriage_return_replacement(self):
+        """Test that carriage returns are escaped"""
+        from core.planner.consumer import _sanitize_for_log
+        assert _sanitize_for_log("line1\rline2") == "line1\\rline2"
+
+    def test_crlf_replacement(self):
+        """Test that CRLF sequences are escaped"""
+        from core.planner.consumer import _sanitize_for_log
+        assert _sanitize_for_log("line1\r\nline2") == "line1\\r\\nline2"
+
+    def test_string_shorter_than_max_length(self):
+        """Test that short strings are not truncated"""
+        from core.planner.consumer import _sanitize_for_log
+        short_string = "short"
+        assert _sanitize_for_log(short_string, max_length=200) == "short"
+
+    def test_string_equal_to_max_length(self):
+        """Test that strings exactly at max_length are not truncated"""
+        from core.planner.consumer import _sanitize_for_log
+        exact_string = "a" * 200
+        assert _sanitize_for_log(exact_string, max_length=200) == exact_string
+
+    def test_string_longer_than_max_length(self):
+        """Test that long strings are truncated with ellipsis"""
+        from core.planner.consumer import _sanitize_for_log
+        long_string = "a" * 250
+        result = _sanitize_for_log(long_string, max_length=200)
+        assert len(result) == 203  # 200 + "..."
+        assert result.endswith("...")
+
+    def test_only_control_characters(self):
+        """Test string with only control characters"""
+        from core.planner.consumer import _sanitize_for_log
+        assert _sanitize_for_log("\n\r\n\r") == "\\n\\r\\n\\r"
+
+    def test_multiple_newlines(self):
+        """Test string with multiple newlines"""
+        from core.planner.consumer import _sanitize_for_log
+        assert _sanitize_for_log("a\nb\nc\nd") == "a\\nb\\nc\\nd"
+
+    def test_custom_max_length(self):
+        """Test with custom max_length parameter"""
+        from core.planner.consumer import _sanitize_for_log
+        result = _sanitize_for_log("abcdefghij", max_length=5)
+        assert result == "abcde..."
+
+    def test_truncation_after_escape(self):
+        """Test that truncation happens after escape replacement"""
+        from core.planner.consumer import _sanitize_for_log
+        # "\n" becomes "\\n" (2 chars), so length increases
+        result = _sanitize_for_log("\n" * 100, max_length=10)
+        assert result == "\\n\\n\\n\\n\\n..."
+
+
+class TestSanitizeTaskId:
+    """
+    Tests for _sanitize_task_id() function in planner_types.py
+
+    Issue #3840: Unit tests for sanitization functions
+    Source: Gemini Code Assist (PR #3837, Comment r2679560564)
+    """
+
+    def test_empty_string(self):
+        """Test sanitization of empty string"""
+        from core.planner.planner_types import _sanitize_task_id
+        assert _sanitize_task_id("") == ""
+
+    def test_normal_task_id(self):
+        """Test normal task_id passes through unchanged"""
+        from core.planner.planner_types import _sanitize_task_id
+        assert _sanitize_task_id("task-123") == "task-123"
+
+    def test_newline_replacement(self):
+        """Test that newlines are escaped"""
+        from core.planner.planner_types import _sanitize_task_id
+        assert _sanitize_task_id("task\n123") == "task\\n123"
+
+    def test_carriage_return_replacement(self):
+        """Test that carriage returns are escaped"""
+        from core.planner.planner_types import _sanitize_task_id
+        assert _sanitize_task_id("task\r123") == "task\\r123"
+
+    def test_crlf_replacement(self):
+        """Test that CRLF sequences are escaped"""
+        from core.planner.planner_types import _sanitize_task_id
+        assert _sanitize_task_id("task\r\n123") == "task\\r\\n123"
+
+    def test_string_shorter_than_max_length(self):
+        """Test that short strings are not truncated"""
+        from core.planner.planner_types import _sanitize_task_id
+        assert _sanitize_task_id("short", max_length=100) == "short"
+
+    def test_string_equal_to_max_length(self):
+        """Test that strings exactly at max_length are not truncated"""
+        from core.planner.planner_types import _sanitize_task_id
+        exact_string = "a" * 100
+        assert _sanitize_task_id(exact_string, max_length=100) == exact_string
+
+    def test_string_longer_than_max_length(self):
+        """Test that long strings are truncated with ellipsis"""
+        from core.planner.planner_types import _sanitize_task_id
+        long_string = "a" * 150
+        result = _sanitize_task_id(long_string, max_length=100)
+        assert len(result) == 103  # 100 + "..."
+        assert result.endswith("...")
+
+    def test_default_max_length_is_100(self):
+        """Test that default max_length is 100"""
+        from core.planner.planner_types import _sanitize_task_id
+        long_string = "a" * 150
+        result = _sanitize_task_id(long_string)
+        assert len(result) == 103  # 100 + "..."
+
+    def test_only_control_characters(self):
+        """Test string with only control characters"""
+        from core.planner.planner_types import _sanitize_task_id
+        assert _sanitize_task_id("\n\r") == "\\n\\r"
+
+    def test_uuid_style_task_id(self):
+        """Test UUID-style task_id passes through unchanged"""
+        from core.planner.planner_types import _sanitize_task_id
+        uuid_id = "550e8400-e29b-41d4-a716-446655440000"
+        assert _sanitize_task_id(uuid_id) == uuid_id
+
+
+class TestSkippedTaskDependencyResolution:
+    """
+    Tests for SKIPPED task handling in BasePlanConsumer.execute_plan()
+
+    Issue #3842: Unit test for SKIPPED task dependency resolution
+    Source: Gemini Code Assist (PR #3838 Review)
+
+    Verifies that when a task returns SKIPPED status, dependent tasks
+    can still proceed (SKIPPED is treated as completed for dependency resolution).
+    """
+
+    def test_skipped_task_allows_dependent_to_execute(self):
+        """
+        Test that a SKIPPED task allows its dependent task to execute.
+
+        Scenario:
+        1. Create a plan with task A → task B dependency
+        2. Task A returns SKIPPED status
+        3. Verify task B becomes executable (not blocked)
+        """
+        from core.planner.consumer import (
+            BasePlanConsumer,
+            TaskResult,
+            ExecutionStatus,
+        )
+        from core.planner.planner_types import (
+            PlannerOutput,
+            TaskTree,
+            TaskNode,
+            TaskEdge,
+            TaskType,
+        )
+
+        class SkipFirstTaskConsumer(BasePlanConsumer):
+            """Consumer that SKIPs the first task and COMPLETEs others"""
+            def __init__(self):
+                super().__init__()
+                self.executed_tasks = []
+
+            def execute_task(self, task: TaskNode, plan: PlannerOutput) -> TaskResult:
+                self.executed_tasks.append(task.task_id)
+                # First task (task_a) returns SKIPPED
+                if task.task_id == "task_a":
+                    return TaskResult(
+                        task_id=task.task_id,
+                        status=ExecutionStatus.SKIPPED,
+                        outputs={"reason": "pre-condition not met"},
+                    )
+                # All other tasks complete normally
+                return TaskResult(
+                    task_id=task.task_id,
+                    status=ExecutionStatus.COMPLETED,
+                    outputs={},
+                )
+
+        # Create plan: task_a → task_b
+        plan = PlannerOutput(
+            goal="Test SKIPPED dependency resolution",
+            task_tree=TaskTree(
+                nodes=[
+                    TaskNode(task_id="task_a", task_type=TaskType.SETUP, description="Setup task"),
+                    TaskNode(task_id="task_b", task_type=TaskType.CODE, description="Code task"),
+                ],
+                edges=[
+                    TaskEdge(from_task="task_a", to_task="task_b"),
+                ],
+            ),
+        )
+
+        consumer = SkipFirstTaskConsumer()
+        result = consumer.execute_plan(plan)
+
+        # Both tasks should have been executed
+        assert "task_a" in consumer.executed_tasks
+        assert "task_b" in consumer.executed_tasks
+
+        # Plan should complete successfully (SKIPPED + COMPLETED = all done)
+        assert result.status == ExecutionStatus.COMPLETED
+        assert len(result.task_results) == 2
+
+        # Verify task statuses
+        task_a_result = next(r for r in result.task_results if r.task_id == "task_a")
+        task_b_result = next(r for r in result.task_results if r.task_id == "task_b")
+        assert task_a_result.status == ExecutionStatus.SKIPPED
+        assert task_b_result.status == ExecutionStatus.COMPLETED
+
+    def test_skipped_task_in_chain_allows_all_dependents(self):
+        """
+        Test that SKIPPED task in a chain allows all downstream tasks.
+
+        Scenario: A → B → C, where B is SKIPPED
+        Expected: C should still execute
+        """
+        from core.planner.consumer import (
+            BasePlanConsumer,
+            TaskResult,
+            ExecutionStatus,
+        )
+        from core.planner.planner_types import (
+            PlannerOutput,
+            TaskTree,
+            TaskNode,
+            TaskEdge,
+            TaskType,
+        )
+
+        class SkipMiddleTaskConsumer(BasePlanConsumer):
+            """Consumer that SKIPs the middle task"""
+            def __init__(self):
+                super().__init__()
+                self.executed_tasks = []
+
+            def execute_task(self, task: TaskNode, plan: PlannerOutput) -> TaskResult:
+                self.executed_tasks.append(task.task_id)
+                if task.task_id == "task_b":
+                    return TaskResult(
+                        task_id=task.task_id,
+                        status=ExecutionStatus.SKIPPED,
+                        outputs={},
+                    )
+                return TaskResult(
+                    task_id=task.task_id,
+                    status=ExecutionStatus.COMPLETED,
+                    outputs={},
+                )
+
+        # Create plan: task_a → task_b → task_c
+        plan = PlannerOutput(
+            goal="Test SKIPPED in chain",
+            task_tree=TaskTree(
+                nodes=[
+                    TaskNode(task_id="task_a", task_type=TaskType.SETUP, description="A"),
+                    TaskNode(task_id="task_b", task_type=TaskType.ANALYZE, description="B"),
+                    TaskNode(task_id="task_c", task_type=TaskType.CODE, description="C"),
+                ],
+                edges=[
+                    TaskEdge(from_task="task_a", to_task="task_b"),
+                    TaskEdge(from_task="task_b", to_task="task_c"),
+                ],
+            ),
+        )
+
+        consumer = SkipMiddleTaskConsumer()
+        result = consumer.execute_plan(plan)
+
+        # All three tasks should have been executed
+        assert consumer.executed_tasks == ["task_a", "task_b", "task_c"]
+        assert result.status == ExecutionStatus.COMPLETED
+
+    def test_multiple_skipped_tasks(self):
+        """
+        Test that multiple SKIPPED tasks are handled correctly.
+
+        Scenario: A and B are parallel, both SKIPPED, C depends on both
+        Expected: C should still execute
+        """
+        from core.planner.consumer import (
+            BasePlanConsumer,
+            TaskResult,
+            ExecutionStatus,
+        )
+        from core.planner.planner_types import (
+            PlannerOutput,
+            TaskTree,
+            TaskNode,
+            TaskEdge,
+            TaskType,
+        )
+
+        class SkipParallelTasksConsumer(BasePlanConsumer):
+            """Consumer that SKIPs parallel tasks A and B"""
+            def __init__(self):
+                super().__init__()
+                self.executed_tasks = []
+
+            def execute_task(self, task: TaskNode, plan: PlannerOutput) -> TaskResult:
+                self.executed_tasks.append(task.task_id)
+                if task.task_id in ("task_a", "task_b"):
+                    return TaskResult(
+                        task_id=task.task_id,
+                        status=ExecutionStatus.SKIPPED,
+                        outputs={},
+                    )
+                return TaskResult(
+                    task_id=task.task_id,
+                    status=ExecutionStatus.COMPLETED,
+                    outputs={},
+                )
+
+        # Create plan: task_a and task_b (parallel) → task_c
+        plan = PlannerOutput(
+            goal="Test multiple SKIPPED",
+            task_tree=TaskTree(
+                nodes=[
+                    TaskNode(task_id="task_a", task_type=TaskType.SETUP, description="A"),
+                    TaskNode(task_id="task_b", task_type=TaskType.SETUP, description="B"),
+                    TaskNode(task_id="task_c", task_type=TaskType.CODE, description="C"),
+                ],
+                edges=[
+                    TaskEdge(from_task="task_a", to_task="task_c"),
+                    TaskEdge(from_task="task_b", to_task="task_c"),
+                ],
+            ),
+        )
+
+        consumer = SkipParallelTasksConsumer()
+        result = consumer.execute_plan(plan)
+
+        # All tasks should have been executed
+        assert "task_a" in consumer.executed_tasks
+        assert "task_b" in consumer.executed_tasks
+        assert "task_c" in consumer.executed_tasks
+        assert result.status == ExecutionStatus.COMPLETED
