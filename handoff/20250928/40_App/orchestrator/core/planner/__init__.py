@@ -9,6 +9,8 @@ for task decomposition, DAG-based execution planning, and agent assignment.
 Components:
 - planner_types: Data structures for Planner v3 output (TaskNode, TaskEdge, PlannerOutput)
 - consumer: Flow Controller consumption interface (PlanConsumer protocol)
+- dag_builder: DAG construction utilities (Phase F-2)
+- parallel_executor: Parallel task execution (Phase F-2)
 """
 
 from .planner_types import (
@@ -40,13 +42,29 @@ from .adapters import (
     adapt_pm_agent_output,
 )
 
+from .dag_builder import (
+    DAGBuilder,
+    ValidationResult,
+    PARALLEL_SAFE_TASK_TYPES,
+    PARALLEL_UNSAFE_TASK_TYPES,
+)
+
+from .parallel_executor import (
+    ExecutionStatus as ParallelExecutionStatus,
+    TaskExecutionResult,
+    BatchExecutionResult,
+    TaskExecutor,
+    SimpleTaskExecutor,
+    ParallelExecutor,
+)
+
 from .flow_controller import (
     FlowTemplate,
     FlowStage,
     FlowDefinition,
     FlowState,
     FlowController,
-    TaskExecutor,
+    TaskExecutor as FlowTaskExecutor,
     DefaultTaskExecutor,
     create_flow_controller,
     FLOW_DEFINITIONS,
@@ -76,13 +94,25 @@ __all__ = [
     "adapt_llm_planner_output",
     "adapt_task_planner_output",
     "adapt_pm_agent_output",
+    # DAG Builder (Phase F-2)
+    "DAGBuilder",
+    "ValidationResult",
+    "PARALLEL_SAFE_TASK_TYPES",
+    "PARALLEL_UNSAFE_TASK_TYPES",
+    # Parallel Executor (Phase F-2)
+    "ParallelExecutionStatus",
+    "TaskExecutionResult",
+    "BatchExecutionResult",
+    "TaskExecutor",
+    "SimpleTaskExecutor",
+    "ParallelExecutor",
     # Flow Controller (Phase F-2)
     "FlowTemplate",
     "FlowStage",
     "FlowDefinition",
     "FlowState",
     "FlowController",
-    "TaskExecutor",
+    "FlowTaskExecutor",
     "DefaultTaskExecutor",
     "create_flow_controller",
     "FLOW_DEFINITIONS",
