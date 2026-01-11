@@ -113,9 +113,9 @@ EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C
 | Phase 3 | Security & Reliability (secrets sanitization, commit_id validation) | **Completed** |
 | Phase 4 | Checks API (GitHub App, branch protection) | Planned (2026) |
 | **B-6** | Reviewer -> Router Interface (`ReviewOutcome` schema) | **Completed** ([#3130](https://github.com/RC918/morningai/issues/3130), [#3135](https://github.com/RC918/morningai/pull/3135)) |
-| **Phase 7** | Copilot/Gemini Parity (B-7 to B-9) - Blueprint-aligned | **Planning** ([PR #3850](https://github.com/RC918/morningai/pull/3850)) |
-| B-7 | Codebase Context Integration (CodeIndexer → reviewer_node) | Planning |
-| B-8 | Semantic Understanding Integration (LSP/AST → reviewer_node) | Planning |
+| **Phase 7** | Copilot/Gemini Parity (B-9 only) - Blueprint-aligned | **Planning** |
+| ~~B-7~~ | ~~Codebase Context Integration~~ → **MOVED TO EPIC D** (Coder Agent capability) | N/A |
+| ~~B-8~~ | ~~Semantic Understanding Integration~~ → **MOVED TO EPIC D** (Coder Agent capability) | N/A |
 | B-9 | Multi-Specialist Review (Parallel Collaboration, NOT Debate Engine) | Planning |
 | ~~B-10~~ | ~~Auto-Fix Integration~~ → **REMOVED** (OUT OF SCOPE - already in EPIC D) | N/A |
 | **Phase 8** | Copilot/Gemini Superiority (B-11 to B-13) - Blueprint-aligned | **Planning** |
@@ -252,3 +252,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 2.0 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Created EPIC I detailed roadmap document with JSON Schema definitions (GlobalHealthSnapshot, DriftRetryPolicy, RuntimeTrustScore). Updated EPIC I status from "Planning (after #3249)" to "Phase 1 Active, Phase 2+ gated by #3249". Added phase breakdown table and Cross-EPIC Integration (E+I+F closed loop). |
 | 2.1 | 2026-01-11 | Devin AI | Updated EPIC D status to **Stage 1-2 Completed**: D-3 Spec-Driven Development (#3756), D-4 Self-Correction Loop (#3821 verified on staging 2026-01-11). Updated EPIC table and cross-reference section. |
 | 2.2 | 2026-01-11 | Devin AI | Added EPIC B Phase 7-8 Planning ([PR #3850](https://github.com/RC918/morningai/pull/3850)): B-7 Codebase Context, B-8 Semantic Understanding, B-9 Multi-Specialist Review. **Blueprint Alignment**: B-10 (Auto-Fix) REMOVED (OUT OF SCOPE - Fixer capability already exists in EPIC D), B-11 scope reduced to Test Coverage Flagging (Test Agent v2 generates tests). Updated EPIC table, phase table, and cross-reference section. |
+| 2.3 | 2026-01-11 | Devin AI | **CRITICAL CORRECTION**: B-7 (Codebase Context) and B-8 (Semantic Understanding) **MOVED TO EPIC D** (Coder Agent capabilities). Per Blueprint Section 3.3 Agent Separation Principle: CodeIndexer, KnowledgeGraphManager, and LSP/AST are Coder Agent tools, NOT Reviewer tools. Reviewer Agent only reviews PR diff - does NOT need full codebase understanding. Phase 7 now contains only B-9 (Multi-Specialist Review). |
