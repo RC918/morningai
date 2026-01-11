@@ -1,6 +1,6 @@
 # EPIC D: Autonomous Coder Agent Family - Roadmap
 
-> Last Updated: 2026-01-02
+> Last Updated: 2026-01-11
 
 ## Overview
 
@@ -15,10 +15,10 @@ EPIC D implements the complete Coder Agent family, enabling the system to autono
 | Stage | Status | Key Issues |
 |-------|--------|------------|
 | Stage 0: Pre-validation | **Completed** (via EPIC C) | #2758 (C-5b) |
-| Stage 1: General Coder MVP | **In Progress** | #2760, #2761 |
-| Stage 2: Intelligence & Automation | Planned | #2762, #2764 |
+| Stage 1: General Coder MVP | **Completed** | #2760, #2761 |
+| Stage 2: Intelligence & Automation | **Completed** | #2762, #2764 |
 | Stage 3: Advanced Capabilities | Future | D-5, D-6 |
-| HITL Gate Operationalization | **Pending** | [#3487](https://github.com/RC918/morningai/issues/3487) |
+| HITL Gate Operationalization | **Completed** | [#3487](https://github.com/RC918/morningai/issues/3487) |
 
 ---
 
@@ -57,7 +57,7 @@ Completed via EPIC C - SimpleCoder validates Flow Controller routing.
 
 ---
 
-## Stage 1: General Coder MVP (In Progress)
+## Stage 1: General Coder MVP (Completed)
 
 Multi-file editing and Senior Coder reasoning capabilities.
 
@@ -65,8 +65,8 @@ Multi-file editing and Senior Coder reasoning capabilities.
 
 | Issue | Description | Status |
 |-------|-------------|--------|
-| [#2760](https://github.com/RC918/morningai/issues/2760) | D-1: General Coder Agent (MVP) | In Progress |
-| [#2761](https://github.com/RC918/morningai/issues/2761) | D-2: Senior Coder Logic (Tier 1) | In Progress |
+| [#2760](https://github.com/RC918/morningai/issues/2760) | D-1: General Coder Agent (MVP) | **Completed** |
+| [#2761](https://github.com/RC918/morningai/issues/2761) | D-2: Senior Coder Logic (Tier 1) | **Completed** |
 
 ### D-1: General Coder MVP
 
@@ -84,52 +84,61 @@ Multi-file editing and Senior Coder reasoning capabilities.
 
 ---
 
-## HITL Gate Operationalization Gap (Pending)
+## HITL Gate Operationalization (Completed)
 
-> **Tracking Issue**: [#3487](https://github.com/RC918/morningai/issues/3487)
+> **Tracking Issue**: [#3487](https://github.com/RC918/morningai/issues/3487) - **Closed**
 
-### Current Gap
+### Implementation Summary
 
-The `SeniorCoder` complexity abort mechanism currently falls back silently instead of triggering proper HITL (Human-in-the-Loop) gate.
+The `SeniorCoder` complexity abort mechanism now properly triggers HITL (Human-in-the-Loop) gate.
 
-| Component | Expected Behavior | Actual Behavior |
-|-----------|-------------------|-----------------|
-| `_attempt_senior_coder_plan()` | Abort → Trigger HITL gate | Abort → Silent fallback |
-| HITL Integration Tests | Test actual abort → HITL path | Tests minimal graph only |
-
-### Action Required
-
-1. Add HITL trigger logic in `_attempt_senior_coder_plan()` abort path
-2. Update integration tests to cover SeniorCoder abort → HITL flow
-3. Add telemetry for HITL trigger events
+| Component | Status |
+|-----------|--------|
+| `_attempt_senior_coder_plan()` | HITL trigger logic implemented |
+| HITL Integration Tests | Abort → HITL path covered |
+| Telemetry | HITL trigger events emitting |
 
 ---
 
-## Stage 2: Intelligence & Automation (Planned)
+## Stage 2: Intelligence & Automation (Completed)
 
 Spec-driven development and self-correction capabilities.
 
-### Planned Items
+### Completed Items
 
-| Issue | Description | Status |
-|-------|-------------|--------|
-| [#2762](https://github.com/RC918/morningai/issues/2762) | D-3: Spec-Driven Development | Planned |
-| [#2764](https://github.com/RC918/morningai/issues/2764) | D-4: Self-Correction Loop | Planned |
+| Issue | Description | Status | PR |
+|-------|-------------|--------|-----|
+| [#2762](https://github.com/RC918/morningai/issues/2762) | D-3: Spec-Driven Development | **Completed** | #3756 |
+| [#2764](https://github.com/RC918/morningai/issues/2764) | D-4: Self-Correction Loop | **Completed** | #3821 (and others) |
 
-### D-3: Spec-Driven Development
+### D-3: Spec-Driven Development (Completed)
 
-**Acceptance Criteria**:
-- Coder can read and understand Planner's spec
-- Spec format standardized and validated
-- Traceability from spec to implementation
+**Implementation**:
+- `SpecParser` - Parses Planner-produced structured specs
+- `SpecValidator` - Validates spec format and completeness
+- SeniorCoder integration for spec-driven workflow
 
-### D-4: Self-Correction Loop
+**Acceptance Criteria Met**:
+- [x] Coder can read and understand Planner's spec
+- [x] Spec format standardized and validated
+- [x] Traceability from spec to implementation
 
-**Acceptance Criteria**:
-- Detect `npm test` / `pytest` failures automatically
-- Parse error logs and identify fix targets
-- Attempt self-fix without Reviewer intervention
-- Maximum retry limit with HITL escalation
+### D-4: Self-Correction Loop (Completed)
+
+**Implementation**:
+- `SelfCorrectionLoop` class with retry logic
+- `TestLogParser` for error extraction
+- CI failure webhook integration
+- Loop protection with max 3 attempts
+- CISignatureDeduplication for cost optimization
+
+**Acceptance Criteria Met**:
+- [x] Detect `npm test` / `pytest` failures automatically
+- [x] Parse error logs and identify fix targets
+- [x] Attempt self-fix without Reviewer intervention
+- [x] Maximum retry limit with HITL escalation
+
+**Verified**: 2026-01-11 - D-4 successfully triggered on test PR #3823
 
 ---
 
@@ -203,24 +212,24 @@ Cross-EPIC:
 
 ## Verification Signals (Production Readiness)
 
-Before production enablement, verify:
+All verification signals confirmed:
 
-- [ ] HITL gate properly triggered on complexity abort ([#3487](https://github.com/RC918/morningai/issues/3487))
-- [ ] Multi-file editing works correctly (D-1)
-- [ ] Senior Coder reasoning produces valid architecture docs (D-2)
-- [ ] All Coders correctly routed by Flow Controller v3
-- [ ] Telemetry emitting for Coder decisions
+- [x] HITL gate properly triggered on complexity abort ([#3487](https://github.com/RC918/morningai/issues/3487))
+- [x] Multi-file editing works correctly (D-1)
+- [x] Senior Coder reasoning produces valid architecture docs (D-2)
+- [x] All Coders correctly routed by Flow Controller v3
+- [x] Telemetry emitting for Coder decisions
 
 ---
 
 ## Acceptance Criteria (Red Lines)
 
-- [ ] D-1: Can handle multi-file editing (up to 5 files)
-- [ ] D-2: Senior Coder produces architecture design before coding
-- [ ] D-3: Coder can read and execute Planner's spec
-- [ ] D-4: Auto-fix on `npm test` failure (without Reviewer)
-- [ ] All Coders correctly routed by Flow Controller v3
-- [ ] HITL gate triggered on complexity abort
+- [x] D-1: Can handle multi-file editing (up to 5 files)
+- [x] D-2: Senior Coder produces architecture design before coding
+- [x] D-3: Coder can read and execute Planner's spec
+- [x] D-4: Auto-fix on `npm test` failure (without Reviewer)
+- [x] All Coders correctly routed by Flow Controller v3
+- [x] HITL gate triggered on complexity abort
 
 ---
 
@@ -255,4 +264,5 @@ Before production enablement, verify:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-11 | Devin AI | Mark Stage 1, Stage 2, HITL Gate as Completed; Add D-3/D-4 implementation details and PR references |
 | 2026-01-02 | Ryan Chen (@RC918) with Devin AI | Initial roadmap document |
