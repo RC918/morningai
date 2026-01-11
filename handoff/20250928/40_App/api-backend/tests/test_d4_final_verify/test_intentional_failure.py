@@ -22,4 +22,4 @@ def test_intentional_failure_for_d4_verification():
     D-4 should detect this failure and attempt to fix it by changing
     the assertion from `assert False` to `assert True`.
     """
-    assert False, "Intentional failure to verify D-4 Self-Correction Loop after PR #3819 diagnostic logs"
+    assert False, "Intentional failure to verify D-4 Self-Correction Loop after PR #3820 orchestrator diagnostic logs"
