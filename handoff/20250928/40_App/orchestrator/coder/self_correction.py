@@ -198,8 +198,10 @@ class TestLogParser:
     # - \s+-\s+ : Match " - " separator
     # - (.+) : Capture error message
     # Fallback: If no .py:: pattern, use simpler [^\s]+ for non-standard formats
+    # Issue #3761: Fix for parametrized tests (gemini-code-assist feedback)
+    # Changed [^\s:]+ to [^\s]+ to handle test_method[param1-param2] format
     PYTEST_FAILED_PATTERN = re.compile(
-        r"FAILED\s+([^\s]+\.py(?:::[^\s:]+)+)\s+-\s+(.+)",
+        r"FAILED\s+([^\s]+\.py(?:::[^\s]+)+)\s+-\s+(.+)",
         re.MULTILINE
     )
     # Fallback pattern for non-standard pytest output (e.g., pytest-xdist, custom plugins)
@@ -234,8 +236,10 @@ class TestLogParser:
     #   - [^\s]+ : File path (no spaces)
     #   - \.(?:test|spec) : Must contain .test or .spec
     #   - \.(?:js|jsx|ts|tsx|mjs|cjs) : Must end with JS/TS extension
+    # Issue #3761: Improved pattern clarity (gemini-code-assist feedback)
+    # Changed \.?\.?/? to (?:\./|\.\./|/)? for clearer optional prefix handling
     JEST_FAILED_PATTERN = re.compile(
-        r"FAIL\s+(\.?\.?/?[^\s]+\.(?:test|spec)\.(?:js|jsx|ts|tsx|mjs|cjs))",
+        r"FAIL\s+((?:\./|\.\./)?[^\s]+\.(?:test|spec)\.(?:js|jsx|ts|tsx|mjs|cjs))",
         re.MULTILINE
     )
     # Fallback pattern for non-standard Jest output (e.g., custom reporters)
@@ -324,10 +328,12 @@ class TestLogParser:
         # Issue #3761: Try primary pattern first, then fallback for non-standard formats
         # Primary pattern matches: FAILED tests/test_file.py::TestClass::test_method - Error
         # Fallback matches: FAILED any_identifier - Error (for pytest-xdist, custom plugins)
+        # Issue #3761: Optimize list materialization (gemini-code-assist feedback)
+        # Only convert to list for primary pattern; fallback can iterate directly
         matches = list(self.PYTEST_FAILED_PATTERN.finditer(output))
         if not matches:
             # Fallback to simpler pattern for non-standard pytest output
-            matches = list(self.PYTEST_FAILED_PATTERN_FALLBACK.finditer(output))
+            matches = self.PYTEST_FAILED_PATTERN_FALLBACK.finditer(output)
 
         for match in matches:
             test_name = match.group(1)
@@ -387,10 +393,12 @@ class TestLogParser:
         # Issue #3761: Try primary pattern first, then fallback for non-standard formats
         # Primary pattern matches: FAIL src/components/Button.test.tsx
         # Fallback matches: FAIL any_identifier (for custom reporters)
+        # Issue #3761: Optimize list materialization (gemini-code-assist feedback)
+        # Only convert to list for primary pattern; fallback can iterate directly
         matches = list(self.JEST_FAILED_PATTERN.finditer(output))
         if not matches:
             # Fallback to simpler pattern for non-standard Jest output
-            matches = list(self.JEST_FAILED_PATTERN_FALLBACK.finditer(output))
+            matches = self.JEST_FAILED_PATTERN_FALLBACK.finditer(output)
 
         for match in matches:
             test_file = match.group(1)
