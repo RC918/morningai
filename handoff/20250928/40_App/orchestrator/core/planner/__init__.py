@@ -70,6 +70,14 @@ from .flow_controller import (
     FLOW_DEFINITIONS,
 )
 
+from .agent_task_executor import (
+    AgentTaskExecutor,
+    AgentTaskExecutorConfig,
+    AgentDispatcher,
+    DefaultAgentDispatcher,
+    create_agent_task_executor,
+)
+
 __all__ = [
     # Planner types
     "TaskType",
@@ -116,4 +124,10 @@ __all__ = [
     "DefaultTaskExecutor",
     "create_flow_controller",
     "FLOW_DEFINITIONS",
+    # Agent Task Executor (Phase F-3)
+    "AgentTaskExecutor",
+    "AgentTaskExecutorConfig",
+    "AgentDispatcher",
+    "DefaultAgentDispatcher",
+    "create_agent_task_executor",
 ]
