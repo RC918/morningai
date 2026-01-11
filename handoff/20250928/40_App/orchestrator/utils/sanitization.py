@@ -34,7 +34,11 @@ def sanitize_for_log(value: str, max_length: int = 200) -> str:
         return ""
     sanitized = value.replace('\n', '\\n').replace('\r', '\\r')
     if len(sanitized) > max_length:
-        sanitized = sanitized[:max_length] + "..."
+        prefix = sanitized[:max_length]
+        # Avoid leaving a dangling backslash if we truncate in the middle of an escape sequence
+        if prefix.endswith('\\'):
+            prefix = prefix[:-1]
+        return prefix + "..."
     return sanitized
 
 
