@@ -54,7 +54,8 @@ _ERROR_KEYWORDS = [
 
 # Issue #3810: Regex patterns for line numbers and file paths in error messages
 _LINE_NUMBER_PATTERN = re.compile(r'(?:line\s+\d+|:\d+:|\[\d+\])')
-_FILE_PATH_PATTERN = re.compile(r'(?:/[\w./\-]+\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|c|h)|[\w./\-]+\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|c|h):\d+)')
+# Updated per gemini-code-assist review: now matches relative paths without line numbers (e.g., src/main.py)
+_FILE_PATH_PATTERN = re.compile(r'[\w./\-]+\.(?:py|js|ts|tsx|jsx|go|rs|java|rb|cpp|c|h)(?::\d+)?')
 
 
 def _sanitize_pr_id(pr_id: str) -> str:
