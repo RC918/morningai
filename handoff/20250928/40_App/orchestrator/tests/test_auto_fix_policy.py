@@ -19,6 +19,8 @@ from utils.auto_fix_policy import (  # noqa: E402
     AutoFixPolicy,
     AutoFixRateLimiter,
     CISignatureDeduplication,
+    _extract_important_lines,
+    _sanitize_error_for_signature,
     check_auto_fix_safety,
     get_allowed_categories,
     get_allowed_repos,
@@ -568,3 +570,209 @@ class TestCISignatureDeduplication:
 
             # Both should produce same signature (same first 500 chars)
             assert sig_long == sig_short
+
+
+class TestExtractImportantLines:
+    """Tests for _extract_important_lines() helper function (Issue #3810)"""
+
+    def test_empty_string(self):
+        """Test empty string returns empty list"""
+        assert _extract_important_lines("") == []
+
+    def test_none_returns_empty(self):
+        """Test None returns empty list"""
+        assert _extract_important_lines(None) == []
+
+    def test_extracts_error_keyword(self):
+        """Test extraction of lines with Error: keyword"""
+        error = "Some log output\nError: undefined variable\nMore output"
+        result = _extract_important_lines(error)
+        assert len(result) == 1
+        assert "Error: undefined variable" in result[0]
+
+    def test_extracts_exception_keyword(self):
+        """Test extraction of lines with Exception: keyword"""
+        error = "Starting test\nException: connection failed\nCleanup"
+        result = _extract_important_lines(error)
+        assert len(result) == 1
+        assert "Exception: connection failed" in result[0]
+
+    def test_extracts_failed_keyword(self):
+        """Test extraction of lines with FAILED keyword"""
+        error = "Running tests\nFAILED tests/test_foo.py::test_bar\nDone"
+        result = _extract_important_lines(error)
+        assert len(result) == 1
+        assert "FAILED" in result[0]
+
+    def test_extracts_python_exception_types(self):
+        """Test extraction of Python exception type names"""
+        error = """Traceback (most recent call last):
+  File "test.py", line 10
+AssertionError: assert 1 == 2
+TypeError: expected str, got int"""
+        result = _extract_important_lines(error)
+        assert any("AssertionError" in line for line in result)
+        assert any("TypeError" in line for line in result)
+        assert any("Traceback" in line for line in result)
+
+    def test_extracts_line_numbers(self):
+        """Test extraction of lines with line number patterns"""
+        error = "Info message\n  File test.py, line 42\nAnother message"
+        result = _extract_important_lines(error)
+        assert len(result) == 1
+        assert "line 42" in result[0]
+
+    def test_extracts_colon_line_numbers(self):
+        """Test extraction of lines with :42: pattern"""
+        error = "Log output\ntest.py:42: error message\nMore output"
+        result = _extract_important_lines(error)
+        assert len(result) == 1
+        assert ":42:" in result[0]
+
+    def test_extracts_file_paths(self):
+        """Test extraction of lines with file paths"""
+        error = "Starting\n/app/src/main.py:10 failed\nEnding"
+        result = _extract_important_lines(error)
+        assert len(result) == 1
+        assert "/app/src/main.py" in result[0]
+
+    def test_extracts_multiple_important_lines(self):
+        """Test extraction of multiple important lines"""
+        error = """Log start
+Error: first error
+Some noise
+FAILED test_something
+More noise
+TypeError: bad type"""
+        result = _extract_important_lines(error)
+        assert len(result) == 3
+        assert any("Error:" in line for line in result)
+        assert any("FAILED" in line for line in result)
+        assert any("TypeError" in line for line in result)
+
+    def test_skips_empty_lines(self):
+        """Test that empty lines are skipped"""
+        error = "Error: test\n\n\nFAILED test"
+        result = _extract_important_lines(error)
+        assert len(result) == 2
+        assert "" not in result
+
+    def test_strips_whitespace(self):
+        """Test that extracted lines have whitespace stripped"""
+        error = "  Error: test with spaces  \n  FAILED test  "
+        result = _extract_important_lines(error)
+        assert all(line == line.strip() for line in result)
+
+    def test_no_important_lines(self):
+        """Test string with no important content returns empty list"""
+        error = "Just some regular log output\nNothing special here"
+        result = _extract_important_lines(error)
+        assert result == []
+
+
+class TestSanitizeErrorForSignature:
+    """Tests for _sanitize_error_for_signature() helper function (Issue #3809, #3810)"""
+
+    def test_empty_string(self):
+        """Test empty string returns empty string"""
+        assert _sanitize_error_for_signature("") == ""
+
+    def test_none_like_empty(self):
+        """Test None-like falsy values return empty string"""
+        assert _sanitize_error_for_signature(None) == ""
+
+    def test_passthrough_short_string(self):
+        """Test strings shorter than 1500 chars pass through unchanged (after timestamp removal)"""
+        error = "Error: undefined variable 'foo' at line 42"
+        result = _sanitize_error_for_signature(error)
+        assert "Error: undefined variable" in result
+
+    def test_timestamp_strip_bracketed_iso(self):
+        """Test [2024-01-11T10:00:00Z] format is stripped"""
+        error = "[2024-01-11T10:00:00Z] Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "[2024-01-11T10:00:00Z]" not in result
+        assert "Error: test failed" in result
+
+    def test_timestamp_strip_iso8601_basic(self):
+        """Test 2024-01-11T10:00:00Z ISO 8601 format is stripped"""
+        error = "2024-01-11T10:00:00Z Error: test failed"
+        result = _sanitize_error_for_signature(error)
+        assert "2024-01-11T10:00:00Z" not in result
+        assert "Error: test failed" in result
+
+    def test_keyword_extraction_used_when_sufficient(self):
+        """Test that keyword extraction is used when it produces sufficient content"""
+        error = """Some log noise here that is not important
+More noise and filler content
+Error: the actual error message that matters
+Even more noise
+FAILED tests/test_example.py::test_foo
+Final noise"""
+        result = _sanitize_error_for_signature(error)
+        # Should extract only the important lines
+        assert "Error: the actual error message" in result
+        assert "FAILED tests/test_example.py" in result
+        # Should NOT include the noise
+        assert "Some log noise" not in result
+        assert "Final noise" not in result
+
+    def test_fallback_to_head_tail_when_no_keywords(self):
+        """Test fallback to head+tail when no keywords found"""
+        # Create a long string with no keywords
+        error = "x" * 2000
+        result = _sanitize_error_for_signature(error)
+        # Should use head+tail truncation
+        assert len(result) == 1503  # 1000 + 3 + 500
+        assert "..." in result
+
+    def test_fallback_when_extracted_too_short(self):
+        """Test fallback when extracted content is too short (< 50 chars)"""
+        error = "x" * 2000 + "\nError: x"  # Very short error line
+        result = _sanitize_error_for_signature(error)
+        # Should fallback because extracted content is < 50 chars
+        # The result should contain the head+tail truncation
+        assert len(result) > 50
+
+    def test_truncation_applied_to_extracted_content(self):
+        """Test that truncation is applied if extracted content is too long"""
+        # Create many important lines that exceed 1500 chars
+        lines = ["Error: " + "x" * 100 for _ in range(20)]  # ~2000 chars
+        error = "\n".join(lines)
+        result = _sanitize_error_for_signature(error)
+        # Should be truncated
+        assert len(result) <= 1503
+
+    def test_real_world_stack_trace(self):
+        """Test with realistic stack trace format"""
+        error = """[2024-01-11T10:00:00Z] Running pytest
+Collecting tests...
+============================= test session starts =============================
+FAILED tests/test_example.py::test_foo
+Traceback (most recent call last):
+  File "/app/tests/test_example.py", line 42, in test_foo
+    assert result == expected
+AssertionError: assert 1 == 2
+============================= 1 failed in 0.5s ================================"""
+        result = _sanitize_error_for_signature(error)
+        # Should extract important lines
+        assert "FAILED tests/test_example.py" in result
+        assert "AssertionError" in result
+        assert "Traceback" in result
+        # Timestamp should be stripped
+        assert "[2024-01-11T10:00:00Z]" not in result
+
+    def test_deterministic_output(self):
+        """Test same input always produces same output"""
+        error = "[2024-01-11T10:00:00Z] Error: test failed"
+        result1 = _sanitize_error_for_signature(error)
+        result2 = _sanitize_error_for_signature(error)
+        assert result1 == result2
+
+    def test_different_timestamps_same_error_same_output(self):
+        """Test different timestamps with same error content produce same output"""
+        error1 = "[2024-01-11T10:00:00Z] Error: test failed"
+        error2 = "[2024-01-11T11:30:45Z] Error: test failed"
+        result1 = _sanitize_error_for_signature(error1)
+        result2 = _sanitize_error_for_signature(error2)
+        assert result1 == result2
