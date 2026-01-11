@@ -66,10 +66,10 @@ class TestAdaptLLMPlannerOutput:
 
         # Should have 2 edges: task-1 -> task-2, task-2 -> task-3
         assert len(result.task_tree.edges) == 2
-        assert result.task_tree.edges[0].source_id == "task-1"
-        assert result.task_tree.edges[0].target_id == "task-2"
-        assert result.task_tree.edges[1].source_id == "task-2"
-        assert result.task_tree.edges[1].target_id == "task-3"
+        assert result.task_tree.edges[0].from_task == "task-1"
+        assert result.task_tree.edges[0].to_task == "task-2"
+        assert result.task_tree.edges[1].from_task == "task-2"
+        assert result.task_tree.edges[1].to_task == "task-3"
 
     def test_empty_plan(self):
         """Test handling of empty plan"""
@@ -187,8 +187,8 @@ class TestAdaptTaskPlannerOutput:
         result = adapt_task_planner_output(mock_task_plan)
 
         assert len(result.task_tree.edges) == 1
-        assert result.task_tree.edges[0].source_id == "task-1"
-        assert result.task_tree.edges[0].target_id == "task-2"
+        assert result.task_tree.edges[0].from_task == "task-1"
+        assert result.task_tree.edges[0].to_task == "task-2"
         assert result.task_tree.edges[0].edge_type == EdgeType.DEPENDS_ON
 
 

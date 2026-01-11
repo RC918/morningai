@@ -126,20 +126,19 @@ def adapt_llm_planner_output(
         node = TaskNode(
             task_id=task_id,
             task_type=task_type,
-            description=step,
+            description=step if step else "",
             estimated_duration_minutes=estimated_minutes,
-            inputs={},
+            inputs={"original_detail": detail} if detail else {},
             outputs={},
             requires_approval=False,
-            metadata={"original_detail": detail} if detail else {},
         )
         nodes.append(node)
 
         # Create sequential dependency edges (each task depends on previous)
         if i > 0:
             edge = TaskEdge(
-                source_id=f"task-{i}",
-                target_id=task_id,
+                from_task=f"task-{i}",
+                to_task=task_id,
                 edge_type=EdgeType.DEPENDS_ON,
             )
             edges.append(edge)
@@ -208,21 +207,19 @@ def adapt_task_planner_output(
             task_type=task_type,
             description=subtask.description,
             estimated_duration_minutes=subtask.estimated_duration_minutes,
+            agent_assignment=getattr(subtask, 'agent_type', 'dev_agent'),
+            priority=getattr(subtask, 'priority', 0),
             inputs=subtask.inputs,
             outputs=subtask.outputs,
             requires_approval=subtask.requires_approval,
-            metadata={
-                "agent_type": subtask.agent_type,
-                "priority": subtask.priority,
-            },
         )
         nodes.append(node)
 
         # Create dependency edges
         for dep_id in subtask.dependencies:
             edge = TaskEdge(
-                source_id=dep_id,
-                target_id=subtask.task_id,
+                from_task=dep_id,
+                to_task=subtask.task_id,
                 edge_type=EdgeType.DEPENDS_ON,
             )
             edges.append(edge)
@@ -230,18 +227,19 @@ def adapt_task_planner_output(
     # Build TaskTree
     task_tree = TaskTree(nodes=nodes, edges=edges)
 
-    # Extract goal summary
+    # Extract goal summary with robust attribute access
+    goal_obj = getattr(task_plan, 'goal', None)
     goal_summary = ""
-    if hasattr(task_plan.goal, 'summary'):
-        goal_summary = task_plan.goal.summary
-    elif hasattr(task_plan.goal, 'raw_input'):
-        goal_summary = task_plan.goal.raw_input
+    if goal_obj is not None:
+        goal_summary = getattr(goal_obj, 'summary', None) or getattr(goal_obj, 'raw_input', "") or ""
 
-    # Determine flow template from goal type
+    # Determine flow template from goal type with robust attribute access
     flow_template = "full_pipeline"
-    if hasattr(task_plan.goal, 'goal_type'):
-        goal_type = task_plan.goal.goal_type.value if hasattr(task_plan.goal.goal_type, 'value') else str(task_plan.goal.goal_type)
-        flow_template = _determine_flow_template(goal_type)
+    if goal_obj is not None and hasattr(goal_obj, 'goal_type'):
+        goal_type_obj = getattr(goal_obj, 'goal_type', None)
+        if goal_type_obj is not None:
+            goal_type = getattr(goal_type_obj, 'value', str(goal_type_obj))
+            flow_template = _determine_flow_template(goal_type)
 
     # Build metadata
     planner_metadata = PlannerMetadata(
@@ -259,9 +257,7 @@ def adapt_task_planner_output(
         flow_template=flow_template,
         model_tier_hints={},
         risk_metadata=RiskMetadata(overall_risk=RiskLevel.LOW),
-        cost_estimate=CostEstimate(
-            estimated_total_minutes=task_plan.total_estimated_minutes
-        ),
+        cost_estimate=CostEstimate(),
         planner_metadata=planner_metadata,
     )
 
@@ -308,23 +304,22 @@ def adapt_pm_agent_output(
             task_type=task_type,
             description=subtask.description,
             estimated_duration_minutes=estimated_minutes,
-            inputs={},
+            priority=getattr(subtask, 'priority', 0),
+            inputs={
+                "title": getattr(subtask, 'title', ""),
+                "affected_files": getattr(subtask, 'affected_files', []),
+            },
             outputs={},
             requires_approval=False,
-            metadata={
-                "title": subtask.title if hasattr(subtask, 'title') else "",
-                "affected_files": subtask.affected_files if hasattr(subtask, 'affected_files') else [],
-                "priority": subtask.priority if hasattr(subtask, 'priority') else 0,
-            },
         )
         nodes.append(node)
 
         # Create dependency edges
-        dependencies = subtask.dependencies if hasattr(subtask, 'dependencies') else []
+        dependencies = getattr(subtask, 'dependencies', [])
         for dep_id in dependencies:
             edge = TaskEdge(
-                source_id=dep_id,
-                target_id=subtask.task_id,
+                from_task=dep_id,
+                to_task=subtask.task_id,
                 edge_type=EdgeType.DEPENDS_ON,
             )
             edges.append(edge)
@@ -332,8 +327,9 @@ def adapt_pm_agent_output(
     # Build TaskTree
     task_tree = TaskTree(nodes=nodes, edges=edges)
 
-    # Map PMRisk to RiskLevel
-    overall_risk_str = pm_advisory.overall_risk.value if hasattr(pm_advisory.overall_risk, 'value') else str(pm_advisory.overall_risk)
+    # Map PMRisk to RiskLevel with robust attribute access
+    overall_risk_obj = getattr(pm_advisory, "overall_risk", "medium")
+    overall_risk_str = getattr(overall_risk_obj, "value", str(overall_risk_obj))
     overall_risk = PM_RISK_TO_RISK_LEVEL.get(overall_risk_str.lower(), RiskLevel.MEDIUM)
 
     # Build risk metadata from findings
@@ -345,7 +341,6 @@ def adapt_pm_agent_output(
     risk_metadata = RiskMetadata(
         overall_risk=overall_risk,
         risk_factors=risk_factors[:5],  # Limit to top 5
-        mitigation_suggestions=pm_advisory.recommendations if hasattr(pm_advisory, 'recommendations') else [],
     )
 
     # Build metadata
@@ -379,6 +374,8 @@ def _infer_task_type_from_description(description: str) -> TaskType:
     Returns:
         Inferred TaskType
     """
+    if not description:
+        return TaskType.CODE
     description_lower = description.lower()
 
     # Check for keywords in order of specificity
