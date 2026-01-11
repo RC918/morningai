@@ -32,8 +32,8 @@ EPIC F transforms MorningAI's planning infrastructure from "task decomposition" 
 
 ## Implementation Status Summary
 
-| Phase | Description | Status | PR |
-|-------|-------------|--------|-----|
+| Phase | Description | Status | Implementation / PR |
+|-------|-------------|--------|---------------------|
 | F-0 | Planner Output Contract + Schema | **Completed** | `planner_types.py` |
 | F-1 | Single Entrypoint + Adapter | **Completed** | `adapters.py` |
 | F-2 | DAG + Parallelization | **Completed** | [#3854](https://github.com/RC918/morningai/pull/3854) |
@@ -489,6 +489,9 @@ class ParallelExecutor:
 3. **Feature Flags + Node Integration (F-3c)**:
 
 ```python
+import os
+import hashlib
+
 # Feature flags for pilot rollout
 ENABLE_FLOW_CONTROLLER_V3 = os.getenv("ENABLE_FLOW_CONTROLLER_V3", "false").lower() == "true"
 FLOW_CONTROLLER_SAMPLE_RATE = int(os.getenv("FLOW_CONTROLLER_SAMPLE_RATE", "0"))
