@@ -343,115 +343,62 @@ This schema follows **additive-only evolution**:
 
 ---
 
-## Phase 7: Copilot/Gemini Parity (B-7 to B-10) - Planning
+## Phase 7: Copilot/Gemini Parity (B-9 only) - Planning
 
 > **Status**: Planning
-> **Prerequisite**: None - B-7/B-8/B-9 are READ-ONLY perception enhancements, not dangerous operations
-> **Target**: Achieve feature parity with GitHub Copilot and Gemini Code Assist
-> **Blueprint Note**: Safety Governor v2 (EPIC E) is a POST-PROCESSING layer for OUTPUT protection, not a gate for INPUT perception capabilities. B-7/B-8/B-9 enhance Reviewer's ability to "see" and "understand" code - they don't generate code or execute dangerous actions.
+> **Prerequisite**: None
+> **Target**: Achieve feature parity with GitHub Copilot and Gemini Code Assist (within Reviewer scope)
 
 ### Overview
 
-Phase 7 focuses on **integration gaps** and **new components** to enhance Reviewer Agent capabilities:
-- **B-7**: Integration gap - CodeIndexer/KnowledgeGraphManager exist but not integrated with Reviewer
-- **B-8**: New component - BugFixWorkflow is NOT suitable (see Component Audit Note below), requires new SemanticAnalyzer
-- **B-9**: New capability - Multi-Specialist Review
+Phase 7 focuses on **Reviewer-appropriate capabilities** only. Per Blueprint Section 3.3 Agent Separation Principle:
+
+- **Reviewer Agent**: Reviews PR diff, flags issues, provides feedback
+- **Coder Agent**: Understands codebase structure, uses CodeIndexer/LSP/AST
+
+> **CRITICAL CORRECTION (2026-01-11)**: B-7 (Codebase Context) and B-8 (Semantic Understanding) were incorrectly placed in EPIC B. These are **Coder Agent capabilities** (EPIC D), NOT Reviewer capabilities. CodeIndexer, KnowledgeGraphManager, and LSP/AST are tools for the Coder Agent to understand codebase structure and write better code. The Reviewer Agent only needs to review the PR diff - it does NOT need to understand the entire codebase.
 
 ### Gap Analysis (Reviewer-Appropriate Scope)
 
 | Capability | GitHub Copilot | Gemini Code Assist | MorningAI Current | MorningAI Target | Notes |
 |------------|---------------|-------------------|-------------------|------------------|-------|
-| Codebase Context | ✓ Full repo | ✓ Full repo | ❌ PR diff only | ✓ B-7 | Reviewer scope |
-| Semantic Understanding | ✓ LSP/AST | ✓ LSP/AST | ❌ None | ✓ B-8 | Reviewer scope |
+| ~~Codebase Context~~ | ✓ Full repo | ✓ Full repo | ❌ PR diff only | → EPIC D | **Coder Agent scope** |
+| ~~Semantic Understanding~~ | ✓ LSP/AST | ✓ LSP/AST | ❌ None | → EPIC D | **Coder Agent scope** |
 | Multi-Specialist Review | ✓ Multiple passes | ✓ Multiple passes | ❌ Single pass | ✓ B-9 | Reviewer scope |
 | ~~Auto-Fix Generation~~ | ✓ One-click fix | ✓ One-click fix | ❌ Text only | → EPIC D | **Fixer Agent scope** |
 
-> **Blueprint Alignment Note**: Auto-Fix Generation is NOT a Reviewer Agent capability per Blueprint Section 3.3. This belongs to Fixer Agent (EPIC D). Reviewer Agent can only suggest fixes in text form.
+> **Blueprint Alignment Note**: Codebase Context (CodeIndexer), Semantic Understanding (LSP/AST), and Auto-Fix Generation are NOT Reviewer Agent capabilities per Blueprint Section 3.3. These belong to Coder Agent (EPIC D). Reviewer Agent reviews the PR diff and flags issues - it does NOT need to understand the entire codebase structure.
 
-### Existing Components (Integration Targets)
+### ~~B-7: Codebase Context Integration~~ → MOVED TO EPIC D
 
-| Component | Location | Lines | Current Usage | B-7/B-8 Suitability |
-|-----------|----------|-------|---------------|---------------------|
-| CodeIndexer | `agents/dev_agent/knowledge_graph/code_indexer.py` | 385 | dev_agent only | ✓ B-7 suitable (READ-ONLY) |
-| KnowledgeGraphManager | `agents/dev_agent/knowledge_graph/knowledge_graph_manager.py` | 660 | dev_agent only | ✓ B-7 suitable (READ-ONLY) |
-| BugFixWorkflow | `agents/dev_agent/workflows/bug_fix_workflow.py` | 975 | dev_agent only | ❌ NOT suitable for B-8 |
+> **Status**: REMOVED FROM EPIC B
+> **Reason**: Violates Blueprint Agent Separation Principle
+> **Destination**: EPIC D (Coder Agent Family)
 
-> **Component Audit Note (2026-01-11)**:
-> - **CodeIndexer**: READ-ONLY perception component. Parses code using AST/regex, generates embeddings. Safe for Reviewer Agent integration.
-> - **KnowledgeGraphManager**: READ-ONLY search/retrieval component. Handles embeddings, vector similarity search. Safe for Reviewer Agent integration.
-> - **BugFixWorkflow**: ❌ **NOT suitable for B-8**. This is a full **Coder Agent workflow** (Parse Issue → Reproduce → Analyze → Generate Fix → Apply Fix → Test → Create PR). The LSP/AST capabilities are tightly coupled with fix generation. **B-8 requires a new, standalone LSP/AST component** that is READ-ONLY and respects Agent Separation Principle.
+**Blueprint Violation Analysis**:
 
----
+Per Blueprint Section 3.3 "Agent Catalog V2":
+- **Coder Agent** → Writes code, understands codebase structure
+- **Reviewer Agent** → Reviews code, identifies issues, provides feedback
 
-### B-7: Codebase Context Integration
-
-> **Type**: Integration Gap
-> **Issue**: TBD
-> **Effort**: Medium (3-5 days)
-
-**Problem**: `llm_reviewer_adapter.py` only receives PR diff, cannot understand how changes affect other files.
-
-**Solution**: Integrate `dev_agent/knowledge_graph/code_indexer.py` with `reviewer_node`.
-
-**Implementation Plan**:
-
-1. **B-7.1 Context Retriever Service**:
-   - Create `orchestrator/review_context/context_retriever.py`
-   - Expose `get_relevant_context(changed_files: List[str]) -> List[ContextFile]`
-   - Use CodeIndexer to find files that import/export from changed files
-
-2. **B-7.2 reviewer_node Integration**:
-   - Modify `reviewer_node` to call context_retriever before LLM review
-   - Pass `context_files` to `generate_llm_review()`
-
-3. **B-7.3 Prompt Enhancement**:
-   - Extend `_get_diff_aware_system_prompt()` to include context awareness
-   - Add "Related files that may be affected" section
-
-4. **B-7.4 Token Budget Management**:
-   - Extend `truncate_diff_for_token_budget()` to handle context files
-   - Prioritize: PR diff > direct importers > indirect importers
-
-**Acceptance Criteria**:
-- [ ] reviewer_node can access codebase context
-- [ ] LLM prompt includes relevant context files
-- [ ] Token budget respects context file limits
-- [ ] Unit tests for context retrieval
+CodeIndexer and KnowledgeGraphManager are **Coder Agent tools** located in `agents/dev_agent/`. They help the Coder understand codebase structure to write better code. The Reviewer Agent only needs to review the PR diff - it does NOT need full codebase understanding.
 
 ---
 
-### B-8: Semantic Understanding Integration
+### ~~B-8: Semantic Understanding Integration~~ → MOVED TO EPIC D
 
-> **Type**: New Component (NOT Integration Gap)
-> **Issue**: TBD
-> **Effort**: Medium-High (5-7 days)
+> **Status**: REMOVED FROM EPIC B
+> **Reason**: Violates Blueprint Agent Separation Principle
+> **Destination**: EPIC D (Coder Agent Family)
 
-**Problem**: Reviewer cannot detect breaking changes, unused imports, or type mismatches.
+**Blueprint Violation Analysis**:
 
-**Solution**: ~~Integrate LSP/AST analysis from `dev_agent/workflows/bug_fix_workflow.py`.~~ **REVISED**: Create a new, standalone `SemanticAnalyzer` component that is READ-ONLY and respects Agent Separation Principle.
+LSP/AST analysis is a **Coder Agent capability**. The Coder uses LSP/AST to:
+- Navigate code structure
+- Find definitions and references
+- Understand type relationships
 
-> **Audit Finding (2026-01-11)**: BugFixWorkflow is NOT suitable for B-8 integration. It is a full Coder Agent workflow (Parse Issue → Reproduce → Analyze → Generate Fix → Apply Fix → Test → Create PR). The LSP/AST capabilities are tightly coupled with fix generation, violating Blueprint Section 3.3 Agent Separation Principle.
-
-**Implementation Plan**:
-
-1. **B-8.1 Semantic Analyzer Service**:
-   - Create `orchestrator/review_context/semantic_analyzer.py`
-   - Expose `analyze_breaking_changes(diff: str, context: List[ContextFile]) -> List[BreakingChange]`
-   - Use AST parsing to detect: public API changes, interface mismatches, unused imports
-
-2. **B-8.2 reviewer_node Integration**:
-   - Call semantic_analyzer after context retrieval
-   - Pass `breaking_changes` to LLM as structured input
-
-3. **B-8.3 Prompt Enhancement**:
-   - Add "Detected Breaking Changes" section to prompt
-   - LLM validates and expands on detected issues
-
-**Acceptance Criteria**:
-- [ ] Semantic analyzer detects public API changes
-- [ ] Semantic analyzer detects unused imports
-- [ ] LLM prompt includes breaking change warnings
-- [ ] Unit tests for semantic analysis
+The Reviewer Agent does NOT need LSP/AST - it reviews the PR diff and flags issues based on the diff content.
 
 ---
 
@@ -718,14 +665,12 @@ ReviewOutcome {                        │
 ```
 Phase 7: Copilot/Gemini Parity (Reviewer-appropriate scope)
     │
-    │   ✓ NO EPIC E PREREQUISITE - B-7/B-8/B-9 are READ-ONLY perception enhancements
-    │   (Safety Governor v2 is POST-PROCESSING for OUTPUT, not INPUT gating)
+    │   B-9 (Multi-Specialist Review) - Reviewer capability
     │
-    ├── B-7 (Codebase Context) ──┬──► B-9 (Multi-Specialist Review)
-    │                            │
-    └── B-8 (Semantic)      ─────┘
-    
-    ╳ B-10 (Auto-Fix) → REMOVED (OUT OF SCOPE - already in EPIC D)
+    │   ╳ B-7 (Codebase Context) → MOVED TO EPIC D (Coder Agent capability)
+    │   ╳ B-8 (Semantic/LSP/AST) → MOVED TO EPIC D (Coder Agent capability)
+    │   ╳ B-10 (Auto-Fix) → REMOVED (OUT OF SCOPE - already in EPIC D)
+    │
                                  │
                                  ▼
 Phase 8: Copilot/Gemini Superiority (Reviewer-appropriate scope)
@@ -740,6 +685,10 @@ Phase 8: Copilot/Gemini Superiority (Reviewer-appropriate scope)
 Cross-Agent Handoffs (Blueprint Sequential Collaboration):
     Reviewer Agent ──► Fixer Agent (EPIC D) for code fixes
     Reviewer Agent ──► Test Agent v2 for test generation
+    
+EPIC D Additions (from EPIC B):
+    D-7: Codebase Context (CodeIndexer integration) - moved from B-7
+    D-8: Semantic Understanding (LSP/AST) - moved from B-8
 ```
 
 ---
@@ -748,14 +697,14 @@ Cross-Agent Handoffs (Blueprint Sequential Collaboration):
 
 | Metric | Current | Phase 7 Target | Phase 8 Target | Notes |
 |--------|---------|----------------|----------------|-------|
-| Review Context | PR diff only | Full codebase | Full codebase | B-7 |
-| Breaking Change Detection | 0% | >80% | >90% | B-8 |
 | Multi-Specialist Coverage | 0% | >70% | >85% | B-9 |
 | Test Coverage Flagging | 0% | 0% | >60% | B-11 (flagging only) |
 | Dependency Issue Flagging | 0% | 0% | >80% | B-12 (flagging only) |
 | Developer Satisfaction | Baseline | +20% | +40% | Overall |
 
 **Removed Metrics** (belong to other agents per Blueprint):
+- ~~Review Context (Full codebase)~~ → Coder Agent (EPIC D) metric - B-7 moved
+- ~~Breaking Change Detection~~ → Coder Agent (EPIC D) metric - B-8 moved
 - ~~Auto-Fix Applicability~~ → Fixer Agent (EPIC D) metric
 - ~~Test Generation Quality~~ → Test Agent v2 metric
 
@@ -765,18 +714,19 @@ Cross-Agent Handoffs (Blueprint Sequential Collaboration):
 
 | Phase | Estimated Duration | Dependencies | Status | Type |
 |-------|-------------------|--------------|--------|------|
-| B-7 | 3-5 days | None | Planning | Integration Gap |
-| B-8 | 5-7 days | B-7 | Planning | **New Component** |
-| B-9 | 5-7 days | B-7, B-8 | Planning | New Capability |
-| ~~B-10~~ | ~~3-5 days~~ | ~~B-7~~ | REMOVED (OUT OF SCOPE) | - |
-| B-11 | 3-5 days | Phase 7 | Planning (flagging only) | New Capability |
-| B-12 | 3-5 days | Phase 7 | Planning (flagging only) | New Capability |
-| B-13 | 7-10 days | Phase 7, EPIC G | Planning | New Capability |
+| ~~B-7~~ | ~~3-5 days~~ | - | MOVED TO EPIC D | Coder Agent capability |
+| ~~B-8~~ | ~~5-7 days~~ | - | MOVED TO EPIC D | Coder Agent capability |
+| B-9 | 5-7 days | None | Planning | New Capability |
+| ~~B-10~~ | ~~3-5 days~~ | - | REMOVED (OUT OF SCOPE) | - |
+| B-11 | 3-5 days | B-9 | Planning (flagging only) | New Capability |
+| B-12 | 3-5 days | B-9 | Planning (flagging only) | New Capability |
+| B-13 | 7-10 days | B-9, EPIC G | Planning | New Capability |
 
-**Total Estimated Duration**: 5-8 weeks (can start immediately)
+**Total Estimated Duration**: 3-5 weeks (can start immediately)
 
-**Note**: B-8 duration increased from 3-5 to 5-7 days because it requires a **new SemanticAnalyzer component** (BugFixWorkflow is NOT suitable per Component Audit 2026-01-11). No EPIC E prerequisite - B-7/B-8/B-9 are READ-ONLY perception enhancements that don't require Safety Governor gating.
+**Note (2026-01-11 CRITICAL CORRECTION)**: B-7 (Codebase Context) and B-8 (Semantic Understanding) were incorrectly placed in EPIC B. These are **Coder Agent capabilities** (EPIC D), NOT Reviewer capabilities. CodeIndexer, KnowledgeGraphManager, and LSP/AST are tools for the Coder Agent. The Reviewer Agent only needs to review the PR diff - it does NOT need to understand the entire codebase.
 
 **Cross-Agent Dependencies** (for full Blueprint vision):
+- EPIC D (Coder Agent): Now includes D-7 (Codebase Context) and D-8 (Semantic Understanding) moved from EPIC B
 - EPIC D (Fixer Agent): Receives fix suggestions from Reviewer, generates actual code fixes
 - Test Agent v2: Receives coverage flags from Reviewer, generates actual test code
