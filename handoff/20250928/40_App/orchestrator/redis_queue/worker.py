@@ -2327,18 +2327,10 @@ if __name__ == "__main__":
                     
                     # Clean up threads and Redis state before restart
                     # This is important because os.execl doesn't trigger atexit handlers
+                    # cleanup_heartbeat() already handles heartbeat_thread.join() with timeout
                     cleanup_heartbeat()
                     
-                    # Wait for heartbeat thread to stop
-                    if heartbeat_thread and heartbeat_thread.is_alive():
-                        heartbeat_thread.join(timeout=5)
-                        if heartbeat_thread.is_alive():
-                            logger.warning(
-                                "Heartbeat thread did not stop within timeout before restart",
-                                extra={"operation": "self_healing_restart", "heartbeat_id": HEARTBEAT_ID}
-                            )
-                    
-                    # Wait for VM cleanup thread to stop
+                    # Wait for VM cleanup thread to stop (not handled by cleanup_heartbeat)
                     if vm_cleanup_thread and vm_cleanup_thread.is_alive():
                         vm_cleanup_thread.join(timeout=5)
                         if vm_cleanup_thread.is_alive():
@@ -2349,9 +2341,23 @@ if __name__ == "__main__":
                     
                     # Perform in-place restart using os.execl
                     # This replaces the current process with a fresh Python process
-                    python = sys.executable
-                    os.execl(python, python, *sys.argv)
-                    # Note: Code after os.execl never executes (process is replaced)
+                    # Wrapped in try/except for graceful fallback if os.execl fails
+                    try:
+                        python = sys.executable
+                        os.execl(python, python, *sys.argv)
+                        # Note: Code after os.execl never executes (process is replaced)
+                    except OSError as e:
+                        logger.critical(
+                            "Self-healing restart with os.execl failed. Falling back to normal exit.",
+                            extra={
+                                "operation": "self_healing_restart_failed",
+                                "error": str(e),
+                                "heartbeat_id": HEARTBEAT_ID,
+                                "rq_worker_name": RQ_WORKER_NAME
+                            },
+                            exc_info=True
+                        )
+                        # Fall through to normal exit, allowing Render to restart
                 
                 should_exit = True
                 break
