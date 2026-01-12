@@ -2302,12 +2302,63 @@ if __name__ == "__main__":
                     }
                 )
                 # max_jobs: Worker exits after processing this many jobs
-                # This allows container orchestrator (Render) to restart the worker,
-                # clearing accumulated memory from LangGraph MemorySaver checkpoints
+                # Previously relied on container orchestrator (Render) to restart the worker,
+                # but this was unreliable. Now uses os.execl for self-healing restart.
+                # This clears accumulated memory from LangGraph MemorySaver checkpoints
                 # with_scheduler: Enable RQ scheduler for enqueue_in() delayed jobs
                 # Required for PR_UPDATED debounce mechanism (Phase B-B)
                 worker.work(max_jobs=MAX_JOBS, with_scheduler=True)
                 consecutive_readonly_count = 0
+                
+                # Self-healing restart: Use os.execl to replace current process
+                # instead of exiting and relying on Render to restart (which is flaky)
+                # os.execl replaces the process image, completely clearing memory
+                # while keeping the same PID (Render won't see it as a crash)
+                if MAX_JOBS and MAX_JOBS > 0:
+                    logger.info(
+                        f"Worker finished {MAX_JOBS} jobs. Performing self-healing restart to clear memory...",
+                        extra={
+                            "operation": "self_healing_restart",
+                            "heartbeat_id": HEARTBEAT_ID,
+                            "rq_worker_name": RQ_WORKER_NAME,
+                            "max_jobs": MAX_JOBS
+                        }
+                    )
+                    
+                    # Clean up threads and Redis state before restart
+                    # This is important because os.execl doesn't trigger atexit handlers
+                    # cleanup_heartbeat() already handles heartbeat_thread.join() with timeout
+                    cleanup_heartbeat()
+                    
+                    # Wait for VM cleanup thread to stop (not handled by cleanup_heartbeat)
+                    if vm_cleanup_thread and vm_cleanup_thread.is_alive():
+                        vm_cleanup_thread.join(timeout=5)
+                        if vm_cleanup_thread.is_alive():
+                            logger.warning(
+                                "VM cleanup thread did not stop within timeout before restart",
+                                extra={"operation": "self_healing_restart", "heartbeat_id": HEARTBEAT_ID}
+                            )
+                    
+                    # Perform in-place restart using os.execl
+                    # This replaces the current process with a fresh Python process
+                    # Wrapped in try/except for graceful fallback if os.execl fails
+                    try:
+                        python = sys.executable
+                        os.execl(python, python, *sys.argv)
+                        # Note: Code after os.execl never executes (process is replaced)
+                    except OSError as e:
+                        logger.critical(
+                            "Self-healing restart with os.execl failed. Falling back to normal exit.",
+                            extra={
+                                "operation": "self_healing_restart_failed",
+                                "error": str(e),
+                                "heartbeat_id": HEARTBEAT_ID,
+                                "rq_worker_name": RQ_WORKER_NAME
+                            },
+                            exc_info=True
+                        )
+                        # Fall through to normal exit, allowing Render to restart
+                
                 should_exit = True
                 break
             except ValueError as e:
