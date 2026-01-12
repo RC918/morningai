@@ -523,8 +523,8 @@ def should_use_flow_controller(trace_id: str) -> bool:
 # Route all workflows to FlowController
 ENABLE_FLOW_CONTROLLER_V3=true
 
-# Route 10% of workflows (deterministic by trace_id)
-FLOW_CONTROLLER_SAMPLE_RATE=10
+# Route 50% of workflows (deterministic by trace_id)
+FLOW_CONTROLLER_SAMPLE_RATE=50
 ```
 
 **Acceptance Criteria**:
