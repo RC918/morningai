@@ -7072,7 +7072,10 @@ def reviewer_node(state: AgentState) -> AgentState:
                     "trace_id": trace_id
                 })
 
-                specialist_result = review_with_specialists(diff_content)
+                specialist_result = review_with_specialists(
+                    diff_content=diff_content,
+                    trace_id=trace_id
+                )
 
                 if specialist_result and specialist_result.findings:
                     state["multi_specialist_review_v1"] = specialist_result.to_dict()
@@ -7123,30 +7126,34 @@ def reviewer_node(state: AgentState) -> AgentState:
                     "trace_id": trace_id
                 })
 
-                coverage_result = analyze_test_coverage(diff_content)
+                coverage_result = analyze_test_coverage(
+                    diff_content=diff_content,
+                    diff_files=diff_files,
+                    trace_id=trace_id
+                )
 
-                if coverage_result and coverage_result.coverage_gaps:
-                    state["test_coverage_analysis_v1"] = coverage_result.to_dict()
+                if coverage_result and coverage_result.get("coverage_gaps"):
+                    state["test_coverage_analysis_v1"] = coverage_result
 
-                    for gap in coverage_result.coverage_gaps:
+                    for gap in coverage_result.get("coverage_gaps", []):
                         coverage_comment = {
                             "severity": "medium",
-                            "message": f"[TEST COVERAGE] {gap.function_type.capitalize()} '{gap.function_name}' in {gap.file_path} lacks test coverage. {gap.reason}",
+                            "message": f"[TEST COVERAGE] {gap.get('function_type', 'function').capitalize()} '{gap.get('function_name', '')}' in {gap.get('file_path', '')} lacks test coverage. {gap.get('reason', '')}",
                             "source": "test_coverage_analyzer",
-                            "file_path": gap.file_path,
-                            "function_name": gap.function_name,
-                            "suggested_test_types": gap.suggested_test_types
+                            "file_path": gap.get("file_path"),
+                            "function_name": gap.get("function_name"),
+                            "suggested_test_types": gap.get("suggested_test_types", [])
                         }
                         state["review_comments"] = state.get("review_comments", []) + [coverage_comment]
 
                     logger.info(
-                        f"[Reviewer] B-11: Test coverage analysis completed: {len(coverage_result.coverage_gaps)} gaps found",
+                        f"[Reviewer] B-11: Test coverage analysis completed: {len(coverage_result.get('coverage_gaps', []))} gaps found",
                         extra={
                             "operation": "reviewer",
                             "trace_id": trace_id,
-                            "gap_count": len(coverage_result.coverage_gaps),
-                            "source_files_analyzed": coverage_result.source_files_count,
-                            "test_files_found": coverage_result.test_files_count
+                            "gap_count": coverage_result.get("gap_count", 0),
+                            "source_files_analyzed": len(coverage_result.get("analyzed_files", [])),
+                            "test_files_found": len(coverage_result.get("test_files_found", []))
                         }
                     )
 
@@ -7172,35 +7179,39 @@ def reviewer_node(state: AgentState) -> AgentState:
                     "trace_id": trace_id
                 })
 
-                dependency_result = analyze_dependencies(diff_content)
+                dependency_result = analyze_dependencies(
+                    diff_content=diff_content,
+                    diff_files=diff_files,
+                    trace_id=trace_id
+                )
 
-                if dependency_result and dependency_result.issues:
-                    state["dependency_analysis_v1"] = dependency_result.to_dict()
+                if dependency_result and dependency_result.get("issues"):
+                    state["dependency_analysis_v1"] = dependency_result
 
-                    for issue in dependency_result.issues:
+                    for issue in dependency_result.get("issues", []):
                         dep_comment = {
-                            "severity": issue.severity,
-                            "message": f"[DEPENDENCY] {issue.issue_type.value}: {issue.package_name} - {issue.message}",
+                            "severity": issue.get("severity", "medium"),
+                            "message": f"[DEPENDENCY] {issue.get('issue_type', '')}: {issue.get('package_name', '')} - {issue.get('message', '')}",
                             "source": "dependency_analyzer",
-                            "package_name": issue.package_name,
-                            "issue_type": issue.issue_type.value,
-                            "file_path": issue.file_path
+                            "package_name": issue.get("package_name"),
+                            "issue_type": issue.get("issue_type"),
+                            "file_path": issue.get("file_path")
                         }
                         state["review_comments"] = state.get("review_comments", []) + [dep_comment]
 
-                        if issue.severity in ("high", "critical"):
+                        if issue.get("severity") in ("high", "critical"):
                             current_severity = state.get("review_severity", "none")
                             if current_severity in ("none", "low", "medium"):
-                                state["review_severity"] = issue.severity
+                                state["review_severity"] = issue.get("severity")
 
                     logger.info(
-                        f"[Reviewer] B-12: Dependency analysis completed: {len(dependency_result.issues)} issues found",
+                        f"[Reviewer] B-12: Dependency analysis completed: {len(dependency_result.get('issues', []))} issues found",
                         extra={
                             "operation": "reviewer",
                             "trace_id": trace_id,
-                            "issue_count": len(dependency_result.issues),
-                            "deprecated_count": sum(1 for i in dependency_result.issues if i.issue_type.value == "deprecated"),
-                            "unpinned_count": sum(1 for i in dependency_result.issues if i.issue_type.value == "unpinned")
+                            "issue_count": dependency_result.get("issue_count", 0),
+                            "deprecated_count": sum(1 for i in dependency_result.get("issues", []) if i.get("issue_type") == "deprecated"),
+                            "unpinned_count": sum(1 for i in dependency_result.get("issues", []) if i.get("issue_type") == "unpinned")
                         }
                     )
 

@@ -577,7 +577,10 @@ def generate_multi_specialist_review(
     return findings.to_dict()
 
 
-def review_with_specialists(diff_content: str) -> SpecialistFindings:
+def review_with_specialists(
+    diff_content: str,
+    trace_id: str = "reviewer-node",
+) -> SpecialistFindings:
     """
     Simplified synchronous wrapper for multi-specialist review.
 
@@ -587,11 +590,12 @@ def review_with_specialists(diff_content: str) -> SpecialistFindings:
 
     Args:
         diff_content: The PR diff content to review
+        trace_id: Trace ID for telemetry (default: "reviewer-node")
 
     Returns:
         SpecialistFindings object with review findings and metadata
     """
-    reviewer = MultiSpecialistReviewer(trace_id="reviewer-node")
+    reviewer = MultiSpecialistReviewer(trace_id=trace_id)
 
     # Run async review in event loop
     try:
