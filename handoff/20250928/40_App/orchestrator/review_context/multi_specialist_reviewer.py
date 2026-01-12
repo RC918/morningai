@@ -575,3 +575,34 @@ def generate_multi_specialist_review(
     )
 
     return findings.to_dict()
+
+
+def review_with_specialists(diff_content: str) -> SpecialistFindings:
+    """
+    Simplified synchronous wrapper for multi-specialist review.
+
+    This function provides a simple interface for the langgraph_orchestrator
+    reviewer_node integration. It returns SpecialistFindings directly (not dict)
+    to allow access to .findings attribute.
+
+    Args:
+        diff_content: The PR diff content to review
+
+    Returns:
+        SpecialistFindings object with review findings and metadata
+    """
+    reviewer = MultiSpecialistReviewer(trace_id="reviewer-node")
+
+    # Run async review in event loop
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    # Use empty pr_context since langgraph_orchestrator only passes diff_content
+    findings = loop.run_until_complete(
+        reviewer.review(diff_content, pr_context={})
+    )
+
+    return findings

@@ -17,6 +17,7 @@ from review_context.multi_specialist_reviewer import (
     ReviewSpecialist,
     SpecialistFindings,
     generate_multi_specialist_review,
+    review_with_specialists,
 )
 from review_context.test_coverage_analyzer import (
     TestCoverageAnalyzer,
@@ -38,6 +39,7 @@ __all__ = [
     "ReviewSpecialist",
     "SpecialistFindings",
     "generate_multi_specialist_review",
+    "review_with_specialists",
     # B-11: Test Coverage Flagging
     "TestCoverageAnalyzer",
     "CoverageGap",
