@@ -28,7 +28,7 @@ def _generate_deterministic_uuid(input_str: str) -> str:
     """
     Generate a deterministic UUID v5 from an arbitrary string.
 
-    Uses UUID v5 (SHA-1 based) with a fixed namespace to ensure:
+    Uses UUID v5 (SHA-1 based) with DNS namespace to ensure:
     - Same input always produces same UUID (deterministic)
     - Different inputs produce different UUIDs (collision-resistant)
 
@@ -40,12 +40,11 @@ def _generate_deterministic_uuid(input_str: str) -> str:
 
     Examples:
         >>> _generate_deterministic_uuid("test-fc-v3-2f15e600")
-        "a1b2c3d4-e5f6-5a7b-8c9d-0e1f2a3b4c5d"  # deterministic output
+        '1885b3e2-8531-5129-a53e-928a47d19454'
     """
-    # Use a fixed namespace UUID for MorningAI trace IDs
+    # Use standard DNS namespace for deterministic UUID generation
     # This ensures consistent UUID generation across all instances
-    MORNINGAI_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-    return str(uuid.uuid5(MORNINGAI_NAMESPACE, input_str))
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, input_str))
 
 
 def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
@@ -77,7 +76,7 @@ def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
         "550e8400-e29b-41d4-a716-446655440000"
 
         >>> normalize_and_validate_uuid("test-fc-v3-2f15e600")
-        "a1b2c3d4-..."  # deterministic UUID generated from hash
+        '1885b3e2-8531-5129-a53e-928a47d19454'
     """
     # Handle None and non-string inputs
     if id_str is None:
