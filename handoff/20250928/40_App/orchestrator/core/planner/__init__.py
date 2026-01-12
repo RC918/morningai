@@ -13,6 +13,11 @@ Components:
 - parallel_executor: Parallel task execution (Phase F-2)
 """
 
+# TEST: Intentional syntax error to trigger CI failure for D-4 pilot verification
+# This will be auto-fixed by D-4 when CI fails
+# Remove this line after verification
+intentional_syntax_error = 
+
 from .planner_types import (
     TaskType,
     EdgeType,
