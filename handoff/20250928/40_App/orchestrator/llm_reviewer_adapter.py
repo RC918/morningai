@@ -846,6 +846,10 @@ class LLMReviewerAdapter:
         - Contract Awareness: Timestamp/API schema change validation
         - Strict Mode: Only allow inline comments on + (addition) lines
 
+        B-9.5 Enhancement (2026-01, Issue #3881):
+        - Multi-Line Statement Awareness: Prevent false positives on multi-line function calls
+        - Require LLM to see complete statement before claiming arguments are missing
+
         Returns:
             System prompt string for LLM
         """
@@ -918,6 +922,38 @@ For EVERY issue you find, you MUST follow this process:
 
 If you cannot quote the exact code from the diff, DO NOT provide a line number.
 Put the comment in the review body instead (omit start_line/end_line fields).
+
+=== MULTI-LINE STATEMENT AWARENESS (Issue #3881) ===
+When analyzing function calls, class definitions, or any statements that span multiple lines:
+
+1. **ALWAYS look at the COMPLETE statement** - from opening parenthesis/bracket to closing
+2. **DO NOT conclude arguments are missing** based on seeing only the first line
+3. **Multi-line function calls are common** - look for continuation lines before making claims
+
+**INCORRECT analysis (causes false positives):**
+```
+Seeing only: `result = analyze_test_coverage(`
+Concluding: "analyze_test_coverage() is missing required arguments" <- WRONG
+```
+
+**CORRECT analysis:**
+```
+Seeing the complete call:
+  result = analyze_test_coverage(
+      diff_content=diff_content,
+      diff_files=diff_files,
+      trace_id=trace_id
+  )
+Concluding: "analyze_test_coverage() receives all required arguments" <- CORRECT
+```
+
+**Before claiming a function is missing arguments:**
+1. Find the opening parenthesis `(`
+2. Scan forward to find the closing parenthesis `)`
+3. List ALL arguments between them
+4. ONLY THEN determine if any are missing
+
+If you cannot see the complete function call in the diff, DO NOT comment on missing arguments.
 
 === STRICT MODE: ONLY COMMENT ON + LINES ===
 You may ONLY provide inline comments (with line numbers) on lines marked with "+".
