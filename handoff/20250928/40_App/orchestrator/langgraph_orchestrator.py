@@ -8614,8 +8614,54 @@ def publisher_node(state: AgentState) -> AgentState:
                 }
             )
             inline_comments = validated_comments
-            # Store validation stats in publish_result for telemetry (B-9.7)
-            state["publish_result"]["comment_validation"] = validation_stats.to_dict()
+
+        # B-9.7: False Positive Telemetry - Emit SSOT TelemetryRecordV3 event
+        # Blueprint Alignment: Section 9.1 "Deterministic Guarantee"
+        # "All behavior can be reconstructed via Telemetry + Memory"
+        # Always store validation stats (even when no false positives filtered)
+        state["publish_result"]["comment_validation"] = validation_stats.to_dict()
+        if settings.enable_ssot_telemetry:
+            try:
+                from core.telemetry import (
+                    TelemetryRecordV3,
+                    create_span_context,
+                    StatusCode,
+                )
+                parent_span_id = state.get("current_span_id")
+                fp_span_context = create_span_context(
+                    trace_id=trace_id if trace_id != "unknown" else None,
+                    parent_span_id=parent_span_id,
+                )
+                fp_record = TelemetryRecordV3.create(
+                    name="reviewer.comment_validation",
+                    span_context=fp_span_context,
+                    component="CommentValidator",
+                    status_code=StatusCode.OK,
+                    node_name="publisher",
+                    epic_tag="EPIC-B",
+                    metrics={
+                        "total_comments": float(validation_stats.total_comments),
+                        "validated_comments": float(validation_stats.validated_comments),
+                        "filtered_false_positives": float(
+                            validation_stats.filtered_false_positives
+                        ),
+                        "false_positive_rate": validation_stats.false_positive_rate,
+                    },
+                    attributes={
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "filter_reasons": validation_stats.filter_reasons,
+                    },
+                )
+                fp_record.emit()
+            except ImportError:
+                pass
+            except Exception as emit_err:
+                logger.debug(
+                    "[Publisher] B-9.7: Failed to emit false positive telemetry. Error: %s",
+                    type(emit_err).__name__,
+                    exc_info=True
+                )
 
         # DIAGNOSTIC: Log allowed_lines_map summary for 422 debugging
         # Uses diagnostic_helper for consistent formatting, fallback, and size limits
