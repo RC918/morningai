@@ -7200,7 +7200,7 @@ def reviewer_node(state: AgentState) -> AgentState:
                             "trace_id": trace_id,
                             "issue_count": len(dependency_result.issues),
                             "deprecated_count": sum(1 for i in dependency_result.issues if i.issue_type.value == "deprecated"),
-                            "unpinned_count": sum(1 for i in dependency_result.issues if i.issue_type.value == "unpinned_version")
+                            "unpinned_count": sum(1 for i in dependency_result.issues if i.issue_type.value == "unpinned")
                         }
                     )
 
