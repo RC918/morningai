@@ -4,6 +4,7 @@ Review Context Module - EPIC B Phase 7-8 Implementation
 This module provides enhanced review capabilities for the MorningAI Reviewer Agent:
 
 - B-9: Multi-Specialist Review (Parallel Collaboration)
+- B-9.6: Comment Validator (False Positive Detection)
 - B-11: Test Coverage Flagging
 - B-12: Dependency Analysis
 
@@ -18,6 +19,12 @@ from review_context.multi_specialist_reviewer import (
     SpecialistFindings,
     generate_multi_specialist_review,
     review_with_specialists,
+)
+from review_context.comment_validator import (
+    CommentValidator,
+    ValidationResult,
+    ValidationStats,
+    validate_review_comments,
 )
 from review_context.test_coverage_analyzer import (
     TestCoverageAnalyzer,
@@ -40,6 +47,11 @@ __all__ = [
     "SpecialistFindings",
     "generate_multi_specialist_review",
     "review_with_specialists",
+    # B-9.6: Comment Validator
+    "CommentValidator",
+    "ValidationResult",
+    "ValidationStats",
+    "validate_review_comments",
     # B-11: Test Coverage Flagging
     "TestCoverageAnalyzer",
     "CoverageGap",

@@ -8591,6 +8591,32 @@ def publisher_node(state: AgentState) -> AgentState:
             state["publish_result"]["non_diff_filtered_count"] = non_diff_filtered_count
             state["publish_result"]["non_diff_filtered_files"] = filter_stats["filtered_file_count"]
 
+        # B-9.6: Comment Validator - Filter false positives using fuzzy parsing
+        # This validates LLM claims about missing function arguments
+        # Blueprint Alignment: Section 4.1 "Safe by Design"
+        from review_context.comment_validator import validate_review_comments
+        validated_comments, _, validation_stats = validate_review_comments(
+            comments=inline_comments,
+            diff_content=diff_content,
+            trace_id=trace_id
+        )
+        if validation_stats.filtered_false_positives > 0:
+            logger.info(
+                f"[Publisher] B-9.6: Filtered {validation_stats.filtered_false_positives} "
+                f"false positives (rate: {validation_stats.false_positive_rate:.2%})",
+                extra={
+                    "operation": "publisher",
+                    "trace_id": trace_id,
+                    "pr_number": pr_number,
+                    "filtered_false_positives": validation_stats.filtered_false_positives,
+                    "false_positive_rate": validation_stats.false_positive_rate,
+                    "filter_reasons": validation_stats.filter_reasons,
+                }
+            )
+            inline_comments = validated_comments
+            # Store validation stats in publish_result for telemetry (B-9.7)
+            state["publish_result"]["comment_validation"] = validation_stats.to_dict()
+
         # DIAGNOSTIC: Log allowed_lines_map summary for 422 debugging
         # Uses diagnostic_helper for consistent formatting, fallback, and size limits
         from diagnostic_helper import format_diagnostic
