@@ -483,7 +483,11 @@ class TestPhaseF3cFeatureFlagRouting:
     """
 
     def test_should_use_flow_controller_flag_disabled(self):
-        """Test routing returns 'executor' when feature flag is disabled"""
+        """Test routing returns 'execute' when feature flag is disabled.
+        
+        Note: Returns 'execute' (not 'executor') to match conditional_edges mapping.
+        The mapping converts 'execute' -> 'executor' node.
+        """
         from langgraph_orchestrator import should_use_flow_controller
 
         state = {"trace_id": "test-trace-123"}
@@ -494,7 +498,7 @@ class TestPhaseF3cFeatureFlagRouting:
 
             result = should_use_flow_controller(state)
 
-            assert result == "executor"
+            assert result == "execute"
 
     def test_should_use_flow_controller_flag_enabled(self):
         """Test routing returns 'flow_executor' when feature flag is enabled"""

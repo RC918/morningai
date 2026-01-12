@@ -9363,9 +9363,11 @@ def should_use_flow_controller(state: AgentState) -> str:
         logger.info(
             f"[FlowController] Canary routing: trace_id={trace_id[:8]}..., "
             f"bucket={bucket}, sample_rate={sample_rate}%, "
-            f"route={'flow_executor' if use_flow_controller else 'executor'}"
+            f"route={'flow_executor' if use_flow_controller else 'execute'}"
         )
-        return "flow_executor" if use_flow_controller else "executor"
+        # Return "execute" (not "executor") to match conditional_edges mapping
+        # The mapping converts "execute" -> "executor" node
+        return "flow_executor" if use_flow_controller else "execute"
 
     if enable_flag:
         logger.info(
@@ -9376,9 +9378,11 @@ def should_use_flow_controller(state: AgentState) -> str:
 
     logger.debug(
         f"[FlowController] Feature flag routing: ENABLE_FLOW_CONTROLLER_V3=false, "
-        f"trace_id={trace_id[:8]}..., route=executor"
+        f"trace_id={trace_id[:8]}..., route=execute"
     )
-    return "executor"
+    # Return "execute" (not "executor") to match conditional_edges mapping
+    # The mapping converts "execute" -> "executor" node
+    return "execute"
 
 
 def should_continue_execution(state: AgentState) -> str:
