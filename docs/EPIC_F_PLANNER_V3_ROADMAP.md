@@ -3,7 +3,8 @@
 **Issue**: [#3490](https://github.com/RC918/morningai/issues/3490)  
 **Blueprint Reference**: Section 3.1 (Planner v3 - Intelligent Planner)  
 **Status**: Phase F-3 Completed (Pilot Ready)  
-**Last Updated**: 2026-01-12
+**Last Updated**: 2026-01-12  
+**FlowController v3 Fix Verified**: 2026-01-12 (PR #3875)
 
 ## Executive Summary
 
