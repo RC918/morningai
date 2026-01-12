@@ -73,22 +73,37 @@ class TestNormalizeAndValidateUuid:
         result = normalize_and_validate_uuid(uppercase_uuid, "test_field")
         assert result == expected_uuid
 
-    def test_invalid_uuid_raises_error(self):
-        """Test that invalid UUID raises ValueError"""
+    def test_invalid_uuid_generates_fallback(self):
+        """Test that invalid UUID generates deterministic fallback UUID"""
         invalid_id = "not-a-uuid-at-all"
-        with pytest.raises(ValueError, match="No valid UUID found"):
-            normalize_and_validate_uuid(invalid_id, "test_field")
+        result = normalize_and_validate_uuid(invalid_id, "test_field")
+        # Should return a valid UUID (36 chars with dashes)
+        assert len(result) == 36
+        assert result.count('-') == 4
+        # Should be deterministic - same input produces same output
+        result2 = normalize_and_validate_uuid(invalid_id, "test_field")
+        assert result == result2
 
-    def test_empty_string_raises_error(self):
-        """Test that empty string raises ValueError"""
-        with pytest.raises(ValueError, match="No valid UUID found"):
-            normalize_and_validate_uuid("", "test_field")
+    def test_empty_string_generates_fallback(self):
+        """Test that empty string generates deterministic fallback UUID"""
+        result = normalize_and_validate_uuid("", "test_field")
+        # Should return a valid UUID (36 chars with dashes)
+        assert len(result) == 36
+        assert result.count('-') == 4
+        # Should be deterministic
+        result2 = normalize_and_validate_uuid("", "test_field")
+        assert result == result2
 
-    def test_partial_uuid_raises_error(self):
-        """Test that partial UUID raises ValueError"""
+    def test_partial_uuid_generates_fallback(self):
+        """Test that partial UUID generates deterministic fallback UUID"""
         partial_uuid = "550e8400-e29b-41d4-a716"
-        with pytest.raises(ValueError, match="No valid UUID found"):
-            normalize_and_validate_uuid(partial_uuid, "test_field")
+        result = normalize_and_validate_uuid(partial_uuid, "test_field")
+        # Should return a valid UUID (36 chars with dashes)
+        assert len(result) == 36
+        assert result.count('-') == 4
+        # Should be deterministic
+        result2 = normalize_and_validate_uuid(partial_uuid, "test_field")
+        assert result == result2
 
     @patch('persistence.db_writer.logger')
     def test_normalization_logs_warning(self, mock_logger):
@@ -139,12 +154,17 @@ class TestNormalizeAndValidateUuid:
         assert result == test_uuid
 
     def test_super_long_string_without_uuid(self):
-        """Test that super-long strings without UUID raise ValueError"""
+        """Test that super-long strings without UUID generate deterministic fallback UUID"""
         # Create a 10KB string without any UUID
         super_long_string = "z" * 10000
 
-        with pytest.raises(ValueError, match="No valid UUID found"):
-            normalize_and_validate_uuid(super_long_string, "test_field")
+        result = normalize_and_validate_uuid(super_long_string, "test_field")
+        # Should return a valid UUID (36 chars with dashes)
+        assert len(result) == 36
+        assert result.count('-') == 4
+        # Should be deterministic
+        result2 = normalize_and_validate_uuid(super_long_string, "test_field")
+        assert result == result2
 
     @patch('persistence.db_writer.logger')
     def test_log_key_consistency(self, mock_logger):
