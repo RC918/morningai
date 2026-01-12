@@ -8658,7 +8658,9 @@ def publisher_node(state: AgentState) -> AgentState:
                 pass
             except Exception as emit_err:
                 logger.debug(
-                    f"[Publisher] B-9.7: Failed to emit false positive telemetry: {emit_err}"
+                    "[Publisher] B-9.7: Failed to emit false positive telemetry. Error: %s",
+                    type(emit_err).__name__,
+                    exc_info=True
                 )
 
         # DIAGNOSTIC: Log allowed_lines_map summary for 422 debugging
