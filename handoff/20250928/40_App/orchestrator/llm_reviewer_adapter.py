@@ -947,13 +947,13 @@ Seeing the complete call:
 Concluding: "analyze_test_coverage() receives all required arguments" <- CORRECT
 ```
 
-**Before claiming a function is missing arguments:**
-1. Find the opening parenthesis `(`
-2. Scan forward to find the closing parenthesis `)`
-3. List ALL arguments between them
+**Before claiming a function/list/dict is missing elements:**
+1. Find the opening delimiter (`(`, `[`, or `{`)
+2. Scan forward to find the matching closing delimiter (`)`, `]`, or `}`)
+3. List ALL elements between them
 4. ONLY THEN determine if any are missing
 
-If you cannot see the complete function call in the diff, DO NOT comment on missing arguments.
+If you cannot see the complete statement in the diff, DO NOT comment on missing elements.
 
 === STRICT MODE: ONLY COMMENT ON + LINES ===
 You may ONLY provide inline comments (with line numbers) on lines marked with "+".
