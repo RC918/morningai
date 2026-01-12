@@ -7080,8 +7080,8 @@ def reviewer_node(state: AgentState) -> AgentState:
                     for finding in specialist_result.findings:
                         specialist_comment = {
                             "severity": finding.severity,
-                            "message": f"[{finding.specialist.upper()}] {finding.message}",
-                            "source": f"multi_specialist_{finding.specialist}",
+                            "message": f"[{finding.specialist.value.upper()}] {finding.message}",
+                            "source": f"multi_specialist_{finding.specialist.value}",
                             "category": finding.category
                         }
                         state["review_comments"] = state.get("review_comments", []) + [specialist_comment]
@@ -7097,7 +7097,7 @@ def reviewer_node(state: AgentState) -> AgentState:
                             "operation": "reviewer",
                             "trace_id": trace_id,
                             "finding_count": len(specialist_result.findings),
-                            "specialists": list(set(f.specialist for f in specialist_result.findings))
+                            "specialists": list(set(f.specialist.value for f in specialist_result.findings))
                         }
                     )
 
@@ -7180,10 +7180,10 @@ def reviewer_node(state: AgentState) -> AgentState:
                     for issue in dependency_result.issues:
                         dep_comment = {
                             "severity": issue.severity,
-                            "message": f"[DEPENDENCY] {issue.issue_type}: {issue.package_name} - {issue.message}",
+                            "message": f"[DEPENDENCY] {issue.issue_type.value}: {issue.package_name} - {issue.message}",
                             "source": "dependency_analyzer",
                             "package_name": issue.package_name,
-                            "issue_type": issue.issue_type,
+                            "issue_type": issue.issue_type.value,
                             "file_path": issue.file_path
                         }
                         state["review_comments"] = state.get("review_comments", []) + [dep_comment]
@@ -7199,8 +7199,8 @@ def reviewer_node(state: AgentState) -> AgentState:
                             "operation": "reviewer",
                             "trace_id": trace_id,
                             "issue_count": len(dependency_result.issues),
-                            "deprecated_count": sum(1 for i in dependency_result.issues if i.issue_type == "deprecated"),
-                            "unpinned_count": sum(1 for i in dependency_result.issues if i.issue_type == "unpinned_version")
+                            "deprecated_count": sum(1 for i in dependency_result.issues if i.issue_type.value == "deprecated"),
+                            "unpinned_count": sum(1 for i in dependency_result.issues if i.issue_type.value == "unpinned")
                         }
                     )
 
