@@ -5,6 +5,7 @@
 **Status**: Phase F-3 Completed (Pilot Ready)  
 **Last Updated**: 2026-01-12  
 **FlowController v3 Fix Verified**: 2026-01-12 (PR #3875)  
+**Pilot Status**: 50% sample rate (staging)  
 
 ## Executive Summary
 
