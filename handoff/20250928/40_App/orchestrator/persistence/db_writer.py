@@ -24,12 +24,39 @@ from exceptions import (  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
+def _generate_deterministic_uuid(input_str: str) -> str:
+    """
+    Generate a deterministic UUID v5 from an arbitrary string.
+
+    Uses UUID v5 (SHA-1 based) with DNS namespace to ensure:
+    - Same input always produces same UUID (deterministic)
+    - Different inputs produce different UUIDs (collision-resistant)
+
+    Args:
+        input_str: Any string to convert to UUID
+
+    Returns:
+        UUID string in canonical format
+
+    Examples:
+        >>> _generate_deterministic_uuid("test-fc-v3-2f15e600")
+        '1885b3e2-8531-5129-a53e-928a47d19454'
+    """
+    # Use standard DNS namespace for deterministic UUID generation
+    # This ensures consistent UUID generation across all instances
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, input_str))
+
+
 def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
     """
     Extract and validate UUID from potentially prefixed strings.
 
     Handles cases where external tools or test scripts create task IDs with prefixes
     (e.g., "phase1-stg-test-{uuid}") that cannot be stored in PostgreSQL UUID columns.
+
+    If no valid UUID is found, generates a deterministic UUID from the input string
+    using UUID v5 (SHA-1 hash). This allows test/debug trace IDs like "test-fc-v3-2f15e600"
+    to be persisted to the database while maintaining traceability.
 
     Args:
         id_str: String that may contain a UUID (with or without prefix)
@@ -40,7 +67,6 @@ def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
 
     Raises:
         TypeError: If input is None or not a string
-        ValueError: If no valid UUID is found in the input string
 
     Examples:
         >>> normalize_and_validate_uuid("550e8400-e29b-41d4-a716-446655440000")
@@ -48,6 +74,9 @@ def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
 
         >>> normalize_and_validate_uuid("phase1-stg-test-550e8400-e29b-41d4-a716-446655440000")
         "550e8400-e29b-41d4-a716-446655440000"
+
+        >>> normalize_and_validate_uuid("test-fc-v3-2f15e600")
+        '1885b3e2-8531-5129-a53e-928a47d19454'
     """
     # Handle None and non-string inputs
     if id_str is None:
@@ -65,25 +94,38 @@ def normalize_and_validate_uuid(id_str: str, field_name: str = "id") -> str:
     uuid_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
     matches = re.findall(uuid_pattern, id_str)
 
-    if not matches:
-        raise ValueError(f"No valid UUID found in {field_name}='{id_str}'")
+    if matches:
+        # Validate the extracted UUID
+        validated = uuid.UUID(matches[0])
 
-    # Validate the extracted UUID
-    validated = uuid.UUID(matches[0])
+        # Log warning if normalization occurred (indicates external prefix usage)
+        if id_str != str(validated):
+            logger.warning(
+                f"UUID normalization: {field_name} '{id_str}' -> '{validated}'",
+                extra={
+                    "operation": "uuid_normalization",
+                    "field_name": field_name,
+                    "original_value": id_str,
+                    "normalized_value": str(validated)
+                }
+            )
 
-    # Log warning if normalization occurred (indicates external prefix usage)
-    if id_str != str(validated):
-        logger.warning(
-            f"UUID normalization: {field_name} '{id_str}' -> '{validated}'",
-            extra={
-                "operation": "uuid_normalization",
-                "field_name": field_name,
-                "original_value": id_str,
-                "normalized_value": str(validated)
-            }
-        )
+        return str(validated)
 
-    return str(validated)
+    # Fallback: Generate deterministic UUID from the string hash
+    # This allows test/debug trace IDs to be persisted while maintaining traceability
+    generated_uuid = _generate_deterministic_uuid(id_str)
+    logger.warning(
+        f"UUID fallback: {field_name} '{id_str}' -> '{generated_uuid}' (generated from hash)",
+        extra={
+            "operation": "uuid_fallback_generation",
+            "field_name": field_name,
+            "original_value": id_str,
+            "generated_uuid": generated_uuid
+        }
+    )
+
+    return generated_uuid
 
 
 def fetch_user_tenant_id(user_id: str) -> Optional[str]:
