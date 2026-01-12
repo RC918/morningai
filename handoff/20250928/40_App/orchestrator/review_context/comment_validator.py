@@ -39,14 +39,6 @@ logger = logging.getLogger(__name__)
 
 
 # Regex patterns for fuzzy parsing
-# Pattern to match function calls with arguments (handles multi-line)
-FUNCTION_CALL_PATTERN = re.compile(
-    r'(\w+)\s*\(\s*'  # Function name followed by opening parenthesis
-    r'([^)]*)'         # Arguments (anything except closing paren)
-    r'\)',             # Closing parenthesis
-    re.DOTALL          # Allow . to match newlines
-)
-
 # Pattern to match keyword arguments (name=value)
 KEYWORD_ARG_PATTERN = re.compile(
     r'(\w+)\s*=',      # Argument name followed by =
@@ -230,9 +222,10 @@ class CommentValidator:
         actual_args = self._extract_arguments_from_diff(file_diff)
 
         # Check if any claimed missing arguments are actually present
+        actual_args_lower = {arg.lower() for arg in actual_args}
         false_positive_args = []
         for claimed_arg in claimed_missing:
-            if claimed_arg.lower() in [arg.lower() for arg in actual_args]:
+            if claimed_arg.lower() in actual_args_lower:
                 false_positive_args.append(claimed_arg)
 
         if false_positive_args:
@@ -332,11 +325,12 @@ class CommentValidator:
             arg_name = match.group(1)
             # Filter out common false positives (Python keywords, etc.)
             if arg_name not in {
-                'if', 'else', 'for', 'while', 'def', 'class',
-                'return', 'import', 'from', 'as', 'with', 'try',
-                'except', 'finally', 'raise', 'assert', 'yield',
-                'lambda', 'and', 'or', 'not', 'in', 'is', 'True',
-                'False', 'None', 'self', 'cls'
+                'False', 'None', 'True', 'and', 'as', 'assert', 'async',
+                'await', 'break', 'class', 'continue', 'def', 'del', 'elif',
+                'else', 'except', 'finally', 'for', 'from', 'global', 'if',
+                'import', 'in', 'is', 'lambda', 'nonlocal', 'not', 'or',
+                'pass', 'raise', 'return', 'try', 'while', 'with', 'yield',
+                'self', 'cls'
             }:
                 args_found.add(arg_name)
 

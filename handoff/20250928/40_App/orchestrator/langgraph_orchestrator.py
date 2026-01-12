@@ -8595,7 +8595,7 @@ def publisher_node(state: AgentState) -> AgentState:
         # This validates LLM claims about missing function arguments
         # Blueprint Alignment: Section 4.1 "Safe by Design"
         from review_context.comment_validator import validate_review_comments
-        validated_comments, fp_filtered_comments, validation_stats = validate_review_comments(
+        validated_comments, _, validation_stats = validate_review_comments(
             comments=inline_comments,
             diff_content=diff_content,
             trace_id=trace_id
