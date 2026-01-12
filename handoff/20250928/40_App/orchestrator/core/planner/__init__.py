@@ -13,6 +13,11 @@ Components:
 - parallel_executor: Parallel task execution (Phase F-2)
 """
 
+# FIX: Intentional syntax error to trigger D-4 pilot verification
+# D-4 should auto-fix this when CI fails
+# Close PR after verification (do not merge)
+syntax_error_for_d4_pilot = 
+
 from .planner_types import (
     TaskType,
     EdgeType,
