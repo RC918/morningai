@@ -30,7 +30,7 @@ class TestContextSizeAtExactBoundary:
 
     def test_context_at_tier_3_limit(self):
         """Context exactly at Tier 3 limit should stay in Tier 3"""
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini"])
 
         # UX_COPY defaults to Tier 3
         model = engine.select_model(TaskType.UX_COPY, context_size=TIER_3_LIMIT)
@@ -162,7 +162,7 @@ class TestZeroContextSize:
 
     def test_zero_context_keeps_default_tier_for_ux_copy(self):
         """Zero context should keep default tier for UX_COPY (Tier 3)"""
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini"])
 
         model = engine.select_model(TaskType.UX_COPY, context_size=0)
 
@@ -203,7 +203,7 @@ class TestNegativeContextSize:
 
     def test_negative_context_does_not_upgrade_tier(self):
         """Negative context should not cause tier upgrade"""
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini"])
 
         model = engine.select_model(TaskType.UX_COPY, context_size=-100)
 
@@ -340,7 +340,7 @@ class TestContextSizeEdgeCases:
 
     def test_context_size_at_each_boundary_minus_one(self):
         """Context size at boundary-1 should stay in current tier"""
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini"])
 
         # Just under Tier 3 limit
         model = engine.select_model(TaskType.UX_COPY, context_size=TIER_3_LIMIT - 1)
