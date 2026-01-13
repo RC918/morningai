@@ -52,6 +52,7 @@ def setup_fake_modules():
             github_repo = "RC918/morningai"
             github_token = "test-token"
             agent_github_token = "test-agent-token"
+            general_coder_max_files = 5  # Issue #3890: D-4 Context Extraction
 
         settings_module.settings = FakeSettings()
         sys.modules["common.config.settings"] = settings_module
@@ -84,6 +85,7 @@ from langgraph_orchestrator import (  # noqa: E402
     _attempt_simple_coder_fix,
     _ensure_comment_body_for_ci_failure,
     _extract_file_path_from_error,
+    _extract_file_paths_from_error,
 )
 
 
@@ -1050,3 +1052,157 @@ src/second.py:20:1: E501 line too long"""
         ]
         for error, expected in test_cases:
             assert _extract_file_path_from_error(error) == expected, f"Failed for: {error}"
+
+    # Issue #3890: Tests for Python SyntaxError format (Pattern 4)
+    def test_extracts_python_syntax_error_format(self):
+        """Test extraction from Python SyntaxError format: File "path/file.py", line N."""
+        error = '''  File "src/utils/helper.py", line 10
+    print("hello"
+                 ^
+SyntaxError: unexpected EOF while parsing'''
+        assert _extract_file_path_from_error(error) == "src/utils/helper.py"
+
+    def test_extracts_python_syntax_error_nested_path(self):
+        """Test extraction from Python SyntaxError with nested path."""
+        error = '''  File "/home/user/project/src/deep/nested/module.py", line 42
+    def foo(
+           ^
+SyntaxError: invalid syntax'''
+        assert _extract_file_path_from_error(error) == "/home/user/project/src/deep/nested/module.py"
+
+    def test_extracts_python_syntax_error_traceback(self):
+        """Test extraction from Python traceback with multiple File entries."""
+        error = '''Traceback (most recent call last):
+  File "src/main.py", line 5, in <module>
+    from src.broken import foo
+  File "src/broken.py", line 10
+    print("hello"
+                 ^
+SyntaxError: unexpected EOF while parsing'''
+        # Should extract first File entry
+        assert _extract_file_path_from_error(error) == "src/main.py"
+
+    def test_extracts_quoted_file_path(self):
+        """Test extraction from quoted file path in File format."""
+        error = 'File "orchestrator/langgraph_orchestrator.py" has syntax error'
+        assert _extract_file_path_from_error(error) == "orchestrator/langgraph_orchestrator.py"
+
+    def test_extracts_file_path_case_insensitive(self):
+        """Test extraction is case insensitive for File keyword."""
+        error = 'file "src/test.py", line 1'
+        assert _extract_file_path_from_error(error) == "src/test.py"
+
+
+class TestExtractFilePathsFromError:
+    """Tests for _extract_file_paths_from_error helper function (Issue #3890).
+
+    This function extracts ALL file paths from CI error summaries for
+    multi-file support in GeneralCoder (D-1b).
+    """
+
+    def test_extracts_single_flake8_error(self):
+        """Test extraction of single file from flake8 format."""
+        error = "src/utils/helper.py:42:1: F821 undefined name 'result'"
+        result = _extract_file_paths_from_error(error)
+        assert result == ["src/utils/helper.py"]
+
+    def test_extracts_multiple_flake8_errors(self):
+        """Test extraction of multiple files from flake8 format."""
+        error = """src/first.py:10:1: E501 line too long
+src/second.py:20:1: E501 line too long
+src/third.py:30:1: F401 unused import"""
+        result = _extract_file_paths_from_error(error)
+        assert set(result) == {"src/first.py", "src/second.py", "src/third.py"}
+
+    def test_extracts_duplicate_files_once(self):
+        """Test that duplicate file paths are deduplicated."""
+        error = """src/utils.py:10:1: E501 line too long
+src/utils.py:20:1: E501 line too long
+src/utils.py:30:1: E501 line too long"""
+        result = _extract_file_paths_from_error(error)
+        assert result == ["src/utils.py"]
+
+    def test_extracts_mixed_formats(self):
+        """Test extraction from mixed error formats."""
+        error = """src/first.py:10:1: E501 line too long
+Error in src/second.py: undefined variable
+File "src/third.py", line 5
+    print(
+         ^
+SyntaxError: invalid syntax"""
+        result = _extract_file_paths_from_error(error)
+        assert set(result) == {"src/first.py", "src/second.py", "src/third.py"}
+
+    def test_extracts_python_syntax_error_format(self):
+        """Test extraction from Python SyntaxError format."""
+        error = '''  File "src/broken.py", line 10
+    print("hello"
+                 ^
+SyntaxError: unexpected EOF while parsing'''
+        result = _extract_file_paths_from_error(error)
+        assert result == ["src/broken.py"]
+
+    def test_extracts_multiple_python_files_from_traceback(self):
+        """Test extraction of multiple files from Python traceback."""
+        error = '''Traceback (most recent call last):
+  File "src/main.py", line 5, in <module>
+    from src.broken import foo
+  File "src/broken.py", line 10
+    print("hello"
+                 ^
+SyntaxError: unexpected EOF while parsing'''
+        result = _extract_file_paths_from_error(error)
+        assert set(result) == {"src/main.py", "src/broken.py"}
+
+    def test_returns_empty_for_no_match(self):
+        """Test returns empty list when no file paths found."""
+        error = "Some generic error without file path"
+        result = _extract_file_paths_from_error(error)
+        assert result == []
+
+    def test_returns_empty_for_empty_input(self):
+        """Test returns empty list for empty input."""
+        assert _extract_file_paths_from_error("") == []
+
+    def test_limits_to_max_files(self):
+        """Test that results are limited to max files (default 5)."""
+        error = """src/file1.py:1:1: error
+src/file2.py:1:1: error
+src/file3.py:1:1: error
+src/file4.py:1:1: error
+src/file5.py:1:1: error
+src/file6.py:1:1: error
+src/file7.py:1:1: error"""
+        result = _extract_file_paths_from_error(error)
+        # Should be limited to 5 files (general_coder_max_files default)
+        assert len(result) <= 5
+
+    def test_extracts_compiler_format(self):
+        """Test extraction from compiler format: path/file.py(line): error."""
+        error = """src/main.py(42): SyntaxError: invalid syntax
+src/utils.py(10): TypeError: unsupported operand"""
+        result = _extract_file_paths_from_error(error)
+        assert set(result) == {"src/main.py", "src/utils.py"}
+
+    def test_extracts_various_extensions(self):
+        """Test extraction works for various file extensions."""
+        error = """app.js:1:1: error
+app.ts:2:1: error
+main.go:3:1: error
+lib.rs:4:1: error"""
+        result = _extract_file_paths_from_error(error)
+        assert set(result) == {"app.js", "app.ts", "main.go", "lib.rs"}
+
+    def test_extracts_error_in_format(self):
+        """Test extraction from 'Error in path/file.py' format."""
+        error = """Error in src/first.py: undefined variable
+Error in src/second.py: syntax error"""
+        result = _extract_file_paths_from_error(error)
+        assert set(result) == {"src/first.py", "src/second.py"}
+
+    def test_extracts_quoted_paths(self):
+        """Test extraction from quoted file paths."""
+        error = '''File "src/quoted.py" has issues
+in file "src/another.py" found error'''
+        result = _extract_file_paths_from_error(error)
+        assert set(result) == {"src/quoted.py", "src/another.py"}
