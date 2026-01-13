@@ -1847,6 +1847,14 @@ class Settings(BaseSettings):
         description="Maximum full plan replans (F-5). After this limit, escalates to HITL. Valid range: 1-5."
     )
 
+    # EPIC F Stage 3: Agent Assignment + Flow Template Selection
+    # Blueprint Section F-4: Rule-based agent assignment and flow template selection
+    use_agent_assignment: bool = Field(
+        default=False,
+        alias="USE_AGENT_ASSIGNMENT",
+        description="Enable F-4 Agent Assignment: rule-based agent assignment based on task type and risk level. When enabled, AgentAssigner applies assignments to all tasks in a plan."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
