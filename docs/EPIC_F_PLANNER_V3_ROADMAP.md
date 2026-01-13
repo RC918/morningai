@@ -709,7 +709,7 @@ class Replanner:
 > **Type**: Extension to F-5
 > **Issue**: [#3919](https://github.com/RC918/morningai/issues/3919)
 > **Effort**: Medium (3-5 days)
-> **Blueprint Alignment**: Section 3.1 (Debate Engine v2), Section 3.3 (Judge Agent)
+> **Blueprint Alignment**: Section 3.1 (Planner v3), Section 3.3 (Judge Agent)
 
 **Problem**: When MultiSpecialistReviewer (B-9) returns conflicting opinions from different specialists, there's no mechanism for the Planner to arbitrate. This can cause Coder to enter "infinite loop" - fixing A breaks B, fixing B breaks A.
 

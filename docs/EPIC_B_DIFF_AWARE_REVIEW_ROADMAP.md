@@ -465,12 +465,26 @@ The Reviewer Agent does NOT need LSP/AST - it reviews the PR diff and flags issu
 2. **Approval Threshold Strategy**:
    ```python
    def should_force_approve(findings: List[SpecialistFinding], retry_count: int) -> bool:
-       # Security must always pass
+       """
+       Determine if findings can be force-approved based on priority and retry count.
+       
+       Note: Assumes SpecialistFinding dataclass with 'specialist' and 'severity' attributes.
+       Returns False for empty/None findings (conservative default).
+       """
+       if not findings:
+           return False
+       
+       # Security must always pass - never force-approve
        security_blockers = [f for f in findings if f.specialist == 'SECURITY' and f.severity in ('high', 'critical')]
        if security_blockers:
            return False
        
-       # After 2 retries, allow force-approve for non-security issues
+       # Performance findings: require 3+ retries (high priority)
+       performance_issues = [f for f in findings if f.specialist == 'PERFORMANCE']
+       if performance_issues and retry_count < 3:
+           return False
+       
+       # Architecture/Pythonic findings: can be force-approved after 2 retries (optional)
        if retry_count >= 2:
            return True
        
