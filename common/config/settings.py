@@ -1801,6 +1801,26 @@ class Settings(BaseSettings):
         description="Maximum lines in generated MRE (D-8). Limits output size for readability."
     )
 
+    # EPIC F Stage 3: Debate Engine for Adversarial Collaboration
+    # Blueprint Section 7: Left Agent vs Right Agent → Judge Agent decision
+    use_debate_engine: bool = Field(
+        default=False,
+        alias="USE_DEBATE_ENGINE",
+        description="Enable F-5 Debate Engine: adversarial collaboration for high-risk decisions. Left Agent proposes conventional approach, Right Agent proposes alternative, Judge Agent decides."
+    )
+
+    debate_engine_enable_llm: bool = Field(
+        default=True,
+        alias="DEBATE_ENGINE_ENABLE_LLM",
+        description="Enable LLM-powered debate arguments (F-5). When False, uses template-based fallback."
+    )
+
+    debate_engine_max_rounds: int = Field(
+        default=3,
+        alias="DEBATE_ENGINE_MAX_ROUNDS",
+        description="Maximum debate rounds before Judge makes final decision (F-5). Higher values allow deeper exploration but increase latency and cost."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
