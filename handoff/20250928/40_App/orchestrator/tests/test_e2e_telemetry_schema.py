@@ -729,13 +729,13 @@ class TestRoutingDecisionVerification:
 
     def test_summarization_task_uses_tier_2(self):
         """Summarization task should use Tier 2"""
-        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini", "alicloud"])
         model = engine.select_model(TaskType.SUMMARIZATION)
         assert model.tier == Tier.TIER_2
 
     def test_ux_copy_task_uses_tier_3(self):
         """UX copy task should use Tier 3 (basic capability)"""
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini"])
         model = engine.select_model(TaskType.UX_COPY)
         assert model.tier == Tier.TIER_3
 
