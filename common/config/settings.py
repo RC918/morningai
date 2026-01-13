@@ -1823,6 +1823,30 @@ class Settings(BaseSettings):
         description="Maximum debate rounds before Judge makes final decision (F-5). Higher values allow deeper exploration but increase latency and cost. Valid range: 1-10."
     )
 
+    # EPIC F Stage 3: Self-refinement Loop for plan → execute → feedback → replan
+    # Blueprint Section F-5: Closed loop execution with failure recovery
+    use_self_refinement: bool = Field(
+        default=False,
+        alias="USE_SELF_REFINEMENT",
+        description="Enable F-5 Self-refinement Loop: plan → execute → feedback → replan closed loop. Automatically replans on task failures with failure learning context."
+    )
+
+    self_refinement_max_task_replans: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        alias="SELF_REFINEMENT_MAX_TASK_REPLANS",
+        description="Maximum replans per failed task (F-5). After this limit, escalates to HITL. Valid range: 1-10."
+    )
+
+    self_refinement_max_full_replans: int = Field(
+        default=2,
+        ge=1,
+        le=5,
+        alias="SELF_REFINEMENT_MAX_FULL_REPLANS",
+        description="Maximum full plan replans (F-5). After this limit, escalates to HITL. Valid range: 1-5."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
