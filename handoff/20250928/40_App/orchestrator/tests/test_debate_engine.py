@@ -733,7 +733,6 @@ class TestDebateEngine:
 class TestShouldTriggerDebate:
     """Tests for should_trigger_debate function."""
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "false"})
     def test_disabled_returns_false(self):
         """Test that disabled engine returns False."""
         import debate_engine
@@ -743,7 +742,6 @@ class TestShouldTriggerDebate:
 
         assert result is False
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "true"})
     def test_high_risk_triggers_debate(self):
         """Test that high risk triggers debate."""
         import debate_engine
@@ -753,7 +751,6 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "true"})
     def test_critical_risk_triggers_debate(self):
         """Test that critical risk triggers debate."""
         import debate_engine
@@ -763,7 +760,6 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "true"})
     def test_architecture_category_triggers_debate(self):
         """Test that architecture category triggers debate."""
         import debate_engine
@@ -776,7 +772,6 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "true"})
     def test_security_category_triggers_debate(self):
         """Test that security category triggers debate."""
         import debate_engine
@@ -789,7 +784,6 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "true"})
     def test_privacy_category_triggers_debate(self):
         """Test that privacy category triggers debate."""
         import debate_engine
@@ -802,7 +796,6 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "true"})
     def test_force_debate_triggers(self):
         """Test that force_debate=True triggers debate."""
         import debate_engine
@@ -815,7 +808,6 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
-    @patch.dict(os.environ, {"USE_DEBATE_ENGINE": "true"})
     def test_low_risk_no_category_no_trigger(self):
         """Test that low risk without special category doesn't trigger."""
         import debate_engine

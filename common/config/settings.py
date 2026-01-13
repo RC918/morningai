@@ -1817,8 +1817,10 @@ class Settings(BaseSettings):
 
     debate_engine_max_rounds: int = Field(
         default=3,
+        ge=1,
+        le=10,
         alias="DEBATE_ENGINE_MAX_ROUNDS",
-        description="Maximum debate rounds before Judge makes final decision (F-5). Higher values allow deeper exploration but increase latency and cost."
+        description="Maximum debate rounds before Judge makes final decision (F-5). Higher values allow deeper exploration but increase latency and cost. Valid range: 1-10."
     )
 
     senior_coder_strict_schema_validation: bool = Field(

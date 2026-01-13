@@ -34,22 +34,21 @@ Usage:
 
 import asyncio
 import logging
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from common.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
-# Feature flags for Debate Engine
-USE_DEBATE_ENGINE = os.getenv("USE_DEBATE_ENGINE", "false").lower() == "true"
-DEBATE_ENGINE_ENABLE_LLM = os.getenv(
-    "DEBATE_ENGINE_ENABLE_LLM", "true"
-).lower() == "true"
-DEBATE_ENGINE_MAX_ROUNDS = int(os.getenv("DEBATE_ENGINE_MAX_ROUNDS", "3"))
+# Feature flags for Debate Engine (from centralized settings)
+USE_DEBATE_ENGINE = settings.use_debate_engine
+DEBATE_ENGINE_ENABLE_LLM = settings.debate_engine_enable_llm
+DEBATE_ENGINE_MAX_ROUNDS = settings.debate_engine_max_rounds
 
 
 class DebateRole(Enum):
