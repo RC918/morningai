@@ -444,6 +444,50 @@ The Reviewer Agent does NOT need LSP/AST - it reviews the PR diff and flags issu
 
 ---
 
+### B-9.5: Priority-based Filtering + Approval Threshold
+
+> **Type**: Enhancement to B-9
+> **Issue**: [#3918](https://github.com/RC918/morningai/issues/3918)
+> **Effort**: Medium (2-3 days)
+> **Blueprint Alignment**: Section 3.1 (Planner v3 Self-refinement), Section 3.3 (Judge Agent)
+
+**Problem**: Current `_deduplicate_findings()` only does simple deduplication. When specialists have conflicting opinions (e.g., Security says add checks, Performance says remove checks), Coder can enter "infinite loop".
+
+**Solution**: Implement priority-based filtering and approval threshold strategy.
+
+**Implementation Plan**:
+
+1. **Priority-based Filtering**:
+   - Security findings: Must be addressed (blocking)
+   - Performance findings: High priority (should address)
+   - Architecture/Pythonic findings: Optional (can be ignored after retry > 2)
+
+2. **Approval Threshold Strategy**:
+   ```python
+   def should_force_approve(findings: List[SpecialistFinding], retry_count: int) -> bool:
+       # Security must always pass
+       security_blockers = [f for f in findings if f.specialist == 'SECURITY' and f.severity in ('high', 'critical')]
+       if security_blockers:
+           return False
+       
+       # After 2 retries, allow force-approve for non-security issues
+       if retry_count >= 2:
+           return True
+       
+       return False
+   ```
+
+**Acceptance Criteria**:
+- [ ] Priority-based filtering implemented in `_deduplicate_findings()`
+- [ ] Approval threshold strategy with retry count awareness
+- [ ] Security findings always blocking
+- [ ] Non-security findings can be force-approved after retry threshold
+- [ ] Telemetry for force-approve events
+
+**Related**: F-5.5 Review Consolidation ([#3919](https://github.com/RC918/morningai/issues/3919))
+
+---
+
 ### ~~B-10: Auto-Fix Integration~~ → REMOVED (OUT OF SCOPE)
 
 > **Status**: REMOVED FROM EPIC B
