@@ -86,6 +86,16 @@ from .flow_integration import (
     validate_flow_integration_ready,
 )
 
+from .self_refinement import (
+    FeedbackStatus,
+    ExecutionFeedback,
+    PlanFeedback,
+    FeedbackCollector,
+    Replanner,
+    RefinementResult,
+    SelfRefinementLoop,
+)
+
 __all__ = [
     # Planner types
     "TaskType",
@@ -144,4 +154,12 @@ __all__ = [
     "execute_with_flow_controller",
     "create_flow_executor_node",
     "validate_flow_integration_ready",
+    # Self-refinement Loop (Phase F-5)
+    "FeedbackStatus",
+    "ExecutionFeedback",
+    "PlanFeedback",
+    "FeedbackCollector",
+    "Replanner",
+    "RefinementResult",
+    "SelfRefinementLoop",
 ]
