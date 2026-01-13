@@ -733,38 +733,30 @@ class TestDebateEngine:
 class TestShouldTriggerDebate:
     """Tests for should_trigger_debate function."""
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", False)
     def test_disabled_returns_false(self):
         """Test that disabled engine returns False."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = False
-
         result = should_trigger_debate(risk_level="critical")
 
         assert result is False
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", True)
     def test_high_risk_triggers_debate(self):
         """Test that high risk triggers debate."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = True
-
         result = should_trigger_debate(risk_level="high")
 
         assert result is True
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", True)
     def test_critical_risk_triggers_debate(self):
         """Test that critical risk triggers debate."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = True
-
         result = should_trigger_debate(risk_level="critical")
 
         assert result is True
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", True)
     def test_architecture_category_triggers_debate(self):
         """Test that architecture category triggers debate."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = True
-
         result = should_trigger_debate(
             risk_level="low",
             category="architecture",
@@ -772,11 +764,9 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", True)
     def test_security_category_triggers_debate(self):
         """Test that security category triggers debate."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = True
-
         result = should_trigger_debate(
             risk_level="low",
             category="security",
@@ -784,11 +774,9 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", True)
     def test_privacy_category_triggers_debate(self):
         """Test that privacy category triggers debate."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = True
-
         result = should_trigger_debate(
             risk_level="low",
             category="privacy",
@@ -796,11 +784,9 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", True)
     def test_force_debate_triggers(self):
         """Test that force_debate=True triggers debate."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = True
-
         result = should_trigger_debate(
             risk_level="low",
             force_debate=True,
@@ -808,11 +794,9 @@ class TestShouldTriggerDebate:
 
         assert result is True
 
+    @patch("debate_engine.USE_DEBATE_ENGINE", True)
     def test_low_risk_no_category_no_trigger(self):
         """Test that low risk without special category doesn't trigger."""
-        import debate_engine
-        debate_engine.USE_DEBATE_ENGINE = True
-
         result = should_trigger_debate(
             risk_level="low",
             category="implementation",
@@ -903,6 +887,7 @@ except ImportError:
 
 
 @pytest.mark.skipif(not HAS_LLM_MODULE, reason="llm module not available")
+@patch("debate_engine.DEBATE_ENGINE_ENABLE_LLM", True)
 class TestLLMIntegration:
     """Tests for LLM integration (mocked). Requires llm module in path."""
 
@@ -920,9 +905,6 @@ class TestLLMIntegration:
         }
         '''
         mock_get_client.return_value = mock_client
-
-        import debate_engine
-        debate_engine.DEBATE_ENGINE_ENABLE_LLM = True
 
         agent = DebateAgent(
             role=DebateRole.LEFT,
@@ -942,9 +924,6 @@ class TestLLMIntegration:
     def test_debate_agent_llm_failure_fallback(self, mock_get_client):
         """Test fallback to template when LLM fails."""
         mock_get_client.side_effect = Exception("LLM error")
-
-        import debate_engine
-        debate_engine.DEBATE_ENGINE_ENABLE_LLM = True
 
         agent = DebateAgent(
             role=DebateRole.LEFT,
@@ -978,9 +957,6 @@ class TestLLMIntegration:
         }
         '''
         mock_get_client.return_value = mock_client
-
-        import debate_engine
-        debate_engine.DEBATE_ENGINE_ENABLE_LLM = True
 
         judge = JudgeAgent(trace_id="test-123", enable_llm=True)
         judge.enable_llm = True
