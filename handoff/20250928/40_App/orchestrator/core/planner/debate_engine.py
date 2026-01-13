@@ -345,7 +345,7 @@ Format your response as JSON with these fields:
         from llm.client import get_client_for_task
         from core.routing import TaskType
 
-        client = get_client_for_task(TaskType.REASONING)
+        client = get_client_for_task(TaskType.ANALYSIS)
 
         system_prompt = self.SYSTEM_PROMPTS[self.role]
         user_prompt = self._build_user_prompt(
@@ -558,7 +558,7 @@ Format your response as JSON with these fields:
         from llm.client import get_client_for_task
         from core.routing import TaskType
 
-        client = get_client_for_task(TaskType.REASONING)
+        client = get_client_for_task(TaskType.ANALYSIS)
 
         user_prompt = self._build_evaluation_prompt(topic, arguments)
 
