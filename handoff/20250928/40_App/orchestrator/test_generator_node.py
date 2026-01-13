@@ -423,10 +423,8 @@ class TestGeneratorNode:
         source_file: str,
     ) -> str:
         """Generate pytest template tests."""
-        # Calculate relative import path
-        import_path = source_file.replace("/", ".").replace("\\", ".")
-        if import_path.endswith(".py"):
-            import_path = import_path[:-3]
+        # Calculate relative import path (platform-independent)
+        import_path = os.path.splitext(source_file)[0].replace(os.path.sep, ".")
 
         tests = []
         for func_name in function_names:

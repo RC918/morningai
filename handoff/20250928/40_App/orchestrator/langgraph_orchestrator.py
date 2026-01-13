@@ -7369,9 +7369,7 @@ def reviewer_node(state: AgentState) -> AgentState:
                     repo_path = state.get("repo_path", "/tmp/repo")
 
                     # Get source contents from diff if available
-                    source_contents = None
-                    if state.get("diff_files_content"):
-                        source_contents = state.get("diff_files_content")
+                    source_contents = state.get("diff_files_content")
 
                     # Generate tests
                     max_files = getattr(settings, 'test_generation_max_files', 5)
