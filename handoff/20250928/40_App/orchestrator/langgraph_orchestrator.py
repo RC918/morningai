@@ -7341,6 +7341,85 @@ def reviewer_node(state: AgentState) -> AgentState:
                     }
                 )
 
+        # D-7: Test Generation from Reviewer Flags (Test Agent v2)
+        # Blueprint Section 3.3: Test Agent v2 generates tests from B-11 coverage gaps
+        # This runs AFTER B-11 flags coverage gaps and generates actual test code
+        if (
+            getattr(settings, 'use_test_generation', False)
+            and getattr(settings, 'use_test_coverage_flagging', False)
+            and state.get("test_coverage_analysis_v1")
+        ):
+            try:
+                from test_generator_node import generate_tests_for_coverage_gaps
+
+                coverage_analysis = state.get("test_coverage_analysis_v1", {})
+                coverage_gaps = coverage_analysis.get("coverage_gaps", [])
+
+                if coverage_gaps:
+                    logger.info(
+                        "[Reviewer] D-7: Starting test generation for coverage gaps",
+                        extra={
+                            "operation": "test_generation",
+                            "trace_id": trace_id,
+                            "gap_count": len(coverage_gaps)
+                        }
+                    )
+
+                    # Get repo path from state or use default
+                    repo_path = state.get("repo_path", "/tmp/repo")
+
+                    # Get source contents from diff if available
+                    source_contents = None
+                    if state.get("diff_files_content"):
+                        source_contents = state.get("diff_files_content")
+
+                    # Generate tests
+                    max_files = getattr(settings, 'test_generation_max_files', 5)
+                    enable_llm = getattr(settings, 'test_generation_enable_llm', True)
+
+                    test_result = generate_tests_for_coverage_gaps(
+                        coverage_gaps=coverage_gaps,
+                        repo_path=repo_path,
+                        trace_id=trace_id,
+                        source_contents=source_contents,
+                        max_tests_per_run=max_files,
+                        enable_llm=enable_llm,
+                    )
+
+                    if test_result:
+                        state["test_generation_result_v1"] = test_result
+
+                        # Add generated tests info to review comments
+                        generated_count = test_result.get("total_generated", 0)
+                        if generated_count > 0:
+                            test_gen_comment = {
+                                "severity": "low",
+                                "message": f"[TEST GENERATION] D-7: Generated {generated_count} test file(s) for coverage gaps. {test_result.get('summary', '')}",
+                                "source": "test_generator",
+                                "generated_tests": test_result.get("generated_tests", [])
+                            }
+                            state["review_comments"] = state.get("review_comments", []) + [test_gen_comment]
+
+                        logger.info(
+                            f"[Reviewer] D-7: Test generation completed: {test_result.get('summary', '')}",
+                            extra={
+                                "operation": "test_generation",
+                                "trace_id": trace_id,
+                                "generated_count": generated_count,
+                                "failed_count": test_result.get("total_failed", 0)
+                            }
+                        )
+
+            except Exception as test_gen_error:
+                logger.warning(
+                    f"[Reviewer] D-7: Test generation failed (non-blocking): {test_gen_error}",
+                    extra={
+                        "operation": "test_generation",
+                        "trace_id": trace_id,
+                        "error": str(test_gen_error)
+                    }
+                )
+
         # B-12: Dependency Analysis (READ-ONLY - flags issues, does NOT fix them)
         if getattr(settings, 'use_dependency_analysis', False) and diff_content:
             try:
