@@ -299,11 +299,16 @@ class TestReplanner:
 
         new_plan = replanner.replan_partial(plan, "task-1", feedback)
 
-        assert len(new_plan.task_tree.nodes) == 4
+        # Failed task is removed, recovery + retry are added
+        # Original: task-1, task-2 (2 nodes)
+        # After: task-2, task-1-recovery-1, task-1-retry-1 (3 nodes)
+        assert len(new_plan.task_tree.nodes) == 3
         recovery_tasks = [n for n in new_plan.task_tree.nodes if "recovery" in n.task_id]
         retry_tasks = [n for n in new_plan.task_tree.nodes if "retry" in n.task_id]
+        failed_tasks = [n for n in new_plan.task_tree.nodes if n.task_id == "task-1"]
         assert len(recovery_tasks) == 1
         assert len(retry_tasks) == 1
+        assert len(failed_tasks) == 0  # Failed task should be removed
         assert replanner._task_replan_counts["task-1"] == 1
 
     def test_replan_partial_increments_count(self):
@@ -479,6 +484,73 @@ class TestSelfRefinementLoop:
 
         assert counts["max_task_replans"] == 5
         assert counts["max_full_replans"] == 3
+
+    def test_replan_partial_removes_failed_task_and_rewires_edges(self):
+        """Test that partial replan correctly removes failed task and rewires edges"""
+        # Create a plan with dependencies: task-1 -> task-2
+        nodes = [
+            TaskNode(
+                task_id="task-1",
+                task_type=TaskType.ANALYZE,
+                description="Analyze code",
+            ),
+            TaskNode(
+                task_id="task-2",
+                task_type=TaskType.CODE,
+                description="Write code",
+            ),
+        ]
+        edges = [
+            TaskEdge(from_task="task-1", to_task="task-2"),
+        ]
+        plan = PlannerOutput(
+            plan_id="test-plan",
+            plan_type=PlanType.DETAILED,
+            goal="Test goal",
+            task_tree=TaskTree(nodes=nodes, edges=edges),
+            planner_metadata=PlannerMetadata(planner_type="test"),
+        )
+
+        from core.planner.self_refinement import Replanner
+        replanner = Replanner()
+        feedback = ExecutionFeedback(
+            task_id="task-1",
+            status=FeedbackStatus.FAILED,
+            error_message="Test error",
+        )
+
+        new_plan = replanner.replan_partial(plan, "task-1", feedback)
+
+        # Verify failed task is removed
+        task_ids = [n.task_id for n in new_plan.task_tree.nodes]
+        assert "task-1" not in task_ids
+        assert "task-1-recovery-1" in task_ids
+        assert "task-1-retry-1" in task_ids
+        assert "task-2" in task_ids
+
+        # Verify edges are rewired correctly
+        edge_pairs = [(e.from_task, e.to_task) for e in new_plan.task_tree.edges]
+        # recovery -> retry edge should exist
+        assert ("task-1-recovery-1", "task-1-retry-1") in edge_pairs
+        # retry -> task-2 edge should exist (rewired from task-1 -> task-2)
+        assert ("task-1-retry-1", "task-2") in edge_pairs
+        # Original task-1 -> task-2 edge should NOT exist
+        assert ("task-1", "task-2") not in edge_pairs
+
+    def test_consecutive_partial_failures_counter(self):
+        """Test that consecutive partial failures counter is tracked correctly"""
+        executor = MagicMock()
+        loop = SelfRefinementLoop(executor=executor)
+
+        # Initially counter should be 0
+        assert loop._consecutive_partial_failures == 0
+
+        # Simulate incrementing counter
+        loop._consecutive_partial_failures = 1
+        assert loop._consecutive_partial_failures == 1
+
+        # Verify threshold constant
+        assert loop.CONSECUTIVE_FAILURES_FOR_FULL_REPLAN == 2
 
 
 class TestRefinementResult:

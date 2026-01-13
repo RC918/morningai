@@ -411,26 +411,38 @@ class Replanner:
             },
         )
 
-        new_nodes = list(plan.task_tree.nodes)
+        # Filter out failed_task from nodes (it will be replaced by recovery + retry)
+        new_nodes = [n for n in plan.task_tree.nodes if n.task_id != failed_task_id]
         new_nodes.append(recovery_task)
         new_nodes.append(retry_task)
 
-        new_edges = list(plan.task_tree.edges)
+        # Rewire edges: incoming -> recovery_task, outgoing -> from retry_task
+        new_edges = []
+        for edge in plan.task_tree.edges:
+            if edge.to_task == failed_task_id:
+                # Incoming edge -> point to recovery_task
+                new_edges.append(TaskEdge(
+                    from_task=edge.from_task,
+                    to_task=recovery_task.task_id,
+                    edge_type=edge.edge_type,
+                ))
+            elif edge.from_task == failed_task_id:
+                # Outgoing edge -> originate from retry_task
+                new_edges.append(TaskEdge(
+                    from_task=retry_task.task_id,
+                    to_task=edge.to_task,
+                    edge_type=edge.edge_type,
+                ))
+            else:
+                # Keep other edges unchanged
+                new_edges.append(edge)
+
+        # Add recovery -> retry edge
         new_edges.append(TaskEdge(
             from_task=recovery_task.task_id,
             to_task=retry_task.task_id,
             edge_type=EdgeType.DEPENDS_ON,
         ))
-
-        dependents = plan.task_tree.get_dependents(failed_task_id)
-        for dep_id in dependents:
-            for i, edge in enumerate(new_edges):
-                if edge.from_task == failed_task_id and edge.to_task == dep_id:
-                    new_edges[i] = TaskEdge(
-                        from_task=retry_task.task_id,
-                        to_task=dep_id,
-                        edge_type=edge.edge_type,
-                    )
 
         new_tree = TaskTree(nodes=new_nodes, edges=new_edges)
 
@@ -594,6 +606,8 @@ class SelfRefinementLoop:
         result = loop.execute_with_refinement(plan)
     """
 
+    CONSECUTIVE_FAILURES_FOR_FULL_REPLAN = 2
+
     def __init__(
         self,
         executor: TaskExecutorProtocol,
@@ -615,6 +629,7 @@ class SelfRefinementLoop:
             max_full_replans=max_full_replans or MAX_FULL_REPLANS,
         )
         self._replan_history: List[Dict[str, Any]] = []
+        self._consecutive_partial_failures: int = 0
 
     def execute_with_refinement(self, plan: PlannerOutput) -> RefinementResult:
         """
@@ -647,6 +662,7 @@ class SelfRefinementLoop:
         current_plan = plan
         self.replanner.reset()
         self._replan_history.clear()
+        self._consecutive_partial_failures = 0
 
         while True:
             result = self._execute_plan(current_plan)
@@ -663,6 +679,7 @@ class SelfRefinementLoop:
                     "[SelfRefinementLoop] Plan %s completed successfully",
                     current_plan.plan_id[:8]
                 )
+                self._consecutive_partial_failures = 0
                 return RefinementResult(
                     execution_result=result,
                     replan_history=self._replan_history,
@@ -679,7 +696,14 @@ class SelfRefinementLoop:
                     escalated_to_hitl=True,
                 )
 
-            if len(plan_feedback.failed_task_ids) == 1:
+            # Determine replan type: use full replan if consecutive partial failures
+            # exceed threshold, otherwise use partial replan for single task failures
+            use_full_replan = (
+                len(plan_feedback.failed_task_ids) > 1 or
+                self._consecutive_partial_failures >= self.CONSECUTIVE_FAILURES_FOR_FULL_REPLAN
+            )
+
+            if not use_full_replan and len(plan_feedback.failed_task_ids) == 1:
                 failed_task_id = plan_feedback.failed_task_ids[0]
                 failed_feedback = next(
                     f for f in feedbacks if f.task_id == failed_task_id
@@ -687,20 +711,32 @@ class SelfRefinementLoop:
                 current_plan = self.replanner.replan_partial(
                     current_plan, failed_task_id, failed_feedback
                 )
+                self._consecutive_partial_failures += 1
                 self._replan_history.append({
                     "type": "partial",
                     "failed_task_id": failed_task_id,
+                    "consecutive_failures": self._consecutive_partial_failures,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
+                logger.debug(
+                    "[SelfRefinementLoop] Partial replan, consecutive failures: %d",
+                    self._consecutive_partial_failures
+                )
             else:
                 current_plan = self.replanner.replan_full(
                     current_plan, plan_feedback
                 )
+                self._consecutive_partial_failures = 0
                 self._replan_history.append({
                     "type": "full",
                     "failed_task_ids": plan_feedback.failed_task_ids,
+                    "reason": "consecutive_partial_failures" if len(plan_feedback.failed_task_ids) == 1 else "multiple_failures",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
+                logger.info(
+                    "[SelfRefinementLoop] Full replan triggered (reason: %s)",
+                    "consecutive_partial_failures" if len(plan_feedback.failed_task_ids) == 1 else "multiple_failures"
+                )
 
             logger.info(
                 "[SelfRefinementLoop] Replanned, continuing execution (replan count: %d)",
