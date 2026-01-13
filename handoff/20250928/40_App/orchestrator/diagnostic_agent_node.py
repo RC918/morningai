@@ -272,6 +272,10 @@ class DiagnosticAgentNode:
             r"ENOENT",
             r"No such file",
             r"(?:file|path|resource|directory).*not found|not found.*(?:file|path|resource|directory)",
+            r"(?:file|path|directory).*(?:does not|doesn't) exist",
+            r"(?:file|path|resource|directory).*(?:was not|wasn't) found",
+            r"(?:file|path|resource|directory).*(?:is )?missing",
+            r"(?:file|path|resource|directory).*unavailable",
         ],
         ErrorCategory.PERMISSION_DENIED: [
             r"PermissionError",
