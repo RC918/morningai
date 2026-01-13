@@ -61,12 +61,11 @@ _default_client_lock = threading.Lock()
 
 # Provider registry for availability checks
 # Order determines priority for auto-selection
-# Qwen providers (alicloud, siliconflow) are prioritized per EPIC #2594 cost optimization
+# Gemini is prioritized as primary provider, with AliCloud (Qwen) as secondary
 _PROVIDER_REGISTRY = [
-    ("alicloud", AliCloudProvider),
-    ("siliconflow", SiliconFlowProvider),
-    ("openai", OpenAIProvider),
     ("gemini", GeminiProvider),
+    ("alicloud", AliCloudProvider),
+    ("openai", OpenAIProvider),
 ]
 
 
