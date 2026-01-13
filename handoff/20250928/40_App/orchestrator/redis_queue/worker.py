@@ -2342,9 +2342,16 @@ if __name__ == "__main__":
                     # Perform in-place restart using os.execl
                     # This replaces the current process with a fresh Python process
                     # Wrapped in try/except for graceful fallback if os.execl fails
+                    #
+                    # IMPORTANT: We use `-m redis_queue.worker` instead of sys.argv because:
+                    # When started with `python -m redis_queue.worker`, sys.argv[0] becomes
+                    # the path to the script file (e.g., /path/to/worker.py), not `-m ...`.
+                    # Using sys.argv would run the worker as a script, breaking module imports.
+                    # Using `-m` ensures Python sets up the module path correctly.
                     try:
                         python = sys.executable
-                        os.execl(python, python, *sys.argv)
+                        # Use -m to run as module, ensuring proper import path setup
+                        os.execl(python, python, "-m", "redis_queue.worker")
                         # Note: Code after os.execl never executes (process is replaced)
                     except OSError as e:
                         logger.critical(
