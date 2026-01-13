@@ -128,7 +128,6 @@ class AgentAssigner:
     }
 
     HIGH_RISK_TASK_TYPES = {TaskType.DEPLOY, TaskType.CODE}
-    CRITICAL_RISK_TASK_TYPES = {TaskType.DEPLOY}
 
     def __init__(self):
         """Initialize the AgentAssigner."""
@@ -322,11 +321,6 @@ class FlowTemplateSelector:
         },
     }
 
-    TASK_TYPE_TO_TEMPLATE = {
-        TaskType.DOCUMENT: "doc_only",
-        TaskType.ANALYZE: "analysis_only",
-    }
-
     def __init__(self):
         """Initialize the FlowTemplateSelector."""
         pass
@@ -438,6 +432,12 @@ class FlowTemplateSelector:
         Returns:
             The same PlannerOutput with updated flow_template field
         """
+        if not _use_agent_assignment():
+            logger.debug(
+                "[FlowTemplateSelector] Agent assignment disabled, skipping"
+            )
+            return plan
+
         plan.flow_template = self.select(plan, context)
 
         logger.info(

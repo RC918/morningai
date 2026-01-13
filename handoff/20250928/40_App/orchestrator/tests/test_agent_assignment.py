@@ -140,8 +140,8 @@ class TestAgentAssigner:
         agent = assigner.assign(task)
         assert agent == "senior_coder"
 
-    def test_upgrade_to_senior_for_high_risk_deploy(self):
-        """Test upgrade to senior agent for high risk deploy task"""
+    def test_no_upgrade_for_high_risk_deploy_without_senior_agent(self):
+        """Test no upgrade for high risk deploy task when no senior agent is defined"""
         assigner = AgentAssigner()
         task = self._create_task(TaskType.DEPLOY, RiskLevel.HIGH)
         context = AssignmentContext(
@@ -361,12 +361,22 @@ class TestFlowTemplateSelector:
         template = selector.select(plan)
         assert template == "test_heavy"
 
-    def test_apply_template(self):
-        """Test applying template to plan"""
+    @patch("core.planner.agent_assignment._use_agent_assignment", return_value=True)
+    def test_apply_template(self, mock_use):
+        """Test applying template to plan when feature is enabled"""
         selector = FlowTemplateSelector()
         plan = self._create_plan([TaskType.DOCUMENT])
         result = selector.apply_template(plan)
         assert result.flow_template == "doc_only"
+
+    @patch("core.planner.agent_assignment._use_agent_assignment", return_value=False)
+    def test_apply_template_disabled(self, mock_use):
+        """Test skipping template when feature is disabled"""
+        selector = FlowTemplateSelector()
+        plan = self._create_plan([TaskType.DOCUMENT])
+        original_template = plan.flow_template
+        result = selector.apply_template(plan)
+        assert result.flow_template == original_template
 
 
 class TestAssignAndSelect:
