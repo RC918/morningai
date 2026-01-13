@@ -408,8 +408,8 @@ class TestSelfRefinementLoop:
         executor.execute.side_effect = results
         return executor
 
-    @patch("core.planner.self_refinement.USE_SELF_REFINEMENT", False)
-    def test_execute_without_refinement_disabled(self):
+    @patch("core.planner.self_refinement._use_self_refinement", return_value=False)
+    def test_execute_without_refinement_disabled(self, mock_use_self_refinement):
         """Test execution when self-refinement is disabled"""
         plan = self._create_test_plan()
         executor = self._create_mock_executor([
@@ -427,8 +427,8 @@ class TestSelfRefinementLoop:
         assert result.total_replans == 0
         assert result.escalated_to_hitl is False
 
-    @patch("core.planner.self_refinement.USE_SELF_REFINEMENT", True)
-    def test_execute_with_refinement_success(self):
+    @patch("core.planner.self_refinement._use_self_refinement", return_value=True)
+    def test_execute_with_refinement_success(self, mock_use_self_refinement):
         """Test successful execution with refinement enabled"""
         plan = self._create_test_plan()
         executor = self._create_mock_executor([
@@ -445,8 +445,8 @@ class TestSelfRefinementLoop:
         assert result.execution_result.status == ExecutionStatus.COMPLETED
         assert result.total_replans == 0
 
-    @patch("core.planner.self_refinement.USE_SELF_REFINEMENT", True)
-    def test_execute_with_refinement_failure_escalates(self):
+    @patch("core.planner.self_refinement._use_self_refinement", return_value=True)
+    def test_execute_with_refinement_failure_escalates(self, mock_use_self_refinement):
         """Test that non-recoverable failure escalates to HITL"""
         plan = self._create_test_plan()
         executor = self._create_mock_executor([

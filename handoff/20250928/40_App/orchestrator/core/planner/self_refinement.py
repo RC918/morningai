@@ -53,9 +53,22 @@ def _get_settings():
         return None
 
 
-USE_SELF_REFINEMENT = _get_settings().use_self_refinement if _get_settings() else False
-MAX_TASK_REPLANS = _get_settings().self_refinement_max_task_replans if _get_settings() else 3
-MAX_FULL_REPLANS = _get_settings().self_refinement_max_full_replans if _get_settings() else 2
+def _use_self_refinement() -> bool:
+    """Lazy evaluation for USE_SELF_REFINEMENT setting."""
+    settings = _get_settings()
+    return settings.use_self_refinement if settings else False
+
+
+def _max_task_replans() -> int:
+    """Lazy evaluation for MAX_TASK_REPLANS setting."""
+    settings = _get_settings()
+    return settings.self_refinement_max_task_replans if settings else 3
+
+
+def _max_full_replans() -> int:
+    """Lazy evaluation for MAX_FULL_REPLANS setting."""
+    settings = _get_settings()
+    return settings.self_refinement_max_full_replans if settings else 2
 
 
 class FeedbackStatus(Enum):
@@ -292,6 +305,12 @@ class Replanner:
     - Determining if replanning is needed
     - Partial replan (single task and dependents)
     - Full replan with failure context
+
+    State Isolation Note:
+        This class maintains replan counts as instance variables. When using
+        Replanner directly (not via SelfRefinementLoop), call reset() before
+        each new plan execution to prevent state leakage between executions.
+        SelfRefinementLoop handles this automatically in execute_with_refinement().
     """
 
     def __init__(self, max_task_replans: int = 3, max_full_replans: int = 2):
@@ -625,8 +644,8 @@ class SelfRefinementLoop:
         self.executor = executor
         self.feedback_collector = FeedbackCollector()
         self.replanner = Replanner(
-            max_task_replans=max_task_replans or MAX_TASK_REPLANS,
-            max_full_replans=max_full_replans or MAX_FULL_REPLANS,
+            max_task_replans=max_task_replans or _max_task_replans(),
+            max_full_replans=max_full_replans or _max_full_replans(),
         )
         self._replan_history: List[Dict[str, Any]] = []
         self._consecutive_partial_failures: int = 0
@@ -647,7 +666,7 @@ class SelfRefinementLoop:
         Returns:
             RefinementResult with execution result and replan history
         """
-        if not USE_SELF_REFINEMENT:
+        if not _use_self_refinement():
             logger.debug(
                 "[SelfRefinementLoop] Self-refinement disabled, executing without refinement"
             )
