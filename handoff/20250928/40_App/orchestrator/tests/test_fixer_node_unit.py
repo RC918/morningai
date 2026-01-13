@@ -1174,8 +1174,8 @@ src/file5.py:1:1: error
 src/file6.py:1:1: error
 src/file7.py:1:1: error"""
         result = _extract_file_paths_from_error(error)
-        # Should be limited to 5 files (general_coder_max_files default)
-        assert len(result) <= 5
+        # Should be limited to 5 files (general_coder_max_files in FakeSettings)
+        assert len(result) == 5
 
     def test_extracts_compiler_format(self):
         """Test extraction from compiler format: path/file.py(line): error."""
