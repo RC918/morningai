@@ -271,8 +271,7 @@ class DiagnosticAgentNode:
             r"FileNotFoundError",
             r"ENOENT",
             r"No such file",
-            r"(?:file|path|resource|directory).*not found",
-            r"not found.*(?:file|path|resource|directory)",
+            r"(?:file|path|resource|directory).*not found|not found.*(?:file|path|resource|directory)",
         ],
         ErrorCategory.PERMISSION_DENIED: [
             r"PermissionError",
