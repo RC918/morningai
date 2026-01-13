@@ -347,11 +347,13 @@ class MultiSpecialistReviewer:
 
             # Use LLMClient.generate() API instead of OpenAI SDK style
             # LLMClient provides a unified interface across all providers
+            # json_mode=True ensures LLM outputs valid JSON for _parse_specialist_response
             response = client.generate(
                 prompt=user_prompt,
                 system_prompt=system_prompt,
                 temperature=0.1,
                 max_tokens=2000,
+                json_mode=True,
             )
 
             response_text = response.content or "[]"
