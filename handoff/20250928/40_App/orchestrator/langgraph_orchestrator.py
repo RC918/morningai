@@ -110,6 +110,7 @@ from datetime import datetime
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.types import interrupt
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
@@ -1731,7 +1732,7 @@ class ResilientPostgresSaver:
         return getattr(self._inner, name)
 
 
-class DegradedPersistenceCheckpointer:
+class DegradedPersistenceCheckpointer(BaseCheckpointSaver):
     """
     A failover checkpointer that implements 'soft landing' resilience.
 
