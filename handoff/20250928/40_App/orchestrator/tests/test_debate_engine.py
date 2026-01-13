@@ -887,10 +887,10 @@ except ImportError:
 
 
 @pytest.mark.skipif(not HAS_LLM_MODULE, reason="llm module not available")
+@patch("debate_engine.DEBATE_ENGINE_ENABLE_LLM", True)
 class TestLLMIntegration:
     """Tests for LLM integration (mocked). Requires llm module in path."""
 
-    @patch("debate_engine.DEBATE_ENGINE_ENABLE_LLM", True)
     @patch("llm.client.get_client_for_task")
     def test_debate_agent_llm_success(self, mock_get_client):
         """Test successful LLM-based argument generation."""
@@ -920,7 +920,6 @@ class TestLLMIntegration:
         assert arg.reasoning == "LLM reasoning"
         assert arg.confidence == 0.9
 
-    @patch("debate_engine.DEBATE_ENGINE_ENABLE_LLM", True)
     @patch("llm.client.get_client_for_task")
     def test_debate_agent_llm_failure_fallback(self, mock_get_client):
         """Test fallback to template when LLM fails."""
@@ -939,7 +938,6 @@ class TestLLMIntegration:
         assert arg.role == DebateRole.LEFT
         assert "conventional" in arg.position.lower()
 
-    @patch("debate_engine.DEBATE_ENGINE_ENABLE_LLM", True)
     @patch("llm.client.get_client_for_task")
     def test_judge_agent_llm_success(self, mock_get_client):
         """Test successful LLM-based judge decision."""
