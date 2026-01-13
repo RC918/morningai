@@ -5177,6 +5177,125 @@ def _attempt_self_correction_fix(
         return False, f"Self-correction error: {e}"
 
 
+def _attempt_diagnostic_analysis(
+    state: AgentState,
+    trace_id: str,
+    error_context: Optional[dict] = None,
+) -> Optional[dict]:
+    """Attempt to diagnose an error using the D-8 Diagnostic Agent.
+
+    Blueprint Section 3.5: Diagnostic Agent provides:
+    - Root Cause Analysis
+    - MRE (Minimal Reproducible Example) Generation
+    - Blast Radius Assessment
+
+    This function is called when D-4 Self-Correction escalates or when
+    other fix attempts fail, to provide diagnostic information.
+
+    Args:
+        state: Current agent state
+        trace_id: Trace ID for logging
+        error_context: Optional error context dict with:
+            - error_type: Type of error
+            - error_message: Error message
+            - file_path: File where error occurred
+            - line_number: Line number
+            - traceback: Full traceback
+
+    Returns:
+        Diagnostic result dict or None if diagnosis failed/skipped
+
+    Event Codes (greppable):
+        [DIAGNOSTIC_AGENT_INTEGRATION_START] - Integration started
+        [DIAGNOSTIC_AGENT_INTEGRATION_DISABLED] - Feature flag disabled
+        [DIAGNOSTIC_AGENT_INTEGRATION_SUCCESS] - Diagnosis completed
+        [DIAGNOSTIC_AGENT_INTEGRATION_FAIL] - Diagnosis failed
+    """
+    if not getattr(settings, 'use_diagnostic_agent', False):
+        logger.debug(
+            f"[DIAGNOSTIC_AGENT_INTEGRATION_DISABLED] Feature flag disabled. "
+            f"trace_id={trace_id}"
+        )
+        return None
+
+    logger.info(
+        f"[DIAGNOSTIC_AGENT_INTEGRATION_START] Starting diagnostic analysis. "
+        f"trace_id={trace_id}",
+        extra={
+            "operation": "diagnostic_agent_integration_start",
+            "trace_id": trace_id,
+            "event_code": "DIAGNOSTIC_AGENT_INTEGRATION_START",
+        }
+    )
+
+    try:
+        from diagnostic_agent_node import DiagnosticAgentNode
+    except ImportError as e:
+        logger.warning(
+            f"[DIAGNOSTIC_AGENT_INTEGRATION_FAIL] Import failed: {e}. "
+            f"trace_id={trace_id}"
+        )
+        return None
+
+    if error_context is None:
+        error_context = {}
+        ci_context = state.get("ci_failure_context", {})
+        if ci_context:
+            error_context["error_message"] = ci_context.get("error_summary", "")
+            error_context["traceback"] = ci_context.get("test_output", "")
+
+        review_files = state.get("review_files", [])
+        if review_files and isinstance(review_files, list) and len(review_files) > 0:
+            first_file = review_files[0]
+            if isinstance(first_file, dict):
+                error_context["file_path"] = first_file.get("path", "")
+
+    source_contents = state.get("diff_files_content")
+
+    try:
+        enable_llm = getattr(settings, 'diagnostic_agent_enable_llm', True)
+        max_mre_lines = getattr(settings, 'diagnostic_agent_max_mre_lines', 50)
+
+        node = DiagnosticAgentNode(
+            enable_llm=enable_llm,
+            max_mre_lines=max_mre_lines,
+        )
+
+        result = node.diagnose(
+            error_context=error_context,
+            source_contents=source_contents,
+        )
+
+        if result.success:
+            logger.info(
+                f"[DIAGNOSTIC_AGENT_INTEGRATION_SUCCESS] Diagnosis completed. "
+                f"category={result.root_cause.category.value if result.root_cause else 'unknown'}, "
+                f"trace_id={trace_id}",
+                extra={
+                    "operation": "diagnostic_agent_integration_success",
+                    "trace_id": trace_id,
+                    "event_code": "DIAGNOSTIC_AGENT_INTEGRATION_SUCCESS",
+                    "category": result.root_cause.category.value if result.root_cause else "unknown",
+                    "confidence": result.root_cause.confidence if result.root_cause else 0,
+                }
+            )
+            return result.to_dict()
+
+        logger.debug(
+            f"[DIAGNOSTIC_AGENT_INTEGRATION_FAIL] Diagnosis failed. "
+            f"feedback={result.feedback}, trace_id={trace_id}"
+        )
+        return None
+
+    except Exception as e:
+        logger.error(
+            f"[DIAGNOSTIC_AGENT_INTEGRATION_FAIL] Exception during diagnosis: {e}. "
+            f"trace_id={trace_id}",
+            exc_info=True
+        )
+        return None
+
+
 def _attempt_general_coder_fix(
     state: AgentState,
     trace_id: str
