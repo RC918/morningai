@@ -340,7 +340,7 @@ class MultiSpecialistReviewer:
         )
 
         try:
-            client = get_client_for_task(TaskType.CODE_REVIEW)
+            client = get_client_for_task(TaskType.REVIEW)
 
             system_prompt = SPECIALIST_PROMPTS[specialist]
             user_prompt = self._build_user_prompt(diff_content, pr_context, specialist)
