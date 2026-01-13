@@ -1761,6 +1761,26 @@ class Settings(BaseSettings):
         description="Enable B-12 Dependency Analysis: identify outdated/vulnerable dependencies in PRs. READ-ONLY - flags issues but does NOT fix them (that's Fixer Agent's job)."
     )
 
+    # EPIC D Stage 3: Test Agent v2 Capabilities
+    # Blueprint Section 3.3: Test Agent v2 generates tests from Reviewer flags
+    use_test_generation: bool = Field(
+        default=False,
+        alias="USE_TEST_GENERATION",
+        description="Enable D-7 Test Generation: automatically generate tests for coverage gaps identified by B-11. Requires USE_TEST_COVERAGE_FLAGGING=True. Test Agent v2 implementation."
+    )
+
+    test_generation_max_files: int = Field(
+        default=5,
+        alias="TEST_GENERATION_MAX_FILES",
+        description="Maximum number of test files to generate per run (D-7). Limits LLM costs and prevents overwhelming PRs."
+    )
+
+    test_generation_enable_llm: bool = Field(
+        default=True,
+        alias="TEST_GENERATION_ENABLE_LLM",
+        description="Enable LLM-powered test generation (D-7). When False, uses template-based fallback."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
