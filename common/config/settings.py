@@ -1781,6 +1781,26 @@ class Settings(BaseSettings):
         description="Enable LLM-powered test generation (D-7). When False, uses template-based fallback."
     )
 
+    # EPIC D Stage 3: Diagnostic Agent Capabilities
+    # Blueprint Section 3.5: Diagnostic Agent for error diagnosis and MRE generation
+    use_diagnostic_agent: bool = Field(
+        default=False,
+        alias="USE_DIAGNOSTIC_AGENT",
+        description="Enable D-8 Diagnostic Agent: provides root cause analysis, MRE generation, and blast radius assessment for errors. Integrates with D-7 Test Generation for regression test creation."
+    )
+
+    diagnostic_agent_enable_llm: bool = Field(
+        default=True,
+        alias="DIAGNOSTIC_AGENT_ENABLE_LLM",
+        description="Enable LLM-powered diagnosis (D-8). When False, uses pattern-based analysis fallback."
+    )
+
+    diagnostic_agent_max_mre_lines: int = Field(
+        default=50,
+        alias="DIAGNOSTIC_AGENT_MAX_MRE_LINES",
+        description="Maximum lines in generated MRE (D-8). Limits output size for readability."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
