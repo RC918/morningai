@@ -846,24 +846,31 @@ class DiagnosticAgentNode:
         )
 
     def _extract_dependencies(self, source_code: str) -> List[str]:
-        """Extract dependencies from source code."""
+        """Extract dependencies from source code.
+
+        Handles both simple imports and submodule imports:
+        - `import package` -> extracts 'package'
+        - `from package.module import item` -> extracts 'package'
+        """
         dependencies = []
 
         import_pattern = re.compile(
-            r'^(?:from\s+(\w+)|import\s+(\w+))',
+            r'^(?:from\s+([\w.]+)|import\s+([\w.]+))',
             re.MULTILINE
         )
 
         for match in import_pattern.finditer(source_code):
-            module = match.group(1) or match.group(2)
-            if module and module not in dependencies:
-                stdlib = {
-                    "os", "sys", "re", "json", "logging", "typing",
-                    "dataclasses", "enum", "collections", "itertools",
-                    "functools", "pathlib", "datetime", "time",
-                }
-                if module not in stdlib:
-                    dependencies.append(module)
+            module_path = match.group(1) or match.group(2)
+            if module_path:
+                module = module_path.split('.')[0]
+                if module and module not in dependencies:
+                    stdlib = {
+                        "os", "sys", "re", "json", "logging", "typing",
+                        "dataclasses", "enum", "collections", "itertools",
+                        "functools", "pathlib", "datetime", "time",
+                    }
+                    if module not in stdlib:
+                        dependencies.append(module)
 
         return dependencies[:10]
 
@@ -898,10 +905,16 @@ class DiagnosticAgentNode:
             for path, content in source_contents.items():
                 if path == file_path:
                     continue
-                if file_path and os.path.basename(file_path) in content:
-                    affected_files.append(path)
-                    if level == BlastRadiusLevel.ISOLATED:
-                        level = BlastRadiusLevel.MODULE
+                if file_path:
+                    module_name = os.path.splitext(os.path.basename(file_path))[0]
+                    import_pattern = re.compile(
+                        fr'^\s*(?:from|import)\s+{re.escape(module_name)}\b',
+                        re.MULTILINE
+                    )
+                    if import_pattern.search(content):
+                        affected_files.append(path)
+                        if level == BlastRadiusLevel.ISOLATED:
+                            level = BlastRadiusLevel.MODULE
 
         description = self._generate_blast_radius_description(
             level, len(affected_files)
