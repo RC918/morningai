@@ -5779,8 +5779,10 @@ def _extract_file_path_from_error(error_summary: str) -> str:
     - "path/to/file.py:123:45: E501 line too long"
     - "path/to/file.py(123): error"
     - "Error in path/to/file.py"
+    - 'File "path/to/file.py", line 10' (Python SyntaxError)
 
     Issue #3567: Enable SimpleCoder for CI failures by extracting file path
+    Issue #3890: D-4 Context Extraction - Support Python SyntaxError format
 
     Args:
         error_summary: CI error output text
@@ -5809,9 +5811,20 @@ def _extract_file_path_from_error(error_summary: str) -> str:
     if match:
         return match.group(1)
 
-    # Pattern 3: "Error in path/file.py" or "File path/file.py"
+    # Pattern 3: "Error in path/file.py" or "File path/file.py" (with optional quotes)
+    # Issue #3890: Support quoted paths like 'File "path/to/file.py"'
     match = re.search(
-        fr'(?:Error in|File|in file)\s+([^\s:]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))',
+        fr'(?:Error in|File|in file)\s+"?([^\s":,]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))"?',
+        error_summary,
+        re.IGNORECASE
+    )
+    if match:
+        return match.group(1)
+
+    # Pattern 4: Python SyntaxError format - 'File "path/to/file.py", line 10'
+    # Issue #3890: D-4 Context Extraction - Handle Python parse-time errors
+    match = re.search(
+        r'File\s+"([^"]+\.py)"',
         error_summary,
         re.IGNORECASE
     )
@@ -5825,6 +5838,7 @@ def _extract_file_paths_from_error(error_summary: str) -> list:
     """Extract ALL file paths from CI error summary for multi-file support.
 
     Issue #3675: D-1b GeneralCoder needs multiple file paths for multi-file fixes.
+    Issue #3890: D-4 Context Extraction - Support Python SyntaxError format.
     This function extracts all unique file paths from CI error output, enabling
     GeneralCoder to handle multi-file lint errors.
 
@@ -5832,6 +5846,7 @@ def _extract_file_paths_from_error(error_summary: str) -> list:
     - "path/to/file.py:123:45: E501 line too long"
     - "path/to/file.py(123): error"
     - "Error in path/to/file.py"
+    - 'File "path/to/file.py", line 10' (Python SyntaxError)
 
     Args:
         error_summary: CI error output text
@@ -5866,13 +5881,23 @@ def _extract_file_paths_from_error(error_summary: str) -> list:
     )
     file_paths.update(pattern2_matches)
 
-    # Pattern 3: "Error in path/file.py" or "File path/file.py"
+    # Pattern 3: "Error in path/file.py" or "File path/file.py" (with optional quotes)
+    # Issue #3890: Support quoted paths like 'File "path/to/file.py"'
     pattern3_matches = re.findall(
-        fr'(?:Error in|File|in file)\s+([^\s:]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))',
+        fr'(?:Error in|File|in file)\s+"?([^\s":,]+\.(?:{_SUPPORTED_SOURCE_EXTENSIONS}))"?',
         error_summary,
         re.IGNORECASE
     )
     file_paths.update(pattern3_matches)
+
+    # Pattern 4: Python SyntaxError format - 'File "path/to/file.py", line 10'
+    # Issue #3890: D-4 Context Extraction - Handle Python parse-time errors
+    pattern4_matches = re.findall(
+        r'File\s+"([^"]+\.py)"',
+        error_summary,
+        re.IGNORECASE
+    )
+    file_paths.update(pattern4_matches)
 
     # Convert to list and limit to configurable max files (D-1b default: 5)
     result = list(file_paths)[:settings.general_coder_max_files]
