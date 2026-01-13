@@ -345,17 +345,16 @@ class MultiSpecialistReviewer:
             system_prompt = SPECIALIST_PROMPTS[specialist]
             user_prompt = self._build_user_prompt(diff_content, pr_context, specialist)
 
-            response = client.chat.completions.create(
-                model=client.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+            # Use LLMClient.generate() API instead of OpenAI SDK style
+            # LLMClient provides a unified interface across all providers
+            response = client.generate(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
                 temperature=0.1,
                 max_tokens=2000,
             )
 
-            response_text = response.choices[0].message.content or "[]"
+            response_text = response.content or "[]"
 
             # Parse JSON response
             findings = self._parse_specialist_response(response_text, specialist)
