@@ -5771,6 +5771,108 @@ def _attempt_simple_coder_fix(
 # Used by _extract_file_path_from_error() to identify source files in lint output
 _SUPPORTED_SOURCE_EXTENSIONS = r'py|js|ts|jsx|tsx|go|rs|java|rb|php|c|cpp|h|hpp'
 
+# Supported source file extensions for PR changed files fallback (Issue #3891)
+# Used by _fetch_pr_changed_files_for_ci_fallback() to filter relevant files
+_SOURCE_FILE_EXTENSIONS = (
+    '.py', '.js', '.ts', '.jsx', '.tsx', '.go', '.rs',
+    '.java', '.rb', '.php', '.c', '.cpp', '.h', '.hpp'
+)
+
+
+def _fetch_pr_changed_files_for_ci_fallback(
+    pr_number: int,
+    repo: str,
+    trace_id: str
+) -> list:
+    """Fetch PR changed files as ultimate fallback for D-4 Context Extraction.
+
+    Issue #3891: When annotations and error_summary extraction both fail to
+    provide file paths, fall back to PR changed files. This enables D-4 to
+    attempt fixes even for syntax errors that don't produce structured output.
+
+    This is a synchronous function designed for use in _ensure_comment_body_for_ci_failure.
+
+    Args:
+        pr_number: PR number to fetch files from
+        repo: Repository in owner/repo format
+        trace_id: Trace ID for logging
+
+    Returns:
+        List of source file paths (max 5), empty list if fetch fails
+
+    Event Codes (greppable):
+        [PR_FILES_FALLBACK_SUCCESS] - Successfully fetched PR changed files
+        [PR_FILES_FALLBACK_EMPTY] - PR has no source files
+        [PR_FILES_FALLBACK_ERROR] - Failed to fetch PR files
+    """
+    if not pr_number:
+        logger.debug(
+            f"[PR_FILES_FALLBACK_SKIP] No pr_number provided. trace_id={trace_id}"
+        )
+        return []
+
+    try:
+        from tools.github_api import get_repo, get_pr_files
+
+        gh_repo = get_repo()
+        all_files = get_pr_files(gh_repo, pr_number, trace_id=trace_id)
+
+        source_files = [
+            f for f in all_files
+            if any(f.endswith(ext) for ext in _SOURCE_FILE_EXTENSIONS)
+        ]
+
+        if not source_files:
+            logger.info(
+                f"[PR_FILES_FALLBACK_EMPTY] PR #{pr_number} has no source files. "
+                f"total_files={len(all_files)}, trace_id={trace_id}",
+                extra={
+                    "operation": "pr_files_fallback",
+                    "trace_id": trace_id,
+                    "pr_number": pr_number,
+                    "total_files": len(all_files),
+                    "source_files": 0,
+                }
+            )
+            return []
+
+        result = source_files[:5]
+        logger.info(
+            f"[PR_FILES_FALLBACK_SUCCESS] Fetched {len(result)} source files from PR #{pr_number}. "
+            f"files={result}, trace_id={trace_id}",
+            extra={
+                "operation": "pr_files_fallback",
+                "trace_id": trace_id,
+                "pr_number": pr_number,
+                "file_count": len(result),
+                "file_paths": result,
+            }
+        )
+        return result
+
+    except ImportError as e:
+        logger.warning(
+            f"[PR_FILES_FALLBACK_ERROR] ImportError: {e}. trace_id={trace_id}",
+            extra={
+                "operation": "pr_files_fallback",
+                "trace_id": trace_id,
+                "error_type": "ImportError",
+                "error": str(e),
+            }
+        )
+        return []
+    except Exception as e:
+        logger.warning(
+            f"[PR_FILES_FALLBACK_ERROR] Exception: {e}. trace_id={trace_id}",
+            extra={
+                "operation": "pr_files_fallback",
+                "trace_id": trace_id,
+                "error_type": type(e).__name__,
+                "error": str(e),
+            }
+        )
+        return []
+
 
 def _extract_file_path_from_error(error_summary: str) -> str:
     """Extract file path from CI error summary.
@@ -6107,6 +6209,53 @@ def _ensure_comment_body_for_ci_failure(state: dict, trace_id: str) -> None:
         synthesized = f"Fix CI failure in {failed_check} check"
 
     state["comment_body"] = synthesized
+
+    # Issue #3891: Ultimate fallback - use PR changed files when all extraction fails
+    # This is the last resort when both annotations and error_summary extraction fail
+    # to provide file paths. Without files, D-4 cannot attempt any fix.
+    final_review_files = state.get("review_files")
+    final_review_file_path = state.get("review_file_path")
+    if not final_review_files and not final_review_file_path:
+        pr_number = ci_context.get("pr_number")
+        repo = state.get("repo") or "RC918/morningai"
+        if pr_number:
+            pr_files = _fetch_pr_changed_files_for_ci_fallback(
+                pr_number, repo, trace_id
+            )
+            if pr_files:
+                state["review_files"] = [{"path": fp} for fp in pr_files]
+                state["review_file_path"] = pr_files[0]
+                logger.info(
+                    f"[Fixer] PR changed files fallback applied. "
+                    f"pr_number={pr_number}, file_count={len(pr_files)}, "
+                    f"files={pr_files}, trace_id={trace_id}",
+                    extra={
+                        "operation": "fixer_pr_files_fallback",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                        "file_count": len(pr_files),
+                        "file_paths": pr_files,
+                    }
+                )
+            else:
+                logger.warning(
+                    f"[Fixer] PR changed files fallback returned no files. "
+                    f"pr_number={pr_number}, trace_id={trace_id}",
+                    extra={
+                        "operation": "fixer_pr_files_fallback_empty",
+                        "trace_id": trace_id,
+                        "pr_number": pr_number,
+                    }
+                )
+        else:
+            logger.warning(
+                f"[Fixer] Cannot apply PR changed files fallback - no pr_number. "
+                f"trace_id={trace_id}",
+                extra={
+                    "operation": "fixer_pr_files_fallback_no_pr",
+                    "trace_id": trace_id,
+                }
+            )
 
     logger.info(
         f"[Fixer] Synthesized comment_body for CI failure. "
