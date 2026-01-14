@@ -104,6 +104,17 @@ from .agent_assignment import (
     assign_and_select,
 )
 
+from .review_consolidation import (
+    ConflictType,
+    ConflictResolution,
+    Conflict,
+    ArbitrationDecision,
+    ConsolidatedReview,
+    ConflictDetector,
+    ReviewConsolidator,
+    consolidate_review_findings,
+)
+
 __all__ = [
     # Planner types
     "TaskType",
@@ -176,4 +187,13 @@ __all__ = [
     "AgentAssigner",
     "FlowTemplateSelector",
     "assign_and_select",
+    # Review Consolidation (Phase F-5.5)
+    "ConflictType",
+    "ConflictResolution",
+    "Conflict",
+    "ArbitrationDecision",
+    "ConsolidatedReview",
+    "ConflictDetector",
+    "ReviewConsolidator",
+    "consolidate_review_findings",
 ]
