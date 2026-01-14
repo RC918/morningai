@@ -30,6 +30,7 @@ Usage:
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -172,8 +173,17 @@ CONTEXT_PRIORITY_RULES: Dict[str, Dict[str, int]] = {
     "default": {"security": 70, "performance": 60, "architecture": 50},
 }
 
-# Conflict detection patterns
-CONFLICT_PATTERNS: List[Dict[str, Any]] = [
+# Severity order for conflict resolution (higher = more severe)
+SEVERITY_ORDER: Dict[str, int] = {
+    "critical": 4,
+    "high": 3,
+    "medium": 2,
+    "low": 1,
+}
+
+
+# Conflict detection patterns - raw strings for reference
+_CONFLICT_PATTERN_DEFS: List[Dict[str, Any]] = [
     {
         "pattern": "add.*check",
         "anti_pattern": "remove.*check|reduce.*overhead",
@@ -194,6 +204,18 @@ CONFLICT_PATTERNS: List[Dict[str, Any]] = [
         "anti_pattern": "cache|memoize|batch",
         "conflict_type": ConflictType.SECURITY_VS_PERFORMANCE,
     },
+]
+
+
+# Pre-compiled conflict detection patterns for performance
+# Compiled at module load time to avoid repeated compilation
+COMPILED_CONFLICT_PATTERNS: List[Dict[str, Any]] = [
+    {
+        "pattern": re.compile(p["pattern"]),
+        "anti_pattern": re.compile(p["anti_pattern"]),
+        "conflict_type": p["conflict_type"],
+    }
+    for p in _CONFLICT_PATTERN_DEFS
 ]
 
 
@@ -255,8 +277,6 @@ class ConflictDetector:
         specialist_b: str,
     ) -> Optional[Conflict]:
         """Check if two findings conflict with each other."""
-        import re
-
         suggestion_a = (finding_a.get("suggestion") or "").lower()
         suggestion_b = (finding_b.get("suggestion") or "").lower()
         message_a = (finding_a.get("message") or "").lower()
@@ -265,13 +285,13 @@ class ConflictDetector:
         text_a = f"{suggestion_a} {message_a}"
         text_b = f"{suggestion_b} {message_b}"
 
-        # Check against conflict patterns
-        for pattern_def in CONFLICT_PATTERNS:
+        # Check against pre-compiled conflict patterns for performance
+        for pattern_def in COMPILED_CONFLICT_PATTERNS:
             pattern = pattern_def["pattern"]
             anti_pattern = pattern_def["anti_pattern"]
 
-            if (re.search(pattern, text_a) and re.search(anti_pattern, text_b)) or \
-               (re.search(pattern, text_b) and re.search(anti_pattern, text_a)):
+            if (pattern.search(text_a) and anti_pattern.search(text_b)) or \
+               (pattern.search(text_b) and anti_pattern.search(text_a)):
                 return Conflict(
                     conflict_type=pattern_def["conflict_type"],
                     finding_a=finding_a,
@@ -307,14 +327,12 @@ class ConflictDetector:
         finding_b: Dict[str, Any],
     ) -> str:
         """Determine the severity of a conflict based on finding severities."""
-        severity_order = {"critical": 4, "high": 3, "medium": 2, "low": 1}
-
-        sev_a = severity_order.get(finding_a.get("severity", "medium"), 2)
-        sev_b = severity_order.get(finding_b.get("severity", "medium"), 2)
+        sev_a = SEVERITY_ORDER.get(finding_a.get("severity", "medium"), 2)
+        sev_b = SEVERITY_ORDER.get(finding_b.get("severity", "medium"), 2)
 
         max_sev = max(sev_a, sev_b)
 
-        for sev, order in severity_order.items():
+        for sev, order in SEVERITY_ORDER.items():
             if order == max_sev:
                 return sev
 
@@ -435,10 +453,9 @@ class ReviewConsolidator:
             if i not in excluded_indices:
                 resolved_findings.append(finding)
 
-        # Step 4: Sort by priority (severity)
-        severity_order = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+        # Step 4: Sort by priority (severity) using module-level constant
         resolved_findings.sort(
-            key=lambda f: severity_order.get(f.get("severity", "medium"), 2),
+            key=lambda f: SEVERITY_ORDER.get(f.get("severity", "medium"), 2),
             reverse=True
         )
 
@@ -484,7 +501,22 @@ class ReviewConsolidator:
                     e
                 )
 
-        return self._arbitrate_rule_based(conflict, task_context)
+        # Rule-based arbitration with error handling for consistency
+        try:
+            return self._arbitrate_rule_based(conflict, task_context)
+        except Exception as e:
+            logger.error(
+                "[ReviewConsolidator] Rule-based arbitration failed: %s, "
+                "deferring to human review",
+                e
+            )
+            return ArbitrationDecision(
+                resolution=ConflictResolution.DEFER_TO_HUMAN,
+                winning_finding=None,
+                rationale=f"Arbitration failed: {e}",
+                confidence=0.0,
+                requires_human_review=True,
+            )
 
     def _arbitrate_with_judge(
         self,
@@ -602,10 +634,13 @@ class ReviewConsolidator:
                 f"has higher priority than {spec_a} ({priority_a})"
             )
         else:
-            # Equal priority - defer to severity
-            sev_order = {"critical": 4, "high": 3, "medium": 2, "low": 1}
-            sev_a = sev_order.get(conflict.finding_a.get("severity", "medium"), 2)
-            sev_b = sev_order.get(conflict.finding_b.get("severity", "medium"), 2)
+            # Equal priority - defer to severity using module-level constant
+            sev_a = SEVERITY_ORDER.get(
+                conflict.finding_a.get("severity", "medium"), 2
+            )
+            sev_b = SEVERITY_ORDER.get(
+                conflict.finding_b.get("severity", "medium"), 2
+            )
 
             if sev_a >= sev_b:
                 resolution = ConflictResolution.PRIORITIZE_FIRST
