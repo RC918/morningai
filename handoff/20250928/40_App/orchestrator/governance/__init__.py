@@ -232,6 +232,41 @@ except ImportError as e:
     reset_degradation_advisor = None
 
 try:
+    from .content_safety_scanner import (
+        ContentSafetyScanner,
+        ContentSafetyCategory,
+        ContentRiskLevel,
+        ContentSafetyAction,
+        ContentSafetyFinding,
+        ContentSafetyScanResult,
+        get_content_safety_scanner,
+        reset_content_safety_scanner,
+        scan_content,
+    )
+    __all__.extend([
+        'ContentSafetyScanner',
+        'ContentSafetyCategory',
+        'ContentRiskLevel',
+        'ContentSafetyAction',
+        'ContentSafetyFinding',
+        'ContentSafetyScanResult',
+        'get_content_safety_scanner',
+        'reset_content_safety_scanner',
+        'scan_content',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import content_safety_scanner: {e}")
+    ContentSafetyScanner = None
+    ContentSafetyCategory = None
+    ContentRiskLevel = None
+    ContentSafetyAction = None
+    ContentSafetyFinding = None
+    ContentSafetyScanResult = None
+    get_content_safety_scanner = None
+    reset_content_safety_scanner = None
+    scan_content = None
+
+try:
     from .pii_scanner import (
         PIIScanner,
         PIICategory,
