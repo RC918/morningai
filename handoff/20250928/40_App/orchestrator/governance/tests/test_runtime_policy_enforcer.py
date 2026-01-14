@@ -597,9 +597,12 @@ class TestContentSafetyPhaseE5:
             scan_content_safety=False,
         )
 
-        # SSN is CRITICAL risk
+        # SSN is CRITICAL risk - verify enforcement logic
         assert result.telemetry_event.get("event_type") == "content_safety_check"
         assert result.telemetry_event.get("scan_pii_enabled") is True
+        assert not result.allowed
+        assert result.action == EnforcementAction.BLOCK
+        assert result.violation_type == PolicyViolationType.PII_DETECTED
 
     def test_content_safety_check_prompt_injection(self, mock_settings):
         """Content with prompt injection should be detected"""
@@ -613,9 +616,12 @@ class TestContentSafetyPhaseE5:
             scan_content_safety=True,
         )
 
-        # Prompt injection should be detected
+        # Prompt injection should be detected - verify enforcement logic
         assert result.telemetry_event.get("event_type") == "content_safety_check"
         assert result.telemetry_event.get("scan_content_safety_enabled") is True
+        assert not result.allowed
+        assert result.action == EnforcementAction.BLOCK
+        assert result.violation_type == PolicyViolationType.PROMPT_INJECTION
 
     def test_content_safety_check_telemetry_fields(self, mock_settings):
         """Telemetry event should contain required fields"""
@@ -653,8 +659,10 @@ class TestContentSafetyPhaseE5:
         )
 
         assert result.allowed
-        assert "principal" in result.telemetry_event.get("context", {}) or \
-               result.telemetry_event.get("principal") is not None
+        # Verify principal context is properly propagated to telemetry event
+        principal_in_telemetry = result.telemetry_event.get("principal", {})
+        assert principal_in_telemetry.get("agent_id") == principal.agent_id
+        assert principal_in_telemetry.get("agent_type") == principal.agent_type
 
     def test_content_safety_check_disabled_scans(self, mock_settings):
         """Content safety check with both scans disabled should pass"""
@@ -697,7 +705,7 @@ class TestContentSafetyPhaseE5:
         mock_settings.enable_ssot_telemetry = True
         enforcer = RuntimePolicyEnforcer(settings=mock_settings)
 
-        result = enforcer.check_content_safety(
+        enforcer.check_content_safety(
             content="Test content for SSOT telemetry.",
             context={"task_id": "test-task", "trace_id": "test-trace-123"},
         )
@@ -730,6 +738,12 @@ class TestContentSafetyPhaseE5:
             "findings": []
         })
         assert result_empty is None
+
+        # Test unknown category returns None (not default to HARMFUL_CONTENT)
+        result_unknown = enforcer._map_content_violation_type({
+            "findings": [{"category": "unknown_category"}]
+        })
+        assert result_unknown is None
 
     def test_content_safety_action_mapping(self, mock_settings):
         """Test that safety actions are correctly mapped"""

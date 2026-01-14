@@ -732,7 +732,8 @@ class RuntimePolicyEnforcer:
                 pii_result = self._scan_pii(content, context)
                 if pii_result:
                     findings.extend(pii_result.get("findings", []))
-                    pii_risk = pii_result.get("risk_level", "none")
+                    # PIIScanResult uses "overall_risk" not "risk_level"
+                    pii_risk = pii_result.get("overall_risk", "none")
                     if pii_risk in ("critical", "high") or (
                         pii_risk == "medium" and highest_risk == "none"
                     ):
@@ -864,7 +865,8 @@ class RuntimePolicyEnforcer:
             elif category == "harmful_content":
                 return PolicyViolationType.HARMFUL_CONTENT
 
-        return PolicyViolationType.HARMFUL_CONTENT  # Default
+        # Return None if no specific category matches (avoid misleading default)
+        return None
 
     def _log_safety_check(
         self,
