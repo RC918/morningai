@@ -55,6 +55,11 @@ class PolicyViolationType(Enum):
     SANDBOX_BOUNDARY = "sandbox_boundary"
     TOOL_PERMISSION = "tool_permission"
     RISK_LEVEL = "risk_level"
+    # Phase E-5: Content Safety violations
+    PROMPT_INJECTION = "prompt_injection"
+    JAILBREAK = "jailbreak"
+    HARMFUL_CONTENT = "harmful_content"
+    PII_DETECTED = "pii_detected"
 
 
 @dataclass
@@ -656,6 +661,338 @@ class RuntimePolicyEnforcer:
                 f"Read access denied: {e}",
                 PolicyViolationType.RESOURCE_ACCESS,
                 telemetry_event,
+            )
+
+    def check_content_safety(
+        self,
+        content: str,
+        context: Optional[Dict[str, Any]] = None,
+        principal: Optional["PrincipalContext"] = None,
+        scan_pii: bool = True,
+        scan_content_safety: bool = True,
+    ) -> PolicyCheckResult:
+        """
+        Check content for safety violations (Phase E-5).
+
+        Integrates ContentSafetyScanner and PIIScanner into unified safety check.
+        Emits telemetry events for Safety Dashboard metrics and audit trail.
+
+        Blueprint Reference: Section 4.1 (Safety Governor v2), Section 4.2 (Compliance Radar v2)
+
+        Args:
+            content: Content to scan for safety violations
+            context: Additional context (task_id, trace_id, etc.)
+            principal: Agent identity context for capability-based checks
+            scan_pii: Whether to scan for PII (default: True)
+            scan_content_safety: Whether to scan for prompt injection/jailbreak (default: True)
+
+        Returns:
+            PolicyCheckResult with safety scan results and enforcement action
+        """
+        import time as time_module
+        start_time = time_module.time()
+        context = context or {}
+
+        # Phase E-2: Extract or create principal context
+        if principal is None:
+            from governance.principal_context import get_principal_from_context
+            principal = get_principal_from_context(context)
+
+        context["principal"] = principal.to_dict() if hasattr(principal, 'to_dict') else principal
+
+        telemetry_event = self._create_telemetry_event(
+            "content_safety_check",
+            content_length=len(content),
+            scan_pii=scan_pii,
+            scan_content_safety=scan_content_safety,
+            context=context,
+            principal=context.get("principal"),
+        )
+
+        findings = []
+        highest_risk = "none"
+        action = EnforcementAction.ALLOW
+        violation_type = None
+        reason = "Content safety check passed"
+
+        try:
+            # Content Safety Scan (Prompt Injection, Jailbreak, Harmful Content)
+            if scan_content_safety:
+                content_result = self._scan_content_safety(content, context)
+                if content_result:
+                    findings.extend(content_result.get("findings", []))
+                    if content_result.get("risk_level", "none") in ("critical", "high"):
+                        highest_risk = content_result["risk_level"]
+                        action = self._map_safety_action(content_result.get("action", "allow"))
+                        violation_type = self._map_content_violation_type(content_result)
+                        reason = content_result.get("summary", "Content safety violation detected")
+
+            # PII Scan
+            if scan_pii and action == EnforcementAction.ALLOW:
+                pii_result = self._scan_pii(content, context)
+                if pii_result:
+                    findings.extend(pii_result.get("findings", []))
+                    # PIIScanResult uses "overall_risk" not "risk_level"
+                    pii_risk = pii_result.get("overall_risk", "none")
+                    if pii_risk in ("critical", "high") or (
+                        pii_risk == "medium" and highest_risk == "none"
+                    ):
+                        highest_risk = pii_risk
+                        action = self._map_safety_action(pii_result.get("action", "allow"))
+                        if action != EnforcementAction.ALLOW:
+                            violation_type = PolicyViolationType.PII_DETECTED
+                            reason = pii_result.get("summary", "PII detected in content")
+
+            # Calculate scan duration
+            scan_duration_ms = (time_module.time() - start_time) * 1000
+
+            # Update telemetry event
+            telemetry_event["action"] = action.value
+            telemetry_event["risk_level"] = highest_risk
+            telemetry_event["findings_count"] = len(findings)
+            telemetry_event["scan_duration_ms"] = scan_duration_ms
+            telemetry_event["scan_pii_enabled"] = scan_pii
+            telemetry_event["scan_content_safety_enabled"] = scan_content_safety
+
+            # Log and emit telemetry
+            self._log_safety_check(content, action.value, highest_risk, len(findings), context)
+            self._emit_telemetry(telemetry_event)
+
+            # Emit SSOT telemetry for Safety Dashboard
+            self._emit_safety_telemetry(telemetry_event, findings, context)
+
+            if action == EnforcementAction.ALLOW:
+                return self._create_allowed_result(reason, telemetry_event)
+            else:
+                return PolicyCheckResult(
+                    allowed=False,
+                    action=action,
+                    reason=reason,
+                    violation_type=violation_type,
+                    context={"findings": findings, "risk_level": highest_risk},
+                    telemetry_event=telemetry_event,
+                )
+
+        except Exception as e:
+            scan_duration_ms = (time_module.time() - start_time) * 1000
+            telemetry_event["action"] = "allow"
+            telemetry_event["error"] = str(e)
+            telemetry_event["scan_duration_ms"] = scan_duration_ms
+            self._log_safety_check(content, "allow", "error", 0, context, str(e))
+            self._emit_telemetry(telemetry_event)
+
+            logger.warning(
+                "[RuntimePolicyEnforcer] Content safety check failed, allowing by default: %s",
+                e,
+                extra={"operation": "content_safety_check", "error": str(e)},
+            )
+            return self._create_allowed_result(
+                f"Content safety check failed (fail-open): {e}",
+                telemetry_event,
+            )
+
+    def _scan_content_safety(
+        self,
+        content: str,
+        context: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Scan content for prompt injection, jailbreak, and harmful content."""
+        try:
+            from governance.content_safety_scanner import get_content_safety_scanner
+            scanner = get_content_safety_scanner()
+            result = scanner.scan(content)
+            return result.to_dict()
+        except ImportError:
+            logger.debug("[RuntimePolicyEnforcer] ContentSafetyScanner not available")
+            return None
+        except Exception as e:
+            logger.warning(
+                "[RuntimePolicyEnforcer] Content safety scan failed: %s",
+                e,
+                extra={"operation": "content_safety_scan", "error": str(e)},
+            )
+            return None
+
+    def _scan_pii(
+        self,
+        content: str,
+        context: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Scan content for PII."""
+        try:
+            from governance.pii_scanner import get_pii_scanner
+            scanner = get_pii_scanner()
+            result = scanner.scan(content)
+            return result.to_dict()
+        except ImportError:
+            logger.debug("[RuntimePolicyEnforcer] PIIScanner not available")
+            return None
+        except Exception as e:
+            logger.warning(
+                "[RuntimePolicyEnforcer] PII scan failed: %s",
+                e,
+                extra={"operation": "pii_scan", "error": str(e)},
+            )
+            return None
+
+    def _map_safety_action(self, action_str: str) -> EnforcementAction:
+        """Map safety scanner action string to EnforcementAction."""
+        action_map = {
+            "allow": EnforcementAction.ALLOW,
+            "block": EnforcementAction.BLOCK,
+            "require_approval": EnforcementAction.REQUIRE_APPROVAL,
+            "redact": EnforcementAction.BLOCK,  # Redact maps to block for now
+            "log_only": EnforcementAction.LOG_ONLY,
+        }
+        return action_map.get(action_str.lower(), EnforcementAction.ALLOW)
+
+    def _map_content_violation_type(
+        self,
+        result: Dict[str, Any],
+    ) -> Optional[PolicyViolationType]:
+        """Map content safety result to PolicyViolationType."""
+        findings = result.get("findings", [])
+        if not findings:
+            return None
+
+        # Check for specific violation types in findings
+        for finding in findings:
+            category = finding.get("category", "")
+            if category == "prompt_injection":
+                return PolicyViolationType.PROMPT_INJECTION
+            elif category == "jailbreak":
+                return PolicyViolationType.JAILBREAK
+            elif category == "harmful_content":
+                return PolicyViolationType.HARMFUL_CONTENT
+
+        # Return None if no specific category matches (avoid misleading default)
+        return None
+
+    def _log_safety_check(
+        self,
+        content: str,
+        action: str,
+        risk_level: str,
+        findings_count: int,
+        context: Dict[str, Any],
+        error: Optional[str] = None,
+    ) -> None:
+        """Log safety check for audit trail."""
+        log_extra = {
+            "operation": "content_safety_check",
+            "content_length": len(content),
+            "action": action,
+            "risk_level": risk_level,
+            "findings_count": findings_count,
+            "context": context,
+        }
+        if error:
+            log_extra["error"] = error
+
+        if action == "block":
+            logger.warning(
+                "[RuntimePolicyEnforcer] Content safety check blocked: %s findings, risk=%s",
+                findings_count,
+                risk_level,
+                extra=log_extra,
+            )
+        elif action == "require_approval":
+            logger.info(
+                "[RuntimePolicyEnforcer] Content safety check requires approval: %s findings, risk=%s",
+                findings_count,
+                risk_level,
+                extra=log_extra,
+            )
+        else:
+            logger.debug(
+                "[RuntimePolicyEnforcer] Content safety check passed: risk=%s",
+                risk_level,
+                extra=log_extra,
+            )
+
+    def _emit_safety_telemetry(
+        self,
+        telemetry_event: Dict[str, Any],
+        findings: list,
+        context: Dict[str, Any],
+    ) -> None:
+        """
+        Emit SSOT TelemetryRecordV3 span for Safety Dashboard.
+
+        Phase E-5: Creates structured telemetry for safety scan results,
+        enabling Safety Dashboard metrics and audit trail visualization.
+        """
+        if not self.settings.enable_ssot_telemetry:
+            return
+
+        try:
+            from core.telemetry import (
+                TelemetryRecordV3,
+                SpanKind,
+                StatusCode,
+                create_span_context,
+            )
+
+            trace_id = context.get("trace_id")
+            if not trace_id:
+                return
+
+            parent_span_id = context.get("current_span_id") or context.get("parent_span_id")
+            span_context = create_span_context(
+                trace_id=trace_id,
+                parent_span_id=parent_span_id,
+            )
+
+            action = telemetry_event.get("action", "allow")
+            action_to_status = {
+                "allow": StatusCode.OK,
+                "block": StatusCode.ERROR,
+                "require_approval": StatusCode.SKIPPED,
+                "log_only": StatusCode.OK,
+            }
+            status_code = action_to_status.get(action, StatusCode.UNSET)
+
+            # Create metrics from telemetry event
+            metrics = {
+                "content_length": float(telemetry_event.get("content_length", 0)),
+                "findings_count": float(telemetry_event.get("findings_count", 0)),
+                "scan_duration_ms": float(telemetry_event.get("scan_duration_ms", 0)),
+            }
+
+            # Create attributes with finding categories
+            finding_categories = list(set(
+                f.get("category", "unknown") for f in findings
+            )) if findings else []
+
+            attributes = {
+                "risk_level": telemetry_event.get("risk_level", "none"),
+                "scan_pii_enabled": telemetry_event.get("scan_pii_enabled", True),
+                "scan_content_safety_enabled": telemetry_event.get("scan_content_safety_enabled", True),
+                "finding_categories": finding_categories,
+            }
+
+            record = TelemetryRecordV3.create(
+                name="governance.content_safety_check",
+                span_context=span_context,
+                component="RuntimePolicyEnforcer",
+                kind=SpanKind.INTERNAL,
+                status_code=status_code,
+                epic_tag="EPIC-E",
+                metrics=metrics,
+                attributes=attributes,
+            )
+            record.emit()
+
+        except ImportError as import_err:
+            logger.debug(
+                "[RuntimePolicyEnforcer] core.telemetry not available for safety telemetry: %s",
+                import_err
+            )
+        except Exception as emit_err:
+            logger.debug(
+                "[RuntimePolicyEnforcer] Failed to emit safety telemetry: %s",
+                emit_err,
+                exc_info=True
             )
 
     def check_cost(
