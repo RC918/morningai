@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from common.config.settings import Settings
+    from governance.principal_context import PrincipalContext
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +216,7 @@ class RuntimePolicyEnforcer:
         operation: str,
         resource: str,
         context: Optional[Dict[str, Any]] = None,
+        principal: Optional["PrincipalContext"] = None,
     ) -> PolicyCheckResult:
         """
         Check if a resource access operation is allowed.
@@ -223,16 +225,27 @@ class RuntimePolicyEnforcer:
             operation: Type of operation (read, write, delete, execute, network)
             resource: Resource path or identifier
             context: Additional context (task_id, trace_id, etc.)
+            principal: Agent identity context for capability-based checks (Phase E-2)
 
         Returns:
             PolicyCheckResult with allowed status and enforcement action
         """
         context = context or {}
+
+        # Phase E-2: Extract or create principal context
+        if principal is None:
+            from governance.principal_context import get_principal_from_context
+            principal = get_principal_from_context(context)
+
+        # Add principal to context for downstream use
+        context["principal"] = principal.to_dict() if hasattr(principal, 'to_dict') else principal
+
         telemetry_event = self._create_telemetry_event(
             "resource_access_check",
             operation=operation,
             resource=resource,
             context=context,
+            principal=context.get("principal"),
         )
 
         try:

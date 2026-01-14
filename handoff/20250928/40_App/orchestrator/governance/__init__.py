@@ -265,3 +265,35 @@ except ImportError as e:
     get_content_safety_scanner = None
     reset_content_safety_scanner = None
     scan_content = None
+
+try:
+    from .principal_context import (
+        PrincipalContext,
+        AgentType,
+        CapabilityType,
+        PrincipalContextManager,
+        UNKNOWN_PRINCIPAL,
+        DEFAULT_CAPABILITIES,
+        create_principal_context,
+        get_principal_from_context,
+    )
+    __all__.extend([
+        'PrincipalContext',
+        'AgentType',
+        'CapabilityType',
+        'PrincipalContextManager',
+        'UNKNOWN_PRINCIPAL',
+        'DEFAULT_CAPABILITIES',
+        'create_principal_context',
+        'get_principal_from_context',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import principal_context: {e}")
+    PrincipalContext = None
+    AgentType = None
+    CapabilityType = None
+    PrincipalContextManager = None
+    UNKNOWN_PRINCIPAL = None
+    DEFAULT_CAPABILITIES = None
+    create_principal_context = None
+    get_principal_from_context = None
