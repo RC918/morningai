@@ -463,9 +463,10 @@ class LLMClient:
         # EPIC I-1: Runtime Drift Detection (observe-only by default)
         # This hook validates LLM responses without blocking requests
         # unless DRIFT_DETECTION_BLOCK_ON_FAIL=true
+        drift_result = None
         try:
             from governance.drift_detector import observe_response, DriftDetectedError
-            observe_response(
+            drift_result = observe_response(
                 response=response,
                 json_mode=json_mode,
                 provider=self._provider_name,
@@ -481,6 +482,63 @@ class LLMClient:
                 f"[LLMClient] Drift detection error (non-blocking): {e}",
                 extra={"provider": self._provider_name, "model": self.model}
             )
+
+        # EPIC I-2b: Drift-Triggered Retry (disabled by default)
+        # If drift is detected and retry is enabled, attempt retry with higher-tier model
+        if drift_result and drift_result.has_drift:
+            try:
+                from governance.drift_retry import should_retry_on_drift
+                retry_decision = should_retry_on_drift(
+                    drift_events=drift_result.events,
+                    task_type=kwargs.get('task_type'),
+                    attempt_count=kwargs.get('_drift_retry_attempt', 0),
+                    original_cost=kwargs.get('_original_cost', 0.0),
+                    current_model=self.model,
+                    current_provider=self._provider_name
+                )
+
+                if retry_decision.should_retry:
+                    logger.info(
+                        f"[LLMClient] Drift retry triggered: "
+                        f"reason={retry_decision.reason}, "
+                        f"retry_model={retry_decision.retry_model}",
+                        extra={
+                            "operation": "drift_retry",
+                            "original_model": self.model,
+                            "retry_model": retry_decision.retry_model,
+                            "attempt": retry_decision.metadata.get('attempt_count', 1)
+                        }
+                    )
+
+                    # Create new client with higher-tier model and retry
+                    retry_client = LLMClient(
+                        provider=retry_decision.retry_provider or self._provider_name,
+                        model=retry_decision.retry_model,
+                        timeout=self._timeout
+                    )
+
+                    # Track retry attempt to prevent infinite loops
+                    retry_kwargs = kwargs.copy()
+                    retry_kwargs['_drift_retry_attempt'] = kwargs.get('_drift_retry_attempt', 0) + 1
+                    retry_kwargs['_original_cost'] = kwargs.get('_original_cost', 0.0)
+
+                    return retry_client.generate(
+                        prompt=prompt,
+                        system_prompt=system_prompt,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        json_mode=json_mode,
+                        timeout=timeout,
+                        **retry_kwargs
+                    )
+            except ImportError:
+                pass  # Drift retry not available, continue normally
+            except Exception as e:
+                # Log retry errors but don't block - return original response
+                logger.warning(
+                    f"[LLMClient] Drift retry error (non-blocking): {e}",
+                    extra={"provider": self._provider_name, "model": self.model}
+                )
 
         return response
 

@@ -660,6 +660,47 @@ class Settings(BaseSettings):
         description="Sample rate for drift detection (0.0-1.0) (EPIC I-1)"
     )
 
+    # EPIC I-2b: Drift-Triggered Retry (Blueprint 4.3 - Model Governance Framework v2)
+    drift_retry_enabled: bool = Field(
+        default=False,
+        alias="DRIFT_RETRY_ENABLED",
+        description="Enable drift-triggered retry with higher-tier model (EPIC I-2b)"
+    )
+
+    drift_retry_max_retries: int = Field(
+        default=1,
+        ge=0,
+        le=2,
+        alias="DRIFT_RETRY_MAX_RETRIES",
+        description="Maximum retry attempts per request (EPIC I-2b)"
+    )
+
+    drift_retry_eligible_drift_types: str = Field(
+        default="json_parse_error,schema_violation,empty_response",
+        alias="DRIFT_RETRY_ELIGIBLE_DRIFT_TYPES",
+        description="Comma-separated drift types eligible for retry (EPIC I-2b)"
+    )
+
+    drift_retry_model_tier: str = Field(
+        default="higher",
+        alias="DRIFT_RETRY_MODEL_TIER",
+        description="Model tier for retry: same, higher, highest (EPIC I-2b)"
+    )
+
+    drift_retry_cost_cap_multiplier: float = Field(
+        default=2.0,
+        ge=1.0,
+        le=5.0,
+        alias="DRIFT_RETRY_COST_CAP_MULTIPLIER",
+        description="Maximum cost increase allowed for retry (EPIC I-2b)"
+    )
+
+    drift_retry_eligible_task_types: str = Field(
+        default="code_generation,code_review",
+        alias="DRIFT_RETRY_ELIGIBLE_TASK_TYPES",
+        description="Comma-separated task types eligible for retry (EPIC I-2b)"
+    )
+
     # EPIC I-2: Provider Health Scoring (Blueprint 4.3 - Model Governance Framework v2)
     provider_health_enabled: bool = Field(
         default=True,
