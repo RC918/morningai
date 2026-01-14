@@ -267,6 +267,41 @@ except ImportError as e:
     scan_content = None
 
 try:
+    from .pii_scanner import (
+        PIIScanner,
+        PIICategory,
+        PIIRiskLevel,
+        PIIAction,
+        PIIFinding,
+        PIIScanResult,
+        get_pii_scanner,
+        reset_pii_scanner,
+        scan_for_pii,
+    )
+    __all__.extend([
+        'PIIScanner',
+        'PIICategory',
+        'PIIRiskLevel',
+        'PIIAction',
+        'PIIFinding',
+        'PIIScanResult',
+        'get_pii_scanner',
+        'reset_pii_scanner',
+        'scan_for_pii',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import pii_scanner: {e}")
+    PIIScanner = None
+    PIICategory = None
+    PIIRiskLevel = None
+    PIIAction = None
+    PIIFinding = None
+    PIIScanResult = None
+    get_pii_scanner = None
+    reset_pii_scanner = None
+    scan_for_pii = None
+
+try:
     from .principal_context import (
         PrincipalContext,
         AgentType,
