@@ -184,7 +184,10 @@ class TestCheckRedisSecurity:
                 result = check_redis_security()
 
                 assert result['type'] == 'redis'
-                assert 'version' in result
+                assert result['version'] == 'invalid.version'
+                # Unparseable version defaults to (0, 0, 0), which is vulnerable
+                assert result['status'] == 'vulnerable'
+                assert result['cve_2025_49844_risk'] == 'high'
 
     def test_no_redis_configured(self):
         """Test security check when no Redis is configured"""
@@ -199,7 +202,7 @@ class TestCheckRedisSecurity:
                 from utils.redis_client import check_redis_security
                 result = check_redis_security()
 
-                assert result['type'] in ['none', 'unknown', 'upstash', 'redis']
+                assert result['type'] == 'none'
 
     def test_security_check_exception(self):
         """Test security check handles exceptions gracefully"""
