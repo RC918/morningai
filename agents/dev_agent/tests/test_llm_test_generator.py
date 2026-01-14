@@ -21,16 +21,21 @@ class TestLLMTestGenerator:
 
     def test_initialization_with_api_key(self):
         """Test LLMTestGenerator initializes with API key"""
-        generator = LLMTestGenerator(
-            framework="pytest",
-            openai_api_key="test-key",
-            enable_llm=True
-        )
-        
-        assert generator.framework == "pytest"
-        assert generator.enable_llm is True
-        assert generator.model == "gpt-4"
-        assert generator.openai_client is not None
+        with patch('agents.dev_agent.testing.llm_test_generator.settings') as mock_settings:
+            mock_settings.openai_api_key = "test-key"
+            mock_settings.llm_test_generator_model = "qwen-max"
+            
+            generator = LLMTestGenerator(
+                framework="pytest",
+                openai_api_key="test-key",
+                enable_llm=True
+            )
+            
+            assert generator.framework == "pytest"
+            assert generator.enable_llm is True
+            # Model now defaults to settings.llm_test_generator_model
+            assert generator.model == "qwen-max"
+            assert generator.openai_client is not None
 
     def test_initialization_without_api_key_falls_back(self):
         """Test LLMTestGenerator falls back to heuristic mode without API key"""

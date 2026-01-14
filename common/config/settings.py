@@ -553,6 +553,12 @@ class Settings(BaseSettings):
         description="OpenAI model for dev agent"
     )
 
+    llm_test_generator_model: str = Field(
+        default="qwen-max",
+        alias="LLM_TEST_GENERATOR_MODEL",
+        description="Model for LLM test generator (defaults to qwen-max for Alicloud)"
+    )
+
     dev_agent_endpoint: Optional[str] = Field(
         None,
         alias="DEV_AGENT_ENDPOINT",
