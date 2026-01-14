@@ -360,8 +360,7 @@ class TestPrincipalContextManager:
 class TestRuntimePolicyEnforcerIntegration:
     """Tests for RuntimePolicyEnforcer integration with PrincipalContext"""
 
-    @patch('governance.principal_context.get_reputation_engine')
-    def test_check_resource_access_with_principal(self, mock_engine):
+    def test_check_resource_access_with_principal(self):
         """Test check_resource_access accepts principal parameter"""
         from governance.runtime_policy_enforcer import RuntimePolicyEnforcer
         
