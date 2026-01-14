@@ -104,6 +104,22 @@ from .agent_assignment import (
     assign_and_select,
 )
 
+from .model_tier_selection import (
+    TierContext,
+    ProviderStatus,
+    ProviderHealthSnapshot,
+    SimulationResult,
+    ModelTierSelector,
+    PlannerHook,
+    BasePlannerHook,
+    DebateHook,
+    MemoryHook,
+    PlanOracle,
+    ProviderHealthProvider,
+    HookChain,
+    apply_model_tiers_and_hooks,
+)
+
 from .review_consolidation import (
     ConflictType,
     ConflictResolution,
@@ -114,7 +130,6 @@ from .review_consolidation import (
     ReviewConsolidator,
     consolidate_review_findings,
 )
-
 __all__ = [
     # Planner types
     "TaskType",
@@ -187,6 +202,20 @@ __all__ = [
     "AgentAssigner",
     "FlowTemplateSelector",
     "assign_and_select",
+    # Model Tier Selection + Hooks (Phase F-6)
+    "TierContext",
+    "ProviderStatus",
+    "ProviderHealthSnapshot",
+    "SimulationResult",
+    "ModelTierSelector",
+    "PlannerHook",
+    "BasePlannerHook",
+    "DebateHook",
+    "MemoryHook",
+    "PlanOracle",
+    "ProviderHealthProvider",
+    "HookChain",
+    "apply_model_tiers_and_hooks",
     # Review Consolidation (Phase F-5.5)
     "ConflictType",
     "ConflictResolution",

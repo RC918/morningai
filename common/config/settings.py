@@ -1910,6 +1910,20 @@ class Settings(BaseSettings):
         description="Enable F-4 Agent Assignment: rule-based agent assignment based on task type and risk level. When enabled, AgentAssigner applies assignments to all tasks in a plan."
     )
 
+    # EPIC F Stage 3: Model Tier Selection + Decision Hooks
+    # Blueprint Section F-6: Rule-based model tier selection and planner hooks
+    use_model_tier_selection: bool = Field(
+        default=False,
+        alias="USE_MODEL_TIER_SELECTION",
+        description="Enable F-6 Model Tier Selection: rule-based model tier selection based on task characteristics. When enabled, ModelTierSelector assigns tiers (tier_0 to tier_3) to all tasks in a plan."
+    )
+
+    use_debate_hook: bool = Field(
+        default=False,
+        alias="USE_DEBATE_HOOK",
+        description="Enable F-6 Debate Hook: triggers Debate Engine v2 for high-risk plans. When enabled, DebateHook invokes adversarial collaboration for critical decisions."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
