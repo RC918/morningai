@@ -184,7 +184,7 @@ class PrincipalContext:
             object.__setattr__(
                 self, 'capability_set', frozenset(self.capability_set)
             )
-        # Ensure metadata is immutable by converting to tuple of items
+        # Ensure metadata is shallow-copied for immutability at the top level
         if self.metadata and not isinstance(self.metadata, dict):
             object.__setattr__(self, 'metadata', dict(self.metadata))
 
@@ -244,8 +244,12 @@ class PrincipalContext:
             PrincipalContext instance
         """
         capability_set = data.get("capability_set", [])
-        if isinstance(capability_set, list):
-            capability_set = frozenset(capability_set)
+        if isinstance(capability_set, (list, set, frozenset)):
+            # Handle both string values and CapabilityType enum members
+            capability_set = frozenset(
+                cap.value if isinstance(cap, Enum) else cap
+                for cap in capability_set
+            )
 
         return cls(
             agent_id=data.get("agent_id", str(uuid.uuid4())),
@@ -259,10 +263,11 @@ class PrincipalContext:
 
 
 # Default unknown principal for backward compatibility
+# Convert CapabilityType enum values to strings for consistent has_capability() checks
 UNKNOWN_PRINCIPAL = PrincipalContext(
     agent_id="00000000-0000-0000-0000-000000000000",
     agent_type="unknown",
-    capability_set=DEFAULT_CAPABILITIES["sandbox_only"],
+    capability_set=frozenset(cap.value for cap in DEFAULT_CAPABILITIES["sandbox_only"]),
     permission_level="sandbox_only",
     trust_score=100,
 )
