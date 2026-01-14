@@ -35,6 +35,12 @@ from llm.client import get_client_for_task
 from core.routing import TaskType
 from resource_telemetry import log_prompt_build_bytes, log_llm_response_bytes
 
+from review_context import (
+    generate_multi_specialist_review,
+    analyze_test_coverage,
+    analyze_dependencies,
+)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -638,7 +644,7 @@ class LLMReviewerAdapter:
                 }
             )
 
-            return {
+            result = {
                 "quality_score": final_score,
                 "severity": final_severity,
                 "summary": review_data.get("summary", ""),
@@ -647,8 +653,22 @@ class LLMReviewerAdapter:
                 "llm_used": True,
                 "provider": self.llm_client.provider_name,
                 "review_time_ms": review_data.get("review_time_ms", 0),
-                "diff_aware": has_diff
+                "diff_aware": has_diff,
+                "multi_specialist_findings": None,
+                "test_coverage_gaps": None,
+                "dependency_issues": None,
             }
+
+            result = self._run_enhanced_review_modules(
+                result=result,
+                diff=diff,
+                diff_files=diff_files,
+                pr_number=pr_number,
+                goal=goal,
+                repo=repo,
+            )
+
+            return result
 
         except json.JSONDecodeError as e:
             # Phase 1 Quick Win: Distinguish JSON parse failures from LLM unavailability
@@ -687,6 +707,175 @@ class LLMReviewerAdapter:
                 fallback_reason=fallback_reason,
                 diff_files=diff_files
             )
+
+    def _run_enhanced_review_modules(
+        self,
+        result: Dict[str, Any],
+        diff: Optional[str],
+        diff_files: Optional[list],
+        pr_number: Optional[int],
+        goal: str,
+        repo: str,
+    ) -> Dict[str, Any]:
+        """
+        Run EPIC B Phase 7-8 enhanced review modules (B-9, B-11, B-12).
+
+        Blueprint Alignment:
+        - Section 3.3 "Agent Separation Principle" - Reviewer can FLAG but NOT fix
+        - All modules respect this principle: they identify issues but don't generate fixes
+
+        Args:
+            result: Base review result to enhance
+            diff: PR diff content
+            diff_files: List of changed files metadata
+            pr_number: Pull request number
+            goal: Original user goal/task description
+            repo: GitHub repository (owner/repo format)
+
+        Returns:
+            Enhanced result dict with multi_specialist_findings, test_coverage_gaps,
+            and dependency_issues fields populated based on feature flags.
+        """
+        pr_context = {
+            "pr_number": pr_number,
+            "goal": goal,
+            "repo": repo,
+        }
+
+        if settings.use_multi_specialist_review and diff:
+            try:
+                logger.info(
+                    "[LLM Reviewer] Running B-9 Multi-Specialist Review",
+                    extra={
+                        "operation": "multi_specialist_review",
+                        "trace_id": self.trace_id,
+                        "pr_number": pr_number,
+                    }
+                )
+                specialist_findings = generate_multi_specialist_review(
+                    diff_content=diff,
+                    pr_context=pr_context,
+                    trace_id=self.trace_id,
+                )
+                result["multi_specialist_findings"] = specialist_findings
+
+                if specialist_findings.get("finding_count", 0) > 0:
+                    specialist_severity = specialist_findings.get("overall_severity", "none")
+                    result["severity"] = combine_severity(
+                        result["severity"], specialist_severity
+                    )
+
+                logger.info(
+                    "[LLM Reviewer] B-9 Multi-Specialist Review completed",
+                    extra={
+                        "operation": "multi_specialist_review",
+                        "trace_id": self.trace_id,
+                        "finding_count": specialist_findings.get("finding_count", 0),
+                        "overall_severity": specialist_findings.get("overall_severity", "none"),
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[LLM Reviewer] B-9 Multi-Specialist Review failed: {e}",
+                    extra={
+                        "operation": "multi_specialist_review",
+                        "trace_id": self.trace_id,
+                        "error": str(e),
+                    }
+                )
+
+        if settings.use_test_coverage_flagging and diff:
+            try:
+                logger.info(
+                    "[LLM Reviewer] Running B-11 Test Coverage Flagging",
+                    extra={
+                        "operation": "test_coverage_flagging",
+                        "trace_id": self.trace_id,
+                        "pr_number": pr_number,
+                    }
+                )
+                file_list = None
+                if diff_files:
+                    file_list = [
+                        f.get("filename", "") if isinstance(f, dict) else str(f)
+                        for f in diff_files
+                    ]
+                coverage_gaps = analyze_test_coverage(
+                    diff_content=diff,
+                    diff_files=file_list,
+                    trace_id=self.trace_id,
+                )
+                result["test_coverage_gaps"] = coverage_gaps
+
+                logger.info(
+                    "[LLM Reviewer] B-11 Test Coverage Flagging completed",
+                    extra={
+                        "operation": "test_coverage_flagging",
+                        "trace_id": self.trace_id,
+                        "gap_count": coverage_gaps.get("gap_count", 0),
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[LLM Reviewer] B-11 Test Coverage Flagging failed: {e}",
+                    extra={
+                        "operation": "test_coverage_flagging",
+                        "trace_id": self.trace_id,
+                        "error": str(e),
+                    }
+                )
+
+        if settings.use_dependency_analysis and diff:
+            try:
+                logger.info(
+                    "[LLM Reviewer] Running B-12 Dependency Analysis",
+                    extra={
+                        "operation": "dependency_analysis",
+                        "trace_id": self.trace_id,
+                        "pr_number": pr_number,
+                    }
+                )
+                file_list = None
+                if diff_files:
+                    file_list = [
+                        f.get("filename", "") if isinstance(f, dict) else str(f)
+                        for f in diff_files
+                    ]
+                dependency_issues = analyze_dependencies(
+                    diff_content=diff,
+                    diff_files=file_list,
+                    trace_id=self.trace_id,
+                )
+                result["dependency_issues"] = dependency_issues
+
+                if dependency_issues.get("issue_count", 0) > 0:
+                    for issue in dependency_issues.get("issues", []):
+                        issue_severity = issue.get("severity", "low")
+                        if issue_severity in ("high", "critical"):
+                            result["severity"] = combine_severity(
+                                result["severity"], issue_severity
+                            )
+                            break
+
+                logger.info(
+                    "[LLM Reviewer] B-12 Dependency Analysis completed",
+                    extra={
+                        "operation": "dependency_analysis",
+                        "trace_id": self.trace_id,
+                        "issue_count": dependency_issues.get("issue_count", 0),
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[LLM Reviewer] B-12 Dependency Analysis failed: {e}",
+                    extra={
+                        "operation": "dependency_analysis",
+                        "trace_id": self.trace_id,
+                        "error": str(e),
+                    }
+                )
+
+        return result
 
     def _call_llm(
         self,
@@ -1706,7 +1895,10 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             "provider": None,
             "review_time_ms": 0,
             "diff_aware": False,
-            "fallback_reason": fallback_reason
+            "fallback_reason": fallback_reason,
+            "multi_specialist_findings": None,
+            "test_coverage_gaps": None,
+            "dependency_issues": None,
         }
 
 
