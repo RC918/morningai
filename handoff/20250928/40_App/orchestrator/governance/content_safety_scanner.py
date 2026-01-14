@@ -19,9 +19,12 @@ import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Pattern
 
 logger = logging.getLogger(__name__)
+
+# Maximum length for matched text in logs/results (security: prevent PII exposure)
+MAX_MATCHED_TEXT_LOG_LENGTH = 50
 
 
 class ContentSafetyCategory(Enum):
@@ -337,12 +340,40 @@ class ContentSafetyScanner:
         self.block_on_critical = block_on_critical
         self.require_approval_on_high = require_approval_on_high
         self._load_settings()
+        self._compile_patterns()
         logger.info(
             "[ContentSafetyScanner] Initialized - EPIC E Phase E-3: "
             "enabled=%s, strict_mode=%s",
             self.enabled,
             self.strict_mode,
         )
+
+    def _compile_patterns(self) -> None:
+        """Pre-compile regex patterns for performance optimization."""
+        self._compiled_pi_patterns: List[
+            Tuple[Pattern[str], str, str, ContentRiskLevel]
+        ] = []
+        self._compiled_jb_patterns: List[
+            Tuple[Pattern[str], str, str, ContentRiskLevel]
+        ] = []
+        self._compiled_hc_patterns: List[
+            Tuple[Pattern[str], str, str, ContentRiskLevel]
+        ] = []
+
+        for pattern, pid, title, risk in self.PROMPT_INJECTION_PATTERNS:
+            self._compiled_pi_patterns.append(
+                (re.compile(pattern, re.IGNORECASE), pid, title, risk)
+            )
+
+        for pattern, pid, title, risk in self.JAILBREAK_PATTERNS:
+            self._compiled_jb_patterns.append(
+                (re.compile(pattern, re.IGNORECASE), pid, title, risk)
+            )
+
+        for pattern, pid, title, risk in self.HARMFUL_CONTENT_PATTERNS:
+            self._compiled_hc_patterns.append(
+                (re.compile(pattern, re.IGNORECASE), pid, title, risk)
+            )
 
     def _load_settings(self) -> None:
         """Load settings from environment/config"""
@@ -405,15 +436,25 @@ class ContentSafetyScanner:
             )
 
         findings: List[ContentSafetyFinding] = []
+        found_critical = False
 
-        # Check for prompt injection
-        findings.extend(self._check_prompt_injection(content))
+        # Check for prompt injection (with short-circuit optimization)
+        pi_findings, found_critical = self._check_prompt_injection(
+            content, found_critical
+        )
+        findings.extend(pi_findings)
 
-        # Check for jailbreak attempts
-        findings.extend(self._check_jailbreak(content))
+        # Check for jailbreak attempts (with short-circuit optimization)
+        jb_findings, found_critical = self._check_jailbreak(
+            content, found_critical
+        )
+        findings.extend(jb_findings)
 
-        # Check for harmful content
-        findings.extend(self._check_harmful_content(content))
+        # Check for harmful content (with short-circuit optimization)
+        hc_findings, found_critical = self._check_harmful_content(
+            content, found_critical
+        )
+        findings.extend(hc_findings)
 
         # Calculate overall risk level
         risk_level = self._calculate_risk_level(findings)
@@ -455,20 +496,39 @@ class ContentSafetyScanner:
 
         return result
 
+    def _sanitize_matched_text(self, text: str) -> str:
+        """Sanitize matched text for logging (security: prevent PII exposure)."""
+        if not text:
+            return ""
+        if len(text) <= MAX_MATCHED_TEXT_LOG_LENGTH:
+            return text
+        return text[:MAX_MATCHED_TEXT_LOG_LENGTH] + "..."
+
     def _check_prompt_injection(
-        self, content: str
-    ) -> List[ContentSafetyFinding]:
-        """Check for prompt injection patterns"""
+        self, content: str, found_critical: bool = False
+    ) -> Tuple[List[ContentSafetyFinding], bool]:
+        """
+        Check for prompt injection patterns.
+
+        Args:
+            content: Text to scan
+            found_critical: Whether CRITICAL risk was already found (for short-circuit)
+
+        Returns:
+            Tuple of (findings list, whether CRITICAL was found)
+        """
         findings = []
 
-        for pattern, pattern_id, title, risk_level in self.PROMPT_INJECTION_PATTERNS:
-            matches = list(re.finditer(pattern, content, re.IGNORECASE))
-            for match in matches:
-                # Calculate confidence based on match quality
+        for compiled_pattern, pattern_id, title, risk_level in self._compiled_pi_patterns:
+            # Short-circuit: skip non-CRITICAL patterns if CRITICAL already found
+            if found_critical and risk_level != ContentRiskLevel.CRITICAL:
+                continue
+
+            for match in compiled_pattern.finditer(content):
                 confidence = self._calculate_confidence(match, content)
 
-                # In strict mode, lower the confidence threshold
                 if self.strict_mode or confidence >= 0.7:
+                    matched_text = match.group(0)
                     findings.append(
                         ContentSafetyFinding(
                             category=ContentSafetyCategory.PROMPT_INJECTION,
@@ -478,31 +538,46 @@ class ContentSafetyScanner:
                             description=(
                                 f"Detected potential prompt injection: {title}"
                             ),
-                            matched_text=match.group(0),
+                            matched_text=self._sanitize_matched_text(matched_text),
                             position=match.start(),
                             confidence=confidence,
                             recommendation=(
                                 "Review input for malicious intent. "
                                 "Consider blocking or requiring human approval."
                             ),
-                            evidence_hash=self._compute_evidence_hash(
-                                match.group(0)
-                            ),
+                            evidence_hash=self._compute_evidence_hash(matched_text),
                         )
                     )
+                    if risk_level == ContentRiskLevel.CRITICAL:
+                        found_critical = True
 
-        return findings
+        return findings, found_critical
 
-    def _check_jailbreak(self, content: str) -> List[ContentSafetyFinding]:
-        """Check for jailbreak attempt patterns"""
+    def _check_jailbreak(
+        self, content: str, found_critical: bool = False
+    ) -> Tuple[List[ContentSafetyFinding], bool]:
+        """
+        Check for jailbreak attempt patterns.
+
+        Args:
+            content: Text to scan
+            found_critical: Whether CRITICAL risk was already found (for short-circuit)
+
+        Returns:
+            Tuple of (findings list, whether CRITICAL was found)
+        """
         findings = []
 
-        for pattern, pattern_id, title, risk_level in self.JAILBREAK_PATTERNS:
-            matches = list(re.finditer(pattern, content, re.IGNORECASE))
-            for match in matches:
+        for compiled_pattern, pattern_id, title, risk_level in self._compiled_jb_patterns:
+            # Short-circuit: skip non-CRITICAL patterns if CRITICAL already found
+            if found_critical and risk_level != ContentRiskLevel.CRITICAL:
+                continue
+
+            for match in compiled_pattern.finditer(content):
                 confidence = self._calculate_confidence(match, content)
 
                 if self.strict_mode or confidence >= 0.6:
+                    matched_text = match.group(0)
                     findings.append(
                         ContentSafetyFinding(
                             category=ContentSafetyCategory.JAILBREAK,
@@ -512,34 +587,47 @@ class ContentSafetyScanner:
                             description=(
                                 f"Detected potential jailbreak attempt: {title}"
                             ),
-                            matched_text=match.group(0),
+                            matched_text=self._sanitize_matched_text(matched_text),
                             position=match.start(),
                             confidence=confidence,
                             recommendation=(
                                 "This appears to be an attempt to bypass "
                                 "safety guidelines. Consider blocking."
                             ),
-                            evidence_hash=self._compute_evidence_hash(
-                                match.group(0)
-                            ),
+                            evidence_hash=self._compute_evidence_hash(matched_text),
                         )
                     )
+                    if risk_level == ContentRiskLevel.CRITICAL:
+                        found_critical = True
 
-        return findings
+        return findings, found_critical
 
     def _check_harmful_content(
-        self, content: str
-    ) -> List[ContentSafetyFinding]:
-        """Check for harmful content patterns"""
+        self, content: str, found_critical: bool = False
+    ) -> Tuple[List[ContentSafetyFinding], bool]:
+        """
+        Check for harmful content patterns.
+
+        Args:
+            content: Text to scan
+            found_critical: Whether CRITICAL risk was already found (for short-circuit)
+
+        Returns:
+            Tuple of (findings list, whether CRITICAL was found)
+        """
         findings = []
 
-        for pattern, pattern_id, title, risk_level in self.HARMFUL_CONTENT_PATTERNS:
-            matches = list(re.finditer(pattern, content, re.IGNORECASE))
-            for match in matches:
+        for compiled_pattern, pattern_id, title, risk_level in self._compiled_hc_patterns:
+            # Short-circuit: skip non-CRITICAL patterns if CRITICAL already found
+            if found_critical and risk_level != ContentRiskLevel.CRITICAL:
+                continue
+
+            for match in compiled_pattern.finditer(content):
                 confidence = self._calculate_confidence(match, content)
 
                 # Harmful content has higher confidence threshold to reduce FP
                 if self.strict_mode or confidence >= 0.8:
+                    matched_text = match.group(0)
                     findings.append(
                         ContentSafetyFinding(
                             category=ContentSafetyCategory.HARMFUL_CONTENT,
@@ -549,20 +637,20 @@ class ContentSafetyScanner:
                             description=(
                                 f"Detected potentially harmful content: {title}"
                             ),
-                            matched_text=match.group(0),
+                            matched_text=self._sanitize_matched_text(matched_text),
                             position=match.start(),
                             confidence=confidence,
                             recommendation=(
                                 "This content may violate safety policies. "
                                 "Blocking is recommended."
                             ),
-                            evidence_hash=self._compute_evidence_hash(
-                                match.group(0)
-                            ),
+                            evidence_hash=self._compute_evidence_hash(matched_text),
                         )
                     )
+                    if risk_level == ContentRiskLevel.CRITICAL:
+                        found_critical = True
 
-        return findings
+        return findings, found_critical
 
     def _calculate_confidence(
         self, match: re.Match, content: str
