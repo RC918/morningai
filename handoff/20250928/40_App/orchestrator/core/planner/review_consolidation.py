@@ -402,10 +402,13 @@ class ReviewConsolidator:
             len(conflicts)
         )
 
-        # Step 2: Arbitrate conflicts using Judge Agent
+        # Step 2: Create index-based tracking for findings
+        # Using index instead of id() to avoid fragility when objects are copied
+        finding_to_index: Dict[int, int] = {id(f): i for i, f in enumerate(findings)}
+        excluded_indices: set = set()
+
         arbitration_decisions: List[ArbitrationDecision] = []
         resolved_findings: List[Dict[str, Any]] = []
-        excluded_findings: set = set()
         requires_human_review = False
 
         for conflict in conflicts:
@@ -415,17 +418,21 @@ class ReviewConsolidator:
             if decision.requires_human_review:
                 requires_human_review = True
 
-            # Apply resolution
+            # Apply resolution using index-based tracking
             if decision.resolution == ConflictResolution.PRIORITIZE_FIRST:
-                excluded_findings.add(id(conflict.finding_b))
+                idx = finding_to_index.get(id(conflict.finding_b))
+                if idx is not None:
+                    excluded_indices.add(idx)
             elif decision.resolution == ConflictResolution.PRIORITIZE_SECOND:
-                excluded_findings.add(id(conflict.finding_a))
+                idx = finding_to_index.get(id(conflict.finding_a))
+                if idx is not None:
+                    excluded_indices.add(idx)
             elif decision.resolution == ConflictResolution.DEFER_TO_HUMAN:
                 requires_human_review = True
 
-        # Step 3: Build consolidated findings list
-        for finding in findings:
-            if id(finding) not in excluded_findings:
+        # Step 3: Build consolidated findings list using index-based exclusion
+        for i, finding in enumerate(findings):
+            if i not in excluded_indices:
                 resolved_findings.append(finding)
 
         # Step 4: Sort by priority (severity)
