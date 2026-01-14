@@ -537,7 +537,8 @@ class TestEdgeCases:
         result = scanner.scan("test@example.com 555-123-4567")
         for finding in result.findings:
             assert finding.evidence_hash is not None
-            assert len(finding.evidence_hash) == 16
+            # 32 hex chars (16 bytes) for better collision resistance
+            assert len(finding.evidence_hash) == 32
 
 
 class TestSummaryGeneration:

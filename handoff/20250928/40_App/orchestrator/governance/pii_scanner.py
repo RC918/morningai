@@ -138,7 +138,7 @@ class PIIScanner:
     # Email patterns
     EMAIL_PATTERNS: List[Tuple[str, str, str, PIIRiskLevel]] = [
         (
-            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b',
             "PII-EMAIL-001",
             "Email address detected",
             PIIRiskLevel.LOW,
@@ -739,8 +739,12 @@ class PIIScanner:
         return ". ".join(parts) + "."
 
     def _compute_evidence_hash(self, text: str) -> str:
-        """Compute SHA-256 hash of evidence for audit trail."""
-        return hashlib.sha256(text.encode()).hexdigest()[:16]
+        """Compute SHA-256 hash of evidence for audit trail.
+
+        Uses 32 hex chars (16 bytes) for better collision resistance
+        while keeping reasonable storage size for audit trail.
+        """
+        return hashlib.sha256(text.encode()).hexdigest()[:32]
 
 
 # Global singleton instance
