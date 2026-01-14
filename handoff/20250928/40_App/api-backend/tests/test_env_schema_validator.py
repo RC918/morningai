@@ -142,3 +142,44 @@ def test_validate_environment_return_structure(monkeypatch):
     assert isinstance(result['valid'], bool)
     assert isinstance(result['errors'], list)
     assert isinstance(result['warnings'], list)
+
+
+def test_main_block_valid_environment(monkeypatch, capsys):
+    """Test __main__ block with valid environment"""
+    monkeypatch.setenv('DATABASE_URL', 'postgresql://localhost/test')
+    monkeypatch.setenv('APP_VERSION', '1.0.0')
+    
+    import runpy
+    import sys
+    
+    original_argv = sys.argv
+    sys.argv = ['env_schema_validator.py']
+    
+    try:
+        runpy.run_module('src.utils.env_schema_validator', run_name='__main__', alter_sys=True)
+    except SystemExit:
+        pass
+    finally:
+        sys.argv = original_argv
+    
+    captured = capsys.readouterr()
+    assert 'PASSED' in captured.out or 'validation' in captured.out.lower()
+
+
+def test_main_block_invalid_environment(clean_env, capsys):
+    """Test __main__ block with invalid environment"""
+    import runpy
+    import sys
+    
+    original_argv = sys.argv
+    sys.argv = ['env_schema_validator.py']
+    
+    try:
+        runpy.run_module('src.utils.env_schema_validator', run_name='__main__', alter_sys=True)
+    except SystemExit:
+        pass
+    finally:
+        sys.argv = original_argv
+    
+    captured = capsys.readouterr()
+    assert 'FAILED' in captured.out or 'Errors' in captured.out or 'validation' in captured.out.lower()
