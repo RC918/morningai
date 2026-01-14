@@ -93,24 +93,27 @@ class ModelInfo:
 
 # Default model mappings per tier
 # Format: {tier: [(provider, model_name), ...]}
-# Cross-Generation Fallback: Tier 0/1 use AliCloud (Qwen3) as primary,
-# SiliconFlow (Qwen2.5) as degraded backup - no OpenAI/Gemini in fallback path
+# Gemini is primary provider, with AliCloud (Qwen) as secondary fallback
 DEFAULT_TIER_MODELS: Dict[Tier, List[tuple]] = {
     Tier.TIER_0: [
+        ("gemini", "gemini-2.0-flash"),
         ("alicloud", "qwen-max"),
-        ("siliconflow", "Qwen/Qwen2.5-72B-Instruct"),  # Cross-gen fallback
+        ("openai", "gpt-4o"),
     ],
     Tier.TIER_1: [
+        ("gemini", "gemini-2.0-flash"),
         ("alicloud", "qwen-plus"),
-        ("siliconflow", "Qwen/Qwen2.5-32B-Instruct"),  # Cross-gen fallback
+        ("openai", "gpt-4o-mini"),
     ],
     Tier.TIER_2: [
+        ("gemini", "gemini-2.0-flash"),
         ("alicloud", "qwen-turbo"),
-        ("siliconflow", "Qwen/Qwen2.5-32B-Instruct"),
+        ("openai", "gpt-4o-mini"),
     ],
     Tier.TIER_3: [
-        ("siliconflow", "Qwen/Qwen2.5-14B-Instruct"),
-        ("siliconflow", "Qwen/Qwen2.5-7B-Instruct"),
+        ("gemini", "gemini-2.0-flash"),
+        ("alicloud", "qwen-turbo"),
+        ("openai", "gpt-4o-mini"),
     ],
 }
 
@@ -118,18 +121,16 @@ DEFAULT_TIER_MODELS: Dict[Tier, List[tuple]] = {
 # Lower values = more cost-effective (preferred when cost_weight > 0)
 # Values are relative cost per 1K tokens (normalized)
 DEFAULT_PROVIDER_COSTS: Dict[str, float] = {
-    "alicloud": 0.5,      # Most cost-effective
-    "siliconflow": 0.6,   # Very cost-effective
-    "gemini": 0.8,        # Moderate cost
-    "openai": 1.0,        # Baseline cost
+    "gemini": 0.5,        # Most cost-effective (primary)
+    "alicloud": 0.6,      # Cost-effective (secondary)
+    "openai": 1.0,        # Baseline cost (fallback)
 }
 
 # Issue #2874: Provider preference scores (higher = more preferred)
 # Used when multiple providers have similar costs
 DEFAULT_PROVIDER_PREFERENCES: Dict[str, float] = {
-    "alicloud": 1.0,      # Primary provider
-    "siliconflow": 0.9,   # Secondary provider
-    "gemini": 0.8,        # Tertiary provider
+    "gemini": 1.0,        # Primary provider
+    "alicloud": 0.9,      # Secondary provider
     "openai": 0.7,        # Fallback provider
 }
 

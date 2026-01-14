@@ -398,7 +398,7 @@ class TestPolicyIntegrationWithSelectModel:
 
         engine = RoutingEngine(
             policy_path=custom_json,
-            available_providers=["siliconflow"]
+            available_providers=["gemini"]
         )
 
         model_info = engine.select_model(TaskType.PLANNING)
