@@ -35,7 +35,6 @@ Usage:
 """
 
 import logging
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
@@ -370,20 +369,18 @@ class PlannerHook(Protocol):
         ...
 
 
-class BasePlannerHook(ABC):
+class BasePlannerHook:
     """
-    Abstract base class for planner hooks.
+    Base class for planner hooks.
 
     Provides default implementations that pass through unchanged.
     Subclasses can override specific methods as needed.
     """
 
-    @abstractmethod
     def on_plan_created(self, plan: PlannerOutput) -> PlannerOutput:
         """Called after plan creation, can modify plan."""
         return plan
 
-    @abstractmethod
     def on_task_assigned(
         self, task: TaskNode, agent: str
     ) -> Tuple[TaskNode, str]:
@@ -446,13 +443,16 @@ class DebateHook(BasePlannerHook):
             from .debate_engine import (
                 DebateEngine,
                 create_debate_topic_from_plan,
-                should_trigger_debate,
             )
 
-            if not should_trigger_debate(plan):
-                return plan
-
-            topic = create_debate_topic_from_plan(plan)
+            # Create debate topic from plan context
+            risk_level_str = plan.risk_metadata.overall_risk.value
+            topic = create_debate_topic_from_plan(
+                goal=plan.goal,
+                risk_level=risk_level_str,
+                context={"plan_id": plan.plan_id},
+                category="strategy",
+            )
             engine = DebateEngine(trace_id=self.trace_id)
             result = engine.debate(topic)
 
