@@ -20,10 +20,9 @@ Used for complex reasoning, strategic planning, and critical decisions.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| AliCloud DashScope | qwen-max | 128,000 tokens |
-| SiliconFlow (fallback) | Qwen/Qwen2.5-72B-Instruct | 128,000 tokens |
-
-Fallback strategy: Cross-generation (Qwen3 to Qwen2.5-72B)
+| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| AliCloud DashScope (fallback) | qwen-max | 128,000 tokens |
+| OpenAI (fallback) | gpt-4o | 128,000 tokens |
 
 ### Tier 1 - High Capability
 
@@ -31,10 +30,9 @@ Used for code generation, detailed analysis, code review, and routing decisions.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| AliCloud DashScope | qwen-plus | 128,000 tokens |
-| SiliconFlow (fallback) | Qwen/Qwen2.5-32B-Instruct | 128,000 tokens |
-
-Fallback strategy: Cross-generation (Qwen3 to Qwen2.5-32B)
+| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| AliCloud DashScope (fallback) | qwen-plus | 128,000 tokens |
+| OpenAI (fallback) | gpt-4o-mini | 128,000 tokens |
 
 ### Tier 2 - Medium Capability
 
@@ -42,8 +40,9 @@ Used for standard tasks, translation, summarization, and general chat.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| AliCloud DashScope | qwen-turbo | 32,000 tokens |
-| SiliconFlow (fallback) | Qwen/Qwen2.5-32B-Instruct | 32,000 tokens |
+| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| AliCloud DashScope (fallback) | qwen-turbo | 32,000 tokens |
+| OpenAI (fallback) | gpt-4o-mini | 128,000 tokens |
 
 ### Tier 3 - Basic Capability
 
@@ -51,8 +50,9 @@ Used for simple tasks and UX copy generation.
 
 | Provider | Model | Context Limit |
 |----------|-------|---------------|
-| SiliconFlow | Qwen/Qwen2.5-14B-Instruct | 8,000 tokens |
-| SiliconFlow (fallback) | Qwen/Qwen2.5-7B-Instruct | 8,000 tokens |
+| Google Gemini (primary) | gemini-2.0-flash | 128,000 tokens |
+| AliCloud DashScope (fallback) | qwen-turbo | 32,000 tokens |
+| OpenAI (fallback) | gpt-4o-mini | 128,000 tokens |
 
 ## Task Type Mapping
 
@@ -86,14 +86,15 @@ Risk level modifies the effective tier by adjusting up or down:
 2. **Coding task with medium risk**: Tier 1 + 0 = Tier 1
 3. **Chat task with low risk**: Tier 2 + 1 = Tier 3
 
-## Cross-Generation Fallback Strategy
+## Provider Fallback Strategy
 
-Tiers 0 and 1 implement cross-generation fallback for resilience:
+All tiers implement a consistent fallback strategy for resilience:
 
-1. **Primary**: AliCloud DashScope Qwen3 models (qwen-max, qwen-plus)
-2. **Fallback**: SiliconFlow Qwen2.5 models (72B, 32B)
+1. **Primary**: Google Gemini (gemini-2.0-flash)
+2. **Secondary**: AliCloud DashScope Qwen models (qwen-max, qwen-plus, qwen-turbo)
+3. **Tertiary**: OpenAI models (gpt-4o, gpt-4o-mini)
 
-This strategy ensures service continuity even if the primary provider experiences issues. The fallback models are from a previous generation (Qwen2.5) but still provide acceptable quality for most tasks.
+This strategy ensures service continuity even if the primary provider experiences issues. The routing engine automatically selects the next available provider if the primary is unavailable.
 
 ## Provider Selection Logic
 
@@ -205,6 +206,7 @@ handoff/20250928/40_App/orchestrator/core/routing/routing_policy.json
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.3 | Jan 2026 | Changed provider order to Gemini-first, removed SiliconFlow |
 | 1.2 | Dec 2025 | Cross-generation fallback strategy, Qwen3/Qwen2.5 model lineup |
 | 1.1 | Nov 2025 | Added risk level adjustments |
 | 1.0 | Oct 2025 | Initial routing policy with tier system |

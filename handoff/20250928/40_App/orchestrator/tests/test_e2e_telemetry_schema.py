@@ -408,12 +408,12 @@ class TestRoutingEngineE2EIntegration:
 
     def test_routing_engine_selects_correct_tier_for_ux_copy(self):
         """Real RoutingEngine should select Tier 3 for UX copy tasks"""
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini"])
 
         model_info = engine.select_model(TaskType.UX_COPY)
 
         assert model_info.tier == Tier.TIER_3
-        assert model_info.provider == "siliconflow"
+        assert model_info.provider == "gemini"
 
     def test_routing_engine_handles_risk_level_adjustment(self):
         """Real RoutingEngine should adjust tier based on risk level"""
@@ -442,23 +442,22 @@ class TestRoutingEngineE2EIntegration:
 
     def test_routing_engine_fallback_mechanism(self):
         """Real RoutingEngine should select available provider in tier"""
-        # With Cross-Generation Fallback (Routing Policy v1.2), SiliconFlow
-        # is now a direct Tier 0 provider alongside AliCloud.
-        # When only SiliconFlow is available, it's a direct selection (not tier fallback).
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        # With Gemini-First policy (Routing Policy v1.3), Gemini is the primary
+        # provider for all tiers, with AliCloud as secondary and OpenAI as tertiary.
+        engine = RoutingEngine(available_providers=["gemini"])
 
         model_info = engine.select_model(TaskType.PLANNING)
 
-        # SiliconFlow is now in Tier 0 (Cross-Generation Fallback policy)
+        # Gemini is the primary provider in Tier 0 (Gemini-First policy)
         # So this is a direct selection, not a tier fallback
-        assert model_info.provider == "siliconflow"
+        assert model_info.provider == "gemini"
         assert model_info.tier == Tier.TIER_0
-        # is_fallback is False because SiliconFlow is directly in Tier 0
+        # is_fallback is False because Gemini is directly in Tier 0
         assert model_info.is_fallback is False
 
     def test_routing_engine_all_task_types(self):
         """Real RoutingEngine should handle all task types"""
-        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini", "alicloud"])
 
         for task_type in TaskType:
             model_info = engine.select_model(task_type)
@@ -730,13 +729,13 @@ class TestRoutingDecisionVerification:
 
     def test_summarization_task_uses_tier_2(self):
         """Summarization task should use Tier 2"""
-        engine = RoutingEngine(available_providers=["alicloud", "siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini", "alicloud"])
         model = engine.select_model(TaskType.SUMMARIZATION)
         assert model.tier == Tier.TIER_2
 
     def test_ux_copy_task_uses_tier_3(self):
         """UX copy task should use Tier 3 (basic capability)"""
-        engine = RoutingEngine(available_providers=["siliconflow"])
+        engine = RoutingEngine(available_providers=["gemini"])
         model = engine.select_model(TaskType.UX_COPY)
         assert model.tier == Tier.TIER_3
 
