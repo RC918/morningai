@@ -117,9 +117,14 @@ def __init__(self):
         assert 'test__private_function' not in result['test_code']
         assert 'test___init__' not in result['test_code']
 
+    @patch('agents.dev_agent.testing.llm_test_generator.settings')
     @patch('agents.dev_agent.testing.llm_test_generator.OpenAI')
-    def test_generate_tests_with_llm_success(self, mock_openai_class):
+    def test_generate_tests_with_llm_success(self, mock_openai_class, mock_settings):
         """Test generate_tests with successful LLM call"""
+        mock_settings.llm_test_generator_model = "qwen-max"
+        mock_settings.dashscope_api_key = "test-dashscope-key"
+        mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+        
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
         
@@ -137,7 +142,6 @@ def test_calculate_sum():
         mock_client.chat.completions.create.return_value = mock_response
         
         generator = LLMTestGenerator(
-            openai_api_key="test-key",
             enable_llm=True
         )
         
@@ -155,15 +159,19 @@ def calculate_sum(a, b):
         assert 'test_calculate_sum' in result['test_code']
         assert 'assert result == 5' in result['test_code']
 
+    @patch('agents.dev_agent.testing.llm_test_generator.settings')
     @patch('agents.dev_agent.testing.llm_test_generator.OpenAI')
-    def test_generate_tests_llm_fallback_on_error(self, mock_openai_class):
+    def test_generate_tests_llm_fallback_on_error(self, mock_openai_class, mock_settings):
         """Test generate_tests falls back to heuristic when LLM fails"""
+        mock_settings.llm_test_generator_model = "qwen-max"
+        mock_settings.dashscope_api_key = "test-dashscope-key"
+        mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+        
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
         mock_client.chat.completions.create.side_effect = Exception("API Error")
         
         generator = LLMTestGenerator(
-            openai_api_key="test-key",
             enable_llm=True,
             max_retries=1
         )
@@ -179,9 +187,14 @@ def calculate_sum(a, b):
         assert result['total_tests'] == 1
         assert 'test_calculate_sum' in result['test_code']
 
+    @patch('agents.dev_agent.testing.llm_test_generator.settings')
     @patch('agents.dev_agent.testing.llm_test_generator.OpenAI')
-    def test_generate_tests_llm_invalid_output_fallback(self, mock_openai_class):
+    def test_generate_tests_llm_invalid_output_fallback(self, mock_openai_class, mock_settings):
         """Test generate_tests falls back when LLM returns invalid output"""
+        mock_settings.llm_test_generator_model = "qwen-max"
+        mock_settings.dashscope_api_key = "test-dashscope-key"
+        mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+        
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
         
@@ -191,7 +204,6 @@ def calculate_sum(a, b):
         mock_client.chat.completions.create.return_value = mock_response
         
         generator = LLMTestGenerator(
-            openai_api_key="test-key",
             enable_llm=True,
             max_retries=1
         )
@@ -324,9 +336,14 @@ def test_my_function():
         assert generator.framework == "pytest"
         assert generator.enable_llm is False
 
+    @patch('agents.dev_agent.testing.llm_test_generator.settings')
     @patch('agents.dev_agent.testing.llm_test_generator.OpenAI')
-    def test_llm_retry_mechanism(self, mock_openai_class):
+    def test_llm_retry_mechanism(self, mock_openai_class, mock_settings):
         """Test LLM retries on failure"""
+        mock_settings.llm_test_generator_model = "qwen-max"
+        mock_settings.dashscope_api_key = "test-dashscope-key"
+        mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+        
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
         
@@ -346,7 +363,6 @@ def test_my_func():
         ]
         
         generator = LLMTestGenerator(
-            openai_api_key="test-key",
             enable_llm=True,
             max_retries=2
         )
