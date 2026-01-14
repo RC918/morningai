@@ -44,7 +44,7 @@ Usage:
 import logging
 import threading
 import time
-from typing import Optional, Literal
+from typing import Any, Optional, Literal
 
 from common.config.settings import settings
 from .providers.base import LLMResponse
@@ -463,9 +463,10 @@ class LLMClient:
         # EPIC I-1: Runtime Drift Detection (observe-only by default)
         # This hook validates LLM responses without blocking requests
         # unless DRIFT_DETECTION_BLOCK_ON_FAIL=true
+        drift_result = None
         try:
             from governance.drift_detector import observe_response, DriftDetectedError
-            observe_response(
+            drift_result = observe_response(
                 response=response,
                 json_mode=json_mode,
                 provider=self._provider_name,
@@ -481,6 +482,83 @@ class LLMClient:
                 f"[LLMClient] Drift detection error (non-blocking): {e}",
                 extra={"provider": self._provider_name, "model": self.model}
             )
+
+        # EPIC I-2b: Drift-Triggered Retry (disabled by default)
+        # If drift is detected and retry is enabled, attempt retry with higher-tier model
+        if drift_result and drift_result.has_drift:
+            try:
+                from governance.drift_retry import should_retry_on_drift
+
+                # Calculate elapsed time for remaining timeout
+                elapsed_seconds = time.time() - start_time
+                remaining_timeout = None
+                if effective_timeout:
+                    remaining_timeout = max(0, effective_timeout - elapsed_seconds)
+                    if remaining_timeout <= 0:
+                        logger.warning(
+                            "[LLMClient] Drift retry skipped: timeout exhausted",
+                            extra={"provider": self._provider_name, "model": self.model}
+                        )
+                        return response
+
+                # Calculate original cost from response usage for cost cap enforcement
+                # Use the cost from the very first attempt, not subsequent retries
+                current_cost = self._estimate_request_cost(response)
+                original_cost = kwargs.get('_original_cost') or current_cost
+
+                retry_decision = should_retry_on_drift(
+                    drift_events=drift_result.events,
+                    task_type=kwargs.get('task_type'),
+                    attempt_count=kwargs.get('_drift_retry_attempt', 0),
+                    original_cost=original_cost,
+                    current_model=self.model,
+                    current_provider=self._provider_name
+                )
+
+                if retry_decision.should_retry:
+                    logger.info(
+                        f"[LLMClient] Drift retry triggered: "
+                        f"reason={retry_decision.reason}, "
+                        f"retry_model={retry_decision.retry_model}",
+                        extra={
+                            "operation": "drift_retry",
+                            "original_model": self.model,
+                            "retry_model": retry_decision.retry_model,
+                            "attempt": retry_decision.metadata.get('attempt_count', 1),
+                            "original_cost": original_cost,
+                            "remaining_timeout": remaining_timeout
+                        }
+                    )
+
+                    # Create new client with higher-tier model and retry
+                    retry_client = LLMClient(
+                        provider=retry_decision.retry_provider or self._provider_name,
+                        model=retry_decision.retry_model,
+                        timeout=self._timeout
+                    )
+
+                    # Track retry attempt and original cost to prevent infinite loops
+                    retry_kwargs = kwargs.copy()
+                    retry_kwargs['_drift_retry_attempt'] = kwargs.get('_drift_retry_attempt', 0) + 1
+                    retry_kwargs['_original_cost'] = original_cost
+
+                    return retry_client.generate(
+                        prompt=prompt,
+                        system_prompt=system_prompt,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        json_mode=json_mode,
+                        timeout=remaining_timeout,
+                        **retry_kwargs
+                    )
+            except ImportError:
+                pass  # Drift retry not available, continue normally
+            except Exception as e:
+                # Log retry errors but don't block - return original response
+                logger.warning(
+                    f"[LLMClient] Drift retry error (non-blocking): {e}",
+                    extra={"provider": self._provider_name, "model": self.model}
+                )
 
         return response
 
@@ -541,6 +619,59 @@ class LLMClient:
                 f"[LLMClient] Failed to record provider metrics: {e}",
                 extra={"provider": self._provider_name}
             )
+
+    def _estimate_request_cost(self, response: Any) -> float:
+        """
+        Estimate the cost of a request based on response usage.
+
+        EPIC I-2b: Cost estimation for drift retry cost cap enforcement.
+
+        This uses approximate token costs. For more accurate costs,
+        integrate with a dedicated cost tracking service.
+
+        Args:
+            response: The LLM response object with usage information
+
+        Returns:
+            Estimated cost in USD (approximate)
+        """
+        try:
+            usage = getattr(response, 'usage', None)
+            if not usage:
+                return 0.0
+
+            prompt_tokens = getattr(usage, 'prompt_tokens', 0) or 0
+            completion_tokens = getattr(usage, 'completion_tokens', 0) or 0
+            total_tokens = prompt_tokens + completion_tokens
+
+            if total_tokens == 0:
+                return 0.0
+
+            # Approximate cost per 1K tokens (USD)
+            # These are rough estimates and may need adjustment
+            cost_per_1k = {
+                "qwen-max": 0.004,
+                "qwen-plus": 0.002,
+                "qwen-turbo": 0.001,
+                "qwen-72b": 0.003,
+                "qwen-14b": 0.001,
+                "gpt-4o": 0.01,
+                "gpt-3.5-turbo": 0.002,
+                "gemini-1.5-pro": 0.007,
+                "gemini-1.5-flash": 0.0015,
+            }
+
+            rate = cost_per_1k.get(self.model, 0.002)  # Default to mid-tier cost
+            estimated_cost = (total_tokens / 1000) * rate
+
+            return estimated_cost
+
+        except Exception as e:
+            logger.debug(
+                f"[LLMClient] Failed to estimate request cost: {e}",
+                extra={"provider": self._provider_name, "model": self.model}
+            )
+            return 0.0
 
     def is_available(self) -> bool:
         """Check if the configured provider is available"""

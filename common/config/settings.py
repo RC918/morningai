@@ -660,6 +660,47 @@ class Settings(BaseSettings):
         description="Sample rate for drift detection (0.0-1.0) (EPIC I-1)"
     )
 
+    # EPIC I-2b: Drift-Triggered Retry (Blueprint 4.3 - Model Governance Framework v2)
+    drift_retry_enabled: bool = Field(
+        default=False,
+        alias="DRIFT_RETRY_ENABLED",
+        description="Enable drift-triggered retry with higher-tier model (EPIC I-2b)"
+    )
+
+    drift_retry_max_retries: int = Field(
+        default=1,
+        ge=0,
+        le=2,
+        alias="DRIFT_RETRY_MAX_RETRIES",
+        description="Maximum retry attempts per request (EPIC I-2b)"
+    )
+
+    drift_retry_eligible_drift_types: str = Field(
+        default="json_parse_error,schema_violation,empty_response",
+        alias="DRIFT_RETRY_ELIGIBLE_DRIFT_TYPES",
+        description="Comma-separated drift types eligible for retry (EPIC I-2b)"
+    )
+
+    drift_retry_model_tier: str = Field(
+        default="higher",
+        alias="DRIFT_RETRY_MODEL_TIER",
+        description="Model tier for retry: same, higher, highest (EPIC I-2b)"
+    )
+
+    drift_retry_cost_cap_multiplier: float = Field(
+        default=2.0,
+        ge=1.0,
+        le=5.0,
+        alias="DRIFT_RETRY_COST_CAP_MULTIPLIER",
+        description="Maximum cost increase allowed for retry (EPIC I-2b)"
+    )
+
+    drift_retry_eligible_task_types: str = Field(
+        default="code_generation,code_review",
+        alias="DRIFT_RETRY_ELIGIBLE_TASK_TYPES",
+        description="Comma-separated task types eligible for retry (EPIC I-2b)"
+    )
+
     # EPIC I-2: Provider Health Scoring (Blueprint 4.3 - Model Governance Framework v2)
     provider_health_enabled: bool = Field(
         default=True,
@@ -1867,6 +1908,20 @@ class Settings(BaseSettings):
         default=False,
         alias="USE_AGENT_ASSIGNMENT",
         description="Enable F-4 Agent Assignment: rule-based agent assignment based on task type and risk level. When enabled, AgentAssigner applies assignments to all tasks in a plan."
+    )
+
+    # EPIC F Stage 3: Model Tier Selection + Decision Hooks
+    # Blueprint Section F-6: Rule-based model tier selection and planner hooks
+    use_model_tier_selection: bool = Field(
+        default=False,
+        alias="USE_MODEL_TIER_SELECTION",
+        description="Enable F-6 Model Tier Selection: rule-based model tier selection based on task characteristics. When enabled, ModelTierSelector assigns tiers (tier_0 to tier_3) to all tasks in a plan."
+    )
+
+    use_debate_hook: bool = Field(
+        default=False,
+        alias="USE_DEBATE_HOOK",
+        description="Enable F-6 Debate Hook: triggers Debate Engine v2 for high-risk plans. When enabled, DebateHook invokes adversarial collaboration for critical decisions."
     )
 
     senior_coder_strict_schema_validation: bool = Field(
