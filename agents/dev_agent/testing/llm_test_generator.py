@@ -38,7 +38,7 @@ class LLMTestGenerator(TestGenerator):
         self,
         framework: str = "pytest",
         openai_api_key: Optional[str] = None,
-        model: str = "gpt-4",
+        model: Optional[str] = None,
         enable_llm: bool = True,
         max_retries: int = 2
     ):
@@ -48,25 +48,38 @@ class LLMTestGenerator(TestGenerator):
         Args:
             framework: Test framework to use (pytest, unittest)
             openai_api_key: OpenAI API key (defaults to settings)
-            model: OpenAI model to use (gpt-4, gpt-4-turbo-preview)
+            model: Model to use (defaults to settings.llm_test_generator_model)
             enable_llm: Whether to use LLM (False = heuristic only)
             max_retries: Maximum retries for LLM calls
         """
         super().__init__(framework=framework)
         
         self.enable_llm = enable_llm
-        self.model = model
+        # Use centralized setting instead of hardcoded default
+        self.model = model or settings.llm_test_generator_model
         self.max_retries = max_retries
         self.openai_client = None
         
         if enable_llm:
-            api_key = openai_api_key or settings.openai_api_key
+            # Determine provider from model name and use appropriate API key/endpoint
+            api_key = None
+            base_url = None
+            
+            if 'qwen' in self.model.lower():
+                # Alicloud DashScope (OpenAI-compatible endpoint)
+                api_key = settings.dashscope_api_key
+                base_url = settings.dashscope_base_url
+            else:
+                # Default to OpenAI
+                api_key = openai_api_key or settings.openai_api_key
+            
             if api_key:
-                self.openai_client = OpenAI(api_key=api_key)
-                logger.info(f"LLM Test Generator initialized with {model}")
+                self.openai_client = OpenAI(api_key=api_key, base_url=base_url)
+                logger.info(f"LLM Test Generator initialized with {self.model}")
             else:
                 logger.warning(
-                    "OpenAI API key not configured, falling back to heuristic mode"
+                    "API key not configured for model '%s', falling back to heuristic mode",
+                    self.model
                 )
                 self.enable_llm = False
 

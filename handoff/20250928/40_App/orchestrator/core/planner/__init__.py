@@ -120,6 +120,16 @@ from .model_tier_selection import (
     apply_model_tiers_and_hooks,
 )
 
+from .review_consolidation import (
+    ConflictType,
+    ConflictResolution,
+    Conflict,
+    ArbitrationDecision,
+    ConsolidatedReview,
+    ConflictDetector,
+    ReviewConsolidator,
+    consolidate_review_findings,
+)
 __all__ = [
     # Planner types
     "TaskType",
@@ -206,4 +216,13 @@ __all__ = [
     "ProviderHealthProvider",
     "HookChain",
     "apply_model_tiers_and_hooks",
+    # Review Consolidation (Phase F-5.5)
+    "ConflictType",
+    "ConflictResolution",
+    "Conflict",
+    "ArbitrationDecision",
+    "ConsolidatedReview",
+    "ConflictDetector",
+    "ReviewConsolidator",
+    "consolidate_review_findings",
 ]

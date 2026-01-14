@@ -553,6 +553,12 @@ class Settings(BaseSettings):
         description="OpenAI model for dev agent"
     )
 
+    llm_test_generator_model: str = Field(
+        default="qwen-max",
+        alias="LLM_TEST_GENERATOR_MODEL",
+        description="Model for LLM test generator (defaults to qwen-max for Alicloud)"
+    )
+
     dev_agent_endpoint: Optional[str] = Field(
         None,
         alias="DEV_AGENT_ENDPOINT",
@@ -1845,6 +1851,14 @@ class Settings(BaseSettings):
         le=5,
         alias="SELF_REFINEMENT_MAX_FULL_REPLANS",
         description="Maximum full plan replans (F-5). After this limit, escalates to HITL. Valid range: 1-5."
+    )
+
+    # EPIC F Stage 3: Review Consolidation - Judge Agent Arbitration
+    # Blueprint Section F-5.5: Conflict detection and arbitration for MultiSpecialistReviewer
+    use_review_consolidation: bool = Field(
+        default=False,
+        alias="USE_REVIEW_CONSOLIDATION",
+        description="Enable F-5.5 Review Consolidation: conflict detection and Judge Agent arbitration for MultiSpecialistReviewer findings. When enabled, ReviewConsolidator resolves conflicting specialist opinions."
     )
 
     # EPIC F Stage 3: Agent Assignment + Flow Template Selection
