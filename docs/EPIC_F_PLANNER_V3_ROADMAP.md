@@ -704,6 +704,79 @@ class Replanner:
 
 ---
 
+### Phase F-5.5: Review Consolidation - Judge Agent Arbitration
+
+> **Type**: Extension to F-5
+> **Issue**: [#3919](https://github.com/RC918/morningai/issues/3919)
+> **Effort**: Medium (3-5 days)
+> **Blueprint Alignment**: Section 3.1 (Planner v3), Section 3.3 (Judge Agent)
+
+**Problem**: When MultiSpecialistReviewer (B-9) returns conflicting opinions from different specialists, there's no mechanism for the Planner to arbitrate. This can cause Coder to enter "infinite loop" - fixing A breaks B, fixing B breaks A.
+
+**Solution**: Extend F-5 Self-refinement Loop with Review Consolidation using Judge Agent.
+
+**Implementation Plan**:
+
+1. **Conflict Detection**:
+   ```python
+   class ReviewConsolidator:
+       """Consolidates conflicting reviewer opinions using Judge Agent"""
+       
+       def _detect_conflicts(self, findings: SpecialistFindings) -> List[Conflict]:
+           """Detect conflicting recommendations between specialists"""
+           # e.g., Security says add checks, Performance says remove checks
+           ...
+   ```
+
+2. **Judge Agent Arbitration**:
+   ```python
+   def consolidate(
+       self,
+       findings: SpecialistFindings,
+       task_context: TaskContext
+   ) -> ConsolidatedReview:
+       """
+       1. Detect conflicts between specialist opinions
+       2. If conflicts exist, invoke Judge Agent for arbitration
+       3. Return prioritized, non-conflicting action items
+       """
+       conflicts = self._detect_conflicts(findings)
+       
+       if conflicts:
+           # Judge Agent arbitrates based on task context
+           # e.g., for login API, Security > Performance
+           arbitration = self.judge.arbitrate(conflicts, task_context)
+           return self._apply_arbitration(findings, arbitration)
+       
+       return ConsolidatedReview(findings=findings.findings)
+   ```
+
+3. **Integration with Replanner**:
+   - Consolidated review output compatible with Replanner
+   - Context-aware prioritization (e.g., Security > Performance for auth APIs)
+
+**Integration Points**:
+```
+MultiSpecialistReviewer (B-9)
+        ↓
+ReviewConsolidator (F-5.5) ← Judge Agent
+        ↓
+Replanner (F-5)
+        ↓
+Coder Agent (D-4)
+```
+
+**Acceptance Criteria**:
+- [ ] Conflict detection logic for specialist opinions
+- [ ] Judge Agent integration for arbitration
+- [ ] Context-aware prioritization
+- [ ] Consolidated review output compatible with Replanner
+- [ ] Telemetry for arbitration decisions
+
+**Related**: B-9.5 Priority-based Filtering ([#3918](https://github.com/RC918/morningai/issues/3918))
+
+---
+
 ### Phase F-6: Model Tier Selection + Decision Hooks (原 F-5)
 
 **Objective**: Implement rule-based model tier selection and prepare hooks for advanced features.
