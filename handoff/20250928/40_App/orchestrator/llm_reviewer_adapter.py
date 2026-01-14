@@ -742,6 +742,13 @@ class LLMReviewerAdapter:
             "repo": repo,
         }
 
+        file_list = None
+        if diff_files:
+            file_list = [
+                f.get("filename", "") if isinstance(f, dict) else str(f)
+                for f in diff_files
+            ]
+
         if settings.use_multi_specialist_review and diff:
             try:
                 logger.info(
@@ -759,24 +766,27 @@ class LLMReviewerAdapter:
                 )
                 result["multi_specialist_findings"] = specialist_findings
 
-                if specialist_findings.get("finding_count", 0) > 0:
+                if specialist_findings and specialist_findings.get("finding_count", 0) > 0:
                     specialist_severity = specialist_findings.get("overall_severity", "none")
                     result["severity"] = combine_severity(
                         result["severity"], specialist_severity
                     )
 
+                finding_count = specialist_findings.get("finding_count", 0) if specialist_findings else 0
+                overall_severity = specialist_findings.get("overall_severity", "none") if specialist_findings else "none"
                 logger.info(
                     "[LLM Reviewer] B-9 Multi-Specialist Review completed",
                     extra={
                         "operation": "multi_specialist_review",
                         "trace_id": self.trace_id,
-                        "finding_count": specialist_findings.get("finding_count", 0),
-                        "overall_severity": specialist_findings.get("overall_severity", "none"),
+                        "finding_count": finding_count,
+                        "overall_severity": overall_severity,
                     }
                 )
             except Exception as e:
                 logger.warning(
-                    f"[LLM Reviewer] B-9 Multi-Specialist Review failed: {e}",
+                    "[LLM Reviewer] B-9 Multi-Specialist Review failed: %s",
+                    e,
                     extra={
                         "operation": "multi_specialist_review",
                         "trace_id": self.trace_id,
@@ -794,12 +804,6 @@ class LLMReviewerAdapter:
                         "pr_number": pr_number,
                     }
                 )
-                file_list = None
-                if diff_files:
-                    file_list = [
-                        f.get("filename", "") if isinstance(f, dict) else str(f)
-                        for f in diff_files
-                    ]
                 coverage_gaps = analyze_test_coverage(
                     diff_content=diff,
                     diff_files=file_list,
@@ -807,17 +811,19 @@ class LLMReviewerAdapter:
                 )
                 result["test_coverage_gaps"] = coverage_gaps
 
+                gap_count = coverage_gaps.get("gap_count", 0) if coverage_gaps else 0
                 logger.info(
                     "[LLM Reviewer] B-11 Test Coverage Flagging completed",
                     extra={
                         "operation": "test_coverage_flagging",
                         "trace_id": self.trace_id,
-                        "gap_count": coverage_gaps.get("gap_count", 0),
+                        "gap_count": gap_count,
                     }
                 )
             except Exception as e:
                 logger.warning(
-                    f"[LLM Reviewer] B-11 Test Coverage Flagging failed: {e}",
+                    "[LLM Reviewer] B-11 Test Coverage Flagging failed: %s",
+                    e,
                     extra={
                         "operation": "test_coverage_flagging",
                         "trace_id": self.trace_id,
@@ -835,12 +841,6 @@ class LLMReviewerAdapter:
                         "pr_number": pr_number,
                     }
                 )
-                file_list = None
-                if diff_files:
-                    file_list = [
-                        f.get("filename", "") if isinstance(f, dict) else str(f)
-                        for f in diff_files
-                    ]
                 dependency_issues = analyze_dependencies(
                     diff_content=diff,
                     diff_files=file_list,
@@ -848,7 +848,7 @@ class LLMReviewerAdapter:
                 )
                 result["dependency_issues"] = dependency_issues
 
-                if dependency_issues.get("issue_count", 0) > 0:
+                if dependency_issues and dependency_issues.get("issue_count", 0) > 0:
                     for issue in dependency_issues.get("issues", []):
                         issue_severity = issue.get("severity", "low")
                         if issue_severity in ("high", "critical"):
@@ -857,17 +857,19 @@ class LLMReviewerAdapter:
                             )
                             break
 
+                issue_count = dependency_issues.get("issue_count", 0) if dependency_issues else 0
                 logger.info(
                     "[LLM Reviewer] B-12 Dependency Analysis completed",
                     extra={
                         "operation": "dependency_analysis",
                         "trace_id": self.trace_id,
-                        "issue_count": dependency_issues.get("issue_count", 0),
+                        "issue_count": issue_count,
                     }
                 )
             except Exception as e:
                 logger.warning(
-                    f"[LLM Reviewer] B-12 Dependency Analysis failed: {e}",
+                    "[LLM Reviewer] B-12 Dependency Analysis failed: %s",
+                    e,
                     extra={
                         "operation": "dependency_analysis",
                         "trace_id": self.trace_id,
