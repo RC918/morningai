@@ -61,13 +61,25 @@ class LLMTestGenerator(TestGenerator):
         self.openai_client = None
         
         if enable_llm:
-            api_key = openai_api_key or settings.openai_api_key
+            # Determine provider from model name and use appropriate API key/endpoint
+            api_key = None
+            base_url = None
+            
+            if 'qwen' in self.model.lower():
+                # Alicloud DashScope (OpenAI-compatible endpoint)
+                api_key = settings.dashscope_api_key
+                base_url = settings.dashscope_base_url
+            else:
+                # Default to OpenAI
+                api_key = openai_api_key or settings.openai_api_key
+            
             if api_key:
-                self.openai_client = OpenAI(api_key=api_key)
+                self.openai_client = OpenAI(api_key=api_key, base_url=base_url)
                 logger.info(f"LLM Test Generator initialized with {self.model}")
             else:
                 logger.warning(
-                    "OpenAI API key not configured, falling back to heuristic mode"
+                    "API key not configured for model '%s', falling back to heuristic mode",
+                    self.model
                 )
                 self.enable_llm = False
 

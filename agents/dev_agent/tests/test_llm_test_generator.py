@@ -20,14 +20,14 @@ class TestLLMTestGenerator:
     """Test suite for LLMTestGenerator"""
 
     def test_initialization_with_api_key(self):
-        """Test LLMTestGenerator initializes with API key"""
+        """Test LLMTestGenerator initializes with API key for qwen model"""
         with patch('agents.dev_agent.testing.llm_test_generator.settings') as mock_settings:
-            mock_settings.openai_api_key = "test-key"
             mock_settings.llm_test_generator_model = "qwen-max"
+            mock_settings.dashscope_api_key = "test-dashscope-key"
+            mock_settings.dashscope_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
             
             generator = LLMTestGenerator(
                 framework="pytest",
-                openai_api_key="test-key",
                 enable_llm=True
             )
             
