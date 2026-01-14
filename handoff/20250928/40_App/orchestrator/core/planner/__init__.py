@@ -96,6 +96,14 @@ from .self_refinement import (
     SelfRefinementLoop,
 )
 
+from .agent_assignment import (
+    AssignmentContext,
+    SelectionContext,
+    AgentAssigner,
+    FlowTemplateSelector,
+    assign_and_select,
+)
+
 __all__ = [
     # Planner types
     "TaskType",
@@ -162,4 +170,10 @@ __all__ = [
     "Replanner",
     "RefinementResult",
     "SelfRefinementLoop",
+    # Agent Assignment (Phase F-4)
+    "AssignmentContext",
+    "SelectionContext",
+    "AgentAssigner",
+    "FlowTemplateSelector",
+    "assign_and_select",
 ]
