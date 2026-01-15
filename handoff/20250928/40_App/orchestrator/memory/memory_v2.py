@@ -264,14 +264,16 @@ class ShortTermMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if self._matches_filter(entry, scope, trace_id):
-                                results.append(entry)
-                                if len(results) >= limit:
-                                    return results
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for data in values:
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if self._matches_filter(entry, scope, trace_id):
+                                    results.append(entry)
+                                    if len(results) >= limit:
+                                        return results
                     if cursor == 0:
                         break
             else:
@@ -336,12 +338,14 @@ class ShortTermMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if self._matches_filter(entry, scope, trace_id):
-                                keys_to_delete.append(key)
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for key, data in zip(keys, values):
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if self._matches_filter(entry, scope, trace_id):
+                                    keys_to_delete.append(key)
                     if cursor == 0:
                         break
 
@@ -472,15 +476,17 @@ class AgentInteractionMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if query.lower() in entry.content.lower():
-                                if self._matches_filter(entry, scope, trace_id):
-                                    results.append(entry)
-                                    if len(results) >= limit:
-                                        return results
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for data in values:
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if query.lower() in entry.content.lower():
+                                    if self._matches_filter(entry, scope, trace_id):
+                                        results.append(entry)
+                                        if len(results) >= limit:
+                                            return results
                     if cursor == 0:
                         break
             else:
@@ -545,12 +551,14 @@ class AgentInteractionMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if self._matches_filter(entry, scope, trace_id):
-                                keys_to_delete.append(key)
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for key, data in zip(keys, values):
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if self._matches_filter(entry, scope, trace_id):
+                                    keys_to_delete.append(key)
                     if cursor == 0:
                         break
 
