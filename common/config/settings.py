@@ -779,6 +779,82 @@ class Settings(BaseSettings):
         description="Error rate threshold (%) that triggers immediate alert (EPIC I-3a)"
     )
 
+    # EPIC C: Router Metrics Alerting (Flow Controller v3 - Issue #3499)
+    router_metrics_alerting_enabled: bool = Field(
+        default=False,
+        alias="ROUTER_METRICS_ALERTING_ENABLED",
+        description="Enable router metrics alerting (EPIC C - Issue #3499)"
+    )
+
+    router_alert_success_rate_threshold: float = Field(
+        default=0.95,
+        ge=0.0,
+        le=1.0,
+        alias="ROUTER_ALERT_SUCCESS_RATE_THRESHOLD",
+        description="Success rate below which critical alerts are triggered (EPIC C)"
+    )
+
+    router_alert_latency_p99_threshold_ms: float = Field(
+        default=5000.0,
+        ge=0.0,
+        alias="ROUTER_ALERT_LATENCY_P99_THRESHOLD_MS",
+        description="P99 latency (ms) above which critical alerts are triggered (EPIC C)"
+    )
+
+    router_alert_fallback_rate_threshold: float = Field(
+        default=0.20,
+        ge=0.0,
+        le=1.0,
+        alias="ROUTER_ALERT_FALLBACK_RATE_THRESHOLD",
+        description="Fallback rate above which warning alerts are triggered (EPIC C)"
+    )
+
+    router_alert_slow_path_ratio_threshold: float = Field(
+        default=0.50,
+        ge=0.0,
+        le=1.0,
+        alias="ROUTER_ALERT_SLOW_PATH_RATIO_THRESHOLD",
+        description="Slow path ratio above which warning alerts are triggered (EPIC C)"
+    )
+
+    router_alert_cooldown_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=1440,
+        alias="ROUTER_ALERT_COOLDOWN_MINUTES",
+        description="Cooldown period between alerts for the same alert type (EPIC C)"
+    )
+
+    router_alert_min_decisions: int = Field(
+        default=10,
+        ge=1,
+        le=1000,
+        alias="ROUTER_ALERT_MIN_DECISIONS",
+        description="Minimum routing decisions in window before alerting (EPIC C)"
+    )
+
+    router_alert_window_minutes: int = Field(
+        default=15,
+        ge=1,
+        le=60,
+        alias="ROUTER_ALERT_WINDOW_MINUTES",
+        description="Time window in minutes for metrics evaluation (EPIC C)"
+    )
+
+    router_alert_interval_minutes: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+        alias="ROUTER_ALERT_INTERVAL_MINUTES",
+        description="Evaluation interval in minutes (EPIC C)"
+    )
+
+    pagerduty_routing_key: Optional[str] = Field(
+        default=None,
+        alias="PAGERDUTY_ROUTING_KEY",
+        description="PagerDuty Events API v2 routing key for critical alerts"
+    )
+
     # EPIC I-4: Auto-Degradation Advisory (Blueprint 4.3 - Model Governance Framework v2)
     degradation_advisory_enabled: bool = Field(
         default=False,

@@ -2208,6 +2208,70 @@ def run_memory_consolidation_scheduler():
             sentry_sdk.capture_exception(e)
 
 
+def run_router_metrics_alert_scheduler():
+    """
+    Background thread to run router metrics alert evaluator.
+
+    EPIC C: Flow Controller v3 - Issue #3499
+    Scheduled Alert Evaluator for RouterMetrics.
+
+    Configuration (via environment variables):
+    - ROUTER_METRICS_ALERTING_ENABLED: Must be 'true' to enable (default: false)
+    - ROUTER_ALERT_INTERVAL_MINUTES: Evaluation interval (default: 5)
+    - ROUTER_ALERT_COOLDOWN_MINUTES: Cooldown between same alerts (default: 15)
+    - SLACK_WEBHOOK_URL: Slack webhook for notifications
+    - PAGERDUTY_ROUTING_KEY: PagerDuty routing key for critical alerts
+    """
+    try:
+        from governance.router_metrics_alerter import get_router_metrics_alert_evaluator
+
+        evaluator = get_router_metrics_alert_evaluator()
+        if evaluator is None:
+            logger.info(
+                "Router metrics alert scheduler disabled (ROUTER_METRICS_ALERTING_ENABLED=false)",
+                extra={"operation": "router_metrics_alerting"}
+            )
+            return
+
+        # Start the scheduler - it will run in its own thread internally
+        # Pass interval_minutes from settings (Cursor Bugbot fix)
+        interval_minutes = getattr(settings, "router_alert_interval_minutes", 5)
+        evaluator.start_scheduler(interval_minutes=interval_minutes)
+        logger.info(
+            f"Router metrics alert scheduler started (interval={evaluator.interval_minutes}m, "
+            f"cooldown={evaluator.cooldown_minutes}m)",
+            extra={
+                "operation": "router_metrics_alerting",
+                "interval_minutes": evaluator.interval_minutes,
+                "cooldown_minutes": evaluator.cooldown_minutes,
+            }
+        )
+
+        # Wait for shutdown signal
+        while not shutdown_event.is_set():
+            shutdown_event.wait(60)
+
+        # Stop the scheduler on shutdown
+        evaluator.stop_scheduler()
+        logger.info(
+            "Router metrics alert scheduler stopped",
+            extra={"operation": "router_metrics_alerting"}
+        )
+
+    except ImportError as e:
+        logger.debug(
+            f"Router metrics alerting not available: {e}",
+            extra={"operation": "router_metrics_alerting"}
+        )
+    except Exception as e:
+        logger.warning(
+            f"Router metrics alert scheduler failed to start: {e}",
+            extra={"operation": "router_metrics_alerting", "error": str(e)}
+        )
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+
+
 def cleanup_stale_legacy_worker():
     """
     Defensive cleanup for stale legacy 'worker-local' registrations.
@@ -2348,6 +2412,22 @@ if __name__ == "__main__":
             "rq_worker_name": RQ_WORKER_NAME,
         }
     )
+
+    # EPIC C: Router Metrics Alert Scheduler (Issue #3499)
+    router_metrics_alert_thread = threading.Thread(
+        target=run_router_metrics_alert_scheduler,
+        daemon=False,
+        name="RouterMetricsAlertThread"
+    )
+    router_metrics_alert_thread.start()
+    logger.info(
+        "Router metrics alert scheduler thread started",
+        extra={
+            "operation": "startup",
+            "heartbeat_id": HEARTBEAT_ID,
+            "rq_worker_name": RQ_WORKER_NAME,
+        }
+    )
     
     readonly_sleep_seconds = settings.redis_readonly_sleep_seconds
     readonly_max_retries = settings.redis_readonly_max_retries
@@ -2423,6 +2503,15 @@ if __name__ == "__main__":
                         if memory_consolidation_thread.is_alive():
                             logger.warning(
                                 "Memory consolidation thread did not stop within timeout before restart",
+                                extra={"operation": "self_healing_restart", "heartbeat_id": HEARTBEAT_ID}
+                            )
+
+                    # Wait for router metrics alert thread to stop (EPIC C - Issue #3499)
+                    if router_metrics_alert_thread and router_metrics_alert_thread.is_alive():
+                        router_metrics_alert_thread.join(timeout=5)
+                        if router_metrics_alert_thread.is_alive():
+                            logger.warning(
+                                "Router metrics alert thread did not stop within timeout before restart",
                                 extra={"operation": "self_healing_restart", "heartbeat_id": HEARTBEAT_ID}
                             )
                     
