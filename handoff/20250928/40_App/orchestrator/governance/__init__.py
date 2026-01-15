@@ -332,3 +332,32 @@ except ImportError as e:
     DEFAULT_CAPABILITIES = None
     create_principal_context = None
     get_principal_from_context = None
+
+try:
+    from .routing_policy_evolver import (
+        RoutingPolicyEvolver,
+        RoutingPolicyChange,
+        ChangeType,
+        ChangeStatus,
+        ChangeReason,
+        get_routing_policy_evolver,
+        reset_routing_policy_evolver,
+    )
+    __all__.extend([
+        'RoutingPolicyEvolver',
+        'RoutingPolicyChange',
+        'ChangeType',
+        'ChangeStatus',
+        'ChangeReason',
+        'get_routing_policy_evolver',
+        'reset_routing_policy_evolver',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import routing_policy_evolver: {e}")
+    RoutingPolicyEvolver = None
+    RoutingPolicyChange = None
+    ChangeType = None
+    ChangeStatus = None
+    ChangeReason = None
+    get_routing_policy_evolver = None
+    reset_routing_policy_evolver = None

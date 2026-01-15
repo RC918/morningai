@@ -586,9 +586,11 @@ def _run_benchmark_evaluation(
             BenchmarkScheduleType,
         )
         from governance.capability_score_manager import get_capability_score_manager
+        from governance.routing_policy_evolver import get_routing_policy_evolver
 
         evaluator = get_benchmark_evaluator(redis_client)
         score_manager = get_capability_score_manager(redis_client)
+        policy_evolver = get_routing_policy_evolver(redis_client)
 
         # Check weekly full benchmark
         if _should_run_benchmark(redis_client, "weekly_full"):
@@ -617,7 +619,13 @@ def _run_benchmark_evaluation(
 
             # Update capability scores from benchmark results
             if benchmark_results.get("executed"):
-                score_manager.update_from_benchmark_results(benchmark_results)
+                updated_scores = score_manager.update_from_benchmark_results(benchmark_results)
+
+                # EPIC I-4: Evolve routing policy based on capability score changes
+                if policy_evolver and updated_scores:
+                    score_dicts = [s.to_dict() for s in updated_scores.values()]
+                    evolution_result = policy_evolver.evolve_from_capability_scores(score_dicts)
+                    results["routing_evolution"] = evolution_result
 
             # Mark as run
             redis_client.setex(
@@ -653,7 +661,13 @@ def _run_benchmark_evaluation(
 
             # Update capability scores from benchmark results
             if benchmark_results.get("executed"):
-                score_manager.update_from_benchmark_results(benchmark_results)
+                updated_scores = score_manager.update_from_benchmark_results(benchmark_results)
+
+                # EPIC I-4: Evolve routing policy based on capability score changes
+                if policy_evolver and updated_scores:
+                    score_dicts = [s.to_dict() for s in updated_scores.values()]
+                    evolution_result = policy_evolver.evolve_from_capability_scores(score_dicts)
+                    results["routing_evolution"] = evolution_result
 
             # Mark as run
             redis_client.setex(
