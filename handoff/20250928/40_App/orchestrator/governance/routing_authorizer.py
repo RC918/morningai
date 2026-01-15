@@ -80,11 +80,15 @@ ROUTING_ROLES_BY_PERMISSION_LEVEL: dict = {
 }
 
 
+DEFAULT_PERMISSION_LEVEL = "sandbox_only"
+
+
 class RoutingAuthorizationError(Exception):
     """Raised when routing authorization fails."""
 
     def __init__(self, message: str, operation: str, caller: str):
-        super().__init__(message)
+        full_message = f"{message} (operation={operation}, caller={caller})"
+        super().__init__(full_message)
         self.operation = operation
         self.caller = caller
 
@@ -176,7 +180,7 @@ class RoutingAuthorizer:
         else:
             roles = ROUTING_ROLES_BY_PERMISSION_LEVEL.get(
                 permission_level,
-                ROUTING_ROLES_BY_PERMISSION_LEVEL["sandbox_only"]
+                ROUTING_ROLES_BY_PERMISSION_LEVEL[DEFAULT_PERMISSION_LEVEL]
             )
 
         allowed_operations = self._get_allowed_operations(roles)

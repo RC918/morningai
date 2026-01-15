@@ -25,6 +25,8 @@ from typing import Optional, FrozenSet
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_PERMISSION_LEVEL = "sandbox_only"
+
 
 class MemoryCapability(str, Enum):
     """Capabilities for Memory v2 operations.
@@ -137,7 +139,7 @@ class MemoryAuthorizer:
         """
         capabilities = MEMORY_CAPABILITIES_BY_LEVEL.get(
             permission_level,
-            MEMORY_CAPABILITIES_BY_LEVEL["sandbox_only"]
+            MEMORY_CAPABILITIES_BY_LEVEL[DEFAULT_PERMISSION_LEVEL]
         )
 
         if MemoryCapability.MEMORY_READ not in capabilities:
