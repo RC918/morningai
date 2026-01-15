@@ -427,11 +427,13 @@ class MemoryConsolidationJob:
         importance_threshold: float = DEFAULT_IMPORTANCE_THRESHOLD,
         batch_size: int = DEFAULT_BATCH_SIZE,
         dry_run: bool = False,
+        interval_hours: float = DEFAULT_INTERVAL_HOURS,
     ):
         self.memory = memory
         self.importance_threshold = importance_threshold
         self.batch_size = batch_size
         self.dry_run = dry_run
+        self.interval_hours = interval_hours
 
         self.scoring_engine = ImportanceScoringEngine(
             threshold=importance_threshold,
@@ -441,6 +443,7 @@ class MemoryConsolidationJob:
 
         self._scheduler_thread: Optional[threading.Thread] = None
         self._stop_scheduler = threading.Event()
+        self._scheduler_lock = threading.Lock()
 
         self._last_result: Optional[ConsolidationResult] = None
         self._run_count = 0
@@ -557,8 +560,8 @@ class MemoryConsolidationJob:
                             expiring.append(entry)
                     except (ValueError, TypeError):
                         expiring.append(entry)
-                else:
-                    expiring.append(entry)
+                # Bug fix: Skip memories without expiration timestamp
+                # They are not "expiring" and should not be consolidated prematurely
 
             return expiring
 
@@ -618,10 +621,18 @@ class MemoryConsolidationJob:
         success = memory.save(consolidated_entry, layer=MemoryLayer.KNOWLEDGE_BASE)
 
         if success:
-            memory.delete(entry.key, layer=MemoryLayer.AGENT_INTERACTION)
-            logger.debug(
-                f"[Consolidation] Consolidated: {entry.key} -> {consolidated_entry.key}"
+            delete_success = memory.delete(
+                entry.key, layer=MemoryLayer.AGENT_INTERACTION
             )
+            if delete_success:
+                logger.debug(
+                    f"[Consolidation] Consolidated: {entry.key} -> {consolidated_entry.key}"
+                )
+            else:
+                logger.warning(
+                    f"[Consolidation] Saved but failed to delete source: {entry.key}"
+                )
+                return False
 
         return success
 
@@ -652,40 +663,44 @@ class MemoryConsolidationJob:
 
     def start_scheduler(
         self,
-        interval_hours: float = DEFAULT_INTERVAL_HOURS,
+        interval_hours: Optional[float] = None,
     ) -> None:
         """
         Start the consolidation scheduler.
 
         Args:
-            interval_hours: Hours between consolidation runs (default: 6)
+            interval_hours: Hours between consolidation runs (uses self.interval_hours if not provided)
         """
-        if self._scheduler_thread is not None and self._scheduler_thread.is_alive():
-            logger.warning("[Consolidation] Scheduler already running")
-            return
+        if interval_hours is None:
+            interval_hours = self.interval_hours
 
-        self._stop_scheduler.clear()
+        with self._scheduler_lock:
+            if self._scheduler_thread is not None and self._scheduler_thread.is_alive():
+                logger.warning("[Consolidation] Scheduler already running")
+                return
 
-        def scheduler_loop():
-            logger.info(
-                f"[Consolidation] Scheduler started (interval={interval_hours}h)"
+            self._stop_scheduler.clear()
+
+            def scheduler_loop():
+                logger.info(
+                    f"[Consolidation] Scheduler started (interval={interval_hours}h)"
+                )
+                while not self._stop_scheduler.is_set():
+                    try:
+                        self.run()
+                    except Exception as e:
+                        logger.error(f"[Consolidation] Scheduler run failed: {e}")
+
+                    self._stop_scheduler.wait(timeout=interval_hours * 3600)
+
+                logger.info("[Consolidation] Scheduler stopped")
+
+            self._scheduler_thread = threading.Thread(
+                target=scheduler_loop,
+                name="MemoryConsolidationScheduler",
+                daemon=True,
             )
-            while not self._stop_scheduler.is_set():
-                try:
-                    self.run()
-                except Exception as e:
-                    logger.error(f"[Consolidation] Scheduler run failed: {e}")
-
-                self._stop_scheduler.wait(timeout=interval_hours * 3600)
-
-            logger.info("[Consolidation] Scheduler stopped")
-
-        self._scheduler_thread = threading.Thread(
-            target=scheduler_loop,
-            name="MemoryConsolidationScheduler",
-            daemon=True,
-        )
-        self._scheduler_thread.start()
+            self._scheduler_thread.start()
 
     def stop_scheduler(self) -> None:
         """Stop the consolidation scheduler"""
@@ -776,15 +791,21 @@ def get_consolidation_job(
                     "MEMORY_CONSOLIDATION_DRY_RUN", "true"
                 ).lower() == "true"
 
+            interval = float(os.getenv(
+                "MEMORY_CONSOLIDATION_INTERVAL_HOURS",
+                str(MemoryConsolidationJob.DEFAULT_INTERVAL_HOURS),
+            ))
+
             _consolidation_job = MemoryConsolidationJob(
                 importance_threshold=threshold,
                 batch_size=batch,
                 dry_run=is_dry_run,
+                interval_hours=interval,
             )
 
             logger.info(
                 f"[Consolidation] Initialized (threshold={threshold}, "
-                f"batch_size={batch}, dry_run={is_dry_run})"
+                f"batch_size={batch}, dry_run={is_dry_run}, interval={interval}h)"
             )
 
             return _consolidation_job
