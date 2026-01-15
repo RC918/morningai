@@ -103,10 +103,14 @@ class ProviderCapabilityScore:
     flagged_for_review: bool = False
 
     @property
-    def score_change_percent(self) -> Optional[float]:
-        """Calculate percentage change from previous score"""
+    def score_change_percent(self) -> float:
+        """Calculate percentage change from previous score.
+
+        Returns 0.0 when there's no previous score to ensure consistent
+        downstream handling without None checks.
+        """
         if self.previous_score is None or self.previous_score == 0:
-            return None
+            return 0.0
         return (self.score - self.previous_score) / self.previous_score
 
     @property

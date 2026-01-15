@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 BENCHMARK_RESULTS_KEY = "governance:benchmark_results"
 BENCHMARK_SCHEDULE_KEY = "governance:benchmark_schedule"
 BENCHMARK_RESULTS_TTL = 86400 * 30  # 30 days
+MAX_TIMEOUT_SECONDS = 120  # Safety limit for benchmark task timeout
 
 
 class BenchmarkTaskType(Enum):
@@ -170,7 +171,7 @@ class BenchmarkResult:
             cost_score * cost_weight
         )
 
-        return min(100, max(0, weighted_score))
+        return max(0.0, min(100.0, weighted_score))
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -393,12 +394,13 @@ class BenchmarkEvaluator:
 
             client = get_llm_client()
 
-            # Execute the benchmark task
+            # Execute the benchmark task with validated timeout
+            validated_timeout = min(task.timeout_seconds, MAX_TIMEOUT_SECONDS)
             response = client.generate(
                 prompt=task.prompt,
                 provider=provider,
                 model=model,
-                timeout=task.timeout_seconds,
+                timeout=validated_timeout,
             )
 
             latency_ms = (time.monotonic() - start_time) * 1000
