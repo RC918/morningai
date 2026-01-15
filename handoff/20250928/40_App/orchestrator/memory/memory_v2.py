@@ -217,10 +217,11 @@ class SupabaseMemoryStore(BaseMemoryStore):
                     f"[Memory:{self.__class__.__name__}] "
                     "Supabase credentials not configured"
                 )
-        except Exception as e:
+        except Exception:
             self._client_init_failed = True
             logger.debug(
-                f"[Memory:{self.__class__.__name__}] Supabase not available: {e}"
+                f"[Memory:{self.__class__.__name__}] Supabase not available: "
+                "An exception occurred during client initialization"
             )
 
         return self._supabase_client
