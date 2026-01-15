@@ -496,6 +496,14 @@ class CapabilityScoreManager:
         """
         Update capability scores from benchmark results.
 
+        This method aggregates benchmark results by (provider, model, task_type)
+        to avoid sample_size inflation and uses task-specific scores instead of
+        provider-wide averages for more accurate capability tracking.
+
+        Fixes:
+        - #3955: Per-task-type scoring granularity
+        - #3956: Sample size inflation bug
+
         Args:
             benchmark_results: Results from BenchmarkEvaluator.run_benchmark_suite()
 
@@ -506,34 +514,81 @@ class CapabilityScoreManager:
             return {}
 
         updated_scores: Dict[str, ProviderCapabilityScore] = {}
-        summary = benchmark_results.get("summary", {})
+        results = benchmark_results.get("results", [])
 
-        for provider, stats in summary.items():
-            avg_score = stats.get("average_score", 0)
-            task_count = stats.get("task_count", 0)
+        # Aggregate results by (provider, model, task_type) to avoid sample_size inflation
+        # and use task-specific scores instead of provider-wide averages
+        aggregated: Dict[str, Dict[str, Any]] = {}
 
-            if avg_score > 0 and task_count > 0:
-                # Update score for each task type
-                for result in benchmark_results.get("results", []):
-                    if result.get("provider") == provider:
-                        task_type = result.get("task_id", "").split("_")[1] if "_" in result.get("task_id", "") else "general"
+        for result in results:
+            provider = result.get("provider", "")
+            model = result.get("model", "default")
+            task_id = result.get("task_id", "")
 
-                        score = self.update_score(
-                            provider=provider,
-                            model=result.get("model", "default"),
-                            task_type=task_type,
-                            new_score=avg_score,
-                            sample_size=task_count,
-                        )
+            # Extract task_type from task_id (e.g., "bench_code_gen_001" -> "code")
+            # Use the full task_type for better granularity
+            if "_" in task_id:
+                parts = task_id.split("_")
+                # Use task_type like "code_gen", "code_review", "bug_fix" for granularity
+                task_type = "_".join(parts[1:-1]) if len(parts) > 2 else parts[1]
+            else:
+                task_type = "general"
 
-                        key = self._get_score_key(provider, result.get("model", "default"), task_type)
-                        updated_scores[key] = score
+            # Create aggregation key
+            agg_key = f"{provider}:{model}:{task_type}"
+
+            if agg_key not in aggregated:
+                aggregated[agg_key] = {
+                    "provider": provider,
+                    "model": model,
+                    "task_type": task_type,
+                    "scores": [],
+                    "count": 0,
+                }
+
+            # Use the result's weighted_score if available, otherwise calculate from components
+            weighted_score = result.get("weighted_score")
+            if weighted_score is None:
+                # Calculate from component scores if weighted_score not provided
+                correctness = result.get("correctness_score", 0)
+                format_score = result.get("format_compliance_score", 0)
+                # Simple average of available scores
+                weighted_score = (correctness + format_score) / 2 if correctness or format_score else 0
+
+            if weighted_score > 0:
+                aggregated[agg_key]["scores"].append(weighted_score)
+                aggregated[agg_key]["count"] += 1
+
+        # Update scores for each unique (provider, model, task_type) combination
+        for agg_key, agg_data in aggregated.items():
+            if agg_data["scores"]:
+                # Calculate average score for this specific task_type
+                avg_score = sum(agg_data["scores"]) / len(agg_data["scores"])
+
+                # Use count of unique results as sample_size (not inflated)
+                sample_size = agg_data["count"]
+
+                score = self.update_score(
+                    provider=agg_data["provider"],
+                    model=agg_data["model"],
+                    task_type=agg_data["task_type"],
+                    new_score=avg_score,
+                    sample_size=sample_size,
+                )
+
+                key = self._get_score_key(
+                    agg_data["provider"],
+                    agg_data["model"],
+                    agg_data["task_type"]
+                )
+                updated_scores[key] = score
 
         logger.info(
             f"[CapabilityScore] Updated {len(updated_scores)} scores from benchmark results",
             extra={
                 "operation": "capability_score_batch_update",
                 "updated_count": len(updated_scores),
+                "aggregated_groups": len(aggregated),
             }
         )
 
