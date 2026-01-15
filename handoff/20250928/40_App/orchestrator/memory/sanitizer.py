@@ -127,25 +127,34 @@ class MemorySanitizer:
 
     def __init__(
         self,
-        enabled: bool = True,
-        block_on_critical_pii: bool = True,
-        redact_pii: bool = True,
-        validate_input: bool = True,
+        enabled: Optional[bool] = None,
+        block_on_critical_pii: Optional[bool] = None,
+        redact_pii: Optional[bool] = None,
+        validate_input: Optional[bool] = None,
     ):
         """
         Initialize MemorySanitizer.
 
         Args:
-            enabled: Whether sanitization is enabled
-            block_on_critical_pii: Block storage if critical PII found
-            redact_pii: Redact non-critical PII before storage
-            validate_input: Validate input fields
+            enabled: Whether sanitization is enabled (None = use env var)
+            block_on_critical_pii: Block storage if critical PII found (None = use env var)
+            redact_pii: Redact non-critical PII before storage (None = use env var)
+            validate_input: Validate input fields (None = use env var)
+
+        Note: If a parameter is explicitly set (not None), it takes precedence
+        over environment variables. If None, the value is loaded from env vars.
         """
-        self.enabled = enabled
-        self.block_on_critical_pii = block_on_critical_pii
-        self.redact_pii = redact_pii
-        self.validate_input = validate_input
         self._pii_scanner = None
+        # Store explicit params to check against env var loading
+        self._explicit_enabled = enabled
+        self._explicit_block_on_critical_pii = block_on_critical_pii
+        self._explicit_redact_pii = redact_pii
+        self._explicit_validate_input = validate_input
+        # Set defaults before loading settings
+        self.enabled = True
+        self.block_on_critical_pii = True
+        self.redact_pii = True
+        self.validate_input = True
         self._load_settings()
 
         logger.info(
@@ -158,21 +167,40 @@ class MemorySanitizer:
         )
 
     def _load_settings(self) -> None:
-        """Load settings from configuration if available."""
+        """Load settings from configuration if available.
+
+        Explicit constructor params take precedence over env vars.
+        """
         try:
             import os
-            self.enabled = os.getenv(
-                "MEMORY_V2_SANITIZATION_ENABLED", "true"
-            ).lower() == "true"
-            self.block_on_critical_pii = os.getenv(
-                "MEMORY_V2_BLOCK_CRITICAL_PII", "true"
-            ).lower() == "true"
-            self.redact_pii = os.getenv(
-                "MEMORY_V2_REDACT_PII", "true"
-            ).lower() == "true"
-            self.validate_input = os.getenv(
-                "MEMORY_V2_VALIDATE_INPUT", "true"
-            ).lower() == "true"
+            # Only load from env if not explicitly set in constructor
+            if self._explicit_enabled is not None:
+                self.enabled = self._explicit_enabled
+            else:
+                self.enabled = os.getenv(
+                    "MEMORY_V2_SANITIZATION_ENABLED", "true"
+                ).lower() == "true"
+
+            if self._explicit_block_on_critical_pii is not None:
+                self.block_on_critical_pii = self._explicit_block_on_critical_pii
+            else:
+                self.block_on_critical_pii = os.getenv(
+                    "MEMORY_V2_BLOCK_CRITICAL_PII", "true"
+                ).lower() == "true"
+
+            if self._explicit_redact_pii is not None:
+                self.redact_pii = self._explicit_redact_pii
+            else:
+                self.redact_pii = os.getenv(
+                    "MEMORY_V2_REDACT_PII", "true"
+                ).lower() == "true"
+
+            if self._explicit_validate_input is not None:
+                self.validate_input = self._explicit_validate_input
+            else:
+                self.validate_input = os.getenv(
+                    "MEMORY_V2_VALIDATE_INPUT", "true"
+                ).lower() == "true"
         except Exception as e:
             logger.debug("[MemorySanitizer] Using default settings: %s", e)
 
@@ -186,7 +214,10 @@ class MemorySanitizer:
             self._pii_scanner = get_pii_scanner()
             return self._pii_scanner
         except ImportError:
-            logger.debug("[MemorySanitizer] PIIScanner not available")
+            logger.warning(
+                "[MemorySanitizer] PIIScanner not available - "
+                "PII detection will be skipped. This may be a deployment issue."
+            )
             return None
 
     def validate_key(self, key: str) -> ValidationResult:
@@ -335,8 +366,13 @@ class MemorySanitizer:
             return has_critical, categories, redacted_content
 
         except Exception as e:
-            logger.warning("[MemorySanitizer] PII scan failed: %s", e)
-            return False, [], content
+            # SECURITY: Fail-safe - treat scan failure as potential critical PII
+            # Blueprint Section 9.2: Safe by Design - fail closed, not open
+            logger.error(
+                "[MemorySanitizer] PII scan failed - blocking content for safety: %s",
+                e,
+            )
+            return True, ["scan_error"], content
 
     def _redact_content(self, content: str, findings) -> str:
         """
@@ -388,12 +424,18 @@ class MemorySanitizer:
     ) -> Optional[str]:
         """Find original PII text at position for redaction."""
         # Use category-specific patterns to find the text
+        # Note: These patterns are duplicated from PIIScanner for fallback redaction
+        # TODO: Follow-up issue to refactor and use PIIScanner's redaction directly
         patterns = {
             "email": r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}',
             "phone": r'(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}',
             "ssn": r'(?!000|666|9\d{2})\d{3}[-\s]?(?!00)\d{2}[-\s]?(?!0000)\d{4}',
             "credit_card": r'\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{1,4}',
             "ip_address": r'(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)',
+            # Passport: 6-9 alphanumeric characters (varies by country)
+            "passport": r'[A-Z]{1,2}\d{6,8}',
+            # Driver's license: varies by state, common patterns
+            "driver_license": r'[A-Z]?\d{4,8}[A-Z]?\d{0,4}',
         }
 
         pattern = patterns.get(category)

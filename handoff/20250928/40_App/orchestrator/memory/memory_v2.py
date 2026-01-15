@@ -38,6 +38,7 @@ Dependencies:
 - PostgreSQL for governance memory
 """
 
+import copy
 import json
 import logging
 import threading
@@ -1316,6 +1317,10 @@ class MemoryV2:
         # Short-term layers have TTL and are less critical
         persistent_layers = {MemoryLayer.KNOWLEDGE_BASE, MemoryLayer.GOVERNANCE}
 
+        # Create a working copy to avoid mutating the caller's entry
+        # This prevents unexpected side effects when the caller reuses the entry
+        entry_to_save = entry
+
         if not skip_sanitization and target_layer in persistent_layers:
             sanitizer = self._get_sanitizer()
             if sanitizer is not None:
@@ -1339,8 +1344,9 @@ class MemoryV2:
                         return False
 
                     if result.action == SanitizationAction.REDACT:
-                        # Update entry content with redacted version
-                        entry.content = result.sanitized_content
+                        # Create a deep copy to avoid mutating caller's entry
+                        entry_to_save = copy.deepcopy(entry)
+                        entry_to_save.content = result.sanitized_content
                         logger.debug(
                             "[MemoryV2] Redacted PII categories: %s",
                             result.pii_categories,
@@ -1349,7 +1355,7 @@ class MemoryV2:
                 except ImportError:
                     logger.debug("[MemoryV2] Sanitizer not available, skipping")
 
-        return store.save(entry)
+        return store.save(entry_to_save)
 
     def get(
         self,
