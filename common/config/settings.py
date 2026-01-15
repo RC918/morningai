@@ -2004,6 +2004,36 @@ class Settings(BaseSettings):
         description="Enable dry-run mode for memory consolidation (G-2). When True, logs consolidation actions without persisting. Default: True for safe rollout."
     )
 
+    # EPIC B Phase B-13: Real-time Feedback Loop
+    # Blueprint: Reviewer feedback stored in Memory v2 for learning
+    enable_review_feedback_loop: bool = Field(
+        default=False,
+        alias="ENABLE_REVIEW_FEEDBACK_LOOP",
+        description="Enable B-13 Review Feedback Loop: stores review outcomes in Knowledge Base for learning. Requires ENABLE_MEMORY_V2=true."
+    )
+
+    enable_review_pattern_retrieval: bool = Field(
+        default=False,
+        alias="ENABLE_REVIEW_PATTERN_RETRIEVAL",
+        description="Enable B-13 Review Pattern Retrieval: retrieves past review patterns to inform current reviews. Requires ENABLE_REVIEW_FEEDBACK_LOOP=true."
+    )
+
+    review_feedback_similarity_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        alias="REVIEW_FEEDBACK_SIMILARITY_THRESHOLD",
+        description="Minimum similarity score for review pattern retrieval (B-13). Default: 0.7."
+    )
+
+    review_feedback_max_patterns: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        alias="REVIEW_FEEDBACK_MAX_PATTERNS",
+        description="Maximum number of past review patterns to retrieve (B-13). Default: 5."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
