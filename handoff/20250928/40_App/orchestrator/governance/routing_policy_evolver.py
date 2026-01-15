@@ -616,9 +616,8 @@ class RoutingPolicyEvolver:
                     else:
                         severity = DegradationSeverity.AVOID
 
-                    # Update advisor state directly
-                    with advisor._lock:
-                        advisor._provider_states[change.provider] = severity
+                    # Update advisor state via public method (Issue #3961)
+                    advisor.set_provider_state(change.provider, severity)
 
                     logger.info(
                         f"[I-4-EVOLVE] Updated DegradationAdvisor state: "

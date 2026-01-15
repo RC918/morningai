@@ -456,6 +456,63 @@ class CapabilityScoreManager:
                     }
                 )
 
+    def _extract_task_type(self, task_id: str) -> str:
+        """
+        Extract task_type from task_id with validation.
+
+        Issue #3958: Robust task_id parsing with validation.
+
+        Expected task_id format: {prefix}_{task_type}_{suffix}
+        Examples:
+        - "bench_code_gen_001" -> "code_gen"
+        - "bench_code_review_002" -> "code_review"
+        - "bench_bug_fix_003" -> "bug_fix"
+        - "test_general_001" -> "general"
+
+        Args:
+            task_id: Task identifier string
+
+        Returns:
+            Extracted task_type, or "general" if format is unexpected
+        """
+        # Handle empty or None task_id
+        if not task_id or not isinstance(task_id, str):
+            logger.debug(
+                "[CapabilityScore] Empty or invalid task_id, using 'general'",
+                extra={"task_id": task_id}
+            )
+            return "general"
+
+        # Handle task_id without underscores
+        if "_" not in task_id:
+            logger.debug(
+                f"[CapabilityScore] task_id '{task_id}' has no underscores, "
+                "using 'general'",
+                extra={"task_id": task_id}
+            )
+            return "general"
+
+        parts = task_id.split("_")
+
+        # Extract task_type: everything between prefix and suffix
+        # For "bench_code_gen_001" -> parts = ["bench", "code", "gen", "001"]
+        # task_type = "code_gen" (parts[1:-1] joined)
+        if len(parts) > 2:
+            task_type = "_".join(parts[1:-1])
+        else:
+            # For "bench_general" -> parts = ["bench", "general"]
+            task_type = parts[1]
+
+        # Validate task_type is not empty
+        if not task_type:
+            logger.warning(
+                f"[CapabilityScore] Empty task_type extracted from '{task_id}'",
+                extra={"task_id": task_id}
+            )
+            return "general"
+
+        return task_type
+
     def _store_score(self, score: ProviderCapabilityScore) -> bool:
         """Store capability score in Redis"""
         if not self.redis_client:
@@ -525,14 +582,8 @@ class CapabilityScoreManager:
             model = result.get("model", "default")
             task_id = result.get("task_id", "")
 
-            # Extract task_type from task_id (e.g., "bench_code_gen_001" -> "code")
-            # Use the full task_type for better granularity
-            if "_" in task_id:
-                parts = task_id.split("_")
-                # Use task_type like "code_gen", "code_review", "bug_fix" for granularity
-                task_type = "_".join(parts[1:-1]) if len(parts) > 2 else parts[1]
-            else:
-                task_type = "general"
+            # Extract task_type from task_id with validation (Issue #3958)
+            task_type = self._extract_task_type(task_id)
 
             # Create aggregation key
             agg_key = f"{provider}:{model}:{task_type}"

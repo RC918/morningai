@@ -678,6 +678,39 @@ class DegradationAdvisor:
         with self._lock:
             return self._provider_states.get(provider)
 
+    def set_provider_state(
+        self,
+        provider: str,
+        severity: DegradationSeverity
+    ) -> None:
+        """
+        Set the degradation state for a provider.
+
+        Issue #3961: Public method for RoutingPolicyEvolver to update provider state
+        without directly accessing private attributes (_provider_states, _lock).
+
+        This method provides proper encapsulation for state updates from external
+        components like RoutingPolicyEvolver.
+
+        Args:
+            provider: Provider name
+            severity: New degradation severity level
+        """
+        with self._lock:
+            old_severity = self._provider_states.get(provider)
+            self._provider_states[provider] = severity
+
+            if old_severity != severity:
+                logger.info(
+                    "[DegradationAdvisor] Provider state updated",
+                    extra={
+                        "operation": "provider_state_update",
+                        "provider": provider,
+                        "old_severity": old_severity.value if old_severity else None,
+                        "new_severity": severity.value,
+                    }
+                )
+
     def get_all_states(self) -> Dict[str, str]:
         """Get current states for all tracked providers"""
         with self._lock:
