@@ -310,8 +310,19 @@ class ShortTermMemory(BaseMemoryStore):
         scope: Optional[MemoryScope] = None,
         trace_id: Optional[str] = None,
     ) -> int:
-        """Clear short-term memories"""
+        """Clear short-term memories.
+
+        For safety, requires at least one filter (scope or trace_id).
+        This ensures consistent behavior with database-backed layers.
+        """
         try:
+            # Require at least one filter for safety (consistent with database layers)
+            if scope is None and trace_id is None:
+                logger.warning(
+                    "[Memory:ShortTerm] Clear all requires explicit scope or trace_id filter"
+                )
+                return 0
+
             count = 0
 
             if self.redis_client:
@@ -325,14 +336,11 @@ class ShortTermMemory(BaseMemoryStore):
                         count=100,
                     )
                     for key in keys:
-                        if scope is None and trace_id is None:
-                            keys_to_delete.append(key)
-                        else:
-                            data = self.redis_client.get(key)
-                            if data:
-                                entry = MemoryEntry.from_dict(json.loads(data))
-                                if self._matches_filter(entry, scope, trace_id):
-                                    keys_to_delete.append(key)
+                        data = self.redis_client.get(key)
+                        if data:
+                            entry = MemoryEntry.from_dict(json.loads(data))
+                            if self._matches_filter(entry, scope, trace_id):
+                                keys_to_delete.append(key)
                     if cursor == 0:
                         break
 
@@ -340,17 +348,13 @@ class ShortTermMemory(BaseMemoryStore):
                     count = self.redis_client.delete(*keys_to_delete)
             else:
                 with self._lock:
-                    if scope is None and trace_id is None:
-                        count = len(self._local_cache)
-                        self._local_cache.clear()
-                    else:
-                        keys_to_delete = [
-                            k for k, v in self._local_cache.items()
-                            if self._matches_filter(v, scope, trace_id)
-                        ]
-                        for k in keys_to_delete:
-                            del self._local_cache[k]
-                        count = len(keys_to_delete)
+                    keys_to_delete = [
+                        k for k, v in self._local_cache.items()
+                        if self._matches_filter(v, scope, trace_id)
+                    ]
+                    for k in keys_to_delete:
+                        del self._local_cache[k]
+                    count = len(keys_to_delete)
 
             logger.info(f"[Memory:ShortTerm] Cleared {count} entries")
             return count
@@ -515,8 +519,19 @@ class AgentInteractionMemory(BaseMemoryStore):
         scope: Optional[MemoryScope] = None,
         trace_id: Optional[str] = None,
     ) -> int:
-        """Clear agent interactions"""
+        """Clear agent interactions.
+
+        For safety, requires at least one filter (scope or trace_id).
+        This ensures consistent behavior with database-backed layers.
+        """
         try:
+            # Require at least one filter for safety (consistent with database layers)
+            if scope is None and trace_id is None:
+                logger.warning(
+                    "[Memory:AgentInteraction] Clear all requires explicit scope or trace_id filter"
+                )
+                return 0
+
             count = 0
 
             if self.redis_client:
@@ -530,14 +545,11 @@ class AgentInteractionMemory(BaseMemoryStore):
                         count=100,
                     )
                     for key in keys:
-                        if scope is None and trace_id is None:
-                            keys_to_delete.append(key)
-                        else:
-                            data = self.redis_client.get(key)
-                            if data:
-                                entry = MemoryEntry.from_dict(json.loads(data))
-                                if self._matches_filter(entry, scope, trace_id):
-                                    keys_to_delete.append(key)
+                        data = self.redis_client.get(key)
+                        if data:
+                            entry = MemoryEntry.from_dict(json.loads(data))
+                            if self._matches_filter(entry, scope, trace_id):
+                                keys_to_delete.append(key)
                     if cursor == 0:
                         break
 
@@ -545,17 +557,13 @@ class AgentInteractionMemory(BaseMemoryStore):
                     count = self.redis_client.delete(*keys_to_delete)
             else:
                 with self._lock:
-                    if scope is None and trace_id is None:
-                        count = len(self._local_cache)
-                        self._local_cache.clear()
-                    else:
-                        keys_to_delete = [
-                            k for k, v in self._local_cache.items()
-                            if self._matches_filter(v, scope, trace_id)
-                        ]
-                        for k in keys_to_delete:
-                            del self._local_cache[k]
-                        count = len(keys_to_delete)
+                    keys_to_delete = [
+                        k for k, v in self._local_cache.items()
+                        if self._matches_filter(v, scope, trace_id)
+                    ]
+                    for k in keys_to_delete:
+                        del self._local_cache[k]
+                    count = len(keys_to_delete)
 
             logger.info(f"[Memory:AgentInteraction] Cleared {count} entries")
             return count
@@ -644,21 +652,32 @@ class KnowledgeBaseMemory(BaseMemoryStore):
 
     def __init__(self):
         self._supabase_client = None
+        self._client_init_failed = False
 
     def _get_client(self):
-        """Get Supabase client lazily"""
-        if self._supabase_client is None:
-            try:
-                from supabase import create_client
-                from common.config.settings import settings
+        """Get Supabase client lazily with failure caching"""
+        if self._supabase_client is not None:
+            return self._supabase_client
 
-                if settings.supabase_url and settings.supabase_service_role_key:
-                    self._supabase_client = create_client(
-                        settings.supabase_url,
-                        settings.supabase_service_role_key,
-                    )
-            except Exception as e:
-                logger.debug(f"[Memory:KnowledgeBase] Supabase not available: {e}")
+        # Skip repeated initialization attempts if previous attempt failed
+        if self._client_init_failed:
+            return None
+
+        try:
+            from supabase import create_client
+            from common.config.settings import settings
+
+            if settings.supabase_url and settings.supabase_service_role_key:
+                self._supabase_client = create_client(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key,
+                )
+            else:
+                self._client_init_failed = True
+                logger.debug("[Memory:KnowledgeBase] Supabase credentials not configured")
+        except Exception as e:
+            self._client_init_failed = True
+            logger.debug(f"[Memory:KnowledgeBase] Supabase not available: {e}")
 
         return self._supabase_client
 
@@ -887,21 +906,32 @@ class GovernanceMemory(BaseMemoryStore):
 
     def __init__(self):
         self._supabase_client = None
+        self._client_init_failed = False
 
     def _get_client(self):
-        """Get Supabase client lazily"""
-        if self._supabase_client is None:
-            try:
-                from supabase import create_client
-                from common.config.settings import settings
+        """Get Supabase client lazily with failure caching"""
+        if self._supabase_client is not None:
+            return self._supabase_client
 
-                if settings.supabase_url and settings.supabase_service_role_key:
-                    self._supabase_client = create_client(
-                        settings.supabase_url,
-                        settings.supabase_service_role_key,
-                    )
-            except Exception as e:
-                logger.debug(f"[Memory:Governance] Supabase not available: {e}")
+        # Skip repeated initialization attempts if previous attempt failed
+        if self._client_init_failed:
+            return None
+
+        try:
+            from supabase import create_client
+            from common.config.settings import settings
+
+            if settings.supabase_url and settings.supabase_service_role_key:
+                self._supabase_client = create_client(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key,
+                )
+            else:
+                self._client_init_failed = True
+                logger.debug("[Memory:Governance] Supabase credentials not configured")
+        except Exception as e:
+            self._client_init_failed = True
+            logger.debug(f"[Memory:Governance] Supabase not available: {e}")
 
         return self._supabase_client
 
@@ -1413,6 +1443,11 @@ def get_memory_v2(
     global _memory_v2
 
     if _memory_v2 is not None:
+        if redis_client is not None:
+            logger.warning(
+                "[MemoryV2] redis_client parameter ignored - singleton already initialized. "
+                "Call reset_memory_v2() first if you need to reinitialize with a different client."
+            )
         return _memory_v2
 
     with _memory_v2_lock:
