@@ -1833,15 +1833,13 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
                     else:
                         file_paths.append(str(file_info))
 
-            verdict = result.get("decision", "unknown")
-            if verdict == "approve":
-                verdict = "approve"
-            elif verdict == "needs_changes":
-                verdict = "request_changes"
-            elif verdict == "block":
-                verdict = "blocked"
-            else:
-                verdict = "comment"
+            # Map decision to verdict using dict lookup (Gemini suggestion)
+            verdict_map = {
+                "approve": "approve",
+                "needs_changes": "request_changes",
+                "block": "blocked",
+            }
+            verdict = verdict_map.get(result.get("decision", "unknown"), "comment")
 
             comments = result.get("comments", [])
             blocker_count = sum(

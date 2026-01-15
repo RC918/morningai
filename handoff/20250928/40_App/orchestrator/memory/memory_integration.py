@@ -882,7 +882,7 @@ def save_review_feedback(
             "review_comments": review_comments,
             "file_paths": file_paths,
             "blocker_count": blocker_count,
-            "diff_snippet": diff_snippet[:2000] if diff_snippet else None,
+            "diff_snippet": diff_snippet,  # Already truncated by caller
             "saved_at": datetime.now(timezone.utc).isoformat(),
         })
 

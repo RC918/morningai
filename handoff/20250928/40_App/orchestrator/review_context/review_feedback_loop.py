@@ -20,7 +20,11 @@ Usage:
     loop.save_feedback(
         pr_number=123,
         repo="owner/repo",
-        review_outcome=outcome,
+        verdict="approve",
+        severity="low",
+        summary="Code looks good",
+        review_comments=[],
+        file_paths=["src/main.py"],
         diff_snippet=diff
     )
 
