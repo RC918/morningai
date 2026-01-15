@@ -13,6 +13,11 @@ EPIC G - Memory v2 (Blueprint Section 5.1):
   2. Agent Interaction Memory (Redis-based)
   3. Knowledge Base (pgvector-based)
   4. Governance Memory (PostgreSQL-based)
+
+- memory_integration: Integration helpers for orchestrator components
+  - FlowController state persistence
+  - DebateEngine context persistence
+  - Governance memory for safety patterns and routing decisions
 """
 
 from memory.memory_v2 import (
@@ -28,6 +33,19 @@ from memory.memory_v2 import (
     reset_memory_v2,
 )
 
+from memory.memory_integration import (
+    save_flow_state,
+    restore_flow_state,
+    clear_flow_state,
+    save_debate_result,
+    search_past_debates,
+    save_safety_pattern,
+    save_drift_analysis,
+    save_routing_decision,
+    search_knowledge_base,
+    get_memory_stats,
+)
+
 __all__ = [
     # Memory v2 (EPIC G)
     "MemoryV2",
@@ -40,4 +58,15 @@ __all__ = [
     "GovernanceMemory",
     "get_memory_v2",
     "reset_memory_v2",
+    # Memory Integration (EPIC G)
+    "save_flow_state",
+    "restore_flow_state",
+    "clear_flow_state",
+    "save_debate_result",
+    "search_past_debates",
+    "save_safety_pattern",
+    "save_drift_analysis",
+    "save_routing_decision",
+    "search_knowledge_base",
+    "get_memory_stats",
 ]

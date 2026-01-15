@@ -1924,6 +1924,48 @@ class Settings(BaseSettings):
         description="Enable F-6 Debate Hook: triggers Debate Engine v2 for high-risk plans. When enabled, DebateHook invokes adversarial collaboration for critical decisions."
     )
 
+    # EPIC G: Memory v2 - 4-Layer Memory System
+    # Blueprint Section 5.1: Short-Term, Agent Interaction, Knowledge Base, Governance Memory
+    enable_memory_v2: bool = Field(
+        default=False,
+        alias="ENABLE_MEMORY_V2",
+        description="Enable G-1 Memory v2: 4-layer memory system for orchestrator. When enabled, integrates Short-Term, Agent Interaction, Knowledge Base, and Governance Memory layers."
+    )
+
+    enable_memory_v2_flow_state: bool = Field(
+        default=False,
+        alias="ENABLE_MEMORY_V2_FLOW_STATE",
+        description="Enable G-1 Flow State persistence: saves FlowController state to Short-Term Memory for recovery. Requires ENABLE_MEMORY_V2=true."
+    )
+
+    enable_memory_v2_debate: bool = Field(
+        default=False,
+        alias="ENABLE_MEMORY_V2_DEBATE",
+        description="Enable G-1 Debate context persistence: saves debate results to Agent Interaction Memory. Requires ENABLE_MEMORY_V2=true."
+    )
+
+    enable_memory_v2_governance: bool = Field(
+        default=False,
+        alias="ENABLE_MEMORY_V2_GOVERNANCE",
+        description="Enable G-1 Governance memory: saves safety patterns, drift analysis, and routing decisions. Requires ENABLE_MEMORY_V2=true."
+    )
+
+    memory_v2_short_term_ttl: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        alias="MEMORY_V2_SHORT_TERM_TTL",
+        description="TTL in seconds for Short-Term Memory entries (G-1). Default: 1 hour. Valid range: 60-86400."
+    )
+
+    memory_v2_agent_interaction_ttl: int = Field(
+        default=86400,
+        ge=3600,
+        le=604800,
+        alias="MEMORY_V2_AGENT_INTERACTION_TTL",
+        description="TTL in seconds for Agent Interaction Memory entries (G-1). Default: 24 hours. Valid range: 1 hour - 7 days."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",

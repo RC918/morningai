@@ -32,6 +32,8 @@ from typing import Optional, Dict, Any, List, TYPE_CHECKING
 if TYPE_CHECKING:
     from redis import Redis
 
+from memory.memory_integration import save_routing_decision
+
 logger = logging.getLogger(__name__)
 
 # Redis keys for routing policy evolution
@@ -549,6 +551,20 @@ class RoutingPolicyEvolver:
 
             # Store in Redis
             self._store_change(change)
+
+            # EPIC G: Save routing decision to Governance Memory
+            # This is controlled by ENABLE_MEMORY_V2_GOVERNANCE feature flag (checked internally)
+            save_routing_decision(
+                decision_id=change.change_id,
+                trace_id=f"routing_evolution_{change.change_id}",
+                task_type=change.task_type or "general",
+                selected_provider=change.provider,
+                selected_model=change.model or "default",
+                selection_reason=f"{change.reason.value}: weight {change.old_value} -> {change.new_value}",
+                candidates=[],
+                latency_ms=0.0,
+                success=True,
+            )
 
             logger.warning(
                 f"[I-4-EVOLVE] Change applied: {change.change_id}",
