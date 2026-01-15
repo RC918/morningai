@@ -1217,6 +1217,11 @@ class MemoryV2:
     3. Knowledge Base
     4. Governance Memory
 
+    Security Features (Issues #3968, #3966):
+    - PII sanitization before storage (integrates with PIIScanner)
+    - Input validation for keys, content, and metadata
+    - Configurable blocking of critical PII
+
     Usage:
         memory = get_memory_v2()
 
@@ -1235,9 +1240,12 @@ class MemoryV2:
         self,
         redis_client: Optional[Any] = None,
         enabled: bool = True,
+        sanitization_enabled: bool = True,
     ):
         self.enabled = enabled
         self.redis_client = redis_client
+        self.sanitization_enabled = sanitization_enabled
+        self._sanitizer = None
 
         # Initialize all layers
         self.short_term = ShortTermMemory(redis_client=redis_client)
@@ -1252,22 +1260,47 @@ class MemoryV2:
             MemoryLayer.GOVERNANCE: self.governance,
         }
 
-        logger.info("[MemoryV2] Initialized 4-layer memory system")
+        logger.info(
+            "[MemoryV2] Initialized 4-layer memory system "
+            "(sanitization=%s)",
+            self.sanitization_enabled,
+        )
+
+    def _get_sanitizer(self):
+        """Get MemorySanitizer instance lazily."""
+        if not self.sanitization_enabled:
+            return None
+
+        if self._sanitizer is not None:
+            return self._sanitizer
+
+        try:
+            from memory.sanitizer import get_memory_sanitizer
+            self._sanitizer = get_memory_sanitizer()
+            return self._sanitizer
+        except ImportError:
+            logger.debug("[MemoryV2] MemorySanitizer not available")
+            return None
 
     def save(
         self,
         entry: MemoryEntry,
         layer: Optional[MemoryLayer] = None,
+        skip_sanitization: bool = False,
     ) -> bool:
         """
         Save memory entry to specified layer.
 
+        EPIC G: Memory v2 (Blueprint Section 5.1)
+        Issues: #3968 (PII sanitization), #3966 (Input validation)
+
         Args:
             entry: Memory entry to save
             layer: Target layer (uses entry.layer if not specified)
+            skip_sanitization: Skip PII sanitization (use with caution)
 
         Returns:
-            True if saved successfully
+            True if saved successfully, False if blocked or failed
         """
         if not self.enabled:
             return False
@@ -1278,6 +1311,43 @@ class MemoryV2:
         if store is None:
             logger.warning(f"[MemoryV2] Unknown layer: {target_layer}")
             return False
+
+        # Apply sanitization for persistent layers (Knowledge Base, Governance)
+        # Short-term layers have TTL and are less critical
+        persistent_layers = {MemoryLayer.KNOWLEDGE_BASE, MemoryLayer.GOVERNANCE}
+
+        if not skip_sanitization and target_layer in persistent_layers:
+            sanitizer = self._get_sanitizer()
+            if sanitizer is not None:
+                try:
+                    from memory.sanitizer import SanitizationAction
+
+                    result = sanitizer.sanitize_entry(entry)
+
+                    if result.action == SanitizationAction.BLOCK:
+                        logger.warning(
+                            "[MemoryV2] Blocked save due to critical PII: %s",
+                            result.blocked_reason,
+                        )
+                        return False
+
+                    if result.action == SanitizationAction.INVALID:
+                        logger.warning(
+                            "[MemoryV2] Blocked save due to validation failure: %s",
+                            result.blocked_reason,
+                        )
+                        return False
+
+                    if result.action == SanitizationAction.REDACT:
+                        # Update entry content with redacted version
+                        entry.content = result.sanitized_content
+                        logger.debug(
+                            "[MemoryV2] Redacted PII categories: %s",
+                            result.pii_categories,
+                        )
+
+                except ImportError:
+                    logger.debug("[MemoryV2] Sanitizer not available, skipping")
 
         return store.save(entry)
 
