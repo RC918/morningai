@@ -13,7 +13,7 @@ Automated regression test generation from errors:
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -89,8 +89,8 @@ class RegressionCandidate:
     blast_radius: float = 0.3
     priority: RegressionPriority = RegressionPriority.P2
     metadata: Dict[str, Any] = field(default_factory=dict)
-    first_seen: datetime = field(default_factory=datetime.utcnow)
-    last_seen: datetime = field(default_factory=datetime.utcnow)
+    first_seen: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_seen: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     occurrence_count: int = 1
 
     def calculate_priority_score(self) -> float:
@@ -230,7 +230,7 @@ class RegressionCandidateCollector:
             # Update existing candidate
             candidate = self._candidates[signature]
             candidate.occurrence_count += 1
-            candidate.last_seen = datetime.utcnow()
+            candidate.last_seen = datetime.now(timezone.utc)
 
             # Update frequency based on occurrence rate
             # Higher occurrence = higher frequency score
@@ -487,7 +487,7 @@ REGRESSION_METADATA = {{
     "error_type": "{candidate.error_type}",
     "priority": "{candidate.priority.value}",
     "source": "{candidate.source.value}",
-    "generated_at": "{datetime.utcnow().isoformat()}",
+    "generated_at": "{datetime.now(timezone.utc).isoformat()}",
     "protected": True,  # CI should block deletion/modification without review
 }}
 '''
@@ -496,7 +496,7 @@ REGRESSION_METADATA = {{
             "candidate_id": candidate.candidate_id,
             "test_name": test_name,
             "test_code": test_code,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         })
 
         logger.info(
