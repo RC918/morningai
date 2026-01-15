@@ -18,6 +18,12 @@ EPIC G - Memory v2 (Blueprint Section 5.1):
   - FlowController state persistence
   - DebateEngine context persistence
   - Governance memory for safety patterns and routing decisions
+
+EPIC G Phase G-2 - Memory Consolidation (Blueprint Section 5.1, 9, 10):
+- memory_consolidation: Memory consolidation agent
+  - Transfers important short-term memories to Knowledge Base
+  - Importance scoring engine
+  - LLM-based summarization
 """
 
 from memory.memory_v2 import (
@@ -46,6 +52,17 @@ from memory.memory_integration import (
     get_memory_stats,
 )
 
+from memory.memory_consolidation import (
+    MemoryConsolidationJob,
+    ImportanceScoringEngine,
+    ImportanceScore,
+    LLMSummarizer,
+    ConsolidationResult,
+    MemoryType,
+    get_consolidation_job,
+    reset_consolidation_job,
+)
+
 __all__ = [
     # Memory v2 (EPIC G)
     "MemoryV2",
@@ -69,4 +86,13 @@ __all__ = [
     "save_routing_decision",
     "search_knowledge_base",
     "get_memory_stats",
+    # Memory Consolidation (EPIC G Phase G-2)
+    "MemoryConsolidationJob",
+    "ImportanceScoringEngine",
+    "ImportanceScore",
+    "LLMSummarizer",
+    "ConsolidationResult",
+    "MemoryType",
+    "get_consolidation_job",
+    "reset_consolidation_job",
 ]
