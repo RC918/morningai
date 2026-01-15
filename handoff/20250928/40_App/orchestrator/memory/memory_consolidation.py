@@ -831,8 +831,10 @@ class MemoryConsolidationJob:
     def _classify_by_source_layer(self, metadata: Dict[str, Any]) -> Optional[MemoryType]:
         """Check source layer indicators (Factor 2)."""
         source_layer = metadata.get("source_layer") or metadata.get("layer")
-        if source_layer and source_layer.lower() in self._LAYER_TYPE_MAP:
-            return self._LAYER_TYPE_MAP[source_layer.lower()]
+        # Ensure source_layer is a string before calling .lower()
+        if source_layer and isinstance(source_layer, str):
+            if source_layer.lower() in self._LAYER_TYPE_MAP:
+                return self._LAYER_TYPE_MAP[source_layer.lower()]
         return None
 
     def _classify_by_metadata_schema(self, metadata: Dict[str, Any]) -> Optional[MemoryType]:

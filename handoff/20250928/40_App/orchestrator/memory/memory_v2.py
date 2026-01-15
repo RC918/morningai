@@ -1568,8 +1568,9 @@ def get_memory_v2(
                     short_term_ttl,
                     agent_interaction_ttl,
                 )
-            except ImportError:
+            except (ImportError, AttributeError):
                 # Fallback to environment variables if settings not available
+                # AttributeError: settings object exists but lacks TTL attributes
                 short_term_ttl = int(os.getenv(
                     "MEMORY_V2_SHORT_TERM_TTL",
                     str(ShortTermMemory.DEFAULT_TTL),
