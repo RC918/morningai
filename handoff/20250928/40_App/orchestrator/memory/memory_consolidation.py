@@ -559,8 +559,13 @@ class MemoryConsolidationJob:
                         if expires - now <= expiration_window:
                             expiring.append(entry)
                     except (ValueError, TypeError):
-                        expiring.append(entry)
-                # Bug fix: Skip memories without expiration timestamp
+                        # Skip entries with malformed expiration timestamps
+                        # We can't determine if they're expiring, so don't consolidate
+                        logger.debug(
+                            f"[Consolidation] Skipping entry with invalid expires_at: "
+                            f"{entry.key}"
+                        )
+                # Skip memories without expiration timestamp
                 # They are not "expiring" and should not be consolidated prematurely
 
             return expiring
