@@ -70,12 +70,14 @@ class FlowIntegrationConfig:
         stop_on_failure: Whether to stop execution on task failure
         timeout_seconds: Timeout for task execution in seconds
         max_retries: Maximum number of retries for failed tasks
+        max_refinement_iterations: Maximum F-5 self-refinement iterations (default 3)
     """
     dry_run: bool = False
     max_parallel: int = 3
     stop_on_failure: bool = True
     timeout_seconds: int = 300
     max_retries: int = 2
+    max_refinement_iterations: int = 3
 
 
 class AgentStateUpdate(TypedDict, total=False):
@@ -473,7 +475,7 @@ def execute_with_flow_controller(
     replanner = Replanner() if use_refinement else None
     replan_history = []
     current_plan = plan
-    max_refinement_iterations = 3
+    max_refinement_iterations = config.max_refinement_iterations
 
     for iteration in range(max_refinement_iterations + 1):
         try:
@@ -526,8 +528,23 @@ def execute_with_flow_controller(
                 if len(failed_task_ids) == 1:
                     failed_task_id = failed_task_ids[0]
                     failed_feedback = next(
-                        f for f in feedbacks if f.task_id == failed_task_id
+                        (f for f in feedbacks if f.task_id == failed_task_id),
+                        None
                     )
+                    if failed_feedback is None:
+                        # Consistency error: failed task ID not found in feedback
+                        logger.warning(
+                            "[FlowIntegration] F-5 consistency error: failed task ID %s "
+                            "not found in feedback list. Escalating to HITL.",
+                            failed_task_id,
+                            extra={
+                                "trace_id": trace_id,
+                                "plan_id": current_plan.plan_id,
+                                "iteration": iteration,
+                                "operation": "execute_with_flow_controller",
+                            }
+                        )
+                        break
                     current_plan = replanner.replan_partial(
                         current_plan, failed_task_id, failed_feedback
                     )
