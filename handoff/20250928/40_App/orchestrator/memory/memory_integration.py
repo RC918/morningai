@@ -58,6 +58,16 @@ def _is_governance_enabled() -> bool:
     return _is_memory_v2_enabled() and settings.enable_memory_v2_governance
 
 
+def _is_review_feedback_enabled() -> bool:
+    """Check if review feedback loop is enabled (B-13)."""
+    return _is_memory_v2_enabled() and settings.enable_review_feedback_loop
+
+
+def _is_review_pattern_retrieval_enabled() -> bool:
+    """Check if review pattern retrieval is enabled (B-13)."""
+    return _is_review_feedback_enabled() and settings.enable_review_pattern_retrieval
+
+
 def _get_memory_v2() -> Optional["MemoryV2"]:
     """Get the Memory v2 singleton instance."""
     if not _is_memory_v2_enabled():
@@ -807,8 +817,230 @@ def get_memory_stats() -> Dict[str, Any]:
             "flow_state": _is_flow_state_enabled(),
             "debate": _is_debate_enabled(),
             "governance": _is_governance_enabled(),
+            "review_feedback": _is_review_feedback_enabled(),
+            "review_pattern_retrieval": _is_review_pattern_retrieval_enabled(),
         }
         return stats
 
     except Exception as e:
         return {"enabled": True, "error": str(e)}
+
+
+def save_review_feedback(
+    pr_number: int,
+    repo: str,
+    verdict: str,
+    severity: str,
+    summary: str,
+    review_comments: List[Dict[str, Any]],
+    file_paths: List[str],
+    trace_id: Optional[str] = None,
+    diff_snippet: Optional[str] = None,
+    blocker_count: int = 0,
+) -> bool:
+    """
+    Save review feedback to Knowledge Base for learning.
+
+    EPIC B Phase B-13: Real-time Feedback Loop
+    Blueprint: Reviewer feedback stored in Memory v2 for accumulated experience.
+
+    This enables the system to learn from past reviews and provide
+    better suggestions for similar code patterns in the future.
+
+    Args:
+        pr_number: Pull request number
+        repo: Repository name (owner/repo format)
+        verdict: Review verdict (approve, request_changes, comment, blocked, unknown)
+        severity: Review severity (low, medium, high, critical)
+        summary: One-line review summary
+        review_comments: List of review comment dicts
+        file_paths: List of files reviewed
+        trace_id: Optional workflow trace ID
+        diff_snippet: Optional code diff snippet for similarity search
+        blocker_count: Number of blocking issues found
+
+    Returns:
+        True if saved successfully, False otherwise
+    """
+    if not _is_review_feedback_enabled():
+        logger.debug("[MemoryIntegration] Review feedback loop disabled")
+        return False
+
+    memory = _get_memory_v2()
+    if memory is None:
+        return False
+
+    try:
+        from .memory_v2 import MemoryEntry, MemoryLayer, MemoryScope
+
+        content = json.dumps({
+            "pr_number": pr_number,
+            "repo": repo,
+            "verdict": verdict,
+            "severity": severity,
+            "summary": summary,
+            "review_comments": review_comments,
+            "file_paths": file_paths,
+            "blocker_count": blocker_count,
+            "diff_snippet": diff_snippet,  # Already truncated by caller
+            "saved_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+        entry = MemoryEntry(
+            key=f"review_feedback:{repo}:{pr_number}",
+            content=content,
+            layer=MemoryLayer.KNOWLEDGE_BASE,
+            scope=MemoryScope.GLOBAL,
+            trace_id=trace_id,
+            metadata={
+                "type": "review_feedback",
+                "pr_number": pr_number,
+                "repo": repo,
+                "verdict": verdict,
+                "severity": severity,
+                "blocker_count": blocker_count,
+                "file_count": len(file_paths),
+                "comment_count": len(review_comments),
+            },
+        )
+
+        success = memory.save(entry, MemoryLayer.KNOWLEDGE_BASE)
+        if success:
+            logger.info(
+                "[MemoryIntegration] Saved review feedback",
+                extra={
+                    "pr_number": pr_number,
+                    "repo": repo,
+                    "verdict": verdict,
+                    "severity": severity,
+                    "trace_id": trace_id,
+                    "operation": "save_review_feedback",
+                }
+            )
+        return success
+
+    except Exception as e:
+        logger.warning(
+            f"[MemoryIntegration] Failed to save review feedback: {e}",
+            extra={
+                "pr_number": pr_number,
+                "repo": repo,
+                "trace_id": trace_id,
+                "operation": "save_review_feedback",
+            }
+        )
+        return False
+
+
+def search_review_patterns(
+    query: str,
+    file_paths: Optional[List[str]] = None,
+    limit: Optional[int] = None,
+    min_similarity: Optional[float] = None,
+    trace_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Search for past review patterns similar to the current code.
+
+    EPIC B Phase B-13: Real-time Feedback Loop
+    Blueprint: Retrieve past review patterns to inform current reviews.
+
+    This enables the Reviewer to learn from past reviews and provide
+    more consistent and informed suggestions.
+
+    Args:
+        query: Search query (typically code snippet or file content)
+        file_paths: Optional list of file paths to filter by
+        limit: Maximum number of patterns to return (default from settings)
+        min_similarity: Minimum similarity threshold (default from settings)
+        trace_id: Optional workflow trace ID
+
+    Returns:
+        List of past review patterns with similarity scores
+    """
+    if not _is_review_pattern_retrieval_enabled():
+        logger.debug("[MemoryIntegration] Review pattern retrieval disabled")
+        return []
+
+    memory = _get_memory_v2()
+    if memory is None:
+        return []
+
+    if limit is None:
+        limit = settings.review_feedback_max_patterns
+    if min_similarity is None:
+        min_similarity = settings.review_feedback_similarity_threshold
+
+    try:
+        from .memory_v2 import MemoryLayer
+
+        entries = memory.search(
+            query=query,
+            layer=MemoryLayer.KNOWLEDGE_BASE,
+            limit=limit * 2,
+            trace_id=trace_id,
+        )
+
+        results = []
+        for entry in entries:
+            if entry.similarity is None or entry.similarity < min_similarity:
+                continue
+
+            if entry.metadata.get("type") != "review_feedback":
+                continue
+
+            if file_paths:
+                entry_files = set()
+                try:
+                    content = json.loads(entry.content)
+                    entry_files = set(content.get("file_paths", []))
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+                query_files = set(file_paths)
+                if not entry_files.intersection(query_files):
+                    continue
+
+            try:
+                content = json.loads(entry.content)
+                results.append({
+                    "key": entry.key,
+                    "similarity": entry.similarity,
+                    "verdict": content.get("verdict"),
+                    "severity": content.get("severity"),
+                    "summary": content.get("summary"),
+                    "review_comments": content.get("review_comments", []),
+                    "file_paths": content.get("file_paths", []),
+                    "pr_number": content.get("pr_number"),
+                    "repo": content.get("repo"),
+                    "blocker_count": content.get("blocker_count", 0),
+                    "saved_at": content.get("saved_at"),
+                })
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            if len(results) >= limit:
+                break
+
+        logger.info(
+            "[MemoryIntegration] Found %d review patterns",
+            len(results),
+            extra={
+                "query_length": len(query),
+                "file_count": len(file_paths) if file_paths else 0,
+                "trace_id": trace_id,
+                "operation": "search_review_patterns",
+            }
+        )
+
+        return results
+
+    except Exception as e:
+        logger.warning(
+            f"[MemoryIntegration] Failed to search review patterns: {e}",
+            extra={
+                "trace_id": trace_id,
+                "operation": "search_review_patterns",
+            }
+        )
+        return []
