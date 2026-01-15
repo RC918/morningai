@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2026-01-15
+> Last Updated: 2026-01-15 (B-13 Completed)
 
 ## Overview
 
