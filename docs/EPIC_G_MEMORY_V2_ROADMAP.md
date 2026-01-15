@@ -23,19 +23,31 @@ EPIC G implements the Memory v2 4-layer memory system that enables MorningAI to 
 ### Memory Flow Architecture
 
 ```
-User Request
-    |
-    v
-Short-Term Memory (1hr TTL)
-    |
-    v [Consolidation Agent - G-2]
-Agent Interaction Memory (24hr TTL)
-    |
-    v [Consolidation Agent - G-2]
-Knowledge Base (Permanent)
-    |
-    v
-Planner v3 / Flow v3 / Agents
+                              User Request
+                                   |
+                                   v
+                      Short-Term Memory (1hr TTL)
+                                   |
+                                   v [Consolidation Agent - G-2]
+                      Agent Interaction Memory (24hr TTL)
+                                   |
+                                   v [Consolidation Agent - G-2]
+                        Knowledge Base (Permanent)
+                                   |
+                                   v
+                      Planner v3 / Flow v3 / Agents
+
+
+    [Separate Flow: Governance Memory]
+    
+    Routing Decisions ──────────────────────────────┐
+    (routing_policy_evolver.py)                     │
+                                                    v
+    Safety Patterns ────────────────────> Governance Memory (Permanent)
+    (safety_governor.py)                            │
+                                                    v
+    Drift Analysis ─────────────────────> Drift Analysis / Compliance Radar
+    (heartbeat_handler.py)
 ```
 
 ---
@@ -129,10 +141,10 @@ class MemoryConsolidationJob:
 
 ```python
 importance_score = (
-    debate_confidence * 0.3 +      # Debate result confidence
-    outcome_impact * 0.3 +          # Impact on system
-    novelty_score * 0.2 +           # Is this new knowledge?
-    reference_count * 0.2           # How often referenced?
+    debate_confidence * 0.3 +    # Debate result confidence
+    outcome_impact * 0.3 +       # Impact on system
+    novelty_score * 0.2 +        # Is this new knowledge?
+    reference_count * 0.2        # How often referenced?
 )
 ```
 
