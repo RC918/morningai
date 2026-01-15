@@ -168,6 +168,66 @@ class BaseMemoryStore(ABC):
 
 
 # =============================================================================
+# Supabase Base Class for Database-backed Memory Stores
+# =============================================================================
+
+class SupabaseMemoryStore(BaseMemoryStore):
+    """
+    Base class for Supabase-backed memory stores.
+
+    Provides common functionality for database-backed memory layers:
+    - Lazy client initialization with failure caching
+    - Shared error handling patterns
+
+    Issue #3965: Extract shared Supabase base class for database-backed stores.
+    """
+
+    TABLE: str = ""  # Override in subclass
+
+    def __init__(self):
+        self._supabase_client = None
+        self._client_init_failed = False
+
+    def _get_client(self):
+        """
+        Get Supabase client lazily with failure caching.
+
+        Returns the Supabase client instance, or None if initialization failed.
+        Failed initialization attempts are cached to avoid repeated failures.
+        """
+        if self._supabase_client is not None:
+            return self._supabase_client
+
+        # Skip repeated initialization attempts if previous attempt failed
+        if self._client_init_failed:
+            return None
+
+        try:
+            from supabase import create_client
+            from common.config.settings import settings
+
+            if settings.supabase_url and settings.supabase_service_role_key:
+                self._supabase_client = create_client(
+                    settings.supabase_url,
+                    settings.supabase_service_role_key,
+                )
+            else:
+                self._client_init_failed = True
+                logger.debug(
+                    f"[Memory:{self.__class__.__name__}] "
+                    "Supabase credentials not configured"
+                )
+        except Exception:
+            self._client_init_failed = True
+            logger.debug(
+                f"[Memory:{self.__class__.__name__}] Supabase not available: "
+                "An exception occurred during client initialization"
+            )
+
+        return self._supabase_client
+
+
+# =============================================================================
 # Layer 1: Short-Term Memory (Redis-based)
 # =============================================================================
 
@@ -201,23 +261,25 @@ class ShortTermMemory(BaseMemoryStore):
     def save(self, entry: MemoryEntry) -> bool:
         """Save to short-term memory"""
         try:
-            entry.layer = MemoryLayer.SHORT_TERM
-            entry.updated_at = datetime.now(timezone.utc).isoformat()
+            # Create a copy to avoid mutating the input entry
+            entry_copy = copy.copy(entry)
+            entry_copy.layer = MemoryLayer.SHORT_TERM
+            entry_copy.updated_at = datetime.now(timezone.utc).isoformat()
 
             # Save to Redis if available
             if self.redis_client:
-                redis_key = self._get_redis_key(entry.key)
+                redis_key = self._get_redis_key(entry_copy.key)
                 self.redis_client.setex(
                     redis_key,
                     self.ttl,
-                    json.dumps(entry.to_dict()),
+                    json.dumps(entry_copy.to_dict()),
                 )
-                logger.debug(f"[Memory:ShortTerm] Saved to Redis: {entry.key}")
+                logger.debug(f"[Memory:ShortTerm] Saved to Redis: {entry_copy.key}")
             else:
                 # Fallback to local cache
                 with self._lock:
-                    self._local_cache[entry.key] = entry
-                logger.debug(f"[Memory:ShortTerm] Saved to local cache: {entry.key}")
+                    self._local_cache[entry_copy.key] = entry_copy
+                logger.debug(f"[Memory:ShortTerm] Saved to local cache: {entry_copy.key}")
 
             return True
 
@@ -416,21 +478,23 @@ class AgentInteractionMemory(BaseMemoryStore):
     def save(self, entry: MemoryEntry) -> bool:
         """Save agent interaction"""
         try:
-            entry.layer = MemoryLayer.AGENT_INTERACTION
-            entry.updated_at = datetime.now(timezone.utc).isoformat()
+            # Create a copy to avoid mutating the input entry
+            entry_copy = copy.copy(entry)
+            entry_copy.layer = MemoryLayer.AGENT_INTERACTION
+            entry_copy.updated_at = datetime.now(timezone.utc).isoformat()
 
             if self.redis_client:
-                redis_key = self._get_redis_key(entry.key)
+                redis_key = self._get_redis_key(entry_copy.key)
                 self.redis_client.setex(
                     redis_key,
                     self.ttl,
-                    json.dumps(entry.to_dict()),
+                    json.dumps(entry_copy.to_dict()),
                 )
-                logger.debug(f"[Memory:AgentInteraction] Saved to Redis: {entry.key}")
+                logger.debug(f"[Memory:AgentInteraction] Saved to Redis: {entry_copy.key}")
             else:
                 with self._lock:
-                    self._local_cache[entry.key] = entry
-                logger.debug(f"[Memory:AgentInteraction] Saved to local cache: {entry.key}")
+                    self._local_cache[entry_copy.key] = entry_copy
+                logger.debug(f"[Memory:AgentInteraction] Saved to local cache: {entry_copy.key}")
 
             return True
 
@@ -646,7 +710,7 @@ class AgentInteractionMemory(BaseMemoryStore):
 # Layer 3: Knowledge Base (pgvector-based)
 # =============================================================================
 
-class KnowledgeBaseMemory(BaseMemoryStore):
+class KnowledgeBaseMemory(SupabaseMemoryStore):
     """
     Knowledge Base Memory Layer (長期知識記憶)
 
@@ -654,41 +718,12 @@ class KnowledgeBaseMemory(BaseMemoryStore):
     Uses pgvector for vector similarity search.
 
     Integrates with existing pgvector_store.py and error_fix_pairs.py.
+
+    Inherits from SupabaseMemoryStore for shared client initialization (#3965).
     """
 
     TABLE = "memory_v2_knowledge"
     DEFAULT_SIMILARITY_THRESHOLD = 0.7
-
-    def __init__(self):
-        self._supabase_client = None
-        self._client_init_failed = False
-
-    def _get_client(self):
-        """Get Supabase client lazily with failure caching"""
-        if self._supabase_client is not None:
-            return self._supabase_client
-
-        # Skip repeated initialization attempts if previous attempt failed
-        if self._client_init_failed:
-            return None
-
-        try:
-            from supabase import create_client
-            from common.config.settings import settings
-
-            if settings.supabase_url and settings.supabase_service_role_key:
-                self._supabase_client = create_client(
-                    settings.supabase_url,
-                    settings.supabase_service_role_key,
-                )
-            else:
-                self._client_init_failed = True
-                logger.debug("[Memory:KnowledgeBase] Supabase credentials not configured")
-        except Exception as e:
-            self._client_init_failed = True
-            logger.debug(f"[Memory:KnowledgeBase] Supabase not available: {e}")
-
-        return self._supabase_client
 
     def _embed(self, text: str) -> Optional[List[float]]:
         """Generate embedding for text"""
@@ -708,27 +743,29 @@ class KnowledgeBaseMemory(BaseMemoryStore):
                 logger.debug("[Memory:KnowledgeBase] Supabase not available")
                 return False
 
-            entry.layer = MemoryLayer.KNOWLEDGE_BASE
-            entry.updated_at = datetime.now(timezone.utc).isoformat()
+            # Create a copy to avoid mutating the input entry
+            entry_copy = copy.copy(entry)
+            entry_copy.layer = MemoryLayer.KNOWLEDGE_BASE
+            entry_copy.updated_at = datetime.now(timezone.utc).isoformat()
 
             # Generate embedding if not provided
-            if entry.embedding is None:
-                entry.embedding = self._embed(entry.content)
+            if entry_copy.embedding is None:
+                entry_copy.embedding = self._embed(entry_copy.content)
 
             record = {
-                "key": entry.key,
-                "content": entry.content,
-                "scope": entry.scope.value,
-                "metadata": json.dumps(entry.metadata),
-                "embedding": entry.embedding,
-                "trace_id": entry.trace_id,
-                "agent_id": entry.agent_id,
-                "created_at": entry.created_at,
-                "updated_at": entry.updated_at,
+                "key": entry_copy.key,
+                "content": entry_copy.content,
+                "scope": entry_copy.scope.value,
+                "metadata": json.dumps(entry_copy.metadata),
+                "embedding": entry_copy.embedding,
+                "trace_id": entry_copy.trace_id,
+                "agent_id": entry_copy.agent_id,
+                "created_at": entry_copy.created_at,
+                "updated_at": entry_copy.updated_at,
             }
 
             client.table(self.TABLE).upsert(record, on_conflict="key").execute()
-            logger.debug(f"[Memory:KnowledgeBase] Saved: {entry.key}")
+            logger.debug(f"[Memory:KnowledgeBase] Saved: {entry_copy.key}")
             return True
 
         except Exception as e:
@@ -901,7 +938,7 @@ class KnowledgeBaseMemory(BaseMemoryStore):
 # Layer 4: Governance Memory (PostgreSQL-based)
 # =============================================================================
 
-class GovernanceMemory(BaseMemoryStore):
+class GovernanceMemory(SupabaseMemoryStore):
     """
     Governance Memory Layer (治理記憶)
 
@@ -909,40 +946,11 @@ class GovernanceMemory(BaseMemoryStore):
     Uses PostgreSQL for structured queries and audit trails.
 
     Integrates with existing failure_memory.py.
+
+    Inherits from SupabaseMemoryStore for shared client initialization (#3965).
     """
 
     TABLE = "memory_v2_governance"
-
-    def __init__(self):
-        self._supabase_client = None
-        self._client_init_failed = False
-
-    def _get_client(self):
-        """Get Supabase client lazily with failure caching"""
-        if self._supabase_client is not None:
-            return self._supabase_client
-
-        # Skip repeated initialization attempts if previous attempt failed
-        if self._client_init_failed:
-            return None
-
-        try:
-            from supabase import create_client
-            from common.config.settings import settings
-
-            if settings.supabase_url and settings.supabase_service_role_key:
-                self._supabase_client = create_client(
-                    settings.supabase_url,
-                    settings.supabase_service_role_key,
-                )
-            else:
-                self._client_init_failed = True
-                logger.debug("[Memory:Governance] Supabase credentials not configured")
-        except Exception as e:
-            self._client_init_failed = True
-            logger.debug(f"[Memory:Governance] Supabase not available: {e}")
-
-        return self._supabase_client
 
     def save(self, entry: MemoryEntry) -> bool:
         """Save governance memory"""
@@ -952,22 +960,24 @@ class GovernanceMemory(BaseMemoryStore):
                 logger.debug("[Memory:Governance] Supabase not available")
                 return False
 
-            entry.layer = MemoryLayer.GOVERNANCE
-            entry.updated_at = datetime.now(timezone.utc).isoformat()
+            # Create a copy to avoid mutating the input entry
+            entry_copy = copy.copy(entry)
+            entry_copy.layer = MemoryLayer.GOVERNANCE
+            entry_copy.updated_at = datetime.now(timezone.utc).isoformat()
 
             record = {
-                "key": entry.key,
-                "content": entry.content,
-                "scope": entry.scope.value,
-                "metadata": json.dumps(entry.metadata),
-                "trace_id": entry.trace_id,
-                "agent_id": entry.agent_id,
-                "created_at": entry.created_at,
-                "updated_at": entry.updated_at,
+                "key": entry_copy.key,
+                "content": entry_copy.content,
+                "scope": entry_copy.scope.value,
+                "metadata": json.dumps(entry_copy.metadata),
+                "trace_id": entry_copy.trace_id,
+                "agent_id": entry_copy.agent_id,
+                "created_at": entry_copy.created_at,
+                "updated_at": entry_copy.updated_at,
             }
 
             client.table(self.TABLE).upsert(record, on_conflict="key").execute()
-            logger.debug(f"[Memory:Governance] Saved: {entry.key}")
+            logger.debug(f"[Memory:Governance] Saved: {entry_copy.key}")
             return True
 
         except Exception as e:
