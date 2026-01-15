@@ -150,11 +150,11 @@ AUTO_APPLY_THRESHOLDS = {
     "score_improve_flag_review": 0.10,  # >10% improve = flag for review (never auto)
 }
 
-# Weight adjustment factors
+# Weight adjustment factors (aligned with SEVERITY_MULTIPLIERS in degradation_types.py)
+# SSOT: These values MUST match SEVERITY_MULTIPLIERS for consistency
 WEIGHT_ADJUSTMENTS = {
-    "severe_drop": 0.25,  # >20% drop: reduce weight to 25%
-    "moderate_drop": 0.50,  # 10-20% drop: reduce weight to 50%
-    "slight_drop": 0.75,  # 5-10% drop: reduce weight to 75%
+    "severe_drop": 0.3,  # >20% drop: reduce to CRITICAL (0.3 multiplier)
+    "moderate_drop": 0.7,  # 10-20% drop: reduce to DEGRADED (0.7 multiplier)
 }
 
 
@@ -188,7 +188,7 @@ class RoutingPolicyEvolver:
         redis_client: Optional["Redis"] = None,
         enabled: bool = True,
         dry_run: bool = True,
-        floor_provider: str = "openai",
+        floor_provider: str = "gemini",
     ):
         """
         Initialize Routing Policy Evolver
@@ -212,6 +212,35 @@ class RoutingPolicyEvolver:
             f"[RoutingPolicyEvolver] Initialized: enabled={enabled}, "
             f"dry_run={dry_run}, floor_provider={floor_provider}"
         )
+
+    def _get_current_weight(self, provider: str) -> float:
+        """
+        Get the current routing weight for a provider from DegradationAdvisor.
+
+        Args:
+            provider: Provider name
+
+        Returns:
+            Current weight (multiplier) for the provider, defaults to 1.0 if unknown
+        """
+        try:
+            from governance.degradation_advisor import get_degradation_advisor
+            from governance.degradation_types import SEVERITY_MULTIPLIERS
+
+            advisor = get_degradation_advisor()
+            if advisor:
+                severity = advisor.get_provider_state(provider)
+                if severity is not None:
+                    return SEVERITY_MULTIPLIERS.get(severity, 1.0)
+        except ImportError:
+            logger.debug(
+                "[I-4-EVOLVE] DegradationAdvisor not available, "
+                "using default weight 1.0"
+            )
+        except Exception as e:
+            logger.warning(f"[I-4-EVOLVE] Error getting current weight: {e}")
+
+        return 1.0  # Default to full weight if unknown
 
     def evolve_from_capability_scores(
         self,
@@ -412,6 +441,9 @@ class RoutingPolicyEvolver:
             )
             new_weight = 0.25
 
+        # Fetch actual current weight from DegradationAdvisor
+        old_weight = self._get_current_weight(provider)
+
         # Generate change ID
         change_id = f"{provider}:{model}:{task_type}:{int(datetime.now(timezone.utc).timestamp())}"
 
@@ -421,7 +453,7 @@ class RoutingPolicyEvolver:
             provider=provider,
             model=model,
             task_type=task_type,
-            old_value=1.0,  # Assume previous weight was 1.0
+            old_value=old_weight,
             new_value=new_weight,
             reason=reason,
             status=ChangeStatus.PENDING if not auto_applicable else ChangeStatus.AUTO_APPLIED,
@@ -467,13 +499,16 @@ class RoutingPolicyEvolver:
             )
             score_multiplier = 0.25
 
+        # Fetch actual current weight from DegradationAdvisor
+        old_weight = self._get_current_weight(provider)
+
         change_id = f"{provider}:degradation:{int(datetime.now(timezone.utc).timestamp())}"
 
         return RoutingPolicyChange(
             change_id=change_id,
             change_type=ChangeType.WEIGHT_ADJUSTMENT,
             provider=provider,
-            old_value=1.0,
+            old_value=old_weight,
             new_value=score_multiplier,
             reason=ChangeReason.DEGRADATION_ADVISORY,
             status=ChangeStatus.PENDING if not auto_applicable else ChangeStatus.AUTO_APPLIED,
@@ -505,8 +540,7 @@ class RoutingPolicyEvolver:
             # Apply the change to routing engine
             self._apply_to_routing_engine(change)
 
-            # Update change status
-            change.status = ChangeStatus.AUTO_APPLIED
+            # Update applied_at timestamp (status is already set by caller)
             change.applied_at = datetime.now(timezone.utc).isoformat()
 
             # Store in applied changes
@@ -801,7 +835,7 @@ def get_routing_policy_evolver(
 
             enabled = os.getenv("ROUTING_POLICY_EVOLUTION_ENABLED", "false").lower() == "true"
             dry_run = os.getenv("ROUTING_POLICY_EVOLUTION_DRY_RUN", "true").lower() == "true"
-            floor_provider = os.getenv("ROUTING_FLOOR_PROVIDER", "openai")
+            floor_provider = os.getenv("ROUTING_FLOOR_PROVIDER", "gemini")
 
             if not enabled:
                 logger.debug("[RoutingPolicyEvolver] Policy evolution disabled")
