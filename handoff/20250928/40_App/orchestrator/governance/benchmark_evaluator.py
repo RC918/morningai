@@ -136,6 +136,7 @@ class BenchmarkResult:
     format_compliance_score: float = 0.0
     latency_ms: float = 0.0
     cost_usd: float = 0.0
+    weighted_score: Optional[float] = None  # Calculated weighted score for capability scoring
     error: Optional[str] = None
     raw_output: Optional[str] = None
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
@@ -184,6 +185,7 @@ class BenchmarkResult:
             "format_compliance_score": self.format_compliance_score,
             "latency_ms": self.latency_ms,
             "cost_usd": self.cost_usd,
+            "weighted_score": self.weighted_score,
             "error": self.error,
             "raw_output": self.raw_output,
             "timestamp": self.timestamp,
@@ -590,9 +592,12 @@ class BenchmarkEvaluator:
 
             for task in tasks:
                 result = self.evaluate_task(task, provider, model)
-                results.append(result)
 
+                # Calculate and store weighted_score on the result for capability scoring
                 weighted_score = result.calculate_weighted_score(task.evaluation_criteria)
+                result.weighted_score = weighted_score
+
+                results.append(result)
                 provider_scores[provider].append(weighted_score)
 
         # Calculate summary statistics
