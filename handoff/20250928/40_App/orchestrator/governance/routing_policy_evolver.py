@@ -835,7 +835,7 @@ def get_routing_policy_evolver(
 
             enabled = os.getenv("ROUTING_POLICY_EVOLUTION_ENABLED", "false").lower() == "true"
             dry_run = os.getenv("ROUTING_POLICY_EVOLUTION_DRY_RUN", "true").lower() == "true"
-            floor_provider = os.getenv("ROUTING_FLOOR_PROVIDER", "gemini")
+            floor_provider = os.getenv("ROUTING_FLOOR_PROVIDER", "openai")
 
             if not enabled:
                 logger.debug("[RoutingPolicyEvolver] Policy evolution disabled")
