@@ -167,6 +167,46 @@ class ImportanceScoringEngine:
             reference_count=reference_count,
         )
 
+    def score_batch(
+        self,
+        entries: List[MemoryEntry],
+    ) -> List[ImportanceScore]:
+        """
+        Calculate importance scores for multiple entries in batch.
+
+        Issue #3976: Batch novelty calculation to reduce N+1 queries.
+        Instead of calling search() for each entry, we batch all queries
+        and perform a single search operation.
+
+        Args:
+            entries: List of memory entries to score
+
+        Returns:
+            List of ImportanceScore objects in same order as input
+        """
+        if not entries:
+            return []
+
+        novelty_scores = self._calculate_novelty_batch(entries)
+
+        scores = []
+        for i, entry in enumerate(entries):
+            metadata = entry.metadata or {}
+
+            debate_confidence = self._extract_debate_confidence(entry, metadata)
+            outcome_impact = self._extract_outcome_impact(entry, metadata)
+            novelty_score = novelty_scores[i]
+            reference_count = self._calculate_reference_score(entry, metadata)
+
+            scores.append(ImportanceScore(
+                debate_confidence=debate_confidence,
+                outcome_impact=outcome_impact,
+                novelty_score=novelty_score,
+                reference_count=reference_count,
+            ))
+
+        return scores
+
     def is_important(self, entry: MemoryEntry) -> Tuple[bool, ImportanceScore]:
         """
         Check if a memory entry is important enough to consolidate.
@@ -257,6 +297,69 @@ class ImportanceScoringEngine:
         except Exception as e:
             logger.debug(f"[Consolidation] Novelty check failed: {e}")
             return 0.5
+
+    def _calculate_novelty_batch(
+        self,
+        entries: List[MemoryEntry],
+    ) -> List[float]:
+        """
+        Calculate novelty scores for multiple entries in batch.
+
+        Issue #3976: Instead of N separate search() calls (N+1 pattern),
+        we combine all queries and perform a single batch search.
+
+        Args:
+            entries: List of memory entries to calculate novelty for
+
+        Returns:
+            List of novelty scores in same order as input entries
+        """
+        if self.memory is None:
+            return [0.5] * len(entries)
+
+        if not entries:
+            return []
+
+        try:
+            queries = [entry.content[:200] for entry in entries]
+
+            combined_query = " ".join(queries[:10])
+
+            existing = self.memory.search(
+                query=combined_query,
+                layers=[MemoryLayer.KNOWLEDGE_BASE],
+                limit=len(entries) * 3,
+            )
+
+            if not existing:
+                return [1.0] * len(entries)
+
+            novelty_scores = []
+            for entry in entries:
+                entry_query = entry.content[:200].lower()
+
+                max_similarity = 0.0
+                for e in existing:
+                    if entry_query[:50] in e.content.lower():
+                        max_similarity = max(max_similarity, e.similarity or 0.0)
+                    elif e.similarity and e.similarity > max_similarity:
+                        content_overlap = sum(
+                            1 for word in entry_query.split()[:10]
+                            if word in e.content.lower()
+                        )
+                        if content_overlap >= 3:
+                            max_similarity = max(
+                                max_similarity,
+                                (e.similarity or 0.0) * 0.8
+                            )
+
+                novelty_scores.append(max(0.0, 1.0 - max_similarity))
+
+            return novelty_scores
+
+        except Exception as e:
+            logger.debug(f"[Consolidation] Batch novelty check failed: {e}")
+            return [0.5] * len(entries)
 
     def _calculate_reference_score(
         self,
@@ -601,12 +704,13 @@ class MemoryConsolidationJob:
                 f"[Consolidation] Scanned {result.memories_scanned} expiring memories"
             )
 
-            important_memories = []
-            for entry in expiring_memories:
-                is_important, score = self.scoring_engine.is_important(entry)
-                result.memories_evaluated += 1
+            # Issue #3976: Use batch scoring to reduce N+1 queries
+            scores = self.scoring_engine.score_batch(expiring_memories)
+            result.memories_evaluated = len(expiring_memories)
 
-                if is_important:
+            important_memories = []
+            for entry, score in zip(expiring_memories, scores):
+                if score.total >= self.importance_threshold:
                     important_memories.append((entry, score))
                 else:
                     result.memories_skipped += 1
