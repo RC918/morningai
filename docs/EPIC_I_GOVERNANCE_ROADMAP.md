@@ -3,7 +3,25 @@
 **Issue**: [#3342](https://github.com/RC918/morningai/issues/3342)  
 **Blueprint Reference**: Section 4.3 (Model Governance Framework v2) + Section 4.4 (Autonomous Provisioning v2)  
 **Status**: Phase I-1 Complete, Phase I-2a Complete (observe-only), Phase I-2b+ gated by #3249  
-**Last Updated**: 2026-01-09
+**Last Updated**: 2026-01-15
+
+## Recent Updates
+
+### 2026-01-15: Encapsulation Improvements (PR #4009)
+
+**Issues Closed**: #3958, #3961  
+**Tag**: `week3-pr3-epic-i-encapsulation`
+
+| Component | Change | Benefit |
+|-----------|--------|---------|
+| `CapabilityScoreManager` | Added `_extract_task_type()` helper with validation | Robust task_id parsing, handles edge cases |
+| `DegradationAdvisor` | Added `set_provider_state()` public method | Clean encapsulation, no direct private attribute access |
+| `RoutingPolicyEvolver` | Uses public method instead of `_provider_states` | Better maintainability, follows Blueprint Section 4.4 |
+
+**Code Quality**:
+- Structured logging with `extra={}` fields for programmatic log parsing
+- Comprehensive validation for malformed task_id inputs
+- Thread-safe state updates via existing `_lock` mechanism
 
 ## Executive Summary
 
