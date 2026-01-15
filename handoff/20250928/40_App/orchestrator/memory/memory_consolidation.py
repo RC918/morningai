@@ -22,6 +22,7 @@ Blueprint Alignment:
 Issue: #3973
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -279,6 +280,11 @@ class LLMSummarizer:
     LLM-based summarization for memory consolidation.
 
     Summarizes important memories before persisting to Knowledge Base.
+
+    Issue #3977: Async LLM summarization pipeline
+    - Supports both sync and async summarization
+    - Batch processing for multiple memories
+    - Rate limiting to prevent API throttling
     """
 
     SUMMARIZATION_PROMPT = """You are a memory consolidation agent for an AI coding assistant.
@@ -307,9 +313,23 @@ Output a JSON object with:
 
 Respond with valid JSON only."""
 
-    def __init__(self, model: str = "gemini-2.0-flash"):
+    # Issue #3977: Default concurrency and rate limiting settings
+    DEFAULT_MAX_CONCURRENCY = 5
+    DEFAULT_RATE_LIMIT_DELAY = 0.2  # seconds between requests
+
+    def __init__(
+        self,
+        model: str = "gemini-2.0-flash",
+        max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
+        rate_limit_delay: float = DEFAULT_RATE_LIMIT_DELAY,
+    ):
         self.model = model
+        self.max_concurrency = max_concurrency
+        self.rate_limit_delay = rate_limit_delay
         self._client = None
+        self._semaphore: Optional[asyncio.Semaphore] = None
+        self._rate_limit_lock: Optional[asyncio.Lock] = None
+        self._last_request_time = 0.0
 
     def _get_client(self):
         """Get LLM client lazily"""
@@ -330,7 +350,7 @@ Respond with valid JSON only."""
         memory_type: MemoryType = MemoryType.GENERAL,
     ) -> Optional[Dict[str, Any]]:
         """
-        Summarize a memory entry using LLM.
+        Summarize a memory entry using LLM (synchronous).
 
         Args:
             entry: Memory entry to summarize
@@ -374,6 +394,99 @@ Respond with valid JSON only."""
         except Exception as e:
             logger.warning(f"[Consolidation] LLM summarization failed: {e}")
             return self._fallback_summarize(entry, memory_type)
+
+    async def summarize_async(
+        self,
+        entry: MemoryEntry,
+        memory_type: MemoryType = MemoryType.GENERAL,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Summarize a memory entry using LLM (asynchronous).
+
+        Issue #3977: Async LLM summarization pipeline
+
+        Args:
+            entry: Memory entry to summarize
+            memory_type: Type classification for the memory
+
+        Returns:
+            Dictionary with summary, keywords, and memory_type
+        """
+        # Initialize semaphore for concurrency control
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self.max_concurrency)
+
+        # Initialize rate limit lock for thread-safe access
+        if self._rate_limit_lock is None:
+            self._rate_limit_lock = asyncio.Lock()
+
+        async with self._semaphore:
+            # Rate limiting with lock to prevent race conditions
+            async with self._rate_limit_lock:
+                # Use monotonic clock for reliable rate limiting
+                current_time = time.monotonic()
+                time_since_last = current_time - self._last_request_time
+                if time_since_last < self.rate_limit_delay:
+                    await asyncio.sleep(self.rate_limit_delay - time_since_last)
+                self._last_request_time = time.monotonic()
+
+            # Run synchronous summarize in thread pool
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(
+                None,
+                self.summarize,
+                entry,
+                memory_type,
+            )
+
+    async def summarize_batch_async(
+        self,
+        entries: List[Tuple[MemoryEntry, MemoryType]],
+    ) -> List[Optional[Dict[str, Any]]]:
+        """
+        Summarize multiple memory entries concurrently.
+
+        Issue #3977: Async LLM summarization pipeline with batching
+
+        Args:
+            entries: List of (MemoryEntry, MemoryType) tuples
+
+        Returns:
+            List of summarization results (same order as input)
+        """
+        if not entries:
+            return []
+
+        logger.info(
+            f"[Consolidation] Starting batch summarization of {len(entries)} entries "
+            f"(max_concurrency={self.max_concurrency})"
+        )
+
+        tasks = [
+            self.summarize_async(entry, memory_type)
+            for entry, memory_type in entries
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Convert exceptions to None and log them
+        processed_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.warning(
+                    f"[Consolidation] Batch summarization failed for entry {i}: {result}"
+                )
+                entry, memory_type = entries[i]
+                processed_results.append(self._fallback_summarize(entry, memory_type))
+            else:
+                processed_results.append(result)
+
+        logger.info(
+            f"[Consolidation] Batch summarization completed: "
+            f"{len([r for r in processed_results if r])} successful"
+        )
+
+        return processed_results
 
     def _fallback_summarize(
         self,
@@ -641,28 +754,164 @@ class MemoryConsolidationJob:
 
         return success
 
-    def _classify_memory_type(self, entry: MemoryEntry) -> MemoryType:
-        """Classify memory type based on content and metadata"""
-        metadata = entry.metadata or {}
-        content_lower = entry.content.lower()
+    # Issue #3978: Pattern definitions for content-based classification
+    _CONTENT_PATTERNS: Dict[MemoryType, List[Tuple[str, float]]] = {
+        MemoryType.DEBATE_INSIGHT: [
+            ("debate", 2.0),
+            ("argument", 1.5),
+            ("consensus", 1.5),
+            ("winning", 1.0),
+            ("agent voted", 1.5),
+            ("disagreement", 1.0),
+        ],
+        MemoryType.ERROR_FIX_PAIR: [
+            ("error", 1.5),
+            ("exception", 1.5),
+            ("fix", 1.5),
+            ("resolved", 1.0),
+            ("traceback", 2.0),
+            ("bug", 1.5),
+            ("failed", 1.0),
+            ("solution", 1.0),
+        ],
+        MemoryType.ROUTING_DECISION: [
+            ("routing", 2.0),
+            ("provider", 1.5),
+            ("model selection", 2.0),
+            ("fallback", 1.5),
+            ("latency", 1.0),
+            ("cost optimization", 1.5),
+        ],
+        MemoryType.SAFETY_PATTERN: [
+            ("safety", 2.0),
+            ("compliance", 2.0),
+            ("pii", 1.5),
+            ("sensitive", 1.0),
+            ("blocked", 1.5),
+            ("violation", 1.5),
+            ("policy", 1.0),
+        ],
+        MemoryType.FLOW_EXECUTION: [
+            ("flow", 1.5),
+            ("execution", 1.5),
+            ("plan", 1.5),
+            ("step", 1.0),
+            ("workflow", 2.0),
+            ("task completed", 1.5),
+        ],
+        MemoryType.SOLUTION_PATTERN: [
+            ("solution", 1.5),
+            ("pattern", 1.5),
+            ("approach", 1.0),
+            ("best practice", 2.0),
+            ("recommendation", 1.5),
+            ("learned", 1.0),
+        ],
+    }
 
-        if "debate" in metadata or "debate" in content_lower:
+    # Issue #3978: Source layer to memory type mapping
+    _LAYER_TYPE_MAP: Dict[str, MemoryType] = {
+        "governance": MemoryType.SAFETY_PATTERN,
+        "debate": MemoryType.DEBATE_INSIGHT,
+        "routing": MemoryType.ROUTING_DECISION,
+        "planner": MemoryType.FLOW_EXECUTION,
+        "executor": MemoryType.FLOW_EXECUTION,
+    }
+
+    def _classify_by_explicit_type(self, metadata: Dict[str, Any]) -> Optional[MemoryType]:
+        """Check for explicit type in metadata (Factor 1)."""
+        explicit_type = metadata.get("memory_type") or metadata.get("type")
+        if explicit_type:
+            try:
+                return MemoryType(explicit_type)
+            except ValueError:
+                pass
+        return None
+
+    def _classify_by_source_layer(self, metadata: Dict[str, Any]) -> Optional[MemoryType]:
+        """Check source layer indicators (Factor 2)."""
+        source_layer = metadata.get("source_layer") or metadata.get("layer")
+        # Ensure source_layer is a string before calling .lower()
+        if source_layer and isinstance(source_layer, str):
+            if source_layer.lower() in self._LAYER_TYPE_MAP:
+                return self._LAYER_TYPE_MAP[source_layer.lower()]
+        return None
+
+    def _classify_by_metadata_schema(self, metadata: Dict[str, Any]) -> Optional[MemoryType]:
+        """Check metadata schema patterns (Factor 3)."""
+        if "debate_id" in metadata or "winning_agent" in metadata:
             return MemoryType.DEBATE_INSIGHT
-
-        if "error" in metadata or "fix" in metadata:
+        if "error_type" in metadata or "stack_trace" in metadata:
             return MemoryType.ERROR_FIX_PAIR
-
-        if "routing" in metadata or "routing" in content_lower:
-            return MemoryType.ROUTING_DECISION
-
-        if "safety" in metadata or "compliance" in content_lower:
+        if "fix_applied" in metadata or "resolution" in metadata:
+            return MemoryType.ERROR_FIX_PAIR
+        if "provider" in metadata and "model" in metadata:
+            if "latency" in metadata or "cost" in metadata:
+                return MemoryType.ROUTING_DECISION
+        if "safety_score" in metadata or "compliance_check" in metadata:
             return MemoryType.SAFETY_PATTERN
-
-        if "flow" in metadata or "execution" in content_lower:
+        if "plan_id" in metadata or "flow_id" in metadata:
             return MemoryType.FLOW_EXECUTION
+        if "task_id" in metadata and "execution_time" in metadata:
+            return MemoryType.FLOW_EXECUTION
+        return None
 
-        if "solution" in content_lower or "pattern" in content_lower:
-            return MemoryType.SOLUTION_PATTERN
+    def _classify_by_content_patterns(self, content_lower: str) -> Optional[MemoryType]:
+        """Classify using weighted content pattern scoring (Factor 4)."""
+        type_scores: Dict[MemoryType, float] = {t: 0.0 for t in MemoryType}
+
+        for memory_type, patterns in self._CONTENT_PATTERNS.items():
+            for pattern, weight in patterns:
+                if pattern in content_lower:
+                    type_scores[memory_type] += weight
+
+        max_score = max(type_scores.values())
+        if max_score >= 2.0:
+            for memory_type, score in type_scores.items():
+                if score == max_score:
+                    return memory_type
+        return None
+
+    def _classify_memory_type(self, entry: MemoryEntry) -> MemoryType:
+        """
+        Classify memory type using multi-factor approach.
+
+        Issue #3978: More robust memory type classification
+
+        Classification factors (in priority order):
+        1. Explicit type in metadata (highest confidence)
+        2. Source layer indicators
+        3. Metadata schema patterns
+        4. Content pattern analysis (weighted scoring)
+
+        Args:
+            entry: Memory entry to classify
+
+        Returns:
+            MemoryType classification
+        """
+        metadata = entry.metadata or {}
+
+        # Factor 1: Explicit type in metadata (highest priority)
+        result = self._classify_by_explicit_type(metadata)
+        if result:
+            return result
+
+        # Factor 2: Source layer indicators
+        result = self._classify_by_source_layer(metadata)
+        if result:
+            return result
+
+        # Factor 3: Metadata schema patterns
+        result = self._classify_by_metadata_schema(metadata)
+        if result:
+            return result
+
+        # Factor 4: Content pattern analysis with weighted scoring
+        content_lower = entry.content.lower()
+        result = self._classify_by_content_patterns(content_lower)
+        if result:
+            return result
 
         return MemoryType.GENERAL
 
