@@ -619,6 +619,7 @@ class SelfRefinementLoop:
     - Automatic replanning on failures
     - HITL escalation when limits exceeded
     - Failure learning context integration
+    - Orphaned flow state cleanup on replan (#3970)
 
     Usage:
         loop = SelfRefinementLoop(executor=my_executor)
@@ -649,6 +650,7 @@ class SelfRefinementLoop:
         )
         self._replan_history: List[Dict[str, Any]] = []
         self._consecutive_partial_failures: int = 0
+        self._tracked_plan_ids: List[str] = []
 
     def execute_with_refinement(self, plan: PlannerOutput) -> RefinementResult:
         """
@@ -682,6 +684,7 @@ class SelfRefinementLoop:
         self.replanner.reset()
         self._replan_history.clear()
         self._consecutive_partial_failures = 0
+        self._tracked_plan_ids = [plan.plan_id]
 
         while True:
             result = self._execute_plan(current_plan)
@@ -699,6 +702,8 @@ class SelfRefinementLoop:
                     current_plan.plan_id[:8]
                 )
                 self._consecutive_partial_failures = 0
+                # Clean up all tracked flow states on successful completion (#3970)
+                self._cleanup_orphaned_flow_states()
                 return RefinementResult(
                     execution_result=result,
                     replan_history=self._replan_history,
@@ -756,6 +761,9 @@ class SelfRefinementLoop:
                     "[SelfRefinementLoop] Full replan triggered (reason: %s)",
                     "consecutive_partial_failures" if len(plan_feedback.failed_task_ids) == 1 else "multiple_failures"
                 )
+
+            # Track new plan_id for orphaned flow state cleanup (#3970)
+            self._tracked_plan_ids.append(current_plan.plan_id)
 
             logger.info(
                 "[SelfRefinementLoop] Replanned, continuing execution (replan count: %d)",
@@ -827,6 +835,46 @@ class SelfRefinementLoop:
             task_results=task_results,
             total_duration_minutes=duration,
         )
+
+    def _cleanup_orphaned_flow_states(self) -> None:
+        """
+        Clean up all tracked flow states from Short-Term Memory.
+
+        This method is called on successful plan completion to remove
+        orphaned flow state entries that were created during replans.
+
+        Issue #3970: When replan occurs, the original plan_id flow state
+        entry remains in Short-Term Memory and becomes orphaned.
+        """
+        try:
+            from memory.memory_integration import clear_flow_state
+        except ImportError:
+            logger.debug(
+                "[SelfRefinementLoop] memory_integration not available, "
+                "skipping flow state cleanup"
+            )
+            return
+
+        for plan_id in self._tracked_plan_ids:
+            try:
+                cleared = clear_flow_state(plan_id)
+                if cleared:
+                    logger.debug(
+                        "[SelfRefinementLoop] Cleared flow state for plan %s",
+                        plan_id[:8]
+                    )
+            except Exception as e:
+                logger.warning(
+                    "[SelfRefinementLoop] Failed to clear flow state for plan %s: %s",
+                    plan_id[:8],
+                    str(e)
+                )
+
+        logger.info(
+            "[SelfRefinementLoop] Cleaned up %d tracked flow states",
+            len(self._tracked_plan_ids)
+        )
+        self._tracked_plan_ids.clear()
 
     def get_replan_history(self) -> List[Dict[str, Any]]:
         """Get the history of replans performed."""
