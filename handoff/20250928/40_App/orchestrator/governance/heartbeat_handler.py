@@ -1,5 +1,5 @@
 """
-Governance Heartbeat Handler - EPIC I-1 Operationalization
+Governance Heartbeat Handler - EPIC I-1 Operationalization + EPIC I-3 Benchmark Scheduling
 
 This module implements the governance heartbeat that periodically evaluates
 provider health and degradation state. It is designed to be called from the
@@ -11,6 +11,7 @@ Key Features:
 - Health alerting via HealthAlertService
 - Degradation advisory via DegradationAdvisor
 - Global health snapshot for routing engine consumption
+- EPIC I-3: Scheduled benchmark evaluation and capability score updates
 
 Safety Contract:
 - Governance failures MUST NOT affect worker heartbeat
@@ -21,6 +22,7 @@ Blueprint Alignment:
 - Section 4.3: Model Governance Framework v2
 - Section 4.4: Autonomous Provisioning v2
 - EPIC I-1: Operationalization (Heartbeat + Distributed Lock)
+- EPIC I-3: Autonomous Evolution (Benchmark & Capability Scoring)
 
 Issue: #3342
 """
@@ -426,6 +428,9 @@ def run_governance_cycle(
             advisory_results,
         )
 
+        # EPIC I-3: Run benchmark evaluation if scheduled
+        _run_benchmark_evaluation(redis_client, evaluator_node_id)
+
         duration = time.monotonic() - start_time
 
         # Warn if cycle duration approaches lock TTL (90% threshold to reduce noise)
@@ -482,6 +487,207 @@ def run_governance_cycle(
         # Always try to release lock (even on error)
         # Pass lock_value for atomic compare-and-delete via Lua script
         _release_governance_lock(redis_client, lock_value, evaluator_node_id)
+
+
+def _should_run_benchmark(
+    redis_client: "Redis",
+    schedule_type: str,
+) -> bool:
+    """
+    Check if benchmark should run based on schedule.
+
+    EPIC I-3: Benchmark Scheduling
+
+    Schedule types:
+    - weekly_full: Sunday 02:00 UTC (comprehensive evaluation)
+    - daily_smoke: Daily 02:00 UTC (early degradation detection)
+
+    Args:
+        redis_client: Redis client instance
+        schedule_type: Type of benchmark schedule
+
+    Returns:
+        True if benchmark should run, False otherwise
+    """
+    import os
+    from datetime import datetime, timezone
+
+    # Check if benchmark evaluation is enabled
+    if os.getenv("BENCHMARK_EVALUATION_ENABLED", "false").lower() != "true":
+        return False
+
+    # Get last run timestamp from Redis
+    last_run_key = f"governance:benchmark_last_run:{schedule_type}"
+    try:
+        last_run = redis_client.get(last_run_key)
+        if last_run:
+            last_run_time = datetime.fromisoformat(last_run.decode() if isinstance(last_run, bytes) else last_run)
+        else:
+            last_run_time = None
+    except Exception:
+        last_run_time = None
+
+    now = datetime.now(timezone.utc)
+
+    if schedule_type == "weekly_full":
+        # Run on Sunday at 02:00 UTC
+        if now.weekday() != 6:  # Not Sunday
+            return False
+        if now.hour != 2:  # Not 02:00 hour
+            return False
+        # Check if already run this week
+        if last_run_time and (now - last_run_time).days < 7:
+            return False
+        return True
+
+    elif schedule_type == "daily_smoke":
+        # Run daily at 02:00 UTC
+        if now.hour != 2:  # Not 02:00 hour
+            return False
+        # Check if already run today
+        if last_run_time and last_run_time.date() == now.date():
+            return False
+        return True
+
+    return False
+
+
+def _run_benchmark_evaluation(
+    redis_client: "Redis",
+    evaluator_node_id: str,
+) -> Dict[str, Any]:
+    """
+    Run benchmark evaluation if scheduled.
+
+    EPIC I-3: Autonomous Evolution
+
+    This function checks if a benchmark should run based on the schedule
+    and executes it if needed. Results are used to update capability scores.
+
+    Args:
+        redis_client: Redis client instance
+        evaluator_node_id: Unique identifier for this evaluator
+
+    Returns:
+        Dictionary with benchmark results or skip reason
+    """
+    import os
+    from datetime import datetime, timezone
+
+    # Check if benchmark evaluation is enabled
+    if os.getenv("BENCHMARK_EVALUATION_ENABLED", "false").lower() != "true":
+        return {"executed": False, "reason": "benchmark_disabled"}
+
+    results: Dict[str, Any] = {"executed": False, "benchmarks_run": []}
+
+    try:
+        from governance.benchmark_evaluator import (
+            get_benchmark_evaluator,
+            BenchmarkScheduleType,
+        )
+        from governance.capability_score_manager import get_capability_score_manager
+
+        evaluator = get_benchmark_evaluator(redis_client)
+        score_manager = get_capability_score_manager(redis_client)
+
+        # Check weekly full benchmark
+        if _should_run_benchmark(redis_client, "weekly_full"):
+            logger.info(
+                "[Governance] Running weekly full benchmark",
+                extra={
+                    "operation": "benchmark_weekly",
+                    "evaluator_node_id": evaluator_node_id,
+                }
+            )
+
+            # Define providers and models to benchmark
+            providers = ["openai", "gemini", "alicloud", "siliconflow"]
+            models = {
+                "openai": "gpt-4o",
+                "gemini": "gemini-2.0-flash",
+                "alicloud": "qwen-max",
+                "siliconflow": "deepseek-v3",
+            }
+
+            benchmark_results = evaluator.run_benchmark_suite(
+                providers=providers,
+                models=models,
+                schedule_type=BenchmarkScheduleType.WEEKLY_FULL,
+            )
+
+            # Update capability scores from benchmark results
+            if benchmark_results.get("executed"):
+                score_manager.update_from_benchmark_results(benchmark_results)
+
+            # Mark as run
+            redis_client.setex(
+                "governance:benchmark_last_run:weekly_full",
+                86400 * 8,  # 8 days TTL
+                datetime.now(timezone.utc).isoformat(),
+            )
+
+            results["benchmarks_run"].append("weekly_full")
+            results["weekly_full"] = benchmark_results
+
+        # Check daily smoke test
+        elif _should_run_benchmark(redis_client, "daily_smoke"):
+            logger.info(
+                "[Governance] Running daily smoke benchmark",
+                extra={
+                    "operation": "benchmark_daily",
+                    "evaluator_node_id": evaluator_node_id,
+                }
+            )
+
+            providers = ["openai", "gemini"]
+            models = {
+                "openai": "gpt-4o",
+                "gemini": "gemini-2.0-flash",
+            }
+
+            benchmark_results = evaluator.run_benchmark_suite(
+                providers=providers,
+                models=models,
+                schedule_type=BenchmarkScheduleType.DAILY_SMOKE,
+            )
+
+            # Update capability scores from benchmark results
+            if benchmark_results.get("executed"):
+                score_manager.update_from_benchmark_results(benchmark_results)
+
+            # Mark as run
+            redis_client.setex(
+                "governance:benchmark_last_run:daily_smoke",
+                86400 * 2,  # 2 days TTL
+                datetime.now(timezone.utc).isoformat(),
+            )
+
+            results["benchmarks_run"].append("daily_smoke")
+            results["daily_smoke"] = benchmark_results
+
+        if results["benchmarks_run"]:
+            results["executed"] = True
+            logger.info(
+                f"[Governance] Benchmark evaluation completed: {results['benchmarks_run']}",
+                extra={
+                    "operation": "benchmark_complete",
+                    "evaluator_node_id": evaluator_node_id,
+                    "benchmarks_run": results["benchmarks_run"],
+                }
+            )
+
+    except Exception as e:
+        logger.warning(
+            f"[Governance] Benchmark evaluation failed: {e}",
+            extra={
+                "operation": "benchmark_evaluation",
+                "evaluator_node_id": evaluator_node_id,
+                "error": str(e),
+            }
+        )
+        results["error"] = str(e)
+
+    return results
 
 
 def get_health_snapshot(redis_client: Optional["Redis"]) -> Optional[Dict[str, Any]]:
