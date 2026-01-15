@@ -2146,6 +2146,68 @@ def run_vm_cleanup_scheduler():
     logger.info("VM cleanup scheduler stopped", extra={"operation": "vm_cleanup"})
 
 
+def run_memory_consolidation_scheduler():
+    """
+    Background thread to run memory consolidation job.
+
+    EPIC G-2: Memory Consolidation Agent
+    Transfers important short-term memories to long-term Knowledge Base.
+
+    Configuration (via environment variables):
+    - ENABLE_MEMORY_CONSOLIDATION: Must be 'true' to enable (default: false)
+    - MEMORY_CONSOLIDATION_DRY_RUN: Safe mode, logs only (default: true)
+    - MEMORY_CONSOLIDATION_THRESHOLD: Importance threshold (default: 0.5)
+    - MEMORY_CONSOLIDATION_INTERVAL_HOURS: Run interval (default: 6)
+    """
+    try:
+        from memory.memory_consolidation import get_consolidation_job
+
+        job = get_consolidation_job()
+        if job is None:
+            logger.info(
+                "Memory consolidation scheduler disabled (ENABLE_MEMORY_CONSOLIDATION=false)",
+                extra={"operation": "memory_consolidation"}
+            )
+            return
+
+        # Start the scheduler - it will run in its own thread internally
+        job.start_scheduler()
+        logger.info(
+            f"Memory consolidation scheduler started (interval={job.interval_hours}h, "
+            f"threshold={job.importance_threshold}, dry_run={job.dry_run})",
+            extra={
+                "operation": "memory_consolidation",
+                "interval_hours": job.interval_hours,
+                "threshold": job.importance_threshold,
+                "dry_run": job.dry_run,
+            }
+        )
+
+        # Wait for shutdown signal
+        while not shutdown_event.is_set():
+            shutdown_event.wait(60)
+
+        # Stop the scheduler on shutdown
+        job.stop_scheduler()
+        logger.info(
+            "Memory consolidation scheduler stopped",
+            extra={"operation": "memory_consolidation"}
+        )
+
+    except ImportError as e:
+        logger.debug(
+            f"Memory consolidation not available: {e}",
+            extra={"operation": "memory_consolidation"}
+        )
+    except Exception as e:
+        logger.warning(
+            f"Memory consolidation scheduler failed to start: {e}",
+            extra={"operation": "memory_consolidation", "error": str(e)}
+        )
+        if SENTRY_DSN:
+            sentry_sdk.capture_exception(e)
+
+
 def cleanup_stale_legacy_worker():
     """
     Defensive cleanup for stale legacy 'worker-local' registrations.
@@ -2271,6 +2333,22 @@ if __name__ == "__main__":
         }
     )
     
+    # EPIC G-2: Memory Consolidation Scheduler
+    memory_consolidation_thread = threading.Thread(
+        target=run_memory_consolidation_scheduler,
+        daemon=False,
+        name="MemoryConsolidationThread"
+    )
+    memory_consolidation_thread.start()
+    logger.info(
+        "Memory consolidation scheduler thread started",
+        extra={
+            "operation": "startup",
+            "heartbeat_id": HEARTBEAT_ID,
+            "rq_worker_name": RQ_WORKER_NAME,
+        }
+    )
+    
     readonly_sleep_seconds = settings.redis_readonly_sleep_seconds
     readonly_max_retries = settings.redis_readonly_max_retries
     consecutive_readonly_count = 0
@@ -2336,6 +2414,15 @@ if __name__ == "__main__":
                         if vm_cleanup_thread.is_alive():
                             logger.warning(
                                 "VM cleanup thread did not stop within timeout before restart",
+                                extra={"operation": "self_healing_restart", "heartbeat_id": HEARTBEAT_ID}
+                            )
+                    
+                    # Wait for memory consolidation thread to stop
+                    if memory_consolidation_thread and memory_consolidation_thread.is_alive():
+                        memory_consolidation_thread.join(timeout=5)
+                        if memory_consolidation_thread.is_alive():
+                            logger.warning(
+                                "Memory consolidation thread did not stop within timeout before restart",
                                 extra={"operation": "self_healing_restart", "heartbeat_id": HEARTBEAT_ID}
                             )
                     
