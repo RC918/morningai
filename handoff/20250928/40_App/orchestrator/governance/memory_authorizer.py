@@ -19,6 +19,7 @@ Authorization Flow:
 """
 
 import logging
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, FrozenSet
@@ -242,13 +243,16 @@ class MemoryAuthorizer:
 
 
 _memory_authorizer: Optional[MemoryAuthorizer] = None
+_memory_authorizer_lock = threading.Lock()
 
 
 def get_memory_authorizer() -> MemoryAuthorizer:
-    """Get or create global MemoryAuthorizer instance."""
+    """Get or create global MemoryAuthorizer instance (thread-safe)."""
     global _memory_authorizer
     if _memory_authorizer is None:
-        _memory_authorizer = MemoryAuthorizer()
+        with _memory_authorizer_lock:
+            if _memory_authorizer is None:
+                _memory_authorizer = MemoryAuthorizer()
     return _memory_authorizer
 
 

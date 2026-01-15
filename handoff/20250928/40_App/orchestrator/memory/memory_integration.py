@@ -377,7 +377,7 @@ def search_past_debates(
             MemorySearchScope,
         )
 
-        scope = MemorySearchScope.WORKFLOW if trace_id else MemorySearchScope.GLOBAL
+        scope = MemorySearchScope.WORKFLOW if trace_id else MemorySearchScope.AGENT
         auth_result = authorize_memory_search(
             agent_id=agent_id,
             agent_type=agent_type,
@@ -730,7 +730,7 @@ def search_knowledge_base(
             MemorySearchScope,
         )
 
-        scope = MemorySearchScope.WORKFLOW if trace_id else MemorySearchScope.GLOBAL
+        scope = MemorySearchScope.WORKFLOW if trace_id else MemorySearchScope.AGENT
         auth_result = authorize_memory_search(
             agent_id=agent_id,
             agent_type=agent_type,

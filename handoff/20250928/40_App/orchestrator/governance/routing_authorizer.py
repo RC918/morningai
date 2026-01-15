@@ -19,6 +19,7 @@ Authorization Flow:
 """
 
 import logging
+import threading
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Set, FrozenSet
@@ -204,9 +205,14 @@ class RoutingAuthorizer:
             reason=f"Authorized with roles: {[r.value for r in roles]}",
         )
 
+        reason_str = (
+            f"Authorized via explicit roles: {[r.value for r in roles]}"
+            if explicit_roles
+            else f"Authorized with permission level: {permission_level}"
+        )
         return RoutingAuthorizationResult(
             authorized=True,
-            reason=f"Authorized with permission level: {permission_level}",
+            reason=reason_str,
             roles=roles,
             allowed_operations=allowed_operations,
         )
@@ -265,7 +271,7 @@ class RoutingAuthorizer:
         logger.info(
             "[RoutingAuthorizer] Operation authorized",
             extra={
-                "operation_type": "routing_policy_authorized",
+                "operation": "routing_policy_authorized",
                 "routing_operation": operation.value,
                 "caller": caller,
                 "reason": reason,
@@ -282,7 +288,7 @@ class RoutingAuthorizer:
         logger.warning(
             "[RoutingAuthorizer] Operation denied",
             extra={
-                "operation_type": "routing_policy_denied",
+                "operation": "routing_policy_denied",
                 "routing_operation": operation.value,
                 "caller": caller,
                 "reason": reason,
@@ -307,13 +313,16 @@ class RoutingAuthorizer:
 
 
 _routing_authorizer: Optional[RoutingAuthorizer] = None
+_routing_authorizer_lock = threading.Lock()
 
 
 def get_routing_authorizer() -> RoutingAuthorizer:
-    """Get or create global RoutingAuthorizer instance."""
+    """Get or create global RoutingAuthorizer instance (thread-safe)."""
     global _routing_authorizer
     if _routing_authorizer is None:
-        _routing_authorizer = RoutingAuthorizer()
+        with _routing_authorizer_lock:
+            if _routing_authorizer is None:
+                _routing_authorizer = RoutingAuthorizer()
     return _routing_authorizer
 
 
