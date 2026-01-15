@@ -1966,6 +1966,44 @@ class Settings(BaseSettings):
         description="TTL in seconds for Agent Interaction Memory entries (G-1). Default: 24 hours. Valid range: 1 hour - 7 days."
     )
 
+    # EPIC G Phase G-2: Memory Consolidation Agent
+    # Blueprint Section 5.1, 9, 10: Memory consolidation for accumulated experience
+    enable_memory_consolidation: bool = Field(
+        default=False,
+        alias="ENABLE_MEMORY_CONSOLIDATION",
+        description="Enable G-2 Memory Consolidation: periodically transfers important short-term memories to Knowledge Base. Requires ENABLE_MEMORY_V2=true."
+    )
+
+    memory_consolidation_threshold: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        alias="MEMORY_CONSOLIDATION_THRESHOLD",
+        description="Importance threshold for memory consolidation (G-2). Memories with score >= threshold are consolidated. Default: 0.5."
+    )
+
+    memory_consolidation_batch_size: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        alias="MEMORY_CONSOLIDATION_BATCH_SIZE",
+        description="Maximum memories to process per consolidation run (G-2). Default: 100."
+    )
+
+    memory_consolidation_interval_hours: float = Field(
+        default=6.0,
+        ge=1.0,
+        le=24.0,
+        alias="MEMORY_CONSOLIDATION_INTERVAL_HOURS",
+        description="Hours between consolidation runs (G-2). Default: 6 hours. Valid range: 1-24 hours."
+    )
+
+    memory_consolidation_dry_run: bool = Field(
+        default=True,
+        alias="MEMORY_CONSOLIDATION_DRY_RUN",
+        description="Enable dry-run mode for memory consolidation (G-2). When True, logs consolidation actions without persisting. Default: True for safe rollout."
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
