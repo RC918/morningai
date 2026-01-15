@@ -55,6 +55,10 @@ from .planner_types import (
     TaskTree,
     TaskType,
 )
+from memory.memory_integration import (
+    save_flow_state,
+    clear_flow_state,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -468,6 +472,21 @@ def execute_with_flow_controller(
         }
     )
 
+    # EPIC G: Save initial flow state to Memory v2 for recovery
+    # This is controlled by ENABLE_MEMORY_V2_FLOW_STATE feature flag (checked internally)
+    save_flow_state(
+        plan_id=plan.plan_id,
+        trace_id=trace_id,
+        state_data={
+            "goal": state.get("goal", ""),
+            "plan": state.get("plan", []),
+            "flow_template": plan.flow_template,
+        },
+        current_stage="initialized",
+        completed_tasks=[],
+        failed_tasks=[],
+    )
+
     # EPIC F Phase F-5: Self-refinement loop with automatic replanning
     # This is controlled by USE_SELF_REFINEMENT feature flag (checked internally)
     use_refinement = _use_self_refinement()
@@ -480,6 +499,30 @@ def execute_with_flow_controller(
     for iteration in range(max_refinement_iterations + 1):
         try:
             result = controller.execute_plan(current_plan)
+
+            # EPIC G: Update flow state after each iteration
+            completed_tasks = [
+                r.task_id for r in result.task_results
+                if r.status == ExecutionStatus.COMPLETED
+            ]
+            failed_tasks = [
+                r.task_id for r in result.task_results
+                if r.status == ExecutionStatus.FAILED
+            ]
+            save_flow_state(
+                plan_id=current_plan.plan_id,
+                trace_id=trace_id,
+                state_data={
+                    "goal": state.get("goal", ""),
+                    "plan": state.get("plan", []),
+                    "flow_template": current_plan.flow_template,
+                    "iteration": iteration,
+                    "result_status": result.status.value,
+                },
+                current_stage=f"iteration_{iteration}",
+                completed_tasks=completed_tasks,
+                failed_tasks=failed_tasks,
+            )
         except Exception as e:
             logger.error(
                 "[FlowIntegration] Plan execution raised exception",
@@ -598,6 +641,11 @@ def execute_with_flow_controller(
             "operation": "execute_with_flow_controller",
         }
     )
+
+    # EPIC G: Clear flow state on successful completion
+    # This cleans up Short-Term Memory after plan execution
+    if result.status == ExecutionStatus.COMPLETED:
+        clear_flow_state(current_plan.plan_id)
 
     return _map_execution_result_to_state_update(result, current_plan)
 

@@ -41,6 +41,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from common.config.settings import settings
+from memory.memory_integration import save_debate_result
 
 logger = logging.getLogger(__name__)
 
@@ -817,6 +818,22 @@ class DebateEngine:
         )
 
         elapsed_ms = (time.time() - start_time) * 1000
+
+        # EPIC G: Save debate result to Agent Interaction Memory
+        # This is controlled by ENABLE_MEMORY_V2_DEBATE feature flag (checked internally)
+        debate_id = f"debate_{self.trace_id}_{int(time.time())}"
+        save_debate_result(
+            debate_id=debate_id,
+            trace_id=self.trace_id,
+            topic=topic.question,
+            left_agent="left_agent",
+            right_agent="right_agent",
+            arguments=[arg.to_dict() for arg in arguments],
+            decision=decision.to_dict(),
+            outcome=decision.outcome.value,
+            rounds_completed=self.max_rounds,
+            debate_time_ms=elapsed_ms,
+        )
 
         return DebateResult(
             topic=topic,
