@@ -347,20 +347,60 @@ def search_past_debates(
     query: str,
     trace_id: Optional[str] = None,
     limit: int = 5,
+    agent_id: Optional[str] = None,
+    agent_type: str = "unknown",
+    permission_level: str = "sandbox_only",
 ) -> List[Dict[str, Any]]:
     """
     Search past debates for similar topics.
+
+    EPIC G: Memory v2 Security (Blueprint Section 4.7)
+    Issue: #3969 - Authorization checks for Memory v2 search functions
 
     Args:
         query: Search query (topic or keywords)
         trace_id: Optional trace ID to filter by workflow
         limit: Maximum number of results
+        agent_id: Agent UUID performing the search (for authorization)
+        agent_type: Type of agent (for authorization)
+        permission_level: Agent's permission level (for authorization)
 
     Returns:
-        List of debate result dictionaries
+        List of debate result dictionaries (empty if unauthorized)
     """
     if not _is_debate_enabled():
         return []
+
+    try:
+        from governance.memory_authorizer import (
+            authorize_memory_search,
+            MemorySearchScope,
+        )
+
+        scope = MemorySearchScope.WORKFLOW if trace_id else MemorySearchScope.AGENT
+        auth_result = authorize_memory_search(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            permission_level=permission_level,
+            requested_scope=scope,
+            trace_id=trace_id,
+        )
+
+        if not auth_result.authorized:
+            logger.warning(
+                "[MemoryIntegration] Search past debates denied: %s",
+                auth_result.reason,
+                extra={
+                    "operation": "search_past_debates_denied",
+                    "agent_id": agent_id,
+                    "agent_type": agent_type,
+                    "trace_id": trace_id,
+                }
+            )
+            return []
+
+    except ImportError:
+        logger.debug("[MemoryIntegration] MemoryAuthorizer not available, skipping auth")
 
     memory = _get_memory_v2()
     if memory is None:
@@ -657,9 +697,15 @@ def search_knowledge_base(
     query: str,
     limit: int = 5,
     trace_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+    agent_type: str = "unknown",
+    permission_level: str = "sandbox_only",
 ) -> List[Dict[str, Any]]:
     """
     Search the Knowledge Base for relevant past knowledge.
+
+    EPIC G: Memory v2 Security (Blueprint Section 4.7)
+    Issue: #3969 - Authorization checks for Memory v2 search functions
 
     This can be used by the Planner to retrieve learning context
     from past tasks.
@@ -668,12 +714,46 @@ def search_knowledge_base(
         query: Search query
         limit: Maximum number of results
         trace_id: Optional trace ID to filter by workflow
+        agent_id: Agent UUID performing the search (for authorization)
+        agent_type: Type of agent (for authorization)
+        permission_level: Agent's permission level (for authorization)
 
     Returns:
-        List of knowledge entries
+        List of knowledge entries (empty if unauthorized)
     """
     if not _is_memory_v2_enabled():
         return []
+
+    try:
+        from governance.memory_authorizer import (
+            authorize_memory_search,
+            MemorySearchScope,
+        )
+
+        scope = MemorySearchScope.WORKFLOW if trace_id else MemorySearchScope.AGENT
+        auth_result = authorize_memory_search(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            permission_level=permission_level,
+            requested_scope=scope,
+            trace_id=trace_id,
+        )
+
+        if not auth_result.authorized:
+            logger.warning(
+                "[MemoryIntegration] Search knowledge base denied: %s",
+                auth_result.reason,
+                extra={
+                    "operation": "search_knowledge_base_denied",
+                    "agent_id": agent_id,
+                    "agent_type": agent_type,
+                    "trace_id": trace_id,
+                }
+            )
+            return []
+
+    except ImportError:
+        logger.debug("[MemoryIntegration] MemoryAuthorizer not available, skipping auth")
 
     memory = _get_memory_v2()
     if memory is None:
