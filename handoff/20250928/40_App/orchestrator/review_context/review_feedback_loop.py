@@ -142,10 +142,24 @@ class ReviewFeedbackLoop:
 
     def _check_enabled(self) -> bool:
         """Check if the feedback loop is enabled via feature flags."""
-        return (
-            settings.enable_memory_v2 and
-            settings.enable_review_feedback_loop
-        )
+        memory_v2_enabled = settings.enable_memory_v2
+        feedback_loop_enabled = settings.enable_review_feedback_loop
+        is_enabled = memory_v2_enabled and feedback_loop_enabled
+
+        if not is_enabled:
+            logger.info(
+                "[ReviewFeedbackLoop] Feature flags check: ENABLE_MEMORY_V2=%s, ENABLE_REVIEW_FEEDBACK_LOOP=%s",
+                memory_v2_enabled,
+                feedback_loop_enabled,
+                extra={
+                    "operation": "check_enabled",
+                    "enable_memory_v2": memory_v2_enabled,
+                    "enable_review_feedback_loop": feedback_loop_enabled,
+                    "trace_id": self.trace_id,
+                }
+            )
+
+        return is_enabled
 
     @property
     def is_enabled(self) -> bool:

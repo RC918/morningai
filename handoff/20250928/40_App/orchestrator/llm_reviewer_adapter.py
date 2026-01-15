@@ -1823,6 +1823,16 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         try:
             feedback_loop = get_feedback_loop(trace_id=self.trace_id)
             if not feedback_loop.is_enabled:
+                logger.info(
+                    "[LLM Reviewer] B-13 Feedback Loop disabled, skipping save",
+                    extra={
+                        "operation": "save_review_feedback_skipped",
+                        "trace_id": self.trace_id,
+                        "pr_number": pr_number,
+                        "repo": repo,
+                        "reason": "feedback_loop_disabled",
+                    }
+                )
                 return
 
             file_paths = []
