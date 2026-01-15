@@ -1,5 +1,5 @@
 """
-Review Context Module - EPIC B Phase 7-8 Implementation
+Review Context Module - EPIC B Phase 7-8 and B-13 Implementation
 
 This module provides enhanced review capabilities for the MorningAI Reviewer Agent:
 
@@ -7,6 +7,7 @@ This module provides enhanced review capabilities for the MorningAI Reviewer Age
 - B-9.6: Comment Validator (False Positive Detection)
 - B-11: Test Coverage Flagging
 - B-12: Dependency Analysis
+- B-13: Real-time Feedback Loop (Memory v2 Integration)
 
 All capabilities respect the Blueprint Agent Separation Principle (Section 3.3):
 - Reviewer Agent can FLAG issues and SUGGEST actions
@@ -39,6 +40,12 @@ from review_context.dependency_analyzer import (
     DependencyAnalysis,
     analyze_dependencies,
 )
+from review_context.review_feedback_loop import (
+    ReviewFeedbackLoop,
+    ReviewPattern,
+    FeedbackLoopStats,
+    get_feedback_loop,
+)
 
 __all__ = [
     # B-9: Multi-Specialist Review
@@ -63,4 +70,9 @@ __all__ = [
     "DependencyIssueType",
     "DependencyAnalysis",
     "analyze_dependencies",
+    # B-13: Real-time Feedback Loop
+    "ReviewFeedbackLoop",
+    "ReviewPattern",
+    "FeedbackLoopStats",
+    "get_feedback_loop",
 ]

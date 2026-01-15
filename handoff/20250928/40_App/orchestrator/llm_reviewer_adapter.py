@@ -39,6 +39,7 @@ from review_context import (
     generate_multi_specialist_review,
     analyze_test_coverage,
     analyze_dependencies,
+    get_feedback_loop,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -666,6 +667,15 @@ class LLMReviewerAdapter:
                 pr_number=pr_number,
                 goal=goal,
                 repo=repo,
+            )
+
+            # EPIC B-13: Save review feedback to Memory v2 for learning
+            self._save_review_feedback(
+                pr_number=pr_number,
+                repo=repo,
+                result=result,
+                diff=diff,
+                diff_files=diff_files,
             )
 
             return result
@@ -1782,6 +1792,86 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
 
         # Default to API error for other exceptions
         return "llm_api_error"
+
+    def _save_review_feedback(
+        self,
+        pr_number: Optional[int],
+        repo: str,
+        result: Dict[str, Any],
+        diff: Optional[str],
+        diff_files: Optional[list],
+    ) -> None:
+        """
+        Save review feedback to Memory v2 for learning.
+
+        EPIC B Phase B-13: Real-time Feedback Loop
+        Blueprint: Reviewer feedback stored in Memory v2 for accumulated experience.
+
+        This method is called after a successful review to store the outcome
+        in the Knowledge Base for future pattern matching.
+
+        Args:
+            pr_number: Pull request number
+            repo: Repository name (owner/repo format)
+            result: Review result dictionary
+            diff: PR diff content
+            diff_files: List of changed files metadata
+        """
+        if pr_number is None:
+            return
+
+        try:
+            feedback_loop = get_feedback_loop(trace_id=self.trace_id)
+            if not feedback_loop.is_enabled:
+                return
+
+            file_paths = []
+            if diff_files:
+                for file_info in diff_files:
+                    if isinstance(file_info, dict):
+                        file_paths.append(file_info.get("filename", ""))
+                    else:
+                        file_paths.append(str(file_info))
+
+            verdict = result.get("decision", "unknown")
+            if verdict == "approve":
+                verdict = "approve"
+            elif verdict == "needs_changes":
+                verdict = "request_changes"
+            elif verdict == "block":
+                verdict = "blocked"
+            else:
+                verdict = "comment"
+
+            comments = result.get("comments", [])
+            blocker_count = sum(
+                1 for c in comments
+                if c.get("severity", "").lower() in ("high", "critical")
+            )
+
+            feedback_loop.save_feedback(
+                pr_number=pr_number,
+                repo=repo,
+                verdict=verdict,
+                severity=result.get("severity", "low"),
+                summary=result.get("summary", ""),
+                review_comments=comments,
+                file_paths=file_paths,
+                diff_snippet=diff[:2000] if diff else None,
+                blocker_count=blocker_count,
+            )
+
+        except Exception as e:
+            logger.warning(
+                "[LLM Reviewer] Failed to save review feedback: %s",
+                e,
+                extra={
+                    "operation": "save_review_feedback",
+                    "trace_id": self.trace_id,
+                    "pr_number": pr_number,
+                    "repo": repo,
+                }
+            )
 
     def _get_fallback_result(
         self,
