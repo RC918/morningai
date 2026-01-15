@@ -658,17 +658,48 @@ class RoutingPolicyEvolver:
         self,
         change_id: str,
         approved_by: str = "human",
+        permission_level: str = "sandbox_only",
     ) -> bool:
         """
         Approve and apply a pending change.
 
+        EPIC I: Runtime Governance (Blueprint Section 4.4)
+        Issue: #3960 - Authorization checks for routing policy change approval methods
+
         Args:
             change_id: ID of the change to approve
             approved_by: Who approved the change
+            permission_level: Caller's permission level (for authorization)
 
         Returns:
             True if change was approved and applied successfully
         """
+        try:
+            from governance.routing_authorizer import (
+                require_routing_authorization,
+                RoutingOperation,
+                RoutingAuthorizationError,
+            )
+
+            require_routing_authorization(
+                operation=RoutingOperation.APPROVE_CHANGE,
+                caller=approved_by,
+                permission_level=permission_level,
+            )
+        except RoutingAuthorizationError as e:
+            logger.warning(
+                "[I-4-EVOLVE] Approve change denied: %s",
+                str(e),
+                extra={
+                    "operation": "approve_change_denied",
+                    "change_id": change_id,
+                    "caller": approved_by,
+                }
+            )
+            return False
+        except ImportError:
+            logger.debug("[I-4-EVOLVE] RoutingAuthorizer not available, skipping auth")
+
         with self._lock:
             change = self._pending_changes.get(change_id)
 
@@ -693,17 +724,48 @@ class RoutingPolicyEvolver:
         self,
         change_id: str,
         rejected_by: str = "human",
+        permission_level: str = "sandbox_only",
     ) -> bool:
         """
         Reject a pending change.
 
+        EPIC I: Runtime Governance (Blueprint Section 4.4)
+        Issue: #3960 - Authorization checks for routing policy change approval methods
+
         Args:
             change_id: ID of the change to reject
             rejected_by: Who rejected the change
+            permission_level: Caller's permission level (for authorization)
 
         Returns:
             True if change was rejected successfully
         """
+        try:
+            from governance.routing_authorizer import (
+                require_routing_authorization,
+                RoutingOperation,
+                RoutingAuthorizationError,
+            )
+
+            require_routing_authorization(
+                operation=RoutingOperation.REJECT_CHANGE,
+                caller=rejected_by,
+                permission_level=permission_level,
+            )
+        except RoutingAuthorizationError as e:
+            logger.warning(
+                "[I-4-EVOLVE] Reject change denied: %s",
+                str(e),
+                extra={
+                    "operation": "reject_change_denied",
+                    "change_id": change_id,
+                    "caller": rejected_by,
+                }
+            )
+            return False
+        except ImportError:
+            logger.debug("[I-4-EVOLVE] RoutingAuthorizer not available, skipping auth")
+
         with self._lock:
             change = self._pending_changes.get(change_id)
 
@@ -730,16 +792,52 @@ class RoutingPolicyEvolver:
 
         return True
 
-    def rollback_change(self, change_id: str) -> bool:
+    def rollback_change(
+        self,
+        change_id: str,
+        rolled_back_by: str = "human",
+        permission_level: str = "sandbox_only",
+    ) -> bool:
         """
         Rollback an applied change.
 
+        EPIC I: Runtime Governance (Blueprint Section 4.4)
+        Issue: #3960 - Authorization checks for routing policy change approval methods
+
         Args:
             change_id: ID of the change to rollback
+            rolled_back_by: Who is rolling back the change
+            permission_level: Caller's permission level (for authorization)
 
         Returns:
             True if change was rolled back successfully
         """
+        try:
+            from governance.routing_authorizer import (
+                require_routing_authorization,
+                RoutingOperation,
+                RoutingAuthorizationError,
+            )
+
+            require_routing_authorization(
+                operation=RoutingOperation.ROLLBACK_CHANGE,
+                caller=rolled_back_by,
+                permission_level=permission_level,
+            )
+        except RoutingAuthorizationError as e:
+            logger.warning(
+                "[I-4-EVOLVE] Rollback change denied: %s",
+                str(e),
+                extra={
+                    "operation": "rollback_change_denied",
+                    "change_id": change_id,
+                    "caller": rolled_back_by,
+                }
+            )
+            return False
+        except ImportError:
+            logger.debug("[I-4-EVOLVE] RoutingAuthorizer not available, skipping auth")
+
         with self._lock:
             change = self._applied_changes.get(change_id)
 
@@ -768,7 +866,7 @@ class RoutingPolicyEvolver:
             self._store_change(change)
 
             logger.info(
-                f"[I-4-EVOLVE] Change rolled back: {change_id}",
+                f"[I-4-EVOLVE] Change rolled back: {change_id} by {rolled_back_by}",
                 extra={
                     "operation": "routing_policy_rollback",
                     "change": change.to_dict(),
