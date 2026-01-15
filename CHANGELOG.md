@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **EPIC I Encapsulation Improvements** (PR #4009, Issues #3958, #3961)
+  - **Date**: 2026-01-15
+  - **Tag**: `week3-pr3-epic-i-encapsulation`
+  - **Changes**:
+    - Added `_extract_task_type()` helper method to `CapabilityScoreManager` with robust validation
+    - Handles edge cases: empty task_id, missing underscore, malformed formats
+    - Added `set_provider_state()` public method to `DegradationAdvisor` for controlled state updates
+    - Updated `RoutingPolicyEvolver._apply_to_routing_engine()` to use public method instead of direct private attribute access
+    - Added structured logging fields for better log parsing and monitoring
+  - **Blueprint Alignment**: Section 4.4 (Autonomous Provisioning v2), EPIC I Phase I-3/I-4
+
 ### Removed
 - **Simple Mode Orchestrator Deprecated** (Issue #2651, PR #2767)
   - **Date**: 2025-12-15
