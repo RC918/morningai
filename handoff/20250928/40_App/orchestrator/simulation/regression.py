@@ -395,6 +395,29 @@ class RegressionTestGenerator:
     - Protected from modification/deletion
     """
 
+    @staticmethod
+    def _escape_for_docstring(text: str) -> str:
+        """
+        Escape text for safe inclusion in Python docstrings.
+
+        Handles triple quotes, backslashes, and other special characters
+        that could break generated test syntax.
+
+        Args:
+            text: Raw text to escape
+
+        Returns:
+            Escaped text safe for docstring inclusion
+        """
+        if not text:
+            return text
+        # Escape backslashes first (before other escapes add more)
+        escaped = text.replace("\\", "\\\\")
+        # Escape triple quotes (both styles)
+        escaped = escaped.replace('"""', '\\"\\"\\"')
+        escaped = escaped.replace("'''", "\\'\\'\\'")
+        return escaped
+
     def __init__(self, output_dir: str = "tests/regression"):
         """
         Initialize the generator.
@@ -434,16 +457,22 @@ class RegressionTestGenerator:
             )
             repro_comments = f"\n{repro_comments}\n"
 
+        # Escape error message for safe docstring inclusion
+        # Prevents syntax errors from triple quotes or backslashes in error messages
+        safe_error_message_long = self._escape_for_docstring(candidate.error_message[:500])
+        safe_error_message_short = self._escape_for_docstring(candidate.error_message[:200])
+        safe_error_type = self._escape_for_docstring(candidate.error_type)
+
         # Generate test code
         test_code = f'''"""
-Regression test for: {candidate.error_type}
+Regression test for: {safe_error_type}
 Generated from: {candidate.source.value}
 Priority: {candidate.priority.value}
 First seen: {candidate.first_seen.isoformat()}
 Candidate ID: {candidate.candidate_id}
 
 Original error message:
-{candidate.error_message[:500]}
+{safe_error_message_long}
 """
 
 import pytest
@@ -452,7 +481,7 @@ import pytest
 class TestRegression_{candidate.candidate_id[:8]}:
     """
     Regression test to prevent recurrence of:
-    {candidate.error_type}
+    {safe_error_type}
 
     Blueprint Section 5.4: CI Enforcement
     - If this test fails → PR is blocked
@@ -462,10 +491,10 @@ class TestRegression_{candidate.candidate_id[:8]}:
 {repro_comments}
     def {test_name}(self):
         """
-        Regression test for {candidate.error_type}.
+        Regression test for {safe_error_type}.
 
         This test was auto-generated from error:
-        {candidate.error_message[:200]}
+        {safe_error_message_short}
         """
         # TODO: Implement test logic based on reproduction steps
         # The Diagnostic Agent should provide MRE (Minimal Reproducible Example)
