@@ -702,9 +702,13 @@ class DegradationAdvisor:
 
             if old_severity != severity:
                 logger.info(
-                    f"[DegradationAdvisor] Provider state updated: "
-                    f"provider={provider}, "
-                    f"{old_severity.value if old_severity else 'None'} -> {severity.value}"
+                    "[DegradationAdvisor] Provider state updated",
+                    extra={
+                        "operation": "provider_state_update",
+                        "provider": provider,
+                        "old_severity": old_severity.value if old_severity else None,
+                        "new_severity": severity.value,
+                    }
                 )
 
     def get_all_states(self) -> Dict[str, str]:

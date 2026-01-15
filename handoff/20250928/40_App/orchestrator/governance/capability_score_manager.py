@@ -494,15 +494,6 @@ class CapabilityScoreManager:
 
         parts = task_id.split("_")
 
-        # Validate minimum parts: prefix_type_suffix (at least 3 parts)
-        if len(parts) < 2:
-            logger.warning(
-                f"[CapabilityScore] Unexpected task_id format: '{task_id}', "
-                "expected at least 2 parts separated by '_'",
-                extra={"task_id": task_id, "parts_count": len(parts)}
-            )
-            return "general"
-
         # Extract task_type: everything between prefix and suffix
         # For "bench_code_gen_001" -> parts = ["bench", "code", "gen", "001"]
         # task_type = "code_gen" (parts[1:-1] joined)
