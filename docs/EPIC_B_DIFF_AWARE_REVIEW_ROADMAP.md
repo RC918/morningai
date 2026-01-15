@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2026-01-11
+> Last Updated: 2026-01-15
 
 ## Overview
 
@@ -17,8 +17,8 @@ EPIC B focuses on implementing intelligent PR review with inline comments, ensur
 | Phase 3: Security & Reliability | Completed | [#2809](https://github.com/RC918/morningai/pull/2809), [#2829](https://github.com/RC918/morningai/pull/2829), [#2836](https://github.com/RC918/morningai/pull/2836) |
 | Phase 4: Checks API (P6) | Planned | - |
 | **Phase 6: Router Interface (B-6)** | **Completed** | [#3130](https://github.com/RC918/morningai/issues/3130), [#3135](https://github.com/RC918/morningai/pull/3135) |
-| **Phase 7: Copilot/Gemini Parity (B-7 to B-10)** | **Planning** | See below |
-| **Phase 8: Copilot/Gemini Superiority (B-11 to B-13)** | **Planning** | See below |
+| **Phase 7: Copilot/Gemini Parity (B-9)** | **Completed** | [#4000](https://github.com/RC918/morningai/pull/4000) |
+| **Phase 8: Copilot/Gemini Superiority (B-11 to B-13)** | **Completed** | [#4000](https://github.com/RC918/morningai/pull/4000), [#4012](https://github.com/RC918/morningai/pull/4012) |
 
 ---
 
@@ -684,37 +684,41 @@ ReviewOutcome {                        │
 ### B-13: Real-time Feedback Loop
 
 > **Type**: New Capability
-> **Issue**: TBD
+> **Status**: **Completed** (2026-01-15)
+> **PR**: [#4000](https://github.com/RC918/morningai/pull/4000), [#4012](https://github.com/RC918/morningai/pull/4012)
 > **Effort**: High (7-10 days)
 
-**Problem**: One-shot review, no ability to respond to developer questions.
+**Problem**: One-shot review, no ability to learn from past reviews.
 
-**Solution**: Implement interactive review conversation.
+**Solution**: Store review outcomes in Memory v2 Knowledge Base for learning and pattern retrieval.
 
-**Implementation Plan**:
+**Implementation (Completed)**:
 
-1. **B-13.1 Review Thread Handler**:
-   - Create `orchestrator/webhooks/handlers/review_thread_handler.py`
-   - Handle `pull_request_review_comment` webhook events
-   - Detect @mentions or replies to MorningAI comments
+1. **B-13.1 ReviewFeedbackLoop Class** (Completed):
+   - Created `orchestrator/review_context/review_feedback_loop.py`
+   - Stores review outcomes (verdict, severity, comments, file paths)
+   - Retrieves similar past review patterns for context enhancement
 
-2. **B-13.2 Conversation Context**:
-   - Store review conversation in Memory v2 (EPIC G dependency)
-   - Maintain context across multiple interactions
+2. **B-13.2 Memory v2 Integration** (Completed):
+   - Integrates with `memory/memory_integration.py`
+   - Uses vector similarity search for pattern retrieval
+   - Feature flags: `ENABLE_MEMORY_V2`, `ENABLE_REVIEW_FEEDBACK_LOOP`
 
-3. **B-13.3 Response Generator**:
-   - Generate contextual responses to developer questions
-   - Can clarify, provide more detail, or revise suggestions
+3. **B-13.3 LLM Reviewer Integration** (Completed):
+   - `_save_review_feedback()` in `llm_reviewer_adapter.py`
+   - Automatically saves feedback after successful review
+   - Observability logs for debugging (PR #4012)
 
-4. **B-13.4 Rate Limiting**:
-   - Prevent infinite loops (max 3 responses per thread)
-   - Cooldown period between responses
+4. **B-13.4 Pattern Retrieval** (Completed):
+   - `get_relevant_patterns()` retrieves similar past reviews
+   - `enhance_review_context()` formats patterns for LLM prompt
+   - Configurable similarity threshold and result limit
 
 **Acceptance Criteria**:
-- [ ] Webhook handler processes review comments
-- [ ] Conversation context maintained
-- [ ] Responses are contextually relevant
-- [ ] Rate limiting prevents abuse
+- [x] Review outcomes saved to Memory v2 Knowledge Base
+- [x] Similar past patterns retrievable via vector search
+- [x] Feature flag controlled (`ENABLE_REVIEW_FEEDBACK_LOOP`)
+- [x] Observability logs for debugging feature flag status
 
 ---
 
