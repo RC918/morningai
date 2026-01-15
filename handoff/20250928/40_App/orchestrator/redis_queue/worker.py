@@ -2234,7 +2234,9 @@ def run_router_metrics_alert_scheduler():
             return
 
         # Start the scheduler - it will run in its own thread internally
-        evaluator.start_scheduler()
+        # Pass interval_minutes from settings (Cursor Bugbot fix)
+        interval_minutes = getattr(settings, "router_alert_interval_minutes", 5)
+        evaluator.start_scheduler(interval_minutes=interval_minutes)
         logger.info(
             f"Router metrics alert scheduler started (interval={evaluator.interval_minutes}m, "
             f"cooldown={evaluator.cooldown_minutes}m)",

@@ -106,6 +106,9 @@ class RouterMetricsAlertEvaluator:
         self._stop_event = threading.Event()
         self._interval_minutes = 5
 
+        # Public read-only properties for logging/monitoring
+        self.interval_minutes = 5  # Will be updated by start_scheduler()
+
         logger.info(
             f"[RouterMetricsAlertEvaluator] Initialized: enabled={enabled}, "
             f"success_rate_threshold={success_rate_threshold}, "
@@ -515,6 +518,7 @@ class RouterMetricsAlertEvaluator:
             return
 
         self._interval_minutes = interval_minutes
+        self.interval_minutes = interval_minutes  # Sync public property
         self._stop_event.clear()
 
         self._scheduler_thread = threading.Thread(
