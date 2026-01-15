@@ -264,14 +264,16 @@ class ShortTermMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if self._matches_filter(entry, scope, trace_id):
-                                results.append(entry)
-                                if len(results) >= limit:
-                                    return results
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for data in values:
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if self._matches_filter(entry, scope, trace_id):
+                                    results.append(entry)
+                                    if len(results) >= limit:
+                                        return results
                     if cursor == 0:
                         break
             else:
@@ -336,12 +338,14 @@ class ShortTermMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if self._matches_filter(entry, scope, trace_id):
-                                keys_to_delete.append(key)
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for key, data in zip(keys, values):
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if self._matches_filter(entry, scope, trace_id):
+                                    keys_to_delete.append(key)
                     if cursor == 0:
                         break
 
@@ -472,15 +476,17 @@ class AgentInteractionMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if query.lower() in entry.content.lower():
-                                if self._matches_filter(entry, scope, trace_id):
-                                    results.append(entry)
-                                    if len(results) >= limit:
-                                        return results
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for data in values:
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if query.lower() in entry.content.lower():
+                                    if self._matches_filter(entry, scope, trace_id):
+                                        results.append(entry)
+                                        if len(results) >= limit:
+                                            return results
                     if cursor == 0:
                         break
             else:
@@ -545,12 +551,14 @@ class AgentInteractionMemory(BaseMemoryStore):
                         match=pattern,
                         count=100,
                     )
-                    for key in keys:
-                        data = self.redis_client.get(key)
-                        if data:
-                            entry = MemoryEntry.from_dict(json.loads(data))
-                            if self._matches_filter(entry, scope, trace_id):
-                                keys_to_delete.append(key)
+                    # Issue #3964: Use MGET to batch Redis GET operations
+                    if keys:
+                        values = self.redis_client.mget(keys)
+                        for key, data in zip(keys, values):
+                            if data:
+                                entry = MemoryEntry.from_dict(json.loads(data))
+                                if self._matches_filter(entry, scope, trace_id):
+                                    keys_to_delete.append(key)
                     if cursor == 0:
                         break
 
@@ -1223,6 +1231,10 @@ class MemoryV2:
     - Input validation for keys, content, and metadata
     - Configurable blocking of critical PII
 
+    TTL Configuration (Issue #3971):
+    - Short-Term Memory TTL: Configurable via MEMORY_V2_SHORT_TERM_TTL
+    - Agent Interaction Memory TTL: Configurable via MEMORY_V2_AGENT_INTERACTION_TTL
+
     Usage:
         memory = get_memory_v2()
 
@@ -1242,15 +1254,21 @@ class MemoryV2:
         redis_client: Optional[Any] = None,
         enabled: bool = True,
         sanitization_enabled: bool = True,
+        short_term_ttl: Optional[int] = None,
+        agent_interaction_ttl: Optional[int] = None,
     ):
         self.enabled = enabled
         self.redis_client = redis_client
         self.sanitization_enabled = sanitization_enabled
         self._sanitizer = None
 
-        # Initialize all layers
-        self.short_term = ShortTermMemory(redis_client=redis_client)
-        self.agent_interaction = AgentInteractionMemory(redis_client=redis_client)
+        # Use provided TTL values or defaults
+        st_ttl = short_term_ttl or ShortTermMemory.DEFAULT_TTL
+        ai_ttl = agent_interaction_ttl or AgentInteractionMemory.DEFAULT_TTL
+
+        # Initialize all layers with configured TTL values (Issue #3971)
+        self.short_term = ShortTermMemory(redis_client=redis_client, ttl=st_ttl)
+        self.agent_interaction = AgentInteractionMemory(redis_client=redis_client, ttl=ai_ttl)
         self.knowledge_base = KnowledgeBaseMemory()
         self.governance = GovernanceMemory()
 
@@ -1263,8 +1281,10 @@ class MemoryV2:
 
         logger.info(
             "[MemoryV2] Initialized 4-layer memory system "
-            "(sanitization=%s)",
+            "(sanitization=%s, short_term_ttl=%ds, agent_interaction_ttl=%ds)",
             self.sanitization_enabled,
+            st_ttl,
+            ai_ttl,
         )
 
     def _get_sanitizer(self):
@@ -1486,8 +1506,8 @@ class MemoryV2:
         return {
             "enabled": self.enabled,
             "layers": {
-                "short_term": {"type": "redis", "ttl": ShortTermMemory.DEFAULT_TTL},
-                "agent_interaction": {"type": "redis", "ttl": AgentInteractionMemory.DEFAULT_TTL},
+                "short_term": {"type": "redis", "ttl": self.short_term.ttl},
+                "agent_interaction": {"type": "redis", "ttl": self.agent_interaction.ttl},
                 "knowledge_base": {"type": "pgvector"},
                 "governance": {"type": "postgresql"},
             },
@@ -1509,6 +1529,7 @@ def get_memory_v2(
     Get or create global MemoryV2 instance.
 
     EPIC G: Memory v2 (Blueprint Section 5.1)
+    Issue #3971: Apply TTL configuration settings
 
     Args:
         redis_client: Optional Redis client for short-term memory
@@ -1539,9 +1560,45 @@ def get_memory_v2(
                 logger.debug("[MemoryV2] Memory v2 disabled")
                 return None
 
+            # Issue #3971: Read TTL settings from configuration
+            # Try to get settings from common.config.settings, fallback to env vars
+            short_term_ttl = None
+            agent_interaction_ttl = None
+
+            try:
+                from common.config.settings import get_settings
+                settings = get_settings()
+                short_term_ttl = settings.memory_v2_short_term_ttl
+                agent_interaction_ttl = settings.memory_v2_agent_interaction_ttl
+                logger.debug(
+                    "[MemoryV2] Loaded TTL from settings: "
+                    "short_term=%ds, agent_interaction=%ds",
+                    short_term_ttl,
+                    agent_interaction_ttl,
+                )
+            except (ImportError, AttributeError):
+                # Fallback to environment variables if settings not available
+                # AttributeError: settings object exists but lacks TTL attributes
+                short_term_ttl = int(os.getenv(
+                    "MEMORY_V2_SHORT_TERM_TTL",
+                    str(ShortTermMemory.DEFAULT_TTL),
+                ))
+                agent_interaction_ttl = int(os.getenv(
+                    "MEMORY_V2_AGENT_INTERACTION_TTL",
+                    str(AgentInteractionMemory.DEFAULT_TTL),
+                ))
+                logger.debug(
+                    "[MemoryV2] Loaded TTL from env vars: "
+                    "short_term=%ds, agent_interaction=%ds",
+                    short_term_ttl,
+                    agent_interaction_ttl,
+                )
+
             _memory_v2 = MemoryV2(
                 redis_client=redis_client,
                 enabled=enabled,
+                short_term_ttl=short_term_ttl,
+                agent_interaction_ttl=agent_interaction_ttl,
             )
 
             return _memory_v2
