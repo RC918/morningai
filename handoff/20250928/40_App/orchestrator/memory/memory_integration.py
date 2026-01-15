@@ -291,15 +291,32 @@ def save_debate_result(
         return False
 
     try:
-        success = memory.agent_interaction.save_debate_context(
-            debate_id=debate_id,
-            left_agent=left_agent,
-            right_agent=right_agent,
-            topic=topic,
-            arguments=arguments,
-            decision=outcome,
+        from .memory_v2 import MemoryEntry, MemoryLayer, MemoryScope
+
+        # Use direct MemoryEntry construction to preserve full decision data
+        # (Gemini Code Assist identified that decision dict was not being saved)
+        content = f"Debate: {topic}\nOutcome: {outcome}"
+
+        entry = MemoryEntry(
+            key=f"debate:{debate_id}",
+            content=content,
+            layer=MemoryLayer.AGENT_INTERACTION,
+            scope=MemoryScope.WORKFLOW,
             trace_id=trace_id,
+            metadata={
+                "debate_id": debate_id,
+                "topic": topic,
+                "left_agent": left_agent,
+                "right_agent": right_agent,
+                "arguments": arguments,
+                "decision": decision,  # Full decision dict now preserved
+                "outcome": outcome,
+                "rounds_completed": rounds_completed,
+                "debate_time_ms": debate_time_ms,
+            },
         )
+
+        success = memory.save(entry, MemoryLayer.AGENT_INTERACTION)
 
         if success:
             logger.info(
@@ -407,15 +424,29 @@ def save_safety_pattern(
         return False
 
     try:
-        success = memory.governance.save_safety_pattern(
-            pattern_id=pattern_id,
-            pattern_type=pattern_type,
-            description=description,
-            severity=severity,
-            action_taken=action_taken,
-            context=context or {},
+        from .memory_v2 import MemoryEntry, MemoryLayer, MemoryScope
+
+        # Use direct MemoryEntry construction to preserve all metadata
+        # (Gemini Code Assist identified parameter mismatch with GovernanceMemory)
+        content = f"Safety Pattern: {pattern_type} - {description}"
+
+        entry = MemoryEntry(
+            key=f"safety_pattern:{pattern_id}",
+            content=content,
+            layer=MemoryLayer.GOVERNANCE,
+            scope=MemoryScope.GLOBAL,
             trace_id=trace_id,
+            metadata={
+                "pattern_id": pattern_id,
+                "pattern_type": pattern_type,
+                "description": description,
+                "severity": severity,
+                "action_taken": action_taken,
+                "context": context or {},
+            },
         )
+
+        success = memory.save(entry, MemoryLayer.GOVERNANCE)
 
         if success:
             logger.info(
@@ -479,17 +510,31 @@ def save_drift_analysis(
         return False
 
     try:
-        success = memory.governance.save_drift_analysis(
-            analysis_id=analysis_id,
-            provider=provider,
-            model=model,
-            drift_detected=drift_detected,
-            drift_score=drift_score,
-            baseline_metrics=baseline_metrics,
-            current_metrics=current_metrics,
-            recommendation=recommendation,
+        from .memory_v2 import MemoryEntry, MemoryLayer, MemoryScope
+
+        # Use direct MemoryEntry construction to preserve all metadata
+        # (Gemini Code Assist identified parameter mismatch with GovernanceMemory)
+        content = f"Drift Analysis: {provider}/{model} - Detected: {drift_detected}"
+
+        entry = MemoryEntry(
+            key=f"drift_analysis:{analysis_id}",
+            content=content,
+            layer=MemoryLayer.GOVERNANCE,
+            scope=MemoryScope.GLOBAL,
             trace_id=trace_id,
+            metadata={
+                "analysis_id": analysis_id,
+                "provider": provider,
+                "model": model,
+                "drift_detected": drift_detected,
+                "drift_score": drift_score,
+                "baseline_metrics": baseline_metrics,
+                "current_metrics": current_metrics,
+                "recommendation": recommendation,
+            },
         )
+
+        success = memory.save(entry, MemoryLayer.GOVERNANCE)
 
         if success:
             logger.info(
@@ -555,17 +600,31 @@ def save_routing_decision(
         return False
 
     try:
-        success_result = memory.governance.save_routing_decision(
-            decision_id=decision_id,
-            task_type=task_type,
-            selected_provider=selected_provider,
-            selected_model=selected_model,
-            selection_reason=selection_reason,
-            candidates=candidates,
-            latency_ms=latency_ms,
-            success=success,
+        from .memory_v2 import MemoryEntry, MemoryLayer, MemoryScope
+
+        # Use direct MemoryEntry construction to preserve all metadata
+        # (GovernanceMemory.save_routing_decision has different parameter names)
+        content = f"Routing: {task_type} -> {selected_provider}/{selected_model}"
+
+        entry = MemoryEntry(
+            key=f"routing:{decision_id}",
+            content=content,
+            layer=MemoryLayer.GOVERNANCE,
+            scope=MemoryScope.WORKFLOW,
             trace_id=trace_id,
+            metadata={
+                "decision_id": decision_id,
+                "task_type": task_type,
+                "selected_provider": selected_provider,
+                "selected_model": selected_model,
+                "selection_reason": selection_reason,
+                "candidates": candidates,
+                "latency_ms": latency_ms,
+                "success": success,
+            },
         )
+
+        success_result = memory.save(entry, MemoryLayer.GOVERNANCE)
 
         if success_result:
             logger.info(
