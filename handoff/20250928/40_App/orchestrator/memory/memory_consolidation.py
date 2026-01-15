@@ -328,6 +328,7 @@ Respond with valid JSON only."""
         self.rate_limit_delay = rate_limit_delay
         self._client = None
         self._semaphore: Optional[asyncio.Semaphore] = None
+        self._rate_limit_lock: Optional[asyncio.Lock] = None
         self._last_request_time = 0.0
 
     def _get_client(self):
@@ -415,16 +416,22 @@ Respond with valid JSON only."""
         if self._semaphore is None:
             self._semaphore = asyncio.Semaphore(self.max_concurrency)
 
+        # Initialize rate limit lock for thread-safe access
+        if self._rate_limit_lock is None:
+            self._rate_limit_lock = asyncio.Lock()
+
         async with self._semaphore:
-            # Rate limiting
-            current_time = time.time()
-            time_since_last = current_time - self._last_request_time
-            if time_since_last < self.rate_limit_delay:
-                await asyncio.sleep(self.rate_limit_delay - time_since_last)
-            self._last_request_time = time.time()
+            # Rate limiting with lock to prevent race conditions
+            async with self._rate_limit_lock:
+                # Use monotonic clock for reliable rate limiting
+                current_time = time.monotonic()
+                time_since_last = current_time - self._last_request_time
+                if time_since_last < self.rate_limit_delay:
+                    await asyncio.sleep(self.rate_limit_delay - time_since_last)
+                self._last_request_time = time.monotonic()
 
             # Run synchronous summarize in thread pool
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None,
                 self.summarize,
