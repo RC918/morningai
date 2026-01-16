@@ -560,7 +560,8 @@ class LLMReviewerAdapter:
         diff_truncated: bool = False,
         diff_files: Optional[list] = None,
         pr_title: Optional[str] = None,
-        pr_description: Optional[str] = None
+        pr_description: Optional[str] = None,
+        reference_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate LLM-powered code review
@@ -578,6 +579,7 @@ class LLMReviewerAdapter:
             diff_files: List of changed files metadata (EPIC B Phase B-1)
             pr_title: Pull request title (Issue #3767)
             pr_description: Pull request description/body (Issue #3767)
+            reference_context: Issue #3223 Cross-file reference context (optional)
 
         Returns:
             Dict with review results:
@@ -621,7 +623,8 @@ class LLMReviewerAdapter:
                 diff_truncated=diff_truncated,
                 diff_files=diff_files,
                 pr_title=pr_title,
-                pr_description=pr_description
+                pr_description=pr_description,
+                reference_context=reference_context
             )
 
             llm_score = review_data.get("quality_score", base_quality_score)
@@ -911,7 +914,8 @@ class LLMReviewerAdapter:
         diff_truncated: bool = False,
         diff_files: Optional[list] = None,
         pr_title: Optional[str] = None,
-        pr_description: Optional[str] = None
+        pr_description: Optional[str] = None,
+        reference_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Call LLM to generate review
@@ -927,6 +931,7 @@ class LLMReviewerAdapter:
             diff_files: List of changed files metadata (EPIC B)
             pr_title: Pull request title (Issue #3767)
             pr_description: Pull request description/body (Issue #3767)
+            reference_context: Issue #3223 Cross-file reference context (optional)
 
         Returns:
             Dict with review data and timing
@@ -994,6 +999,7 @@ class LLMReviewerAdapter:
                 pr_title=pr_title,
                 pr_description=pr_description,
                 pattern_context=pattern_context,
+                reference_context=reference_context,
             )
         else:
             # Fallback to metadata-only review (original behavior)
@@ -1354,7 +1360,8 @@ IMPORTANT:
         diff_files: Optional[list],
         pr_title: Optional[str] = None,
         pr_description: Optional[str] = None,
-        pattern_context: Optional[str] = None
+        pattern_context: Optional[str] = None,
+        reference_context: Optional[str] = None
     ) -> str:
         """
         Build user prompt for diff-aware code review (EPIC B Phase B-3)
@@ -1371,6 +1378,7 @@ IMPORTANT:
             pr_title: Pull request title (Issue #3767)
             pr_description: Pull request description/body (Issue #3767)
             pattern_context: B-14 Pattern Retrieval context from past reviews (optional)
+            reference_context: Issue #3223 Cross-file reference context (optional)
 
         Returns:
             User prompt string for LLM
@@ -1519,12 +1527,20 @@ IMPORTANT:
             sanitized_pattern_context = self._sanitize_prompt_input(pattern_context)
             pattern_section = f"\n{sanitized_pattern_context}\n"
 
+        # Issue #3223: Build cross-file reference context section
+        # Reference context is pre-formatted by format_reference_context_for_prompt()
+        # This provides context from imported/referenced files to reduce false positives
+        reference_section = ""
+        if reference_context:
+            sanitized_reference_context = self._sanitize_prompt_input(reference_context)
+            reference_section = f"\n{sanitized_reference_context}\n"
+
         return f"""**Pull Request Information**
 - Repository: {sanitized_repo}
 - PR Number: {pr_number or "Unknown"}
 - PR URL: {sanitized_pr_url or "Not available"}
 - CI Status: {ci_state}
-{file_summary}{allowed_files_section}{pr_context_section}{pattern_section}
+{file_summary}{allowed_files_section}{pr_context_section}{pattern_section}{reference_section}
 **Task Goal/Description:**
 {sanitized_goal}
 {truncation_warning}
@@ -2112,7 +2128,8 @@ def generate_llm_review(
     escalation_count: int = 0,
     retry_count: int = 0,
     pr_title: Optional[str] = None,
-    pr_description: Optional[str] = None
+    pr_description: Optional[str] = None,
+    reference_context: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Convenience function to generate LLM-powered code review
@@ -2133,6 +2150,7 @@ def generate_llm_review(
         retry_count: Number of retries already attempted (Issue #3640)
         pr_title: Pull request title (Issue #3767)
         pr_description: Pull request description/body (Issue #3767)
+        reference_context: Issue #3223 Cross-file reference context (optional)
 
     Returns:
         Dict with review results
@@ -2154,5 +2172,6 @@ def generate_llm_review(
         diff_truncated=diff_truncated,
         diff_files=diff_files,
         pr_title=pr_title,
-        pr_description=pr_description
+        pr_description=pr_description,
+        reference_context=reference_context
     )
