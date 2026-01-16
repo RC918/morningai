@@ -129,11 +129,21 @@ def sanitize_log_fields(
             # Safe types that don't need sanitization
             sanitized[key] = value
         elif isinstance(value, (list, tuple)):
-            # Recursively sanitize list items
-            sanitized[key] = [
-                sanitize_for_log(item, max_length) if isinstance(item, str) else item
-                for item in value
-            ]
+            # Recursively sanitize list items (including nested dicts)
+            sanitized_list = []
+            for item in value:
+                if isinstance(item, dict):
+                    sanitized_list.append(
+                        sanitize_log_fields(item, max_length, skip_keys)
+                    )
+                elif isinstance(item, str):
+                    sanitized_list.append(sanitize_for_log(item, max_length))
+                elif isinstance(item, (int, float, bool, type(None))):
+                    sanitized_list.append(item)
+                else:
+                    # For other types (including nested lists), convert to string
+                    sanitized_list.append(sanitize_for_log(item, max_length))
+            sanitized[key] = sanitized_list
         elif isinstance(value, dict):
             # Recursively sanitize nested dicts
             sanitized[key] = sanitize_log_fields(value, max_length, skip_keys)
