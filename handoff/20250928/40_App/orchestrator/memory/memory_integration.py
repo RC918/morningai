@@ -904,14 +904,28 @@ def save_review_feedback(
             },
         )
 
-        # Skip PII sanitization for review feedback content.
+        # PII sanitization bypass controlled by feature flag (REVIEW_FEEDBACK_SKIP_PII_SANITIZATION)
+        # Default: True (skip sanitization)
         # Reason: Code review feedback contains code snippets, file paths, and technical
         # comments that frequently trigger PII false positives (e.g., "passport" in
         # passport validation code, "address" in address fields, numeric patterns
-        # matching SSN/credit card regex). The content is already sanitized by the
-        # LLM Reviewer and does not contain actual user PII.
+        # matching SSN/credit card regex). The content is LLM-generated, not user input.
+        # Security: Operators can set REVIEW_FEEDBACK_SKIP_PII_SANITIZATION=false to enable
+        # PII scanning if needed (may block legitimate review feedback due to false positives).
         # Issue: https://github.com/RC918/morningai/pull/4032 (discovered during B-13 testing)
-        success = memory.save(entry, MemoryLayer.KNOWLEDGE_BASE, skip_sanitization=True)
+        skip_pii = settings.review_feedback_skip_pii_sanitization
+        if skip_pii:
+            logger.debug(
+                "[MemoryIntegration] Skipping PII sanitization for review feedback "
+                "(REVIEW_FEEDBACK_SKIP_PII_SANITIZATION=true)",
+                extra={
+                    "pr_number": pr_number,
+                    "repo": repo,
+                    "trace_id": trace_id,
+                    "operation": "save_review_feedback",
+                }
+            )
+        success = memory.save(entry, MemoryLayer.KNOWLEDGE_BASE, skip_sanitization=skip_pii)
         if success:
             logger.info(
                 "[MemoryIntegration] Saved review feedback",

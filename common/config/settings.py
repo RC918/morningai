@@ -2110,6 +2110,18 @@ class Settings(BaseSettings):
         description="Maximum number of past review patterns to retrieve (B-13). Default: 5."
     )
 
+    review_feedback_skip_pii_sanitization: bool = Field(
+        default=True,
+        alias="REVIEW_FEEDBACK_SKIP_PII_SANITIZATION",
+        description=(
+            "Skip PII sanitization for B-13 review feedback content. Default: true. "
+            "Reason: Code review feedback contains code snippets and technical comments "
+            "that trigger PII false positives (e.g., 'passport' in passport validation code). "
+            "Set to false to enable PII scanning (may block legitimate review feedback). "
+            "Security note: Review feedback is LLM-generated, not user input."
+        )
+    )
+
     senior_coder_strict_schema_validation: bool = Field(
         default=False,
         alias="SENIOR_CODER_STRICT_SCHEMA_VALIDATION",
