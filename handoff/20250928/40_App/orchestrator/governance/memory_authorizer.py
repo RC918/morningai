@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, FrozenSet
 
+from utils.sanitization import sanitize_for_log
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_PERMISSION_LEVEL = "sandbox_only"
@@ -210,15 +212,18 @@ class MemoryAuthorizer:
         allowed_scopes: FrozenSet[MemorySearchScope],
         trace_id: Optional[str],
     ) -> None:
-        """Log successful authorization for audit trail."""
+        """Log successful authorization for audit trail.
+
+        Issue #4016, #3992: Sanitize externally-sourced data to prevent log injection.
+        """
         logger.info(
             "[MemoryAuthorizer] Search authorized",
             extra={
                 "operation": "memory_search_authorized",
-                "agent_id": agent_id,
-                "agent_type": agent_type,
+                "agent_id": sanitize_for_log(agent_id),
+                "agent_type": sanitize_for_log(agent_type),
                 "allowed_scopes": [s.value for s in allowed_scopes],
-                "trace_id": trace_id,
+                "trace_id": sanitize_for_log(trace_id),
             }
         )
 
@@ -229,15 +234,18 @@ class MemoryAuthorizer:
         reason: str,
         trace_id: Optional[str],
     ) -> None:
-        """Log authorization failure for security monitoring."""
+        """Log authorization failure for security monitoring.
+
+        Issue #4016, #3992: Sanitize externally-sourced data to prevent log injection.
+        """
         logger.warning(
             "[MemoryAuthorizer] Search denied",
             extra={
                 "operation": "memory_search_denied",
-                "agent_id": agent_id,
-                "agent_type": agent_type,
-                "reason": reason,
-                "trace_id": trace_id,
+                "agent_id": sanitize_for_log(agent_id),
+                "agent_type": sanitize_for_log(agent_type),
+                "reason": sanitize_for_log(reason),
+                "trace_id": sanitize_for_log(trace_id),
             }
         )
 

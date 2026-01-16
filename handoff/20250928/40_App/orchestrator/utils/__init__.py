@@ -13,7 +13,8 @@ from .rate_limit import (
 )
 from .sanitization import (
     sanitize_for_log,
-    sanitize_task_id
+    sanitize_task_id,
+    sanitize_log_fields
 )
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     'check_pr_rate_limit',
     'get_pr_count_last_hour',
     'sanitize_for_log',
-    'sanitize_task_id'
+    'sanitize_task_id',
+    'sanitize_log_fields'
 ]
