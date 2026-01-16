@@ -385,9 +385,13 @@ class LLMSummarizer:
     Summarizes important memories before persisting to Knowledge Base.
 
     Issue #3977: Async LLM summarization pipeline
+    Issue #3998: Token bucket algorithm for rate limiting
+    Issue #3999: Refactored to use separate ConcurrencyManager and TokenBucketRateLimiter (SRP)
+
     - Supports both sync and async summarization
     - Batch processing for multiple memories
-    - Rate limiting to prevent API throttling
+    - Token bucket rate limiting for smooth request distribution
+    - Reusable concurrency control via ConcurrencyManager
     """
 
     SUMMARIZATION_PROMPT = """You are a memory consolidation agent for an AI coding assistant.
@@ -417,22 +421,52 @@ Output a JSON object with:
 Respond with valid JSON only."""
 
     # Issue #3977: Default concurrency and rate limiting settings
+    # Issue #3998: Token bucket defaults (capacity=10, refill_rate=5/sec)
     DEFAULT_MAX_CONCURRENCY = 5
-    DEFAULT_RATE_LIMIT_DELAY = 0.2  # seconds between requests
+    DEFAULT_RATE_LIMIT_DELAY = 0.2  # seconds between requests (legacy)
+    DEFAULT_TOKEN_BUCKET_CAPACITY = 10.0
+    DEFAULT_TOKEN_BUCKET_REFILL_RATE = 5.0  # tokens per second
 
     def __init__(
         self,
         model: str = "gemini-2.0-flash",
         max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
         rate_limit_delay: float = DEFAULT_RATE_LIMIT_DELAY,
+        token_bucket_capacity: Optional[float] = None,
+        token_bucket_refill_rate: Optional[float] = None,
     ):
         self.model = model
         self.max_concurrency = max_concurrency
         self.rate_limit_delay = rate_limit_delay
         self._client = None
-        self._semaphore: Optional[asyncio.Semaphore] = None
-        self._rate_limit_lock: Optional[asyncio.Lock] = None
-        self._last_request_time = 0.0
+
+        # Issue #3998: Token bucket rate limiter (replaces simple time-sleep)
+        # Issue #3999: Extracted to separate ConcurrencyManager and TokenBucketRateLimiter
+        try:
+            from memory.concurrency import (
+                TokenBucketRateLimiter,
+                ConcurrencyManager,
+            )
+            self._rate_limiter = TokenBucketRateLimiter(
+                capacity=token_bucket_capacity or self.DEFAULT_TOKEN_BUCKET_CAPACITY,
+                refill_rate=token_bucket_refill_rate or self.DEFAULT_TOKEN_BUCKET_REFILL_RATE,
+            )
+            self._concurrency_manager = ConcurrencyManager(
+                max_concurrency=max_concurrency,
+            )
+            self._use_token_bucket = True
+        except ImportError:
+            # Fallback to legacy rate limiting if concurrency module not available
+            logger.warning(
+                "[LLMSummarizer] Could not import concurrency module, "
+                "falling back to legacy rate limiting"
+            )
+            self._rate_limiter = None
+            self._concurrency_manager = None
+            self._use_token_bucket = False
+            self._semaphore: Optional[asyncio.Semaphore] = None
+            self._rate_limit_lock: Optional[asyncio.Lock] = None
+            self._last_request_time = 0.0
 
     def _get_client(self):
         """Get LLM client lazily"""
@@ -507,6 +541,8 @@ Respond with valid JSON only."""
         Summarize a memory entry using LLM (asynchronous).
 
         Issue #3977: Async LLM summarization pipeline
+        Issue #3998: Token bucket rate limiting for smooth request distribution
+        Issue #3999: Uses ConcurrencyManager for SRP compliance
 
         Args:
             entry: Memory entry to summarize
@@ -515,32 +551,48 @@ Respond with valid JSON only."""
         Returns:
             Dictionary with summary, keywords, and memory_type
         """
-        # Initialize semaphore for concurrency control
-        if self._semaphore is None:
-            self._semaphore = asyncio.Semaphore(self.max_concurrency)
+        if self._use_token_bucket:
+            # Issue #3998/#3999: Use token bucket + concurrency manager
+            async with await self._concurrency_manager.acquire():
+                # Acquire rate limit token (waits if bucket empty)
+                await self._rate_limiter.acquire_async()
 
-        # Initialize rate limit lock for thread-safe access
-        if self._rate_limit_lock is None:
-            self._rate_limit_lock = asyncio.Lock()
+                # Run synchronous summarize in thread pool
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(
+                    None,
+                    self.summarize,
+                    entry,
+                    memory_type,
+                )
+        else:
+            # Legacy fallback: simple time-sleep rate limiting
+            # Initialize semaphore for concurrency control
+            if self._semaphore is None:
+                self._semaphore = asyncio.Semaphore(self.max_concurrency)
 
-        async with self._semaphore:
-            # Rate limiting with lock to prevent race conditions
-            async with self._rate_limit_lock:
-                # Use monotonic clock for reliable rate limiting
-                current_time = time.monotonic()
-                time_since_last = current_time - self._last_request_time
-                if time_since_last < self.rate_limit_delay:
-                    await asyncio.sleep(self.rate_limit_delay - time_since_last)
-                self._last_request_time = time.monotonic()
+            # Initialize rate limit lock for thread-safe access
+            if self._rate_limit_lock is None:
+                self._rate_limit_lock = asyncio.Lock()
 
-            # Run synchronous summarize in thread pool
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(
-                None,
-                self.summarize,
-                entry,
-                memory_type,
-            )
+            async with self._semaphore:
+                # Rate limiting with lock to prevent race conditions
+                async with self._rate_limit_lock:
+                    # Use monotonic clock for reliable rate limiting
+                    current_time = time.monotonic()
+                    time_since_last = current_time - self._last_request_time
+                    if time_since_last < self.rate_limit_delay:
+                        await asyncio.sleep(self.rate_limit_delay - time_since_last)
+                    self._last_request_time = time.monotonic()
+
+                # Run synchronous summarize in thread pool
+                loop = asyncio.get_running_loop()
+                return await loop.run_in_executor(
+                    None,
+                    self.summarize,
+                    entry,
+                    memory_type,
+                )
 
     async def summarize_batch_async(
         self,
@@ -615,6 +667,28 @@ Respond with valid JSON only."""
             "keywords": keywords,
             "memory_type": memory_type.value,
         }
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get LLMSummarizer statistics.
+
+        Issue #3998/#3999: Exposes rate limiter and concurrency manager stats.
+
+        Returns:
+            Dictionary with rate limiter and concurrency stats
+        """
+        stats = {
+            "model": self.model,
+            "max_concurrency": self.max_concurrency,
+            "use_token_bucket": self._use_token_bucket,
+        }
+
+        if self._use_token_bucket and self._rate_limiter:
+            stats["rate_limiter"] = self._rate_limiter.get_stats()
+        if self._use_token_bucket and self._concurrency_manager:
+            stats["concurrency_manager"] = self._concurrency_manager.get_stats()
+
+        return stats
 
 
 class MemoryConsolidationJob:
