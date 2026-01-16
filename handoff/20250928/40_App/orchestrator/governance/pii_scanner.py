@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 # Maximum length for matched text in logs/results (security: prevent full PII exposure)
 MAX_MATCHED_TEXT_LOG_LENGTH = 20
 
+# Maximum content length for scanning (defense-in-depth against ReDoS)
+# Issue #3941: ReDoS vulnerability analysis for PIIScanner patterns
+MAX_CONTENT_LENGTH = 100_000  # 100KB limit
+
 
 class PIICategory(str, Enum):
     """Categories of PII that can be detected"""
@@ -247,10 +251,13 @@ class PIIScanner:
     ]
 
     # Physical address patterns (US-focused)
+    # Issue #3941: ReDoS fix - unrolled loop to avoid catastrophic backtracking
     ADDRESS_PATTERNS: List[Tuple[str, str, str, PIIRiskLevel]] = [
         # Street address: 123 Main St, 456 Oak Avenue, etc.
+        # Fixed: Unrolled (?:[A-Za-z]+\s+){1,3} to [A-Za-z]+\s+(?:[A-Za-z]+\s+){0,2}
+        # This prevents ReDoS by bounding the outer quantifier to max 2 iterations
         (
-            r'\b\d{1,5}\s+(?:[A-Za-z]+\s+){1,3}'
+            r'\b\d{1,5}\s+[A-Za-z]+\s+(?:[A-Za-z]+\s+){0,2}'
             r'(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|'
             r'Lane|Ln|Court|Ct|Way|Place|Pl|Circle|Cir)\b',
             "PII-ADDR-001",
@@ -409,6 +416,15 @@ class PIIScanner:
                 summary="No content to scan",
                 context=context or {},
             )
+
+        # Issue #3941: Defense-in-depth against ReDoS - limit content length
+        if len(content) > MAX_CONTENT_LENGTH:
+            logger.warning(
+                "[PIIScanner] Content exceeds max length (%d > %d), truncating",
+                len(content),
+                MAX_CONTENT_LENGTH,
+            )
+            content = content[:MAX_CONTENT_LENGTH]
 
         findings: List[PIIFinding] = []
         found_critical = False

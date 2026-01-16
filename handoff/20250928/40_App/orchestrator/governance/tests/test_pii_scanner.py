@@ -484,11 +484,21 @@ class TestEdgeCases:
         assert result.has_pii is False
 
     def test_very_long_content(self):
-        """Test very long content"""
+        """Test very long content (under 100KB limit)"""
         scanner = PIIScanner()
-        content = "Normal text. " * 10000 + "test@example.com"
+        # Put email at beginning so it's not truncated, use content under 100KB
+        content = "test@example.com " + "Normal text. " * 7000
         result = scanner.scan(content)
         assert result.has_pii is True
+
+    def test_content_truncation_over_limit(self):
+        """Test content over 100KB is truncated for ReDoS protection"""
+        scanner = PIIScanner()
+        # Email at end will be truncated when content exceeds 100KB
+        content = "Normal text. " * 10000 + "test@example.com"
+        result = scanner.scan(content)
+        # Email is beyond 100KB limit, so it won't be detected
+        assert result.has_pii is False
 
     def test_unicode_content(self):
         """Test unicode content with ASCII email"""
