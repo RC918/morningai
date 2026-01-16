@@ -12,14 +12,17 @@ from review_context.multi_specialist_reviewer import (
     WeightedFinding,
     get_weighted_findings,
     SEVERITY_PRIORITY,
-    DEFAULT_TRUST_SCORE,
 )
 from governance.specialist_trust_score import (
     SpecialistType,
     FeedbackType,
+    SpecialistTrustScoreTracker,
     get_specialist_trust_tracker,
     reset_specialist_trust_tracker,
 )
+
+# Get default trust score from the authoritative source
+DEFAULT_TRUST_SCORE = SpecialistTrustScoreTracker.DEFAULT_TRUST_SCORE
 
 
 class TestWeightedFinding:

@@ -19,6 +19,7 @@ Design Principles:
 
 import logging
 import threading
+from copy import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -258,10 +259,10 @@ class SpecialistTrustScoreTracker:
             specialist: The specialist type
 
         Returns:
-            SpecialistTrustScore with all statistics
+            A copy of SpecialistTrustScore with all statistics to ensure thread-safety.
         """
         with self._lock:
-            return self._scores[specialist]
+            return copy(self._scores[specialist])
 
     def get_feedback_history(
         self,
@@ -276,7 +277,7 @@ class SpecialistTrustScoreTracker:
             limit: Maximum number of records to return
 
         Returns:
-            List of SpecialistFeedback records
+            A list of copies of SpecialistFeedback records to ensure thread-safety.
         """
         with self._lock:
             if specialist:
@@ -285,14 +286,15 @@ class SpecialistTrustScoreTracker:
                     if f.specialist == specialist
                 ]
             else:
-                filtered = self._feedback_history.copy()
+                filtered = self._feedback_history
 
-            # Return most recent first
-            return sorted(
+            # Return copies of the most recent items to prevent mutation
+            sorted_slice = sorted(
                 filtered[-limit:],
                 key=lambda f: f.timestamp,
                 reverse=True,
             )
+            return [copy(f) for f in sorted_slice]
 
     def reset_specialist(self, specialist: SpecialistType) -> None:
         """

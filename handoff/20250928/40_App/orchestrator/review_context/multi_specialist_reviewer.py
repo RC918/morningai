@@ -155,8 +155,21 @@ SEVERITY_PRIORITY = {
     "low": 1.0,
 }
 
-# Default trust score for specialists without history
-DEFAULT_TRUST_SCORE = 0.7
+# Default trust score constant - imported from tracker to avoid duplication
+# Using lazy import pattern to avoid circular dependency
+_DEFAULT_TRUST_SCORE: Optional[float] = None
+
+
+def _get_default_trust_score() -> float:
+    """Get default trust score from tracker (lazy import to avoid circular dependency)."""
+    global _DEFAULT_TRUST_SCORE
+    if _DEFAULT_TRUST_SCORE is None:
+        try:
+            from governance.specialist_trust_score import SpecialistTrustScoreTracker
+            _DEFAULT_TRUST_SCORE = SpecialistTrustScoreTracker.DEFAULT_TRUST_SCORE
+        except ImportError:
+            _DEFAULT_TRUST_SCORE = 0.7  # Fallback if tracker not available
+    return _DEFAULT_TRUST_SCORE
 
 
 def get_weighted_findings(
@@ -184,6 +197,8 @@ def get_weighted_findings(
     Returns:
         List of WeightedFinding sorted by effective_priority (highest first)
     """
+    default_score = _get_default_trust_score()
+
     if trust_scores is None:
         # Lazy import to avoid circular dependency
         try:
@@ -199,7 +214,7 @@ def get_weighted_findings(
     for f in findings:
         # Get trust score for this specialist
         specialist_name = f.specialist.value
-        score = trust_scores.get(specialist_name, DEFAULT_TRUST_SCORE)
+        score = trust_scores.get(specialist_name, default_score)
 
         # Calculate base priority from severity
         base_priority = SEVERITY_PRIORITY.get(f.severity, 2.0)
