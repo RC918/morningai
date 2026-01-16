@@ -204,7 +204,9 @@ class SpecialistTrustScoreTracker:
             # Recalculate trust score if we have enough data
             if score.total_suggestions >= self.MIN_SUGGESTIONS_FOR_ADJUSTMENT:
                 new_accuracy = score.accuracy_rate
-                # Use exponential moving average for smooth updates
+                # Use exponential moving average (EMA) for smooth updates
+                # Formula: new_score = EMA_WEIGHT * new_accuracy + (1 - EMA_WEIGHT) * old_score
+                # This gives more weight to recent feedback while preserving historical trends
                 score.trust_score = (
                     self.EMA_WEIGHT * new_accuracy +
                     (1 - self.EMA_WEIGHT) * score.trust_score
