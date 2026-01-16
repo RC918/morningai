@@ -954,7 +954,7 @@ class LLMReviewerAdapter:
                             "trace_id": self.trace_id,
                             "pr_number": pr_number,
                             "pattern_count": pattern_data.get("pattern_count", 0),
-                            "avg_similarity": pattern_data.get("patterns", [{}])[0].get("similarity", 0) if pattern_data.get("patterns") else 0,
+                            "avg_similarity": pattern_data.get("patterns", [{}])[0].get("similarity", 0) if pattern_data.get("patterns") and len(pattern_data.get("patterns", [])) > 0 else 0,
                         }
                     )
             except Exception as e:
