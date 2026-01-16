@@ -4,6 +4,8 @@ PII Scanner - EPIC E Phase E-4 Compliance Radar v2 MVP
 Blueprint Reference: Section 4.2 (Compliance Radar v2)
 Issue: Part of EPIC E Safety Governor v2
 Issue #3944: Dynamic pattern and action configuration
+Issue #3942: Extract pattern checkers for PIIScanner - SRP refactoring
+Issue #3943: Enhanced passport and driver license patterns
 
 This module implements PII (Personally Identifiable Information) scanning
 for content safety and compliance. It detects various types of PII including:
@@ -15,6 +17,8 @@ for content safety and compliance. It detects various types of PII including:
 - Physical addresses
 - IP addresses
 - Dates of birth
+- Passport numbers (country-specific patterns)
+- Driver license numbers (state-specific patterns)
 
 Design Principles:
 - Pattern-based detection with confidence scoring
@@ -24,6 +28,7 @@ Design Principles:
 - Dynamic configuration loading from YAML (Issue #3944)
 - Hot-reload capability without service restart
 - Per-tenant action overrides support
+- SRP compliance via helper classes (Issue #3942)
 """
 import hashlib
 import logging
@@ -303,24 +308,103 @@ class PIIScanner:
         ),
     ]
 
-    # Passport patterns (various countries)
+    # Passport patterns (Issue #3943: Enhanced with country-specific patterns)
+    # Blueprint Section 4.2: Compliance Radar v2 - improved accuracy
     PASSPORT_PATTERNS: List[Tuple[str, str, str, PIIRiskLevel]] = [
-        # US Passport: 9 digits
+        # US Passport: 9 digits (most common format)
         (
-            r'\b[A-Z]?\d{8,9}\b',
+            r'\b\d{9}\b',
             "PII-PASS-001",
             "Potential US passport number detected",
             PIIRiskLevel.HIGH,
         ),
+        # UK Passport: 9 digits
+        (
+            r'\b\d{9}\b',
+            "PII-PASS-002",
+            "Potential UK passport number detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Canadian Passport: 2 letters + 6 digits
+        (
+            r'\b[A-Z]{2}\d{6}\b',
+            "PII-PASS-003",
+            "Potential Canadian passport number detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # German Passport: 9 alphanumeric (ICAO format)
+        (
+            r'\b[CFGHJKLMNPRTVWXYZ0-9]{9}\b',
+            "PII-PASS-004",
+            "Potential German passport number detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Australian Passport: 1-2 letters + 7 digits
+        (
+            r'\b[A-Z]{1,2}\d{7}\b',
+            "PII-PASS-005",
+            "Potential Australian passport number detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Chinese Passport: E/G + 8 digits
+        (
+            r'\b[EG]\d{8}\b',
+            "PII-PASS-006",
+            "Potential Chinese passport number detected",
+            PIIRiskLevel.HIGH,
+        ),
     ]
 
-    # Driver's License patterns (state-specific patterns would be more accurate)
+    # Driver's License patterns (Issue #3943: Enhanced with state-specific patterns)
+    # Blueprint Section 4.2: Compliance Radar v2 - improved accuracy
     DRIVER_LICENSE_PATTERNS: List[Tuple[str, str, str, PIIRiskLevel]] = [
-        # Generic alphanumeric pattern (7-13 characters)
+        # California: 1 letter + 7 digits
         (
-            r'\b[A-Z]{1,2}\d{5,8}\b',
+            r'\b[A-Z]\d{7}\b',
             "PII-DL-001",
-            "Potential driver's license number detected",
+            "Potential California driver's license detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # New York: 9 digits
+        (
+            r'\b\d{9}\b',
+            "PII-DL-002",
+            "Potential New York driver's license detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Texas: 8 digits
+        (
+            r'\b\d{8}\b',
+            "PII-DL-003",
+            "Potential Texas driver's license detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Florida: 1 letter + 12 digits
+        (
+            r'\b[A-Z]\d{12}\b',
+            "PII-DL-004",
+            "Potential Florida driver's license detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Illinois: 1 letter + 11 digits
+        (
+            r'\b[A-Z]\d{11}\b',
+            "PII-DL-005",
+            "Potential Illinois driver's license detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Ohio: 2 letters + 6 digits
+        (
+            r'\b[A-Z]{2}\d{6}\b',
+            "PII-DL-006",
+            "Potential Ohio driver's license detected",
+            PIIRiskLevel.HIGH,
+        ),
+        # Michigan: 1 letter + 12 digits
+        (
+            r'\b[A-Z]\d{12}\b',
+            "PII-DL-007",
+            "Potential Michigan driver's license detected",
             PIIRiskLevel.HIGH,
         ),
     ]
@@ -1059,13 +1143,28 @@ class PIIScanner:
             return f"[REDACTED_{category.value.upper()}]"
 
     def _validate_match(self, text: str, category: PIICategory) -> bool:
-        """Validate a match using category-specific rules."""
-        if category == PIICategory.CREDIT_CARD:
-            return self._luhn_check(text)
-        return True
+        """
+        Validate a match using category-specific rules.
+
+        Issue #3942: Delegates to PIIPatternValidator for SRP compliance.
+        Issue #3943: Enhanced validation for passport and driver license.
+        """
+        try:
+            from governance.pii_helpers import get_pattern_validator
+            return get_pattern_validator().validate(text, category)
+        except ImportError:
+            # Fallback to inline validation if helper not available
+            if category == PIICategory.CREDIT_CARD:
+                return self._luhn_check(text)
+            return True
 
     def _luhn_check(self, card_number: str) -> bool:
-        """Validate credit card number using Luhn algorithm."""
+        """
+        Validate credit card number using Luhn algorithm.
+
+        Note: This is kept for backward compatibility. New code should use
+        PIIPatternValidator.luhn_check() from pii_helpers.py (Issue #3942).
+        """
         digits = re.sub(r'\D', '', card_number)
         if len(digits) < 13 or len(digits) > 19:
             return False
@@ -1088,36 +1187,54 @@ class PIIScanner:
         content: str,
         category: PIICategory,
     ) -> float:
-        """Calculate confidence score for a match."""
-        base_confidence = 0.8
+        """
+        Calculate confidence score for a match.
 
-        # Adjust based on context
-        matched_text = match.group(0)
-        start = max(0, match.start() - 50)
-        end = min(len(content), match.end() + 50)
-        context_text = content[start:end].lower()
+        Issue #3942: Delegates to PIIConfidenceCalculator for SRP compliance.
+        Issue #3943: Enhanced context keywords for passport and driver license.
+        """
+        try:
+            from governance.pii_helpers import get_confidence_calculator
+            return get_confidence_calculator().calculate(
+                match, content, category, self.strict_mode
+            )
+        except ImportError:
+            # Fallback to inline calculation if helper not available
+            base_confidence = 0.8
 
-        # Look for contextual keywords that increase confidence
-        context_keywords = {
-            PIICategory.EMAIL: ["email", "contact", "reach", "send"],
-            PIICategory.PHONE: ["phone", "call", "mobile", "cell", "tel"],
-            PIICategory.SSN: ["ssn", "social security", "tax id"],
-            PIICategory.CREDIT_CARD: ["card", "payment", "credit", "debit"],
-            PIICategory.ADDRESS: ["address", "live", "reside", "located"],
-            PIICategory.DATE_OF_BIRTH: ["born", "birthday", "dob", "birth"],
-        }
+            # Adjust based on context
+            matched_text = match.group(0)
+            start = max(0, match.start() - 50)
+            end = min(len(content), match.end() + 50)
+            context_text = content[start:end].lower()
 
-        keywords = context_keywords.get(category, [])
-        for keyword in keywords:
-            if keyword in context_text:
-                base_confidence = min(1.0, base_confidence + 0.1)
-                break
+            # Look for contextual keywords that increase confidence
+            context_keywords = {
+                PIICategory.EMAIL: ["email", "contact", "reach", "send"],
+                PIICategory.PHONE: ["phone", "call", "mobile", "cell", "tel"],
+                PIICategory.SSN: ["ssn", "social security", "tax id"],
+                PIICategory.CREDIT_CARD: ["card", "payment", "credit", "debit"],
+                PIICategory.ADDRESS: ["address", "live", "reside", "located"],
+                PIICategory.DATE_OF_BIRTH: ["born", "birthday", "dob", "birth"],
+                PIICategory.PASSPORT: [
+                    "passport", "travel", "visa", "immigration"
+                ],
+                PIICategory.DRIVER_LICENSE: [
+                    "driver", "license", "licence", "dl", "driving"
+                ],
+            }
 
-        # Reduce confidence for very short matches
-        if len(matched_text) < 5:
-            base_confidence *= 0.7
+            keywords = context_keywords.get(category, [])
+            for keyword in keywords:
+                if keyword in context_text:
+                    base_confidence = min(1.0, base_confidence + 0.1)
+                    break
 
-        return round(base_confidence, 2)
+            # Reduce confidence for very short matches
+            if len(matched_text) < 5:
+                base_confidence *= 0.7
+
+            return round(base_confidence, 2)
 
     def _calculate_risk_level(
         self, findings: List[PIIFinding]
