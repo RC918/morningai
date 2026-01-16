@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS memory_v2_knowledge (
     content TEXT NOT NULL,
     scope TEXT NOT NULL DEFAULT 'global',
     metadata JSONB DEFAULT '{}',
-    embedding vector(1536),
+    embedding vector(1024),
     trace_id TEXT,
     agent_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -109,7 +109,7 @@ CREATE POLICY "authenticated_memory_v2_governance_read" ON public.memory_v2_gove
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION match_memory_v2_knowledge(
-    query_embedding vector(1536),
+    query_embedding vector(1024),
     match_threshold float DEFAULT 0.7,
     match_count int DEFAULT 10,
     scope_filter text DEFAULT NULL,
@@ -121,7 +121,7 @@ RETURNS TABLE (
     content text,
     scope text,
     metadata jsonb,
-    embedding vector(1536),
+    embedding vector(1024),
     trace_id text,
     agent_id text,
     created_at timestamptz,
@@ -177,7 +177,7 @@ COMMENT ON COLUMN public.memory_v2_knowledge.scope IS
     'Memory scope: task, session, agent, workflow, global';
 
 COMMENT ON COLUMN public.memory_v2_knowledge.embedding IS 
-    'Vector embedding (1536 dimensions) for similarity search';
+    'Vector embedding (1024 dimensions for AliCloud text-embedding-v3) for similarity search';
 
 COMMENT ON COLUMN public.memory_v2_knowledge.metadata IS 
     'JSONB metadata for additional context';
