@@ -31,7 +31,7 @@
 +-----------------------------+------------------------------+
 |         Infrastructure Layer (Memory / Telemetry)          |
 +------------------------------------------------------------+
-|              Model Layer (Qwen3 Multi-Tier)                |
+|              Model Layer (Gemini-First Multi-Provider)     |
 +------------------------------------------------------------+
 ```
 
@@ -54,7 +54,7 @@
 | **Infrastructure Layer** | Memory v2 | [EPIC G: Memory v2 (#3491)](https://github.com/RC918/morningai/issues/3491) | **Phase G-1 Complete** ([PR #3962](https://github.com/RC918/morningai/pull/3962), [PR #3967](https://github.com/RC918/morningai/pull/3967)); G-2 Consolidation Agent Planning ([#3973](https://github.com/RC918/morningai/issues/3973)) - [Roadmap](../EPIC_G_MEMORY_V2_ROADMAP.md) |
 | **Infrastructure Layer** | Simulation Suite v1 + **Regression Pipeline v1** | [EPIC H: Simulation Suite v1 (#3492)](https://github.com/RC918/morningai/issues/3492) | Placeholder; **Regression Pipeline v1** (Blueprint Section 5.4) |
 | **Infrastructure Layer** | Owner Console v3 | EPIC J: Owner Console v3 | **Placeholder** - Visualization dashboard for system monitoring (Blueprint Section 5.2) |
-| **Intelligence Layer** | UI/UX Agent Family | EPIC K: UI/UX Agent Family | **Placeholder** - UI Consistency, UX Heuristic, Visual Regression, Design Token Governance agents (Blueprint Section 3.3) |
+| **Intelligence Layer** | Agent Catalog Completion | [EPIC K: Agent Catalog Completion (#4083)](https://github.com/RC918/morningai/issues/4083) | **Planning** - 13 Agent Types (AgentType Enum), Risk Analyzer Agent, 4 UI/UX Agents, AIP v2 completion (Blueprint Section 3.3) |
 
 ### EPIC Dependencies
 
@@ -74,14 +74,18 @@ EPIC D (Coder Agent Family)
 EPIC I (Runtime Governance) <-- Cross-cutting: monitors all LLM calls from A/B/C/D
 ```
 
-### Model Tier Strategy (from Wish Pool v2)
+### Model Tier Strategy (Gemini-First Multi-Provider)
 
-| Tier | Model | Use Case | EPIC |
-|------|-------|----------|------|
-| Tier 0 | Qwen3-Max | Critical reasoning, Judge | Future |
-| Tier 1 | Qwen3-235B | Deep reasoning, Senior Coder | EPIC A, D |
-| Tier 2 | Qwen3-Next-80B | Coding / Reviewing | EPIC A, B, C |
-| Tier 3 | Qwen3-14B / 7B | UI copy / Basic tasks | Future |
+> **Note**: Updated 2026-01 to reflect actual Production configuration. See [Blueprint Section 2](./MorningAI_Ecosystem_Blueprint_2025_Final.md#2-model-layer模型層) and `routing_policy.json v1.3`.
+>
+> **Architecture Rationale**: All tiers use `gemini-2.0-flash` as primary for cost-effectiveness and consistent latency. Tiers are differentiated by: (1) fallback model capability (qwen-max vs qwen-turbo), (2) context limits (Tier 0-1: 128K, Tier 2: 32K, Tier 3: 8K tokens), and (3) use case complexity.
+
+| Tier | Primary | Secondary | Tertiary | Use Case | Context Limit | EPIC |
+|------|---------|-----------|----------|----------|---------------|------|
+| Tier 0 | gemini-2.0-flash | qwen-max | gpt-4o | Critical reasoning, Judge, Planning | 128K | EPIC A, F |
+| Tier 1 | gemini-2.0-flash | qwen-plus | gpt-4o-mini | Deep reasoning, Coding, Review | 128K | EPIC A, B, D |
+| Tier 2 | gemini-2.0-flash | qwen-turbo | gpt-4o-mini | Translation, Summarization, Chat | 32K | EPIC A, C |
+| Tier 3 | gemini-2.0-flash | qwen-turbo | gpt-4o-mini | UI copy / Basic tasks (ux_copy) | 8K | EPIC K |
 
 ---
 
@@ -226,7 +230,7 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 | 5.2 Telemetry v2 + Owner Console | **EPIC B Reviewer telemetry Completed**; Full trace reconstruction Pending | Future EPIC; **EPIC J** (Owner Console v3) |
 | 5.3 Simulation Suite v1 | **H-1 to H-3 Completed** | [EPIC H (#3492)](https://github.com/RC918/morningai/issues/3492) - [Roadmap](../EPIC_H_SIMULATION_SUITE_ROADMAP.md) |
 | **5.4 Regression Pipeline v1** | **H-2 Completed** | **EPIC H** - Error capture, Regression test generation, CI enforcement |
-| **UI/UX Agents** | Not started | **EPIC K** (UI/UX Agent Family - Blueprint Section 3.3) |
+| **UI/UX Agents + Agent Catalog** | **Planning** | [**EPIC K** (#4083)](https://github.com/RC918/morningai/issues/4083) - Agent Catalog Completion (13 Agent Types, Risk Analyzer, 4 UI/UX Agents, AIP v2) |
 
 ---
 
@@ -279,3 +283,4 @@ This North Star document is a living summary that maps the vision to current imp
 | 2.3 | 2026-01-11 | Devin AI | **CRITICAL CORRECTION**: B-7 (Codebase Context) and B-8 (Semantic Understanding) **MOVED TO EPIC D** (Coder Agent capabilities). Per Blueprint Section 3.3 Agent Separation Principle: CodeIndexer, KnowledgeGraphManager, and LSP/AST are Coder Agent tools, NOT Reviewer tools. Reviewer Agent only reviews PR diff - does NOT need full codebase understanding. Phase 7 now contains only B-9 (Multi-Specialist Review). |
 | 2.4 | 2026-01-12 | Ryan Chen (@RC918) with Devin AI | **Architecture Gap Fix**: (1) Added EPIC J (Owner Console v3) and EPIC K (UI/UX Agent Family) placeholders. (2) Updated EPIC D Stage 3: D-7 Test Gen from Reviewer Flags, D-8 Debugger, D-9 Auto Refactoring. (3) Updated EPIC F status to Phase F-2 Completed, added F-5 Debate Engine, F-6 Hierarchical Planning. (4) Added EPIC I Phase I-4 Self-Evolving Routing. (5) Added Blueprint Section 4.5-4.7 cross-references. (6) **BrowserNode v2 + Self-Heal** (Blueprint 3.4) integrated into EPIC C. (7) **Diagnostic Agent** (Blueprint 3.5) integrated into EPIC D D-8. (8) **Regression Pipeline v1** (Blueprint 5.4) integrated into EPIC H. (9) Added **F-7 E2E Test Flow** to EPIC F. (10) Expanded D-7 to include E2E Test Plan generation. |
 | 2.5 | 2026-01-15 | Devin AI | **EPIC H Implementation**: Implemented H-1 Simulation Suite Core (SimulationScenario, ScenarioRunner), H-2 Regression Pipeline Core (RegressionCandidate, Collector, Generator), H-3 Built-in Scenarios (Flow, Routing, Safety, Governance). Created EPIC_H_SIMULATION_SUITE_ROADMAP.md. Updated status from "Placeholder" to "H-1 to H-3 Completed". |
+| 2.6 | 2026-01-17 | Ryan Chen (@RC918) with Devin AI | **EPIC K Formalization + Model Layer Sync**: (1) Created [EPIC K: Agent Catalog Completion (#4083)](https://github.com/RC918/morningai/issues/4083) - expanded scope from "UI/UX Agent Family" placeholder to full Intelligence Layer completion (13 Agent Types, Risk Analyzer, 4 UI/UX Agents, AIP v2). (2) Updated Model Layer diagram and tier strategy to reflect Gemini-First Multi-Provider architecture (synced with Blueprint PR #4082). (3) Added Architecture Rationale note explaining same-primary-model design and context limit differentiation. (4) Updated Cross-Reference section with EPIC K link. Based on [comprehensive ecosystem audit](https://app.devin.ai/sessions/1e2806264a294d24a361f67ddb70a487). |
