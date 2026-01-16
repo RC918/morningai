@@ -2,7 +2,7 @@
 
 **Issue**: [#3342](https://github.com/RC918/morningai/issues/3342)
 **Blueprint Reference**: Section 4.3 (Model Governance Framework v2) + Section 4.4 (Autonomous Provisioning v2)
-ˇ**Status**: Phase I-1 Complete, Phase I-2a Complete (observe-only), Phase I-2b Complete (disabled by default)
+**Status**: Phase I-1 Complete, Phase I-2a Complete (observe-only), Phase I-2b Complete (disabled by default)
 **Last Updated**: 2026-01-16
 
 ## Recent Updates
