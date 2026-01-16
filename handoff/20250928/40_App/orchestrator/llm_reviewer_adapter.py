@@ -1868,6 +1868,12 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         comments = review_data.get("comments", [])
 
         if not comments:
+            review_data["confidence_filter_stats"] = {
+                "original_count": 0,
+                "filtered_count": 0,
+                "remaining_count": 0,
+                "threshold": threshold,
+            }
             return review_data
 
         original_count = len(comments)
@@ -1875,10 +1881,21 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
         filtered_out = []
 
         for comment in comments:
-            confidence = comment.get("confidence")
-            if confidence is None:
+            try:
+                confidence = float(comment.get("confidence"))
+            except (ValueError, TypeError):
+                raw_confidence = comment.get("confidence")
+                logger.warning(
+                    "[LLM Reviewer] B-15: Invalid confidence value, defaulting to 0.8",
+                    extra={
+                        "operation": "confidence_filter",
+                        "trace_id": self.trace_id,
+                        "pr_number": pr_number,
+                        "invalid_confidence": str(raw_confidence)[:50],
+                    }
+                )
                 confidence = 0.8
-                comment["confidence"] = confidence
+            comment["confidence"] = confidence
 
             if confidence >= threshold:
                 filtered_comments.append(comment)
