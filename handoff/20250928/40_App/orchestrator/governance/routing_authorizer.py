@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Set, FrozenSet
 
+from utils.sanitization import sanitize_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -267,14 +269,17 @@ class RoutingAuthorizer:
         caller: str,
         reason: str,
     ) -> None:
-        """Log successful authorization for audit trail."""
+        """Log successful authorization for audit trail.
+
+        Issue #4016, #3992: Sanitize externally-sourced data to prevent log injection.
+        """
         logger.info(
             "[RoutingAuthorizer] Operation authorized",
             extra={
                 "operation": "routing_policy_authorized",
                 "routing_operation": operation.value,
-                "caller": caller,
-                "reason": reason,
+                "caller": sanitize_for_log(caller),
+                "reason": sanitize_for_log(reason),
             }
         )
 
@@ -284,31 +289,40 @@ class RoutingAuthorizer:
         caller: str,
         reason: str,
     ) -> None:
-        """Log authorization failure for security monitoring."""
+        """Log authorization failure for security monitoring.
+
+        Issue #4016, #3992: Sanitize externally-sourced data to prevent log injection.
+        """
         logger.warning(
             "[RoutingAuthorizer] Operation denied",
             extra={
                 "operation": "routing_policy_denied",
                 "routing_operation": operation.value,
-                "caller": caller,
-                "reason": reason,
+                "caller": sanitize_for_log(caller),
+                "reason": sanitize_for_log(reason),
             }
         )
 
     def add_to_allowlist(self, caller: str) -> None:
-        """Add a caller to the allowlist (break-glass)."""
+        """Add a caller to the allowlist (break-glass).
+
+        Issue #4016, #3992: Sanitize externally-sourced data to prevent log injection.
+        """
         self._allowlist.add(caller)
         logger.info(
             "[RoutingAuthorizer] Added to allowlist",
-            extra={"caller": caller}
+            extra={"caller": sanitize_for_log(caller)}
         )
 
     def remove_from_allowlist(self, caller: str) -> None:
-        """Remove a caller from the allowlist."""
+        """Remove a caller from the allowlist.
+
+        Issue #4016, #3992: Sanitize externally-sourced data to prevent log injection.
+        """
         self._allowlist.discard(caller)
         logger.info(
             "[RoutingAuthorizer] Removed from allowlist",
-            extra={"caller": caller}
+            extra={"caller": sanitize_for_log(caller)}
         )
 
 
