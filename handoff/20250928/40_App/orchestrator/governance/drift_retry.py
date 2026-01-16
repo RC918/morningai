@@ -127,6 +127,16 @@ HIGHEST_TIER_MODELS = {
     "siliconflow": "qwen-max",
 }
 
+# Issue #3933: Moved from _estimate_retry_cost() to module level for visibility
+# Similar pattern to MODEL_TIER_ESCALATION above
+TIER_COST_MULTIPLIERS = {
+    "qwen-max": 1.5,
+    "gpt-4o": 2.0,
+    "gemini-1.5-pro": 1.5,
+    "qwen-72b": 1.2,
+    "qwen-plus": 1.2,
+}
+
 
 class DriftRetryDecision:
     """
@@ -279,15 +289,8 @@ class DriftRetryDecision:
         if not retry_model or original_cost <= 0:
             return original_cost
 
-        tier_cost_multipliers = {
-            "qwen-max": 1.5,
-            "gpt-4o": 2.0,
-            "gemini-1.5-pro": 1.5,
-            "qwen-72b": 1.2,
-            "qwen-plus": 1.2,
-        }
-
-        multiplier = tier_cost_multipliers.get(retry_model, 1.0)
+        # Issue #3933: Use module-level constant for visibility
+        multiplier = TIER_COST_MULTIPLIERS.get(retry_model, 1.0)
         return original_cost * multiplier
 
 
