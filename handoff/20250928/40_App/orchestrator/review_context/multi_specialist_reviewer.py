@@ -117,6 +117,106 @@ class SpecialistFindings:
         }
 
 
+@dataclass
+class WeightedFinding:
+    """
+    A finding with trust-score-adjusted weight.
+
+    Issue #3925: RuntimeTrustScore Integration - Reviewer Weight Adjustment
+
+    This class wraps a SpecialistFinding with weight information derived from
+    the specialist's trust score. The effective_priority is used by:
+    - B-9.5 Priority-based Filtering: Filter low-priority findings
+    - F-5.5 Review Consolidation: Prioritize findings for Judge Agent
+
+    Attributes:
+        finding: The original SpecialistFinding
+        weight: Trust score weight (0.0 to 1.0)
+        effective_priority: Adjusted priority = base_priority * weight
+    """
+    finding: SpecialistFinding
+    weight: float
+    effective_priority: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "finding": self.finding.to_dict(),
+            "weight": self.weight,
+            "effective_priority": self.effective_priority,
+        }
+
+
+# Severity to numeric priority mapping for weight calculation
+SEVERITY_PRIORITY = {
+    "critical": 4.0,
+    "high": 3.0,
+    "medium": 2.0,
+    "low": 1.0,
+}
+
+# Default trust score for specialists without history
+DEFAULT_TRUST_SCORE = 0.7
+
+
+def get_weighted_findings(
+    findings: List[SpecialistFinding],
+    trust_scores: Optional[Dict[str, float]] = None,
+) -> List["WeightedFinding"]:
+    """
+    Adjust finding priority based on specialist trust score.
+
+    Issue #3925: RuntimeTrustScore Integration - Reviewer Weight Adjustment
+
+    This function implements the E+F+I closed-loop integration:
+    - E (Detection): Safety Governor detects issues via specialists
+    - I (Recording): Trust scores track specialist accuracy
+    - F (Adjustment): Planner uses weighted findings
+
+    Trust score range: 0.0 (never trust) to 1.0 (always trust)
+    Default trust score: 0.7 for new specialists
+
+    Args:
+        findings: List of SpecialistFinding from multi-specialist review
+        trust_scores: Optional dict mapping specialist name to trust score.
+                     If None, uses global SpecialistTrustScoreTracker.
+
+    Returns:
+        List of WeightedFinding sorted by effective_priority (highest first)
+    """
+    if trust_scores is None:
+        # Lazy import to avoid circular dependency
+        try:
+            from governance.specialist_trust_score import get_specialist_trust_tracker
+            tracker = get_specialist_trust_tracker()
+            trust_scores = tracker.get_all_trust_scores()
+        except ImportError:
+            # Fallback to default scores if tracker not available
+            trust_scores = {}
+
+    weighted: List[WeightedFinding] = []
+
+    for f in findings:
+        # Get trust score for this specialist
+        specialist_name = f.specialist.value
+        score = trust_scores.get(specialist_name, DEFAULT_TRUST_SCORE)
+
+        # Calculate base priority from severity
+        base_priority = SEVERITY_PRIORITY.get(f.severity, 2.0)
+
+        # Calculate effective priority
+        effective_priority = base_priority * score
+
+        weighted.append(WeightedFinding(
+            finding=f,
+            weight=score,
+            effective_priority=effective_priority,
+        ))
+
+    # Sort by effective_priority (highest first)
+    return sorted(weighted, key=lambda w: w.effective_priority, reverse=True)
+
+
 # Specialist-specific system prompts
 # Each prompt focuses the LLM on specific review aspects
 SPECIALIST_PROMPTS: Dict[ReviewSpecialist, str] = {
