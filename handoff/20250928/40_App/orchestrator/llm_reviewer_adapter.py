@@ -939,13 +939,23 @@ class LLMReviewerAdapter:
         if has_diff and settings.enable_review_pattern_retrieval:
             try:
                 feedback_loop = get_feedback_loop(trace_id=self.trace_id)
-                file_paths = [f['filename'] for f in (diff_files or [])]
+                # Use defensive access consistent with other parts of the codebase (lines 769, 1924-1927)
+                file_paths = [
+                    f.get("filename", "") if isinstance(f, dict) else str(f)
+                    for f in (diff_files or [])
+                ]
                 pattern_data = feedback_loop.enhance_review_context(
                     diff_snippet=diff[:2000] if diff else "",
                     file_paths=file_paths if file_paths else None,
                 )
                 if pattern_data.get("has_patterns"):
                     pattern_context = pattern_data.get("context_text", "")
+                    # Calculate actual average similarity for accurate telemetry
+                    patterns = pattern_data.get("patterns", [])
+                    avg_sim = (
+                        sum(p.get("similarity", 0) for p in patterns) / len(patterns)
+                        if patterns else 0
+                    )
                     logger.info(
                         "[LLM Reviewer] B-14: Retrieved %d past patterns for review",
                         pattern_data.get("pattern_count", 0),
@@ -954,7 +964,7 @@ class LLMReviewerAdapter:
                             "trace_id": self.trace_id,
                             "pr_number": pr_number,
                             "pattern_count": pattern_data.get("pattern_count", 0),
-                            "avg_similarity": pattern_data.get("patterns", [{}])[0].get("similarity", 0) if pattern_data.get("patterns") and len(pattern_data.get("patterns", [])) > 0 else 0,
+                            "avg_similarity": avg_sim,
                         }
                     )
             except Exception as e:
@@ -1503,9 +1513,11 @@ IMPORTANT:
 
         # EPIC B-14: Build past patterns section for informed review
         # Pattern context is pre-formatted by enhance_review_context()
+        # Apply sanitization for defense-in-depth (Issue #3780 pattern)
         pattern_section = ""
         if pattern_context:
-            pattern_section = f"\n{pattern_context}\n"
+            sanitized_pattern_context = self._sanitize_prompt_input(pattern_context)
+            pattern_section = f"\n{sanitized_pattern_context}\n"
 
         return f"""**Pull Request Information**
 - Repository: {sanitized_repo}
