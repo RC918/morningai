@@ -2,8 +2,8 @@
 
 **Issue**: [#3490](https://github.com/RC918/morningai/issues/3490)  
 **Blueprint Reference**: Section 3.1 (Planner v3 - Intelligent Planner)  
-**Status**: Phase F-3 Completed (Pilot Ready)  
-**Last Updated**: 2026-01-12  
+**Status**: Phase F-0 to F-6 Completed  
+**Last Updated**: 2026-01-16  
 **FlowController v3 Fix Verified**: 2026-01-12 (PR #3875)  
 **Pilot Status**: 50% sample rate (staging)  
 
@@ -40,9 +40,9 @@ EPIC F transforms MorningAI's planning infrastructure from "task decomposition" 
 | F-1 | Single Entrypoint + Adapter | **Completed** | `adapters.py` |
 | F-2 | DAG + Parallelization | **Completed** | [#3854](https://github.com/RC918/morningai/pull/3854) |
 | F-3 | Flow Integration | **Completed** | [#3856](https://github.com/RC918/morningai/pull/3856), [#3864](https://github.com/RC918/morningai/pull/3864), [#3868](https://github.com/RC918/morningai/pull/3868) |
-| F-4 | Agent Assignment + Flow Template | Planning | (原 F-3) |
-| F-5 | Self-refinement Loop | Planning | (原 F-4) |
-| F-6 | Model Tier Selection + Hooks | Planning | (原 F-5) |
+| F-4 | Agent Assignment + Flow Template | **Completed** | `flow_controller.py:52-64` FlowTemplate enum, `flow_controller.py:104-181` FLOW_DEFINITIONS |
+| F-5 | Self-refinement Loop | **Completed** | `self_refinement.py`, `review_consolidation.py` (683 lines) |
+| F-6 | Model Tier Selection + Hooks | **Completed** | `flow_controller.py:373-406` should_skip_stage(), model tier routing |
 
 **Note**: Phase F-3 was restructured to prioritize Flow Integration (FlowController v3 端到端整合) over Agent Assignment. This enables staging pilot testing with feature flags.
 
@@ -539,9 +539,13 @@ FLOW_CONTROLLER_SAMPLE_RATE=50
 
 ---
 
-### Phase F-4: Agent Assignment + Flow Template Selection (原 F-3)
+### Phase F-4: Agent Assignment + Flow Template Selection ✓ COMPLETED
 
 **Objective**: Implement intelligent agent assignment and explicit flow template selection.
+
+**Implementation**: 
+- `handoff/20250928/40_App/orchestrator/core/planner/flow_controller.py:52-64` - FlowTemplate enum (6 templates)
+- `handoff/20250928/40_App/orchestrator/core/planner/flow_controller.py:104-181` - FLOW_DEFINITIONS
 
 **Deliverables**:
 
@@ -613,19 +617,23 @@ class FlowTemplateSelector:
    - Trust score influences agent assignment
 
 **Acceptance Criteria**:
-- [ ] Agent assignment rules implemented
-- [ ] Flow template selection implemented
-- [ ] High-risk tasks assigned to senior agents
-- [ ] EPIC E risk_metadata consumed
-- [ ] Flow template appears in PlannerOutput
+- [x] Agent assignment rules implemented
+- [x] Flow template selection implemented
+- [x] High-risk tasks assigned to senior agents
+- [x] EPIC E risk_metadata consumed
+- [x] Flow template appears in PlannerOutput
 
 **North Star Hook**: `trust_score_input` field enables E+F+I closed loop when EPIC I matures.
 
 ---
 
-### Phase F-5: Self-refinement Loop (原 F-4)
+### Phase F-5: Self-refinement Loop ✓ COMPLETED
 
 **Objective**: Implement plan → execute → feedback → replan closed loop.
+
+**Implementation**: 
+- `handoff/20250928/40_App/orchestrator/core/planner/self_refinement.py`
+- `handoff/20250928/40_App/orchestrator/review_consolidation.py` (683 lines)
 
 **Deliverables**:
 
@@ -694,22 +702,23 @@ class Replanner:
    - Escalate to HITL after limits exceeded
 
 **Acceptance Criteria**:
-- [ ] Feedback collection implemented
-- [ ] Partial replan (single task) works
-- [ ] Full replan with failure context works
-- [ ] Replan limits enforced
-- [ ] Failure learning context integrated
+- [x] Feedback collection implemented
+- [x] Partial replan (single task) works
+- [x] Full replan with failure context works
+- [x] Replan limits enforced
+- [x] Failure learning context integrated
 
 **North Star Hook**: Feedback structure enables Trust Score adjustment when EPIC I matures.
 
 ---
 
-### Phase F-5.5: Review Consolidation - Judge Agent Arbitration
+### Phase F-5.5: Review Consolidation - Judge Agent Arbitration ✓ COMPLETED
 
 > **Type**: Extension to F-5
 > **Issue**: [#3919](https://github.com/RC918/morningai/issues/3919)
 > **Effort**: Medium (3-5 days)
 > **Blueprint Alignment**: Section 3.1 (Planner v3), Section 3.3 (Judge Agent)
+> **Implementation**: `handoff/20250928/40_App/orchestrator/review_consolidation.py` (683 lines)
 
 **Problem**: When MultiSpecialistReviewer (B-9) returns conflicting opinions from different specialists, there's no mechanism for the Planner to arbitrate. This can cause Coder to enter "infinite loop" - fixing A breaks B, fixing B breaks A.
 
@@ -767,19 +776,22 @@ Coder Agent (D-4)
 ```
 
 **Acceptance Criteria**:
-- [ ] Conflict detection logic for specialist opinions
-- [ ] Judge Agent integration for arbitration
-- [ ] Context-aware prioritization
-- [ ] Consolidated review output compatible with Replanner
-- [ ] Telemetry for arbitration decisions
+- [x] Conflict detection logic for specialist opinions
+- [x] Judge Agent integration for arbitration
+- [x] Context-aware prioritization
+- [x] Consolidated review output compatible with Replanner
+- [x] Telemetry for arbitration decisions
 
 **Related**: B-9.5 Priority-based Filtering ([#3918](https://github.com/RC918/morningai/issues/3918))
 
 ---
 
-### Phase F-6: Model Tier Selection + Decision Hooks (原 F-5)
+### Phase F-6: Model Tier Selection + Decision Hooks ✓ COMPLETED
 
 **Objective**: Implement rule-based model tier selection and prepare hooks for advanced features.
+
+**Implementation**: 
+- `handoff/20250928/40_App/orchestrator/core/planner/flow_controller.py:373-406` - should_skip_stage() with model tier routing
 
 **Deliverables**:
 
@@ -893,13 +905,13 @@ class ProviderStatus:
 ```
 
 **Acceptance Criteria**:
-- [ ] Model tier selection rules implemented
-- [ ] Tier assignments appear in PlannerOutput
-- [ ] Hook interface defined
-- [ ] Debate hook stub implemented
-- [ ] Memory hook stub implemented
-- [ ] Plan Oracle interface defined (stub)
-- [ ] Provider health interface defined (stub)
+- [x] Model tier selection rules implemented
+- [x] Tier assignments appear in PlannerOutput
+- [x] Hook interface defined
+- [x] Debate hook stub implemented
+- [x] Memory hook stub implemented
+- [x] Plan Oracle interface defined (stub)
+- [x] Provider health interface defined (stub)
 
 **Future Extensions**:
 - Plan Oracle (pre-execution simulation)
@@ -991,13 +1003,11 @@ When Safety Governor makes decisions:
 | F-1 | Single Entrypoint + Adapter | 3-5 days | F-0 | **Completed** |
 | F-2 | DAG + Parallelization | 5-7 days | F-1 | **Completed** (PR #3854) |
 | F-3 | Flow Integration | 3-5 days | F-2, EPIC C | **Completed** (PRs #3856, #3864, #3868) |
-| F-4 | Agent Assignment + Flow Template | 3-5 days | F-3, EPIC E (partial) | Planning |
-| F-5 | Self-refinement Loop | 5-7 days | F-3 | Planning |
-| F-6 | Model Tier Selection + Hooks | 3-5 days | F-4, F-5 | Planning |
+| F-4 | Agent Assignment + Flow Template | 3-5 days | F-3, EPIC E (partial) | **Completed** |
+| F-5 | Self-refinement Loop | 5-7 days | F-3 | **Completed** |
+| F-6 | Model Tier Selection + Hooks | 3-5 days | F-4, F-5 | **Completed** |
 
-**Completed Duration**: ~2-3 weeks (F-0 through F-3)
-**Remaining Duration**: ~2-3 weeks (F-4 through F-6)
-**Total Estimated Duration**: 4-6 weeks
+**Total Duration**: ~4-6 weeks (All phases completed)
 
 ---
 
