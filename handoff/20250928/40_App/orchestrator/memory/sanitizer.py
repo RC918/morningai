@@ -116,7 +116,9 @@ class MemorySanitizer:
 
     # Characters allowed in keys (alphanumeric, dash, underscore, colon, dot, forward slash)
     # Forward slash is needed for repo names in format "owner/repo" (e.g., review_feedback:RC918/morningai:123)
-    KEY_PATTERN = re.compile(r'^[a-zA-Z0-9_\-:./]+$')
+    # Security: Disallow path traversal patterns (../), double slashes (//), and standalone dots
+    # Gemini Code Assist suggestion: https://github.com/RC918/morningai/pull/4032#discussion_r2697298101
+    KEY_PATTERN = re.compile(r'^(?!.*//)(?!.*(?:/|^)\.\.?(?:/|$))[a-zA-Z0-9_\-:./]+$')
 
     # PII categories that should block storage (critical PII)
     BLOCKING_PII_CATEGORIES = frozenset([
