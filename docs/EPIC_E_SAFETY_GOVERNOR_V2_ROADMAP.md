@@ -2,8 +2,8 @@
 
 **Issue**: [#3489](https://github.com/RC918/morningai/issues/3489)  
 **Blueprint Reference**: Section 4.1 (Safety Governor v2) + Section 4.2 (Compliance Radar v2)  
-**Status**: Planning  
-**Last Updated**: 2026-01-02
+**Status**: Phase E-3/E-4 Completed, E-5 Planning  
+**Last Updated**: 2026-01-16
 
 ## Executive Summary
 
@@ -29,6 +29,19 @@ EPIC E transforms MorningAI's safety infrastructure from a "gatekeeping" model t
 | PolicyGuard | `governance/policy_guard.py` | 218 | YAML-based policy config |
 
 **Important Note**: `RuntimePolicyEnforcer` docstring labels itself "Safety Governor v2" but only covers resource/cost/tool safety subset, NOT content safety required by Blueprint.
+
+## Implementation Status Summary
+
+| Phase | Description | Status | Implementation |
+|-------|-------------|--------|----------------|
+| E-0 | Decision Contract + Evidence Schema | **Partial** | `runtime_policy_enforcer.py:36-62` PolicyCheckResult, EnforcementAction |
+| E-1 | Wiring + Principal Context | **Partial** | `runtime_policy_enforcer.py:224,241-246` Principal propagation |
+| E-2 | Risk Scan + Override Framework | **Partial** | `runtime_policy_enforcer.py:666-792` check_content_safety() |
+| E-3 | Content Safety MVP | **Completed** | `content_safety_scanner.py` (785 lines) |
+| E-4 | Compliance Radar v2 MVP (PII Scanner) | **Completed** | `pii_scanner.py` (774 lines) |
+| E-5 | Observability & Ops Readiness | Planning | - |
+
+---
 
 ## Phase Breakdown
 
@@ -248,9 +261,11 @@ class RiskScanResult:
 
 ---
 
-### Phase E-3: Content Safety MVP
+### Phase E-3: Content Safety MVP ✓ COMPLETED
 
 **Objective**: Implement heuristic-based content safety checks for prompt injection, jailbreak, and harmful content.
+
+**Implementation**: `handoff/20250928/40_App/orchestrator/governance/content_safety_scanner.py` (785 lines)
 
 **Deliverables**:
 
@@ -295,19 +310,21 @@ class ContentSafetyScanner:
 ```
 
 **Acceptance Criteria**:
-- [ ] Prompt injection patterns defined and tested
-- [ ] Jailbreak patterns defined and tested
-- [ ] Harmful content patterns defined and tested
-- [ ] All detections produce evidence with hash and summary
-- [ ] False positive rate < 5% on test corpus
+- [x] Prompt injection patterns defined and tested
+- [x] Jailbreak patterns defined and tested
+- [x] Harmful content patterns defined and tested
+- [x] All detections produce evidence with hash and summary
+- [x] False positive rate < 5% on test corpus
 
 **North Star Hook**: Pluggable classifier interface enables future AI-supervising-AI.
 
 ---
 
-### Phase E-4: Compliance Radar v2 MVP
+### Phase E-4: Compliance Radar v2 MVP ✓ COMPLETED
 
 **Objective**: Implement PII scanning, audit trail, and compliance category framework.
+
+**Implementation**: `handoff/20250928/40_App/orchestrator/governance/pii_scanner.py` (774 lines)
 
 **Deliverables**:
 
@@ -348,11 +365,11 @@ class ComplianceCheckResult:
    - Compliance decision attached to transition metadata
 
 **Acceptance Criteria**:
-- [ ] PII scanner implemented with >90% recall
-- [ ] Compliance category framework defined
-- [ ] Audit trail queryable via API
-- [ ] Flow transitions trigger compliance checks
-- [ ] Placeholder policies for non-MVP categories
+- [x] PII scanner implemented with >90% recall
+- [x] Compliance category framework defined
+- [x] Audit trail queryable via API
+- [x] Flow transitions trigger compliance checks
+- [x] Placeholder policies for non-MVP categories
 
 **North Star Hook**: Retention policy configuration enables future Immutable Evidence Ledger.
 
