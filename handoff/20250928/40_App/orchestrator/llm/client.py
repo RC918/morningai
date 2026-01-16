@@ -525,9 +525,17 @@ class LLMClient:
         EPIC I-2b: If drift is detected and retry is enabled, attempt
         retry with higher-tier model.
 
+        Note: Uses lazy import for governance.drift_retry to support optional
+        feature availability. This is intentional - drift retry is disabled
+        by default and may not be available in all deployments.
+
         Returns:
-            LLMResponse if retry was successful, None if retry was not
-            attempted or failed (caller should return original response).
+            LLMResponse: If retry was successful and returned a valid response.
+            None: In the following cases (caller should return original response):
+                - Timeout exhausted before retry could be attempted
+                - Retry decision engine determined retry should not be attempted
+                - ImportError if drift_retry module is not available
+                - Any unexpected error during retry (logged but non-blocking)
         """
         try:
             from governance.drift_retry import should_retry_on_drift
