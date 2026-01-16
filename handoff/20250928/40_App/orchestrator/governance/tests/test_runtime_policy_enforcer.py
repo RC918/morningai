@@ -753,6 +753,7 @@ class TestContentSafetyPhaseE5:
         assert enforcer._map_safety_action("allow") == EnforcementAction.ALLOW
         assert enforcer._map_safety_action("block") == EnforcementAction.BLOCK
         assert enforcer._map_safety_action("require_approval") == EnforcementAction.REQUIRE_APPROVAL
-        assert enforcer._map_safety_action("redact") == EnforcementAction.BLOCK
+        # Issue #3951: "redact" now maps to REDACT instead of BLOCK
+        assert enforcer._map_safety_action("redact") == EnforcementAction.REDACT
         assert enforcer._map_safety_action("log_only") == EnforcementAction.LOG_ONLY
         assert enforcer._map_safety_action("unknown") == EnforcementAction.ALLOW
