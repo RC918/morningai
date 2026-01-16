@@ -796,3 +796,84 @@ class TestDynamicConfiguration:
         assert PIICategory.EMAIL in scanner._custom_patterns
         assert len(scanner._custom_patterns[PIICategory.EMAIL]) == 1
         assert scanner._custom_patterns[PIICategory.EMAIL][0][1] == "PII-EMAIL-CUSTOM-001"
+
+
+class TestReDoSProtection:
+    """Test ReDoS vulnerability protection (Issue #4056)"""
+
+    def setup_method(self):
+        """Reset scanner before each test"""
+        from governance.pii_scanner import reset_pii_scanner
+        reset_pii_scanner()
+
+    def test_is_redos_vulnerable_detects_nested_quantifiers(self):
+        """Test detection of nested quantifiers like (a+)+"""
+        scanner = PIIScanner()
+        # These patterns are vulnerable to ReDoS
+        assert scanner._is_redos_vulnerable(r"(a+)+") is True
+        assert scanner._is_redos_vulnerable(r"(.*)+") is True
+        assert scanner._is_redos_vulnerable(r"(.+)+") is True
+        assert scanner._is_redos_vulnerable(r"(\d+)+") is True
+        assert scanner._is_redos_vulnerable(r"(\w+)+") is True
+
+    def test_is_redos_vulnerable_allows_safe_patterns(self):
+        """Test that safe patterns are allowed"""
+        scanner = PIIScanner()
+        # These patterns are safe
+        assert scanner._is_redos_vulnerable(r"\d{3}-\d{2}-\d{4}") is False
+        assert scanner._is_redos_vulnerable(r"[a-z]+@[a-z]+\.com") is False
+        assert scanner._is_redos_vulnerable(r"\b\d{4}\b") is False
+
+    def test_validate_pattern_config_rejects_redos_vulnerable(self):
+        """Test that _validate_pattern_config rejects ReDoS-vulnerable patterns"""
+        scanner = PIIScanner()
+        # ReDoS-vulnerable pattern should be rejected
+        result = scanner._validate_pattern_config({
+            "regex": r"(a+)+",
+            "pattern_id": "TEST-001",
+            "title": "Test pattern",
+        })
+        assert result is False
+
+    def test_validate_pattern_config_accepts_safe_pattern(self):
+        """Test that _validate_pattern_config accepts safe patterns"""
+        scanner = PIIScanner()
+        # Safe pattern should be accepted
+        result = scanner._validate_pattern_config({
+            "regex": r"\d{3}-\d{2}-\d{4}",
+            "pattern_id": "TEST-002",
+            "title": "SSN pattern",
+        })
+        assert result is True
+
+    def test_custom_pattern_with_redos_vulnerability_rejected(self):
+        """Test that custom patterns with ReDoS vulnerabilities are rejected"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({
+            "custom_patterns": {
+                "email": [
+                    {
+                        "regex": r"(a+)+@example\.com",  # ReDoS vulnerable
+                        "pattern_id": "PII-EMAIL-REDOS",
+                        "title": "ReDoS vulnerable pattern",
+                    }
+                ]
+            }
+        })
+        # The vulnerable pattern should not be loaded
+        if PIICategory.EMAIL in scanner._custom_patterns:
+            # Check that the ReDoS pattern was not added
+            pattern_ids = [p[1] for p in scanner._custom_patterns[PIICategory.EMAIL]]
+            assert "PII-EMAIL-REDOS" not in pattern_ids
+
+    def test_is_redos_vulnerable_detects_star_star_pattern(self):
+        """Test detection of .*.* patterns"""
+        scanner = PIIScanner()
+        assert scanner._is_redos_vulnerable(r".*.*") is True
+        assert scanner._is_redos_vulnerable(r".+.+") is True
+
+    def test_is_redos_vulnerable_detects_nested_star(self):
+        """Test detection of (.*)*  patterns"""
+        scanner = PIIScanner()
+        assert scanner._is_redos_vulnerable(r"(.*)*") is True
+        assert scanner._is_redos_vulnerable(r"(.+)*") is True

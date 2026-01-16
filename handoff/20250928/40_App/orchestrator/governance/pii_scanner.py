@@ -45,6 +45,29 @@ MAX_MATCHED_TEXT_LOG_LENGTH = 20
 # Issue #3941: ReDoS vulnerability analysis for PIIScanner patterns
 MAX_CONTENT_LENGTH = 100_000  # 100KB limit
 
+# Issue #4056: ReDoS protection for custom regex patterns
+# Timeout for regex matching (in seconds)
+REGEX_TIMEOUT_SECONDS = 1.0
+
+# Common ReDoS-prone patterns to reject
+# These patterns can cause catastrophic backtracking
+# Note: These are regex patterns that match against the input regex string
+REDOS_DANGEROUS_PATTERNS = [
+    r"\(\.\*\)\+",           # (.*)+
+    r"\(\.\+\)\+",           # (.+)+
+    r"\(\[^\]]*\]\+\)\+",    # ([^...]+)+
+    r"\(\\w\+\)\+",          # (\w+)+
+    r"\(\\d\+\)\+",          # (\d+)+
+    r"\(\\s\+\)\+",          # (\s+)+
+    r"\.\*\.\*",             # .*.*
+    r"\.\+\.\+",             # .+.+
+    r"\(\.\*\)\*",           # (.*)*
+    r"\(\.\+\)\*",           # (.+)*
+    r"\([^)]+\+\)\+",        # Generic: (x+)+ where x is any character class
+    r"\([^)]+\*\)\+",        # Generic: (x*)+ where x is any character class
+    r"\([^)]+\+\)\*",        # Generic: (x+)* where x is any character class
+]
+
 
 class PIICategory(str, Enum):
     """Categories of PII that can be detected"""
@@ -663,6 +686,8 @@ class PIIScanner:
         """
         Validate a pattern configuration entry.
 
+        Issue #4056: Added ReDoS vulnerability detection for custom patterns.
+
         Args:
             pattern: Pattern configuration dictionary
 
@@ -677,18 +702,59 @@ class PIIScanner:
                 )
                 return False
 
+        regex_str = pattern["regex"]
+        pattern_id = pattern.get("pattern_id", "unknown")
+
         # Validate regex compiles
         try:
-            re.compile(pattern["regex"])
+            re.compile(regex_str)
         except re.error as e:
             logger.warning(
                 "[PIIScanner] Invalid regex in pattern %s: %s",
-                pattern.get("pattern_id", "unknown"),
+                pattern_id,
                 e,
             )
             return False
 
+        # Issue #4056: Check for ReDoS-prone patterns
+        if self._is_redos_vulnerable(regex_str):
+            logger.warning(
+                "[PIIScanner] Rejecting ReDoS-vulnerable pattern %s: %s",
+                pattern_id,
+                regex_str[:50],
+            )
+            return False
+
         return True
+
+    def _is_redos_vulnerable(self, regex_str: str) -> bool:
+        """
+        Check if a regex pattern is vulnerable to ReDoS attacks.
+
+        Issue #4056: ReDoS protection for custom regex patterns.
+
+        This method checks against a denylist of known dangerous patterns
+        that can cause catastrophic backtracking.
+
+        Note: Generic heuristic checks for nested quantifiers and overlapping
+        alternations have been removed as they were flawed and could provide
+        a false sense of security. We rely on the explicit denylist in
+        REDOS_DANGEROUS_PATTERNS which is more reliable. A more robust generic
+        detection would require a full regex parser (out of scope).
+
+        Args:
+            regex_str: The regex pattern string to check
+
+        Returns:
+            True if the pattern is potentially vulnerable, False otherwise
+        """
+        # Check against known dangerous patterns (denylist approach)
+        # This is more reliable than heuristic-based detection
+        for dangerous_pattern in REDOS_DANGEROUS_PATTERNS:
+            if re.search(dangerous_pattern, regex_str):
+                return True
+
+        return False
 
     def reload_config(self) -> None:
         """
