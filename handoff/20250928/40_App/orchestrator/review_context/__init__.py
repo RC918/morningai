@@ -26,6 +26,10 @@ from review_context.comment_validator import (
     ValidationResult,
     ValidationStats,
     validate_review_comments,
+    # Issue #4064: Comment Deduplication
+    DeduplicationStats,
+    deduplicate_comments,
+    validate_and_deduplicate_comments,
 )
 from review_context.test_coverage_analyzer import (
     TestCoverageAnalyzer,
@@ -59,6 +63,10 @@ __all__ = [
     "ValidationResult",
     "ValidationStats",
     "validate_review_comments",
+    # Issue #4064: Comment Deduplication
+    "DeduplicationStats",
+    "deduplicate_comments",
+    "validate_and_deduplicate_comments",
     # B-11: Test Coverage Flagging
     "TestCoverageAnalyzer",
     "CoverageGap",
