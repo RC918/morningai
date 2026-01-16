@@ -1372,6 +1372,15 @@ class Settings(BaseSettings):
         description="Minimum confidence score (0.0-1.0) for auto-fix eligibility. Suggestions with confidence >= this threshold are considered 'high confidence' and eligible for auto-fix. Default: 0.8"
     )
 
+    # Issue #4065: B-15 Confidence Scoring for review findings (EPIC B)
+    review_confidence_threshold: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        alias="REVIEW_CONFIDENCE_THRESHOLD",
+        description="Minimum confidence score (0.0-1.0) for review findings. Findings with confidence < this threshold are filtered out before publishing. Default: 0.7"
+    )
+
     use_redis_checkpointer: bool = Field(
         default=False,
         alias="USE_REDIS_CHECKPOINTER",
