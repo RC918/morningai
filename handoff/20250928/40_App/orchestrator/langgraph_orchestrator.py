@@ -9034,7 +9034,7 @@ def publisher_node(state: AgentState) -> AgentState:
                 fp_record = TelemetryRecordV3.create(
                     name="reviewer.comment_pipeline",
                     span_context=fp_span_context,
-                    component="CommentValidator",
+                    component="CommentPipeline",
                     status_code=StatusCode.OK,
                     node_name="publisher",
                     epic_tag="EPIC-B",
@@ -9045,7 +9045,7 @@ def publisher_node(state: AgentState) -> AgentState:
                         "false_positive_rate": float(validation_stats_dict.get("false_positive_rate", 0)),
                         "duplicates_removed": float(duplicates_removed),
                         "duplicate_rate": float(dedup_stats_dict.get("duplicate_rate", 0)),
-                        "final_comment_count": float(pipeline_stats.get("final_count", 0)),
+                        "final_comment_count": float(pipeline_stats.get("after_deduplication", 0)),
                     },
                     attributes={
                         "trace_id": trace_id,
