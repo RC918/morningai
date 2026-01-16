@@ -89,8 +89,9 @@ IMPORT_PATTERN = re.compile(
 )
 
 # Pattern to extract variable definitions from diff
+# Uses negative lookahead (?!=) to exclude equality comparisons (==)
 VARIABLE_DEF_PATTERN = re.compile(
-    r'(?:^|\n)\+?\s*(\w+)\s*(?::\s*[\w\[\],\s]+)?\s*=',
+    r'(?:^|\n)\+?\s*(\w+)\s*(?::\s*[\w\[\],\s]+)?\s*=(?!=)',
     re.MULTILINE
 )
 
@@ -431,11 +432,13 @@ class CommentValidator:
 
         for match in IMPORT_PATTERN.finditer(diff_content):
             import_str = match.group(1)
-            # Handle multiple imports: "import a, b, c" or "from x import a, b, c"
+            # Handle multiple imports: "import a, b, c" or "from x import (a, b, c)"
+            # Remove parentheses to handle multi-line imports gracefully
+            import_str = import_str.replace('(', '').replace(')', '')
             for part in import_str.split(','):
                 # Handle "name as alias" format
                 name = part.strip().split()[0] if part.strip() else ""
-                if name and name not in {'(', ')'}:
+                if name:
                     imports_found.add(name)
 
         return imports_found
