@@ -826,6 +826,36 @@ def get_memory_stats() -> Dict[str, Any]:
         return {"enabled": True, "error": str(e)}
 
 
+def _sanitize_diff_for_storage(diff_snippet: Optional[str]) -> tuple[Optional[str], int]:
+    """
+    Sanitize diff snippet before storing in Knowledge Base.
+
+    Issue #4007: Add sanitization for sensitive data in review feedback storage.
+    Blueprint Section 4.7: Defense in Depth - prevent credential leakage.
+
+    This reuses the secrets redaction patterns from llm_reviewer_adapter
+    to ensure consistent sanitization across the codebase.
+
+    Args:
+        diff_snippet: Raw diff snippet to sanitize
+
+    Returns:
+        Tuple of (sanitized_diff, redaction_count)
+    """
+    if not diff_snippet:
+        return diff_snippet, 0
+
+    try:
+        from llm_reviewer_adapter import sanitize_diff_content
+        return sanitize_diff_content(diff_snippet)
+    except ImportError:
+        logger.warning(
+            "[MemoryIntegration] Could not import sanitize_diff_content, "
+            "storing diff without sanitization"
+        )
+        return diff_snippet, 0
+
+
 def save_review_feedback(
     pr_number: int,
     repo: str,
@@ -846,6 +876,9 @@ def save_review_feedback(
 
     This enables the system to learn from past reviews and provide
     better suggestions for similar code patterns in the future.
+
+    Issue #4007: Diff snippets are now sanitized before storage to prevent
+    credential leakage if secrets are present in the diff.
 
     Args:
         pr_number: Pull request number
@@ -873,6 +906,21 @@ def save_review_feedback(
     try:
         from .memory_v2 import MemoryEntry, MemoryLayer, MemoryScope
 
+        # Issue #4007: Sanitize diff snippet before storage to prevent credential leakage
+        sanitized_diff, redaction_count = _sanitize_diff_for_storage(diff_snippet)
+        if redaction_count > 0:
+            logger.info(
+                "[MemoryIntegration] Redacted %d potential secrets from diff_snippet",
+                redaction_count,
+                extra={
+                    "pr_number": pr_number,
+                    "repo": repo,
+                    "redaction_count": redaction_count,
+                    "trace_id": trace_id,
+                    "operation": "sanitize_diff_for_storage",
+                }
+            )
+
         content = json.dumps({
             "pr_number": pr_number,
             "repo": repo,
@@ -882,7 +930,7 @@ def save_review_feedback(
             "review_comments": review_comments,
             "file_paths": file_paths,
             "blocker_count": blocker_count,
-            "diff_snippet": diff_snippet,  # Already truncated by caller
+            "diff_snippet": sanitized_diff,  # Sanitized for credential protection
             "saved_at": datetime.now(timezone.utc).isoformat(),
         })
 
@@ -904,7 +952,33 @@ def save_review_feedback(
             },
         )
 
-        success = memory.save(entry, MemoryLayer.KNOWLEDGE_BASE)
+        # PII sanitization bypass controlled by feature flag (REVIEW_FEEDBACK_SKIP_PII_SANITIZATION)
+        # Default: True (skip sanitization)
+        # Reason: Code review feedback contains code snippets, file paths, and technical
+        # comments that frequently trigger PII false positives (e.g., "passport" in
+        # passport validation code, "address" in address fields, numeric patterns
+        # matching SSN/credit card regex). The content is LLM-generated, not user input.
+        # Security: Operators can set REVIEW_FEEDBACK_SKIP_PII_SANITIZATION=false to enable
+        # PII scanning if needed (may block legitimate review feedback due to false positives).
+        # Issue: https://github.com/RC918/morningai/pull/4032 (discovered during B-13 testing)
+        skip_pii = settings.review_feedback_skip_pii_sanitization
+        # Log PII sanitization decision at INFO level for production visibility
+        # MorningAI Code Review: DEBUG level may hide security-relevant behavior
+        logger.info(
+            "[MemoryIntegration] Review feedback PII sanitization: skip_pii=%s",
+            skip_pii,
+            extra={
+                "pr_number": pr_number,
+                "repo": repo,
+                "verdict": verdict,
+                "severity": severity,
+                "content_length": len(content),
+                "trace_id": trace_id,
+                "skip_pii_sanitization": skip_pii,
+                "operation": "save_review_feedback",
+            }
+        )
+        success = memory.save(entry, MemoryLayer.KNOWLEDGE_BASE, skip_sanitization=skip_pii)
         if success:
             logger.info(
                 "[MemoryIntegration] Saved review feedback",

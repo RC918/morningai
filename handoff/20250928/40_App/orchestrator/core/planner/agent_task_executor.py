@@ -26,6 +26,7 @@ Usage:
 """
 
 import logging
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -35,6 +36,66 @@ from .consumer import ExecutionStatus, TaskResult
 from .planner_types import TaskNode, TaskType
 
 logger = logging.getLogger(__name__)
+
+
+# Issue #3857: Input validation constants for TaskNode
+# Blueprint Section 4.7: Defense in Depth - validate inputs before dispatch
+MAX_TASK_ID_LENGTH = 256
+MAX_DESCRIPTION_LENGTH = 10000
+# Pattern for valid task_id: alphanumeric, hyphens, underscores, colons, dots
+VALID_TASK_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_\-:.]+$')
+
+
+class TaskValidationError(ValueError):
+    """Raised when TaskNode validation fails."""
+    pass
+
+
+def validate_task_node(task: TaskNode) -> None:
+    """
+    Validate TaskNode before dispatching to agent.
+
+    Issue #3857: Add input validation for TaskNode in AgentTaskExecutor.
+    Blueprint Section 4.7: Defense in Depth - validate inputs before dispatch.
+
+    This is defense-in-depth validation since TaskNode is already a typed
+    dataclass with validated fields, and tasks come from FlowController
+    which validates PlannerOutput.
+
+    Args:
+        task: The TaskNode to validate
+
+    Raises:
+        TaskValidationError: If validation fails
+    """
+    # Validate task_id: non-empty, sanitized, reasonable length
+    if not task.task_id:
+        raise TaskValidationError("task_id cannot be empty")
+
+    if len(task.task_id) > MAX_TASK_ID_LENGTH:
+        raise TaskValidationError(
+            f"task_id exceeds maximum length ({len(task.task_id)} > {MAX_TASK_ID_LENGTH})"
+        )
+
+    if not VALID_TASK_ID_PATTERN.match(task.task_id):
+        raise TaskValidationError(
+            f"task_id contains invalid characters: {task.task_id[:50]}"
+        )
+
+    # Validate task_type: must be a valid TaskType enum value
+    if not isinstance(task.task_type, TaskType):
+        raise TaskValidationError(
+            f"task_type must be a TaskType enum, got {type(task.task_type).__name__}"
+        )
+
+    # Validate description: non-empty, reasonable length
+    if not task.description:
+        raise TaskValidationError("description cannot be empty")
+
+    if len(task.description) > MAX_DESCRIPTION_LENGTH:
+        raise TaskValidationError(
+            f"description exceeds maximum length ({len(task.description)} > {MAX_DESCRIPTION_LENGTH})"
+        )
 
 
 class AgentDispatcher(Protocol):
@@ -288,6 +349,8 @@ class AgentTaskExecutor:
 
         This method implements the TaskExecutor protocol from flow_controller.py.
 
+        Issue #3857: Added defense-in-depth input validation before dispatch.
+
         Args:
             task: The TaskNode to execute
             context: Execution context from FlowController
@@ -298,6 +361,30 @@ class AgentTaskExecutor:
         self._execution_count += 1
         started_at = datetime.now(timezone.utc)
         start_time = time.time()
+
+        # Issue #3857: Defense-in-depth input validation before dispatch
+        # TaskNode is already validated by FlowController, but we validate again
+        # to ensure no malicious content reaches the agent dispatcher
+        try:
+            validate_task_node(task)
+        except TaskValidationError as e:
+            logger.warning(
+                "[AgentTaskExecutor] Task validation failed",
+                extra={
+                    "task_id": getattr(task, 'task_id', 'unknown'),
+                    "validation_error": str(e),
+                    "operation": "validate",
+                }
+            )
+            return TaskResult(
+                task_id=getattr(task, 'task_id', 'invalid'),
+                status=ExecutionStatus.FAILED,
+                outputs={},
+                error_message="Task validation failed. Check logs for details.",
+                started_at=started_at,
+                completed_at=datetime.now(timezone.utc),
+                actual_duration_minutes=0,
+            )
 
         logger.info(
             "[AgentTaskExecutor] Starting task execution",
