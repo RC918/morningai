@@ -964,12 +964,15 @@ class RuntimePolicyEnforcer:
             return redacted_content
 
         except Exception as e:
-            logger.warning(
-                "[RuntimePolicyEnforcer] PII redaction failed, returning original content: %s",
+            # Fail-closed: Return redaction failure marker instead of original content
+            # to prevent PII leaks. Blueprint Section 9.2 "Safe by Design" requires
+            # fail-closed behavior for security-sensitive operations.
+            logger.error(
+                "[RuntimePolicyEnforcer] PII redaction failed, blocking content to prevent data leak: %s",
                 e,
                 extra={"operation": "pii_redaction", "error": str(e)},
             )
-            return content
+            return "[REDACTION FAILED - CONTENT BLOCKED]"
 
     def _map_safety_action(self, action_str: str) -> EnforcementAction:
         """Map safety scanner action string to EnforcementAction.
