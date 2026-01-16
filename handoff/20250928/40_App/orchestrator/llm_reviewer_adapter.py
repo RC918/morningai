@@ -1828,15 +1828,41 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             diff: PR diff content
             diff_files: List of changed files metadata
         """
+        # Observability: Log pr_number value in message (not just extra) for diagnosis
+        # Issue: extra fields may not appear in log output depending on configuration
         if pr_number is None:
+            logger.info(
+                "[LLM Reviewer] B-13: pr_number is None, skipping feedback save",
+                extra={
+                    "operation": "save_review_feedback_skipped",
+                    "trace_id": self.trace_id,
+                    "repo": repo,
+                    "reason": "pr_number_is_none",
+                }
+            )
             return
 
         try:
+            # Observability: Log before creating feedback loop instance
+            logger.info(
+                "[LLM Reviewer] B-13: Creating feedback loop for PR #%d",
+                pr_number,
+                extra={
+                    "operation": "save_review_feedback_init",
+                    "trace_id": self.trace_id,
+                    "pr_number": pr_number,
+                    "repo": repo,
+                }
+            )
             feedback_loop = get_feedback_loop(trace_id=self.trace_id)
             if not feedback_loop.is_enabled:
-                # Include feature flag values for faster troubleshooting (MorningAI Review suggestion)
+                # Include feature flag values in message (not just extra) for diagnosis
                 logger.info(
-                    "[LLM Reviewer] B-13 Feedback Loop disabled, skipping save",
+                    "[LLM Reviewer] B-13 Feedback Loop disabled for PR #%d "
+                    "(ENABLE_MEMORY_V2=%s, ENABLE_REVIEW_FEEDBACK_LOOP=%s)",
+                    pr_number,
+                    settings.enable_memory_v2,
+                    settings.enable_review_feedback_loop,
                     extra={
                         "operation": "save_review_feedback_skipped",
                         "trace_id": self.trace_id,
