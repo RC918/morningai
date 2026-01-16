@@ -934,6 +934,41 @@ class LLMReviewerAdapter:
         use_json_mode = getattr(settings, 'reviewer_json_mode', True)
         has_diff = bool(diff and diff.strip())
 
+        # EPIC B-14: Retrieve past review patterns for informed review
+        pattern_context = None
+        if has_diff and settings.enable_review_pattern_retrieval:
+            try:
+                feedback_loop = get_feedback_loop(trace_id=self.trace_id)
+                file_paths = [f['filename'] for f in (diff_files or [])]
+                pattern_data = feedback_loop.enhance_review_context(
+                    diff_snippet=diff[:2000] if diff else "",
+                    file_paths=file_paths if file_paths else None,
+                )
+                if pattern_data.get("has_patterns"):
+                    pattern_context = pattern_data.get("context_text", "")
+                    logger.info(
+                        "[LLM Reviewer] B-14: Retrieved %d past patterns for review",
+                        pattern_data.get("pattern_count", 0),
+                        extra={
+                            "operation": "pattern_retrieval",
+                            "trace_id": self.trace_id,
+                            "pr_number": pr_number,
+                            "pattern_count": pattern_data.get("pattern_count", 0),
+                            "avg_similarity": pattern_data.get("patterns", [{}])[0].get("similarity", 0) if pattern_data.get("patterns") else 0,
+                        }
+                    )
+            except Exception as e:
+                logger.warning(
+                    "[LLM Reviewer] B-14: Pattern retrieval failed: %s",
+                    type(e).__name__,
+                    extra={
+                        "operation": "pattern_retrieval",
+                        "trace_id": self.trace_id,
+                        "pr_number": pr_number,
+                        "error": type(e).__name__,
+                    }
+                )
+
         # EPIC B: Use diff-aware prompt if diff is available
         if has_diff:
             system_prompt = self._get_diff_aware_system_prompt()
@@ -947,7 +982,8 @@ class LLMReviewerAdapter:
                 diff_truncated=diff_truncated,
                 diff_files=diff_files,
                 pr_title=pr_title,
-                pr_description=pr_description
+                pr_description=pr_description,
+                pattern_context=pattern_context,
             )
         else:
             # Fallback to metadata-only review (original behavior)
@@ -1307,7 +1343,8 @@ IMPORTANT:
         diff_truncated: bool,
         diff_files: Optional[list],
         pr_title: Optional[str] = None,
-        pr_description: Optional[str] = None
+        pr_description: Optional[str] = None,
+        pattern_context: Optional[str] = None
     ) -> str:
         """
         Build user prompt for diff-aware code review (EPIC B Phase B-3)
@@ -1323,6 +1360,7 @@ IMPORTANT:
             diff_files: List of changed files metadata
             pr_title: Pull request title (Issue #3767)
             pr_description: Pull request description/body (Issue #3767)
+            pattern_context: B-14 Pattern Retrieval context from past reviews (optional)
 
         Returns:
             User prompt string for LLM
@@ -1463,13 +1501,18 @@ IMPORTANT:
                 pr_context_section += f"\n- Description: {desc_preview}"
             pr_context_section += "\n"
 
+        # EPIC B-14: Build past patterns section for informed review
+        # Pattern context is pre-formatted by enhance_review_context()
+        pattern_section = ""
+        if pattern_context:
+            pattern_section = f"\n{pattern_context}\n"
+
         return f"""**Pull Request Information**
 - Repository: {sanitized_repo}
 - PR Number: {pr_number or "Unknown"}
 - PR URL: {sanitized_pr_url or "Not available"}
 - CI Status: {ci_state}
-{file_summary}{allowed_files_section}{pr_context_section}
-
+{file_summary}{allowed_files_section}{pr_context_section}{pattern_section}
 **Task Goal/Description:**
 {sanitized_goal}
 {truncation_warning}
