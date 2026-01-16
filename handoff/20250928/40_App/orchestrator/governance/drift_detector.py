@@ -286,7 +286,16 @@ class DriftDetector:
             )
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get drift detection statistics"""
+        """Get drift detection statistics
+
+        Returns a dictionary containing:
+            - enabled: Whether drift detection is enabled
+            - block_on_fail: Whether to raise exceptions on drift
+            - sample_rate: Fraction of requests being checked
+            - check_count: Total number of checks performed
+            - drift_count: Total number of drift events detected
+            - drift_rate: Ratio of drift events to checks (0.0 if no checks)
+        """
         return {
             "enabled": self.enabled,
             "block_on_fail": self.block_on_fail,
@@ -295,6 +304,18 @@ class DriftDetector:
             "drift_count": self._drift_count,
             "drift_rate": self._drift_count / self._check_count if self._check_count > 0 else 0.0
         }
+
+    def is_active(self) -> bool:
+        """Check if drift detection is actively monitoring requests
+
+        Returns True only if drift detection is both enabled and has a
+        non-zero sample rate. This is useful for health checks and
+        observability dashboards.
+
+        Returns:
+            bool: True if drift detection is actively monitoring
+        """
+        return self.enabled and self.sample_rate > 0.0
 
 
 class DriftDetectedError(Exception):
