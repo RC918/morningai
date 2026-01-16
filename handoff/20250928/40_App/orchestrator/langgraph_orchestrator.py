@@ -8962,35 +8962,62 @@ def publisher_node(state: AgentState) -> AgentState:
             state["publish_result"]["non_diff_filtered_count"] = non_diff_filtered_count
             state["publish_result"]["non_diff_filtered_files"] = filter_stats["filtered_file_count"]
 
-        # B-9.6: Comment Validator - Filter false positives using fuzzy parsing
-        # This validates LLM claims about missing function arguments
-        # Blueprint Alignment: Section 4.1 "Safe by Design"
-        from review_context.comment_validator import validate_review_comments
-        validated_comments, _, validation_stats = validate_review_comments(
+        # B-9.6 + #4064: Comment Validator + Deduplication Pipeline
+        # This validates LLM claims and removes duplicate comments
+        # Blueprint Alignment: Section 4.1 "Safe by Design", NOISE BUDGET
+        from review_context.comment_validator import validate_and_deduplicate_comments
+        validated_comments, combined_stats = validate_and_deduplicate_comments(
             comments=inline_comments,
             diff_content=diff_content,
             trace_id=trace_id
         )
-        if validation_stats.filtered_false_positives > 0:
+
+        # Extract stats for logging and telemetry
+        validation_stats_dict = combined_stats.get("validation", {})
+        dedup_stats_dict = combined_stats.get("deduplication", {})
+        pipeline_stats = combined_stats.get("pipeline", {})
+
+        # Log validation results (B-9.6)
+        filtered_fp = validation_stats_dict.get("filtered_false_positives", 0)
+        if filtered_fp > 0:
             logger.info(
-                f"[Publisher] B-9.6: Filtered {validation_stats.filtered_false_positives} "
-                f"false positives (rate: {validation_stats.false_positive_rate:.2%})",
+                f"[Publisher] B-9.6: Filtered {filtered_fp} "
+                f"false positives (rate: {validation_stats_dict.get('false_positive_rate', 0):.2%})",
                 extra={
                     "operation": "publisher",
                     "trace_id": trace_id,
                     "pr_number": pr_number,
-                    "filtered_false_positives": validation_stats.filtered_false_positives,
-                    "false_positive_rate": validation_stats.false_positive_rate,
-                    "filter_reasons": validation_stats.filter_reasons,
+                    "filtered_false_positives": filtered_fp,
+                    "false_positive_rate": validation_stats_dict.get("false_positive_rate", 0),
+                    "filter_reasons": validation_stats_dict.get("filter_reasons", {}),
                 }
             )
-            inline_comments = validated_comments
+
+        # Log deduplication results (#4064)
+        duplicates_removed = dedup_stats_dict.get("duplicates_removed", 0)
+        if duplicates_removed > 0:
+            logger.info(
+                f"[Publisher] #4064: Removed {duplicates_removed} duplicate comments "
+                f"(rate: {dedup_stats_dict.get('duplicate_rate', 0):.2%})",
+                extra={
+                    "operation": "publisher",
+                    "trace_id": trace_id,
+                    "pr_number": pr_number,
+                    "duplicates_removed": duplicates_removed,
+                    "duplicate_rate": dedup_stats_dict.get("duplicate_rate", 0),
+                    "duplicate_groups": dedup_stats_dict.get("duplicate_groups", 0),
+                }
+            )
+
+        inline_comments = validated_comments
 
         # B-9.7: False Positive Telemetry - Emit SSOT TelemetryRecordV3 event
         # Blueprint Alignment: Section 9.1 "Deterministic Guarantee"
         # "All behavior can be reconstructed via Telemetry + Memory"
-        # Always store validation stats (even when no false positives filtered)
-        state["publish_result"]["comment_validation"] = validation_stats.to_dict()
+        # Store combined validation + deduplication stats
+        state["publish_result"]["comment_validation"] = validation_stats_dict
+        state["publish_result"]["comment_deduplication"] = dedup_stats_dict
+        state["publish_result"]["comment_pipeline"] = pipeline_stats
         if settings.enable_ssot_telemetry:
             try:
                 from core.telemetry import (
@@ -9003,25 +9030,28 @@ def publisher_node(state: AgentState) -> AgentState:
                     trace_id=trace_id if trace_id != "unknown" else None,
                     parent_span_id=parent_span_id,
                 )
+                # B-9.7 + #4064: Combined validation + deduplication telemetry
                 fp_record = TelemetryRecordV3.create(
-                    name="reviewer.comment_validation",
+                    name="reviewer.comment_pipeline",
                     span_context=fp_span_context,
                     component="CommentValidator",
                     status_code=StatusCode.OK,
                     node_name="publisher",
                     epic_tag="EPIC-B",
                     metrics={
-                        "total_comments": float(validation_stats.total_comments),
-                        "validated_comments": float(validation_stats.validated_comments),
-                        "filtered_false_positives": float(
-                            validation_stats.filtered_false_positives
-                        ),
-                        "false_positive_rate": validation_stats.false_positive_rate,
+                        "total_comments": float(validation_stats_dict.get("total_comments", 0)),
+                        "validated_comments": float(validation_stats_dict.get("validated_comments", 0)),
+                        "filtered_false_positives": float(filtered_fp),
+                        "false_positive_rate": float(validation_stats_dict.get("false_positive_rate", 0)),
+                        "duplicates_removed": float(duplicates_removed),
+                        "duplicate_rate": float(dedup_stats_dict.get("duplicate_rate", 0)),
+                        "final_comment_count": float(pipeline_stats.get("final_count", 0)),
                     },
                     attributes={
                         "trace_id": trace_id,
                         "pr_number": pr_number,
-                        "filter_reasons": validation_stats.filter_reasons,
+                        "filter_reasons": validation_stats_dict.get("filter_reasons", {}),
+                        "duplicate_groups": dedup_stats_dict.get("duplicate_groups", 0),
                     },
                 )
                 fp_record.emit()
@@ -9029,7 +9059,7 @@ def publisher_node(state: AgentState) -> AgentState:
                 pass
             except Exception as emit_err:
                 logger.debug(
-                    "[Publisher] B-9.7: Failed to emit false positive telemetry. Error: %s",
+                    "[Publisher] B-9.7: Failed to emit comment pipeline telemetry. Error: %s",
                     type(emit_err).__name__,
                     exc_info=True
                 )
