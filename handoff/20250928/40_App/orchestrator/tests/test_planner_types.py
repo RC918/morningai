@@ -418,19 +418,19 @@ class TestSanitizeForLog:
         assert _sanitize_for_log("") == ""
 
     def test_newline_replacement(self):
-        """Test that newlines are escaped"""
+        """Test that newlines are replaced with spaces (Issue #4016, #3992)"""
         from core.planner.consumer import _sanitize_for_log
-        assert _sanitize_for_log("line1\nline2") == "line1\\nline2"
+        assert _sanitize_for_log("line1\nline2") == "line1 line2"
 
     def test_carriage_return_replacement(self):
-        """Test that carriage returns are escaped"""
+        """Test that carriage returns are replaced with spaces (Issue #4016, #3992)"""
         from core.planner.consumer import _sanitize_for_log
-        assert _sanitize_for_log("line1\rline2") == "line1\\rline2"
+        assert _sanitize_for_log("line1\rline2") == "line1 line2"
 
     def test_crlf_replacement(self):
-        """Test that CRLF sequences are escaped"""
+        """Test that CRLF sequences are replaced with spaces (Issue #4016, #3992)"""
         from core.planner.consumer import _sanitize_for_log
-        assert _sanitize_for_log("line1\r\nline2") == "line1\\r\\nline2"
+        assert _sanitize_for_log("line1\r\nline2") == "line1  line2"
 
     def test_string_shorter_than_max_length(self):
         """Test that short strings are not truncated"""
@@ -453,14 +453,14 @@ class TestSanitizeForLog:
         assert result.endswith("...")
 
     def test_only_control_characters(self):
-        """Test string with only control characters"""
+        """Test string with only control characters (Issue #4016, #3992)"""
         from core.planner.consumer import _sanitize_for_log
-        assert _sanitize_for_log("\n\r\n\r") == "\\n\\r\\n\\r"
+        assert _sanitize_for_log("\n\r\n\r") == "    "
 
     def test_multiple_newlines(self):
-        """Test string with multiple newlines"""
+        """Test string with multiple newlines (Issue #4016, #3992)"""
         from core.planner.consumer import _sanitize_for_log
-        assert _sanitize_for_log("a\nb\nc\nd") == "a\\nb\\nc\\nd"
+        assert _sanitize_for_log("a\nb\nc\nd") == "a b c d"
 
     def test_custom_max_length(self):
         """Test with custom max_length parameter"""
@@ -469,11 +469,11 @@ class TestSanitizeForLog:
         assert result == "abcde..."
 
     def test_truncation_after_escape(self):
-        """Test that truncation happens after escape replacement"""
+        """Test that truncation happens after control char replacement (Issue #4016, #3992)"""
         from core.planner.consumer import _sanitize_for_log
-        # "\n" becomes "\\n" (2 chars), so length increases
+        # "\n" becomes " " (1 char), so 100 newlines become 100 spaces
         result = _sanitize_for_log("\n" * 100, max_length=10)
-        assert result == "\\n\\n\\n\\n\\n..."
+        assert result == "          ..."  # 10 spaces + "..."
 
 
 class TestSanitizeTaskId:
@@ -495,19 +495,19 @@ class TestSanitizeTaskId:
         assert _sanitize_task_id("task-123") == "task-123"
 
     def test_newline_replacement(self):
-        """Test that newlines are escaped"""
+        """Test that newlines are replaced with spaces (Issue #4016, #3992)"""
         from core.planner.planner_types import _sanitize_task_id
-        assert _sanitize_task_id("task\n123") == "task\\n123"
+        assert _sanitize_task_id("task\n123") == "task 123"
 
     def test_carriage_return_replacement(self):
-        """Test that carriage returns are escaped"""
+        """Test that carriage returns are replaced with spaces (Issue #4016, #3992)"""
         from core.planner.planner_types import _sanitize_task_id
-        assert _sanitize_task_id("task\r123") == "task\\r123"
+        assert _sanitize_task_id("task\r123") == "task 123"
 
     def test_crlf_replacement(self):
-        """Test that CRLF sequences are escaped"""
+        """Test that CRLF sequences are replaced with spaces (Issue #4016, #3992)"""
         from core.planner.planner_types import _sanitize_task_id
-        assert _sanitize_task_id("task\r\n123") == "task\\r\\n123"
+        assert _sanitize_task_id("task\r\n123") == "task  123"
 
     def test_string_shorter_than_max_length(self):
         """Test that short strings are not truncated"""
@@ -536,9 +536,9 @@ class TestSanitizeTaskId:
         assert len(result) == 103  # 100 + "..."
 
     def test_only_control_characters(self):
-        """Test string with only control characters"""
+        """Test string with only control characters (Issue #4016, #3992)"""
         from core.planner.planner_types import _sanitize_task_id
-        assert _sanitize_task_id("\n\r") == "\\n\\r"
+        assert _sanitize_task_id("\n\r") == "  "
 
     def test_uuid_style_task_id(self):
         """Test UUID-style task_id passes through unchanged"""
