@@ -2118,7 +2118,10 @@ class Settings(BaseSettings):
             "Reason: Code review feedback contains code snippets and technical comments "
             "that trigger PII false positives (e.g., 'passport' in passport validation code). "
             "Set to false to enable PII scanning (may block legitimate review feedback). "
-            "Security note: Review feedback is LLM-generated, not user input."
+            "SECURITY WARNING: Disabling PII sanitization increases risk of storing sensitive "
+            "information if code diffs contain test data with PII-like patterns. Review feedback "
+            "is LLM-generated from PR diffs, not direct user input, but diffs may contain "
+            "sensitive test fixtures. See issue #4039 for PII scanner improvements."
         )
     )
 

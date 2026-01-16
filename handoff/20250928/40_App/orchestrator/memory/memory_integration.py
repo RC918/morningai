@@ -914,17 +914,22 @@ def save_review_feedback(
         # PII scanning if needed (may block legitimate review feedback due to false positives).
         # Issue: https://github.com/RC918/morningai/pull/4032 (discovered during B-13 testing)
         skip_pii = settings.review_feedback_skip_pii_sanitization
-        if skip_pii:
-            logger.debug(
-                "[MemoryIntegration] Skipping PII sanitization for review feedback "
-                "(REVIEW_FEEDBACK_SKIP_PII_SANITIZATION=true)",
-                extra={
-                    "pr_number": pr_number,
-                    "repo": repo,
-                    "trace_id": trace_id,
-                    "operation": "save_review_feedback",
-                }
-            )
+        # Log PII sanitization decision at INFO level for production visibility
+        # MorningAI Code Review: DEBUG level may hide security-relevant behavior
+        logger.info(
+            "[MemoryIntegration] Review feedback PII sanitization: skip_pii=%s",
+            skip_pii,
+            extra={
+                "pr_number": pr_number,
+                "repo": repo,
+                "verdict": verdict,
+                "severity": severity,
+                "content_length": len(content),
+                "trace_id": trace_id,
+                "skip_pii_sanitization": skip_pii,
+                "operation": "save_review_feedback",
+            }
+        )
         success = memory.save(entry, MemoryLayer.KNOWLEDGE_BASE, skip_sanitization=skip_pii)
         if success:
             logger.info(
