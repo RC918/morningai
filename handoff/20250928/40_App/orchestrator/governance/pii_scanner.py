@@ -310,19 +310,14 @@ class PIIScanner:
 
     # Passport patterns (Issue #3943: Enhanced with country-specific patterns)
     # Blueprint Section 4.2: Compliance Radar v2 - improved accuracy
+    # Note: Patterns consolidated to avoid duplicate findings (gemini-code-assist review)
+    # Country identification is handled by PIIPatternValidator.get_passport_country()
     PASSPORT_PATTERNS: List[Tuple[str, str, str, PIIRiskLevel]] = [
-        # US Passport: 9 digits (most common format)
+        # US/UK Passport: 9 digits (consolidated to avoid duplicate findings)
         (
             r'\b\d{9}\b',
             "PII-PASS-001",
-            "Potential US passport number detected",
-            PIIRiskLevel.HIGH,
-        ),
-        # UK Passport: 9 digits
-        (
-            r'\b\d{9}\b',
-            "PII-PASS-002",
-            "Potential UK passport number detected",
+            "Potential passport number detected (US/UK format)",
             PIIRiskLevel.HIGH,
         ),
         # Canadian Passport: 2 letters + 6 digits
@@ -357,6 +352,8 @@ class PIIScanner:
 
     # Driver's License patterns (Issue #3943: Enhanced with state-specific patterns)
     # Blueprint Section 4.2: Compliance Radar v2 - improved accuracy
+    # Note: Patterns consolidated to avoid duplicate findings (gemini-code-assist review)
+    # State identification is handled by PIIPatternValidator.get_dl_state()
     DRIVER_LICENSE_PATTERNS: List[Tuple[str, str, str, PIIRiskLevel]] = [
         # California: 1 letter + 7 digits
         (
@@ -379,11 +376,11 @@ class PIIScanner:
             "Potential Texas driver's license detected",
             PIIRiskLevel.HIGH,
         ),
-        # Florida: 1 letter + 12 digits
+        # Florida/Michigan: 1 letter + 12 digits (consolidated to avoid duplicate findings)
         (
             r'\b[A-Z]\d{12}\b',
             "PII-DL-004",
-            "Potential Florida driver's license detected",
+            "Potential driver's license detected (FL/MI format)",
             PIIRiskLevel.HIGH,
         ),
         # Illinois: 1 letter + 11 digits
@@ -398,13 +395,6 @@ class PIIScanner:
             r'\b[A-Z]{2}\d{6}\b',
             "PII-DL-006",
             "Potential Ohio driver's license detected",
-            PIIRiskLevel.HIGH,
-        ),
-        # Michigan: 1 letter + 12 digits
-        (
-            r'\b[A-Z]\d{12}\b',
-            "PII-DL-007",
-            "Potential Michigan driver's license detected",
             PIIRiskLevel.HIGH,
         ),
     ]

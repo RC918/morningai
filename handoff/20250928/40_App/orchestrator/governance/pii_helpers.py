@@ -13,10 +13,14 @@ Classes:
 - PIIRedactor: Redaction logic for different PII types
 - PIIConfidenceCalculator: Context-aware confidence scoring
 """
+import logging
 import re
+import threading
 from typing import Dict, List, Optional
 
 from governance.pii_scanner import PIICategory
+
+logger = logging.getLogger(__name__)
 
 
 class PIIPatternValidator:
@@ -213,7 +217,12 @@ class PIIPatternValidator:
             expected_check = total % 10
             actual_check = int(text[-1])
             return expected_check == actual_check
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
+            logger.debug(
+                "ICAO checksum validation failed for input: %s, error: %s",
+                text[:2] + "***" if len(text) > 2 else "***",
+                type(e).__name__,
+            )
             return False
 
     def get_passport_country(self, text: str) -> Optional[str]:
@@ -357,14 +366,18 @@ class PIIRedactor:
 
     def _redact_passport(self, text: str) -> str:
         """Redact passport: show first 2 and last 2 chars."""
-        if len(text) >= 4:
+        if len(text) > 4:
             return text[:2] + "*" * (len(text) - 4) + text[-2:]
+        elif len(text) == 4:
+            return text[0] + "**" + text[-1]
         return "[REDACTED_PASSPORT]"
 
     def _redact_driver_license(self, text: str) -> str:
         """Redact driver license: show first 2 and last 2 chars."""
-        if len(text) >= 4:
+        if len(text) > 4:
             return text[:2] + "*" * (len(text) - 4) + text[-2:]
+        elif len(text) == 4:
+            return text[0] + "**" + text[-1]
         return "[REDACTED_DL]"
 
 
@@ -522,30 +535,40 @@ class PIIConfidenceCalculator:
 
 
 # Singleton instances for convenience
+# Thread-safe initialization using double-checked locking pattern
 _validator: Optional[PIIPatternValidator] = None
 _redactor: Optional[PIIRedactor] = None
 _confidence_calculator: Optional[PIIConfidenceCalculator] = None
+_validator_lock = threading.Lock()
+_redactor_lock = threading.Lock()
+_confidence_calculator_lock = threading.Lock()
 
 
 def get_pattern_validator() -> PIIPatternValidator:
-    """Get or create global PIIPatternValidator instance."""
+    """Get or create global PIIPatternValidator instance (thread-safe)."""
     global _validator
     if _validator is None:
-        _validator = PIIPatternValidator()
+        with _validator_lock:
+            if _validator is None:
+                _validator = PIIPatternValidator()
     return _validator
 
 
 def get_redactor() -> PIIRedactor:
-    """Get or create global PIIRedactor instance."""
+    """Get or create global PIIRedactor instance (thread-safe)."""
     global _redactor
     if _redactor is None:
-        _redactor = PIIRedactor()
+        with _redactor_lock:
+            if _redactor is None:
+                _redactor = PIIRedactor()
     return _redactor
 
 
 def get_confidence_calculator() -> PIIConfidenceCalculator:
-    """Get or create global PIIConfidenceCalculator instance."""
+    """Get or create global PIIConfidenceCalculator instance (thread-safe)."""
     global _confidence_calculator
     if _confidence_calculator is None:
-        _confidence_calculator = PIIConfidenceCalculator()
+        with _confidence_calculator_lock:
+            if _confidence_calculator is None:
+                _confidence_calculator = PIIConfidenceCalculator()
     return _confidence_calculator
