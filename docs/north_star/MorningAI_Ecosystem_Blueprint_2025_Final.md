@@ -35,7 +35,7 @@ MorningAI 的目標：
 ├───────────────────────────────┴────────────────────────────┤
 │              Infrastructure Layer (Memory / Telemetry)      │
 ├────────────────────────────────────────────────────────────┤
-│                Model Layer (Qwen3 Multi-Tier)               │
+│         Model Layer (Gemini-First Multi-Provider)           │
 └────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,21 +50,37 @@ MorningAI 生態系共分為 **4 個層級**：
 
 # 2. Model Layer（模型層）
 
-MorningAI 2025 Final 採用 **Qwen3 Multi-Tier 架構**：
+MorningAI 2025 Final 採用 **Gemini-First Multi-Provider 架構**（routing_policy.json v1.3）：
 
-| Tier       | Model          | 用途                        |
-| ---------- | -------------- | ------------------------- |
-| **Tier 0** | Qwen3-Max      | Critical reasoning, Judge |
-| **Tier 1** | Qwen3-235B     | Deep reasoning            |
-| **Tier 2** | Qwen3-Next-80B | Coding / Reviewing        |
-| **Tier 3** | Qwen3-14B / 7B | UI 文案 / Basic tasks       |
+| Tier       | Primary Model      | Secondary Model | Tertiary Model | 用途                        |
+| ---------- | ------------------ | --------------- | -------------- | ------------------------- |
+| **Tier 0** | gemini-2.0-flash   | qwen-max        | gpt-4o         | Critical reasoning, Judge, Planning |
+| **Tier 1** | gemini-2.0-flash   | qwen-plus       | gpt-4o-mini    | Deep reasoning, Coding, Review |
+| **Tier 2** | gemini-2.0-flash   | qwen-turbo      | gpt-4o-mini    | Translation, Summarization |
+| **Tier 3** | gemini-2.0-flash   | qwen-turbo      | gpt-4o-mini    | UI 文案 / Basic tasks / Chat |
 
-並支援 **Multi-Provider**：
+### Task Type 到 Tier 的映射
 
-* AliCloud（官方最佳品質）
-* SiliconFlow（低成本高併發）
-* Together AI（高效率）
-* OpenRouter（多模型 fallback）
+| Task Type      | Tier | Fallback Tier |
+| -------------- | ---- | ------------- |
+| planning       | 0    | 1             |
+| coding         | 1    | 2             |
+| review         | 1    | 2             |
+| routing        | 1    | 2             |
+| analysis       | 1    | 2             |
+| translation    | 2    | 3             |
+| summarization  | 2    | 3             |
+| chat           | 2    | 3             |
+| ux_copy        | 3    | 2             |
+
+### Multi-Provider 支援
+
+* **Google Gemini**（Primary - 最佳品質與速度平衡）
+* **AliCloud DashScope**（Secondary - qwen-max/plus/turbo）
+* **OpenAI**（Tertiary - gpt-4o/gpt-4o-mini fallback）
+* **OpenRouter**（Emergency fallback）
+
+> **Note**: 此架構於 2026-01 更新，反映實際 Production 配置。原 Qwen3 Multi-Tier 架構保留作為未來擴展方向。
 
 ---
 
@@ -548,4 +564,5 @@ MorningAI 的最終目標：
 | 2025-Q4 Final | 2025-12-21 | Ryan Chen (@RC918) | Initial version imported from Ecosystem Wish Pool v2 |
 | 2025-Q4 Final | 2025-12-30 | Ryan Chen (@RC918) with Devin AI | Added EPIC I mapping for Blueprint 4.3 (Model Governance Framework v2) + 4.4 (Autonomous Provisioning v2) implementation. See [EPIC I #3342](https://github.com/RC918/morningai/issues/3342). |
 | 2025-Q4 Final | 2026-01-12 | Ryan Chen (@RC918) with Devin AI | **Architecture Gap Fix**: (1) Fixed 4/5 layer inconsistency → unified to 4 layers. (2) Enumerated all 8 governance mechanisms explicitly. (3) Added Section 4.5 AIP v2, Section 4.6 Evidence Ledger, Section 4.7 Capability-Based Security. (4) Added Section 3.4 BrowserNode v2 with Self-Heal Engine. (5) Added Section 3.5 Diagnostic Agent. (6) Added Section 5.4 Regression Pipeline v1. |
+| 2025-Q4 Final | 2026-01-17 | Ryan Chen (@RC918) with Devin AI | **Model Layer Update**: Updated Section 2 to reflect actual Gemini-First Multi-Provider architecture (routing_policy.json v1.3). Changed from theoretical Qwen3 Multi-Tier to production Gemini-first + AliCloud + OpenAI configuration. Added Task Type to Tier mapping table. Based on comprehensive ecosystem audit findings. |
 
