@@ -251,13 +251,13 @@ class PIIScanner:
     ]
 
     # Physical address patterns (US-focused)
-    # Issue #3941: ReDoS fix - simplified pattern to avoid catastrophic backtracking
+    # Issue #3941: ReDoS fix - unrolled loop to avoid catastrophic backtracking
     ADDRESS_PATTERNS: List[Tuple[str, str, str, PIIRiskLevel]] = [
         # Street address: 123 Main St, 456 Oak Avenue, etc.
-        # Fixed: Changed (?:[A-Za-z]+\s+){1,3} to [A-Za-z][A-Za-z\s]{0,40}
-        # to prevent ReDoS while still matching common street names
+        # Fixed: Unrolled (?:[A-Za-z]+\s+){1,3} to [A-Za-z]+\s+(?:[A-Za-z]+\s+){0,2}
+        # This prevents ReDoS by bounding the outer quantifier to max 2 iterations
         (
-            r'\b\d{1,5}\s+[A-Za-z][A-Za-z\s]{0,40}'
+            r'\b\d{1,5}\s+[A-Za-z]+\s+(?:[A-Za-z]+\s+){0,2}'
             r'(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|'
             r'Lane|Ln|Court|Ct|Way|Place|Pl|Circle|Cir)\b',
             "PII-ADDR-001",
