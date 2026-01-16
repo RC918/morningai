@@ -1,15 +1,37 @@
 # EPIC I: Runtime Governance & Immune System Roadmap
 
-**Issue**: [#3342](https://github.com/RC918/morningai/issues/3342)  
-**Blueprint Reference**: Section 4.3 (Model Governance Framework v2) + Section 4.4 (Autonomous Provisioning v2)  
-**Status**: Phase I-1 Complete, Phase I-2a Complete (observe-only), Phase I-2b+ gated by #3249  
-**Last Updated**: 2026-01-15
+**Issue**: [#3342](https://github.com/RC918/morningai/issues/3342)
+**Blueprint Reference**: Section 4.3 (Model Governance Framework v2) + Section 4.4 (Autonomous Provisioning v2)
+**Status**: Phase I-1 Complete, Phase I-2a Complete (observe-only), Phase I-2b Complete (disabled by default)
+**Last Updated**: 2026-01-16
 
 ## Recent Updates
 
+### 2026-01-16: Phase I-2b Complete (Drift-Triggered Retry)
+
+**Gate Lifted**: #3249 merged (test refactor complete)
+
+| Component | File | Lines | Status |
+|-----------|------|-------|--------|
+| `DriftRetryPolicy` | `governance/drift_retry.py` | 399 | **COMPLETE** - Policy configuration with all options |
+| `DriftRetryDecision` | `governance/drift_retry.py` | 131-291 | **COMPLETE** - Decision engine with safety guards |
+| `should_retry_on_drift()` | `governance/drift_retry.py` | 367-390 | **COMPLETE** - Convenience function |
+| Settings Integration | `common/config/settings.py` | 664-702 | **COMPLETE** - All env vars defined |
+| LLMClient Wiring | `llm/client.py` | 490-542 | **COMPLETE** - Retry logic integrated |
+
+**Feature Flags** (disabled by default):
+- `DRIFT_RETRY_ENABLED=false` - Master switch
+- `DRIFT_RETRY_MAX_RETRIES=1` - Max retry attempts
+- `DRIFT_RETRY_MODEL_TIER=higher` - Escalation strategy
+- `DRIFT_RETRY_COST_CAP_MULTIPLIER=2.0` - Cost protection
+
+**To Enable**: Set `DRIFT_RETRY_ENABLED=true` in Render Dashboard (staging first).
+
+---
+
 ### 2026-01-15: Encapsulation Improvements (PR #4009)
 
-**Issues Closed**: #3958, #3961  
+**Issues Closed**: #3958, #3961
 **Tag**: `week3-pr3-epic-i-encapsulation`
 
 | Component | Change | Benefit |
@@ -78,7 +100,7 @@ GOVERNANCE_LOCK_TTL = 50  # seconds (less than heartbeat interval)
 def run_governance_heartbeat():
     """
     EPIC I-1: Governance Heartbeat
-    
+
     Runs health checks and degradation advisory with distributed lock
     to prevent multiple workers from executing simultaneously.
     """
@@ -88,11 +110,11 @@ def run_governance_heartbeat():
             lock_key=GOVERNANCE_LOCK_KEY,
             ttl_seconds=GOVERNANCE_LOCK_TTL
         )
-        
+
         if not lock.acquire():
             logger.debug("[I-1-HEARTBEAT] Another worker holds governance lock, skipping")
             return
-        
+
         try:
             # Health Alerting
             alert_service = get_health_alert_service()
@@ -100,20 +122,20 @@ def run_governance_heartbeat():
                 result = alert_service.check_all_providers()
                 if result.get("alerts_sent", 0) > 0:
                     logger.info(f"[I-1-HEARTBEAT] Sent {result['alerts_sent']} health alerts")
-            
+
             # Degradation Advisory
             advisor = get_degradation_advisor()
             if advisor and advisor.enabled:
                 result = advisor.compute_all_advisories()
                 if result.get("advisories_logged", 0) > 0:
                     logger.info(f"[I-1-HEARTBEAT] Logged {result['advisories_logged']} advisories")
-            
+
             # Update global health snapshot (for routing engine consumption)
             _update_global_health_snapshot()
-            
+
         finally:
             lock.release()
-            
+
     except Exception as e:
         logger.warning(f"[I-1-HEARTBEAT] Governance heartbeat failed: {e}")
 ```
@@ -150,25 +172,25 @@ def run_governance_heartbeat():
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "health_score": { 
-            "type": "number", 
-            "minimum": 0, 
+          "health_score": {
+            "type": "number",
+            "minimum": 0,
             "maximum": 100,
             "description": "Provider health score (0-100 scale)"
           },
-          "severity": { 
-            "type": "string", 
+          "severity": {
+            "type": "string",
             "enum": ["healthy", "degraded", "critical", "avoid"],
             "description": "Degradation severity level"
           },
-          "score_multiplier": { 
+          "score_multiplier": {
             "type": "number",
             "minimum": 0,
             "maximum": 1,
             "description": "Routing weight multiplier based on severity"
           },
-          "last_updated": { 
-            "type": "string", 
+          "last_updated": {
+            "type": "string",
             "format": "date-time",
             "description": "Last update time for this provider"
           }
@@ -234,25 +256,25 @@ DEGRADATION_ENFORCEMENT_ENABLED = os.getenv("DEGRADATION_ENFORCEMENT_ENABLED", "
 def _apply_soft_weighting(self, provider: str) -> float:
     """
     EPIC I-4 Phase B-2: Soft Weighting based on degradation state.
-    
+
     Returns a multiplier (0.0-1.0) to apply to provider's base score.
     """
     if not settings.degradation_enforcement_enabled:
         return 1.0  # No adjustment when disabled
-    
+
     advisor = get_degradation_advisor()
     if advisor is None:
         return 1.0
-    
+
     state = advisor.get_provider_state(provider)
     multiplier = SEVERITY_MULTIPLIERS.get(state, 1.0)
-    
+
     if multiplier < 1.0:
         logger.info(
             f"[I-4-SOFT-WEIGHTING] Provider {provider} has {state.value} state, "
             f"applying multiplier {multiplier}"
         )
-    
+
     return multiplier
 ```
 
@@ -355,10 +377,10 @@ def _apply_soft_weighting(self, provider: str) -> float:
 class DriftRetryDecision:
     """
     EPIC I-2b: Drift-Triggered Retry Decision Engine
-    
+
     Decides whether to retry a request after drift detection.
     """
-    
+
     def should_retry(
         self,
         drift_result: DriftValidationResult,
@@ -367,7 +389,7 @@ class DriftRetryDecision:
     ) -> RetryDecision:
         """
         Determine if retry should be attempted.
-        
+
         Safety Guards:
         1. Max retry limit (default: 1)
         2. Eligible drift types only (not unexpected_format)
@@ -376,23 +398,23 @@ class DriftRetryDecision:
         """
         if not self.policy.enabled:
             return RetryDecision(should_retry=False, reason="retry_disabled")
-        
+
         if attempt_count >= self.policy.max_retries:
             return RetryDecision(should_retry=False, reason="max_retries_exceeded")
-        
+
         if drift_result.drift_type not in self.policy.eligible_drift_types:
             return RetryDecision(should_retry=False, reason="drift_type_not_eligible")
-        
+
         if task_context.task_type not in self.policy.eligible_task_types:
             return RetryDecision(should_retry=False, reason="task_type_not_eligible")
-        
+
         # Calculate retry cost
         retry_model = self._select_retry_model(task_context)
         estimated_cost = self._estimate_retry_cost(retry_model, task_context)
-        
+
         if estimated_cost > task_context.original_cost * self.policy.cost_cap_multiplier:
             return RetryDecision(should_retry=False, reason="cost_cap_exceeded")
-        
+
         return RetryDecision(
             should_retry=True,
             retry_model=retry_model,
@@ -410,11 +432,13 @@ class DriftRetryDecision:
 | Low-value retry | Task type filtering | Only retry code generation tasks |
 
 **Acceptance Criteria**:
-- [ ] Drift retry policy configurable via environment
-- [ ] Retry only triggers for eligible drift types
-- [ ] Cost cap prevents runaway spending
-- [ ] Retry uses higher-tier model from same provider family
-- [ ] Metrics emitted: `drift_retry_total`, `drift_retry_success_total`
+- [x] Drift retry policy configurable via environment *(implemented in `common/config/settings.py:664-702`)*
+- [x] Retry only triggers for eligible drift types *(implemented in `governance/drift_retry.py:182-193`)*
+- [x] Cost cap prevents runaway spending *(implemented in `governance/drift_retry.py:206-218`)*
+- [x] Retry uses higher-tier model from same provider family *(implemented in `governance/drift_retry.py:251-271`)*
+- [ ] Metrics emitted: `drift_retry_total`, `drift_retry_success_total` *(pending - needs follow-up issue)*
+
+> **Implementation Note (2026-01-16)**: Phase I-2b is fully implemented. The drift retry logic is wired into `llm/client.py:490-542` and triggers when drift is detected. Feature is disabled by default (`DRIFT_RETRY_ENABLED=false`). To enable, set `DRIFT_RETRY_ENABLED=true` in Render Dashboard (staging first).
 
 ---
 
@@ -598,9 +622,9 @@ def calculate_trust_score(
 ) -> RuntimeTrustScore:
     """
     Calculate RuntimeTrustScore using "weakest link" principle.
-    
+
     Formula: trust = min(safety_score, health_score)
-    
+
     Rationale: A system with 100% health but 0% safety (PII leak risk)
     should have 0% trust. The weakest link determines overall trust.
     """
@@ -611,13 +635,13 @@ def calculate_trust_score(
         "block": 0.0
     }
     safety_score = safety_score_map.get(safety_decision.action, 0.5)
-    
+
     # Normalize health score to 0-1 range
     health_score = health_data.health_score / 100.0
-    
+
     # Apply "weakest link" principle
     trust_score = min(safety_score, health_score)
-    
+
     return RuntimeTrustScore(
         trust_score=trust_score,
         safety_score=safety_score,
