@@ -13,6 +13,7 @@ This module provides reusable concurrency primitives:
 
 import asyncio
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -78,16 +79,18 @@ class TokenBucketRateLimiter:
             capacity: Maximum tokens in bucket (burst capacity)
             refill_rate: Tokens added per second
             initial_tokens: Starting tokens (defaults to capacity)
+
+        Thread-safety: Uses a single threading.Lock for all access to shared
+        state, ensuring correctness in both sync and async contexts.
         """
         self.capacity = capacity
         self.refill_rate = refill_rate
         self._tokens = initial_tokens if initial_tokens is not None else capacity
         self._last_refill_time = time.monotonic()
-        self._lock = asyncio.Lock()
-        self._sync_lock = None
+        self._lock = threading.Lock()
 
     def _refill(self) -> None:
-        """Refill tokens based on elapsed time."""
+        """Refill tokens based on elapsed time. MUST be called within lock."""
         now = time.monotonic()
         elapsed = now - self._last_refill_time
         tokens_to_add = elapsed * self.refill_rate
@@ -95,7 +98,7 @@ class TokenBucketRateLimiter:
         self._last_refill_time = now
 
     def _calculate_wait_time(self) -> float:
-        """Calculate time to wait for one token."""
+        """Calculate time to wait for one token. MUST be called within lock."""
         if self._tokens >= 1.0:
             return 0.0
         tokens_needed = 1.0 - self._tokens
@@ -111,14 +114,10 @@ class TokenBucketRateLimiter:
         Returns:
             True if token acquired, False if timeout
         """
-        import threading
-        if self._sync_lock is None:
-            self._sync_lock = threading.Lock()
-
         start_time = time.monotonic()
 
         while True:
-            with self._sync_lock:
+            with self._lock:
                 self._refill()
 
                 if self._tokens >= 1.0:
@@ -145,11 +144,14 @@ class TokenBucketRateLimiter:
 
         Returns:
             True if token acquired, False if timeout
+
+        Note: Uses threading.Lock for correctness across sync/async contexts.
+        The critical section is very short (no I/O), so blocking is minimal.
         """
         start_time = time.monotonic()
 
         while True:
-            async with self._lock:
+            with self._lock:
                 self._refill()
 
                 if self._tokens >= 1.0:
@@ -174,11 +176,7 @@ class TokenBucketRateLimiter:
         Returns:
             True if token acquired, False if no tokens available
         """
-        import threading
-        if self._sync_lock is None:
-            self._sync_lock = threading.Lock()
-
-        with self._sync_lock:
+        with self._lock:
             self._refill()
 
             if self._tokens >= 1.0:
@@ -193,7 +191,7 @@ class TokenBucketRateLimiter:
         Returns:
             True if token acquired, False if no tokens available
         """
-        async with self._lock:
+        with self._lock:
             self._refill()
 
             if self._tokens >= 1.0:
@@ -203,19 +201,21 @@ class TokenBucketRateLimiter:
 
     @property
     def available_tokens(self) -> float:
-        """Get current number of available tokens."""
-        self._refill()
-        return self._tokens
+        """Get current number of available tokens (thread-safe)."""
+        with self._lock:
+            self._refill()
+            return self._tokens
 
     def get_stats(self) -> dict:
-        """Get rate limiter statistics."""
-        self._refill()
-        return {
-            "capacity": self.capacity,
-            "refill_rate": self.refill_rate,
-            "available_tokens": self._tokens,
-            "utilization": 1.0 - (self._tokens / self.capacity),
-        }
+        """Get rate limiter statistics (thread-safe)."""
+        with self._lock:
+            self._refill()
+            return {
+                "capacity": self.capacity,
+                "refill_rate": self.refill_rate,
+                "available_tokens": self._tokens,
+                "utilization": 1.0 - (self._tokens / self.capacity),
+            }
 
 
 class ConcurrencyManager:
@@ -263,11 +263,18 @@ class ConcurrencyManager:
         return _ConcurrencySlot(self)
 
     async def _acquire_slot(self) -> None:
-        """Internal: acquire a slot."""
+        """Internal: acquire a slot.
+
+        Handles task cancellation to prevent semaphore slot leaks.
+        """
         await self._get_semaphore().acquire()
-        async with self._lock:
-            self._active_count += 1
-            self._total_acquired += 1
+        try:
+            async with self._lock:
+                self._active_count += 1
+                self._total_acquired += 1
+        except asyncio.CancelledError:
+            self._get_semaphore().release()
+            raise
 
     async def _release_slot(self) -> None:
         """Internal: release a slot."""
