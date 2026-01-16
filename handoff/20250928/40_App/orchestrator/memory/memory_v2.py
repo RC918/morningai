@@ -220,7 +220,7 @@ class SupabaseMemoryStore(BaseMemoryStore):
         except Exception as e:
             self._client_init_failed = True
             logger.warning(
-                f"[Memory:{self.__class__.__name__}] Supabase client initialization failed: {e}"
+                f"[Memory:{self.__class__.__name__}] Supabase client initialization failed: {type(e).__name__}"
             )
 
         return self._supabase_client
