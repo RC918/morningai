@@ -481,6 +481,67 @@ Respond with valid JSON only."""
             logger.warning(f"[Consolidation] Failed to get LLM client: {e}")
             return None
 
+    def _sanitize_for_prompt(self, text: str) -> str:
+        """
+        Sanitize text to prevent prompt injection attacks.
+
+        Issue #4042: Prompt injection sanitization for LLMSummarizer.
+
+        This method neutralizes common prompt injection patterns that could
+        manipulate the LLM's behavior or corrupt the Knowledge Base.
+
+        Args:
+            text: The text to sanitize
+
+        Returns:
+            Sanitized text safe for use in LLM prompts
+        """
+        if not text:
+            return ""
+
+        sanitized = text
+
+        # Remove/escape chat template delimiters that could confuse the LLM
+        # These are common injection vectors
+        delimiter_patterns = [
+            (r"<\|im_start\|>", "[IM_START]"),
+            (r"<\|im_end\|>", "[IM_END]"),
+            (r"\[INST\]", "[INST_TAG]"),
+            (r"\[/INST\]", "[/INST_TAG]"),
+            (r"<<SYS>>", "[SYS_START]"),
+            (r"<</SYS>>", "[SYS_END]"),
+            (r"```system", "```code_system"),
+            (r"```assistant", "```code_assistant"),
+            (r"```user", "```code_user"),
+        ]
+
+        import re
+        for pattern, replacement in delimiter_patterns:
+            sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+
+        # Neutralize instruction override attempts
+        instruction_patterns = [
+            (r"(?i)(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above)\s+"
+             r"(instructions?|prompts?|rules?)",
+             "[FILTERED: instruction override attempt]"),
+            (r"(?i)new\s+instruction\s*:",
+             "[FILTERED: new instruction attempt]:"),
+            (r"(?i)system\s*:\s*you\s+are",
+             "[FILTERED: system prompt attempt]"),
+        ]
+
+        for pattern, replacement in instruction_patterns:
+            sanitized = re.sub(pattern, replacement, sanitized)
+
+        # Escape triple backticks that might break prompt formatting
+        # Replace with single backticks to preserve code indication
+        sanitized = sanitized.replace("```", "'''")
+
+        # Limit consecutive newlines to prevent prompt structure manipulation
+        sanitized = re.sub(r"\n{4,}", "\n\n\n", sanitized)
+
+        return sanitized
+
     def summarize(
         self,
         entry: MemoryEntry,
@@ -488,6 +549,8 @@ Respond with valid JSON only."""
     ) -> Optional[Dict[str, Any]]:
         """
         Summarize a memory entry using LLM (synchronous).
+
+        Issue #4042: Added prompt injection sanitization for content and metadata.
 
         Args:
             entry: Memory entry to summarize
@@ -501,9 +564,15 @@ Respond with valid JSON only."""
             return self._fallback_summarize(entry, memory_type)
 
         try:
+            # Issue #4042: Sanitize content and metadata before using in prompt
+            sanitized_content = self._sanitize_for_prompt(entry.content[:2000])
+            sanitized_metadata = self._sanitize_for_prompt(
+                json.dumps(entry.metadata or {}, indent=2)[:500]
+            )
+
             prompt = self.SUMMARIZATION_PROMPT.format(
-                content=entry.content[:2000],
-                metadata=json.dumps(entry.metadata or {}, indent=2)[:500],
+                content=sanitized_content,
+                metadata=sanitized_metadata,
                 memory_type=memory_type.value,
             )
 
