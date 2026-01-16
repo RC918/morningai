@@ -1,0 +1,74 @@
+# PII Scanner Configuration
+# Issue #3944: Dynamic pattern and action configuration for PIIScanner
+#
+# Blueprint Reference:
+# - Section 4.2 (Compliance Radar v2): Dynamic compliance rules
+# - Section 9.1 (Configuration Management): Externalized configuration
+#
+# This configuration allows runtime customization of PII detection patterns
+# and actions without code changes. The scanner will fall back to hardcoded
+# defaults if this file is not found or invalid.
+
+version: "1.0.0"
+
+# Global settings
+settings:
+  enabled: true
+  strict_mode: false
+  max_content_length: 100000  # 100KB limit for ReDoS protection
+
+# Action configuration per PII category
+# Available actions: allow, block, redact, require_approval, log_only
+actions:
+  email: log_only
+  phone: require_approval
+  ssn: block
+  credit_card: block
+  name: log_only
+  address: require_approval
+  ip_address: log_only
+  date_of_birth: require_approval
+  passport: block
+  driver_license: block
+
+# Risk level mappings per PII category
+# Available levels: critical, high, medium, low, info
+risk_levels:
+  email: low
+  phone: medium
+  ssn: critical
+  credit_card: critical
+  name: info
+  address: medium
+  ip_address: low
+  date_of_birth: medium
+  passport: high
+  driver_license: high
+
+# Custom patterns (optional - extends built-in patterns)
+# Each pattern requires: regex, pattern_id, title, risk_level
+# Note: Built-in patterns are always included; custom patterns are additive
+custom_patterns:
+  # Example: Add custom email domain pattern
+  # email:
+  #   - regex: '\b[A-Za-z0-9._%+-]+@company\.com\b'
+  #     pattern_id: "PII-EMAIL-CUSTOM-001"
+  #     title: "Company email address detected"
+  #     risk_level: info
+
+# Pattern overrides (optional - replaces built-in patterns for a category)
+# Use with caution: this completely replaces the built-in patterns
+# pattern_overrides:
+#   email:
+#     - regex: '\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
+#       pattern_id: "PII-EMAIL-001"
+#       title: "Email address detected"
+#       risk_level: low
+
+# Tenant-specific overrides (optional)
+# Allows per-tenant customization of actions
+# tenant_overrides:
+#   tenant_123:
+#     actions:
+#       email: block
+#       phone: block

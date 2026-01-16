@@ -3,6 +3,7 @@ PII Scanner - EPIC E Phase E-4 Compliance Radar v2 MVP
 
 Blueprint Reference: Section 4.2 (Compliance Radar v2)
 Issue: Part of EPIC E Safety Governor v2
+Issue #3944: Dynamic pattern and action configuration
 
 This module implements PII (Personally Identifiable Information) scanning
 for content safety and compliance. It detects various types of PII including:
@@ -20,13 +21,19 @@ Design Principles:
 - Configurable actions per PII type (allow/block/redact/require_approval)
 - Evidence generation for audit trail
 - Integration with existing governance infrastructure
+- Dynamic configuration loading from YAML (Issue #3944)
+- Hot-reload capability without service restart
+- Per-tenant action overrides support
 """
 import hashlib
 import logging
+import os
 import re
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple, Pattern
 
 logger = logging.getLogger(__name__)
@@ -309,11 +316,35 @@ class PIIScanner:
         PIICategory.DRIVER_LICENSE: PIIAction.BLOCK,
     }
 
+    # Default risk level configuration per PII category
+    DEFAULT_RISK_LEVELS: Dict[PIICategory, PIIRiskLevel] = {
+        PIICategory.EMAIL: PIIRiskLevel.LOW,
+        PIICategory.PHONE: PIIRiskLevel.MEDIUM,
+        PIICategory.SSN: PIIRiskLevel.CRITICAL,
+        PIICategory.CREDIT_CARD: PIIRiskLevel.CRITICAL,
+        PIICategory.NAME: PIIRiskLevel.INFO,
+        PIICategory.ADDRESS: PIIRiskLevel.MEDIUM,
+        PIICategory.IP_ADDRESS: PIIRiskLevel.LOW,
+        PIICategory.DATE_OF_BIRTH: PIIRiskLevel.MEDIUM,
+        PIICategory.PASSPORT: PIIRiskLevel.HIGH,
+        PIICategory.DRIVER_LICENSE: PIIRiskLevel.HIGH,
+    }
+
+    # Configuration file paths (Issue #3944)
+    CONFIG_PATHS: List[Path] = [
+        Path(__file__).parent.parent.parent.parent.parent.parent
+        / "config" / "pii_scanner.yaml",
+        Path.cwd() / "config" / "pii_scanner.yaml",
+        Path(__file__).parent.parent.parent.parent / "config" / "pii_scanner.yaml",
+    ]
+
     def __init__(
         self,
         enabled: bool = True,
         strict_mode: bool = False,
         action_overrides: Optional[Dict[PIICategory, PIIAction]] = None,
+        config_path: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ):
         """
         Initialize PIIScanner.
@@ -322,23 +353,66 @@ class PIIScanner:
             enabled: Whether scanning is enabled
             strict_mode: If True, lower thresholds for detection
             action_overrides: Override default actions per PII category
+            config_path: Optional path to YAML configuration file
+            tenant_id: Optional tenant ID for per-tenant action overrides
         """
+        self._lock = threading.RLock()
+        self._config_path = config_path
+        self._tenant_id = tenant_id
+        self._config_version: str = "builtin"
+        self._custom_patterns: Dict[
+            PIICategory, List[Tuple[str, str, str, PIIRiskLevel]]
+        ] = {}
+        self._tenant_overrides: Dict[str, Dict[PIICategory, PIIAction]] = {}
+
+        # Store constructor parameters (highest priority for backward compatibility)
+        self._init_enabled = enabled
+        self._init_strict_mode = strict_mode
+        self._init_action_overrides = action_overrides
+
         self.enabled = enabled
         self.strict_mode = strict_mode
         self.action_config = self.DEFAULT_ACTIONS.copy()
+        self.risk_config = self.DEFAULT_RISK_LEVELS.copy()
+
+        # Load from YAML configuration (Issue #3944)
+        self._load_yaml_config()
+
+        # Then load from common.config.settings
+        self._load_settings()
+
+        # Restore constructor parameters (highest priority for backward compatibility)
+        # Only restore if explicitly set (non-default values)
+        if not enabled:  # enabled=False was explicitly set
+            self.enabled = False
+        if strict_mode:  # strict_mode=True was explicitly set
+            self.strict_mode = True
+
+        # Apply action overrides from constructor (highest priority)
         if action_overrides:
             self.action_config.update(action_overrides)
-        self._load_settings()
+
+        # Apply tenant-specific overrides if tenant_id provided
+        if tenant_id and tenant_id in self._tenant_overrides:
+            self.action_config.update(self._tenant_overrides[tenant_id])
+
         self._compile_patterns()
         logger.info(
             "[PIIScanner] Initialized - EPIC E Phase E-4: "
-            "enabled=%s, strict_mode=%s",
+            "enabled=%s, strict_mode=%s, config_version=%s, tenant_id=%s",
             self.enabled,
             self.strict_mode,
+            self._config_version,
+            self._tenant_id,
         )
 
     def _compile_patterns(self) -> None:
-        """Pre-compile regex patterns for performance optimization."""
+        """
+        Pre-compile regex patterns for performance optimization.
+
+        This method compiles both built-in patterns and custom patterns
+        from YAML configuration (Issue #3944).
+        """
         self._compiled_patterns: Dict[
             PIICategory, List[Tuple[Pattern[str], str, str, PIIRiskLevel]]
         ] = {}
@@ -357,10 +431,24 @@ class PIIScanner:
 
         for category, patterns in pattern_groups:
             self._compiled_patterns[category] = []
+            # Compile built-in patterns
             for pattern, pid, title, risk in patterns:
                 self._compiled_patterns[category].append(
                     (re.compile(pattern, re.IGNORECASE), pid, title, risk)
                 )
+            # Compile custom patterns from YAML config (Issue #3944)
+            if category in self._custom_patterns:
+                for pattern, pid, title, risk in self._custom_patterns[category]:
+                    try:
+                        self._compiled_patterns[category].append(
+                            (re.compile(pattern, re.IGNORECASE), pid, title, risk)
+                        )
+                    except re.error as e:
+                        logger.warning(
+                            "[PIIScanner] Failed to compile custom pattern %s: %s",
+                            pid,
+                            e,
+                        )
 
     def _load_settings(self) -> None:
         """Load settings from configuration if available."""
@@ -380,6 +468,335 @@ class PIIScanner:
         except (ImportError, AttributeError) as e:
             logger.debug(
                 "[PIIScanner] Using default settings: %s", e
+            )
+
+    def _find_config_file(self) -> Optional[Path]:
+        """
+        Find the configuration file from known paths.
+
+        Returns:
+            Path to configuration file if found, None otherwise
+        """
+        # Check environment variable first
+        env_path = os.environ.get("PII_SCANNER_CONFIG")
+        if env_path:
+            path = Path(env_path)
+            if path.exists():
+                return path
+            logger.warning(
+                "[PIIScanner] Config path from env not found: %s", env_path
+            )
+
+        # Check explicit config path
+        if self._config_path:
+            path = Path(self._config_path)
+            if path.exists():
+                return path
+            logger.warning(
+                "[PIIScanner] Explicit config path not found: %s",
+                self._config_path,
+            )
+            # Don't fall back to defaults when explicit path is provided
+            return None
+
+        # Check default paths
+        for config_path in self.CONFIG_PATHS:
+            if config_path.exists():
+                return config_path
+
+        return None
+
+    def _load_yaml_config(self) -> None:
+        """
+        Load configuration from YAML file (Issue #3944).
+
+        This method loads patterns, actions, and risk levels from an external
+        YAML configuration file. It supports:
+        - Global settings (enabled, strict_mode, max_content_length)
+        - Action configuration per PII category
+        - Risk level configuration per PII category
+        - Custom patterns (additive to built-in patterns)
+        - Per-tenant action overrides
+
+        The configuration file is optional; if not found, built-in defaults
+        are used.
+        """
+        config_file = self._find_config_file()
+        if not config_file:
+            logger.debug(
+                "[PIIScanner] No YAML config found, using built-in defaults"
+            )
+            return
+
+        try:
+            import yaml
+        except ImportError:
+            logger.warning(
+                "[PIIScanner] PyYAML not installed, skipping YAML config"
+            )
+            return
+
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+
+            if not config:
+                logger.warning(
+                    "[PIIScanner] Empty config file: %s", config_file
+                )
+                return
+
+            self._apply_yaml_config(config)
+            logger.info(
+                "[PIIScanner] Loaded config from %s (version: %s)",
+                config_file,
+                self._config_version,
+            )
+
+        except yaml.YAMLError as e:
+            logger.error(
+                "[PIIScanner] Invalid YAML in config file %s: %s",
+                config_file,
+                e,
+            )
+        except OSError as e:
+            logger.error(
+                "[PIIScanner] Error reading config file %s: %s",
+                config_file,
+                e,
+            )
+
+    def _apply_yaml_config(self, config: Dict[str, Any]) -> None:
+        """
+        Apply configuration from parsed YAML.
+
+        Args:
+            config: Parsed YAML configuration dictionary
+        """
+        # Load version for audit trail
+        self._config_version = config.get("version", "unknown")
+
+        # Load global settings
+        settings = config.get("settings", {})
+        if "enabled" in settings:
+            self.enabled = bool(settings["enabled"])
+        if "strict_mode" in settings:
+            self.strict_mode = bool(settings["strict_mode"])
+
+        # Load action configuration
+        actions = config.get("actions", {})
+        for category_str, action_str in actions.items():
+            try:
+                category = PIICategory(category_str)
+                action = PIIAction(action_str)
+                self.action_config[category] = action
+            except ValueError as e:
+                logger.warning(
+                    "[PIIScanner] Invalid action config: %s=%s (%s)",
+                    category_str,
+                    action_str,
+                    e,
+                )
+
+        # Load risk level configuration
+        risk_levels = config.get("risk_levels", {})
+        for category_str, risk_str in risk_levels.items():
+            try:
+                category = PIICategory(category_str)
+                risk = PIIRiskLevel(risk_str)
+                self.risk_config[category] = risk
+            except ValueError as e:
+                logger.warning(
+                    "[PIIScanner] Invalid risk level config: %s=%s (%s)",
+                    category_str,
+                    risk_str,
+                    e,
+                )
+
+        # Load custom patterns (additive)
+        custom_patterns = config.get("custom_patterns") or {}
+        for category_str, patterns in custom_patterns.items():
+            if not patterns:
+                continue
+            try:
+                category = PIICategory(category_str)
+                self._custom_patterns[category] = []
+                for p in patterns:
+                    if self._validate_pattern_config(p):
+                        risk = PIIRiskLevel(p.get("risk_level", "medium"))
+                        self._custom_patterns[category].append((
+                            p["regex"],
+                            p["pattern_id"],
+                            p["title"],
+                            risk,
+                        ))
+            except ValueError as e:
+                logger.warning(
+                    "[PIIScanner] Invalid custom pattern category: %s (%s)",
+                    category_str,
+                    e,
+                )
+
+        # Load tenant-specific overrides
+        tenant_overrides = config.get("tenant_overrides") or {}
+        for tenant_id, overrides in tenant_overrides.items():
+            if not overrides:
+                continue
+            tenant_actions = overrides.get("actions") or {}
+            if tenant_actions:
+                self._tenant_overrides[tenant_id] = {}
+                for category_str, action_str in tenant_actions.items():
+                    try:
+                        category = PIICategory(category_str)
+                        action = PIIAction(action_str)
+                        self._tenant_overrides[tenant_id][category] = action
+                    except ValueError as e:
+                        logger.warning(
+                            "[PIIScanner] Invalid tenant override for '%s': %s=%s (%s)",
+                            tenant_id,
+                            category_str,
+                            action_str,
+                            e,
+                        )
+
+    def _validate_pattern_config(self, pattern: Dict[str, Any]) -> bool:
+        """
+        Validate a pattern configuration entry.
+
+        Args:
+            pattern: Pattern configuration dictionary
+
+        Returns:
+            True if valid, False otherwise
+        """
+        required_fields = ["regex", "pattern_id", "title"]
+        for field_name in required_fields:
+            if field_name not in pattern:
+                logger.warning(
+                    "[PIIScanner] Pattern missing required field: %s", field_name
+                )
+                return False
+
+        # Validate regex compiles
+        try:
+            re.compile(pattern["regex"])
+        except re.error as e:
+            logger.warning(
+                "[PIIScanner] Invalid regex in pattern %s: %s",
+                pattern.get("pattern_id", "unknown"),
+                e,
+            )
+            return False
+
+        return True
+
+    def reload_config(self) -> None:
+        """
+        Reload configuration from YAML file (hot-reload).
+
+        This method provides thread-safe hot-reload capability for runtime
+        configuration updates without service restart.
+
+        Usage:
+            scanner = get_pii_scanner()
+            scanner.reload_config()
+
+        Blueprint Alignment:
+        - Section 4.2 (Compliance Radar v2): Dynamic compliance rules
+        - Section 9.1 (Configuration Management): Hot-reload support
+        """
+        with self._lock:
+            old_version = self._config_version
+
+            # Reset to defaults
+            self.action_config = self.DEFAULT_ACTIONS.copy()
+            self.risk_config = self.DEFAULT_RISK_LEVELS.copy()
+            self._custom_patterns = {}
+            self._tenant_overrides = {}
+
+            # Reload from YAML
+            self._load_yaml_config()
+
+            # Reload from common.config.settings
+            self._load_settings()
+
+            # Apply tenant-specific overrides if tenant_id set
+            if self._tenant_id and self._tenant_id in self._tenant_overrides:
+                self.action_config.update(self._tenant_overrides[self._tenant_id])
+
+            # Re-apply constructor overrides (highest priority for backward compatibility)
+            if self._init_action_overrides:
+                self.action_config.update(self._init_action_overrides)
+            if not self._init_enabled:  # enabled=False was explicitly set
+                self.enabled = False
+            if self._init_strict_mode:  # strict_mode=True was explicitly set
+                self.strict_mode = True
+
+            # Recompile patterns
+            self._compile_patterns()
+
+            logger.info(
+                "[PIIScanner] Config reloaded: %s -> %s",
+                old_version,
+                self._config_version,
+            )
+
+    def get_config_version(self) -> str:
+        """
+        Get the current configuration version.
+
+        Returns:
+            Configuration version string for audit trail
+        """
+        return self._config_version
+
+    def get_tenant_id(self) -> Optional[str]:
+        """
+        Get the current tenant ID.
+
+        Returns:
+            Tenant ID if set, None otherwise
+        """
+        return self._tenant_id
+
+    def set_tenant_id(self, tenant_id: Optional[str]) -> None:
+        """
+        Set the tenant ID and apply tenant-specific overrides.
+
+        Args:
+            tenant_id: Tenant ID for per-tenant action overrides
+        """
+        with self._lock:
+            self._tenant_id = tenant_id
+
+            # Reset to base config
+            self.action_config = self.DEFAULT_ACTIONS.copy()
+
+            # Reload YAML config actions
+            config_file = self._find_config_file()
+            if config_file:
+                try:
+                    import yaml
+                    with open(config_file, "r", encoding="utf-8") as f:
+                        config = yaml.safe_load(f)
+                    if config:
+                        actions = config.get("actions", {})
+                        for category_str, action_str in actions.items():
+                            try:
+                                category = PIICategory(category_str)
+                                action = PIIAction(action_str)
+                                self.action_config[category] = action
+                            except ValueError:
+                                pass
+                except (ImportError, OSError, yaml.YAMLError):
+                    pass
+
+            # Apply tenant-specific overrides
+            if tenant_id and tenant_id in self._tenant_overrides:
+                self.action_config.update(self._tenant_overrides[tenant_id])
+
+            logger.debug(
+                "[PIIScanner] Tenant ID set: %s", tenant_id
             )
 
     def scan(

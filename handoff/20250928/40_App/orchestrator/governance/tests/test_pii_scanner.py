@@ -569,3 +569,230 @@ class TestSummaryGeneration:
         result = scanner.scan("test@example.com and another@test.org")
         assert "Found" in result.summary
         assert "email" in result.summary.lower()
+
+
+class TestDynamicConfiguration:
+    """Dynamic configuration tests (Issue #3944)"""
+
+    def setup_method(self):
+        reset_pii_scanner()
+
+    def test_config_version_default(self):
+        """Test default config version is 'builtin' when no config file exists"""
+        scanner = PIIScanner(config_path="/nonexistent/path/config.yaml")
+        assert scanner.get_config_version() == "builtin"
+
+    def test_tenant_id_default(self):
+        """Test default tenant ID is None"""
+        scanner = PIIScanner()
+        assert scanner.get_tenant_id() is None
+
+    def test_tenant_id_initialization(self):
+        """Test tenant ID can be set during initialization"""
+        scanner = PIIScanner(tenant_id="tenant_123")
+        assert scanner.get_tenant_id() == "tenant_123"
+
+    def test_set_tenant_id(self):
+        """Test tenant ID can be changed after initialization"""
+        scanner = PIIScanner()
+        scanner.set_tenant_id("tenant_456")
+        assert scanner.get_tenant_id() == "tenant_456"
+
+    def test_reload_config_preserves_constructor_overrides(self):
+        """Test reload_config preserves constructor action_overrides (backward compatibility)"""
+        scanner = PIIScanner(
+            action_overrides={PIICategory.EMAIL: PIIAction.BLOCK}
+        )
+        assert scanner.action_config[PIICategory.EMAIL] == PIIAction.BLOCK
+        scanner.reload_config()
+        # Constructor overrides should be preserved after reload
+        assert scanner.action_config[PIICategory.EMAIL] == PIIAction.BLOCK
+
+    def test_risk_config_initialized(self):
+        """Test risk config is initialized with defaults"""
+        scanner = PIIScanner()
+        assert PIICategory.SSN in scanner.risk_config
+        assert scanner.risk_config[PIICategory.SSN] == PIIRiskLevel.CRITICAL
+        assert scanner.risk_config[PIICategory.EMAIL] == PIIRiskLevel.LOW
+
+    def test_config_path_parameter(self):
+        """Test config_path parameter is stored"""
+        scanner = PIIScanner(config_path="/custom/path/config.yaml")
+        assert scanner._config_path == "/custom/path/config.yaml"
+
+    def test_custom_patterns_dict_initialized(self):
+        """Test custom patterns dict is initialized"""
+        scanner = PIIScanner()
+        assert hasattr(scanner, "_custom_patterns")
+        assert isinstance(scanner._custom_patterns, dict)
+
+    def test_tenant_overrides_dict_initialized(self):
+        """Test tenant overrides dict is initialized"""
+        scanner = PIIScanner()
+        assert hasattr(scanner, "_tenant_overrides")
+        assert isinstance(scanner._tenant_overrides, dict)
+
+    def test_lock_initialized(self):
+        """Test thread lock is initialized for thread safety"""
+        scanner = PIIScanner()
+        assert hasattr(scanner, "_lock")
+
+    def test_action_overrides_still_work(self):
+        """Test action_overrides parameter still works (backward compatibility)"""
+        scanner = PIIScanner(
+            action_overrides={PIICategory.EMAIL: PIIAction.BLOCK}
+        )
+        result = scanner.scan("test@example.com")
+        assert result.action == PIIAction.BLOCK
+
+    def test_validate_pattern_config_valid(self):
+        """Test pattern validation with valid config"""
+        scanner = PIIScanner()
+        valid_pattern = {
+            "regex": r"\b[A-Z]+\b",
+            "pattern_id": "TEST-001",
+            "title": "Test pattern",
+        }
+        assert scanner._validate_pattern_config(valid_pattern) is True
+
+    def test_validate_pattern_config_missing_field(self):
+        """Test pattern validation with missing field"""
+        scanner = PIIScanner()
+        invalid_pattern = {
+            "regex": r"\b[A-Z]+\b",
+            "pattern_id": "TEST-001",
+        }
+        assert scanner._validate_pattern_config(invalid_pattern) is False
+
+    def test_validate_pattern_config_invalid_regex(self):
+        """Test pattern validation with invalid regex"""
+        scanner = PIIScanner()
+        invalid_pattern = {
+            "regex": r"[invalid(regex",
+            "pattern_id": "TEST-001",
+            "title": "Test pattern",
+        }
+        assert scanner._validate_pattern_config(invalid_pattern) is False
+
+    def test_find_config_file_returns_none_when_not_found(self):
+        """Test _find_config_file returns None when explicit config path doesn't exist"""
+        scanner = PIIScanner(config_path="/nonexistent/path/config.yaml")
+        result = scanner._find_config_file()
+        assert result is None
+
+    def test_apply_yaml_config_with_empty_config(self):
+        """Test _apply_yaml_config handles empty config gracefully"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({})
+        assert scanner._config_version == "unknown"
+
+    def test_apply_yaml_config_with_version(self):
+        """Test _apply_yaml_config loads version"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({"version": "2.0.0"})
+        assert scanner._config_version == "2.0.0"
+
+    def test_apply_yaml_config_with_settings(self):
+        """Test _apply_yaml_config loads settings"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({
+            "settings": {
+                "enabled": False,
+                "strict_mode": True,
+            }
+        })
+        assert scanner.enabled is False
+        assert scanner.strict_mode is True
+
+    def test_apply_yaml_config_with_actions(self):
+        """Test _apply_yaml_config loads action configuration"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({
+            "actions": {
+                "email": "block",
+                "phone": "allow",
+            }
+        })
+        assert scanner.action_config[PIICategory.EMAIL] == PIIAction.BLOCK
+        assert scanner.action_config[PIICategory.PHONE] == PIIAction.ALLOW
+
+    def test_apply_yaml_config_with_risk_levels(self):
+        """Test _apply_yaml_config loads risk level configuration"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({
+            "risk_levels": {
+                "email": "high",
+                "phone": "critical",
+            }
+        })
+        assert scanner.risk_config[PIICategory.EMAIL] == PIIRiskLevel.HIGH
+        assert scanner.risk_config[PIICategory.PHONE] == PIIRiskLevel.CRITICAL
+
+    def test_apply_yaml_config_with_tenant_overrides(self):
+        """Test _apply_yaml_config loads tenant overrides"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({
+            "tenant_overrides": {
+                "tenant_123": {
+                    "actions": {
+                        "email": "block",
+                    }
+                }
+            }
+        })
+        assert "tenant_123" in scanner._tenant_overrides
+        assert scanner._tenant_overrides["tenant_123"][PIICategory.EMAIL] == PIIAction.BLOCK
+
+    def test_tenant_overrides_applied_on_init(self):
+        """Test tenant overrides are applied during initialization"""
+        scanner = PIIScanner()
+        scanner._tenant_overrides = {
+            "tenant_123": {PIICategory.EMAIL: PIIAction.BLOCK}
+        }
+        scanner._tenant_id = "tenant_123"
+        scanner.action_config = scanner.DEFAULT_ACTIONS.copy()
+        if scanner._tenant_id in scanner._tenant_overrides:
+            scanner.action_config.update(scanner._tenant_overrides[scanner._tenant_id])
+        assert scanner.action_config[PIICategory.EMAIL] == PIIAction.BLOCK
+
+    def test_apply_yaml_config_invalid_action_ignored(self):
+        """Test invalid action values are ignored"""
+        scanner = PIIScanner()
+        original_action = scanner.action_config[PIICategory.EMAIL]
+        scanner._apply_yaml_config({
+            "actions": {
+                "email": "invalid_action",
+            }
+        })
+        assert scanner.action_config[PIICategory.EMAIL] == original_action
+
+    def test_apply_yaml_config_invalid_category_ignored(self):
+        """Test invalid category values are ignored"""
+        scanner = PIIScanner()
+        original_config = scanner.action_config.copy()
+        scanner._apply_yaml_config({
+            "actions": {
+                "invalid_category": "block",
+            }
+        })
+        # Verify action_config remains unchanged
+        assert scanner.action_config == original_config
+
+    def test_custom_patterns_loaded(self):
+        """Test custom patterns are loaded from config"""
+        scanner = PIIScanner()
+        scanner._apply_yaml_config({
+            "custom_patterns": {
+                "email": [
+                    {
+                        "regex": r"\b[A-Za-z0-9._%+-]+@company\.com\b",
+                        "pattern_id": "PII-EMAIL-CUSTOM-001",
+                        "title": "Company email detected",
+                        "risk_level": "info",
+                    }
+                ]
+            }
+        })
+        assert PIICategory.EMAIL in scanner._custom_patterns
+        assert len(scanner._custom_patterns[PIICategory.EMAIL]) == 1
+        assert scanner._custom_patterns[PIICategory.EMAIL][0][1] == "PII-EMAIL-CUSTOM-001"
