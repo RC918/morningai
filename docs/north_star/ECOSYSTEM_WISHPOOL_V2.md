@@ -2,7 +2,7 @@
 
 **Version**: 2025-Q4 Final
 **Status**: Active North Star Document
-**Last Updated**: 2026-01-11
+**Last Updated**: 2026-01-16
 
 ---
 
@@ -43,7 +43,7 @@
 | **Intelligence Layer** | Reviewer Agent + Diff-Aware | [EPIC B: Diff-Aware Review Plumbing (#2595)](https://github.com/RC918/morningai/issues/2595) | **Phase 1-3 + B-6 Completed**; Phase 7-8 Planning ([PR #3850](https://github.com/RC918/morningai/pull/3850)) |
 | **Intelligence Layer** | Flow Controller v3 + BrowserNode v2 | [EPIC C: Flow Controller v3 (#2743)](https://github.com/RC918/morningai/issues/2743) | **Completed** (Pilot Pending); **BrowserNode v2 + Self-Heal** (Blueprint Section 3.4) |
 | **Intelligence Layer** | Coding Agent Family | [EPIC D: Autonomous Coder Agent Family (#2759)](https://github.com/RC918/morningai/issues/2759) | **Stage 1-2 Completed**; D-3 Spec-Driven (#3756), D-4 Self-Correction (#3821 verified) |
-| **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | **Phase 1 Active**, Phase 2+ gated by #3249 - [Roadmap](../EPIC_I_GOVERNANCE_ROADMAP.md) |
+| **Governance Layer** | Model Governance v2 + Autonomous Provisioning | [EPIC I: Runtime Governance & Immune System (#3342)](https://github.com/RC918/morningai/issues/3342) | **Phase I-1/I-2a/I-2b Complete** (disabled by default) - [Roadmap](../EPIC_I_GOVERNANCE_ROADMAP.md) |
 
 ### Future EPICs (Placeholder)
 
@@ -175,7 +175,7 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 |-------|-------------|--------|
 | I-1 | Operationalization (Heartbeat + Distributed Lock) | **Active** |
 | I-2a | Defensive Gating (Soft Weighting Activation) | Pending I-1 |
-| I-2b | Active Recovery (Drift-Triggered Retry) | Gated by #3249 |
+| I-2b | Active Recovery (Drift-Triggered Retry) | **Complete** (disabled by default) |
 | I-3 | Autonomous Evolution (Benchmark & Capability Scoring) | Future |
 | **I-4** | **Self-Evolving Routing (Auto Policy Tuning)** | **Planning** |
 
@@ -190,7 +190,7 @@ EPIC I 是 Blueprint 4.3 (Model Governance Framework v2) 與 4.4 (Autonomous Pro
 
 **Cross-EPIC Integration**: RuntimeTrustScore = min(EPIC E Safety Score, EPIC I Health Score) → EPIC F Planner 消費
 
-**Status**: Phase 1 Active. Phase 2+ gated by #3249 (test stability).
+**Status**: Phase I-1/I-2a/I-2b Complete (disabled by default). #3249 merged. I-3/I-4 Planning.
 
 ### 6. Infrastructure Layer (Future EPICs)
 
