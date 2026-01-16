@@ -7196,6 +7196,45 @@ def reviewer_node(state: AgentState) -> AgentState:
                 # Issue #3379: diff_content is now fetched BEFORE this block
                 # and stored in state, so LLM review can use it directly
                 # Issue #3640: Pass escalation/retry counts for cost optimization hard cap
+                # Issue #3223: Format cross-file reference context for LLM prompt
+                reference_context = None
+                ref_context_data = state.get("reference_context_v1")
+                if ref_context_data:
+                    try:
+                        from tools.file_reference_resolver import (
+                            format_reference_context_for_prompt,
+                            ResolverResult
+                        )
+                        resolver_result = ResolverResult(
+                            references=[],
+                            contexts=[
+                                type('ReferenceContext', (), ctx)()
+                                for ctx in ref_context_data.get("contexts", [])
+                            ],
+                            total_references_found=ref_context_data.get("total_references_found", 0),
+                            total_contexts_fetched=ref_context_data.get("total_contexts_fetched", 0),
+                            total_bytes=ref_context_data.get("total_bytes", 0),
+                            truncated=ref_context_data.get("truncated", False),
+                        )
+                        reference_context = format_reference_context_for_prompt(resolver_result)
+                        logger.info(
+                            "[Reviewer] Issue #3223: Formatted reference context for LLM",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "reference_context_chars": len(reference_context) if reference_context else 0,
+                            }
+                        )
+                    except Exception as ref_fmt_error:
+                        logger.warning(
+                            f"[Reviewer] Issue #3223: Failed to format reference context: {ref_fmt_error}",
+                            extra={
+                                "operation": "reviewer",
+                                "trace_id": trace_id,
+                                "error": str(ref_fmt_error)
+                            }
+                        )
+
                 llm_review = generate_llm_review(
                     pr_number=pr_number,
                     pr_url=pr_url,
@@ -7209,7 +7248,8 @@ def reviewer_node(state: AgentState) -> AgentState:
                     diff_truncated=diff_truncated,
                     diff_files=diff_files,
                     escalation_count=state.get("escalation_count", 0),
-                    retry_count=state.get("retry_count", 0)
+                    retry_count=state.get("retry_count", 0),
+                    reference_context=reference_context
                 )
 
                 if llm_review.get("llm_used", False):
