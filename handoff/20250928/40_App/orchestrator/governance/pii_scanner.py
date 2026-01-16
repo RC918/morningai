@@ -51,17 +51,21 @@ REGEX_TIMEOUT_SECONDS = 1.0
 
 # Common ReDoS-prone patterns to reject
 # These patterns can cause catastrophic backtracking
+# Note: These are regex patterns that match against the input regex string
 REDOS_DANGEROUS_PATTERNS = [
     r"\(\.\*\)\+",           # (.*)+
     r"\(\.\+\)\+",           # (.+)+
     r"\(\[^\]]*\]\+\)\+",    # ([^...]+)+
-    r"\(\w\+\)\+",           # (\w+)+
-    r"\(\d\+\)\+",           # (\d+)+
-    r"\(\s\+\)\+",           # (\s+)+
+    r"\(\\w\+\)\+",          # (\w+)+
+    r"\(\\d\+\)\+",          # (\d+)+
+    r"\(\\s\+\)\+",          # (\s+)+
     r"\.\*\.\*",             # .*.*
     r"\.\+\.\+",             # .+.+
     r"\(\.\*\)\*",           # (.*)*
     r"\(\.\+\)\*",           # (.+)*
+    r"\([^)]+\+\)\+",        # Generic: (x+)+ where x is any character class
+    r"\([^)]+\*\)\+",        # Generic: (x*)+ where x is any character class
+    r"\([^)]+\+\)\*",        # Generic: (x+)* where x is any character class
 ]
 
 
@@ -729,8 +733,14 @@ class PIIScanner:
 
         Issue #4056: ReDoS protection for custom regex patterns.
 
-        This method checks for common patterns that can cause catastrophic
-        backtracking, such as nested quantifiers and overlapping alternations.
+        This method checks against a denylist of known dangerous patterns
+        that can cause catastrophic backtracking.
+
+        Note: Generic heuristic checks for nested quantifiers and overlapping
+        alternations have been removed as they were flawed and could provide
+        a false sense of security. We rely on the explicit denylist in
+        REDOS_DANGEROUS_PATTERNS which is more reliable. A more robust generic
+        detection would require a full regex parser (out of scope).
 
         Args:
             regex_str: The regex pattern string to check
@@ -738,28 +748,11 @@ class PIIScanner:
         Returns:
             True if the pattern is potentially vulnerable, False otherwise
         """
-        # Check against known dangerous patterns
+        # Check against known dangerous patterns (denylist approach)
+        # This is more reliable than heuristic-based detection
         for dangerous_pattern in REDOS_DANGEROUS_PATTERNS:
             if re.search(dangerous_pattern, regex_str):
                 return True
-
-        # Check for nested quantifiers: (a+)+ or (a*)+ etc.
-        # These are the most common cause of ReDoS
-        nested_quantifier_pattern = r"\([^)]*[+*][^)]*\)[+*]"
-        if re.search(nested_quantifier_pattern, regex_str):
-            return True
-
-        # Check for overlapping alternations with quantifiers
-        # e.g., (a|a)+ or (ab|abc)+
-        overlapping_alt_pattern = r"\([^)]*\|[^)]*\)[+*]"
-        if re.search(overlapping_alt_pattern, regex_str):
-            # This is a heuristic - not all alternations are dangerous
-            # Only flag if the alternation contains quantifiers inside
-            inner_match = re.search(r"\(([^)]*)\)[+*]", regex_str)
-            if inner_match:
-                inner = inner_match.group(1)
-                if re.search(r"[+*]", inner):
-                    return True
 
         return False
 

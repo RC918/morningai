@@ -499,46 +499,68 @@ Respond with valid JSON only."""
         if not text:
             return ""
 
+        import re
         sanitized = text
+        sanitization_applied = []
 
         # Remove/escape chat template delimiters that could confuse the LLM
         # These are common injection vectors
         delimiter_patterns = [
-            (r"<\|im_start\|>", "[IM_START]"),
-            (r"<\|im_end\|>", "[IM_END]"),
-            (r"\[INST\]", "[INST_TAG]"),
-            (r"\[/INST\]", "[/INST_TAG]"),
-            (r"<<SYS>>", "[SYS_START]"),
-            (r"<</SYS>>", "[SYS_END]"),
-            (r"```system", "```code_system"),
-            (r"```assistant", "```code_assistant"),
-            (r"```user", "```code_user"),
+            (r"<\|im_start\|>", "[IM_START]", "im_start_delimiter"),
+            (r"<\|im_end\|>", "[IM_END]", "im_end_delimiter"),
+            (r"\[INST\]", "[INST_TAG]", "inst_delimiter"),
+            (r"\[/INST\]", "[/INST_TAG]", "inst_end_delimiter"),
+            (r"<<SYS>>", "[SYS_START]", "sys_start_delimiter"),
+            (r"<</SYS>>", "[SYS_END]", "sys_end_delimiter"),
+            (r"```system", "```code_system", "system_code_block"),
+            (r"```assistant", "```code_assistant", "assistant_code_block"),
+            (r"```user", "```code_user", "user_code_block"),
         ]
 
-        import re
-        for pattern, replacement in delimiter_patterns:
-            sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+        for pattern, replacement, name in delimiter_patterns:
+            if re.search(pattern, sanitized, flags=re.IGNORECASE):
+                sanitized = re.sub(
+                    pattern, replacement, sanitized, flags=re.IGNORECASE
+                )
+                sanitization_applied.append(name)
 
         # Neutralize instruction override attempts
         instruction_patterns = [
             (r"(?i)(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above)\s+"
              r"(instructions?|prompts?|rules?)",
-             "[FILTERED: instruction override attempt]"),
+             "[FILTERED: instruction override attempt]",
+             "instruction_override"),
             (r"(?i)new\s+instruction\s*:",
-             "[FILTERED: new instruction attempt]:"),
+             "[FILTERED: new instruction attempt]:",
+             "new_instruction"),
             (r"(?i)system\s*:\s*you\s+are",
-             "[FILTERED: system prompt attempt]"),
+             "[FILTERED: system prompt attempt]",
+             "system_prompt"),
         ]
 
-        for pattern, replacement in instruction_patterns:
-            sanitized = re.sub(pattern, replacement, sanitized)
+        for pattern, replacement, name in instruction_patterns:
+            if re.search(pattern, sanitized):
+                sanitized = re.sub(pattern, replacement, sanitized)
+                sanitization_applied.append(name)
 
         # Escape triple backticks that might break prompt formatting
         # Replace with single backticks to preserve code indication
-        sanitized = sanitized.replace("```", "'''")
+        if "```" in sanitized:
+            sanitized = sanitized.replace("```", "'''")
+            sanitization_applied.append("triple_backticks")
 
         # Limit consecutive newlines to prevent prompt structure manipulation
-        sanitized = re.sub(r"\n{4,}", "\n\n\n", sanitized)
+        if re.search(r"\n{4,}", sanitized):
+            sanitized = re.sub(r"\n{4,}", "\n\n\n", sanitized)
+            sanitization_applied.append("excessive_newlines")
+
+        # Log sanitization actions for debuggability
+        if sanitization_applied:
+            logger.debug(
+                "[LLMSummarizer] Sanitization applied: %s (text_len=%d)",
+                ", ".join(sanitization_applied),
+                len(text),
+            )
 
         return sanitized
 
