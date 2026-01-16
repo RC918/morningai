@@ -213,15 +213,14 @@ class SupabaseMemoryStore(BaseMemoryStore):
                 )
             else:
                 self._client_init_failed = True
-                logger.debug(
+                logger.warning(
                     f"[Memory:{self.__class__.__name__}] "
-                    "Supabase credentials not configured"
+                    "Supabase credentials not configured (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing)"
                 )
-        except Exception:
+        except Exception as e:
             self._client_init_failed = True
-            logger.debug(
-                f"[Memory:{self.__class__.__name__}] Supabase not available: "
-                "An exception occurred during client initialization"
+            logger.warning(
+                f"[Memory:{self.__class__.__name__}] Supabase client initialization failed: {type(e).__name__}"
             )
 
         return self._supabase_client
@@ -740,7 +739,7 @@ class KnowledgeBaseMemory(SupabaseMemoryStore):
         try:
             client = self._get_client()
             if client is None:
-                logger.debug("[Memory:KnowledgeBase] Supabase not available")
+                logger.warning("[Memory:KnowledgeBase] Supabase client not available - cannot save to KnowledgeBase")
                 return False
 
             # Create a copy to avoid mutating the input entry
