@@ -114,8 +114,9 @@ class MemorySanitizer:
     MAX_CONTENT_LENGTH = 1_000_000  # 1MB
     MAX_METADATA_SIZE = 65536  # 64KB
 
-    # Characters allowed in keys (alphanumeric, dash, underscore, colon, dot)
-    KEY_PATTERN = re.compile(r'^[a-zA-Z0-9_\-:.]+$')
+    # Characters allowed in keys (alphanumeric, dash, underscore, colon, dot, forward slash)
+    # Forward slash is needed for repo names in format "owner/repo" (e.g., review_feedback:RC918/morningai:123)
+    KEY_PATTERN = re.compile(r'^[a-zA-Z0-9_\-:./]+$')
 
     # PII categories that should block storage (critical PII)
     BLOCKING_PII_CATEGORIES = frozenset([
@@ -249,11 +250,11 @@ class MemorySanitizer:
             errors.append((
                 ValidationErrorType.INVALID_CHARACTERS,
                 "Key contains invalid characters. "
-                "Only alphanumeric, dash, underscore, colon, and dot allowed."
+                "Only alphanumeric, dash, underscore, colon, dot, and forward slash allowed."
             ))
 
         # Sanitize key by removing invalid characters
-        sanitized_key = re.sub(r'[^a-zA-Z0-9_\-:.]', '_', key)
+        sanitized_key = re.sub(r'[^a-zA-Z0-9_\-:./]', '_', key)
         if len(sanitized_key) > self.MAX_KEY_LENGTH:
             sanitized_key = sanitized_key[:self.MAX_KEY_LENGTH]
 
