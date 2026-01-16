@@ -650,8 +650,14 @@ class PIIScanner:
                         category = PIICategory(category_str)
                         action = PIIAction(action_str)
                         self._tenant_overrides[tenant_id][category] = action
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        logger.warning(
+                            "[PIIScanner] Invalid tenant override for '%s': %s=%s (%s)",
+                            tenant_id,
+                            category_str,
+                            action_str,
+                            e,
+                        )
 
     def _validate_pattern_config(self, pattern: Dict[str, Any]) -> bool:
         """
@@ -717,6 +723,14 @@ class PIIScanner:
             # Apply tenant-specific overrides if tenant_id set
             if self._tenant_id and self._tenant_id in self._tenant_overrides:
                 self.action_config.update(self._tenant_overrides[self._tenant_id])
+
+            # Re-apply constructor overrides (highest priority for backward compatibility)
+            if self._init_action_overrides:
+                self.action_config.update(self._init_action_overrides)
+            if not self._init_enabled:  # enabled=False was explicitly set
+                self.enabled = False
+            if self._init_strict_mode:  # strict_mode=True was explicitly set
+                self.strict_mode = True
 
             # Recompile patterns
             self._compile_patterns()

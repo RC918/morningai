@@ -598,14 +598,15 @@ class TestDynamicConfiguration:
         scanner.set_tenant_id("tenant_456")
         assert scanner.get_tenant_id() == "tenant_456"
 
-    def test_reload_config_resets_to_defaults(self):
-        """Test reload_config resets action config to defaults"""
+    def test_reload_config_preserves_constructor_overrides(self):
+        """Test reload_config preserves constructor action_overrides (backward compatibility)"""
         scanner = PIIScanner(
             action_overrides={PIICategory.EMAIL: PIIAction.BLOCK}
         )
         assert scanner.action_config[PIICategory.EMAIL] == PIIAction.BLOCK
         scanner.reload_config()
-        assert scanner.action_config[PIICategory.EMAIL] == PIIAction.LOG_ONLY
+        # Constructor overrides should be preserved after reload
+        assert scanner.action_config[PIICategory.EMAIL] == PIIAction.BLOCK
 
     def test_risk_config_initialized(self):
         """Test risk config is initialized with defaults"""
@@ -674,11 +675,10 @@ class TestDynamicConfiguration:
         assert scanner._validate_pattern_config(invalid_pattern) is False
 
     def test_find_config_file_returns_none_when_not_found(self):
-        """Test _find_config_file returns None when no config exists"""
-        scanner = PIIScanner()
-        scanner._config_path = "/nonexistent/path/config.yaml"
+        """Test _find_config_file returns None when explicit config path doesn't exist"""
+        scanner = PIIScanner(config_path="/nonexistent/path/config.yaml")
         result = scanner._find_config_file()
-        assert result is None or result.exists()
+        assert result is None
 
     def test_apply_yaml_config_with_empty_config(self):
         """Test _apply_yaml_config handles empty config gracefully"""
@@ -769,11 +769,14 @@ class TestDynamicConfiguration:
     def test_apply_yaml_config_invalid_category_ignored(self):
         """Test invalid category values are ignored"""
         scanner = PIIScanner()
+        original_config = scanner.action_config.copy()
         scanner._apply_yaml_config({
             "actions": {
                 "invalid_category": "block",
             }
         })
+        # Verify action_config remains unchanged
+        assert scanner.action_config == original_config
 
     def test_custom_patterns_loaded(self):
         """Test custom patterns are loaded from config"""
