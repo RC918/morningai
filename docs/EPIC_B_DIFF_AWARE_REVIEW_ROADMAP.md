@@ -1,6 +1,6 @@
 # EPIC B: Diff-Aware Review Plumbing - Roadmap
 
-> Last Updated: 2026-01-11
+> Last Updated: 2026-01-16 (B-13 Memory v2 Save Verification)
 
 ## Overview
 
@@ -17,8 +17,8 @@ EPIC B focuses on implementing intelligent PR review with inline comments, ensur
 | Phase 3: Security & Reliability | Completed | [#2809](https://github.com/RC918/morningai/pull/2809), [#2829](https://github.com/RC918/morningai/pull/2829), [#2836](https://github.com/RC918/morningai/pull/2836) |
 | Phase 4: Checks API (P6) | Planned | - |
 | **Phase 6: Router Interface (B-6)** | **Completed** | [#3130](https://github.com/RC918/morningai/issues/3130), [#3135](https://github.com/RC918/morningai/pull/3135) |
-| **Phase 7: Copilot/Gemini Parity (B-7 to B-10)** | **Planning** | See below |
-| **Phase 8: Copilot/Gemini Superiority (B-11 to B-13)** | **Planning** | See below |
+| **Phase 7: Copilot/Gemini Parity (B-9)** | **Completed** | [#4000](https://github.com/RC918/morningai/pull/4000) |
+| **Phase 8: Copilot/Gemini Superiority (B-11 to B-13)** | **Completed** | [#4000](https://github.com/RC918/morningai/pull/4000), [#4032](https://github.com/RC918/morningai/pull/4032), [#4035](https://github.com/RC918/morningai/pull/4035), [#4043](https://github.com/RC918/morningai/pull/4043) |
 
 ---
 
