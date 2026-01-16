@@ -41,6 +41,7 @@ class EnforcementAction(Enum):
     DEGRADE_MODEL = "degrade_model"
     FALLBACK = "fallback"
     LOG_ONLY = "log_only"
+    REDACT = "redact"  # Issue #3951: Redact PII and allow content to proceed
 
 
 class PolicyViolationType(Enum):
@@ -763,6 +764,44 @@ class RuntimePolicyEnforcer:
 
             if action == EnforcementAction.ALLOW:
                 return self._create_allowed_result(reason, telemetry_event)
+            elif action == EnforcementAction.REDACT:
+                # Issue #3951: Handle REDACT action - redact PII and allow content to proceed
+                # Filter PII findings from all findings for redaction
+                pii_findings = [f for f in findings if f.get("category") in (
+                    "email", "phone", "ssn", "credit_card", "name", "address",
+                    "ip_address", "date_of_birth", "passport", "driver_license"
+                )]
+                redacted_content = self._redact_pii_content(content, pii_findings)
+
+                # Update telemetry for redaction event
+                telemetry_event["redaction_performed"] = True
+                telemetry_event["redacted_findings_count"] = len(pii_findings)
+
+                logger.info(
+                    "[RuntimePolicyEnforcer] Content redacted and allowed to proceed",
+                    extra={
+                        "operation": "content_safety_redact",
+                        "findings_count": len(findings),
+                        "redacted_count": len(pii_findings),
+                        "risk_level": highest_risk,
+                    },
+                )
+
+                # Return allowed=True with redacted content in context
+                return PolicyCheckResult(
+                    allowed=True,
+                    action=action,
+                    reason=f"PII redacted: {reason}",
+                    violation_type=violation_type,
+                    context={
+                        "findings": findings,
+                        "risk_level": highest_risk,
+                        "redacted_content": redacted_content,
+                        "original_content_length": len(content),
+                        "redacted_content_length": len(redacted_content),
+                    },
+                    telemetry_event=telemetry_event,
+                )
             else:
                 return PolicyCheckResult(
                     allowed=False,
@@ -835,13 +874,117 @@ class RuntimePolicyEnforcer:
             )
             return None
 
+    def _redact_pii_content(
+        self,
+        content: str,
+        pii_findings: list,
+    ) -> str:
+        """Redact PII from content based on findings.
+
+        Issue #3951: Implement proper REDACT functionality for PII handling.
+
+        Blueprint Reference:
+        - Section 4.2 (Compliance Radar v2): PII redaction for compliance
+        - Section 9.2 (Safe by Design): Redaction protects PII/secrets
+
+        Args:
+            content: Original content with PII
+            pii_findings: List of PII findings from PIIScanner
+
+        Returns:
+            Content with PII redacted
+        """
+        if not pii_findings:
+            return content
+
+        try:
+            from governance.pii_scanner import get_pii_scanner, PIICategory
+            scanner = get_pii_scanner()
+
+            # Sort findings by position in reverse order to avoid offset issues
+            # when replacing text from end to beginning
+            sorted_findings = sorted(
+                pii_findings,
+                key=lambda f: f.get("position", 0),
+                reverse=True,
+            )
+
+            redacted_content = content
+            redaction_count = 0
+
+            for finding in sorted_findings:
+                # Get the original matched text position and category
+                position = finding.get("position", -1)
+                matched_text = finding.get("matched_text", "")
+                category_str = finding.get("category", "")
+
+                if position < 0 or not matched_text:
+                    continue
+
+                # Use redacted_text from finding if available (PIIScanner already computed it)
+                redacted_text = finding.get("redacted_text")
+
+                if not redacted_text:
+                    # Fallback: generate redaction using PIIScanner's _redact_text method
+                    try:
+                        category = PIICategory(category_str)
+                        # We need to find the actual text in content at position
+                        # since matched_text may be sanitized/truncated
+                        end_pos = position + len(matched_text)
+                        if end_pos <= len(redacted_content):
+                            actual_text = redacted_content[position:end_pos]
+                            redacted_text = scanner._redact_text(actual_text, category)
+                        else:
+                            redacted_text = f"[REDACTED_{category_str.upper()}]"
+                    except (ValueError, AttributeError):
+                        redacted_text = f"[REDACTED_{category_str.upper()}]"
+
+                # Replace the PII with redacted version
+                # Note: We use position-based replacement to handle overlapping matches
+                end_pos = position + len(matched_text)
+                if position >= 0 and end_pos <= len(redacted_content):
+                    redacted_content = (
+                        redacted_content[:position] +
+                        redacted_text +
+                        redacted_content[end_pos:]
+                    )
+                    redaction_count += 1
+
+            logger.info(
+                "[RuntimePolicyEnforcer] PII redaction completed",
+                extra={
+                    "operation": "pii_redaction",
+                    "original_length": len(content),
+                    "redacted_length": len(redacted_content),
+                    "redaction_count": redaction_count,
+                    "findings_count": len(pii_findings),
+                },
+            )
+
+            return redacted_content
+
+        except Exception as e:
+            # Fail-closed: Return redaction failure marker instead of original content
+            # to prevent PII leaks. Blueprint Section 9.2 "Safe by Design" requires
+            # fail-closed behavior for security-sensitive operations.
+            logger.error(
+                "[RuntimePolicyEnforcer] PII redaction failed, blocking content to prevent data leak: %s",
+                e,
+                extra={"operation": "pii_redaction", "error": str(e)},
+            )
+            return "[REDACTION FAILED - CONTENT BLOCKED]"
+
     def _map_safety_action(self, action_str: str) -> EnforcementAction:
-        """Map safety scanner action string to EnforcementAction."""
+        """Map safety scanner action string to EnforcementAction.
+
+        Issue #3951: REDACT action now properly maps to EnforcementAction.REDACT
+        instead of BLOCK, allowing content to proceed with PII redacted.
+        """
         action_map = {
             "allow": EnforcementAction.ALLOW,
             "block": EnforcementAction.BLOCK,
             "require_approval": EnforcementAction.REQUIRE_APPROVAL,
-            "redact": EnforcementAction.BLOCK,  # Redact maps to block for now
+            "redact": EnforcementAction.REDACT,  # Issue #3951: Proper REDACT support
             "log_only": EnforcementAction.LOG_ONLY,
         }
         return action_map.get(action_str.lower(), EnforcementAction.ALLOW)
