@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 # Maximum length for matched text in logs/results (security: prevent PII exposure)
 MAX_MATCHED_TEXT_LOG_LENGTH = 50
 
+# Maximum content length for scanning (defense-in-depth against ReDoS)
+# Issue #3937: ReDoS vulnerability analysis for ContentSafetyScanner patterns
+MAX_CONTENT_LENGTH = 100_000  # 100KB limit
+
 
 class ContentSafetyCategory(Enum):
     """Content safety violation categories"""
@@ -208,10 +212,12 @@ class ContentSafetyScanner:
             ContentRiskLevel.CRITICAL,
         ),
         # Hypothetical scenario exploitation
+        # Issue #3937: ReDoS fix - replaced .{0,100} with bounded word pattern
+        # to prevent catastrophic backtracking
         (
             r"(?i)(hypothetically|theoretically|in\s+a\s+fictional\s+world|"
             r"for\s+educational\s+purposes|for\s+a\s+story|in\s+a\s+movie)"
-            r"[,\s]+.{0,100}(how\s+to|explain|describe|tell\s+me|hack|make|create)",
+            r"[,\s]+\w[\w\s]{0,80}(how\s+to|explain|describe|tell\s+me|hack|make|create)",
             "JB-004",
             "Hypothetical scenario jailbreak",
             ContentRiskLevel.MEDIUM,
@@ -434,6 +440,16 @@ class ContentSafetyScanner:
                 action=ContentSafetyAction.ALLOW,
                 summary="Empty content",
             )
+
+        # Issue #3937: Defense-in-depth against ReDoS - limit content length
+        if len(content) > MAX_CONTENT_LENGTH:
+            logger.warning(
+                "[ContentSafetyScanner] Content exceeds max length (%d > %d), "
+                "truncating",
+                len(content),
+                MAX_CONTENT_LENGTH,
+            )
+            content = content[:MAX_CONTENT_LENGTH]
 
         findings: List[ContentSafetyFinding] = []
         found_critical = False
