@@ -386,12 +386,23 @@ class TestEdgeCases:
         assert result.risk_level == ContentRiskLevel.NONE
 
     def test_very_long_content(self):
-        """Test handling of very long content"""
+        """Test handling of very long content (under 100KB limit)"""
         scanner = ContentSafetyScanner()
-        long_content = "safe content " * 10000
+        # Use content under 100KB limit (13 chars * 7000 = 91,000 chars)
+        long_content = "safe content " * 7000
         result = scanner.scan(long_content)
         assert result.is_safe is True
         assert result.metadata["content_length"] == len(long_content)
+
+    def test_content_truncation_over_limit(self):
+        """Test content over 100KB is truncated for ReDoS protection"""
+        scanner = ContentSafetyScanner()
+        # Content over 100KB limit (13 chars * 10000 = 130,000 chars)
+        long_content = "safe content " * 10000
+        result = scanner.scan(long_content)
+        assert result.is_safe is True
+        # Content is truncated to 100KB, so metadata reflects truncated length
+        assert result.metadata["content_length"] == 100_000
 
     def test_unicode_content(self):
         """Test handling of unicode content"""
