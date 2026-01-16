@@ -765,7 +765,7 @@ class KnowledgeBaseMemory(SupabaseMemoryStore):
             }
 
             client.table(self.TABLE).upsert(record, on_conflict="key").execute()
-            logger.debug(f"[Memory:KnowledgeBase] Saved: {entry_copy.key}")
+            logger.info(f"[Memory:KnowledgeBase] Saved: {entry_copy.key}")
             return True
 
         except Exception as e:
