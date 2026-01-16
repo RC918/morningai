@@ -627,6 +627,9 @@ class LLMReviewerAdapter:
                 reference_context=reference_context
             )
 
+            # Issue #4065 B-15: Filter low-confidence findings before publishing
+            review_data = self._filter_by_confidence(review_data, pr_number)
+
             llm_score = review_data.get("quality_score", base_quality_score)
             llm_severity = review_data.get("severity", "none")
 
@@ -1322,6 +1325,7 @@ If you cannot see "(Line N)" for a piece of code, omit line fields entirely.
     {
       "severity": "suggestion" | "warning" | "error",
       "category": "bug" | "performance" | "security" | "maintainability" | "contract" | "other",
+      "confidence": 0.0-1.0,
       "file": "path/to/file.py",
       "start_line": 50,
       "end_line": 50,
@@ -1338,6 +1342,11 @@ IMPORTANT:
 - "contract" category is NEW - use for API/schema/timestamp changes
 - "quote" field is NEW - include the code snippet you're referencing
 - "suggested_fix" field is REQUIRED (Issue #3768) - include copy-paste ready code
+- "confidence" field is NEW (Issue #4065) - your confidence in this finding (0.0-1.0)
+  - 0.9-1.0: Certain - clear bug, security issue, or contract violation
+  - 0.7-0.9: High confidence - likely issue based on code analysis
+  - 0.5-0.7: Medium confidence - potential issue, may need context
+  - 0.0-0.5: Low confidence - uncertain, speculative, or stylistic
 - Only use start_line/end_line for "+" lines you can see in the diff
 
 === SCORING GUIDELINES ===
@@ -1836,6 +1845,106 @@ Remember: You cannot see the actual code changes, so focus on risk assessment ba
             content = content[start:end + 1]
 
         return content.strip()
+
+    def _filter_by_confidence(
+        self,
+        review_data: Dict[str, Any],
+        pr_number: Optional[int]
+    ) -> Dict[str, Any]:
+        """
+        Filter low-confidence findings before publishing.
+
+        Issue #4065 B-15: Confidence Scoring for review findings.
+        Findings with confidence < threshold are filtered out to reduce false positives.
+
+        Args:
+            review_data: Review data from LLM containing comments
+            pr_number: Pull request number for logging
+
+        Returns:
+            Review data with low-confidence comments filtered out
+        """
+        threshold = settings.review_confidence_threshold
+        comments = review_data.get("comments", [])
+
+        if not comments:
+            review_data["confidence_filter_stats"] = {
+                "original_count": 0,
+                "filtered_count": 0,
+                "remaining_count": 0,
+                "threshold": threshold,
+            }
+            return review_data
+
+        original_count = len(comments)
+        filtered_comments = []
+        filtered_out = []
+
+        for comment in comments:
+            try:
+                confidence = float(comment.get("confidence"))
+            except (ValueError, TypeError):
+                raw_confidence = comment.get("confidence")
+                logger.warning(
+                    "[LLM Reviewer] B-15: Invalid confidence value, defaulting to 0.8",
+                    extra={
+                        "operation": "confidence_filter",
+                        "trace_id": self.trace_id,
+                        "pr_number": pr_number,
+                        "invalid_confidence": str(raw_confidence)[:50],
+                    }
+                )
+                confidence = 0.8
+            comment["confidence"] = confidence
+
+            if confidence >= threshold:
+                filtered_comments.append(comment)
+            else:
+                filtered_out.append({
+                    "confidence": confidence,
+                    "category": comment.get("category", "unknown"),
+                    "severity": comment.get("severity", "unknown"),
+                })
+
+        filtered_count = original_count - len(filtered_comments)
+
+        if filtered_count > 0:
+            logger.info(
+                f"[LLM Reviewer] B-15: Filtered {filtered_count}/{original_count} "
+                f"low-confidence findings (threshold={threshold})",
+                extra={
+                    "operation": "confidence_filter",
+                    "trace_id": self.trace_id,
+                    "pr_number": pr_number,
+                    "original_count": original_count,
+                    "filtered_count": filtered_count,
+                    "remaining_count": len(filtered_comments),
+                    "threshold": threshold,
+                    "filtered_details": filtered_out,
+                }
+            )
+        else:
+            logger.debug(
+                f"[LLM Reviewer] B-15: All {original_count} findings passed "
+                f"confidence threshold ({threshold})",
+                extra={
+                    "operation": "confidence_filter",
+                    "trace_id": self.trace_id,
+                    "pr_number": pr_number,
+                    "original_count": original_count,
+                    "threshold": threshold,
+                }
+            )
+
+        review_data["comments"] = filtered_comments
+        review_data["confidence_filter_stats"] = {
+            "original_count": original_count,
+            "filtered_count": filtered_count,
+            "remaining_count": len(filtered_comments),
+            "threshold": threshold,
+        }
+
+        return review_data
 
     def _classify_exception(self, e: Exception) -> str:
         """
