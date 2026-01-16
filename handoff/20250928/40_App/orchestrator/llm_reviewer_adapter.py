@@ -670,6 +670,17 @@ class LLMReviewerAdapter:
             )
 
             # EPIC B-13: Save review feedback to Memory v2 for learning
+            # Observability: Log before calling to diagnose if this code path is reached
+            logger.info(
+                "[LLM Reviewer] B-13: About to save review feedback",
+                extra={
+                    "operation": "save_review_feedback_entry",
+                    "trace_id": self.trace_id,
+                    "pr_number": pr_number,
+                    "repo": repo,
+                    "has_result": result is not None,
+                }
+            )
             self._save_review_feedback(
                 pr_number=pr_number,
                 repo=repo,
