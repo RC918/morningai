@@ -896,11 +896,20 @@ def save_review_feedback(
         True if saved successfully, False otherwise
     """
     if not _is_review_feedback_enabled():
-        logger.debug("[MemoryIntegration] Review feedback loop disabled")
+        logger.info(
+            "[MemoryIntegration] Review feedback loop disabled "
+            "(ENABLE_MEMORY_V2=%s, ENABLE_REVIEW_FEEDBACK_LOOP=%s)",
+            settings.enable_memory_v2,
+            settings.enable_review_feedback_loop,
+        )
         return False
 
     memory = _get_memory_v2()
     if memory is None:
+        logger.warning(
+            "[MemoryIntegration] Memory v2 instance not available - cannot save review feedback for PR #%d",
+            pr_number,
+        )
         return False
 
     try:
