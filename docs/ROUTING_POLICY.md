@@ -1,4 +1,4 @@
-# Routing Policy v1.2 - Multi-Model LLM Selection
+# Routing Policy v1.3 - Multi-Model LLM Selection
 
 This document describes the routing policy for multi-model LLM selection in MorningAI (EPIC #2594). The routing engine dynamically selects the appropriate LLM model based on task type and risk level, with cross-generation fallback for resilience.
 
