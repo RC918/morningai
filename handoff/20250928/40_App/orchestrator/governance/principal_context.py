@@ -31,6 +31,7 @@ class AgentType(str, Enum):
 
     Blueprint Reference: Section 3.3 - 13 Agent Types
     Issue: #4118 (EPIC K P0: AgentType Enum Extension)
+    Sync: #4121 (EPIC K: Sync VALID_AGENT_TYPES with AgentType enum)
 
     Categories (13 Blueprint types → 19 enum values total):
     - Core Engineering Agents (5): Planner, Coding, Reviewer, Test, Debugger
@@ -38,8 +39,8 @@ class AgentType(str, Enum):
     - Governance/Reasoning Agents (3 types, 4 values): Judge, Debate Left, Debate Right, Risk Analyzer
     - Legacy/Compatibility (6): dev_agent, ops_agent, pm_agent, etc.
 
-    Note: VALID_AGENT_TYPES in reputation_engine.py only includes legacy types.
-    New Blueprint agent types will be integrated in follow-up issues.
+    VALID_AGENT_TYPES in reputation_engine.py is synced with this enum (excluding 'unknown').
+    DB constraint updated in migration 044_extend_agent_type_constraint.sql.
     """
     # === Core Engineering Agents (Blueprint 3.3) ===
     PLANNER = "planner"

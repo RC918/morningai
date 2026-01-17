@@ -21,6 +21,7 @@ from core.routing.pr_summary import (
     DependencyIssueSummary,
     build_pr_summary,
     build_unknown_pr_summary,
+    sanitize_markdown,
     SENIOR_ARCHITECT_POLICY_NOTE,
     SCHEMA_VERSION,
 )
@@ -812,3 +813,89 @@ class TestToSimpleMarkdown:
         assert "### File-Level Comments" in markdown
         assert "`src/test.py`" in markdown
         assert "Consider refactoring" in markdown
+
+
+class TestSanitizeMarkdown:
+    """Tests for sanitize_markdown() utility function (Issue #4141)
+
+    Defense-in-depth: Escapes markdown/HTML control characters to prevent
+    injection attacks in PRSummary rendering.
+    """
+
+    def test_sanitize_empty_string(self):
+        """Empty string should return empty string"""
+        assert sanitize_markdown("") == ""
+
+    def test_sanitize_none_returns_none(self):
+        """None should return None (falsy passthrough)"""
+        assert sanitize_markdown(None) is None
+
+    def test_sanitize_plain_text(self):
+        """Plain text without special characters should be unchanged"""
+        text = "This is plain text without special characters"
+        assert sanitize_markdown(text) == text
+
+    def test_sanitize_markdown_link(self):
+        """Markdown link syntax should be escaped"""
+        text = "Check [link](http://evil.com)"
+        expected = "Check \\[link\\]\\(http://evil.com\\)"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_markdown_image(self):
+        """Markdown image syntax should be escaped"""
+        text = "![alt](http://evil.com/image.png)"
+        expected = "!\\[alt\\]\\(http://evil.com/image.png\\)"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_html_tags(self):
+        """HTML tags should be escaped"""
+        text = "<script>alert('xss')</script>"
+        expected = "\\<script\\>alert\\('xss'\\)\\</script\\>"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_backslash(self):
+        """Backslashes should be escaped first to avoid double-escaping"""
+        text = "path\\to\\file"
+        expected = "path\\\\to\\\\file"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_mixed_special_characters(self):
+        """Mixed special characters should all be escaped"""
+        text = "Check [link](url) and <tag> with \\backslash"
+        expected = "Check \\[link\\]\\(url\\) and \\<tag\\> with \\\\backslash"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_brackets_only(self):
+        """Square brackets should be escaped"""
+        text = "array[0] and array[1]"
+        expected = "array\\[0\\] and array\\[1\\]"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_parentheses_only(self):
+        """Parentheses should be escaped"""
+        text = "function(arg1, arg2)"
+        expected = "function\\(arg1, arg2\\)"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_angle_brackets_only(self):
+        """Angle brackets should be escaped"""
+        text = "List<String> and Map<K, V>"
+        expected = "List\\<String\\> and Map\\<K, V\\>"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_preserves_other_markdown(self):
+        """Other markdown syntax (bold, italic, code) should be preserved"""
+        text = "**bold** and *italic* and `code`"
+        assert sanitize_markdown(text) == text
+
+    def test_sanitize_real_world_file_path(self):
+        """Real-world file paths should be sanitized"""
+        text = "src/utils/helper(v2).py"
+        expected = "src/utils/helper\\(v2\\).py"
+        assert sanitize_markdown(text) == expected
+
+    def test_sanitize_real_world_function_name(self):
+        """Real-world function names with generics should be sanitized"""
+        text = "processData<T>(input: T[])"
+        expected = "processData\\<T\\>\\(input: T\\[\\]\\)"
+        assert sanitize_markdown(text) == expected
