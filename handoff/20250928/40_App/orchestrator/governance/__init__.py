@@ -361,3 +361,29 @@ except ImportError as e:
     ChangeReason = None
     get_routing_policy_evolver = None
     reset_routing_policy_evolver = None
+
+try:
+    from .safety_metrics import (
+        SafetyMetricsCollector,
+        SafetyMetricType,
+        SafetyDecisionEvent,
+        SafetyOverrideRequest,
+        get_safety_metrics_collector,
+        reset_safety_metrics_collector,
+    )
+    __all__.extend([
+        'SafetyMetricsCollector',
+        'SafetyMetricType',
+        'SafetyDecisionEvent',
+        'SafetyOverrideRequest',
+        'get_safety_metrics_collector',
+        'reset_safety_metrics_collector',
+    ])
+except ImportError as e:
+    logger.warning(f"Failed to import safety_metrics: {e}")
+    SafetyMetricsCollector = None
+    SafetyMetricType = None
+    SafetyDecisionEvent = None
+    SafetyOverrideRequest = None
+    get_safety_metrics_collector = None
+    reset_safety_metrics_collector = None
