@@ -731,6 +731,53 @@ Return your findings as a JSON array."""
 
         return "none"
 
+    def _extract_json_object(self, text: str) -> str:
+        """
+        Extract a JSON object from text using balanced bracket matching.
+
+        This handles nested JSON objects correctly, unlike non-greedy regex.
+        For example, given '{"a": {"b": 1}}', this returns the full object,
+        not just '{"a": {' which a non-greedy regex would match.
+
+        Args:
+            text: Text that may contain a JSON object
+
+        Returns:
+            Extracted JSON string, or the original text if no valid object found
+        """
+        start_idx = text.find('{')
+        if start_idx == -1:
+            return text
+
+        depth = 0
+        in_string = False
+        escape_next = False
+
+        for i, char in enumerate(text[start_idx:], start=start_idx):
+            if escape_next:
+                escape_next = False
+                continue
+
+            if char == '\\' and in_string:
+                escape_next = True
+                continue
+
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+
+            if in_string:
+                continue
+
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    return text[start_idx:i + 1]
+
+        return text
+
     def _self_critique_findings(
         self,
         findings: List[SpecialistFinding],
@@ -755,7 +802,6 @@ Return your findings as a JSON array."""
             Tuple of (verified_findings, self_critique_stats)
         """
         import json
-        import re
 
         if not findings:
             return findings, {
@@ -811,12 +857,14 @@ Output the indices of FALSE POSITIVES that should be removed."""
 
             response_text = response.content or "{}"
 
-            # Use non-greedy regex to match first complete JSON object
-            json_match = re.search(r'\{[\s\S]*?\}', response_text)
-            if json_match:
-                json_str = json_match.group(0)
-            else:
-                json_str = response_text
+            # Try to parse the response directly first (json_mode=True should return valid JSON)
+            # If that fails, extract JSON object using balanced bracket matching
+            json_str = response_text
+            try:
+                result = json.loads(response_text)
+            except json.JSONDecodeError:
+                # Fallback: extract JSON object with balanced brackets
+                json_str = self._extract_json_object(response_text)
 
             try:
                 result = json.loads(json_str)

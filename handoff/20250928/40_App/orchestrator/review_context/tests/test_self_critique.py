@@ -289,6 +289,152 @@ diff --git a/src/db.py b/src/db.py
         mock_client.generate.assert_called_once()
 
 
+class TestExtractJsonObject:
+    """Tests for _extract_json_object helper method."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.reviewer = MultiSpecialistReviewer(trace_id="test-trace")
+
+    def test_extract_simple_json(self):
+        """Test extraction of simple JSON object."""
+        text = '{"key": "value"}'
+        result = self.reviewer._extract_json_object(text)
+        assert result == '{"key": "value"}'
+
+    def test_extract_nested_json(self):
+        """Test extraction of nested JSON object."""
+        text = '{"outer": {"inner": "value"}}'
+        result = self.reviewer._extract_json_object(text)
+        assert result == '{"outer": {"inner": "value"}}'
+
+    def test_extract_deeply_nested_json(self):
+        """Test extraction of deeply nested JSON with arrays."""
+        text = '{"a": {"b": [{"c": 1}, {"d": 2}]}}'
+        result = self.reviewer._extract_json_object(text)
+        assert result == '{"a": {"b": [{"c": 1}, {"d": 2}]}}'
+
+    def test_extract_json_with_prefix(self):
+        """Test extraction when JSON has text prefix."""
+        text = 'Here is the result: {"key": "value"}'
+        result = self.reviewer._extract_json_object(text)
+        assert result == '{"key": "value"}'
+
+    def test_extract_json_with_suffix(self):
+        """Test extraction when JSON has text suffix."""
+        text = '{"key": "value"} and some more text'
+        result = self.reviewer._extract_json_object(text)
+        assert result == '{"key": "value"}'
+
+    def test_extract_json_with_braces_in_string(self):
+        """Test extraction handles braces inside strings correctly."""
+        text = '{"message": "Use {curly} braces"}'
+        result = self.reviewer._extract_json_object(text)
+        assert result == '{"message": "Use {curly} braces"}'
+
+    def test_extract_json_with_escaped_quotes(self):
+        """Test extraction handles escaped quotes in strings."""
+        text = '{"message": "He said \\"hello\\""}'
+        result = self.reviewer._extract_json_object(text)
+        assert result == '{"message": "He said \\"hello\\""}'
+
+    def test_no_json_returns_original(self):
+        """Test that text without JSON returns original."""
+        text = 'No JSON here'
+        result = self.reviewer._extract_json_object(text)
+        assert result == 'No JSON here'
+
+    def test_realistic_self_critique_response(self):
+        """Test extraction of realistic self-critique response with nested verification_notes."""
+        text = '''Here is my analysis:
+{
+  "false_positive_indices": [0, 2],
+  "verification_notes": [
+    {"index": 0, "reason": "Line 42 doesn't exist in the diff"},
+    {"index": 2, "reason": "This is a style preference, not a real issue"}
+  ]
+}
+That's my assessment.'''
+        result = self.reviewer._extract_json_object(text)
+        parsed = json.loads(result)
+        assert parsed["false_positive_indices"] == [0, 2]
+        assert len(parsed["verification_notes"]) == 2
+
+
+class TestNestedJsonParsing:
+    """Tests for nested JSON parsing in _self_critique_findings."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.reviewer = MultiSpecialistReviewer(trace_id="test-trace")
+        self.sample_findings = [
+            SpecialistFinding(
+                specialist=ReviewSpecialist.SECURITY,
+                severity="high",
+                category="injection",
+                message="SQL injection vulnerability",
+                file_path="src/db.py",
+                line_number=42,
+            ),
+            SpecialistFinding(
+                specialist=ReviewSpecialist.PERFORMANCE,
+                severity="medium",
+                category="n+1",
+                message="N+1 query detected",
+                file_path="src/api.py",
+                line_number=100,
+            ),
+        ]
+        self.sample_diff = "diff --git a/test.py b/test.py"
+
+    @patch("review_context.multi_specialist_reviewer.get_client_for_task")
+    def test_handles_nested_verification_notes(self, mock_get_client):
+        """Test that nested JSON with verification_notes is parsed correctly."""
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({
+            "false_positive_indices": [1],
+            "verification_notes": [
+                {"index": 1, "reason": "N+1 is not actually present in this code"}
+            ]
+        })
+        mock_client.generate.return_value = mock_response
+        mock_get_client.return_value = mock_client
+
+        result, stats = self.reviewer._self_critique_findings(
+            findings=self.sample_findings,
+            diff_content=self.sample_diff,
+            pr_context={},
+        )
+
+        assert len(result) == 1
+        assert result[0].specialist == ReviewSpecialist.SECURITY
+        assert stats["removed_count"] == 1
+        assert len(stats["verification_notes"]) == 1
+        assert stats["verification_notes"][0]["reason"] == "N+1 is not actually present in this code"
+
+    @patch("review_context.multi_specialist_reviewer.get_client_for_task")
+    def test_handles_json_with_text_wrapper(self, mock_get_client):
+        """Test that JSON wrapped in text is extracted and parsed correctly."""
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = '''Based on my analysis, here is the result:
+{"false_positive_indices": [0], "verification_notes": [{"index": 0, "reason": "False positive"}]}
+That concludes my review.'''
+        mock_client.generate.return_value = mock_response
+        mock_get_client.return_value = mock_client
+
+        result, stats = self.reviewer._self_critique_findings(
+            findings=self.sample_findings,
+            diff_content=self.sample_diff,
+            pr_context={},
+        )
+
+        assert len(result) == 1
+        assert result[0].specialist == ReviewSpecialist.PERFORMANCE
+        assert stats["removed_count"] == 1
+
+
 class TestMultiSpecialistReviewerWithSelfCritique:
     """Integration tests for MultiSpecialistReviewer with self-critique enabled."""
 
